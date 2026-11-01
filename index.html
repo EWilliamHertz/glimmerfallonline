@@ -3,15 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GlimmerFall Online — 3D MMORPG (Pre-Alpha)</title>
+  <title>GlimmerFall Online — 3D MMORPG</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+    /* Complete prevention of browser text selection and blue highlighting */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+      -webkit-user-drag: none !important;
+      -webkit-touch-callout: none !important;
+    }
+    ::selection { background: transparent !important; color: inherit !important; }
+    ::-moz-selection { background: transparent !important; color: inherit !important; }
+
     body {
       overflow: hidden;
       background: #020617;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
       color: #f8fafc;
+      width: 100vw;
+      height: 100vh;
     }
+
     #canvas-container {
       position: absolute;
       top: 0;
@@ -19,9 +36,15 @@
       width: 100vw;
       height: 100vh;
       z-index: 1;
+      cursor: crosshair;
     }
 
-    /* MMORPG HUD */
+    canvas {
+      outline: none;
+      display: block;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     #hud {
       position: absolute;
       inset: 0;
@@ -31,27 +54,27 @@
 
     .panel {
       pointer-events: auto;
-      background: rgba(15, 23, 42, 0.88);
+      background: rgba(15, 23, 42, 0.9);
       border: 1px solid rgba(56, 189, 248, 0.35);
       border-radius: 8px;
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(12px);
       padding: 12px 16px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
     }
 
-    /* Player Unit Frame */
+    /* Player Unit Frame (Top Left) */
     #player-unit-frame {
       position: absolute;
-      top: 20px;
+      top: 16px;
       left: 20px;
-      min-width: 260px;
+      min-width: 250px;
       display: flex;
       gap: 12px;
       align-items: center;
     }
     .portrait {
-      width: 52px;
-      height: 52px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       border: 2px solid #facc15;
       background: radial-gradient(circle, #f59e0b 0%, #78350f 100%);
@@ -59,7 +82,7 @@
       align-items: center;
       justify-content: center;
       font-weight: 800;
-      font-size: 20px;
+      font-size: 18px;
       color: #fff;
       box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
       position: relative;
@@ -71,9 +94,9 @@
       background: #0284c7;
       border: 1px solid #38bdf8;
       border-radius: 10px;
-      font-size: 10px;
+      font-size: 9px;
       font-weight: bold;
-      padding: 1px 5px;
+      padding: 1px 4px;
     }
     .unit-info { flex: 1; }
     .unit-name {
@@ -84,20 +107,20 @@
       letter-spacing: 0.05em;
     }
     .unit-sub {
-      font-size: 11px;
+      font-size: 10px;
       color: #94a3b8;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .stat-row {
       display: flex;
       justify-content: space-between;
-      font-size: 10px;
-      font-weight: 600;
-      margin-top: 3px;
+      font-size: 9px;
+      font-weight: 700;
+      margin-top: 2px;
     }
     .bar-bg {
       width: 100%;
-      height: 10px;
+      height: 9px;
       background: #0f172a;
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 3px;
@@ -115,136 +138,96 @@
       transition: width 0.2s ease;
     }
 
-    /* Target Unit Frame */
+    /* Target Unit Frame (Top Center) */
     #target-unit-frame {
       position: absolute;
-      top: 20px;
+      top: 16px;
       left: 50%;
       transform: translateX(-50%);
-      min-width: 320px;
+      min-width: 300px;
       display: none;
     }
-    #target-unit-frame .unit-name {
+    #target-name {
       color: #38bdf8;
       text-align: center;
-      font-size: 14px;
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
     }
     #target-sub {
       text-align: center;
-      font-size: 11px;
+      font-size: 10px;
       color: #94a3b8;
-      margin-bottom: 6px;
-    }
-
-    /* Centered Cast Bar */
-    #cast-bar-container {
-      position: absolute;
-      bottom: 160px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 260px;
-      display: none;
-    }
-    .cast-bar-header {
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      font-weight: bold;
-      color: #38bdf8;
       margin-bottom: 4px;
-      text-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
-    }
-    .cast-bar-fill {
-      height: 12px;
-      background: linear-gradient(90deg, #38bdf8, #818cf8);
-      border-radius: 3px;
-      width: 0%;
-      box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
     }
 
-    /* Dual Action Bar (24 Slots) */
-    #action-bar-cluster {
+    /* Chat / Combat Log: Diagonally Upwards to the Left */
+    #combat-log {
       position: absolute;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
+      top: 98px;
+      left: 20px;
+      width: 310px;
+      height: 180px;
+      overflow-y: auto;
+      font-size: 11px;
+      line-height: 1.45;
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      pointer-events: auto;
+      gap: 3px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
     }
-    .action-row {
-      display: flex;
-      gap: 5px;
-      justify-content: center;
-    }
-    .action-button {
-      width: 48px;
-      height: 48px;
-      background: rgba(15, 23, 42, 0.95);
-      border: 1px solid #38bdf8;
-      border-radius: 6px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: space-between;
-      padding: 4px 2px;
-      font-size: 9px;
-      font-weight: 700;
-      color: #38bdf8;
-      cursor: pointer;
-      position: relative;
-      overflow: hidden;
-      transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s;
-    }
-    .action-button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 0 14px rgba(56, 189, 248, 0.6);
-      border-color: #7dd3fc;
-    }
-    .action-button:active {
-      transform: translateY(1px);
-    }
-    .action-icon {
-      font-size: 16px;
-      margin-top: 2px;
-    }
-    .key-badge {
-      font-size: 9px;
-      color: #94a3b8;
-      background: rgba(0, 0, 0, 0.5);
-      border-radius: 3px;
-      padding: 0 3px;
-    }
-    .action-name {
-      font-size: 8px;
-      color: #cbd5e1;
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 44px;
-    }
-    .cooldown-overlay {
+    .log-entry { color: #cbd5e1; }
+    .log-combat { color: #f87171; }
+    .log-gain { color: #38bdf8; }
+    .log-heal { color: #4ade80; }
+    .log-solari { color: #facc15; }
+    .log-quest { color: #c084fc; font-weight: bold; }
+
+    /* Quest / Tutorial Tracker (Underneath Chat) */
+    #quest-tracker {
       position: absolute;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.75);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
+      top: 290px;
+      left: 20px;
+      width: 310px;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .quest-title {
       font-weight: 800;
+      color: #facc15;
+      text-transform: uppercase;
+      font-size: 11px;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .quest-task {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #cbd5e1;
+      margin-bottom: 3px;
+    }
+    .quest-check {
+      width: 14px;
+      height: 14px;
+      border: 1px solid #38bdf8;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+    .quest-check.done {
+      background: #22c55e;
+      border-color: #22c55e;
       color: #fff;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.1s;
     }
 
-    /* Minimap (Radar) */
+    /* Minimap Radar (Top Right) */
     #minimap-panel {
       position: absolute;
-      top: 20px;
+      top: 16px;
       right: 20px;
       width: 140px;
       height: 140px;
@@ -271,37 +254,17 @@
       white-space: nowrap;
     }
 
-    /* Combat Log & Chat */
-    #combat-log {
-      position: absolute;
-      bottom: 24px;
-      left: 20px;
-      width: 320px;
-      height: 160px;
-      overflow-y: auto;
-      font-size: 11px;
-      line-height: 1.4;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-    .log-entry { color: #cbd5e1; }
-    .log-combat { color: #f87171; }
-    .log-gain { color: #38bdf8; }
-    .log-heal { color: #4ade80; }
-    .log-solari { color: #facc15; }
-
-    /* Top Utility Bar */
+    /* Top Utility Bar & 3v3 Matchmaking Queue */
     #top-bar {
       position: absolute;
-      top: 20px;
-      left: 300px;
+      top: 16px;
+      left: 290px;
       display: flex;
       gap: 8px;
       pointer-events: auto;
     }
     .util-btn {
-      background: rgba(15, 23, 42, 0.85);
+      background: rgba(15, 23, 42, 0.88);
       border: 1px solid rgba(56, 189, 248, 0.4);
       border-radius: 6px;
       padding: 6px 12px;
@@ -312,14 +275,163 @@
       display: flex;
       align-items: center;
       gap: 5px;
-      transition: background 0.15s, color 0.15s;
+      transition: background 0.15s, color 0.15s, transform 0.1s;
     }
     .util-btn:hover {
       background: rgba(56, 189, 248, 0.2);
       color: #38bdf8;
+      transform: translateY(-1px);
+    }
+    .queue-btn {
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      border-color: #c084fc;
+      color: #fff;
+      font-weight: 800;
+      box-shadow: 0 0 15px rgba(124, 58, 237, 0.5);
+    }
+    .queue-btn:hover {
+      background: linear-gradient(135deg, #9333ea, #6366f1);
+      box-shadow: 0 0 20px rgba(147, 51, 234, 0.7);
     }
 
-    /* Modal Windows */
+    /* 3v3 Arena Match Status Banner */
+    #arena-banner {
+      position: absolute;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+      align-items: center;
+      gap: 20px;
+      padding: 10px 24px;
+      border: 2px solid #a855f7;
+      background: rgba(15, 23, 42, 0.95);
+      box-shadow: 0 0 30px rgba(168, 85, 247, 0.4);
+    }
+    .arena-team {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .team-blue-txt { color: #38bdf8; font-weight: 800; font-size: 13px; }
+    .team-red-txt { color: #ef4444; font-weight: 800; font-size: 13px; }
+
+    /* Action Bars: PLACED NEXT TO EACH OTHER in ONE horizontal cluster */
+    #action-bar-cluster {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 10px;
+      padding: 6px 10px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.85);
+      pointer-events: auto;
+    }
+    .action-group {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    .action-divider {
+      width: 1px;
+      height: 42px;
+      background: rgba(56, 189, 248, 0.35);
+    }
+    .action-button {
+      width: 46px;
+      height: 46px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #38bdf8;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 3px 2px;
+      font-size: 9px;
+      font-weight: 700;
+      color: #38bdf8;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s;
+    }
+    .action-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.6);
+      border-color: #7dd3fc;
+    }
+    .action-button:active {
+      transform: translateY(1px);
+    }
+    .action-icon {
+      font-size: 15px;
+      margin-top: 1px;
+    }
+    .key-badge {
+      font-size: 8px;
+      color: #94a3b8;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 3px;
+      padding: 0 3px;
+    }
+    .action-name {
+      font-size: 7.5px;
+      color: #cbd5e1;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 42px;
+    }
+    .cooldown-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 800;
+      color: #fff;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.1s;
+    }
+
+    /* Cast Bar */
+    #cast-bar-container {
+      position: absolute;
+      bottom: 84px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 260px;
+      display: none;
+    }
+    .cast-bar-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: bold;
+      color: #38bdf8;
+      margin-bottom: 3px;
+      text-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+    }
+    .cast-bar-fill {
+      height: 10px;
+      background: linear-gradient(90deg, #38bdf8, #818cf8);
+      border-radius: 3px;
+      width: 0%;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
+    }
+
+    /* Modals */
     .modal {
       position: absolute;
       top: 50%;
@@ -340,7 +452,7 @@
       margin-bottom: 12px;
     }
     .modal-title {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 800;
       color: #facc15;
       text-transform: uppercase;
@@ -375,35 +487,8 @@
       80% { opacity: 1; transform: translate(-50%, -50px) scale(1); }
       100% { opacity: 0; transform: translate(-50%, -70px) scale(0.8); }
     }
-
-    /* Guide / Tooltip */
-    #guide-panel {
-      position: absolute;
-      bottom: 200px;
-      left: 20px;
-      font-size: 11px;
-      color: #94a3b8;
-      line-height: 1.6;
-      background: rgba(15, 23, 42, 0.7);
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    #guide-panel strong { color: #facc15; }
-    #crosshair {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 4px;
-      height: 4px;
-      background: rgba(255, 255, 255, 0.5);
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-    }
   </style>
 
-  <!-- Import Three.js module -->
   <script type="importmap">
     {
       "imports": {
@@ -415,7 +500,6 @@
 </head>
 <body>
   <div id="canvas-container"></div>
-  <div id="crosshair"></div>
   <div id="fct-container"></div>
 
   <div id="hud">
@@ -424,67 +508,122 @@
       <button class="util-btn" onclick="toggleModal('spellbook-modal')"><span>📖</span> Spellbook [P]</button>
       <button class="util-btn" onclick="toggleModal('char-modal')"><span>🛡️</span> Character [C]</button>
       <button class="util-btn" onclick="toggleModal('cards-modal')"><span>🃏</span> Relic Cards [K]</button>
-      <button class="util-btn" onclick="switchFaction()"><span>☀️</span> Faction: <b id="faction-label" style="color: #facc15;">Solari</b></button>
+      <button class="util-btn queue-btn" id="btn-queue" onclick="toggleMatchmaking()"><span>⚔️</span> Queue 3v3 Nexus Battle</button>
+      <button class="util-btn" onclick="teleportWorld()"><span>🌀</span> Zone: <b id="zone-label" style="color: #38bdf8;">Tutorial Island</b></button>
     </div>
 
-    <!-- Minimap Radar -->
+    <!-- Minimap Radar (Top Right) -->
     <div id="minimap-panel">
       <canvas id="minimap-canvas" width="140" height="140"></canvas>
-      <div class="minimap-title">Nexus Warzone</div>
+      <div class="minimap-title" id="minimap-zone-title">Awakening Isle</div>
     </div>
 
-    <!-- Player Unit Frame -->
+    <!-- Player Unit Frame (Top Left) -->
     <div id="player-unit-frame" class="panel">
       <div class="portrait">
         <span>⚔️</span>
         <div class="level-badge">1</div>
       </div>
       <div class="unit-info">
-        <div class="unit-name" id="player-class-name">Solari Vanguard</div>
+        <div class="unit-name">Solari Vanguard</div>
         <div class="unit-sub">Lightbringer &bull; Sunspire Dominion</div>
         <div class="stat-row"><span>HEALTH</span><span id="player-hp-txt">25 / 25</span></div>
         <div class="bar-bg"><div id="player-hp-fill" class="bar-hp" style="width: 100%;"></div></div>
-        <div class="stat-row"><span id="player-res-label">SOLAR CHARGE</span><span id="player-res-txt">0 / 100</span></div>
+        <div class="stat-row"><span>SOLAR CHARGE</span><span id="player-res-txt">0 / 100</span></div>
         <div class="bar-bg"><div id="player-res-fill" class="bar-res" style="width: 0%;"></div></div>
       </div>
     </div>
 
-    <!-- Target Unit Frame -->
+    <!-- 3v3 Arena Status Banner -->
+    <div id="arena-banner" class="panel">
+      <div class="arena-team">
+        <span class="team-blue-txt">ALLY NEXUS</span>
+        <span id="blue-nexus-hp" style="font-weight: 800; font-size: 16px; color: #38bdf8;">25 / 25</span>
+      </div>
+      <div style="font-size: 20px; font-weight: 900; color: #facc15;">VS</div>
+      <div class="arena-team">
+        <span class="team-red-txt">ENEMY NEXUS</span>
+        <span id="red-nexus-hp" style="font-weight: 800; font-size: 16px; color: #ef4444;">25 / 25</span>
+      </div>
+    </div>
+
+    <!-- Target Unit Frame (Top Center) -->
     <div id="target-unit-frame" class="panel">
-      <div id="target-name" class="unit-name">Central Nexus Monolith</div>
-      <div id="target-sub">Primary World Objective &bull; 25 HP Rule</div>
-      <div class="stat-row"><span>OBJECTIVE INTEGRITY</span><span id="target-hp-txt">25 / 25 (100%)</span></div>
+      <div id="target-name">Training Dummy</div>
+      <div id="target-sub">Level 1 &bull; Isle Objective</div>
+      <div class="stat-row"><span>TARGET INTEGRITY</span><span id="target-hp-txt">25 / 25</span></div>
       <div class="bar-bg"><div id="target-hp-fill" class="bar-hp" style="width: 100%;"></div></div>
     </div>
 
-    <!-- Cast Bar -->
+    <!-- Chat & Combat Log: Diagonally Upwards to the Left -->
+    <div id="combat-log" class="panel">
+      <div class="log-entry log-quest">[Tutorial] Welcome to the Isle of Awakening!</div>
+      <div class="log-entry">[Controls] Hold mouse to rotate screen freely. Use WASD to walk.</div>
+    </div>
+
+    <!-- Quest Tracker (Tutorial & Objectives) -->
+    <div id="quest-tracker" class="panel">
+      <div class="quest-title">
+        <span>📜 Chapter I: Awakening</span>
+        <span id="quest-stage-txt" style="color: #38bdf8;">1 / 4</span>
+      </div>
+      <div class="quest-task"><div class="quest-check" id="qc-1">✓</div><span id="qt-1">Hold mouse to look & move with WASD</span></div>
+      <div class="quest-task"><div class="quest-check" id="qc-2"></div><span id="qt-2">Target Dummy & strike with Dawn Strike [1]</span></div>
+      <div class="quest-task"><div class="quest-check" id="qc-3"></div><span id="qt-3">Harvest Aether Resonance Font [E]</span></div>
+      <div class="quest-task"><div class="quest-check" id="qc-4"></div><span id="qt-4">Step into Astral Portal to reach Nexus World</span></div>
+    </div>
+
+    <!-- Centered Cast Bar -->
     <div id="cast-bar-container" class="panel">
       <div class="cast-bar-header">
         <span id="cast-name">Solar Flare</span>
         <span id="cast-time">1.2s</span>
       </div>
-      <div class="bar-bg" style="height: 12px;">
+      <div class="bar-bg" style="height: 10px;">
         <div id="cast-fill" class="cast-bar-fill"></div>
       </div>
     </div>
 
-    <!-- Controls Guide -->
-    <div id="guide-panel">
-      <strong>[WASD]</strong> Move &bull; <strong>[Space]</strong> Jump &bull; <strong>[Shift]</strong> Sprint<br>
-      <strong>[Right Click + Drag]</strong> Camera Orbit &bull; <strong>[Scroll]</strong> Zoom<br>
-      <strong>[Left Click / Tab]</strong> Target &bull; <strong>[1-8 / Shift+1-4]</strong> Spells &bull; <strong>[E]</strong> Gather Node
-    </div>
-
-    <!-- Combat Log -->
-    <div id="combat-log" class="panel">
-      <div class="log-entry log-solari">[System] Welcome to GlimmerFall Online (Awakening Pre-Alpha).</div>
-      <div class="log-entry">[Combat Engine] Tab-target initialized. Nexus Monolith in range.</div>
-    </div>
-
-    <!-- Dual 24-Slot Action Bar -->
+    <!-- Action Bars NEXT TO EACH OTHER in one horizontal cluster -->
     <div id="action-bar-cluster">
-      <!-- Bar 2 (Shift keys) -->
-      <div class="action-row">
+      <!-- Section 1: Primary Action Bar -->
+      <div class="action-group">
+        <div class="action-button" onclick="castAbility(1)">
+          <span class="action-icon">⚔️</span>
+          <span class="action-name">Dawn Strike</span>
+          <span class="key-badge">[1]</span>
+          <div class="cooldown-overlay" id="cd-1">0</div>
+        </div>
+        <div class="action-button" onclick="castAbility(2)">
+          <span class="action-icon">☀️</span>
+          <span class="action-name">Solar Flare</span>
+          <span class="key-badge">[2]</span>
+          <div class="cooldown-overlay" id="cd-2">0</div>
+        </div>
+        <div class="action-button" onclick="castAbility(3)">
+          <span class="action-icon">🔨</span>
+          <span class="action-name">Judgment</span>
+          <span class="key-badge">[3]</span>
+          <div class="cooldown-overlay" id="cd-3">0</div>
+        </div>
+        <div class="action-button" onclick="castAbility(4)">
+          <span class="action-icon">🔥</span>
+          <span class="action-name">Consecrate</span>
+          <span class="key-badge">[4]</span>
+          <div class="cooldown-overlay" id="cd-4">0</div>
+        </div>
+        <div class="action-button" onclick="harvestTarget()">
+          <span class="action-icon" style="color: #a855f7;">🔮</span>
+          <span class="action-name">Harvest</span>
+          <span class="key-badge">[E]</span>
+        </div>
+      </div>
+
+      <!-- Action Bar Divider -->
+      <div class="action-divider"></div>
+
+      <!-- Section 2: Secondary Action Bar Side-by-Side -->
+      <div class="action-group">
         <div class="action-button" onclick="castAbility(9)">
           <span class="action-icon">🛡️</span>
           <span class="action-name">Aegis Ward</span>
@@ -510,51 +649,6 @@
           <div class="cooldown-overlay" id="cd-12">0</div>
         </div>
       </div>
-
-      <!-- Bar 1 (Keys 1-8 + E) -->
-      <div class="action-row">
-        <div class="action-button" onclick="castAbility(1)">
-          <span class="action-icon">⚔️</span>
-          <span class="action-name">Dawn Strike</span>
-          <span class="key-badge">[1]</span>
-          <div class="cooldown-overlay" id="cd-1">0</div>
-        </div>
-        <div class="action-button" onclick="castAbility(2)">
-          <span class="action-icon">☀️</span>
-          <span class="action-name">Solar Flare</span>
-          <span class="key-badge">[2]</span>
-          <div class="cooldown-overlay" id="cd-2">0</div>
-        </div>
-        <div class="action-button" onclick="castAbility(3)">
-          <span class="action-icon">🔨</span>
-          <span class="action-name">Judgment</span>
-          <span class="key-badge">[3]</span>
-          <div class="cooldown-overlay" id="cd-3">0</div>
-        </div>
-        <div class="action-button" onclick="castAbility(4)">
-          <span class="action-icon">🔥</span>
-          <span class="action-name">Consecrate</span>
-          <span class="key-badge">[4]</span>
-          <div class="cooldown-overlay" id="cd-4">0</div>
-        </div>
-        <div class="action-button" onclick="castAbility(5)">
-          <span class="action-icon">👁️</span>
-          <span class="action-name">Inquisition</span>
-          <span class="key-badge">[5]</span>
-          <div class="cooldown-overlay" id="cd-5">0</div>
-        </div>
-        <div class="action-button" onclick="castAbility(6)">
-          <span class="action-icon">🌿</span>
-          <span class="action-name">Roots</span>
-          <span class="key-badge">[6]</span>
-          <div class="cooldown-overlay" id="cd-6">0</div>
-        </div>
-        <div class="action-button" onclick="harvestTarget()">
-          <span class="action-icon" style="color: #a855f7;">🔮</span>
-          <span class="action-name">Harvest</span>
-          <span class="key-badge">[E]</span>
-        </div>
-      </div>
     </div>
 
     <!-- Modals -->
@@ -566,20 +660,16 @@
       </div>
       <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
         <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
-          <b style="color: #facc15;">Strike of Dawn [1]</b> &bull; Melee Instant, 1.5s GCD<br>
+          <b style="color: #facc15;">Strike of Dawn [1]</b> &bull; Melee Instant<br>
           <span style="color: #94a3b8;">Slashes target dealing 3-5 Radiant damage. Generates 15 Solar Charge.</span>
         </div>
         <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
-          <b style="color: #facc15;">Solar Flare [2]</b> &bull; 1.2s Cast, 25yd range, Costs 25 Solar Charge<br>
+          <b style="color: #facc15;">Solar Flare [2]</b> &bull; 1.2s Cast, Costs 25 Solar Charge<br>
           <span style="color: #94a3b8;">Launches a bolt of condensed sunlight dealing 8-12 Radiant damage.</span>
         </div>
         <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
-          <b style="color: #facc15;">Judgment of Sol [3]</b> &bull; Instant, 6s CD, 20yd range<br>
-          <span style="color: #94a3b8;">Hurls a hammer of holy light dealing 6 damage and generating 20 Solar Charge.</span>
-        </div>
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
-          <b style="color: #facc15;">Consecrated Ground [4]</b> &bull; Instant, 12s CD<br>
-          <span style="color: #94a3b8;">Ignites the ground under the Paladin for 8s; burns enemies and heals allies standing in it.</span>
+          <b style="color: #facc15;">Judgment of Sol [3]</b> &bull; Instant Holy Hammer<br>
+          <span style="color: #94a3b8;">Hurls a hammer dealing 6 damage and generating 20 Solar Charge.</span>
         </div>
       </div>
     </div>
@@ -595,11 +685,9 @@
           <div style="color: #94a3b8;">Class: <b style="color:#fff;">Sunforged Paladin</b></div>
           <div style="color: #94a3b8;">Faction: <b style="color:#facc15;">Solari Dominion</b></div>
           <div style="color: #94a3b8;">Health Pool: <b style="color:#ef4444;">25 / 25 HP</b></div>
-          <div style="color: #94a3b8;">Solar Energy: <b style="color:#eab308;">100 Max</b></div>
         </div>
         <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
           <div style="color: #94a3b8;">Strength: <b style="color:#fff;">42 (+Melee AP)</b></div>
-          <div style="color: #94a3b8;">Stamina: <b style="color:#fff;">35 (Health)</b></div>
           <div style="color: #94a3b8;">Crit Rating: <b style="color:#facc15;">18.5%</b></div>
           <div style="color: #94a3b8;">Haste: <b style="color:#38bdf8;">12.0% (-GCD)</b></div>
         </div>
@@ -613,13 +701,13 @@
         <div class="modal-close" onclick="toggleModal('cards-modal')">✕</div>
       </div>
       <p style="font-size: 11px; color: #94a3b8; margin-bottom: 10px;">
-        Equip 3 original trading cards from <i>glimmerfalltcg.com</i> to dynamically empower your MMORPG abilities.
+        Equipped cards from <i>glimmerfalltcg.com</i> augment class passives and 3v3 combat performance.
       </p>
       <div style="display: flex; gap: 10px;">
         <div style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid #facc15; border-radius: 6px; padding: 8px; text-align: center;">
           <img src="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/solari_vanguard-YFbhwOPGHYNEmDfQQm2CZfBk9fZJBI.webp" style="width: 100%; border-radius: 4px;" alt="Card 1">
           <b style="font-size: 11px; color: #facc15; display:block; margin-top:4px;">Solari Vanguard</b>
-          <span style="font-size: 9px; color: #cbd5e1;">+15% Radiant Slash Damage</span>
+          <span style="font-size: 9px; color: #cbd5e1;">+15% Radiant Damage</span>
         </div>
         <div style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid #38bdf8; border-radius: 6px; padding: 8px; text-align: center;">
           <img src="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/mana_crystal_85d4da2e-150onQbusVx2hyQEu7HfosXCqX0Ktc.webp" style="width: 100%; border-radius: 4px;" alt="Card 2">
@@ -639,13 +727,15 @@
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+    // Completely prevent browser blue drag-selection
+    window.addEventListener('selectstart', (e) => e.preventDefault());
+    window.addEventListener('dragstart', (e) => e.preventDefault());
+
     // ==========================================
     // 1. Procedural Web Audio Synthesizer
     // ==========================================
     class SoundEngine {
-      constructor() {
-        this.ctx = null;
-      }
+      constructor() { this.ctx = null; }
       init() {
         if (!this.ctx) {
           const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -714,246 +804,133 @@
     const audio = new SoundEngine();
 
     // ==========================================
-    // 2. Game State & Character Setup
+    // 2. Game State & Zones
     // ==========================================
+    let currentZone = 'tutorial'; // 'tutorial' | 'main_world' | 'arena_3v3'
     const player = {
       hp: 25,
       maxHp: 25,
       solarCharge: 0,
       maxSolarCharge: 100,
-      speed: 12,
+      speed: 13,
       sprintMultiplier: 1.6,
       jumpForce: 14,
       vy: 0,
       isGrounded: true,
-      cooldowns: {},
     };
 
     let currentTarget = null;
-    const inputs = { w: false, a: false, s: false, d: false, shift: false, space: false, rmb: false };
-    const cameraOrbit = { yaw: 0, pitch: 0.35, distance: 10 };
+    let isMouseDown = false;
+    let isQueueing = false;
+    let queueTimer = null;
+    const inputs = { w: false, a: false, s: false, d: false, shift: false, space: false };
+    const cameraOrbit = { yaw: 0, pitch: 0.32, distance: 9.5 };
+
     let isCasting = false;
     let castProgress = 0;
     let castDuration = 0;
     let currentSpell = null;
 
+    // Quest state
+    const quests = { moved: false, damaged: false, harvested: false, portalReady: false };
+
     // ==========================================
-    // 3. Three.js Scene Setup & Visuals
+    // 3. Three.js Scene Setup
     // ==========================================
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x020617, 0.02);
+    scene.fog = new THREE.FogExp2(0x020617, 0.018);
 
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.1;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
-    // Environment Lighting
-    const hemiLight = new THREE.HemisphereLight(0x38bdf8, 0x0f172a, 1.2);
+    // Lighting
+    const hemiLight = new THREE.HemisphereLight(0x38bdf8, 0x0f172a, 1.4);
     scene.add(hemiLight);
 
-    const sun = new THREE.DirectionalLight(0xfff7ed, 2.5);
+    const sun = new THREE.DirectionalLight(0xfff7ed, 2.6);
     sun.position.set(35, 60, 25);
     sun.castShadow = true;
     sun.shadow.mapSize.width = 2048;
     sun.shadow.mapSize.height = 2048;
-    sun.shadow.camera.near = 0.5;
-    sun.shadow.camera.far = 160;
-    sun.shadow.camera.left = -40;
-    sun.shadow.camera.right = 40;
-    sun.shadow.camera.top = 40;
-    sun.shadow.camera.bottom = -40;
     scene.add(sun);
 
-    // Ground Arena
-    const floorGeo = new THREE.PlaneGeometry(240, 240, 32, 32);
-    const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x090d16,
-      roughness: 0.85,
-      metalness: 0.15,
-    });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    scene.add(floor);
-
-    // Stylized glowing grid
-    const grid = new THREE.GridHelper(240, 60, 0x0284c7, 0x1e293b);
-    grid.position.y = 0.02;
-    scene.add(grid);
-
-    // Starfield sky dome
+    // Sky Dome Stars
     const starGeo = new THREE.BufferGeometry();
-    const starCount = 1500;
-    const starPos = new Float32Array(starCount * 3);
-    for (let i = 0; i < starCount * 3; i += 3) {
+    const starPos = new Float32Array(1500 * 3);
+    for (let i = 0; i < 1500 * 3; i += 3) {
       starPos[i] = (Math.random() - 0.5) * 600;
       starPos[i + 1] = Math.random() * 250 + 20;
       starPos[i + 2] = (Math.random() - 0.5) * 600;
     }
     starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
     const starMat = new THREE.PointsMaterial({ color: 0x38bdf8, size: 1.5, transparent: true, opacity: 0.8 });
-    const stars = new THREE.Points(starGeo, starMat);
-    scene.add(stars);
+    scene.add(new THREE.Points(starGeo, starMat));
+
+    // Ground Plane & Grid
+    const floorGeo = new THREE.PlaneGeometry(300, 300, 32, 32);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.85, metalness: 0.15 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const grid = new THREE.GridHelper(300, 60, 0x0284c7, 0x1e293b);
+    grid.position.y = 0.02;
+    scene.add(grid);
 
     // ==========================================
-    // 4. Asset Loader (Meshy GLBs + Procedural Fallbacks)
+    // 4. Third-Person Player Character Hierarchy
     // ==========================================
-    const gltfLoader = new GLTFLoader();
-    const interactables = [];
-
-    function createWorldEntity(path, fallbackGeo, fallbackMat, scale = 1, onReady) {
-      const group = new THREE.Group();
-      scene.add(group);
-
-      let loaded = false;
-      gltfLoader.load(
-        path,
-        (gltf) => {
-          loaded = true;
-          const model = gltf.scene;
-          model.scale.set(scale, scale, scale);
-          model.traverse((child) => {
-            if (child.isMesh) {
-              child.castShadow = true;
-              child.receiveShadow = true;
-              // Enhance PBR materials if present
-              if (child.material) {
-                child.material.envMapIntensity = 1.0;
-              }
-            }
-          });
-          group.add(model);
-          logMessage(`[3D Loader] Successfully mounted ${path.split('/').pop()}`, 'log-gain');
-          if (onReady) onReady(group, true);
-        },
-        undefined,
-        () => {
-          // Fallback procedural geometry if GLB is compiling
-          if (!loaded) {
-            const fallbackMesh = new THREE.Mesh(fallbackGeo, fallbackMat);
-            fallbackMesh.castShadow = true;
-            fallbackMesh.receiveShadow = true;
-            group.add(fallbackMesh);
-            if (onReady) onReady(group, false);
-          }
-        }
-      );
-      return group;
-    }
-
-    // 1. Player Character (Solari Vanguard)
     const playerGroup = new THREE.Group();
     scene.add(playerGroup);
 
-    // Character body group
-    const charBodyGroup = new THREE.Group();
-    playerGroup.add(charBodyGroup);
+    const playerVisual = new THREE.Group();
+    playerGroup.add(playerVisual);
 
-    createWorldEntity(
+    // Shadow under feet
+    const shadowGeo = new THREE.RingGeometry(0.1, 0.75, 24);
+    const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+    const playerShadow = new THREE.Mesh(shadowGeo, shadowMat);
+    playerShadow.rotation.x = -Math.PI / 2;
+    playerShadow.position.y = 0.03;
+    playerGroup.add(playerShadow);
+
+    const gltfLoader = new GLTFLoader();
+
+    // Mount Solari Vanguard into playerVisual
+    gltfLoader.load(
       './models/solari_hero.glb',
-      new THREE.CapsuleGeometry(0.55, 1.4, 16, 24),
-      new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.25, metalness: 0.85 }),
-      1.1,
-      (g, isGlb) => {
-        if (!isGlb) {
-          // Add procedural golden armor details
-          const shieldGeo = new THREE.BoxGeometry(0.15, 0.9, 0.6);
-          const shieldMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.9, roughness: 0.2 });
-          const shield = new THREE.Mesh(shieldGeo, shieldMat);
-          shield.position.set(-0.65, 0, 0);
-          g.add(shield);
-
-          const swordGeo = new THREE.BoxGeometry(0.08, 1.3, 0.2);
-          const swordMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.95, roughness: 0.1 });
-          const sword = new THREE.Mesh(swordGeo, swordMat);
-          sword.position.set(0.65, 0, 0);
-          g.add(sword);
-        }
-        g.position.y = 1.25;
+      (gltf) => {
+        const model = gltf.scene;
+        model.scale.set(1.2, 1.2, 1.2);
+        model.position.set(0, 1.15, 0);
+        model.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        playerVisual.add(model);
+        logMessage('[Character] Solari Vanguard 3D mesh loaded!', 'log-solari');
+      },
+      undefined,
+      () => {
+        const fallbackMesh = new THREE.Mesh(
+          new THREE.CapsuleGeometry(0.55, 1.4, 16, 24),
+          new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.25, metalness: 0.85 })
+        );
+        fallbackMesh.position.y = 1.25;
+        fallbackMesh.castShadow = true;
+        playerVisual.add(fallbackMesh);
       }
     );
-    playerGroup.position.set(0, 0, 0);
-
-    // 2. Central Nexus Core Monolith (25 HP Objective)
-    const nexus = createWorldEntity(
-      './models/nexus_core.glb',
-      new THREE.OctahedronGeometry(2.4, 0),
-      new THREE.MeshStandardMaterial({
-        color: 0x38bdf8,
-        emissive: 0x0284c7,
-        emissiveIntensity: 0.8,
-        roughness: 0.2,
-        metalness: 0.8,
-      }),
-      1.6,
-      (g, isGlb) => {
-        g.position.set(0, 3.8, -22);
-        // Add dynamic light
-        const nexusLight = new THREE.PointLight(0x38bdf8, 4, 30);
-        g.add(nexusLight);
-      }
-    );
-    nexus.userData = { id: 'nexus_core', name: 'Central Nexus Monolith', hp: 25, maxHp: 25, type: 'nexus' };
-    interactables.push(nexus);
-
-    // 3. Harvestable Resonance Nodes (Aether Crystal Spire)
-    const nodeCoords = [
-      [-14, 0, -12],
-      [14, 0, -12],
-      [-18, 0, 8],
-      [18, 0, 8],
-      [0, 0, 20]
-    ];
-
-    nodeCoords.forEach((coords, i) => {
-      const node = createWorldEntity(
-        './models/resonance_node.glb',
-        new THREE.DodecahedronGeometry(1.0),
-        new THREE.MeshStandardMaterial({
-          color: 0xa855f7,
-          emissive: 0x7e22ce,
-          emissiveIntensity: 0.9,
-          roughness: 0.2,
-          metalness: 0.5,
-        }),
-        0.8,
-        (g) => {
-          g.position.set(coords[0], 1.4, coords[2]);
-          const light = new THREE.PointLight(0xa855f7, 2, 12);
-          g.add(light);
-        }
-      );
-      node.userData = { id: `res_node_${i}`, name: `Aether Resonance Spire #${i + 1}`, type: 'node', charges: 3, maxCharges: 3 };
-      interactables.push(node);
-    });
-
-    // 4. Hostile Mobs (Umbri Voidstalker & Terra Golem)
-    const umbriMob = createWorldEntity(
-      './models/umbri_minion.glb',
-      new THREE.ConeGeometry(0.8, 1.8, 8),
-      new THREE.MeshStandardMaterial({ color: 0x475569, emissive: 0x312e81, emissiveIntensity: 0.7, roughness: 0.4 }),
-      0.9,
-      (g) => { g.position.set(-8, 1.2, -10); }
-    );
-    umbriMob.userData = { id: 'umbri_mob_1', name: 'Umbri Voidstalker', hp: 18, maxHp: 18, type: 'mob', damage: 3 };
-    interactables.push(umbriMob);
-
-    const terraGolem = createWorldEntity(
-      './models/terra_golem.glb',
-      new THREE.BoxGeometry(1.6, 2.4, 1.6),
-      new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9, metalness: 0.1 }),
-      1.2,
-      (g) => { g.position.set(10, 1.6, -14); }
-    );
-    terraGolem.userData = { id: 'terra_golem_1', name: 'Ancient Stonebark Sentinel', hp: 45, maxHp: 45, type: 'mob', damage: 5 };
-    interactables.push(terraGolem);
 
     // Target Selection Ring
     const targetRingGeo = new THREE.RingGeometry(1.4, 1.6, 32);
@@ -963,19 +940,258 @@
     scene.add(targetRing);
 
     // ==========================================
-    // 5. Input Handling & Orbit Camera
+    // 5. Zone Entities & Objects
     // ==========================================
+    const interactables = [];
+    const zoneObjectsGroup = new THREE.Group();
+    scene.add(zoneObjectsGroup);
+
+    // Astral Portal to teleport to Main World
+    let portalMesh = null;
+
+    function buildZone(zone) {
+      currentZone = zone;
+      // Clear previous zone objects
+      while (zoneObjectsGroup.children.length > 0) {
+        zoneObjectsGroup.remove(zoneObjectsGroup.children[0]);
+      }
+      interactables.length = 0;
+      setTarget(null);
+
+      const zoneTitle = document.getElementById('minimap-zone-title');
+      const zoneLabel = document.getElementById('zone-label');
+      const arenaBanner = document.getElementById('arena-banner');
+
+      if (zone === 'tutorial') {
+        zoneTitle.innerText = 'Awakening Isle';
+        zoneLabel.innerText = 'Tutorial Island';
+        arenaBanner.style.display = 'none';
+        playerGroup.position.set(0, 0, 8);
+
+        // 1. Training Dummy
+        const dummyGroup = new THREE.Group();
+        const dummyBody = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.5, 0.5, 1.8, 16),
+          new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.7 })
+        );
+        dummyBody.position.y = 0.9;
+        dummyBody.castShadow = true;
+        const dummyTarget = new THREE.Mesh(
+          new THREE.RingGeometry(0.1, 0.4, 16),
+          new THREE.MeshBasicMaterial({ color: 0xef4444, side: THREE.DoubleSide })
+        );
+        dummyTarget.position.set(0, 1.2, 0.51);
+        dummyGroup.add(dummyBody, dummyTarget);
+        dummyGroup.position.set(0, 0, -4);
+        dummyGroup.userData = { id: 'dummy_1', name: 'Training Dummy', hp: 25, maxHp: 25, type: 'dummy' };
+        zoneObjectsGroup.add(dummyGroup);
+        interactables.push(dummyGroup);
+
+        // 2. Tutorial Aether Font
+        const fontGroup = new THREE.Group();
+        gltfLoader.load('./models/resonance_node.glb', (g) => {
+          g.scene.scale.set(0.8, 0.8, 0.8);
+          fontGroup.add(g.scene);
+        }, undefined, () => {
+          const m = new THREE.Mesh(new THREE.DodecahedronGeometry(1.0), new THREE.MeshStandardMaterial({ color: 0xa855f7 }));
+          fontGroup.add(m);
+        });
+        fontGroup.position.set(-8, 1.2, 0);
+        const fontLight = new THREE.PointLight(0xa855f7, 3, 14);
+        fontGroup.add(fontLight);
+        fontGroup.userData = { id: 'tut_font', name: 'Awakening Resonance Font', type: 'node', charges: 3, maxCharges: 3 };
+        zoneObjectsGroup.add(fontGroup);
+        interactables.push(fontGroup);
+
+        // 3. Astral Rift Portal (leads to Nexus Main World)
+        const portalGeo = new THREE.TorusGeometry(2.0, 0.25, 16, 48);
+        const portalMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 1.2, roughness: 0.1 });
+        portalMesh = new THREE.Mesh(portalGeo, portalMat);
+        portalMesh.position.set(0, 2.2, -18);
+        const pLight = new THREE.PointLight(0x38bdf8, 4, 20);
+        portalMesh.add(pLight);
+        portalMesh.userData = { id: 'portal', name: 'Astral Rift to Nexus World', type: 'portal' };
+        zoneObjectsGroup.add(portalMesh);
+        interactables.push(portalMesh);
+
+        logMessage('[Zone] Entered Tutorial Island (Isle of Awakening).', 'log-quest');
+      } else if (zone === 'main_world') {
+        zoneTitle.innerText = 'Nexus Warzone';
+        zoneLabel.innerText = 'Main World (Warzone)';
+        arenaBanner.style.display = 'none';
+        playerGroup.position.set(0, 0, 10);
+
+        // 1. Central Nexus Core (25 HP Objective)
+        const nexusGroup = new THREE.Group();
+        gltfLoader.load('./models/nexus_core.glb', (g) => {
+          g.scene.scale.set(1.6, 1.6, 1.6);
+          nexusGroup.add(g.scene);
+        }, undefined, () => {
+          nexusGroup.add(new THREE.Mesh(new THREE.OctahedronGeometry(2.4), new THREE.MeshStandardMaterial({ color: 0x38bdf8 })));
+        });
+        nexusGroup.position.set(0, 3.8, -24);
+        nexusGroup.add(new THREE.PointLight(0x38bdf8, 4, 30));
+        nexusGroup.userData = { id: 'nexus_core', name: 'Central Nexus Monolith', hp: 25, maxHp: 25, type: 'nexus' };
+        zoneObjectsGroup.add(nexusGroup);
+        interactables.push(nexusGroup);
+
+        // 2. Resonance Nodes
+        const coords = [[-14, 0, -12], [14, 0, -12], [-18, 0, 8], [18, 0, 8]];
+        coords.forEach((c, idx) => {
+          const node = new THREE.Group();
+          gltfLoader.load('./models/resonance_node.glb', (g) => {
+            g.scene.scale.set(0.8, 0.8, 0.8);
+            node.add(g.scene);
+          });
+          node.position.set(c[0], 1.3, c[2]);
+          node.add(new THREE.PointLight(0xa855f7, 2, 12));
+          node.userData = { id: `node_${idx}`, name: `Aether Spire #${idx + 1}`, type: 'node', charges: 3, maxCharges: 3 };
+          zoneObjectsGroup.add(node);
+          interactables.push(node);
+        });
+
+        // 3. Umbri Voidstalker (Hostile mob)
+        const mob = new THREE.Group();
+        gltfLoader.load('./models/umbri_minion.glb', (g) => {
+          g.scene.scale.set(1.0, 1.0, 1.0);
+          mob.add(g.scene);
+        });
+        mob.position.set(-10, 1.0, -10);
+        mob.userData = { id: 'umbri_mob', name: 'Void Stalker (Umbri Mob)', hp: 18, maxHp: 18, type: 'mob' };
+        zoneObjectsGroup.add(mob);
+        interactables.push(mob);
+
+        // 4. Granite Behemoth (Terra Golem Boss)
+        const golem = new THREE.Group();
+        const golemBody = new THREE.Mesh(new THREE.BoxGeometry(2, 2.8, 2), new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 }));
+        golemBody.position.y = 1.4;
+        golem.add(golemBody);
+        golem.position.set(14, 0, -14);
+        golem.userData = { id: 'terra_boss', name: 'Granite Behemoth (World Boss)', hp: 50, maxHp: 50, type: 'mob' };
+        zoneObjectsGroup.add(golem);
+        interactables.push(golem);
+
+        logMessage('[Zone] Traveled to The Glimmerfall Nexus Main World!', 'log-gain');
+      } else if (zone === 'arena_3v3') {
+        zoneTitle.innerText = '3v3 Nexus Arena';
+        zoneLabel.innerText = '3v3 Nexus Match';
+        arenaBanner.style.display = 'flex';
+        playerGroup.position.set(0, 0, 22);
+
+        // Blue Nexus (Friendly)
+        const blueNexus = new THREE.Group();
+        blueNexus.add(new THREE.Mesh(new THREE.OctahedronGeometry(2.2), new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7 })));
+        blueNexus.position.set(0, 3.5, 30);
+        blueNexus.userData = { id: 'blue_nexus', name: 'Ally Blue Nexus', hp: 25, maxHp: 25, type: 'nexus' };
+        zoneObjectsGroup.add(blueNexus);
+
+        // Red Nexus (Enemy Objective)
+        const redNexus = new THREE.Group();
+        redNexus.add(new THREE.Mesh(new THREE.OctahedronGeometry(2.2), new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x991b1b })));
+        redNexus.position.set(0, 3.5, -30);
+        redNexus.userData = { id: 'red_nexus', name: 'Enemy Red Nexus', hp: 25, maxHp: 25, type: 'nexus' };
+        zoneObjectsGroup.add(redNexus);
+        interactables.push(redNexus);
+
+        // 3 Red Enemies
+        const enemyDefs = [
+          { name: 'Void Stalker (Enemy 1)', pos: [-6, 1, -10], hp: 20 },
+          { name: 'Duskblade Fiend (Enemy 2)', pos: [0, 1, -12], hp: 20 },
+          { name: 'Granite Behemoth (Enemy 3)', pos: [6, 1.4, -10], hp: 30 },
+        ];
+        enemyDefs.forEach((ed, i) => {
+          const em = new THREE.Group();
+          gltfLoader.load('./models/umbri_minion.glb', (g) => em.add(g.scene), undefined, () => {
+            em.add(new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.8, 8), new THREE.MeshStandardMaterial({ color: 0xef4444 })));
+          });
+          em.position.set(ed.pos[0], ed.pos[1], ed.pos[2]);
+          em.userData = { id: `enemy_${i}`, name: ed.name, hp: ed.hp, maxHp: ed.hp, type: 'mob' };
+          zoneObjectsGroup.add(em);
+          interactables.push(em);
+        });
+
+        logMessage('[Arena] 3v3 BATTLE STARTED! Destroy the Enemy Red Nexus!', 'log-solari');
+      }
+    }
+
+    // Initialize in Tutorial
+    buildZone('tutorial');
+
+    window.teleportWorld = function() {
+      if (currentZone === 'tutorial') buildZone('main_world');
+      else if (currentZone === 'main_world') buildZone('tutorial');
+      else buildZone('main_world');
+    };
+
+    window.toggleMatchmaking = function() {
+      const btn = document.getElementById('btn-queue');
+      if (!isQueueing) {
+        isQueueing = true;
+        btn.innerText = '⏳ In Queue (3v3)...';
+        logMessage('[Queue] Searching for 3v3 Nexus Arena opponents...', 'log-solari');
+        queueTimer = setTimeout(() => {
+          isQueueing = false;
+          btn.innerText = '⚔️ Queue 3v3 Nexus Battle';
+          buildZone('arena_3v3');
+        }, 3500);
+      } else {
+        clearTimeout(queueTimer);
+        isQueueing = false;
+        btn.innerText = '⚔️ Queue 3v3 Nexus Battle';
+        logMessage('[Queue] Cancelled matchmaking.', 'log-combat');
+      }
+    };
+
+    // ==========================================
+    // 6. Camera Orbit & Mouse / S-Key Rotation
+    // ==========================================
+    window.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      // Holding ANY mouse button allows rotating screen freely
+      isMouseDown = true;
+      if (e.button === 0) performRaycast(e);
+    });
+
+    window.addEventListener('mouseup', () => {
+      isMouseDown = false;
+    });
+
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    window.addEventListener('mousemove', (e) => {
+      // Rotate screen freely when holding mouse
+      if (isMouseDown) {
+        cameraOrbit.yaw -= e.movementX * 0.005;
+        cameraOrbit.pitch = Math.max(0.04, Math.min(Math.PI / 2.25, cameraOrbit.pitch + e.movementY * 0.005));
+      }
+    });
+
+    window.addEventListener('wheel', (e) => {
+      cameraOrbit.distance = Math.max(4, Math.min(26, cameraOrbit.distance + e.deltaY * 0.015));
+    });
+
+    // S-Key Behavior:
+    // If NOT holding mouse, clicking S smoothly rotates screen & character around (180 turn).
+    // If holding mouse, S acts as normal backpedal.
     window.addEventListener('keydown', (e) => {
       const key = e.key.toLowerCase();
       if (key in inputs) inputs[key] = true;
       if (e.shiftKey) inputs.shift = true;
       if (e.code === 'Space') {
-        inputs.space = true;
         if (player.isGrounded) {
           player.vy = player.jumpForce;
           player.isGrounded = false;
         }
       }
+
+      if (key === 's') {
+        if (!isMouseDown) {
+          // Instant 180 camera swivel around
+          cameraOrbit.yaw += Math.PI;
+          logMessage('[Navigation] 180° Quick Turnaround', 'log-gain');
+        }
+      }
+
       if (key === 'tab') {
         e.preventDefault();
         cycleTarget();
@@ -988,8 +1204,6 @@
       if (key === '2') castAbility(2);
       if (key === '3') castAbility(3);
       if (key === '4') castAbility(4);
-      if (key === '5') castAbility(5);
-      if (key === '6') castAbility(6);
       if (key === 'e') harvestTarget();
       if (key === 'p') toggleModal('spellbook-modal');
       if (key === 'c') toggleModal('char-modal');
@@ -1000,33 +1214,10 @@
       const key = e.key.toLowerCase();
       if (key in inputs) inputs[key] = false;
       if (!e.shiftKey) inputs.shift = false;
-      if (e.code === 'Space') inputs.space = false;
-    });
-
-    window.addEventListener('mousedown', (e) => {
-      if (e.button === 2) inputs.rmb = true;
-      if (e.button === 0) performRaycast(e);
-    });
-
-    window.addEventListener('mouseup', (e) => {
-      if (e.button === 2) inputs.rmb = false;
-    });
-
-    window.addEventListener('contextmenu', (e) => e.preventDefault());
-
-    window.addEventListener('mousemove', (e) => {
-      if (inputs.rmb) {
-        cameraOrbit.yaw -= e.movementX * 0.005;
-        cameraOrbit.pitch = Math.max(0.08, Math.min(Math.PI / 2.2, cameraOrbit.pitch + e.movementY * 0.005));
-      }
-    });
-
-    window.addEventListener('wheel', (e) => {
-      cameraOrbit.distance = Math.max(4, Math.min(26, cameraOrbit.distance + e.deltaY * 0.015));
     });
 
     // ==========================================
-    // 6. Targeting System (Tab & Click)
+    // 7. Targeting System
     // ==========================================
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
@@ -1078,6 +1269,19 @@
       const pct = Math.round((hp / max) * 100);
       document.getElementById('target-hp-txt').innerText = `${hp} / ${max} (${pct}%)`;
       document.getElementById('target-hp-fill').style.width = `${pct}%`;
+
+      // 3v3 Scoreboard updates
+      if (currentZone === 'arena_3v3') {
+        const redNexus = interactables.find((i) => i.userData.id === 'red_nexus');
+        if (redNexus) {
+          document.getElementById('red-nexus-hp').innerText = `${redNexus.userData.hp} / 25`;
+          if (redNexus.userData.hp <= 0) {
+            logMessage('[Victory] ENEMY RED NEXUS DESTROYED! 3v3 VICTORY!', 'log-solari');
+            alert('🏆 VICTORY! Enemy Nexus Destroyed in 3v3 Battle!');
+            buildZone('main_world');
+          }
+        }
+      }
     }
 
     function updatePlayerUI() {
@@ -1088,13 +1292,13 @@
     }
 
     // ==========================================
-    // 7. Floating Combat Text
+    // 8. Floating Combat Text
     // ==========================================
     const fctContainer = document.getElementById('fct-container');
 
     function spawnFCT(pos, text, color = '#facc15', isCrit = false) {
       const screenPos = pos.clone().project(camera);
-      if (screenPos.z > 1) return; // Behind camera
+      if (screenPos.z > 1) return;
 
       const x = ((screenPos.x + 1) * window.innerWidth) / 2;
       const y = ((-screenPos.y + 1) * window.innerHeight) / 2;
@@ -1104,12 +1308,7 @@
       el.style.left = `${x}px`;
       el.style.top = `${y}px`;
       el.style.color = color;
-      if (isCrit) {
-        el.style.fontSize = '22px';
-        el.innerText = `💥 CRIT! ${text}`;
-      } else {
-        el.innerText = text;
-      }
+      el.innerText = isCrit ? `💥 CRIT! ${text}` : text;
       fctContainer.appendChild(el);
       setTimeout(() => el.remove(), 1200);
     }
@@ -1124,20 +1323,19 @@
     }
 
     // ==========================================
-    // 8. Abilities & Combat Execution
+    // 9. Abilities & Combat Execution
     // ==========================================
     window.castAbility = function(slot) {
       if (!currentTarget) {
-        logMessage(`[Combat] You must select a target first!`, 'log-combat');
+        logMessage(`[Combat] Select a target first!`, 'log-combat');
         return;
       }
-
       const dist = playerGroup.position.distanceTo(currentTarget.position);
 
       if (slot === 1) {
-        // Strike of Dawn (Instant Melee)
-        if (dist > 5) {
-          logMessage(`[Combat] Target out of range!`, 'log-combat');
+        // Strike of Dawn (Melee Instant)
+        if (dist > 5.5) {
+          logMessage(`[Combat] Target is out of melee range!`, 'log-combat');
           return;
         }
         audio.playSlash();
@@ -1150,14 +1348,23 @@
         audio.playHit();
 
         spawnFCT(currentTarget.position, `-${totalDmg}`, isCrit ? '#facc15' : '#ef4444', isCrit);
-        logMessage(`[Combat] Strike of Dawn hits ${currentTarget.userData.name} for ${totalDmg} Radiant damage!`, 'log-solari');
+        logMessage(`[Combat] Strike of Dawn hits ${currentTarget.userData.name} for ${totalDmg} damage!`, 'log-solari');
+
+        // Quest Step 2 Complete
+        if (currentZone === 'tutorial' && !quests.damaged) {
+          quests.damaged = true;
+          document.getElementById('qc-2').classList.add('done');
+          document.getElementById('qc-2').innerText = '✓';
+          document.getElementById('quest-stage-txt').innerText = '2 / 4';
+          logMessage('[Quest] Tutorial Step 2 Complete: You damaged the Training Dummy!', 'log-quest');
+        }
 
         updatePlayerUI();
         updateTargetUI();
       } else if (slot === 2) {
-        // Solar Flare (1.2s Cast)
+        // Solar Flare (Ranged 1.2s Cast)
         if (player.solarCharge < 25) {
-          logMessage(`[Combat] Not enough Solar Charge (Requires 25)!`, 'log-combat');
+          logMessage(`[Combat] Requires 25 Solar Charge!`, 'log-combat');
           return;
         }
         if (isCasting) return;
@@ -1169,7 +1376,7 @@
           const dmg = Math.floor(Math.random() * 5) + 8;
           currentTarget.userData.hp = Math.max(0, currentTarget.userData.hp - dmg);
           spawnFCT(currentTarget.position, `-${dmg}`, '#f59e0b', true);
-          logMessage(`[Combat] Solar Flare blasts ${currentTarget.userData.name} for ${dmg} Radiant damage!`, 'log-solari');
+          logMessage(`[Combat] Solar Flare blasts ${currentTarget.userData.name} for ${dmg} damage!`, 'log-solari');
           updateTargetUI();
         });
       } else if (slot === 3) {
@@ -1179,20 +1386,19 @@
         currentTarget.userData.hp = Math.max(0, currentTarget.userData.hp - dmg);
         player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 20);
         spawnFCT(currentTarget.position, `-${dmg} STUN`, '#38bdf8');
-        logMessage(`[Combat] Judgment strikes ${currentTarget.userData.name} for 6 damage!`, 'log-solari');
+        logMessage(`[Combat] Judgment hits ${currentTarget.userData.name}!`, 'log-solari');
         updatePlayerUI();
         updateTargetUI();
       } else if (slot === 4) {
-        // Consecrated Ground
+        // Consecrate
         audio.playSpell();
         spawnFCT(playerGroup.position, `CONSECRATION`, '#facc15');
-        logMessage(`[Combat] You consecrate the battlefield!`, 'log-solari');
+        logMessage(`[Combat] Consecrated the field!`, 'log-solari');
       } else if (slot === 10) {
         // Radiant Mending (Heal)
         audio.playChime();
         player.hp = Math.min(player.maxHp, player.hp + 8);
         spawnFCT(playerGroup.position, `+8 HP`, '#4ade80');
-        logMessage(`[Combat] Radiant Mending restores 8 Health!`, 'log-heal');
         updatePlayerUI();
       }
     };
@@ -1211,12 +1417,12 @@
 
     window.harvestTarget = function() {
       if (!currentTarget || currentTarget.userData.type !== 'node') {
-        logMessage(`[Harvest] Target an Aether Crystal Spire to harvest!`, 'log-combat');
+        logMessage(`[Harvest] Target an Aether Crystal Font!`, 'log-combat');
         return;
       }
       const dist = playerGroup.position.distanceTo(currentTarget.position);
       if (dist > 6) {
-        logMessage(`[Harvest] Move closer to the crystal font!`, 'log-combat');
+        logMessage(`[Harvest] Move closer to the font!`, 'log-combat');
         return;
       }
       if (currentTarget.userData.charges > 0) {
@@ -1224,15 +1430,25 @@
         player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 35);
         audio.playChime();
         spawnFCT(currentTarget.position, `+35 Resonance`, '#a855f7');
-        logMessage(`[Loot] Extracted 35 Resonance from ${currentTarget.userData.name}!`, 'log-gain');
+        logMessage(`[Loot] Harvested Resonance from ${currentTarget.userData.name}!`, 'log-gain');
+
+        // Quest Step 3 Complete
+        if (currentZone === 'tutorial' && !quests.harvested) {
+          quests.harvested = true;
+          document.getElementById('qc-3').classList.add('done');
+          document.getElementById('qc-3').innerText = '✓';
+          document.getElementById('quest-stage-txt').innerText = '3 / 4';
+          logMessage('[Quest] Tutorial Step 3 Complete! Step into the Portal to travel to the Main World!', 'log-quest');
+        }
+
         updatePlayerUI();
         updateTargetUI();
       } else {
-        logMessage(`[Harvest] This font is depleted! Wait for replenishment.`, 'log-combat');
+        logMessage(`[Harvest] Font is depleted!`, 'log-combat');
       }
     };
 
-    // Minimap Radar Rendering
+    // Minimap Rendering
     const minimapCanvas = document.getElementById('minimap-canvas');
     const mmCtx = minimapCanvas.getContext('2d');
 
@@ -1240,45 +1456,31 @@
       mmCtx.clearRect(0, 0, 140, 140);
       const cx = 70;
       const cy = 70;
-      const scale = 1.2;
+      const scale = 1.3;
 
-      // Draw background ring
       mmCtx.fillStyle = '#0f172a';
       mmCtx.beginPath();
       mmCtx.arc(cx, cy, 68, 0, Math.PI * 2);
       mmCtx.fill();
 
-      // Draw Nexus
-      const nx = cx + (nexus.position.x - playerGroup.position.x) * scale;
-      const ny = cy + (nexus.position.z - playerGroup.position.z) * scale;
-      mmCtx.fillStyle = '#38bdf8';
-      mmCtx.beginPath();
-      mmCtx.arc(nx, ny, 5, 0, Math.PI * 2);
-      mmCtx.fill();
-
-      // Draw nodes
+      // Render interactables
       interactables.forEach((item) => {
-        if (item.userData.type === 'node') {
-          const ix = cx + (item.position.x - playerGroup.position.x) * scale;
-          const iy = cy + (item.position.z - playerGroup.position.z) * scale;
-          mmCtx.fillStyle = '#a855f7';
-          mmCtx.beginPath();
-          mmCtx.arc(ix, iy, 3.5, 0, Math.PI * 2);
-          mmCtx.fill();
-        } else if (item.userData.type === 'mob') {
-          const mx = cx + (item.position.x - playerGroup.position.x) * scale;
-          const my = cy + (item.position.z - playerGroup.position.z) * scale;
-          mmCtx.fillStyle = '#ef4444';
-          mmCtx.beginPath();
-          mmCtx.arc(mx, my, 4, 0, Math.PI * 2);
-          mmCtx.fill();
-        }
+        const ix = cx + (item.position.x - playerGroup.position.x) * scale;
+        const iy = cy + (item.position.z - playerGroup.position.z) * scale;
+        if (item.userData.type === 'nexus') mmCtx.fillStyle = '#38bdf8';
+        else if (item.userData.type === 'node') mmCtx.fillStyle = '#a855f7';
+        else if (item.userData.type === 'portal') mmCtx.fillStyle = '#c084fc';
+        else mmCtx.fillStyle = '#ef4444';
+
+        mmCtx.beginPath();
+        mmCtx.arc(ix, iy, 4, 0, Math.PI * 2);
+        mmCtx.fill();
       });
 
-      // Player center arrow
+      // Player center dot
       mmCtx.fillStyle = '#facc15';
       mmCtx.beginPath();
-      mmCtx.arc(cx, cy, 4, 0, Math.PI * 2);
+      mmCtx.arc(cx, cy, 4.5, 0, Math.PI * 2);
       mmCtx.fill();
     }
 
@@ -1292,19 +1494,8 @@
       document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
     }
 
-    const factions = ['Solari', 'Terra', 'Umbri', 'Aether'];
-    let fIdx = 0;
-    window.switchFaction = function() {
-      fIdx = (fIdx + 1) % factions.length;
-      const f = factions[fIdx];
-      document.getElementById('faction-label').innerText = f;
-      const colors = { Solari: '#facc15', Terra: '#4ade80', Umbri: '#a855f7', Aether: '#38bdf8' };
-      document.getElementById('faction-label').style.color = colors[f];
-      logMessage(`[Faction] Switched allegiance to ${f}!`, 'log-gain');
-    };
-
     // ==========================================
-    // 9. Engine Loop & Physics
+    // 10. Engine Loop & MMORPG Controls
     // ==========================================
     const clock = new THREE.Clock();
 
@@ -1312,7 +1503,7 @@
       requestAnimationFrame(render);
       const delta = clock.getDelta();
 
-      // Casting progression
+      // Spell Casting progression
       if (isCasting) {
         castProgress += delta;
         const pct = Math.min(100, (castProgress / castDuration) * 100);
@@ -1335,47 +1526,58 @@
         }
       }
 
-      // Movement Vector
-      const move = new THREE.Vector3();
-      if (inputs.w) move.z -= 1;
-      if (inputs.s) move.z += 1;
-      if (inputs.a) move.x -= 1;
-      if (inputs.d) move.x += 1;
+      // Third-Person WASD Movement (Relative to Camera Sightline)
+      const forward = new THREE.Vector3(-Math.sin(cameraOrbit.yaw), 0, -Math.cos(cameraOrbit.yaw)).normalize();
+      const right = new THREE.Vector3(Math.cos(cameraOrbit.yaw), 0, -Math.sin(cameraOrbit.yaw)).normalize();
+
+      const move = new THREE.Vector3(0, 0, 0);
+      if (inputs.w) move.add(forward);
+      if (inputs.s && isMouseDown) move.sub(forward); // Backpedal only while holding mouse
+      if (inputs.d) move.add(right);
+      if (inputs.a) move.sub(right);
 
       if (move.lengthSq() > 0) {
-        move.normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraOrbit.yaw);
+        move.normalize();
         const currentSpeed = player.speed * (inputs.shift ? player.sprintMultiplier : 1);
         playerGroup.position.addScaledVector(move, currentSpeed * delta);
 
+        // Turn character to face movement direction
         const targetRot = Math.atan2(move.x, move.z);
-        playerGroup.rotation.y = THREE.MathUtils.lerp(playerGroup.rotation.y, targetRot, 0.2);
+        playerVisual.rotation.y = THREE.MathUtils.lerp(playerVisual.rotation.y, targetRot, 0.25);
 
-        // Subtle walk bobbing
-        charBodyGroup.position.y = Math.sin(clock.getElapsedTime() * 14) * 0.08;
+        // Running stride animation
+        playerVisual.position.y = Math.sin(clock.getElapsedTime() * 12) * 0.08;
+        playerVisual.rotation.z = Math.sin(clock.getElapsedTime() * 6) * 0.04;
+
+        // Tutorial Quest Step 1 check
+        if (currentZone === 'tutorial' && !quests.moved) {
+          quests.moved = true;
+          document.getElementById('qc-1').classList.add('done');
+          document.getElementById('qc-1').innerText = '✓';
+          logMessage('[Quest] Tutorial Step 1 Complete: You walked in 3rd person!', 'log-quest');
+        }
       } else {
-        charBodyGroup.position.y = THREE.MathUtils.lerp(charBodyGroup.position.y, 0, 0.1);
+        playerVisual.position.y = THREE.MathUtils.lerp(playerVisual.position.y, 0, 0.15);
+        playerVisual.rotation.z = THREE.MathUtils.lerp(playerVisual.rotation.z, 0, 0.15);
       }
 
-      // Camera Follow & Orbit Position
+      // Portal check on Tutorial Island
+      if (currentZone === 'tutorial' && portalMesh) {
+        portalMesh.rotation.z += 0.8 * delta;
+        const distToPortal = playerGroup.position.distanceTo(portalMesh.position);
+        if (distToPortal < 3.2) {
+          buildZone('main_world');
+        }
+      }
+
+      // Camera Orbit Position: Anchored behind and above the player
       const camOffset = new THREE.Vector3(
         Math.sin(cameraOrbit.yaw) * Math.cos(cameraOrbit.pitch) * cameraOrbit.distance,
-        Math.sin(cameraOrbit.pitch) * cameraOrbit.distance + 1.8,
+        Math.sin(cameraOrbit.pitch) * cameraOrbit.distance + 2.0,
         Math.cos(cameraOrbit.yaw) * Math.cos(cameraOrbit.pitch) * cameraOrbit.distance
       );
       camera.position.copy(playerGroup.position).add(camOffset);
-      camera.lookAt(playerGroup.position.x, playerGroup.position.y + 1.5, playerGroup.position.z);
-
-      // Nexus Core Idle Rotation & Bobbing
-      nexus.rotation.y += 0.5 * delta;
-      nexus.position.y = 3.8 + Math.sin(clock.getElapsedTime() * 1.5) * 0.25;
-
-      // Crystals Idle Animation
-      interactables.forEach((item, idx) => {
-        if (item.userData.type === 'node') {
-          item.position.y = 1.4 + Math.sin(clock.getElapsedTime() * 2 + idx) * 0.15;
-          item.rotation.y += 0.8 * delta;
-        }
-      });
+      camera.lookAt(playerGroup.position.x, playerGroup.position.y + 1.4, playerGroup.position.z);
 
       // Target selection ring positioning
       if (currentTarget) {
