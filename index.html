@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GlimmerFall Online — 3D MMORPG (Pre-Alpha)</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+    body {
+      overflow: hidden;
+      background: #020617;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      color: #f8fafc;
+    }
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+    }
+
+    /* MMORPG HUD */
+    #hud {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .panel {
+      pointer-events: auto;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+      padding: 12px 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+    }
+
+    /* Player Unit Frame */
+    #player-unit-frame {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      min-width: 260px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .portrait {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: 2px solid #facc15;
+      background: radial-gradient(circle, #f59e0b 0%, #78350f 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 20px;
+      color: #fff;
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+      position: relative;
+    }
+    .level-badge {
+      position: absolute;
+      bottom: -4px;
+      right: -4px;
+      background: #0284c7;
+      border: 1px solid #38bdf8;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 1px 5px;
+    }
+    .unit-info { flex: 1; }
+    .unit-name {
+      font-weight: 700;
+      color: #facc15;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .unit-sub {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: 600;
+      margin-top: 3px;
+    }
+    .bar-bg {
+      width: 100%;
+      height: 10px;
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+    .bar-hp {
+      height: 100%;
+      background: linear-gradient(90deg, #ef4444, #dc2626);
+      transition: width 0.2s ease;
+    }
+    .bar-res {
+      height: 100%;
+      background: linear-gradient(90deg, #f59e0b, #eab308);
+      transition: width 0.2s ease;
+    }
+
+    /* Target Unit Frame */
+    #target-unit-frame {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      min-width: 320px;
+      display: none;
+    }
+    #target-unit-frame .unit-name {
+      color: #38bdf8;
+      text-align: center;
+      font-size: 14px;
+    }
+    #target-sub {
+      text-align: center;
+      font-size: 11px;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+
+    /* Centered Cast Bar */
+    #cast-bar-container {
+      position: absolute;
+      bottom: 160px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 260px;
+      display: none;
+    }
+    .cast-bar-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: bold;
+      color: #38bdf8;
+      margin-bottom: 4px;
+      text-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+    }
+    .cast-bar-fill {
+      height: 12px;
+      background: linear-gradient(90deg, #38bdf8, #818cf8);
+      border-radius: 3px;
+      width: 0%;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
+    }
+
+    /* Dual Action Bar (24 Slots) */
+    #action-bar-cluster {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: auto;
+    }
+    .action-row {
+      display: flex;
+      gap: 5px;
+      justify-content: center;
+    }
+    .action-button {
+      width: 48px;
+      height: 48px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #38bdf8;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 2px;
+      font-size: 9px;
+      font-weight: 700;
+      color: #38bdf8;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s;
+    }
+    .action-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.6);
+      border-color: #7dd3fc;
+    }
+    .action-button:active {
+      transform: translateY(1px);
+    }
+    .action-icon {
+      font-size: 16px;
+      margin-top: 2px;
+    }
+    .key-badge {
+      font-size: 9px;
+      color: #94a3b8;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 3px;
+      padding: 0 3px;
+    }
+    .action-name {
+      font-size: 8px;
+      color: #cbd5e1;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 44px;
+    }
+    .cooldown-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 800;
+      color: #fff;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.1s;
+    }
+
+    /* Minimap (Radar) */
+    #minimap-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: 2px solid #38bdf8;
+      background: rgba(15, 23, 42, 0.85);
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+      overflow: hidden;
+      pointer-events: auto;
+    }
+    #minimap-canvas {
+      width: 100%;
+      height: 100%;
+    }
+    .minimap-title {
+      position: absolute;
+      bottom: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      font-weight: bold;
+      color: #38bdf8;
+      text-shadow: 0 0 6px #000;
+      white-space: nowrap;
+    }
+
+    /* Combat Log & Chat */
+    #combat-log {
+      position: absolute;
+      bottom: 24px;
+      left: 20px;
+      width: 320px;
+      height: 160px;
+      overflow-y: auto;
+      font-size: 11px;
+      line-height: 1.4;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .log-entry { color: #cbd5e1; }
+    .log-combat { color: #f87171; }
+    .log-gain { color: #38bdf8; }
+    .log-heal { color: #4ade80; }
+    .log-solari { color: #facc15; }
+
+    /* Top Utility Bar */
+    #top-bar {
+      position: absolute;
+      top: 20px;
+      left: 300px;
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+    .util-btn {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #cbd5e1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .util-btn:hover {
+      background: rgba(56, 189, 248, 0.2);
+      color: #38bdf8;
+    }
+
+    /* Modal Windows */
+    .modal {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 520px;
+      max-height: 80vh;
+      display: none;
+      z-index: 100;
+      overflow-y: auto;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+    .modal-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: #facc15;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .modal-close {
+      cursor: pointer;
+      font-size: 18px;
+      color: #94a3b8;
+    }
+    .modal-close:hover { color: #f87171; }
+
+    /* Floating Combat Text Container */
+    #fct-container {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .fct-text {
+      position: absolute;
+      font-weight: 800;
+      font-size: 16px;
+      text-shadow: 0 0 6px #000, 0 0 12px rgba(0,0,0,0.8);
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      animation: fctFloat 1.2s forwards cubic-bezier(0.1, 0.8, 0.3, 1);
+    }
+    @keyframes fctFloat {
+      0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+      20% { opacity: 1; transform: translate(-50%, -20px) scale(1.2); }
+      80% { opacity: 1; transform: translate(-50%, -50px) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -70px) scale(0.8); }
+    }
+
+    /* Guide / Tooltip */
+    #guide-panel {
+      position: absolute;
+      bottom: 200px;
+      left: 20px;
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.6;
+      background: rgba(15, 23, 42, 0.7);
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    #guide-panel strong { color: #facc15; }
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 4px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+  </style>
+
+  <!-- Import Three.js module -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.165.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.165.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div id="crosshair"></div>
+  <div id="fct-container"></div>
+
+  <div id="hud">
+    <!-- Top Utility Bar -->
+    <div id="top-bar">
+      <button class="util-btn" onclick="toggleModal('spellbook-modal')"><span>📖</span> Spellbook [P]</button>
+      <button class="util-btn" onclick="toggleModal('char-modal')"><span>🛡️</span> Character [C]</button>
+      <button class="util-btn" onclick="toggleModal('cards-modal')"><span>🃏</span> Relic Cards [K]</button>
+      <button class="util-btn" onclick="switchFaction()"><span>☀️</span> Faction: <b id="faction-label" style="color: #facc15;">Solari</b></button>
+    </div>
+
+    <!-- Minimap Radar -->
+    <div id="minimap-panel">
+      <canvas id="minimap-canvas" width="140" height="140"></canvas>
+      <div class="minimap-title">Nexus Warzone</div>
+    </div>
+
+    <!-- Player Unit Frame -->
+    <div id="player-unit-frame" class="panel">
+      <div class="portrait">
+        <span>⚔️</span>
+        <div class="level-badge">1</div>
+      </div>
+      <div class="unit-info">
+        <div class="unit-name" id="player-class-name">Solari Vanguard</div>
+        <div class="unit-sub">Lightbringer &bull; Sunspire Dominion</div>
+        <div class="stat-row"><span>HEALTH</span><span id="player-hp-txt">25 / 25</span></div>
+        <div class="bar-bg"><div id="player-hp-fill" class="bar-hp" style="width: 100%;"></div></div>
+        <div class="stat-row"><span id="player-res-label">SOLAR CHARGE</span><span id="player-res-txt">0 / 100</span></div>
+        <div class="bar-bg"><div id="player-res-fill" class="bar-res" style="width: 0%;"></div></div>
+      </div>
+    </div>
+
+    <!-- Target Unit Frame -->
+    <div id="target-unit-frame" class="panel">
+      <div id="target-name" class="unit-name">Central Nexus Monolith</div>
+      <div id="target-sub">Primary World Objective &bull; 25 HP Rule</div>
+      <div class="stat-row"><span>OBJECTIVE INTEGRITY</span><span id="target-hp-txt">25 / 25 (100%)</span></div>
+      <div class="bar-bg"><div id="target-hp-fill" class="bar-hp" style="width: 100%;"></div></div>
+    </div>
+
+    <!-- Cast Bar -->
+    <div id="cast-bar-container" class="panel">
+      <div class="cast-bar-header">
+        <span id="cast-name">Solar Flare</span>
+        <span id="cast-time">1.2s</span>
+      </div>
+      <div class="bar-bg" style="height: 12px;">
+        <div id="cast-fill" class="cast-bar-fill"></div>
+      </div>
+    </div>
+
+    <!-- Controls Guide -->
+    <div id="guide-panel">
+      <strong>[WASD]</strong> Move &bull; <strong>[Space]</strong> Jump &bull; <strong>[Shift]</strong> Sprint<br>
+      <strong>[Right Click + Drag]</strong> Camera Orbit &bull; <strong>[Scroll]</strong> Zoom<br>
+      <strong>[Left Click / Tab]</strong> Target &bull; <strong>[1-8 / Shift+1-4]</strong> Spells &bull; <strong>[E]</strong> Gather Node
+    </div>
+
+    <!-- Combat Log -->
+    <div id="combat-log" class="panel">
+      <div class="log-entry log-solari">[System] Welcome to GlimmerFall Online (Awakening Pre-Alpha).</div>
+      <div class="log-entry">[Combat Engine] Tab-target initialized. Nexus Monolith in range.</div>
+    </div>
+
+    <!-- Dual 24-Slot Action Bar -->
+    <div id="action-bar-cluster">
+      <!-- Bar 2 (Shift keys) -->
+      <div class="action-row">
+        <div class="action-button" onclick="castAbility(9)">
+          <span class="action-icon">🛡️</span>
+          <span class="action-name">Aegis Ward</span>
+          <span class="key-badge">S-1</span>
+          <div class="cooldown-overlay" id="cd-9">0</div>
+        </div>
+        <div class="action-button" onclick="castAbility(10)">
+          <span class="action-icon">✨</span>
+          <span class="action-name">Mending</span>
+          <span class="key-badge">S-2</span>
+          <div class="cooldown-overlay" id="cd-10">0</div>
+        </div>
+        <div class="action-button" onclick="castAbility(11)">
+          <span class="action-icon">⚡</span>
+          <span class="action-name">Zenith</span>
+          <span class="key-badge">S-3</span>
+          <div class="cooldown-overlay" id="cd-11">0</div>
+        </div>
+        <div class="action-button" onclick="castAbility(12)">
+          <span class="action-icon">💨</span>
+          <span class="action-name">Sun Dash</span>
+          <span class="key-badge">S-4</span>
+          <div class="cooldown-overlay" id="cd-12">0</div>
+        </div>
+      </div>
+
+      <!-- Bar 1 (Keys 1-8 + E) -->
+      <div class="action-row">
+        <div class="action-button" onclick="castAbility(1)">
+          <span class="action-icon">⚔️</span>
+          <span class="action-name">Dawn Strike</span>
+          <span class="key-badge">[1]</span>
+          <div class="cooldown-overlay" id="cd-1">0</div>
+        </div>
+        <div class="action-button" onclick="castAbility(2)">
+          <span class="action-icon">☀️</span>
+          <span class="action-name">Solar Flare</span>
+          <span class="key-badge">[2]</span>
+          <div class="cooldown-overlay" id="cd-2">0</div>
+        </div>
+        <div class="action-button" onclick="castAbility(3)">
+          <span class="action-icon">🔨</span>
+          <span class="action-name">Judgment</span>
+          <span class="key-badge">[3]</span>
+          <div class="cooldown-overlay" id="cd-3">0</div>
+        </div>
+        <div class="action-button" onclick="castAbility(4)">
+          <span class="action-icon">🔥</span>
+          <span class="action-name">Consecrate</span>
+          <span class="key-badge">[4]</span>
+          <div class="cooldown-overlay" id="cd-4">0</div>
+        </div>
+        <div class="action-button" onclick="castAbility(5)">
+          <span class="action-icon">👁️</span>
+          <span class="action-name">Inquisition</span>
+          <span class="key-badge">[5]</span>
+          <div class="cooldown-overlay" id="cd-5">0</div>
+        </div>
+        <div class="action-button" onclick="castAbility(6)">
+          <span class="action-icon">🌿</span>
+          <span class="action-name">Roots</span>
+          <span class="key-badge">[6]</span>
+          <div class="cooldown-overlay" id="cd-6">0</div>
+        </div>
+        <div class="action-button" onclick="harvestTarget()">
+          <span class="action-icon" style="color: #a855f7;">🔮</span>
+          <span class="action-name">Harvest</span>
+          <span class="key-badge">[E]</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Spellbook Modal (P) -->
+    <div id="spellbook-modal" class="modal panel">
+      <div class="modal-header">
+        <div class="modal-title">📖 Solari Vanguard Spellbook</div>
+        <div class="modal-close" onclick="toggleModal('spellbook-modal')">✕</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
+        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
+          <b style="color: #facc15;">Strike of Dawn [1]</b> &bull; Melee Instant, 1.5s GCD<br>
+          <span style="color: #94a3b8;">Slashes target dealing 3-5 Radiant damage. Generates 15 Solar Charge.</span>
+        </div>
+        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
+          <b style="color: #facc15;">Solar Flare [2]</b> &bull; 1.2s Cast, 25yd range, Costs 25 Solar Charge<br>
+          <span style="color: #94a3b8;">Launches a bolt of condensed sunlight dealing 8-12 Radiant damage.</span>
+        </div>
+        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
+          <b style="color: #facc15;">Judgment of Sol [3]</b> &bull; Instant, 6s CD, 20yd range<br>
+          <span style="color: #94a3b8;">Hurls a hammer of holy light dealing 6 damage and generating 20 Solar Charge.</span>
+        </div>
+        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
+          <b style="color: #facc15;">Consecrated Ground [4]</b> &bull; Instant, 12s CD<br>
+          <span style="color: #94a3b8;">Ignites the ground under the Paladin for 8s; burns enemies and heals allies standing in it.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Character Sheet Modal (C) -->
+    <div id="char-modal" class="modal panel">
+      <div class="modal-header">
+        <div class="modal-title">🛡️ Character Attributes</div>
+        <div class="modal-close" onclick="toggleModal('char-modal')">✕</div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px;">
+        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
+          <div style="color: #94a3b8;">Class: <b style="color:#fff;">Sunforged Paladin</b></div>
+          <div style="color: #94a3b8;">Faction: <b style="color:#facc15;">Solari Dominion</b></div>
+          <div style="color: #94a3b8;">Health Pool: <b style="color:#ef4444;">25 / 25 HP</b></div>
+          <div style="color: #94a3b8;">Solar Energy: <b style="color:#eab308;">100 Max</b></div>
+        </div>
+        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
+          <div style="color: #94a3b8;">Strength: <b style="color:#fff;">42 (+Melee AP)</b></div>
+          <div style="color: #94a3b8;">Stamina: <b style="color:#fff;">35 (Health)</b></div>
+          <div style="color: #94a3b8;">Crit Rating: <b style="color:#facc15;">18.5%</b></div>
+          <div style="color: #94a3b8;">Haste: <b style="color:#38bdf8;">12.0% (-GCD)</b></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card-Relic Sockets Modal (K) -->
+    <div id="cards-modal" class="modal panel">
+      <div class="modal-header">
+        <div class="modal-title">🃏 GlimmerFall Card-Relic Deck</div>
+        <div class="modal-close" onclick="toggleModal('cards-modal')">✕</div>
+      </div>
+      <p style="font-size: 11px; color: #94a3b8; margin-bottom: 10px;">
+        Equip 3 original trading cards from <i>glimmerfalltcg.com</i> to dynamically empower your MMORPG abilities.
+      </p>
+      <div style="display: flex; gap: 10px;">
+        <div style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid #facc15; border-radius: 6px; padding: 8px; text-align: center;">
+          <img src="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/solari_vanguard-YFbhwOPGHYNEmDfQQm2CZfBk9fZJBI.webp" style="width: 100%; border-radius: 4px;" alt="Card 1">
+          <b style="font-size: 11px; color: #facc15; display:block; margin-top:4px;">Solari Vanguard</b>
+          <span style="font-size: 9px; color: #cbd5e1;">+15% Radiant Slash Damage</span>
+        </div>
+        <div style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid #38bdf8; border-radius: 6px; padding: 8px; text-align: center;">
+          <img src="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/mana_crystal_85d4da2e-150onQbusVx2hyQEu7HfosXCqX0Ktc.webp" style="width: 100%; border-radius: 4px;" alt="Card 2">
+          <b style="font-size: 11px; color: #38bdf8; display:block; margin-top:4px;">Mana Crystal</b>
+          <span style="font-size: 9px; color: #cbd5e1;">+20 Max Energy Pool</span>
+        </div>
+        <div style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid #a855f7; border-radius: 6px; padding: 8px; text-align: center;">
+          <img src="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/duskblade_fiend-v1EnEuvSFu137bkLNZoZbI1NIFrgfF.webp" style="width: 100%; border-radius: 4px;" alt="Card 3">
+          <b style="font-size: 11px; color: #a855f7; display:block; margin-top:4px;">Duskblade Fiend</b>
+          <span style="font-size: 9px; color: #cbd5e1;">+10% Critical Strike</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    // ==========================================
+    // 1. Procedural Web Audio Synthesizer
+    // ==========================================
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+      }
+      playSlash() {
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(280, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
+      }
+      playHit() {
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(140, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.2);
+      }
+      playSpell() {
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.25);
+      }
+      playChime() {
+        this.init();
+        const notes = [523.25, 659.25, 783.99];
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.08);
+          gain.gain.setValueAtTime(0.2, this.ctx.currentTime + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.08 + 0.4);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(this.ctx.currentTime + idx * 0.08);
+          osc.stop(this.ctx.currentTime + idx * 0.08 + 0.4);
+        });
+      }
+    }
+    const audio = new SoundEngine();
+
+    // ==========================================
+    // 2. Game State & Character Setup
+    // ==========================================
+    const player = {
+      hp: 25,
+      maxHp: 25,
+      solarCharge: 0,
+      maxSolarCharge: 100,
+      speed: 12,
+      sprintMultiplier: 1.6,
+      jumpForce: 14,
+      vy: 0,
+      isGrounded: true,
+      cooldowns: {},
+    };
+
+    let currentTarget = null;
+    const inputs = { w: false, a: false, s: false, d: false, shift: false, space: false, rmb: false };
+    const cameraOrbit = { yaw: 0, pitch: 0.35, distance: 10 };
+    let isCasting = false;
+    let castProgress = 0;
+    let castDuration = 0;
+    let currentSpell = null;
+
+    // ==========================================
+    // 3. Three.js Scene Setup & Visuals
+    // ==========================================
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x020617, 0.02);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    // Environment Lighting
+    const hemiLight = new THREE.HemisphereLight(0x38bdf8, 0x0f172a, 1.2);
+    scene.add(hemiLight);
+
+    const sun = new THREE.DirectionalLight(0xfff7ed, 2.5);
+    sun.position.set(35, 60, 25);
+    sun.castShadow = true;
+    sun.shadow.mapSize.width = 2048;
+    sun.shadow.mapSize.height = 2048;
+    sun.shadow.camera.near = 0.5;
+    sun.shadow.camera.far = 160;
+    sun.shadow.camera.left = -40;
+    sun.shadow.camera.right = 40;
+    sun.shadow.camera.top = 40;
+    sun.shadow.camera.bottom = -40;
+    scene.add(sun);
+
+    // Ground Arena
+    const floorGeo = new THREE.PlaneGeometry(240, 240, 32, 32);
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: 0x090d16,
+      roughness: 0.85,
+      metalness: 0.15,
+    });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // Stylized glowing grid
+    const grid = new THREE.GridHelper(240, 60, 0x0284c7, 0x1e293b);
+    grid.position.y = 0.02;
+    scene.add(grid);
+
+    // Starfield sky dome
+    const starGeo = new THREE.BufferGeometry();
+    const starCount = 1500;
+    const starPos = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount * 3; i += 3) {
+      starPos[i] = (Math.random() - 0.5) * 600;
+      starPos[i + 1] = Math.random() * 250 + 20;
+      starPos[i + 2] = (Math.random() - 0.5) * 600;
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+    const starMat = new THREE.PointsMaterial({ color: 0x38bdf8, size: 1.5, transparent: true, opacity: 0.8 });
+    const stars = new THREE.Points(starGeo, starMat);
+    scene.add(stars);
+
+    // ==========================================
+    // 4. Asset Loader (Meshy GLBs + Procedural Fallbacks)
+    // ==========================================
+    const gltfLoader = new GLTFLoader();
+    const interactables = [];
+
+    function createWorldEntity(path, fallbackGeo, fallbackMat, scale = 1, onReady) {
+      const group = new THREE.Group();
+      scene.add(group);
+
+      let loaded = false;
+      gltfLoader.load(
+        path,
+        (gltf) => {
+          loaded = true;
+          const model = gltf.scene;
+          model.scale.set(scale, scale, scale);
+          model.traverse((child) => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+              // Enhance PBR materials if present
+              if (child.material) {
+                child.material.envMapIntensity = 1.0;
+              }
+            }
+          });
+          group.add(model);
+          logMessage(`[3D Loader] Successfully mounted ${path.split('/').pop()}`, 'log-gain');
+          if (onReady) onReady(group, true);
+        },
+        undefined,
+        () => {
+          // Fallback procedural geometry if GLB is compiling
+          if (!loaded) {
+            const fallbackMesh = new THREE.Mesh(fallbackGeo, fallbackMat);
+            fallbackMesh.castShadow = true;
+            fallbackMesh.receiveShadow = true;
+            group.add(fallbackMesh);
+            if (onReady) onReady(group, false);
+          }
+        }
+      );
+      return group;
+    }
+
+    // 1. Player Character (Solari Vanguard)
+    const playerGroup = new THREE.Group();
+    scene.add(playerGroup);
+
+    // Character body group
+    const charBodyGroup = new THREE.Group();
+    playerGroup.add(charBodyGroup);
+
+    createWorldEntity(
+      './models/solari_hero.glb',
+      new THREE.CapsuleGeometry(0.55, 1.4, 16, 24),
+      new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.25, metalness: 0.85 }),
+      1.1,
+      (g, isGlb) => {
+        if (!isGlb) {
+          // Add procedural golden armor details
+          const shieldGeo = new THREE.BoxGeometry(0.15, 0.9, 0.6);
+          const shieldMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.9, roughness: 0.2 });
+          const shield = new THREE.Mesh(shieldGeo, shieldMat);
+          shield.position.set(-0.65, 0, 0);
+          g.add(shield);
+
+          const swordGeo = new THREE.BoxGeometry(0.08, 1.3, 0.2);
+          const swordMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.95, roughness: 0.1 });
+          const sword = new THREE.Mesh(swordGeo, swordMat);
+          sword.position.set(0.65, 0, 0);
+          g.add(sword);
+        }
+        g.position.y = 1.25;
+      }
+    );
+    playerGroup.position.set(0, 0, 0);
+
+    // 2. Central Nexus Core Monolith (25 HP Objective)
+    const nexus = createWorldEntity(
+      './models/nexus_core.glb',
+      new THREE.OctahedronGeometry(2.4, 0),
+      new THREE.MeshStandardMaterial({
+        color: 0x38bdf8,
+        emissive: 0x0284c7,
+        emissiveIntensity: 0.8,
+        roughness: 0.2,
+        metalness: 0.8,
+      }),
+      1.6,
+      (g, isGlb) => {
+        g.position.set(0, 3.8, -22);
+        // Add dynamic light
+        const nexusLight = new THREE.PointLight(0x38bdf8, 4, 30);
+        g.add(nexusLight);
+      }
+    );
+    nexus.userData = { id: 'nexus_core', name: 'Central Nexus Monolith', hp: 25, maxHp: 25, type: 'nexus' };
+    interactables.push(nexus);
+
+    // 3. Harvestable Resonance Nodes (Aether Crystal Spire)
+    const nodeCoords = [
+      [-14, 0, -12],
+      [14, 0, -12],
+      [-18, 0, 8],
+      [18, 0, 8],
+      [0, 0, 20]
+    ];
+
+    nodeCoords.forEach((coords, i) => {
+      const node = createWorldEntity(
+        './models/resonance_node.glb',
+        new THREE.DodecahedronGeometry(1.0),
+        new THREE.MeshStandardMaterial({
+          color: 0xa855f7,
+          emissive: 0x7e22ce,
+          emissiveIntensity: 0.9,
+          roughness: 0.2,
+          metalness: 0.5,
+        }),
+        0.8,
+        (g) => {
+          g.position.set(coords[0], 1.4, coords[2]);
+          const light = new THREE.PointLight(0xa855f7, 2, 12);
+          g.add(light);
+        }
+      );
+      node.userData = { id: `res_node_${i}`, name: `Aether Resonance Spire #${i + 1}`, type: 'node', charges: 3, maxCharges: 3 };
+      interactables.push(node);
+    });
+
+    // 4. Hostile Mobs (Umbri Voidstalker & Terra Golem)
+    const umbriMob = createWorldEntity(
+      './models/umbri_minion.glb',
+      new THREE.ConeGeometry(0.8, 1.8, 8),
+      new THREE.MeshStandardMaterial({ color: 0x475569, emissive: 0x312e81, emissiveIntensity: 0.7, roughness: 0.4 }),
+      0.9,
+      (g) => { g.position.set(-8, 1.2, -10); }
+    );
+    umbriMob.userData = { id: 'umbri_mob_1', name: 'Umbri Voidstalker', hp: 18, maxHp: 18, type: 'mob', damage: 3 };
+    interactables.push(umbriMob);
+
+    const terraGolem = createWorldEntity(
+      './models/terra_golem.glb',
+      new THREE.BoxGeometry(1.6, 2.4, 1.6),
+      new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9, metalness: 0.1 }),
+      1.2,
+      (g) => { g.position.set(10, 1.6, -14); }
+    );
+    terraGolem.userData = { id: 'terra_golem_1', name: 'Ancient Stonebark Sentinel', hp: 45, maxHp: 45, type: 'mob', damage: 5 };
+    interactables.push(terraGolem);
+
+    // Target Selection Ring
+    const targetRingGeo = new THREE.RingGeometry(1.4, 1.6, 32);
+    const targetRingMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0 });
+    const targetRing = new THREE.Mesh(targetRingGeo, targetRingMat);
+    targetRing.rotation.x = -Math.PI / 2;
+    scene.add(targetRing);
+
+    // ==========================================
+    // 5. Input Handling & Orbit Camera
+    // ==========================================
+    window.addEventListener('keydown', (e) => {
+      const key = e.key.toLowerCase();
+      if (key in inputs) inputs[key] = true;
+      if (e.shiftKey) inputs.shift = true;
+      if (e.code === 'Space') {
+        inputs.space = true;
+        if (player.isGrounded) {
+          player.vy = player.jumpForce;
+          player.isGrounded = false;
+        }
+      }
+      if (key === 'tab') {
+        e.preventDefault();
+        cycleTarget();
+      }
+      if (key === 'escape') {
+        setTarget(null);
+        closeAllModals();
+      }
+      if (key === '1') castAbility(1);
+      if (key === '2') castAbility(2);
+      if (key === '3') castAbility(3);
+      if (key === '4') castAbility(4);
+      if (key === '5') castAbility(5);
+      if (key === '6') castAbility(6);
+      if (key === 'e') harvestTarget();
+      if (key === 'p') toggleModal('spellbook-modal');
+      if (key === 'c') toggleModal('char-modal');
+      if (key === 'k') toggleModal('cards-modal');
+    });
+
+    window.addEventListener('keyup', (e) => {
+      const key = e.key.toLowerCase();
+      if (key in inputs) inputs[key] = false;
+      if (!e.shiftKey) inputs.shift = false;
+      if (e.code === 'Space') inputs.space = false;
+    });
+
+    window.addEventListener('mousedown', (e) => {
+      if (e.button === 2) inputs.rmb = true;
+      if (e.button === 0) performRaycast(e);
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (e.button === 2) inputs.rmb = false;
+    });
+
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    window.addEventListener('mousemove', (e) => {
+      if (inputs.rmb) {
+        cameraOrbit.yaw -= e.movementX * 0.005;
+        cameraOrbit.pitch = Math.max(0.08, Math.min(Math.PI / 2.2, cameraOrbit.pitch + e.movementY * 0.005));
+      }
+    });
+
+    window.addEventListener('wheel', (e) => {
+      cameraOrbit.distance = Math.max(4, Math.min(26, cameraOrbit.distance + e.deltaY * 0.015));
+    });
+
+    // ==========================================
+    // 6. Targeting System (Tab & Click)
+    // ==========================================
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    function performRaycast(event) {
+      if (event.target.closest('#hud')) return;
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      const hits = raycaster.intersectObjects(interactables, true);
+      if (hits.length > 0) {
+        let parent = hits[0].object;
+        while (parent.parent && !parent.userData.id) parent = parent.parent;
+        setTarget(parent.userData.id ? parent : null);
+      }
+    }
+
+    function cycleTarget() {
+      if (interactables.length === 0) return;
+      let nextIdx = 0;
+      if (currentTarget) {
+        const curIdx = interactables.indexOf(currentTarget);
+        nextIdx = (curIdx + 1) % interactables.length;
+      }
+      setTarget(interactables[nextIdx]);
+    }
+
+    function setTarget(entity) {
+      currentTarget = entity;
+      const frame = document.getElementById('target-unit-frame');
+      if (!entity) {
+        frame.style.display = 'none';
+        targetRingMat.opacity = 0;
+        return;
+      }
+      frame.style.display = 'block';
+      document.getElementById('target-name').innerText = entity.userData.name;
+      targetRingMat.opacity = 0.8;
+      targetRing.position.set(entity.position.x, 0.03, entity.position.z);
+      updateTargetUI();
+      logMessage(`[Target] Selected ${entity.userData.name}`, 'log-gain');
+    }
+
+    function updateTargetUI() {
+      if (!currentTarget) return;
+      const hp = currentTarget.userData.hp ?? currentTarget.userData.charges;
+      const max = currentTarget.userData.maxHp ?? currentTarget.userData.maxCharges ?? 3;
+      const pct = Math.round((hp / max) * 100);
+      document.getElementById('target-hp-txt').innerText = `${hp} / ${max} (${pct}%)`;
+      document.getElementById('target-hp-fill').style.width = `${pct}%`;
+    }
+
+    function updatePlayerUI() {
+      document.getElementById('player-hp-txt').innerText = `${player.hp} / ${player.maxHp}`;
+      document.getElementById('player-hp-fill').style.width = `${(player.hp / player.maxHp) * 100}%`;
+      document.getElementById('player-res-txt').innerText = `${player.solarCharge} / ${player.maxSolarCharge}`;
+      document.getElementById('player-res-fill').style.width = `${(player.solarCharge / player.maxSolarCharge) * 100}%`;
+    }
+
+    // ==========================================
+    // 7. Floating Combat Text
+    // ==========================================
+    const fctContainer = document.getElementById('fct-container');
+
+    function spawnFCT(pos, text, color = '#facc15', isCrit = false) {
+      const screenPos = pos.clone().project(camera);
+      if (screenPos.z > 1) return; // Behind camera
+
+      const x = ((screenPos.x + 1) * window.innerWidth) / 2;
+      const y = ((-screenPos.y + 1) * window.innerHeight) / 2;
+
+      const el = document.createElement('div');
+      el.className = 'fct-text';
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      el.style.color = color;
+      if (isCrit) {
+        el.style.fontSize = '22px';
+        el.innerText = `💥 CRIT! ${text}`;
+      } else {
+        el.innerText = text;
+      }
+      fctContainer.appendChild(el);
+      setTimeout(() => el.remove(), 1200);
+    }
+
+    function logMessage(msg, className = '') {
+      const log = document.getElementById('combat-log');
+      const div = document.createElement('div');
+      div.className = `log-entry ${className}`;
+      div.innerText = msg;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    // ==========================================
+    // 8. Abilities & Combat Execution
+    // ==========================================
+    window.castAbility = function(slot) {
+      if (!currentTarget) {
+        logMessage(`[Combat] You must select a target first!`, 'log-combat');
+        return;
+      }
+
+      const dist = playerGroup.position.distanceTo(currentTarget.position);
+
+      if (slot === 1) {
+        // Strike of Dawn (Instant Melee)
+        if (dist > 5) {
+          logMessage(`[Combat] Target out of range!`, 'log-combat');
+          return;
+        }
+        audio.playSlash();
+        const dmg = Math.floor(Math.random() * 3) + 3;
+        const isCrit = Math.random() < 0.25;
+        const totalDmg = isCrit ? dmg * 2 : dmg;
+
+        currentTarget.userData.hp = Math.max(0, currentTarget.userData.hp - totalDmg);
+        player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 15);
+        audio.playHit();
+
+        spawnFCT(currentTarget.position, `-${totalDmg}`, isCrit ? '#facc15' : '#ef4444', isCrit);
+        logMessage(`[Combat] Strike of Dawn hits ${currentTarget.userData.name} for ${totalDmg} Radiant damage!`, 'log-solari');
+
+        updatePlayerUI();
+        updateTargetUI();
+      } else if (slot === 2) {
+        // Solar Flare (1.2s Cast)
+        if (player.solarCharge < 25) {
+          logMessage(`[Combat] Not enough Solar Charge (Requires 25)!`, 'log-combat');
+          return;
+        }
+        if (isCasting) return;
+
+        player.solarCharge -= 25;
+        updatePlayerUI();
+        startCast('Solar Flare', 1.2, () => {
+          audio.playSpell();
+          const dmg = Math.floor(Math.random() * 5) + 8;
+          currentTarget.userData.hp = Math.max(0, currentTarget.userData.hp - dmg);
+          spawnFCT(currentTarget.position, `-${dmg}`, '#f59e0b', true);
+          logMessage(`[Combat] Solar Flare blasts ${currentTarget.userData.name} for ${dmg} Radiant damage!`, 'log-solari');
+          updateTargetUI();
+        });
+      } else if (slot === 3) {
+        // Judgment of Sol
+        audio.playHit();
+        const dmg = 6;
+        currentTarget.userData.hp = Math.max(0, currentTarget.userData.hp - dmg);
+        player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 20);
+        spawnFCT(currentTarget.position, `-${dmg} STUN`, '#38bdf8');
+        logMessage(`[Combat] Judgment strikes ${currentTarget.userData.name} for 6 damage!`, 'log-solari');
+        updatePlayerUI();
+        updateTargetUI();
+      } else if (slot === 4) {
+        // Consecrated Ground
+        audio.playSpell();
+        spawnFCT(playerGroup.position, `CONSECRATION`, '#facc15');
+        logMessage(`[Combat] You consecrate the battlefield!`, 'log-solari');
+      } else if (slot === 10) {
+        // Radiant Mending (Heal)
+        audio.playChime();
+        player.hp = Math.min(player.maxHp, player.hp + 8);
+        spawnFCT(playerGroup.position, `+8 HP`, '#4ade80');
+        logMessage(`[Combat] Radiant Mending restores 8 Health!`, 'log-heal');
+        updatePlayerUI();
+      }
+    };
+
+    function startCast(name, duration, onComplete) {
+      isCasting = true;
+      castDuration = duration;
+      castProgress = 0;
+      currentSpell = { name, onComplete };
+
+      const bar = document.getElementById('cast-bar-container');
+      bar.style.display = 'block';
+      document.getElementById('cast-name').innerText = name;
+      document.getElementById('cast-time').innerText = `${duration}s`;
+    }
+
+    window.harvestTarget = function() {
+      if (!currentTarget || currentTarget.userData.type !== 'node') {
+        logMessage(`[Harvest] Target an Aether Crystal Spire to harvest!`, 'log-combat');
+        return;
+      }
+      const dist = playerGroup.position.distanceTo(currentTarget.position);
+      if (dist > 6) {
+        logMessage(`[Harvest] Move closer to the crystal font!`, 'log-combat');
+        return;
+      }
+      if (currentTarget.userData.charges > 0) {
+        currentTarget.userData.charges--;
+        player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 35);
+        audio.playChime();
+        spawnFCT(currentTarget.position, `+35 Resonance`, '#a855f7');
+        logMessage(`[Loot] Extracted 35 Resonance from ${currentTarget.userData.name}!`, 'log-gain');
+        updatePlayerUI();
+        updateTargetUI();
+      } else {
+        logMessage(`[Harvest] This font is depleted! Wait for replenishment.`, 'log-combat');
+      }
+    };
+
+    // Minimap Radar Rendering
+    const minimapCanvas = document.getElementById('minimap-canvas');
+    const mmCtx = minimapCanvas.getContext('2d');
+
+    function renderMinimap() {
+      mmCtx.clearRect(0, 0, 140, 140);
+      const cx = 70;
+      const cy = 70;
+      const scale = 1.2;
+
+      // Draw background ring
+      mmCtx.fillStyle = '#0f172a';
+      mmCtx.beginPath();
+      mmCtx.arc(cx, cy, 68, 0, Math.PI * 2);
+      mmCtx.fill();
+
+      // Draw Nexus
+      const nx = cx + (nexus.position.x - playerGroup.position.x) * scale;
+      const ny = cy + (nexus.position.z - playerGroup.position.z) * scale;
+      mmCtx.fillStyle = '#38bdf8';
+      mmCtx.beginPath();
+      mmCtx.arc(nx, ny, 5, 0, Math.PI * 2);
+      mmCtx.fill();
+
+      // Draw nodes
+      interactables.forEach((item) => {
+        if (item.userData.type === 'node') {
+          const ix = cx + (item.position.x - playerGroup.position.x) * scale;
+          const iy = cy + (item.position.z - playerGroup.position.z) * scale;
+          mmCtx.fillStyle = '#a855f7';
+          mmCtx.beginPath();
+          mmCtx.arc(ix, iy, 3.5, 0, Math.PI * 2);
+          mmCtx.fill();
+        } else if (item.userData.type === 'mob') {
+          const mx = cx + (item.position.x - playerGroup.position.x) * scale;
+          const my = cy + (item.position.z - playerGroup.position.z) * scale;
+          mmCtx.fillStyle = '#ef4444';
+          mmCtx.beginPath();
+          mmCtx.arc(mx, my, 4, 0, Math.PI * 2);
+          mmCtx.fill();
+        }
+      });
+
+      // Player center arrow
+      mmCtx.fillStyle = '#facc15';
+      mmCtx.beginPath();
+      mmCtx.arc(cx, cy, 4, 0, Math.PI * 2);
+      mmCtx.fill();
+    }
+
+    // Modal Helpers
+    window.toggleModal = function(id) {
+      const el = document.getElementById(id);
+      el.style.display = el.style.display === 'block' ? 'none' : 'block';
+    };
+
+    function closeAllModals() {
+      document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
+    }
+
+    const factions = ['Solari', 'Terra', 'Umbri', 'Aether'];
+    let fIdx = 0;
+    window.switchFaction = function() {
+      fIdx = (fIdx + 1) % factions.length;
+      const f = factions[fIdx];
+      document.getElementById('faction-label').innerText = f;
+      const colors = { Solari: '#facc15', Terra: '#4ade80', Umbri: '#a855f7', Aether: '#38bdf8' };
+      document.getElementById('faction-label').style.color = colors[f];
+      logMessage(`[Faction] Switched allegiance to ${f}!`, 'log-gain');
+    };
+
+    // ==========================================
+    // 9. Engine Loop & Physics
+    // ==========================================
+    const clock = new THREE.Clock();
+
+    function render() {
+      requestAnimationFrame(render);
+      const delta = clock.getDelta();
+
+      // Casting progression
+      if (isCasting) {
+        castProgress += delta;
+        const pct = Math.min(100, (castProgress / castDuration) * 100);
+        document.getElementById('cast-fill').style.width = `${pct}%`;
+        if (castProgress >= castDuration) {
+          isCasting = false;
+          document.getElementById('cast-bar-container').style.display = 'none';
+          if (currentSpell && currentSpell.onComplete) currentSpell.onComplete();
+        }
+      }
+
+      // Gravity & Jumping
+      if (!player.isGrounded) {
+        player.vy -= 35 * delta;
+        playerGroup.position.y += player.vy * delta;
+        if (playerGroup.position.y <= 0) {
+          playerGroup.position.y = 0;
+          player.vy = 0;
+          player.isGrounded = true;
+        }
+      }
+
+      // Movement Vector
+      const move = new THREE.Vector3();
+      if (inputs.w) move.z -= 1;
+      if (inputs.s) move.z += 1;
+      if (inputs.a) move.x -= 1;
+      if (inputs.d) move.x += 1;
+
+      if (move.lengthSq() > 0) {
+        move.normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraOrbit.yaw);
+        const currentSpeed = player.speed * (inputs.shift ? player.sprintMultiplier : 1);
+        playerGroup.position.addScaledVector(move, currentSpeed * delta);
+
+        const targetRot = Math.atan2(move.x, move.z);
+        playerGroup.rotation.y = THREE.MathUtils.lerp(playerGroup.rotation.y, targetRot, 0.2);
+
+        // Subtle walk bobbing
+        charBodyGroup.position.y = Math.sin(clock.getElapsedTime() * 14) * 0.08;
+      } else {
+        charBodyGroup.position.y = THREE.MathUtils.lerp(charBodyGroup.position.y, 0, 0.1);
+      }
+
+      // Camera Follow & Orbit Position
+      const camOffset = new THREE.Vector3(
+        Math.sin(cameraOrbit.yaw) * Math.cos(cameraOrbit.pitch) * cameraOrbit.distance,
+        Math.sin(cameraOrbit.pitch) * cameraOrbit.distance + 1.8,
+        Math.cos(cameraOrbit.yaw) * Math.cos(cameraOrbit.pitch) * cameraOrbit.distance
+      );
+      camera.position.copy(playerGroup.position).add(camOffset);
+      camera.lookAt(playerGroup.position.x, playerGroup.position.y + 1.5, playerGroup.position.z);
+
+      // Nexus Core Idle Rotation & Bobbing
+      nexus.rotation.y += 0.5 * delta;
+      nexus.position.y = 3.8 + Math.sin(clock.getElapsedTime() * 1.5) * 0.25;
+
+      // Crystals Idle Animation
+      interactables.forEach((item, idx) => {
+        if (item.userData.type === 'node') {
+          item.position.y = 1.4 + Math.sin(clock.getElapsedTime() * 2 + idx) * 0.15;
+          item.rotation.y += 0.8 * delta;
+        }
+      });
+
+      // Target selection ring positioning
+      if (currentTarget) {
+        targetRing.position.set(currentTarget.position.x, 0.03, currentTarget.position.z);
+      }
+
+      renderMinimap();
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    render();
+  </script>
+</body>
+</html>
