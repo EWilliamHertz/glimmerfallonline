@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&family=Chivo:wght@300;400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --gf-bg: #0B0C10;
+  --gf-surface: #12151E;
+  --gf-elevated: #1A1F2C;
+}
+
+body {
+  margin: 0;
+  background-color: var(--gf-bg);
+  color: #f8fafc;
+  font-family: 'Chivo', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(circle at 15% 15%, rgba(155, 48, 255, 0.08), transparent 45%),
+    radial-gradient(circle at 85% 20%, rgba(0, 191, 255, 0.08), transparent 45%),
+    radial-gradient(circle at 50% 90%, rgba(34, 224, 123, 0.06), transparent 50%);
+  background-attachment: fixed;
+  overflow-x: hidden;
+}
+
+.font-display { font-family: 'Cinzel', serif; }
+.font-head { font-family: 'Outfit', sans-serif; }
+.font-num { font-family: 'Rajdhani', sans-serif; }
+
+.glass {
+  background: rgba(18, 21, 30, 0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-solari {
+  background: rgba(242, 169, 0, 0.08);
+  border: 1px solid rgba(242, 169, 0, 0.3);
+  backdrop-filter: blur(12px);
+}
+
+.glass-aether {
+  background: rgba(0, 191, 255, 0.08);
+  border: 1px solid rgba(0, 191, 255, 0.3);
+  backdrop-filter: blur(12px);
+}
+
+.glass-terra {
+  background: rgba(34, 224, 123, 0.08);
+  border: 1px solid rgba(34, 224, 123, 0.3);
+  backdrop-filter: blur(12px);
+}
+
+.glass-umbri {
+  background: rgba(155, 48, 255, 0.08);
+  border: 1px solid rgba(155, 48, 255, 0.3);
+  backdrop-filter: blur(12px);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0B0C10;
+}
+::-webkit-scrollbar-thumb {
+  background: #1A1F2C;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2a3245;
+}
