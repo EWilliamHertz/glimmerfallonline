@@ -800,6 +800,31 @@
           osc.stop(this.ctx.currentTime + idx * 0.08 + 0.4);
         });
       }
+      playSmokePuff() {
+        this.init();
+        const bufferSize = Math.floor(this.ctx.sampleRate * 0.45);
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(700, this.ctx.currentTime);
+        filter.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.4);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.45, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start();
+      }
     }
     const audio = new SoundEngine();
 
@@ -983,7 +1008,7 @@
         dummyTarget.position.set(0, 1.2, 0.51);
         dummyGroup.add(dummyBody, dummyTarget);
         dummyGroup.position.set(0, 0, -4);
-        dummyGroup.userData = { id: 'dummy_1', name: 'Training Dummy', hp: 25, maxHp: 25, type: 'dummy' };
+        dummyGroup.userData = { id: 'dummy_1', name: 'Training Dummy', hp: 25, maxHp: 25, type: 'dummy', originalPos: [0, 0, -4] };
         zoneObjectsGroup.add(dummyGroup);
         interactables.push(dummyGroup);
 
@@ -1057,7 +1082,7 @@
           mob.add(g.scene);
         });
         mob.position.set(-10, 1.0, -10);
-        mob.userData = { id: 'umbri_mob', name: 'Void Stalker (Umbri Mob)', hp: 18, maxHp: 18, type: 'mob' };
+        mob.userData = { id: 'umbri_mob', name: 'Void Stalker (Umbri Mob)', hp: 18, maxHp: 18, type: 'mob', originalPos: [-10, 1.0, -10] };
         zoneObjectsGroup.add(mob);
         interactables.push(mob);
 
@@ -1067,7 +1092,7 @@
         golemBody.position.y = 1.4;
         golem.add(golemBody);
         golem.position.set(14, 0, -14);
-        golem.userData = { id: 'terra_boss', name: 'Granite Behemoth (World Boss)', hp: 50, maxHp: 50, type: 'mob' };
+        golem.userData = { id: 'terra_boss', name: 'Granite Behemoth (World Boss)', hp: 50, maxHp: 50, type: 'mob', originalPos: [14, 0, -14] };
         zoneObjectsGroup.add(golem);
         interactables.push(golem);
 
@@ -1323,11 +1348,160 @@
     }
 
     // ==========================================
-    // 9. Abilities & Combat Execution
+    // 9. Smoke Dissolution & Knockdown Engine
+    // ==========================================
+    const activeSmokePuffs = [];
+    const dyingEntities = [];
+    const smokeGeo = new THREE.DodecahedronGeometry(0.4, 1);
+
+    function spawnSmokeCloud(pos, count = 40) {
+      for (let i = 0; i < count; i++) {
+        const colors = [0x1e1b4b, 0x312e81, 0x475569, 0x581c87, 0x0f172a];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const mat = new THREE.MeshStandardMaterial({
+          color: color,
+          emissive: 0x581c87,
+          emissiveIntensity: 0.4,
+          roughness: 0.9,
+          transparent: true,
+          opacity: 0.85,
+        });
+        const mesh = new THREE.Mesh(smokeGeo, mat);
+        mesh.position.set(
+          pos.x + (Math.random() - 0.5) * 1.5,
+          pos.y + Math.random() * 1.4 + 0.2,
+          pos.z + (Math.random() - 0.5) * 1.5
+        );
+        mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        const scale = 0.4 + Math.random() * 0.5;
+        mesh.scale.set(scale, scale, scale);
+        scene.add(mesh);
+
+        activeSmokePuffs.push({
+          mesh,
+          velocity: new THREE.Vector3(
+            (Math.random() - 0.5) * 2.5,
+            Math.random() * 3.8 + 2.5,
+            (Math.random() - 0.5) * 2.5
+          ),
+          rotSpeed: new THREE.Vector3((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4),
+          age: 0,
+          maxAge: 0.9 + Math.random() * 0.6,
+        });
+      }
+    }
+
+    function triggerEntityDeath(target) {
+      if (!target || !target.userData || target.userData.isDying) return;
+      target.userData.isDying = true;
+
+      // Audio: deep smoke puff / dissolution sound
+      audio.playSmokePuff();
+
+      // Visuals: spawn billowing smoke particle burst
+      spawnSmokeCloud(target.position, 45);
+
+      // Defeat banner
+      spawnFCT(target.position, '💀 UP IN SMOKE', '#c084fc', true);
+      logMessage(`[Defeat] ${target.userData.name} collapsed and went up in smoke!`, 'log-solari');
+
+      // Add to dyingEntities to swirl upward and shrink into the smoke
+      dyingEntities.push({
+        group: target,
+        initScale: target.scale.clone(),
+        age: 0,
+      });
+
+      // Remove from interactables list
+      const idx = interactables.indexOf(target);
+      if (idx !== -1) interactables.splice(idx, 1);
+
+      // Deselect if targeted
+      if (currentTarget === target) {
+        setTarget(null);
+      }
+
+      // Respawn timer for training dummies and roaming mobs so world stays active
+      const entityId = target.userData.id;
+      const entityType = target.userData.type;
+      const entityName = target.userData.name;
+      const origPos = target.userData.originalPos;
+      const maxHp = target.userData.maxHp || 25;
+
+      if ((entityType === 'dummy' || entityType === 'mob') && origPos) {
+        setTimeout(() => {
+          respawnEntity(entityId, entityName, entityType, origPos, maxHp);
+        }, 7000);
+      }
+    }
+
+    function respawnEntity(id, name, type, pos, maxHp) {
+      if (currentZone === 'tutorial' && type === 'dummy') {
+        const dummyGroup = new THREE.Group();
+        const dummyBody = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.5, 0.5, 1.8, 16),
+          new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.7 })
+        );
+        dummyBody.position.y = 0.9;
+        dummyBody.castShadow = true;
+        const dummyTarget = new THREE.Mesh(
+          new THREE.RingGeometry(0.1, 0.4, 16),
+          new THREE.MeshBasicMaterial({ color: 0xef4444, side: THREE.DoubleSide })
+        );
+        dummyTarget.position.set(0, 1.2, 0.51);
+        dummyGroup.add(dummyBody, dummyTarget);
+        dummyGroup.position.set(pos[0], pos[1], pos[2]);
+        dummyGroup.userData = { id, name, hp: maxHp, maxHp, type, originalPos: pos, isDying: false };
+        zoneObjectsGroup.add(dummyGroup);
+        interactables.push(dummyGroup);
+        spawnSmokeCloud(dummyGroup.position, 20);
+        logMessage(`[World] ${name} respawned!`, 'log-gain');
+      } else if (type === 'mob') {
+        const mob = new THREE.Group();
+        gltfLoader.load('./models/umbri_minion.glb', (g) => {
+          g.scene.scale.set(1.0, 1.0, 1.0);
+          mob.add(g.scene);
+        });
+        mob.position.set(pos[0], pos[1], pos[2]);
+        mob.userData = { id, name, hp: maxHp, maxHp, type, originalPos: pos, isDying: false };
+        zoneObjectsGroup.add(mob);
+        interactables.push(mob);
+        spawnSmokeCloud(mob.position, 20);
+        logMessage(`[World] ${name} emerged from the void!`, 'log-gain');
+      }
+    }
+
+    function applyDamageToTarget(target, dmg, isCrit, spellName) {
+      if (!target || !target.userData || target.userData.isDying) return;
+
+      target.userData.hp = Math.max(0, (target.userData.hp ?? 25) - dmg);
+      audio.playHit();
+      spawnFCT(target.position, `-${dmg}`, isCrit ? '#facc15' : '#ef4444', isCrit);
+      logMessage(`[Combat] ${spellName} hits ${target.userData.name} for ${dmg} damage!`, 'log-solari');
+
+      // Tutorial Quest Step 2 Check
+      if (currentZone === 'tutorial' && !quests.damaged) {
+        quests.damaged = true;
+        document.getElementById('qc-2').classList.add('done');
+        document.getElementById('qc-2').innerText = '✓';
+        document.getElementById('quest-stage-txt').innerText = '2 / 4';
+        logMessage('[Quest] Tutorial Step 2 Complete: You damaged the Training Dummy!', 'log-quest');
+      }
+
+      updateTargetUI();
+
+      // Deplete life -> Up into smoke!
+      if (target.userData.hp <= 0 && !target.userData.isDying) {
+        triggerEntityDeath(target);
+      }
+    }
+
+    // ==========================================
+    // 10. Abilities & Combat Execution
     // ==========================================
     window.castAbility = function(slot) {
-      if (!currentTarget) {
-        logMessage(`[Combat] Select a target first!`, 'log-combat');
+      if (!currentTarget || currentTarget.userData.isDying) {
+        logMessage(`[Combat] Select an active target first!`, 'log-combat');
         return;
       }
       const dist = playerGroup.position.distanceTo(currentTarget.position);
@@ -1339,28 +1513,13 @@
           return;
         }
         audio.playSlash();
-        const dmg = Math.floor(Math.random() * 3) + 3;
+        const dmg = Math.floor(Math.random() * 3) + 4;
         const isCrit = Math.random() < 0.25;
         const totalDmg = isCrit ? dmg * 2 : dmg;
 
-        currentTarget.userData.hp = Math.max(0, currentTarget.userData.hp - totalDmg);
         player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 15);
-        audio.playHit();
-
-        spawnFCT(currentTarget.position, `-${totalDmg}`, isCrit ? '#facc15' : '#ef4444', isCrit);
-        logMessage(`[Combat] Strike of Dawn hits ${currentTarget.userData.name} for ${totalDmg} damage!`, 'log-solari');
-
-        // Quest Step 2 Complete
-        if (currentZone === 'tutorial' && !quests.damaged) {
-          quests.damaged = true;
-          document.getElementById('qc-2').classList.add('done');
-          document.getElementById('qc-2').innerText = '✓';
-          document.getElementById('quest-stage-txt').innerText = '2 / 4';
-          logMessage('[Quest] Tutorial Step 2 Complete: You damaged the Training Dummy!', 'log-quest');
-        }
-
         updatePlayerUI();
-        updateTargetUI();
+        applyDamageToTarget(currentTarget, totalDmg, isCrit, 'Strike of Dawn');
       } else if (slot === 2) {
         // Solar Flare (Ranged 1.2s Cast)
         if (player.solarCharge < 25) {
@@ -1371,24 +1530,18 @@
 
         player.solarCharge -= 25;
         updatePlayerUI();
+        const tgt = currentTarget;
         startCast('Solar Flare', 1.2, () => {
           audio.playSpell();
-          const dmg = Math.floor(Math.random() * 5) + 8;
-          currentTarget.userData.hp = Math.max(0, currentTarget.userData.hp - dmg);
-          spawnFCT(currentTarget.position, `-${dmg}`, '#f59e0b', true);
-          logMessage(`[Combat] Solar Flare blasts ${currentTarget.userData.name} for ${dmg} damage!`, 'log-solari');
-          updateTargetUI();
+          const dmg = Math.floor(Math.random() * 5) + 10;
+          applyDamageToTarget(tgt, dmg, true, 'Solar Flare');
         });
       } else if (slot === 3) {
         // Judgment of Sol
-        audio.playHit();
-        const dmg = 6;
-        currentTarget.userData.hp = Math.max(0, currentTarget.userData.hp - dmg);
+        const dmg = 8;
         player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 20);
-        spawnFCT(currentTarget.position, `-${dmg} STUN`, '#38bdf8');
-        logMessage(`[Combat] Judgment hits ${currentTarget.userData.name}!`, 'log-solari');
         updatePlayerUI();
-        updateTargetUI();
+        applyDamageToTarget(currentTarget, dmg, false, 'Judgment of Sol');
       } else if (slot === 4) {
         // Consecrate
         audio.playSpell();
@@ -1578,6 +1731,41 @@
       );
       camera.position.copy(playerGroup.position).add(camOffset);
       camera.lookAt(playerGroup.position.x, playerGroup.position.y + 1.4, playerGroup.position.z);
+
+      // Animate active smoke puffs
+      for (let i = activeSmokePuffs.length - 1; i >= 0; i--) {
+        const p = activeSmokePuffs[i];
+        p.age += delta;
+        const progress = p.age / p.maxAge;
+        p.mesh.position.addScaledVector(p.velocity, delta);
+        p.velocity.y += 1.8 * delta; // buoyancy upward
+        p.velocity.x *= (1 - 0.5 * delta);
+        p.velocity.z *= (1 - 0.5 * delta);
+        p.mesh.rotation.x += p.rotSpeed.x * delta;
+        p.mesh.rotation.y += p.rotSpeed.y * delta;
+        p.mesh.scale.multiplyScalar(1 + 0.9 * delta); // expansion
+        p.mesh.material.opacity = Math.max(0, (1 - progress) * 0.85);
+        if (p.age >= p.maxAge) {
+          scene.remove(p.mesh);
+          p.mesh.geometry.dispose();
+          p.mesh.material.dispose();
+          activeSmokePuffs.splice(i, 1);
+        }
+      }
+
+      // Animate dying entities swirling upward and shrinking into smoke
+      for (let i = dyingEntities.length - 1; i >= 0; i--) {
+        const d = dyingEntities[i];
+        d.age += delta;
+        d.group.position.y += 2.2 * delta;
+        d.group.rotation.y += 4.5 * delta;
+        const currentScale = Math.max(0.001, 1 - (d.age / 0.85));
+        d.group.scale.set(currentScale * d.initScale.x, currentScale * d.initScale.y, currentScale * d.initScale.z);
+        if (d.age >= 0.85) {
+          if (d.group.parent) d.group.parent.remove(d.group);
+          dyingEntities.splice(i, 1);
+        }
+      }
 
       // Target selection ring positioning
       if (currentTarget) {
