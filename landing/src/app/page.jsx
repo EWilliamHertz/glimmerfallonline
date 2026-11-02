@@ -174,38 +174,38 @@ const FACTIONS_DATA = {
 const FEATURES = [
   {
     icon: Swords,
-    title: 'Third-Person Tab-Target Combat',
-    desc: 'True World of Warcraft-style camera and controls. WASD camera-relative movement, GCD spell queueing, and dual 24-slot action bars.',
+    title: 'Top-Down 16-Bit Pixel Combat',
+    desc: 'Crisp Zelda / Chrono Trigger / RotMG-inspired 2D pixel action. 8-directional WASD movement, melee cleave arcs, and remappable pixel hotbars.',
     color: '#F2A900',
   },
   {
     icon: Zap,
     title: '3v3 Nexus Destruction Arena',
-    desc: 'Queue up for high-stakes 3v3 battles. Coordinate with allies, control harvestable energy fonts, and shatter the enemy Red Nexus (25 HP Rule).',
+    desc: 'Queue up alongside AI allied champions. Control harvestable energy fonts and shatter the enemy Red Nexus (25 HP Rule).',
     color: '#00BFFF',
   },
   {
     icon: Layers,
-    title: 'TCG Card-Relic Socketing',
-    desc: 'Equip original trading cards directly from glimmerfalltcg.com to dynamically augment your abilities with faction-specific passives.',
+    title: 'Pixelated TCG Relic Socketing',
+    desc: 'Equip original trading cards from glimmerfalltcg.com rendered in real-time pixel art to augment your abilities with faction passives.',
     color: '#9B30FF',
   },
   {
     icon: Flame,
-    title: 'Meshy v7.1 AI 3D Mesh Pipeline',
-    desc: 'Automated fal.ai pipeline transforms 2D card illustrations into fully textured PBR GLB 3D models with normal, roughness and metallic maps.',
+    title: 'Integer-Scaled Pixel Sprite Engine',
+    desc: 'Razor-sharp 1px-outlined sprites, Y-sorted depth rendering, animated 16x16 tilesets, 2x/3x/4x integer zoom, and CRT scanline mode.',
     color: '#22E07B',
   },
   {
     icon: Compass,
     title: 'Awakening Tutorial Island',
-    desc: 'Learn third-person combat, target training dummies, gather Aether resonance fonts, and step through the Astral Rift Portal into the Warzone.',
+    desc: 'Master top-down pixel combat on the Sanctuary Isle, strike training dummies, harvest Aether spires, and step into the Astral Rift.',
     color: '#F2A900',
   },
   {
     icon: Moon,
-    title: 'Smoke Knockdown & Dissolution',
-    desc: 'Vanquished enemies collapse and swirl upward into billowing clouds of mystical purple smoke particles with retro-MMO synthesized audio.',
+    title: 'Pixel Smoke Dissolution & Chiptune',
+    desc: 'Vanquished enemies burst into rising clouds of chunky purple pixel smoke accompanied by 8-bit chiptune Web Audio SFX.',
     color: '#9B30FF',
   },
 ];
@@ -230,7 +230,7 @@ export default function LandingPage() {
               GLIMMER<span className="text-[#F2A900] drop-shadow-[0_0_15px_rgba(242,169,0,0.6)]">FALL</span>
             </span>
             <span className="px-2 py-0.5 rounded text-[10px] font-head font-bold uppercase tracking-widest bg-[#00BFFF]/20 text-[#00BFFF] border border-[#00BFFF]/40">
-              Online 3D MMO
+              Online 2D Pixel MMO
             </span>
           </div>
 
@@ -298,8 +298,8 @@ export default function LandingPage() {
               transition={{ delay: 0.3 }}
               className="mt-6 text-white/70 max-w-lg text-lg leading-relaxed font-body"
             >
-              Enter the official 3D MMORPG based on the <i>GlimmerFall TCG</i> card-battler universe.
-              Wield third-person tab-target abilities, harvest Aether resonance crystals, socket authentic card relics, and shatter enemy Nexus monoliths in intense 3v3 arena battles.
+              Enter the official 16-bit 2D Pixel Art MMORPG based on the <i>GlimmerFall TCG</i> card-battler universe.
+              Wield top-down radiant abilities, harvest Aether resonance crystals, socket pixelated card relics, and shatter enemy Nexus monoliths in intense 3v3 arena battles.
             </motion.p>
 
             <motion.div
@@ -326,9 +326,9 @@ export default function LandingPage() {
 
             {/* Quick Specs Badges */}
             <div className="mt-12 flex flex-wrap gap-6 text-xs text-white/50 font-head">
-              <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-[#00BFFF]" /> Zero Download Browser WebGL</span>
+              <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-[#00BFFF]" /> Zero Download 2D Pixel Canvas</span>
               <span className="flex items-center gap-1.5"><Shield className="w-4 h-4 text-[#F2A900]" /> 8 Playable Classes</span>
-              <span className="flex items-center gap-1.5"><Boxes className="w-4 h-4 text-[#9B30FF]" /> Meshy v7.1 3D PBR Meshes</span>
+              <span className="flex items-center gap-1.5"><Boxes className="w-4 h-4 text-[#9B30FF]" /> 16-Bit Outlined Sprites &amp; Chiptune SFX</span>
             </div>
           </div>
 

@@ -3,27 +3,35 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GlimmerFall Online — 3D MMORPG</title>
+  <title>GlimmerFall Online — 2D Pixel MMORPG</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
   <style>
-    /* Complete prevention of browser text selection and blue highlighting */
     *, *::before, *::after {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
       -webkit-user-select: none !important;
-      -moz-user-select: none !important;
-      -ms-user-select: none !important;
       user-select: none !important;
       -webkit-user-drag: none !important;
-      -webkit-touch-callout: none !important;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
     }
-    ::selection { background: transparent !important; color: inherit !important; }
-    ::-moz-selection { background: transparent !important; color: inherit !important; }
+
+    :root {
+      --font-pixel: 'Silkscreen', 'Press Start 2P', 'Courier New', monospace;
+      --font-header: 'Press Start 2P', 'Silkscreen', monospace;
+      --bg-panel: rgba(11, 16, 30, 0.94);
+      --border-hi: #38bdf8;
+      --border-gold: #facc15;
+      --border-dark: #05070f;
+    }
 
     body {
       overflow: hidden;
-      background: #020617;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      background: #070b19;
+      font-family: var(--font-pixel);
       color: #f8fafc;
       width: 100vw;
       height: 100vh;
@@ -31,19 +39,32 @@
 
     #canvas-container {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
+      inset: 0;
       z-index: 1;
       cursor: crosshair;
     }
 
-    canvas {
-      outline: none;
+    #game-canvas {
+      width: 100vw;
+      height: 100vh;
       display: block;
-      -webkit-tap-highlight-color: transparent;
     }
+
+    #crt-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 6;
+      display: none;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.22) 0px,
+        rgba(0, 0, 0, 0.22) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+    }
+    #crt-overlay.active { display: block; }
 
     #hud {
       position: absolute;
@@ -54,152 +75,137 @@
 
     .panel {
       pointer-events: auto;
-      background: rgba(15, 23, 42, 0.9);
-      border: 1px solid rgba(56, 189, 248, 0.35);
-      border-radius: 8px;
-      backdrop-filter: blur(12px);
-      padding: 12px 16px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+      background: var(--bg-panel);
+      border: 2px solid var(--border-hi);
+      box-shadow:
+        0 0 0 2px var(--border-dark),
+        inset 0 0 0 2px #162038,
+        4px 4px 0 rgba(0, 0, 0, 0.85);
+      padding: 8px 10px;
     }
 
-    /* Player Unit Frame (Top Left) */
+    /* ==========================================
+       1. TOP-LEFT: PLAYER UNIT FRAME & QUESTS
+       ========================================== */
     #player-unit-frame {
       position: absolute;
-      top: 16px;
-      left: 20px;
-      min-width: 250px;
+      top: 12px;
+      left: 12px;
+      width: 248px;
       display: flex;
-      gap: 12px;
+      gap: 9px;
       align-items: center;
+      border-color: var(--border-gold);
     }
+
     .portrait {
       width: 48px;
       height: 48px;
-      border-radius: 50%;
-      border: 2px solid #facc15;
-      background: radial-gradient(circle, #f59e0b 0%, #78350f 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 18px;
-      color: #fff;
-      box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+      border: 2px solid var(--border-gold);
+      box-shadow: 0 0 0 2px var(--border-dark);
+      background: #1e1b4b;
       position: relative;
+      flex-shrink: 0;
+    }
+    #portrait-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
     }
     .level-badge {
       position: absolute;
-      bottom: -4px;
-      right: -4px;
+      bottom: -5px;
+      right: -5px;
       background: #0284c7;
-      border: 1px solid #38bdf8;
-      border-radius: 10px;
-      font-size: 9px;
-      font-weight: bold;
-      padding: 1px 4px;
+      border: 2px solid #fde047;
+      font-family: var(--font-header);
+      font-size: 8px;
+      padding: 2px 4px;
+      color: #fff;
     }
-    .unit-info { flex: 1; }
+
+    .unit-info { flex: 1; min-width: 0; }
     .unit-name {
-      font-weight: 700;
+      font-family: var(--font-header);
       color: #facc15;
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      font-size: 8.5px;
+      text-shadow: 2px 2px 0 #000;
+      margin-bottom: 1px;
     }
     .unit-sub {
-      font-size: 10px;
+      font-size: 8.5px;
       color: #94a3b8;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
     .stat-row {
       display: flex;
       justify-content: space-between;
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 700;
       margin-top: 2px;
+      text-shadow: 1px 1px 0 #000;
     }
+
     .bar-bg {
       width: 100%;
       height: 9px;
-      background: #0f172a;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 3px;
-      overflow: hidden;
-      margin-top: 2px;
+      background: #050811;
+      border: 2px solid #334155;
+      position: relative;
+      margin-top: 1px;
+    }
+    .bar-bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        90deg,
+        transparent 0px,
+        transparent 10px,
+        rgba(5, 8, 17, 0.55) 10px,
+        rgba(5, 8, 17, 0.55) 12px
+      );
+      pointer-events: none;
     }
     .bar-hp {
       height: 100%;
-      background: linear-gradient(90deg, #ef4444, #dc2626);
-      transition: width 0.2s ease;
+      background: #22c55e;
+      border-top: 2px solid #86efac;
+      transition: width 0.12s steps(8);
+    }
+    .bar-hp.shielded {
+      background: #38bdf8;
+      border-top-color: #bae6fd;
+    }
+    .bar-enemy {
+      height: 100%;
+      background: #ef4444;
+      border-top: 2px solid #fca5a5;
+      transition: width 0.12s steps(8);
     }
     .bar-res {
       height: 100%;
-      background: linear-gradient(90deg, #f59e0b, #eab308);
-      transition: width 0.2s ease;
+      background: #f59e0b;
+      border-top: 2px solid #fef08a;
+      transition: width 0.12s steps(8);
     }
 
-    /* Target Unit Frame (Top Center) */
-    #target-unit-frame {
-      position: absolute;
-      top: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      min-width: 300px;
-      display: none;
-    }
-    #target-name {
-      color: #38bdf8;
-      text-align: center;
-      font-size: 13px;
-      font-weight: 800;
-      text-transform: uppercase;
-    }
-    #target-sub {
-      text-align: center;
-      font-size: 10px;
-      color: #94a3b8;
-      margin-bottom: 4px;
-    }
-
-    /* Chat / Combat Log: Diagonally Upwards to the Left */
-    #combat-log {
-      position: absolute;
-      top: 98px;
-      left: 20px;
-      width: 310px;
-      height: 180px;
-      overflow-y: auto;
-      font-size: 11px;
-      line-height: 1.45;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
-    }
-    .log-entry { color: #cbd5e1; }
-    .log-combat { color: #f87171; }
-    .log-gain { color: #38bdf8; }
-    .log-heal { color: #4ade80; }
-    .log-solari { color: #facc15; }
-    .log-quest { color: #c084fc; font-weight: bold; }
-
-    /* Quest / Tutorial Tracker (Underneath Chat) */
     #quest-tracker {
       position: absolute;
-      top: 290px;
-      left: 20px;
-      width: 310px;
-      font-size: 11px;
-      line-height: 1.5;
+      top: 96px;
+      left: 12px;
+      width: 248px;
+      font-size: 9.5px;
+      line-height: 1.4;
     }
     .quest-title {
-      font-weight: 800;
+      font-family: var(--font-header);
       color: #facc15;
-      text-transform: uppercase;
-      font-size: 11px;
+      font-size: 7.5px;
       margin-bottom: 6px;
       display: flex;
       justify-content: space-between;
+      text-shadow: 2px 2px 0 #000;
     }
     .quest-task {
       display: flex;
@@ -209,226 +215,408 @@
       margin-bottom: 3px;
     }
     .quest-check {
-      width: 14px;
-      height: 14px;
-      border: 1px solid #38bdf8;
-      border-radius: 3px;
+      width: 13px;
+      height: 13px;
+      border: 2px solid #38bdf8;
+      background: #050811;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 10px;
+      font-size: 8px;
+      flex-shrink: 0;
     }
     .quest-check.done {
-      background: #22c55e;
-      border-color: #22c55e;
+      background: #16a34a;
+      border-color: #86efac;
       color: #fff;
     }
 
-    /* Minimap Radar (Top Right) */
-    #minimap-panel {
-      position: absolute;
-      top: 16px;
-      right: 20px;
-      width: 140px;
-      height: 140px;
-      border-radius: 50%;
-      border: 2px solid #38bdf8;
-      background: rgba(15, 23, 42, 0.85);
-      box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
-      overflow: hidden;
-      pointer-events: auto;
-    }
-    #minimap-canvas {
-      width: 100%;
-      height: 100%;
-    }
-    .minimap-title {
-      position: absolute;
-      bottom: -22px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 10px;
-      font-weight: bold;
-      color: #38bdf8;
-      text-shadow: 0 0 6px #000;
-      white-space: nowrap;
-    }
-
-    /* Top Utility Bar & 3v3 Matchmaking Queue */
-    #top-bar {
-      position: absolute;
-      top: 16px;
-      left: 290px;
-      display: flex;
-      gap: 8px;
-      pointer-events: auto;
-    }
-    .util-btn {
-      background: rgba(15, 23, 42, 0.88);
-      border: 1px solid rgba(56, 189, 248, 0.4);
-      border-radius: 6px;
-      padding: 6px 12px;
-      font-size: 11px;
-      font-weight: 700;
-      color: #cbd5e1;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      transition: background 0.15s, color 0.15s, transform 0.1s;
-    }
-    .util-btn:hover {
-      background: rgba(56, 189, 248, 0.2);
-      color: #38bdf8;
-      transform: translateY(-1px);
-    }
-    .queue-btn {
-      background: linear-gradient(135deg, #7c3aed, #4f46e5);
-      border-color: #c084fc;
-      color: #fff;
-      font-weight: 800;
-      box-shadow: 0 0 15px rgba(124, 58, 237, 0.5);
-    }
-    .queue-btn:hover {
-      background: linear-gradient(135deg, #9333ea, #6366f1);
-      box-shadow: 0 0 20px rgba(147, 51, 234, 0.7);
-    }
-
-    /* 3v3 Arena Match Status Banner */
+    /* ==========================================
+       2. TOP-CENTER: DEDICATED ENEMY BAR & 3v3 SCORE
+       (Zero buttons here — never covers UI!)
+       ========================================== */
     #arena-banner {
       position: absolute;
-      top: 70px;
+      top: 12px;
       left: 50%;
       transform: translateX(-50%);
       display: none;
       align-items: center;
-      gap: 20px;
-      padding: 10px 24px;
-      border: 2px solid #a855f7;
-      background: rgba(15, 23, 42, 0.95);
-      box-shadow: 0 0 30px rgba(168, 85, 247, 0.4);
+      gap: 16px;
+      padding: 6px 16px;
+      border-color: #c084fc;
     }
-    .arena-team {
+    .arena-team { display: flex; flex-direction: column; align-items: center; }
+    .team-blue-txt { font-family: var(--font-header); color: #38bdf8; font-size: 7.5px; margin-bottom: 2px; }
+    .team-red-txt { font-family: var(--font-header); color: #ef4444; font-size: 7.5px; margin-bottom: 2px; }
+
+    #target-unit-frame {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 268px;
+      display: none;
+      border-color: #ef4444;
+    }
+    #hud.in-arena #target-unit-frame {
+      top: 66px;
+    }
+    #target-name {
+      font-family: var(--font-header);
+      color: #f8fafc;
+      text-align: center;
+      font-size: 8.5px;
+      text-shadow: 2px 2px 0 #000;
+      margin-bottom: 2px;
+    }
+    #target-sub {
+      text-align: center;
+      font-size: 8.5px;
+      color: #94a3b8;
+      margin-bottom: 3px;
+    }
+
+    /* ==========================================
+       3. TOP-RIGHT: MINIMAP RADAR + ZONE / 3v3 STACK
+       ========================================== */
+    #minimap-panel {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 134px;
+      background: #050811;
+      border: 2px solid #38bdf8;
+      box-shadow: 0 0 0 2px #05070f, 4px 4px 0 rgba(0,0,0,0.85);
+      pointer-events: auto;
+    }
+    #minimap-canvas {
+      width: 130px;
+      height: 130px;
+      display: block;
+    }
+    .minimap-title {
+      background: #0d1324;
+      border-top: 2px solid #38bdf8;
+      text-align: center;
+      font-family: var(--font-header);
+      font-size: 6.5px;
+      padding: 4px 2px;
+      color: #facc15;
+    }
+
+    #zone-controls {
+      position: absolute;
+      top: 168px;
+      right: 12px;
+      width: 134px;
       display: flex;
       flex-direction: column;
-      align-items: center;
+      gap: 5px;
+      pointer-events: auto;
     }
-    .team-blue-txt { color: #38bdf8; font-weight: 800; font-size: 13px; }
-    .team-red-txt { color: #ef4444; font-weight: 800; font-size: 13px; }
 
-    /* Action Bars: PLACED NEXT TO EACH OTHER in ONE horizontal cluster */
-    #action-bar-cluster {
+    .util-btn {
+      font-family: var(--font-pixel);
+      background: #0d1324;
+      border: 2px solid #38bdf8;
+      box-shadow: 0 0 0 2px #05070f, 3px 3px 0 #000;
+      padding: 5px 7px;
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #e2e8f0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      position: relative;
+    }
+    .util-btn:hover {
+      background: #1e293b;
+      border-color: #facc15;
+      color: #facc15;
+    }
+    .util-btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: 0 0 0 2px #05070f;
+    }
+    .queue-btn {
+      background: #581c87;
+      border-color: #e879f9;
+      color: #fff;
+    }
+    .queue-btn:hover {
+      background: #7e22ce;
+      border-color: #fde047;
+    }
+
+    /* ==========================================
+       4. BOTTOM-LEFT: COMBAT & LORE LOG
+       ========================================== */
+    #combat-log {
       position: absolute;
-      bottom: 20px;
+      bottom: 12px;
+      left: 12px;
+      width: 248px;
+      height: 110px;
+      overflow-y: auto;
+      font-size: 9px;
+      line-height: 1.4;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .log-entry { color: #cbd5e1; text-shadow: 1px 1px 0 #000; }
+    .log-combat { color: #f87171; }
+    .log-gain { color: #38bdf8; }
+    .log-heal { color: #4ade80; }
+    .log-solari { color: #facc15; }
+    .log-quest { color: #e879f9; font-weight: bold; }
+
+    /* ==========================================
+       5. BOTTOM-CENTER: DIALOGUE, CAST BAR, XP BAR & RITES/FLASHES BAR
+       ========================================== */
+    #lore-dialogue-box {
+      position: absolute;
+      bottom: 122px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 500px;
+      max-width: 92vw;
+      display: none;
+      gap: 10px;
+      align-items: center;
+      border-color: #facc15;
+      z-index: 25;
+    }
+    .npc-portrait-box {
+      width: 52px;
+      height: 52px;
+      border: 2px solid #facc15;
+      background: #0f172a;
+      flex-shrink: 0;
+    }
+    #npc-portrait-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #dlg-speaker {
+      font-family: var(--font-header);
+      font-size: 7.5px;
+      color: #facc15;
+      margin-bottom: 4px;
+    }
+    #dlg-text {
+      font-size: 10px;
+      color: #f1f5f9;
+      line-height: 1.45;
+    }
+
+    #cast-bar-container {
+      position: absolute;
+      bottom: 92px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 240px;
+      display: none;
+      border-color: #facc15;
+    }
+    .cast-bar-header {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-header);
+      font-size: 7.5px;
+      color: #facc15;
+      margin-bottom: 3px;
+    }
+    .cast-bar-fill {
+      height: 100%;
+      background: #38bdf8;
+      border-top: 2px solid #e0f2fe;
+      width: 0%;
+    }
+
+    #bottom-bar-dock {
+      position: absolute;
+      bottom: 12px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
-      align-items: center;
-      gap: 10px;
-      background: rgba(15, 23, 42, 0.92);
-      border: 1px solid rgba(56, 189, 248, 0.4);
-      border-radius: 10px;
-      padding: 6px 10px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.85);
+      flex-direction: column;
+      gap: 4px;
       pointer-events: auto;
     }
-    .action-group {
+
+    #xp-bar-wrap {
+      width: 100%;
+      height: 15px;
+      background: #050811;
+      border: 2px solid #6366f1;
+      box-shadow: 0 0 0 2px #05070f;
+      position: relative;
+    }
+    #xp-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: #7c3aed;
+      border-top: 2px solid #c084fc;
+      transition: width 0.2s steps(12);
+    }
+    #xp-bar-txt {
+      position: absolute;
+      inset: 0;
       display: flex;
-      gap: 5px;
       align-items: center;
+      justify-content: center;
+      font-family: var(--font-header);
+      font-size: 6.5px;
+      color: #f8fafc;
+      text-shadow: 1px 1px 0 #000;
+      pointer-events: none;
     }
-    .action-divider {
-      width: 1px;
-      height: 42px;
-      background: rgba(56, 189, 248, 0.35);
+
+    #action-bar-cluster {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-panel);
+      border: 2px solid #38bdf8;
+      box-shadow: 0 0 0 2px #05070f, 4px 4px 0 #000;
+      padding: 5px 7px;
     }
+    .action-group { display: flex; gap: 4px; align-items: center; }
+    .action-divider { width: 2px; height: 40px; background: #334155; }
+
     .action-button {
       width: 46px;
-      height: 46px;
-      background: rgba(15, 23, 42, 0.95);
-      border: 1px solid #38bdf8;
-      border-radius: 6px;
+      height: 48px;
+      background: #080c18;
+      border: 2px solid #475569;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: space-between;
       padding: 3px 2px;
-      font-size: 9px;
-      font-weight: 700;
-      color: #38bdf8;
       cursor: pointer;
       position: relative;
-      overflow: hidden;
-      transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s;
     }
+    .action-button.flash-card { border-bottom-color: #38bdf8; }
+    .action-button.rite-card { border-bottom-color: #f59e0b; }
     .action-button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 0 14px rgba(56, 189, 248, 0.6);
-      border-color: #7dd3fc;
+      border-color: #facc15;
+      background: #172036;
     }
-    .action-button:active {
-      transform: translateY(1px);
-    }
-    .action-icon {
-      font-size: 15px;
-      margin-top: 1px;
-    }
+    .action-button:active { transform: translate(1px, 1px); }
+    .action-icon { font-size: 15px; line-height: 1; margin-top: 4px; }
     .key-badge {
-      font-size: 8px;
+      position: absolute;
+      top: 1px;
+      right: 1px;
+      font-family: var(--font-header);
+      font-size: 6.5px;
+      color: #facc15;
+      background: #05070f;
+      padding: 1px 2px;
+    }
+    .rank-badge {
+      position: absolute;
+      top: 1px;
+      left: 1px;
+      font-size: 7px;
       color: #94a3b8;
-      background: rgba(0, 0, 0, 0.6);
-      border-radius: 3px;
-      padding: 0 3px;
+      background: rgba(5, 7, 15, 0.8);
+      padding: 0 2px;
     }
     .action-name {
-      font-size: 7.5px;
+      font-size: 7px;
       color: #cbd5e1;
       text-transform: uppercase;
-      letter-spacing: 0.02em;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
       max-width: 42px;
+      overflow: hidden;
+      white-space: nowrap;
     }
     .cooldown-overlay {
       position: absolute;
       inset: 0;
-      background: rgba(0, 0, 0, 0.75);
+      background: rgba(5, 7, 15, 0.88);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 13px;
-      font-weight: 800;
-      color: #fff;
+      font-family: var(--font-header);
+      font-size: 8.5px;
+      color: #facc15;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.1s;
     }
 
-    /* Cast Bar */
-    #cast-bar-container {
+    /* ==========================================
+       6. BOTTOM-RIGHT: COMPACT RPG MICRO-MENU DOCK
+       ========================================== */
+    #micro-menu {
       position: absolute;
-      bottom: 84px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 260px;
+      bottom: 12px;
+      right: 12px;
+      width: 214px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+      pointer-events: auto;
+    }
+    .pt-pip {
+      background: #16a34a;
+      border: 1px solid #fef08a;
+      color: #fff;
+      font-family: var(--font-header);
+      font-size: 6.5px;
+      padding: 1px 3px;
+      margin-left: 2px;
+    }
+
+    /* Floating Combat Text */
+    #fct-container {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 8;
+    }
+    .fct-text {
+      position: absolute;
+      font-family: var(--font-header);
+      font-size: 10.5px;
+      text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      animation: pixelFloat 0.95s steps(12) forwards;
+    }
+    .fct-crit { font-size: 13px; }
+    @keyframes pixelFloat {
+      0% { opacity: 1; transform: translate(-50%, 0); }
+      75% { opacity: 1; transform: translate(-50%, -34px); }
+      100% { opacity: 0; transform: translate(-50%, -46px); }
+    }
+
+    #damage-vignette {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 45;
+      border: 10px solid rgba(239, 68, 68, 0.75);
+      opacity: 0;
       display: none;
     }
-    .cast-bar-header {
-      display: flex;
-      justify-content: space-between;
-      font-size: 10px;
-      font-weight: bold;
-      color: #38bdf8;
-      margin-bottom: 3px;
-      text-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
-    }
-    .cast-bar-fill {
-      height: 10px;
-      background: linear-gradient(90deg, #38bdf8, #818cf8);
-      border-radius: 3px;
-      width: 0%;
-      box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
+    #death-screen {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 100;
+      background: rgba(5, 7, 15, 0.92);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
     }
 
     /* Modals */
@@ -437,1352 +625,454 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 520px;
-      max-height: 80vh;
+      width: 580px;
+      max-width: 94vw;
+      max-height: 82vh;
       display: none;
       z-index: 100;
       overflow-y: auto;
+      border-color: #facc15;
+      padding: 12px 14px;
     }
     .modal-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+      border-bottom: 2px solid #334155;
       padding-bottom: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
     .modal-title {
-      font-size: 15px;
-      font-weight: 800;
+      font-family: var(--font-header);
+      font-size: 9.5px;
       color: #facc15;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      text-shadow: 2px 2px 0 #000;
     }
     .modal-close {
       cursor: pointer;
-      font-size: 18px;
-      color: #94a3b8;
+      font-family: var(--font-header);
+      font-size: 11px;
+      color: #f87171;
+      padding: 2px 6px;
     }
-    .modal-close:hover { color: #f87171; }
 
-    /* Floating Combat Text Container */
-    #fct-container {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      z-index: 5;
+    .keybind-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #080c18;
+      border: 2px solid #1e293b;
+      padding: 6px 9px;
+      margin-bottom: 5px;
     }
-    .fct-text {
-      position: absolute;
-      font-weight: 800;
-      font-size: 16px;
-      text-shadow: 0 0 6px #000, 0 0 12px rgba(0,0,0,0.8);
-      pointer-events: none;
-      transform: translate(-50%, -50%);
-      animation: fctFloat 1.2s forwards cubic-bezier(0.1, 0.8, 0.3, 1);
+    .spec-pill {
+      font-size: 8.5px;
+      background: #172554;
+      color: #7dd3fc;
+      padding: 1px 5px;
+      border: 1px solid #38bdf8;
     }
-    @keyframes fctFloat {
-      0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
-      20% { opacity: 1; transform: translate(-50%, -20px) scale(1.2); }
-      80% { opacity: 1; transform: translate(-50%, -50px) scale(1); }
-      100% { opacity: 0; transform: translate(-50%, -70px) scale(0.8); }
+    .rank-pill {
+      font-size: 8.5px;
+      background: #422006;
+      color: #fde047;
+      padding: 1px 5px;
+      border: 1px solid #eab308;
+    }
+    .upgrade-btn {
+      font-family: var(--font-header);
+      background: #1e293b;
+      border: 2px solid #475569;
+      color: #64748b;
+      font-size: 7.5px;
+      padding: 5px 6px;
+      cursor: not-allowed;
+    }
+    .upgrade-btn.ready {
+      background: #14532d;
+      border-color: #4ade80;
+      color: #fef08a;
+      cursor: pointer;
+    }
+    .upgrade-btn.ready:hover {
+      background: #16a34a;
+      color: #fff;
+    }
+    .keybind-btn {
+      font-family: var(--font-header);
+      background: #0d1324;
+      border: 2px solid #38bdf8;
+      color: #facc15;
+      font-size: 8px;
+      padding: 5px 7px;
+      cursor: pointer;
+      min-width: 54px;
+    }
+    .keybind-btn.listening {
+      background: #9a3412;
+      border-color: #facc15;
+      color: #fff;
     }
   </style>
-
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.165.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.165.0/examples/jsm/"
-      }
-    }
-  </script>
 </head>
 <body>
-  <div id="canvas-container"></div>
+  <div id="canvas-container">
+    <canvas id="game-canvas"></canvas>
+  </div>
+  <div id="crt-overlay"></div>
   <div id="fct-container"></div>
 
   <div id="hud">
-    <!-- Top Utility Bar -->
-    <div id="top-bar">
-      <button class="util-btn" onclick="toggleModal('spellbook-modal')"><span>📖</span> Spellbook [P]</button>
-      <button class="util-btn" onclick="toggleModal('char-modal')"><span>🛡️</span> Character [C]</button>
-      <button class="util-btn" onclick="toggleModal('cards-modal')"><span>🃏</span> Relic Cards [K]</button>
-      <button class="util-btn queue-btn" id="btn-queue" onclick="toggleMatchmaking()"><span>⚔️</span> Queue 3v3 Nexus Battle</button>
-      <button class="util-btn" onclick="teleportWorld()"><span>🌀</span> Zone: <b id="zone-label" style="color: #38bdf8;">Tutorial Island</b></button>
+    <div id="damage-vignette"></div>
+    <div id="death-screen">
+      <div style="font-family: var(--font-header); font-size: 16px; color: #ef4444; text-shadow: 3px 3px 0 #000; margin-bottom: 10px;">
+        💀 CAST INTO THE FALL
+      </div>
+      <div id="death-timer-txt" style="font-size: 11px; color: #facc15;">
+        RE-ANCHORING AT SOLARI SANCTUARY IN 3S...
+      </div>
     </div>
 
-    <!-- Minimap Radar (Top Right) -->
-    <div id="minimap-panel">
-      <canvas id="minimap-canvas" width="140" height="140"></canvas>
-      <div class="minimap-title" id="minimap-zone-title">Awakening Isle</div>
-    </div>
-
-    <!-- Player Unit Frame (Top Left) -->
+    <!-- 1. TOP-LEFT: Player Unit Frame & Awakening Quest Tracker -->
     <div id="player-unit-frame" class="panel">
       <div class="portrait">
-        <span>⚔️</span>
-        <div class="level-badge">1</div>
+        <canvas id="portrait-canvas" width="28" height="28"></canvas>
+        <div class="level-badge" id="player-level-badge">1</div>
       </div>
       <div class="unit-info">
-        <div class="unit-name">Solari Vanguard</div>
-        <div class="unit-sub">Lightbringer &bull; Sunspire Dominion</div>
+        <div class="unit-name">SOLARI VANGUARD</div>
+        <div class="unit-sub">Awakened Summoner-Knight</div>
         <div class="stat-row"><span>HEALTH</span><span id="player-hp-txt">25 / 25</span></div>
         <div class="bar-bg"><div id="player-hp-fill" class="bar-hp" style="width: 100%;"></div></div>
-        <div class="stat-row"><span>SOLAR CHARGE</span><span id="player-res-txt">0 / 100</span></div>
+        <div class="stat-row"><span>GLIMMER</span><span id="player-res-txt">0 / 100</span></div>
         <div class="bar-bg"><div id="player-res-fill" class="bar-res" style="width: 0%;"></div></div>
       </div>
     </div>
 
-    <!-- 3v3 Arena Status Banner -->
+    <div id="quest-tracker" class="panel">
+      <div id="quest-tasks-tutorial">
+        <div class="quest-title">
+          <span>📜 STASIS AWAKENING</span>
+          <span id="quest-stage-txt" style="color: #38bdf8;">1 / 4</span>
+        </div>
+        <div class="quest-task"><div class="quest-check" id="qc-1"></div><span>Break stasis: Move [WASD]</span></div>
+        <div class="quest-task"><div class="quest-check" id="qc-2"></div><span>Cast Flare Strike [1] on Dummy</span></div>
+        <div class="quest-task"><div class="quest-check" id="qc-3"></div><span>Ready Glimmer Node [E]</span></div>
+        <div class="quest-task"><div class="quest-check" id="qc-4"></div><span>Enter North Rift -> Warzone</span></div>
+      </div>
+      <div id="quest-tasks-warzone" style="display:none;">
+        <div class="quest-title">
+          <span>⚔️ WAR FOR THE NEXUS</span>
+          <span style="color: #facc15;">SOLARI</span>
+        </div>
+        <div class="quest-task"><span>• Banish Umbri &amp; Terra foes to Void</span></div>
+        <div class="quest-task"><span>• Level up Stats [C] &amp; Rites [P]</span></div>
+        <div class="quest-task"><span>• Queue 3v3 &amp; Shatter Red Nexus!</span></div>
+      </div>
+    </div>
+
+    <!-- 2. TOP-CENTER: Dedicated Exclusively to Enemy Target Bar & 3v3 Banner -->
     <div id="arena-banner" class="panel">
       <div class="arena-team">
-        <span class="team-blue-txt">ALLY NEXUS</span>
-        <span id="blue-nexus-hp" style="font-weight: 800; font-size: 16px; color: #38bdf8;">25 / 25</span>
+        <span class="team-blue-txt">SOLARI NEXUS</span>
+        <span id="blue-nexus-hp" style="font-family: var(--font-header); font-size: 10px; color: #38bdf8;">25 / 25</span>
       </div>
-      <div style="font-size: 20px; font-weight: 900; color: #facc15;">VS</div>
+      <div style="font-family: var(--font-header); font-size: 10px; color: #facc15;">VS</div>
       <div class="arena-team">
-        <span class="team-red-txt">ENEMY NEXUS</span>
-        <span id="red-nexus-hp" style="font-weight: 800; font-size: 16px; color: #ef4444;">25 / 25</span>
+        <span class="team-red-txt">UMBRI NEXUS</span>
+        <span id="red-nexus-hp" style="font-family: var(--font-header); font-size: 10px; color: #ef4444;">25 / 25</span>
       </div>
     </div>
 
-    <!-- Target Unit Frame (Top Center) -->
     <div id="target-unit-frame" class="panel">
-      <div id="target-name">Training Dummy</div>
-      <div id="target-sub">Level 1 &bull; Isle Objective</div>
-      <div class="stat-row"><span>TARGET INTEGRITY</span><span id="target-hp-txt">25 / 25</span></div>
-      <div class="bar-bg"><div id="target-hp-fill" class="bar-hp" style="width: 100%;"></div></div>
+      <div id="target-name">SANCTUARY DUMMY</div>
+      <div id="target-sub">Lv.1 Solari Training Post</div>
+      <div class="stat-row"><span>INTEGRITY</span><span id="target-hp-txt">25 / 25</span></div>
+      <div class="bar-bg"><div id="target-hp-fill" class="bar-enemy" style="width: 100%;"></div></div>
     </div>
 
-    <!-- Chat & Combat Log: Diagonally Upwards to the Left -->
+    <!-- 3. TOP-RIGHT: Square Pixel Minimap + Arena/Zone Stack -->
+    <div id="minimap-panel">
+      <canvas id="minimap-canvas" width="128" height="128"></canvas>
+      <div class="minimap-title" id="minimap-zone-title">AWAKENING ISLE</div>
+    </div>
+
+    <div id="zone-controls">
+      <button class="util-btn queue-btn" id="btn-queue" onclick="toggleMatchmaking()">⚔️ 3v3 ARENA</button>
+      <button class="util-btn" onclick="teleportWorld()">🌀 <span id="zone-label">To Warzone</span></button>
+    </div>
+
+    <!-- 4. BOTTOM-LEFT: Combat & Lore Log -->
     <div id="combat-log" class="panel">
-      <div class="log-entry log-quest">[Tutorial] Welcome to the Isle of Awakening!</div>
-      <div class="log-entry">[Controls] Hold mouse to rotate screen freely. Use WASD to walk.</div>
+      <div class="log-entry log-quest">[GlimmerFall Online] Centuries after the Shattering, you awaken...</div>
+      <div class="log-entry">[Tip] Click yellow Herald NPC or press [T] for story lore!</div>
     </div>
 
-    <!-- Quest Tracker (Tutorial & Objectives) -->
-    <div id="quest-tracker" class="panel">
-      <div class="quest-title">
-        <span>📜 Chapter I: Awakening</span>
-        <span id="quest-stage-txt" style="color: #38bdf8;">1 / 4</span>
+    <!-- 5. BOTTOM-CENTER: Story Dialogue + Cast Bar + XP Bar + Rites/Flashes Action Bar -->
+    <div id="lore-dialogue-box" class="panel">
+      <div class="npc-portrait-box">
+        <canvas id="npc-portrait-canvas" width="32" height="32"></canvas>
       </div>
-      <div class="quest-task"><div class="quest-check" id="qc-1">✓</div><span id="qt-1">Hold mouse to look & move with WASD</span></div>
-      <div class="quest-task"><div class="quest-check" id="qc-2"></div><span id="qt-2">Target Dummy & strike with Dawn Strike [1]</span></div>
-      <div class="quest-task"><div class="quest-check" id="qc-3"></div><span id="qt-3">Harvest Aether Resonance Font [E]</span></div>
-      <div class="quest-task"><div class="quest-check" id="qc-4"></div><span id="qt-4">Step into Astral Portal to reach Nexus World</span></div>
+      <div style="flex: 1;">
+        <div id="dlg-speaker">AURORA MARSHAL • SOLARI HERALD</div>
+        <div id="dlg-text"></div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <button class="util-btn" id="dlg-next-btn" style="border-color:#facc15; color:#facc15; font-size:8.5px;" onclick="advanceDialogue()">NEXT ▸</button>
+        <button class="util-btn" style="font-size:8px; padding:3px 6px; color:#94a3b8; border-color:#475569;" onclick="closeDialogue()">SKIP ✕</button>
+      </div>
     </div>
 
-    <!-- Centered Cast Bar -->
     <div id="cast-bar-container" class="panel">
       <div class="cast-bar-header">
-        <span id="cast-name">Solar Flare</span>
-        <span id="cast-time">1.2s</span>
+        <span id="cast-name">RITE: SOLAR FLARE</span>
+        <span id="cast-time">1.1s</span>
       </div>
-      <div class="bar-bg" style="height: 10px;">
+      <div class="bar-bg">
         <div id="cast-fill" class="cast-bar-fill"></div>
       </div>
     </div>
 
-    <!-- Action Bars NEXT TO EACH OTHER in one horizontal cluster -->
-    <div id="action-bar-cluster">
-      <!-- Section 1: Primary Action Bar -->
-      <div class="action-group">
-        <div class="action-button" onclick="castAbility(1)">
-          <span class="action-icon">⚔️</span>
-          <span class="action-name">Dawn Strike</span>
-          <span class="key-badge">[1]</span>
-          <div class="cooldown-overlay" id="cd-1">0</div>
-        </div>
-        <div class="action-button" onclick="castAbility(2)">
-          <span class="action-icon">☀️</span>
-          <span class="action-name">Solar Flare</span>
-          <span class="key-badge">[2]</span>
-          <div class="cooldown-overlay" id="cd-2">0</div>
-        </div>
-        <div class="action-button" onclick="castAbility(3)">
-          <span class="action-icon">🔨</span>
-          <span class="action-name">Judgment</span>
-          <span class="key-badge">[3]</span>
-          <div class="cooldown-overlay" id="cd-3">0</div>
-        </div>
-        <div class="action-button" onclick="castAbility(4)">
-          <span class="action-icon">🔥</span>
-          <span class="action-name">Consecrate</span>
-          <span class="key-badge">[4]</span>
-          <div class="cooldown-overlay" id="cd-4">0</div>
-        </div>
-        <div class="action-button" onclick="harvestTarget()">
-          <span class="action-icon" style="color: #a855f7;">🔮</span>
-          <span class="action-name">Harvest</span>
-          <span class="key-badge">[E]</span>
-        </div>
+    <div id="bottom-bar-dock">
+      <div id="xp-bar-wrap">
+        <div id="xp-bar-fill"></div>
+        <div id="xp-bar-txt">LV.1 SOLARI VANGUARD • XP 0 / 80</div>
       </div>
 
-      <!-- Action Bar Divider -->
-      <div class="action-divider"></div>
+      <div id="action-bar-cluster">
+        <div class="action-group">
+          <div class="action-button flash-card" onclick="castAbility(1)" title="Flare Strike (Solari Flash)">
+            <span class="rank-badge" id="rank-1">R1</span>
+            <span class="key-badge" id="badge-1">1</span>
+            <span class="action-icon">⚔️</span>
+            <span class="action-name">Flare</span>
+            <div class="cooldown-overlay" id="cd-1"></div>
+          </div>
+          <div class="action-button rite-card" onclick="castAbility(2)" title="Solar Flare (Solari Rite)">
+            <span class="rank-badge" id="rank-2">R1</span>
+            <span class="key-badge" id="badge-2">2</span>
+            <span class="action-icon">☀️</span>
+            <span class="action-name">Solar</span>
+            <div class="cooldown-overlay" id="cd-2"></div>
+          </div>
+          <div class="action-button rite-card" onclick="castAbility(3)" title="Judgement of the Sun (Solari Rite)">
+            <span class="rank-badge" id="rank-3">R1</span>
+            <span class="key-badge" id="badge-3">3</span>
+            <span class="action-icon">🔨</span>
+            <span class="action-name">Judge</span>
+            <div class="cooldown-overlay" id="cd-3"></div>
+          </div>
+          <div class="action-button rite-card" onclick="castAbility(4)" title="Consecrated Ground (Solari Rite)">
+            <span class="rank-badge" id="rank-4">R1</span>
+            <span class="key-badge" id="badge-4">4</span>
+            <span class="action-icon">🔥</span>
+            <span class="action-name">Ground</span>
+            <div class="cooldown-overlay" id="cd-4"></div>
+          </div>
+          <div class="action-button" onclick="harvestTarget()" title="Ready Glimmer Node">
+            <span class="key-badge" id="badge-harvest">E</span>
+            <span class="action-icon">🔮</span>
+            <span class="action-name">Glimmer</span>
+          </div>
+        </div>
 
-      <!-- Section 2: Secondary Action Bar Side-by-Side -->
-      <div class="action-group">
-        <div class="action-button" onclick="castAbility(9)">
-          <span class="action-icon">🛡️</span>
-          <span class="action-name">Aegis Ward</span>
-          <span class="key-badge">S-1</span>
-          <div class="cooldown-overlay" id="cd-9">0</div>
-        </div>
-        <div class="action-button" onclick="castAbility(10)">
-          <span class="action-icon">✨</span>
-          <span class="action-name">Mending</span>
-          <span class="key-badge">S-2</span>
-          <div class="cooldown-overlay" id="cd-10">0</div>
-        </div>
-        <div class="action-button" onclick="castAbility(11)">
-          <span class="action-icon">⚡</span>
-          <span class="action-name">Zenith</span>
-          <span class="key-badge">S-3</span>
-          <div class="cooldown-overlay" id="cd-11">0</div>
-        </div>
-        <div class="action-button" onclick="castAbility(12)">
-          <span class="action-icon">💨</span>
-          <span class="action-name">Sun Dash</span>
-          <span class="key-badge">S-4</span>
-          <div class="cooldown-overlay" id="cd-12">0</div>
+        <div class="action-divider"></div>
+
+        <div class="action-group">
+          <div class="action-button flash-card" onclick="castAbility(9)" title="Radiant Bulwark (Solari Flash)">
+            <span class="rank-badge" id="rank-9">R1</span>
+            <span class="key-badge" id="badge-9">Q</span>
+            <span class="action-icon">🛡️</span>
+            <span class="action-name">Bulwark</span>
+            <div class="cooldown-overlay" id="cd-9"></div>
+          </div>
+          <div class="action-button rite-card" onclick="castAbility(10)" title="Blessing of Dawn (Solari Rite)">
+            <span class="rank-badge" id="rank-10">R1</span>
+            <span class="key-badge" id="badge-10">R</span>
+            <span class="action-icon">✨</span>
+            <span class="action-name">Bless</span>
+            <div class="cooldown-overlay" id="cd-10"></div>
+          </div>
+          <div class="action-button rite-card" onclick="castAbility(11)" title="Wrath of the Daystar (Solari Rite)">
+            <span class="rank-badge" id="rank-11">R1</span>
+            <span class="key-badge" id="badge-11">F</span>
+            <span class="action-icon">⚡</span>
+            <span class="action-name">Daystar</span>
+            <div class="cooldown-overlay" id="cd-11"></div>
+          </div>
+          <div class="action-button flash-card" onclick="castAbility(12)" title="Blinding Radiance (Solari Flash)">
+            <span class="rank-badge" id="rank-12">R1</span>
+            <span class="key-badge" id="badge-12">Z</span>
+            <span class="action-icon">💨</span>
+            <span class="action-name">Blind</span>
+            <div class="cooldown-overlay" id="cd-12"></div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Modals -->
-    <!-- Spellbook Modal (P) -->
-    <div id="spellbook-modal" class="modal panel">
-      <div class="modal-header">
-        <div class="modal-title">📖 Solari Vanguard Spellbook</div>
-        <div class="modal-close" onclick="toggleModal('spellbook-modal')">✕</div>
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
-          <b style="color: #facc15;">Strike of Dawn [1]</b> &bull; Melee Instant<br>
-          <span style="color: #94a3b8;">Slashes target dealing 3-5 Radiant damage. Generates 15 Solar Charge.</span>
-        </div>
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
-          <b style="color: #facc15;">Solar Flare [2]</b> &bull; 1.2s Cast, Costs 25 Solar Charge<br>
-          <span style="color: #94a3b8;">Launches a bolt of condensed sunlight dealing 8-12 Radiant damage.</span>
-        </div>
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
-          <b style="color: #facc15;">Judgment of Sol [3]</b> &bull; Instant Holy Hammer<br>
-          <span style="color: #94a3b8;">Hurls a hammer dealing 6 damage and generating 20 Solar Charge.</span>
-        </div>
-      </div>
+    <!-- 6. BOTTOM-RIGHT: Clean Micro-Menu Dock -->
+    <div id="micro-menu">
+      <button class="util-btn" onclick="toggleModal('spellbook-modal')">
+        📖 RITES [P] <span id="skill-pt-pip" class="pt-pip">+1</span>
+      </button>
+      <button class="util-btn" onclick="toggleModal('char-modal')">
+        📊 STATS [C] <span id="stat-pt-pip" class="pt-pip">+2</span>
+      </button>
+      <button class="util-btn" onclick="toggleModal('cards-modal')">🃏 RELICS [K]</button>
+      <button class="util-btn" onclick="toggleModal('lore-modal')">📜 LORE [L]</button>
+      <button class="util-btn" onclick="cyclePixelZoom()">🔍 <span id="zoom-label" style="color:#facc15;">3x</span></button>
+      <button class="util-btn" onclick="toggleScanlines()">📺 CRT</button>
     </div>
 
-    <!-- Character Sheet Modal (C) -->
-    <div id="char-modal" class="modal panel">
+    <!-- MODAL 1: GlimmerFall TCG Rites & Flashes Skill Tree [P] -->
+    <div id="spellbook-modal" class="modal panel" style="width: 630px;">
       <div class="modal-header">
-        <div class="modal-title">🛡️ Character Attributes</div>
-        <div class="modal-close" onclick="toggleModal('char-modal')">✕</div>
-      </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px;">
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
-          <div style="color: #94a3b8;">Class: <b style="color:#fff;">Sunforged Paladin</b></div>
-          <div style="color: #94a3b8;">Faction: <b style="color:#facc15;">Solari Dominion</b></div>
-          <div style="color: #94a3b8;">Health Pool: <b style="color:#ef4444;">25 / 25 HP</b></div>
+        <div>
+          <div class="modal-title">📖 GLIMMERFALL RITES &amp; FLASHES [P]</div>
+          <div id="skill-points-banner" style="font-size: 9px; margin-top: 3px; color: #fde047;">SKILL POINTS AVAILABLE: 1</div>
         </div>
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
-          <div style="color: #94a3b8;">Strength: <b style="color:#fff;">42 (+Melee AP)</b></div>
-          <div style="color: #94a3b8;">Crit Rating: <b style="color:#facc15;">18.5%</b></div>
-          <div style="color: #94a3b8;">Haste: <b style="color:#38bdf8;">12.0% (-GCD)</b></div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="util-btn" style="font-size:8.5px; padding:4px 7px;" onclick="resetDefaultKeybinds()">↺ KEYS</button>
+          <div class="modal-close" onclick="toggleModal('spellbook-modal')">✕</div>
         </div>
       </div>
+      <div id="keybind-list-container"></div>
     </div>
 
-    <!-- Card-Relic Sockets Modal (K) -->
-    <div id="cards-modal" class="modal panel">
+    <!-- MODAL 2: Character Level & Allocatable Stats [C] -->
+    <div id="char-modal" class="modal panel" style="width: 500px;">
       <div class="modal-header">
-        <div class="modal-title">🃏 GlimmerFall Card-Relic Deck</div>
+        <div class="modal-title">📊 VANGUARD ATTRIBUTES &amp; LEVEL [C]</div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="util-btn" style="font-size:8px; padding:3px 6px;" onclick="resetCharacterProgression()">↺ RESET LV.1</button>
+          <div class="modal-close" onclick="toggleModal('char-modal')">✕</div>
+        </div>
+      </div>
+      <div id="stats-modal-body"></div>
+    </div>
+
+    <!-- MODAL 3: Authentic GlimmerFall TCG Relic Sockets [K] -->
+    <div id="cards-modal" class="modal panel" style="width: 560px;">
+      <div class="modal-header">
+        <div class="modal-title">🃏 EQUIPPED GLIMMERFALL TCG RELICS [K]</div>
         <div class="modal-close" onclick="toggleModal('cards-modal')">✕</div>
       </div>
-      <p style="font-size: 11px; color: #94a3b8; margin-bottom: 10px;">
-        Equipped cards from <i>glimmerfalltcg.com</i> augment class passives and 3v3 combat performance.
+      <p style="font-size:10px; color:#cbd5e1; margin-bottom:10px; line-height:1.45;">
+        Authentic Relic cards from <b>GlimmerFall TCG: The Awakening (AWK)</b> rendered in 16-bit pixel art. Collect &amp; build decks at
+        <a href="https://www.glimmerfalltcg.com" target="_blank" rel="noreferrer" style="color:#facc15; text-decoration:underline;">glimmerfalltcg.com ↗</a>
       </p>
-      <div style="display: flex; gap: 10px;">
-        <div style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid #facc15; border-radius: 6px; padding: 8px; text-align: center;">
-          <img src="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/solari_vanguard-YFbhwOPGHYNEmDfQQm2CZfBk9fZJBI.webp" style="width: 100%; border-radius: 4px;" alt="Card 1">
-          <b style="font-size: 11px; color: #facc15; display:block; margin-top:4px;">Solari Vanguard</b>
-          <span style="font-size: 9px; color: #cbd5e1;">+15% Radiant Damage</span>
+      <div style="display:flex; gap:10px;">
+        <div style="flex:1; background:#080c18; border:2px solid #facc15; padding:8px; text-align:center;">
+          <canvas width="96" height="128" style="width:100%; border:2px solid #05070f;" data-card-url="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/radiant_shield-wETHC0O74M2ZbsWnZ4R41DfI9CyoPw.webp"></canvas>
+          <b style="font-size:9.5px; color:#facc15; display:block; margin-top:6px;">Radiant Shield</b>
+          <span style="font-size:8.5px; color:#94a3b8; display:block;">Solari Relic • AWK</span>
+          <span style="font-size:8.5px; color:#4ade80;">+Guard &amp; Bastion Scaling</span>
         </div>
-        <div style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid #38bdf8; border-radius: 6px; padding: 8px; text-align: center;">
-          <img src="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/mana_crystal_85d4da2e-150onQbusVx2hyQEu7HfosXCqX0Ktc.webp" style="width: 100%; border-radius: 4px;" alt="Card 2">
-          <b style="font-size: 11px; color: #38bdf8; display:block; margin-top:4px;">Mana Crystal</b>
-          <span style="font-size: 9px; color: #cbd5e1;">+20 Max Energy Pool</span>
+        <div style="flex:1; background:#080c18; border:2px solid #38bdf8; padding:8px; text-align:center;">
+          <canvas width="96" height="128" style="width:100%; border:2px solid #05070f;" data-card-url="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/chronocore_prism_6eca2de9-tghtsdxz1Tl6oMafBny57jAs96P1Ki.webp"></canvas>
+          <b style="font-size:9.5px; color:#38bdf8; display:block; margin-top:6px;">Chronocore Prism</b>
+          <span style="font-size:8.5px; color:#94a3b8; display:block;">Aether Relic • AWK</span>
+          <span style="font-size:8.5px; color:#7dd3fc;">Flashes grant +6 Glimmer</span>
         </div>
-        <div style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid #a855f7; border-radius: 6px; padding: 8px; text-align: center;">
-          <img src="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/duskblade_fiend-v1EnEuvSFu137bkLNZoZbI1NIFrgfF.webp" style="width: 100%; border-radius: 4px;" alt="Card 3">
-          <b style="font-size: 11px; color: #a855f7; display:block; margin-top:4px;">Duskblade Fiend</b>
-          <span style="font-size: 9px; color: #cbd5e1;">+10% Critical Strike</span>
+        <div style="flex:1; background:#080c18; border:2px solid #eab308; padding:8px; text-align:center;">
+          <canvas width="96" height="128" style="width:100%; border:2px solid #05070f;" data-card-url="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/crown_of_noon-q3YqbCyS74SsbsLQsyZBqrkWCz2TNh.webp"></canvas>
+          <b style="font-size:9.5px; color:#fde047; display:block; margin-top:6px;">Crown of Noon</b>
+          <span style="font-size:8.5px; color:#94a3b8; display:block;">Solari Relic • AWK</span>
+          <span style="font-size:8.5px; color:#fde047;">+20% Base Crit &amp; Overwhelm</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 4: GlimmerFall Universe Chronicle & Lore [L] -->
+    <div id="lore-modal" class="modal panel" style="width: 580px;">
+      <div class="modal-header">
+        <div class="modal-title">📜 CHRONICLE OF THE GLIMMERFALL [L]</div>
+        <div class="modal-close" onclick="toggleModal('lore-modal')">✕</div>
+      </div>
+      <div style="font-size:10px; color:#e2e8f0; line-height:1.55; display:flex; flex-direction:column; gap:10px;">
+        <div style="background:#080c18; border:2px solid #1e293b; padding:9px;">
+          <b style="color:#facc15; display:block; margin-bottom:3px;">I. THE GLIMMER, THE FALL &amp; THE SHATTERED NEXUS</b>
+          Before time took shape, reality hung between the radiance of the <b>Glimmer</b> and the silence of the <b>Fall</b>. Between them stood the crystalline <b>Nexus</b>, holding the Void at bay—until the Great Shattering scattered its shards across four realms.
+        </div>
+        <div style="background:#080c18; border:2px solid #1e293b; padding:9px;">
+          <b style="color:#38bdf8; display:block; margin-bottom:3px;">II. YOUR AWAKENING FROM STASIS</b>
+          Sealed in starlight crystal on <b>Awakening Isle</b> since the Fall, you awaken as a <b>Solari Vanguard</b>. Train with <b>Aurora Marshal</b>, draw Resonance from <b>Glimmer Nodes</b>, and cross the Astral Rift to reunite with your faction—banishing enemies into Void smoke, defending our 25-HP Sanctuary Nexus, and shattering rival Monoliths!
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:9.5px;">
+          <div style="background:#080c18; border-left:3px solid #facc15; padding:7px;">
+            <b style="color:#facc15;">☀️ SOLARI (The Light)</b><br/>Radiant citadels, angelic heralds, Bulwark shields &amp; burning Daystar Rites.
+          </div>
+          <div style="background:#080c18; border-left:3px solid #a855f7; padding:7px;">
+            <b style="color:#c084fc;">🌑 UMBRI (The Shadow)</b><br/>Duskveil assassins, Soul Tithes, Stealth strikes &amp; whispers from the Void.
+          </div>
+          <div style="background:#080c18; border-left:3px solid #22c55e; padding:7px;">
+            <b style="color:#4ade80;">🌿 TERRA (The Earth)</b><br/>Ancient stone Behemoths, Overwhelm stampedes &amp; Ironwood resilience.
+          </div>
+          <div style="background:#080c18; border-left:3px solid #38bdf8; padding:7px;">
+            <b style="color:#38bdf8;">🔮 AETHER (The Magic)</b><br/>Starforged scholars bending time with Chrono Shifts &amp; Reality Fractures.
+          </div>
+        </div>
+        <div style="text-align:center; padding-top:4px;">
+          <a href="https://www.glimmerfalltcg.com" target="_blank" rel="noreferrer" style="color:#facc15; font-family:var(--font-header); font-size:8.5px;">
+            ▸ EXPLORE ALL 322 CARDS AT GLIMMERFALLTCG.COM ◂
+          </a>
         </div>
       </div>
     </div>
   </div>
 
   <script type="module">
-    import * as THREE from 'three';
-    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-
-    // Completely prevent browser blue drag-selection
-    window.addEventListener('selectstart', (e) => e.preventDefault());
-    window.addEventListener('dragstart', (e) => e.preventDefault());
-
-    // ==========================================
-    // 1. Procedural Web Audio Synthesizer
-    // ==========================================
-    class SoundEngine {
-      constructor() { this.ctx = null; }
-      init() {
-        if (!this.ctx) {
-          const AudioContext = window.AudioContext || window.webkitAudioContext;
-          this.ctx = new AudioContext();
-        }
-      }
-      playSlash() {
-        this.init();
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(280, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.15);
-      }
-      playHit() {
-        this.init();
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(140, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.2);
-        gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.2);
-      }
-      playSpell() {
-        this.init();
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(440, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.25);
-        gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.25);
-      }
-      playChime() {
-        this.init();
-        const notes = [523.25, 659.25, 783.99];
-        notes.forEach((freq, idx) => {
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.08);
-          gain.gain.setValueAtTime(0.2, this.ctx.currentTime + idx * 0.08);
-          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.08 + 0.4);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(this.ctx.currentTime + idx * 0.08);
-          osc.stop(this.ctx.currentTime + idx * 0.08 + 0.4);
-        });
-      }
-      playSmokePuff() {
-        this.init();
-        const bufferSize = Math.floor(this.ctx.sampleRate * 0.45);
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-          data[i] = Math.random() * 2 - 1;
-        }
-        const noise = this.ctx.createBufferSource();
-        noise.buffer = buffer;
-
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(700, this.ctx.currentTime);
-        filter.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.4);
-
-        const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.45, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
-
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ctx.destination);
-        noise.start();
-      }
-    }
-    const audio = new SoundEngine();
-
-    // ==========================================
-    // 2. Game State & Zones
-    // ==========================================
-    let currentZone = 'tutorial'; // 'tutorial' | 'main_world' | 'arena_3v3'
-    const player = {
-      hp: 25,
-      maxHp: 25,
-      solarCharge: 0,
-      maxSolarCharge: 100,
-      speed: 13,
-      sprintMultiplier: 1.6,
-      jumpForce: 14,
-      vy: 0,
-      isGrounded: true,
-    };
-
-    let currentTarget = null;
-    let isMouseDown = false;
-    let isQueueing = false;
-    let queueTimer = null;
-    const inputs = { w: false, a: false, s: false, d: false, shift: false, space: false };
-    const cameraOrbit = { yaw: 0, pitch: 0.32, distance: 9.5 };
-
-    let isCasting = false;
-    let castProgress = 0;
-    let castDuration = 0;
-    let currentSpell = null;
-
-    // Quest state
-    const quests = { moved: false, damaged: false, harvested: false, portalReady: false };
-
-    // ==========================================
-    // 3. Three.js Scene Setup
-    // ==========================================
-    const container = document.getElementById('canvas-container');
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x020617, 0.018);
-
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    container.appendChild(renderer.domElement);
-
-    // Lighting
-    const hemiLight = new THREE.HemisphereLight(0x38bdf8, 0x0f172a, 1.4);
-    scene.add(hemiLight);
-
-    const sun = new THREE.DirectionalLight(0xfff7ed, 2.6);
-    sun.position.set(35, 60, 25);
-    sun.castShadow = true;
-    sun.shadow.mapSize.width = 2048;
-    sun.shadow.mapSize.height = 2048;
-    scene.add(sun);
-
-    // Sky Dome Stars
-    const starGeo = new THREE.BufferGeometry();
-    const starPos = new Float32Array(1500 * 3);
-    for (let i = 0; i < 1500 * 3; i += 3) {
-      starPos[i] = (Math.random() - 0.5) * 600;
-      starPos[i + 1] = Math.random() * 250 + 20;
-      starPos[i + 2] = (Math.random() - 0.5) * 600;
-    }
-    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-    const starMat = new THREE.PointsMaterial({ color: 0x38bdf8, size: 1.5, transparent: true, opacity: 0.8 });
-    scene.add(new THREE.Points(starGeo, starMat));
-
-    // Ground Plane & Grid
-    const floorGeo = new THREE.PlaneGeometry(300, 300, 32, 32);
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.85, metalness: 0.15 });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    scene.add(floor);
-
-    const grid = new THREE.GridHelper(300, 60, 0x0284c7, 0x1e293b);
-    grid.position.y = 0.02;
-    scene.add(grid);
-
-    // ==========================================
-    // 4. Third-Person Player Character Hierarchy
-    // ==========================================
-    const playerGroup = new THREE.Group();
-    scene.add(playerGroup);
-
-    const playerVisual = new THREE.Group();
-    playerGroup.add(playerVisual);
-
-    // Shadow under feet
-    const shadowGeo = new THREE.RingGeometry(0.1, 0.75, 24);
-    const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
-    const playerShadow = new THREE.Mesh(shadowGeo, shadowMat);
-    playerShadow.rotation.x = -Math.PI / 2;
-    playerShadow.position.y = 0.03;
-    playerGroup.add(playerShadow);
-
-    const gltfLoader = new GLTFLoader();
-
-    // Mount Solari Vanguard into playerVisual
-    gltfLoader.load(
-      './models/solari_hero.glb',
-      (gltf) => {
-        const model = gltf.scene;
-        model.scale.set(1.2, 1.2, 1.2);
-        model.position.set(0, 1.15, 0);
-        model.traverse((child) => {
-          if (child.isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-          }
-        });
-        playerVisual.add(model);
-        logMessage('[Character] Solari Vanguard 3D mesh loaded!', 'log-solari');
-      },
-      undefined,
-      () => {
-        const fallbackMesh = new THREE.Mesh(
-          new THREE.CapsuleGeometry(0.55, 1.4, 16, 24),
-          new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.25, metalness: 0.85 })
-        );
-        fallbackMesh.position.y = 1.25;
-        fallbackMesh.castShadow = true;
-        playerVisual.add(fallbackMesh);
-      }
-    );
-
-    // Target Selection Ring
-    const targetRingGeo = new THREE.RingGeometry(1.4, 1.6, 32);
-    const targetRingMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0 });
-    const targetRing = new THREE.Mesh(targetRingGeo, targetRingMat);
-    targetRing.rotation.x = -Math.PI / 2;
-    scene.add(targetRing);
-
-    // ==========================================
-    // 5. Zone Entities & Objects
-    // ==========================================
-    const interactables = [];
-    const zoneObjectsGroup = new THREE.Group();
-    scene.add(zoneObjectsGroup);
-
-    // Astral Portal to teleport to Main World
-    let portalMesh = null;
-
-    function buildZone(zone) {
-      currentZone = zone;
-      // Clear previous zone objects
-      while (zoneObjectsGroup.children.length > 0) {
-        zoneObjectsGroup.remove(zoneObjectsGroup.children[0]);
-      }
-      interactables.length = 0;
-      setTarget(null);
-
-      const zoneTitle = document.getElementById('minimap-zone-title');
-      const zoneLabel = document.getElementById('zone-label');
-      const arenaBanner = document.getElementById('arena-banner');
-
-      if (zone === 'tutorial') {
-        zoneTitle.innerText = 'Awakening Isle';
-        zoneLabel.innerText = 'Tutorial Island';
-        arenaBanner.style.display = 'none';
-        playerGroup.position.set(0, 0, 8);
-
-        // 1. Training Dummy
-        const dummyGroup = new THREE.Group();
-        const dummyBody = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.5, 0.5, 1.8, 16),
-          new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.7 })
-        );
-        dummyBody.position.y = 0.9;
-        dummyBody.castShadow = true;
-        const dummyTarget = new THREE.Mesh(
-          new THREE.RingGeometry(0.1, 0.4, 16),
-          new THREE.MeshBasicMaterial({ color: 0xef4444, side: THREE.DoubleSide })
-        );
-        dummyTarget.position.set(0, 1.2, 0.51);
-        dummyGroup.add(dummyBody, dummyTarget);
-        dummyGroup.position.set(0, 0, -4);
-        dummyGroup.userData = { id: 'dummy_1', name: 'Training Dummy', hp: 25, maxHp: 25, type: 'dummy', originalPos: [0, 0, -4] };
-        zoneObjectsGroup.add(dummyGroup);
-        interactables.push(dummyGroup);
-
-        // 2. Tutorial Aether Font
-        const fontGroup = new THREE.Group();
-        gltfLoader.load('./models/resonance_node.glb', (g) => {
-          g.scene.scale.set(0.8, 0.8, 0.8);
-          fontGroup.add(g.scene);
-        }, undefined, () => {
-          const m = new THREE.Mesh(new THREE.DodecahedronGeometry(1.0), new THREE.MeshStandardMaterial({ color: 0xa855f7 }));
-          fontGroup.add(m);
-        });
-        fontGroup.position.set(-8, 1.2, 0);
-        const fontLight = new THREE.PointLight(0xa855f7, 3, 14);
-        fontGroup.add(fontLight);
-        fontGroup.userData = { id: 'tut_font', name: 'Awakening Resonance Font', type: 'node', charges: 3, maxCharges: 3 };
-        zoneObjectsGroup.add(fontGroup);
-        interactables.push(fontGroup);
-
-        // 3. Astral Rift Portal (leads to Nexus Main World)
-        const portalGeo = new THREE.TorusGeometry(2.0, 0.25, 16, 48);
-        const portalMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 1.2, roughness: 0.1 });
-        portalMesh = new THREE.Mesh(portalGeo, portalMat);
-        portalMesh.position.set(0, 2.2, -18);
-        const pLight = new THREE.PointLight(0x38bdf8, 4, 20);
-        portalMesh.add(pLight);
-        portalMesh.userData = { id: 'portal', name: 'Astral Rift to Nexus World', type: 'portal' };
-        zoneObjectsGroup.add(portalMesh);
-        interactables.push(portalMesh);
-
-        logMessage('[Zone] Entered Tutorial Island (Isle of Awakening).', 'log-quest');
-      } else if (zone === 'main_world') {
-        zoneTitle.innerText = 'Nexus Warzone';
-        zoneLabel.innerText = 'Main World (Warzone)';
-        arenaBanner.style.display = 'none';
-        playerGroup.position.set(0, 0, 10);
-
-        // 1. Central Nexus Core (25 HP Objective)
-        const nexusGroup = new THREE.Group();
-        gltfLoader.load('./models/nexus_core.glb', (g) => {
-          g.scene.scale.set(1.6, 1.6, 1.6);
-          nexusGroup.add(g.scene);
-        }, undefined, () => {
-          nexusGroup.add(new THREE.Mesh(new THREE.OctahedronGeometry(2.4), new THREE.MeshStandardMaterial({ color: 0x38bdf8 })));
-        });
-        nexusGroup.position.set(0, 3.8, -24);
-        nexusGroup.add(new THREE.PointLight(0x38bdf8, 4, 30));
-        nexusGroup.userData = { id: 'nexus_core', name: 'Central Nexus Monolith', hp: 25, maxHp: 25, type: 'nexus' };
-        zoneObjectsGroup.add(nexusGroup);
-        interactables.push(nexusGroup);
-
-        // 2. Resonance Nodes
-        const coords = [[-14, 0, -12], [14, 0, -12], [-18, 0, 8], [18, 0, 8]];
-        coords.forEach((c, idx) => {
-          const node = new THREE.Group();
-          gltfLoader.load('./models/resonance_node.glb', (g) => {
-            g.scene.scale.set(0.8, 0.8, 0.8);
-            node.add(g.scene);
-          });
-          node.position.set(c[0], 1.3, c[2]);
-          node.add(new THREE.PointLight(0xa855f7, 2, 12));
-          node.userData = { id: `node_${idx}`, name: `Aether Spire #${idx + 1}`, type: 'node', charges: 3, maxCharges: 3 };
-          zoneObjectsGroup.add(node);
-          interactables.push(node);
-        });
-
-        // 3. Umbri Voidstalker (Hostile mob)
-        const mob = new THREE.Group();
-        gltfLoader.load('./models/umbri_minion.glb', (g) => {
-          g.scene.scale.set(1.0, 1.0, 1.0);
-          mob.add(g.scene);
-        });
-        mob.position.set(-10, 1.0, -10);
-        mob.userData = { id: 'umbri_mob', name: 'Void Stalker (Umbri Mob)', hp: 18, maxHp: 18, type: 'mob', originalPos: [-10, 1.0, -10] };
-        zoneObjectsGroup.add(mob);
-        interactables.push(mob);
-
-        // 4. Granite Behemoth (Terra Golem Boss)
-        const golem = new THREE.Group();
-        const golemBody = new THREE.Mesh(new THREE.BoxGeometry(2, 2.8, 2), new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 }));
-        golemBody.position.y = 1.4;
-        golem.add(golemBody);
-        golem.position.set(14, 0, -14);
-        golem.userData = { id: 'terra_boss', name: 'Granite Behemoth (World Boss)', hp: 50, maxHp: 50, type: 'mob', originalPos: [14, 0, -14] };
-        zoneObjectsGroup.add(golem);
-        interactables.push(golem);
-
-        logMessage('[Zone] Traveled to The Glimmerfall Nexus Main World!', 'log-gain');
-      } else if (zone === 'arena_3v3') {
-        zoneTitle.innerText = '3v3 Nexus Arena';
-        zoneLabel.innerText = '3v3 Nexus Match';
-        arenaBanner.style.display = 'flex';
-        playerGroup.position.set(0, 0, 22);
-
-        // Blue Nexus (Friendly)
-        const blueNexus = new THREE.Group();
-        blueNexus.add(new THREE.Mesh(new THREE.OctahedronGeometry(2.2), new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7 })));
-        blueNexus.position.set(0, 3.5, 30);
-        blueNexus.userData = { id: 'blue_nexus', name: 'Ally Blue Nexus', hp: 25, maxHp: 25, type: 'nexus' };
-        zoneObjectsGroup.add(blueNexus);
-
-        // Red Nexus (Enemy Objective)
-        const redNexus = new THREE.Group();
-        redNexus.add(new THREE.Mesh(new THREE.OctahedronGeometry(2.2), new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x991b1b })));
-        redNexus.position.set(0, 3.5, -30);
-        redNexus.userData = { id: 'red_nexus', name: 'Enemy Red Nexus', hp: 25, maxHp: 25, type: 'nexus' };
-        zoneObjectsGroup.add(redNexus);
-        interactables.push(redNexus);
-
-        // 3 Red Enemies
-        const enemyDefs = [
-          { name: 'Void Stalker (Enemy 1)', pos: [-6, 1, -10], hp: 20 },
-          { name: 'Duskblade Fiend (Enemy 2)', pos: [0, 1, -12], hp: 20 },
-          { name: 'Granite Behemoth (Enemy 3)', pos: [6, 1.4, -10], hp: 30 },
-        ];
-        enemyDefs.forEach((ed, i) => {
-          const em = new THREE.Group();
-          gltfLoader.load('./models/umbri_minion.glb', (g) => em.add(g.scene), undefined, () => {
-            em.add(new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.8, 8), new THREE.MeshStandardMaterial({ color: 0xef4444 })));
-          });
-          em.position.set(ed.pos[0], ed.pos[1], ed.pos[2]);
-          em.userData = { id: `enemy_${i}`, name: ed.name, hp: ed.hp, maxHp: ed.hp, type: 'mob' };
-          zoneObjectsGroup.add(em);
-          interactables.push(em);
-        });
-
-        logMessage('[Arena] 3v3 BATTLE STARTED! Destroy the Enemy Red Nexus!', 'log-solari');
-      }
-    }
-
-    // Initialize in Tutorial
-    buildZone('tutorial');
-
-    window.teleportWorld = function() {
-      if (currentZone === 'tutorial') buildZone('main_world');
-      else if (currentZone === 'main_world') buildZone('tutorial');
-      else buildZone('main_world');
-    };
-
-    window.toggleMatchmaking = function() {
-      const btn = document.getElementById('btn-queue');
-      if (!isQueueing) {
-        isQueueing = true;
-        btn.innerText = '⏳ In Queue (3v3)...';
-        logMessage('[Queue] Searching for 3v3 Nexus Arena opponents...', 'log-solari');
-        queueTimer = setTimeout(() => {
-          isQueueing = false;
-          btn.innerText = '⚔️ Queue 3v3 Nexus Battle';
-          buildZone('arena_3v3');
-        }, 3500);
-      } else {
-        clearTimeout(queueTimer);
-        isQueueing = false;
-        btn.innerText = '⚔️ Queue 3v3 Nexus Battle';
-        logMessage('[Queue] Cancelled matchmaking.', 'log-combat');
-      }
-    };
-
-    // ==========================================
-    // 6. Camera Orbit & Mouse / S-Key Rotation
-    // ==========================================
-    window.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      // Holding ANY mouse button allows rotating screen freely
-      isMouseDown = true;
-      if (e.button === 0) performRaycast(e);
-    });
-
-    window.addEventListener('mouseup', () => {
-      isMouseDown = false;
-    });
-
-    window.addEventListener('contextmenu', (e) => e.preventDefault());
-
-    window.addEventListener('mousemove', (e) => {
-      // Rotate screen freely when holding mouse
-      if (isMouseDown) {
-        cameraOrbit.yaw -= e.movementX * 0.005;
-        cameraOrbit.pitch = Math.max(0.04, Math.min(Math.PI / 2.25, cameraOrbit.pitch + e.movementY * 0.005));
-      }
-    });
-
-    window.addEventListener('wheel', (e) => {
-      cameraOrbit.distance = Math.max(4, Math.min(26, cameraOrbit.distance + e.deltaY * 0.015));
-    });
-
-    // S-Key Behavior:
-    // If NOT holding mouse, clicking S smoothly rotates screen & character around (180 turn).
-    // If holding mouse, S acts as normal backpedal.
-    window.addEventListener('keydown', (e) => {
-      const key = e.key.toLowerCase();
-      if (key in inputs) inputs[key] = true;
-      if (e.shiftKey) inputs.shift = true;
-      if (e.code === 'Space') {
-        if (player.isGrounded) {
-          player.vy = player.jumpForce;
-          player.isGrounded = false;
-        }
-      }
-
-      if (key === 's') {
-        if (!isMouseDown) {
-          // Instant 180 camera swivel around
-          cameraOrbit.yaw += Math.PI;
-          logMessage('[Navigation] 180° Quick Turnaround', 'log-gain');
-        }
-      }
-
-      if (key === 'tab') {
-        e.preventDefault();
-        cycleTarget();
-      }
-      if (key === 'escape') {
-        setTarget(null);
-        closeAllModals();
-      }
-      if (key === '1') castAbility(1);
-      if (key === '2') castAbility(2);
-      if (key === '3') castAbility(3);
-      if (key === '4') castAbility(4);
-      if (key === 'e') harvestTarget();
-      if (key === 'p') toggleModal('spellbook-modal');
-      if (key === 'c') toggleModal('char-modal');
-      if (key === 'k') toggleModal('cards-modal');
-    });
-
-    window.addEventListener('keyup', (e) => {
-      const key = e.key.toLowerCase();
-      if (key in inputs) inputs[key] = false;
-      if (!e.shiftKey) inputs.shift = false;
-    });
-
-    // ==========================================
-    // 7. Targeting System
-    // ==========================================
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-
-    function performRaycast(event) {
-      if (event.target.closest('#hud')) return;
-      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-
-      const hits = raycaster.intersectObjects(interactables, true);
-      if (hits.length > 0) {
-        let parent = hits[0].object;
-        while (parent.parent && !parent.userData.id) parent = parent.parent;
-        setTarget(parent.userData.id ? parent : null);
-      }
-    }
-
-    function cycleTarget() {
-      if (interactables.length === 0) return;
-      let nextIdx = 0;
-      if (currentTarget) {
-        const curIdx = interactables.indexOf(currentTarget);
-        nextIdx = (curIdx + 1) % interactables.length;
-      }
-      setTarget(interactables[nextIdx]);
-    }
-
-    function setTarget(entity) {
-      currentTarget = entity;
-      const frame = document.getElementById('target-unit-frame');
-      if (!entity) {
-        frame.style.display = 'none';
-        targetRingMat.opacity = 0;
-        return;
-      }
-      frame.style.display = 'block';
-      document.getElementById('target-name').innerText = entity.userData.name;
-      targetRingMat.opacity = 0.8;
-      targetRing.position.set(entity.position.x, 0.03, entity.position.z);
-      updateTargetUI();
-      logMessage(`[Target] Selected ${entity.userData.name}`, 'log-gain');
-    }
-
-    function updateTargetUI() {
-      if (!currentTarget) return;
-      const hp = currentTarget.userData.hp ?? currentTarget.userData.charges;
-      const max = currentTarget.userData.maxHp ?? currentTarget.userData.maxCharges ?? 3;
-      const pct = Math.round((hp / max) * 100);
-      document.getElementById('target-hp-txt').innerText = `${hp} / ${max} (${pct}%)`;
-      document.getElementById('target-hp-fill').style.width = `${pct}%`;
-
-      // 3v3 Scoreboard updates
-      if (currentZone === 'arena_3v3') {
-        const redNexus = interactables.find((i) => i.userData.id === 'red_nexus');
-        if (redNexus) {
-          document.getElementById('red-nexus-hp').innerText = `${redNexus.userData.hp} / 25`;
-          if (redNexus.userData.hp <= 0) {
-            logMessage('[Victory] ENEMY RED NEXUS DESTROYED! 3v3 VICTORY!', 'log-solari');
-            alert('🏆 VICTORY! Enemy Nexus Destroyed in 3v3 Battle!');
-            buildZone('main_world');
-          }
-        }
-      }
-    }
-
-    function updatePlayerUI() {
-      document.getElementById('player-hp-txt').innerText = `${player.hp} / ${player.maxHp}`;
-      document.getElementById('player-hp-fill').style.width = `${(player.hp / player.maxHp) * 100}%`;
-      document.getElementById('player-res-txt').innerText = `${player.solarCharge} / ${player.maxSolarCharge}`;
-      document.getElementById('player-res-fill').style.width = `${(player.solarCharge / player.maxSolarCharge) * 100}%`;
-    }
-
-    // ==========================================
-    // 8. Floating Combat Text
-    // ==========================================
-    const fctContainer = document.getElementById('fct-container');
-
-    function spawnFCT(pos, text, color = '#facc15', isCrit = false) {
-      const screenPos = pos.clone().project(camera);
-      if (screenPos.z > 1) return;
-
-      const x = ((screenPos.x + 1) * window.innerWidth) / 2;
-      const y = ((-screenPos.y + 1) * window.innerHeight) / 2;
-
-      const el = document.createElement('div');
-      el.className = 'fct-text';
-      el.style.left = `${x}px`;
-      el.style.top = `${y}px`;
-      el.style.color = color;
-      el.innerText = isCrit ? `💥 CRIT! ${text}` : text;
-      fctContainer.appendChild(el);
-      setTimeout(() => el.remove(), 1200);
-    }
-
-    function logMessage(msg, className = '') {
-      const log = document.getElementById('combat-log');
-      const div = document.createElement('div');
-      div.className = `log-entry ${className}`;
-      div.innerText = msg;
-      log.appendChild(div);
-      log.scrollTop = log.scrollHeight;
-    }
-
-    // ==========================================
-    // 9. Smoke Dissolution & Knockdown Engine
-    // ==========================================
-    const activeSmokePuffs = [];
-    const dyingEntities = [];
-    const smokeGeo = new THREE.DodecahedronGeometry(0.4, 1);
-
-    function spawnSmokeCloud(pos, count = 40) {
-      for (let i = 0; i < count; i++) {
-        const colors = [0x1e1b4b, 0x312e81, 0x475569, 0x581c87, 0x0f172a];
-        const color = colors[Math.floor(Math.random() * colors.length)];
-        const mat = new THREE.MeshStandardMaterial({
-          color: color,
-          emissive: 0x581c87,
-          emissiveIntensity: 0.4,
-          roughness: 0.9,
-          transparent: true,
-          opacity: 0.85,
-        });
-        const mesh = new THREE.Mesh(smokeGeo, mat);
-        mesh.position.set(
-          pos.x + (Math.random() - 0.5) * 1.5,
-          pos.y + Math.random() * 1.4 + 0.2,
-          pos.z + (Math.random() - 0.5) * 1.5
-        );
-        mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-        const scale = 0.4 + Math.random() * 0.5;
-        mesh.scale.set(scale, scale, scale);
-        scene.add(mesh);
-
-        activeSmokePuffs.push({
-          mesh,
-          velocity: new THREE.Vector3(
-            (Math.random() - 0.5) * 2.5,
-            Math.random() * 3.8 + 2.5,
-            (Math.random() - 0.5) * 2.5
-          ),
-          rotSpeed: new THREE.Vector3((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4),
-          age: 0,
-          maxAge: 0.9 + Math.random() * 0.6,
-        });
-      }
-    }
-
-    function triggerEntityDeath(target) {
-      if (!target || !target.userData || target.userData.isDying) return;
-      target.userData.isDying = true;
-
-      // Audio: deep smoke puff / dissolution sound
-      audio.playSmokePuff();
-
-      // Visuals: spawn billowing smoke particle burst
-      spawnSmokeCloud(target.position, 45);
-
-      // Defeat banner
-      spawnFCT(target.position, '💀 UP IN SMOKE', '#c084fc', true);
-      logMessage(`[Defeat] ${target.userData.name} collapsed and went up in smoke!`, 'log-solari');
-
-      // Add to dyingEntities to swirl upward and shrink into the smoke
-      dyingEntities.push({
-        group: target,
-        initScale: target.scale.clone(),
-        age: 0,
-      });
-
-      // Remove from interactables list
-      const idx = interactables.indexOf(target);
-      if (idx !== -1) interactables.splice(idx, 1);
-
-      // Deselect if targeted
-      if (currentTarget === target) {
-        setTarget(null);
-      }
-
-      // Respawn timer for training dummies and roaming mobs so world stays active
-      const entityId = target.userData.id;
-      const entityType = target.userData.type;
-      const entityName = target.userData.name;
-      const origPos = target.userData.originalPos;
-      const maxHp = target.userData.maxHp || 25;
-
-      if ((entityType === 'dummy' || entityType === 'mob') && origPos) {
-        setTimeout(() => {
-          respawnEntity(entityId, entityName, entityType, origPos, maxHp);
-        }, 7000);
-      }
-    }
-
-    function respawnEntity(id, name, type, pos, maxHp) {
-      if (currentZone === 'tutorial' && type === 'dummy') {
-        const dummyGroup = new THREE.Group();
-        const dummyBody = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.5, 0.5, 1.8, 16),
-          new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.7 })
-        );
-        dummyBody.position.y = 0.9;
-        dummyBody.castShadow = true;
-        const dummyTarget = new THREE.Mesh(
-          new THREE.RingGeometry(0.1, 0.4, 16),
-          new THREE.MeshBasicMaterial({ color: 0xef4444, side: THREE.DoubleSide })
-        );
-        dummyTarget.position.set(0, 1.2, 0.51);
-        dummyGroup.add(dummyBody, dummyTarget);
-        dummyGroup.position.set(pos[0], pos[1], pos[2]);
-        dummyGroup.userData = { id, name, hp: maxHp, maxHp, type, originalPos: pos, isDying: false };
-        zoneObjectsGroup.add(dummyGroup);
-        interactables.push(dummyGroup);
-        spawnSmokeCloud(dummyGroup.position, 20);
-        logMessage(`[World] ${name} respawned!`, 'log-gain');
-      } else if (type === 'mob') {
-        const mob = new THREE.Group();
-        gltfLoader.load('./models/umbri_minion.glb', (g) => {
-          g.scene.scale.set(1.0, 1.0, 1.0);
-          mob.add(g.scene);
-        });
-        mob.position.set(pos[0], pos[1], pos[2]);
-        mob.userData = { id, name, hp: maxHp, maxHp, type, originalPos: pos, isDying: false };
-        zoneObjectsGroup.add(mob);
-        interactables.push(mob);
-        spawnSmokeCloud(mob.position, 20);
-        logMessage(`[World] ${name} emerged from the void!`, 'log-gain');
-      }
-    }
-
-    function applyDamageToTarget(target, dmg, isCrit, spellName) {
-      if (!target || !target.userData || target.userData.isDying) return;
-
-      target.userData.hp = Math.max(0, (target.userData.hp ?? 25) - dmg);
-      audio.playHit();
-      spawnFCT(target.position, `-${dmg}`, isCrit ? '#facc15' : '#ef4444', isCrit);
-      logMessage(`[Combat] ${spellName} hits ${target.userData.name} for ${dmg} damage!`, 'log-solari');
-
-      // Tutorial Quest Step 2 Check
-      if (currentZone === 'tutorial' && !quests.damaged) {
-        quests.damaged = true;
-        document.getElementById('qc-2').classList.add('done');
-        document.getElementById('qc-2').innerText = '✓';
-        document.getElementById('quest-stage-txt').innerText = '2 / 4';
-        logMessage('[Quest] Tutorial Step 2 Complete: You damaged the Training Dummy!', 'log-quest');
-      }
-
-      updateTargetUI();
-
-      // Deplete life -> Up into smoke!
-      if (target.userData.hp <= 0 && !target.userData.isDying) {
-        triggerEntityDeath(target);
-      }
-    }
-
-    // ==========================================
-    // 10. Abilities & Combat Execution
-    // ==========================================
-    window.castAbility = function(slot) {
-      if (!currentTarget || currentTarget.userData.isDying) {
-        logMessage(`[Combat] Select an active target first!`, 'log-combat');
-        return;
-      }
-      const dist = playerGroup.position.distanceTo(currentTarget.position);
-
-      if (slot === 1) {
-        // Strike of Dawn (Melee Instant)
-        if (dist > 5.5) {
-          logMessage(`[Combat] Target is out of melee range!`, 'log-combat');
-          return;
-        }
-        audio.playSlash();
-        const dmg = Math.floor(Math.random() * 3) + 4;
-        const isCrit = Math.random() < 0.25;
-        const totalDmg = isCrit ? dmg * 2 : dmg;
-
-        player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 15);
-        updatePlayerUI();
-        applyDamageToTarget(currentTarget, totalDmg, isCrit, 'Strike of Dawn');
-      } else if (slot === 2) {
-        // Solar Flare (Ranged 1.2s Cast)
-        if (player.solarCharge < 25) {
-          logMessage(`[Combat] Requires 25 Solar Charge!`, 'log-combat');
-          return;
-        }
-        if (isCasting) return;
-
-        player.solarCharge -= 25;
-        updatePlayerUI();
-        const tgt = currentTarget;
-        startCast('Solar Flare', 1.2, () => {
-          audio.playSpell();
-          const dmg = Math.floor(Math.random() * 5) + 10;
-          applyDamageToTarget(tgt, dmg, true, 'Solar Flare');
-        });
-      } else if (slot === 3) {
-        // Judgment of Sol
-        const dmg = 8;
-        player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 20);
-        updatePlayerUI();
-        applyDamageToTarget(currentTarget, dmg, false, 'Judgment of Sol');
-      } else if (slot === 4) {
-        // Consecrate
-        audio.playSpell();
-        spawnFCT(playerGroup.position, `CONSECRATION`, '#facc15');
-        logMessage(`[Combat] Consecrated the field!`, 'log-solari');
-      } else if (slot === 10) {
-        // Radiant Mending (Heal)
-        audio.playChime();
-        player.hp = Math.min(player.maxHp, player.hp + 8);
-        spawnFCT(playerGroup.position, `+8 HP`, '#4ade80');
-        updatePlayerUI();
-      }
-    };
-
-    function startCast(name, duration, onComplete) {
-      isCasting = true;
-      castDuration = duration;
-      castProgress = 0;
-      currentSpell = { name, onComplete };
-
-      const bar = document.getElementById('cast-bar-container');
-      bar.style.display = 'block';
-      document.getElementById('cast-name').innerText = name;
-      document.getElementById('cast-time').innerText = `${duration}s`;
-    }
-
-    window.harvestTarget = function() {
-      if (!currentTarget || currentTarget.userData.type !== 'node') {
-        logMessage(`[Harvest] Target an Aether Crystal Font!`, 'log-combat');
-        return;
-      }
-      const dist = playerGroup.position.distanceTo(currentTarget.position);
-      if (dist > 6) {
-        logMessage(`[Harvest] Move closer to the font!`, 'log-combat');
-        return;
-      }
-      if (currentTarget.userData.charges > 0) {
-        currentTarget.userData.charges--;
-        player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 35);
-        audio.playChime();
-        spawnFCT(currentTarget.position, `+35 Resonance`, '#a855f7');
-        logMessage(`[Loot] Harvested Resonance from ${currentTarget.userData.name}!`, 'log-gain');
-
-        // Quest Step 3 Complete
-        if (currentZone === 'tutorial' && !quests.harvested) {
-          quests.harvested = true;
-          document.getElementById('qc-3').classList.add('done');
-          document.getElementById('qc-3').innerText = '✓';
-          document.getElementById('quest-stage-txt').innerText = '3 / 4';
-          logMessage('[Quest] Tutorial Step 3 Complete! Step into the Portal to travel to the Main World!', 'log-quest');
-        }
-
-        updatePlayerUI();
-        updateTargetUI();
-      } else {
-        logMessage(`[Harvest] Font is depleted!`, 'log-combat');
-      }
-    };
-
-    // Minimap Rendering
-    const minimapCanvas = document.getElementById('minimap-canvas');
-    const mmCtx = minimapCanvas.getContext('2d');
-
-    function renderMinimap() {
-      mmCtx.clearRect(0, 0, 140, 140);
-      const cx = 70;
-      const cy = 70;
-      const scale = 1.3;
-
-      mmCtx.fillStyle = '#0f172a';
-      mmCtx.beginPath();
-      mmCtx.arc(cx, cy, 68, 0, Math.PI * 2);
-      mmCtx.fill();
-
-      // Render interactables
-      interactables.forEach((item) => {
-        const ix = cx + (item.position.x - playerGroup.position.x) * scale;
-        const iy = cy + (item.position.z - playerGroup.position.z) * scale;
-        if (item.userData.type === 'nexus') mmCtx.fillStyle = '#38bdf8';
-        else if (item.userData.type === 'node') mmCtx.fillStyle = '#a855f7';
-        else if (item.userData.type === 'portal') mmCtx.fillStyle = '#c084fc';
-        else mmCtx.fillStyle = '#ef4444';
-
-        mmCtx.beginPath();
-        mmCtx.arc(ix, iy, 4, 0, Math.PI * 2);
-        mmCtx.fill();
-      });
-
-      // Player center dot
-      mmCtx.fillStyle = '#facc15';
-      mmCtx.beginPath();
-      mmCtx.arc(cx, cy, 4.5, 0, Math.PI * 2);
-      mmCtx.fill();
-    }
-
-    // Modal Helpers
-    window.toggleModal = function(id) {
-      const el = document.getElementById(id);
-      el.style.display = el.style.display === 'block' ? 'none' : 'block';
-    };
-
-    function closeAllModals() {
-      document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
-    }
-
-    // ==========================================
-    // 10. Engine Loop & MMORPG Controls
-    // ==========================================
-    const clock = new THREE.Clock();
-
-    function render() {
-      requestAnimationFrame(render);
-      const delta = clock.getDelta();
-
-      // Spell Casting progression
-      if (isCasting) {
-        castProgress += delta;
-        const pct = Math.min(100, (castProgress / castDuration) * 100);
-        document.getElementById('cast-fill').style.width = `${pct}%`;
-        if (castProgress >= castDuration) {
-          isCasting = false;
-          document.getElementById('cast-bar-container').style.display = 'none';
-          if (currentSpell && currentSpell.onComplete) currentSpell.onComplete();
-        }
-      }
-
-      // Gravity & Jumping
-      if (!player.isGrounded) {
-        player.vy -= 35 * delta;
-        playerGroup.position.y += player.vy * delta;
-        if (playerGroup.position.y <= 0) {
-          playerGroup.position.y = 0;
-          player.vy = 0;
-          player.isGrounded = true;
-        }
-      }
-
-      // Third-Person WASD Movement (Relative to Camera Sightline)
-      const forward = new THREE.Vector3(-Math.sin(cameraOrbit.yaw), 0, -Math.cos(cameraOrbit.yaw)).normalize();
-      const right = new THREE.Vector3(Math.cos(cameraOrbit.yaw), 0, -Math.sin(cameraOrbit.yaw)).normalize();
-
-      const move = new THREE.Vector3(0, 0, 0);
-      if (inputs.w) move.add(forward);
-      if (inputs.s && isMouseDown) move.sub(forward); // Backpedal only while holding mouse
-      if (inputs.d) move.add(right);
-      if (inputs.a) move.sub(right);
-
-      if (move.lengthSq() > 0) {
-        move.normalize();
-        const currentSpeed = player.speed * (inputs.shift ? player.sprintMultiplier : 1);
-        playerGroup.position.addScaledVector(move, currentSpeed * delta);
-
-        // Turn character to face movement direction
-        const targetRot = Math.atan2(move.x, move.z);
-        playerVisual.rotation.y = THREE.MathUtils.lerp(playerVisual.rotation.y, targetRot, 0.25);
-
-        // Running stride animation
-        playerVisual.position.y = Math.sin(clock.getElapsedTime() * 12) * 0.08;
-        playerVisual.rotation.z = Math.sin(clock.getElapsedTime() * 6) * 0.04;
-
-        // Tutorial Quest Step 1 check
-        if (currentZone === 'tutorial' && !quests.moved) {
-          quests.moved = true;
-          document.getElementById('qc-1').classList.add('done');
-          document.getElementById('qc-1').innerText = '✓';
-          logMessage('[Quest] Tutorial Step 1 Complete: You walked in 3rd person!', 'log-quest');
-        }
-      } else {
-        playerVisual.position.y = THREE.MathUtils.lerp(playerVisual.position.y, 0, 0.15);
-        playerVisual.rotation.z = THREE.MathUtils.lerp(playerVisual.rotation.z, 0, 0.15);
-      }
-
-      // Portal check on Tutorial Island
-      if (currentZone === 'tutorial' && portalMesh) {
-        portalMesh.rotation.z += 0.8 * delta;
-        const distToPortal = playerGroup.position.distanceTo(portalMesh.position);
-        if (distToPortal < 3.2) {
-          buildZone('main_world');
-        }
-      }
-
-      // Camera Orbit Position: Anchored behind and above the player
-      const camOffset = new THREE.Vector3(
-        Math.sin(cameraOrbit.yaw) * Math.cos(cameraOrbit.pitch) * cameraOrbit.distance,
-        Math.sin(cameraOrbit.pitch) * cameraOrbit.distance + 2.0,
-        Math.cos(cameraOrbit.yaw) * Math.cos(cameraOrbit.pitch) * cameraOrbit.distance
-      );
-      camera.position.copy(playerGroup.position).add(camOffset);
-      camera.lookAt(playerGroup.position.x, playerGroup.position.y + 1.4, playerGroup.position.z);
-
-      // Animate active smoke puffs
-      for (let i = activeSmokePuffs.length - 1; i >= 0; i--) {
-        const p = activeSmokePuffs[i];
-        p.age += delta;
-        const progress = p.age / p.maxAge;
-        p.mesh.position.addScaledVector(p.velocity, delta);
-        p.velocity.y += 1.8 * delta; // buoyancy upward
-        p.velocity.x *= (1 - 0.5 * delta);
-        p.velocity.z *= (1 - 0.5 * delta);
-        p.mesh.rotation.x += p.rotSpeed.x * delta;
-        p.mesh.rotation.y += p.rotSpeed.y * delta;
-        p.mesh.scale.multiplyScalar(1 + 0.9 * delta); // expansion
-        p.mesh.material.opacity = Math.max(0, (1 - progress) * 0.85);
-        if (p.age >= p.maxAge) {
-          scene.remove(p.mesh);
-          p.mesh.geometry.dispose();
-          p.mesh.material.dispose();
-          activeSmokePuffs.splice(i, 1);
-        }
-      }
-
-      // Animate dying entities swirling upward and shrinking into smoke
-      for (let i = dyingEntities.length - 1; i >= 0; i--) {
-        const d = dyingEntities[i];
-        d.age += delta;
-        d.group.position.y += 2.2 * delta;
-        d.group.rotation.y += 4.5 * delta;
-        const currentScale = Math.max(0.001, 1 - (d.age / 0.85));
-        d.group.scale.set(currentScale * d.initScale.x, currentScale * d.initScale.y, currentScale * d.initScale.z);
-        if (d.age >= 0.85) {
-          if (d.group.parent) d.group.parent.remove(d.group);
-          dyingEntities.splice(i, 1);
-        }
-      }
-
-      // Target selection ring positioning
-      if (currentTarget) {
-        targetRing.position.set(currentTarget.position.x, 0.03, currentTarget.position.z);
-      }
-
-      renderMinimap();
-      renderer.render(scene, camera);
-    }
-
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-
-    render();
-  </script>
+(function(){const M=document.createElement("link").relList;if(M&&M.supports&&M.supports("modulepreload"))return;for(const d of document.querySelectorAll('link[rel="modulepreload"]'))c(d);new MutationObserver(d=>{for(const s of d)if(s.type==="childList")for(const f of s.addedNodes)f.tagName==="LINK"&&f.rel==="modulepreload"&&c(f)}).observe(document,{childList:!0,subtree:!0});function A(d){const s={};return d.integrity&&(s.integrity=d.integrity),d.referrerPolicy&&(s.referrerPolicy=d.referrerPolicy),d.crossOrigin==="use-credentials"?s.credentials="include":d.crossOrigin==="anonymous"?s.credentials="omit":s.credentials="same-origin",s}function c(d){if(d.ep)return;d.ep=!0;const s=A(d);fetch(d.href,s)}})();class lt{constructor(){this.ctx=null,this.muted=!1}init(){if(!this.ctx){const M=window.AudioContext||window.webkitAudioContext;M&&(this.ctx=new M)}this.ctx&&this.ctx.state==="suspended"&&this.ctx.resume()}playTone({type:M="square",freqs:A=[440],stepTime:c=.04,gainVal:d=.14,delay:s=0}){if(this.muted||(this.init(),!this.ctx))return;const f=this.ctx.currentTime+s,o=A.length*c,g=this.ctx.createOscillator(),x=this.ctx.createGain();g.type=M,A.forEach((p,I)=>{g.frequency.setValueAtTime(p,f+I*c)}),x.gain.setValueAtTime(d,f),x.gain.exponentialRampToValueAtTime(.001,f+o),g.connect(x),x.connect(this.ctx.destination),g.start(f),g.stop(f+o+.01)}playNoise({duration:M=.15,bandpassFreq:A=900,endFreq:c=120,gainVal:d=.22}){if(this.muted||(this.init(),!this.ctx))return;const s=this.ctx.currentTime,f=Math.floor(this.ctx.sampleRate*M),o=this.ctx.createBuffer(1,f,this.ctx.sampleRate),g=o.getChannelData(0);let x=0;for(let E=0;E<f;E++)E%6===0&&(x=Math.random()>.5?.9:-.9),g[E]=x;const p=this.ctx.createBufferSource();p.buffer=o;const I=this.ctx.createBiquadFilter();I.type="bandpass",I.Q.value=1.4,I.frequency.setValueAtTime(A,s),I.frequency.exponentialRampToValueAtTime(Math.max(40,c),s+M);const S=this.ctx.createGain();S.gain.setValueAtTime(d,s),S.gain.exponentialRampToValueAtTime(.001,s+M),p.connect(I),I.connect(S),S.connect(this.ctx.destination),p.start(s)}playSlash(){this.playNoise({duration:.11,bandpassFreq:1800,endFreq:320,gainVal:.18}),this.playTone({type:"square",freqs:[520,390,260,180],stepTime:.025,gainVal:.12})}playHit(M=!1){this.playNoise({duration:M?.22:.12,bandpassFreq:650,endFreq:80,gainVal:.25}),M?this.playTone({type:"square",freqs:[220,440,660,140],stepTime:.035,gainVal:.18}):this.playTone({type:"triangle",freqs:[180,110,70],stepTime:.035,gainVal:.22})}playSpell(){this.playTone({type:"square",freqs:[440,554.37,659.25,880,1108.73,1318.51],stepTime:.035,gainVal:.14})}playHammer(){this.playTone({type:"square",freqs:[330,440,587.33,440,659.25],stepTime:.03,gainVal:.14})}playChime(){this.playTone({type:"square",freqs:[523.25,659.25,783.99,1046.5],stepTime:.065,gainVal:.14}),this.playTone({type:"triangle",freqs:[261.63,329.63,392,523.25],stepTime:.065,gainVal:.16})}playSmokePuff(){this.playNoise({duration:.38,bandpassFreq:520,endFreq:65,gainVal:.28}),this.playTone({type:"triangle",freqs:[196,164.8,130.8,98,65.4],stepTime:.06,gainVal:.18})}playDash(){this.playNoise({duration:.14,bandpassFreq:2200,endFreq:500,gainVal:.16}),this.playTone({type:"square",freqs:[660,880,1174,440],stepTime:.03,gainVal:.12})}playShield(){this.playTone({type:"square",freqs:[293.66,369.99,440,587.33,739.99],stepTime:.045,gainVal:.13})}playZenith(){this.playNoise({duration:.35,bandpassFreq:900,endFreq:90,gainVal:.28}),this.playTone({type:"square",freqs:[146.83,220,293.66,440,587.33,880,1174.66],stepTime:.045,gainVal:.18})}playJump(){this.playTone({type:"square",freqs:[220,300,400,520],stepTime:.025,gainVal:.1})}playPortal(){this.playTone({type:"square",freqs:[330,392,493.88,659.25,783.99,987.77,1318.5],stepTime:.045,gainVal:.15})}playLevelUp(){this.playTone({type:"square",freqs:[523.25,659.25,783.99,1046.5,783.99,1046.5,1318.51],stepTime:.075,gainVal:.17}),this.playTone({type:"triangle",freqs:[261.63,329.63,392,523.25,392,523.25,659.25],stepTime:.075,gainVal:.18})}playDialogue(){this.playTone({type:"square",freqs:[620,740],stepTime:.025,gainVal:.08})}}function P(u,M){const A=document.createElement("canvas");A.width=u,A.height=M;const c=A.getContext("2d");return c.imageSmoothingEnabled=!1,{c:A,ctx:c}}function T(u,M,A,c){u.fillStyle=c,u.fillRect(M|0,A|0,1,1)}function i(u,M,A,c,d,s){u.fillStyle=s,u.fillRect(M|0,A|0,c|0,d|0)}function F(u,M="#070a12"){const A=u.width,c=u.height,d=u.getContext("2d"),s=d.getImageData(0,0,A,c),f=s.data,o=new Uint8ClampedArray(f),g=parseInt(M.slice(1,3),16),x=parseInt(M.slice(3,5),16),p=parseInt(M.slice(5,7),16),I=(S,E)=>S<0||E<0||S>=A||E>=c?!1:f[(E*A+S)*4+3]>20;for(let S=0;S<c;S++)for(let E=0;E<A;E++){const q=(S*A+E)*4;f[q+3]===0&&(I(E-1,S)||I(E+1,S)||I(E,S-1)||I(E,S+1))&&(o[q]=g,o[q+1]=x,o[q+2]=p,o[q+3]=255)}return s.data.set(o),d.putImageData(s,0,0),u}function Ve(u,M,A=1){let c=u*374761393+M*668265263+A*1442695041|0;return c=(c^c>>13)*1274126177,((c^c>>16)>>>0)/4294967295}function Xe(){const u={tiles:{},hero:{down:[],up:[],left:[],right:[]},heraldNpc:[],allyPaladin:[],allyMage:[],dummy:[],node:[],nodeEmpty:null,portal:[],nexusBlue:[],nexusRed:[],nexusCyan:[],voidStalker:[],duskFiend:[],graniteBoss:[],props:{},icons:{}};for(let d=0;d<4;d++){const{c:s,ctx:f}=P(16,16);i(f,0,0,16,16,"#15342b");for(let x=0;x<16;x++)for(let p=0;p<16;p++){const I=Ve(p,x,10+d);I<.16?T(f,p,x,"#1d4739"):I<.24?T(f,p,x,"#0f261f"):I>.96&&T(f,p,x,"#2b6a52")}const o=(d*5+3)%13,g=(d*7+4)%12;T(f,o,g,"#34d399"),T(f,o+1,g+1,"#10b981"),d===2&&(T(f,11,5,"#facc15"),T(f,11,6,"#10b981")),u.tiles[`sanctuary_grass_${d}`]=s}for(let d=0;d<2;d++){const{c:s,ctx:f}=P(16,16);i(f,0,0,16,16,"#2a3142"),i(f,0,0,16,1,"#151924"),i(f,0,8,16,1,"#151924"),i(f,d===0?7:11,0,1,8,"#151924"),i(f,d===0?3:7,8,1,8,"#151924"),i(f,1,1,5,1,"#3b455e"),i(f,5,9,6,1,"#3b455e"),d===1&&(T(f,4,4,"#ca8a04"),T(f,12,12,"#eab308")),u.tiles[`flagstone_${d}`]=s}for(let d=0;d<4;d++){const{c:s,ctx:f}=P(16,16);i(f,0,0,16,16,"#111625");for(let o=0;o<16;o++)for(let g=0;g<16;g++){const x=Ve(g,o,40+d);x<.18?T(f,g,o,"#182036"):x<.26&&T(f,g,o,"#0b0e18")}d===2?(T(f,2,3,"#0284c7"),T(f,3,4,"#38bdf8"),T(f,4,4,"#38bdf8"),T(f,5,5,"#7dd3fc"),T(f,6,6,"#0284c7")):d===3&&(T(f,10,9,"#6b21a8"),T(f,11,10,"#a855f7"),T(f,12,10,"#c084fc"),T(f,13,11,"#6b21a8")),u.tiles[`warzone_${d}`]=s}const M=(d,s,f)=>{const{c:o,ctx:g}=P(16,16);return i(g,0,0,16,16,d),i(g,0,0,16,1,"#0b0f1a"),i(g,0,0,1,16,"#0b0f1a"),i(g,1,1,14,1,s),T(g,7,7,f),T(g,8,7,f),T(g,7,8,f),T(g,8,8,f),o};u.tiles.arena_neutral=M("#1b2234","#28324c","#475569"),u.tiles.arena_blue=M("#132946","#1d3e69","#38bdf8"),u.tiles.arena_red=M("#3b1622","#592032","#ef4444");for(let d=0;d<2;d++){const{c:s,ctx:f}=P(16,16);i(f,0,0,16,16,"#070b19");for(let o=0;o<16;o+=4){const g=(o+d*3)%12;i(f,g,o,4,1,"#1e3a8a"),T(f,(g+2)%16,o+1,"#38bdf8")}T(f,d===0?4:11,d===0?6:12,"#bae6fd"),u.tiles[`void_sea_${d}`]=s}u.props.brazier=[];for(let d=0;d<2;d++){const{c:s,ctx:f}=P(16,24);i(f,5,18,6,4,"#475569"),i(f,4,21,8,2,"#334155"),i(f,4,14,8,4,"#94a3b8"),i(f,5,15,6,2,"#cbd5e1"),i(f,5,10,6,4,"#ea580c"),i(f,6,7+d,4,5,"#facc15"),i(f,7,5+(1-d),2,4,"#fef08a"),T(f,d===0?5:10,6,"#fb923c"),u.props.brazier.push(F(s))}{const{c:d,ctx:s}=P(20,32);i(s,4,26,12,5,"#334155"),i(s,5,6,10,20,"#64748b"),i(s,6,6,3,20,"#94a3b8"),i(s,4,4,12,3,"#cbd5e1"),i(s,9,10,2,10,"#38bdf8"),T(s,8,13,"#7dd3fc"),T(s,11,16,"#7dd3fc"),u.props.pillar=F(d)}const A=["down","up","left","right"];for(const d of A)for(let s=0;s<3;s++){const{c:f,ctx:o}=P(24,26),g=s===1?-1:s===2?1:0,x=-g,p=s===0?0:-1;d!=="up"&&(i(o,7,11+p,10,10,"#991b1b"),i(o,8,12+p,8,8,"#dc2626")),i(o,8,21+Math.max(0,g),3,4,"#b45309"),i(o,13,21+Math.max(0,x),3,4,"#b45309"),i(o,8,21+Math.max(0,g),2,2,"#facc15"),i(o,13,21+Math.max(0,x),2,2,"#facc15"),i(o,7,12+p,10,9,"#d97706"),i(o,8,13+p,8,7,"#facc15"),d==="down"&&(i(o,11,15+p,2,2,"#38bdf8"),i(o,9,19+p,6,2,"#92400e"),T(o,11,19+p,"#fde047")),i(o,5,11+p,4,4,"#f59e0b"),i(o,6,11+p,2,2,"#fef08a"),i(o,15,11+p,4,4,"#f59e0b"),i(o,16,11+p,2,2,"#fef08a"),i(o,7,4+p,10,8,"#eab308"),i(o,8,5+p,8,6,"#fde047"),i(o,10,1+p,4,3,"#ef4444"),i(o,11,0+p,2,2,"#fca5a5"),d==="down"?(i(o,9,7+p,6,2,"#1e293b"),i(o,11,7+p,2,4,"#1e293b"),T(o,9,7+p,"#38bdf8"),T(o,14,7+p,"#38bdf8")):d==="left"?(i(o,7,7+p,4,2,"#1e293b"),T(o,8,7+p,"#38bdf8")):d==="right"&&(i(o,13,7+p,4,2,"#1e293b"),T(o,15,7+p,"#38bdf8")),d==="up"&&(i(o,7,11+p,10,11,"#b91c1c"),i(o,9,12+p,6,9,"#ef4444"),i(o,10,14+p,4,4,"#facc15")),d==="down"||d==="right"?(i(o,19,4+p,2,11,"#fde047"),i(o,19,3+p,1,9,"#ffffff"),i(o,18,14+p,4,1,"#92400e"),i(o,3,13+p,4,6,"#0284c7"),i(o,4,14+p,2,4,"#facc15")):(i(o,3,4+p,2,11,"#fde047"),i(o,4,3+p,1,9,"#ffffff"),i(o,2,14+p,4,1,"#92400e"),i(o,17,13+p,4,6,"#0284c7"),i(o,18,14+p,2,4,"#facc15")),u.hero[d].push(F(f))}for(let d=0;d<2;d++){const s=d===1?-1:0,{c:f,ctx:o}=P(28,28);i(o,2,7+s,6,10,"#fef08a"),i(o,3,8+s,4,7,"#ffffff"),i(o,20,7+s,6,10,"#fef08a"),i(o,21,8+s,4,7,"#ffffff"),i(o,9,11+s,10,14,"#e2e8f0"),i(o,11,12+s,6,12,"#facc15"),i(o,10,1+s,8,2,"#fde047"),i(o,10,5+s,8,6,"#f59e0b"),i(o,11,6+s,6,4,"#fef9c3"),T(o,12,7+s,"#0284c7"),T(o,15,7+s,"#0284c7"),i(o,22,4+s,2,21,"#b45309"),i(o,20,3+s,6,4,"#38bdf8"),i(o,22,4+s,2,2,"#ffffff"),u.heraldNpc.push(F(f))}for(let d=0;d<2;d++){const s=d===1?-1:0;{const{c:f,ctx:o}=P(22,24);i(o,7,11+s,8,10,"#1d4ed8"),i(o,8,12+s,6,9,"#38bdf8"),i(o,6,4+s,10,7,"#1e3a8a"),i(o,8,6+s,6,4,"#0f172a"),T(o,9,7+s,"#7dd3fc"),T(o,12,7+s,"#7dd3fc"),i(o,17,5+s,2,16,"#92400e"),i(o,16,3+s,4,4,"#38bdf8"),T(o,17,4+s,"#ffffff"),u.allyMage.push(F(f))}{const{c:f,ctx:o}=P(24,25);i(o,5,10+s,14,11,"#15803d"),i(o,7,11+s,10,9,"#4ade80"),i(o,7,4+s,10,7,"#3f6212"),T(o,9,7+s,"#fde047"),T(o,14,7+s,"#fde047"),i(o,7,21,4,3,"#365314"),i(o,13,21,4,3,"#365314"),u.allyPaladin.push(F(f))}}for(let d=0;d<2;d++){const s=d===1?1:0,{c:f,ctx:o}=P(24,26);i(o,10,17,4,8,"#78350f"),i(o,7,23,10,2,"#451a03"),i(o,4+s,10,16,3,"#92400e"),i(o,7+s,9,10,10,"#d97706"),i(o,8+s,10,8,8,"#f59e0b"),i(o,8+s,3,8,6,"#fbbf24"),T(o,9+s,5,"#451a03"),T(o,10+s,6,"#451a03"),T(o,13+s,5,"#451a03"),T(o,14+s,6,"#451a03"),i(o,9+s,11,6,6,"#ef4444"),i(o,10+s,12,4,4,"#f8fafc"),i(o,11+s,13,2,2,"#ef4444"),u.dummy.push(F(f))}for(let d=0;d<3;d++){const s=d===1?-1:d===2?1:0,{c:f,ctx:o}=P(24,30);i(o,5,24,14,4,"#334155"),i(o,7,22,10,3,"#475569"),i(o,10,4+s,4,16,"#9333ea"),i(o,8,7+s,8,11,"#a855f7"),i(o,9,8+s,4,9,"#d8b4fe"),i(o,10,6+s,2,6,"#ffffff"),i(o,4,13-s,3,6,"#7e22ce"),T(o,5,14-s,"#e9d5ff"),i(o,17,12-s,3,6,"#7e22ce"),T(o,18,13-s,"#e9d5ff"),T(o,3+d*2,7,"#f0abfc"),T(o,19-d*2,9,"#38bdf8"),u.node.push(F(f))}{const{c:d,ctx:s}=P(24,30);i(s,5,24,14,4,"#1e293b"),i(s,8,12,8,10,"#334155"),i(s,10,9,4,12,"#475569"),u.nodeEmpty=F(d)}for(let d=0;d<4;d++){const{c:s,ctx:f}=P(32,36);i(f,4,31,24,4,"#334155"),i(f,6,29,20,3,"#475569"),i(f,6,6,20,24,"#0284c7"),i(f,8,4,16,26,"#38bdf8"),i(f,9,7,14,21,"#1e1b4b"),i(f,11,9,10,17,"#4c1d95"),i(f,13,12,6,11,"#7dd3fc"),i(f,14,14,4,7,"#ffffff"),[[8,8],[23,8],[23,24],[8,24],[15,4],[25,16],[15,28],[6,16]].forEach((g,x)=>{const p=(x+d)%2===0?"#fef08a":"#e879f9";i(f,g[0],g[1],2,2,p)}),u.portal.push(F(s))}const c=(d,s,f,o)=>{const g=[];for(let x=0;x<3;x++){const p=x===1?-2:x===2?-1:0,{c:I,ctx:S}=P(40,48);i(S,6,40,28,6,"#1e293b"),i(S,9,36,22,5,"#334155"),i(S,12,34,16,3,d),i(S,17,4+p,6,28,d),i(S,14,8+p,12,21,d),i(S,12,12+p,16,13,s),i(S,15,10+p,10,17,s),i(S,17,14+p,6,9,f),i(S,18,16+p,4,5,"#ffffff"),i(S,5,16-p,4,10,d),i(S,6,18-p,2,6,f),i(S,31,16-p,4,10,d),i(S,32,18-p,2,6,f),T(S,10,19+x,o),T(S,29,20-x,o),T(S,20,2+x,"#ffffff"),g.push(F(I))}return g};u.nexusCyan=c("#0369a1","#0ea5e9","#7dd3fc","#facc15"),u.nexusBlue=c("#1d4ed8","#3b82f6","#93c5fd","#38bdf8"),u.nexusRed=c("#991b1b","#ef4444","#fca5a5","#fb923c");for(let d=0;d<3;d++){const s=d===1?-1:0,f=d===2?1:0,{c:o,ctx:g}=P(28,28);i(g,8,18,3,6+d%2,"#3b0764"),i(g,13,19,3,6-d%2,"#3b0764"),i(g,18,18,3,6+d%2,"#3b0764"),i(g,7,9+s,14,11,"#581c87"),i(g,9,10+s,10,9,"#7e22ce"),i(g,8,4+s,12,8,"#3b0764"),i(g,5,2+s,3,4,"#a855f7"),i(g,20,2+s,3,4,"#a855f7"),i(g,10,7+s,3,2,"#f43f5e"),i(g,15,7+s,3,2,"#f43f5e"),T(g,11,7+s,"#ffffff"),T(g,16,7+s,"#ffffff"),i(g,2,11+s+f,5,3,"#c084fc"),i(g,2,13+s+f,2,5,"#e879f9"),i(g,21,11+s+f,5,3,"#c084fc"),i(g,24,13+s+f,2,5,"#e879f9"),u.voidStalker.push(F(o))}for(let d=0;d<2;d++){const s=d===1?-1:0,{c:f,ctx:o}=P(24,26);i(o,8,20,3,4,"#450a0a"),i(o,13,20,3,4,"#450a0a"),i(o,7,10+s,10,10,"#7f1d1d"),i(o,8,11+s,8,8,"#dc2626"),i(o,8,4+s,8,7,"#1e1b4b"),i(o,9,7+s,2,2,"#fde047"),i(o,13,7+s,2,2,"#fde047"),i(o,3,12+s,4,2,"#f87171"),i(o,17,12+s,4,2,"#f87171"),u.duskFiend.push(F(f))}for(let d=0;d<3;d++){const s=d===1?-2:0,f=d===2?-2:0,o=d===0?0:1,{c:g,ctx:x}=P(40,40);i(x,9,29+s,8,9,"#334155"),i(x,10,30+s,5,6,"#475569"),i(x,23,29+f,8,9,"#334155"),i(x,24,30+f,5,6,"#475569"),i(x,8,10+o,24,20,"#475569"),i(x,10,12+o,20,16,"#64748b"),i(x,9,10+o,7,4,"#16a34a"),i(x,25,11+o,6,4,"#22c55e"),i(x,16,17+o,8,8,"#b45309"),i(x,17,18+o,6,6,"#f59e0b"),i(x,18,19+o,4,4,"#fef08a"),i(x,14,4+o,12,9,"#475569"),i(x,15,5+o,10,6,"#94a3b8"),i(x,16,8+o,3,2,"#facc15"),i(x,21,8+o,3,2,"#facc15"),i(x,1,14+o-s,8,13,"#334155"),i(x,2,15+o-s,6,9,"#64748b"),i(x,31,14+o-f,8,13,"#334155"),i(x,32,15+o-f,6,9,"#64748b"),u.graniteBoss.push(F(g))}return u}function ct(u,M){const A=new Image;A.crossOrigin="anonymous",A.onload=()=>{const c=document.createElement("canvas");c.width=48,c.height=64;const d=c.getContext("2d");d.imageSmoothingEnabled=!1,d.drawImage(A,0,0,48,64);const s=M.getContext("2d");s.imageSmoothingEnabled=!1,s.clearRect(0,0,M.width,M.height),s.drawImage(c,0,0,M.width,M.height)},A.src=u}const V=16,ne=12,Pe={1:{id:1,name:"Flare Strike",tcgType:"Solari Flash",icon:"⚔️",range:"6.5y",cost:0,baseCd:.85,color:"#facc15",desc:"Instant radiant blade cleave dealing (4-7 + Power + 2×Rank) DMG and generating Glimmer.",lore:'AWK #11: "The Flare Strike stands as a beacon of unwavering light against the encroaching shadow."'},2:{id:2,name:"Solar Flare",tcgType:"Solari Rite",icon:"☀️",range:"25y",cost:25,baseCd:3.5,castTime:1.1,color:"#fbbf24",desc:"1.1s Rite calling down a blinding sun-pillar for (11-15 + 2×Power + 3×Rank) CRIT DMG + splash.",lore:'AWK #12: "The unbridled fury of the sun, reduced to a single blinding flash that incinerates everything."'},3:{id:3,name:"Judgement of the Sun",tcgType:"Solari Rite",icon:"🔨",range:"20y",cost:0,baseCd:4.8,color:"#facc15",desc:"Hurls a solar warhammer for (7-10 + Power + 2×Rank) DMG. Grants +20 Glimmer (+25 more on kill!).",lore:'AWK: "Deal damage to target enemy. If it dies, gain bonus Solar Energy."'},4:{id:4,name:"Consecrated Ground",tcgType:"Solari Rite",icon:"🔥",range:"7.5y AoE",cost:0,baseCd:8,color:"#fb923c",desc:"Creates holy ground for 6s: burns foes for (3 + Rank) DMG/tick and grants +2 Power inside.",lore:'AWK: "Create holy ground. Friendly entities gain Power; enemies take damage each turn."'},harvest:{id:"harvest",name:"Ready Glimmer Node",tcgType:"TCG Core Rule",icon:"🔮",range:"6.5y",cost:0,baseCd:0,color:"#c084fc",desc:"Draws raw leyline energy from a Glimmer Node (+35 Glimmer & +25 XP).",lore:"Summoners and Vanguard champions channel Glimmer Nodes to fuel Rites and Flashes."},9:{id:9,name:"Radiant Bulwark",tcgType:"Solari Flash",icon:"🛡️",range:"Self",cost:0,baseCd:10,color:"#38bdf8",desc:"Instant Flash summoning 4 starlight shields absorbing (14 + 3×Bastion + 4×Rank) DMG for 10s.",lore:'AWK: "Prevent incoming damage to your Guardian and friendly units."'},10:{id:10,name:"Blessing of Dawn",tcgType:"Solari Rite",icon:"✨",range:"Self",cost:0,baseCd:6,color:"#4ade80",desc:"Restores (8 + 2×Bastion + 3×Rank) HP with celestial starlight runes.",lore:'AWK: "Give target friendly entity vitality and restore Health to it."'},11:{id:11,name:"Wrath of the Daystar",tcgType:"Solari Rite",icon:"⚡",range:"14y Nova",cost:30,baseCd:11.5,color:"#fde047",desc:"Spends 30 Glimmer to unleash a 14y solar nova for (16-22 + 2×Power + 4×Rank) CRIT DMG & knockback.",lore:'AWK: "Wrath of the Daystar commands the sovereign forces of Solari against all foes."'},12:{id:12,name:"Blinding Radiance",tcgType:"Solari Flash",icon:"💨",range:"8.5y Dash",cost:0,baseCd:4,color:"#bae6fd",desc:"Flash-dashes 8.5y in starlight, leaving afterimages and weakening nearby enemies (-2 ATK for 5s).",lore:'AWK #2: "A testament to the Decree of the Sun, Blinding Radiance brings order to chaos."'}},$e={1:"1",2:"2",3:"3",4:"4",harvest:"e",9:"q",10:"r",11:"f",12:"z"},Oe=[{speaker:"AURORA MARSHAL • SOLARI HERALD",text:"Awake at last, Solari Vanguard! Centuries have passed since the Great Nexus shattered between the Glimmer and the Fall, scattering its crystal shards across four warring realms."},{speaker:"AURORA MARSHAL • SOLARI HERALD",text:"You slumbered in crystal stasis on Awakening Isle while Umbri Void-assassins and Terra Behemoths seized the leylines. Re-attune your starlight blade before rejoining our Dominion!"},{speaker:"AURORA MARSHAL • SOLARI HERALD",text:"Strike the Dummy with Flare Strike [1], draw energy from the Glimmer Node [E] to gain XP & Levels, then step into the North Rift to banish foes into the Void and shatter the Enemy Nexus!"}],dt=[{speaker:"SUNSPIRE ARCHON • WAR COMMANDER",text:"Welcome back to the frontlines, Vanguard! Umbri stalkers and the colossal Granite Behemoth prowl these fractured leylines around the Central Chronocore Nexus."},{speaker:"SUNSPIRE ARCHON • WAR COMMANDER",text:"Slay Void foes to earn XP, upgrade your GlimmerFall Rites & Flashes [P], allocate Stats [C], and queue for 3v3 Arena to protect our Blue Nexus and shatter the rival Red Nexus!"}];function ft(){const u=new lt,M=Xe();document.querySelectorAll("canvas[data-card-url]").forEach(e=>{ct(e.getAttribute("data-card-url"),e)});const A=document.getElementById("game-canvas"),c=A.getContext("2d"),s=document.getElementById("minimap-canvas").getContext("2d"),f=document.getElementById("fct-container");let o=3,g=320,x=180;function p(){g=Math.max(240,Math.ceil(window.innerWidth/o)),x=Math.max(160,Math.ceil(window.innerHeight/o)),A.width=g,A.height=x,c.imageSmoothingEnabled=!1}p(),window.addEventListener("resize",p);const I={x:0,y:0};let S="tutorial";const E={halfW:208,halfH:176},q=()=>({level:1,xp:0,statPoints:2,skillPoints:1,stats:{power:2,bastion:2,resonance:1,tempo:1},ranks:{1:1,2:1,3:1,4:1,9:1,10:1,11:1,12:1}});let b=q();try{const e=localStorage.getItem("glimmerfall_prog_v2");if(e){const t=JSON.parse(e);b={...q(),...t,stats:{...q().stats,...t.stats||{}},ranks:{...q().ranks,...t.ranks||{}}}}}catch{}function be(){try{localStorage.setItem("glimmerfall_prog_v2",JSON.stringify(b))}catch{}}function Me(e){return 80+(e-1)*55}function se(){return 25+(b.level-1)*3+(b.stats.bastion-2)*3}function we(){return 100+(b.stats.resonance-1)*8}function Le(){return Math.min(.65,.2+b.stats.tempo*.025)}function Ae(){return Math.max(.65,1-b.stats.tempo*.02)}const n={x:0,y:88,z:0,vz:0,dir:"up",hp:se(),maxHp:se(),shield:0,shieldTimer:0,solarCharge:0,maxSolarCharge:we(),baseSpeed:96,sprintMult:1.55,isMoving:!1,walkTimer:0,slashTimer:0,slashAngle:-Math.PI/2,isDead:!1},$={1:0,2:0,3:0,4:0,9:0,10:0,11:0,12:0};let N=[],U=[],de=[],fe=[],X=[],Y=[],J=[],Q=[],Z=[],j=[],D=null,ve=!1,He=null,he=!1,Te=0,Ce=0,Se=null,z=0,Ie=0,O=[],oe=0,_e=!1;const ee={moved:!1,damaged:!1,harvested:!1,portalReady:!1},B={w:!1,a:!1,s:!1,d:!1,up:!1,down:!1,left:!1,right:!1,shift:!1};let W={...$e};try{const e=localStorage.getItem("glimmerfall_keybinds");e&&(W={...$e,...JSON.parse(e)})}catch{}let ye=null;function Ye(e,t,a=0){return{sx:(e-I.x+g/2)*o,sy:(t-a-I.y+x/2)*o}}function Je(e,t){const a=A.getBoundingClientRect(),r=(e-a.left)/a.width*g,w=(t-a.top)/a.height*x;return{wx:r-g/2+I.x,wy:w-x/2+I.y}}function L(e,t,a,r="#facc15",w=!1){if(!f)return;const{sx:v,sy:k}=Ye(e,t-14),l=document.createElement("div");l.className=w?"fct-text fct-crit":"fct-text",l.style.left=`${v}px`,l.style.top=`${k}px`,l.style.color=r,l.innerText=w?`★${a}!`:a,f.appendChild(l),setTimeout(()=>l.remove(),1100)}function C(e,t=""){const a=document.getElementById("combat-log");if(!a)return;const r=document.createElement("div");for(r.className=`log-entry ${t}`,r.innerText=e,a.appendChild(r);a.children.length>40;)a.removeChild(a.firstChild);a.scrollTop=a.scrollHeight}function Be(e){O=e,oe=0,Ne()}function Ne(){const e=document.getElementById("lore-dialogue-box");if(!e)return;if(!O.length||oe>=O.length){e.style.display="none";return}const t=O[oe];e.style.display="flex",document.getElementById("dlg-speaker").innerText=t.speaker,document.getElementById("dlg-text").innerText=t.text;const a=document.getElementById("dlg-next-btn");a&&(a.innerText=oe<O.length-1?`NEXT (${oe+1}/${O.length}) ▸`:"BEGIN TRAINING ✓")}window.advanceDialogue=function(){u.playDialogue(),oe++,Ne()},window.closeDialogue=function(){O=[],Ne()};function ie(e,t=""){if(e<=0)return;b.xp+=e;let a=!1;for(;b.xp>=Me(b.level);)b.xp-=Me(b.level),b.level++,b.statPoints+=3,b.skillPoints+=1,a=!0;n.maxHp=se(),n.maxSolarCharge=we(),a?(n.hp=n.maxHp,u.playLevelUp(),ue(n.x,n.y-8,["#fde047","#38bdf8","#4ade80","#ffffff"],26),L(n.x,n.y-12,`LEVEL ${b.level}!`,"#fde047",!0),C(`[LEVEL UP!] Reached Level ${b.level}! +3 Stat Pts [C] & +1 Rite Pt [P]!`,"log-solari"),ge(),ae()):t&&C(`[XP] +${e} XP (${t})`,"log-gain"),be(),H()}window.allocateStat=function(e){if(b.statPoints<=0||!(e in b.stats))return;b.statPoints--,b.stats[e]++;const t=n.maxHp;n.maxHp=se(),n.hp=Math.min(n.maxHp,n.hp+Math.max(0,n.maxHp-t)),n.maxSolarCharge=we(),u.playChime(),be(),H(),ge()},window.upgradeSkillRank=function(e){const t=Number(e);b.skillPoints<=0||!(t in b.ranks)||b.ranks[t]>=5||(b.skillPoints--,b.ranks[t]++,u.playChime(),be(),H(),pe(),ae(),C(`[Mastery] Upgraded ${Pe[t].name} to Rank ${b.ranks[t]}!`,"log-solari"))},window.resetCharacterProgression=function(){b=q(),n.maxHp=se(),n.hp=n.maxHp,n.maxSolarCharge=we(),u.playChime(),be(),H(),pe(),ge(),ae(),C("[System] Character level, stats & Rite ranks reset to Level 1.","log-gain")};function Re(e,t,a=28){const r=["#3b0764","#581c87","#7e22ce","#a855f7","#475569","#e9d5ff"];for(let w=0;w<a;w++){const v=Math.random()*Math.PI*2,k=8+Math.random()*28;J.push({x:e+(Math.random()-.5)*14,y:t+(Math.random()-.5)*10,z:4+Math.random()*10,vx:Math.cos(v)*k,vy:Math.sin(v)*k*.5,vz:18+Math.random()*26,size:Math.random()<.45?4:3,color:r[Math.random()*r.length|0],age:0,maxAge:.55+Math.random()*.45})}}function ue(e,t,a=["#facc15","#fef08a","#ffffff"],r=12){for(let w=0;w<r;w++){const v=Math.random()*Math.PI*2,k=16+Math.random()*42;J.push({x:e,y:t,z:8+Math.random()*8,vx:Math.cos(v)*k,vy:Math.sin(v)*k*.65,vz:(Math.random()-.2)*24,size:Math.random()<.5?2:3,color:a[Math.random()*a.length|0],age:0,maxAge:.28+Math.random()*.22})}}function Qe(e,t){for(let a=0;a<2;a++)J.push({x:e+(Math.random()-.5)*6,y:t+2,z:1,vx:(Math.random()-.5)*10,vy:(Math.random()-.5)*6,vz:6+Math.random()*6,size:2,color:"#94a3b8",age:0,maxAge:.28})}function re(e){S=e,N=[],U=[],de=[],fe=[],X=[],Y=[],J=[],Q=[],Z=[],j=[],te(null);const t=document.getElementById("hud"),a=document.getElementById("minimap-zone-title"),r=document.getElementById("zone-label"),w=document.getElementById("arena-banner"),v=document.getElementById("quest-tasks-tutorial"),k=document.getElementById("quest-tasks-warzone");e==="tutorial"?(t.classList.remove("in-arena"),E.halfW=208,E.halfH=176,a.innerText="AWAKENING ISLE",r.innerText="To Warzone",w.style.display="none",v&&(v.style.display="block"),k&&(k.style.display="none"),n.x=0,n.y=92,n.dir="up",fe.push({type:"brazier",x:-40,y:68},{type:"brazier",x:40,y:68},{type:"brazier",x:-40,y:-64},{type:"brazier",x:40,y:-64},{type:"pillar",x:-96,y:-40},{type:"pillar",x:96,y:-40},{type:"pillar",x:-96,y:48},{type:"pillar",x:96,y:48}),U.push({id:"npc_aurora",name:"Aurora Marshal",role:"Solari Herald [Click / T]",x:36,y:80,dialogue:Oe}),N.push({id:"dummy_1",name:"Sanctuary Dummy",sub:"Lv.1 Solari Training Post",type:"dummy",spriteKey:"dummy",x:0,y:10,origX:0,origY:10,hp:25,maxHp:25,xpReward:30,radius:14,hitFlash:0},{id:"tut_font",name:"Awakening Glimmer Node",sub:"Glimmer Leyline Spire [E]",type:"node",spriteKey:"node",x:-76,y:20,charges:3,maxCharges:3,radius:15,hitFlash:0},{id:"portal_main",name:"Astral Rift Portal",sub:"Enter Rift -> Nexus Warzone",type:"portal",spriteKey:"portal",x:0,y:-108,hp:1,maxHp:1,radius:20,hitFlash:0}),_e||(_e=!0,Be(Oe)),C("[Lore] You awaken from stasis on Awakening Isle. Speak to Aurora Marshal [T]!","log-quest")):e==="main_world"?(t.classList.remove("in-arena"),E.halfW=336,E.halfH=288,a.innerText="NEXUS WARZONE",r.innerText="To Sanctuary",w.style.display="none",v&&(v.style.display="none"),k&&(k.style.display="block"),n.x=0,n.y=148,n.dir="up",[[-80,90],[80,90],[-140,-20],[140,-20],[-70,-130],[70,-130]].forEach(([l,h],m)=>{fe.push({type:m%2===0?"pillar":"brazier",x:l,y:h})}),U.push({id:"npc_archon",name:"Sunspire Archon",role:"War Commander [Click / T]",x:-36,y:132,dialogue:dt}),N.push({id:"nexus_core",name:"Corrupted Rift Nexus",sub:"25 HP Fallen Monolith",type:"nexus",spriteKey:"nexusCyan",x:0,y:-165,origX:0,origY:-165,hp:25,maxHp:25,xpReward:150,radius:22,hitFlash:0}),[[-135,-75],[135,-75],[-160,75],[160,75]].forEach(([l,h],m)=>{N.push({id:`node_${m}`,name:`Glimmer Node #${m+1}`,sub:"Aether Leyline Crystal [E]",type:"node",spriteKey:"node",x:l,y:h,charges:3,maxCharges:3,radius:15,hitFlash:0})}),N.push({id:"umbri_1",name:"Void Stalker",sub:"Lv.2 Umbri Entity (AWK)",type:"mob",spriteKey:"voidStalker",x:-95,y:-15,origX:-95,origY:-15,hp:28,maxHp:28,damage:4,xpReward:55,speed:52,aggroRange:112,attackRange:28,radius:15,hitFlash:0},{id:"umbri_2",name:"Umbral Assassin",sub:"Lv.3 Umbri Entity (AWK)",type:"mob",spriteKey:"duskFiend",x:6,y:-45,origX:6,origY:-45,hp:24,maxHp:24,damage:4,xpReward:60,speed:60,aggroRange:108,attackRange:26,radius:13,hitFlash:0},{id:"terra_boss",name:"Granite Behemoth",sub:"★ Lv.5 Terra World Boss",type:"mob",isBoss:!0,spriteKey:"graniteBoss",x:115,y:-95,origX:115,origY:-95,hp:55,maxHp:55,damage:6,xpReward:135,speed:38,aggroRange:130,attackRange:34,radius:21,hitFlash:0}),C("[Warzone] Reunited with Sunspire forces! Banish Void foes & shatter the Rift Nexus!","log-solari")):e==="arena_3v3"&&(t.classList.add("in-arena"),E.halfW=240,E.halfH=272,a.innerText="3v3 NEXUS ARENA",r.innerText="Exit Arena",w.style.display="flex",v&&(v.style.display="none"),k&&(k.style.display="block"),n.x=0,n.y=175,n.dir="up",fe.push({type:"brazier",x:-64,y:180},{type:"brazier",x:64,y:180},{type:"brazier",x:-64,y:-180},{type:"brazier",x:64,y:-180},{type:"pillar",x:-110,y:0},{type:"pillar",x:110,y:0}),N.push({id:"blue_nexus",name:"Solari Sanctuary Nexus",sub:"25 HP Ally Core — Protect!",type:"ally_nexus",spriteKey:"nexusBlue",x:0,y:220,hp:25,maxHp:25,radius:22,hitFlash:0},{id:"red_nexus",name:"Umbri Dominion Nexus",sub:"25 HP Enemy Core — Shatter!",type:"nexus",spriteKey:"nexusRed",x:0,y:-215,hp:25,maxHp:25,xpReward:220,radius:22,hitFlash:0},{id:"arena_node_l",name:"West Glimmer Node",sub:"Leyline Crystal [E]",type:"node",spriteKey:"node",x:-155,y:0,charges:3,maxCharges:3,radius:15,hitFlash:0},{id:"arena_node_r",name:"East Glimmer Node",sub:"Leyline Crystal [E]",type:"node",spriteKey:"node",x:155,y:0,charges:3,maxCharges:3,radius:15,hitFlash:0}),de.push({id:"ally_1",name:"Nexus Weaver",spriteKey:"allyMage",x:-48,y:165,speed:50,range:110,cd:.6},{id:"ally_2",name:"Forest Warden",spriteKey:"allyPaladin",x:48,y:165,speed:54,range:28,cd:.3}),N.push({id:"enemy_1",name:"Void Stalker [Umbri]",sub:"Enemy Vanguard",type:"mob",spriteKey:"voidStalker",x:-64,y:-85,origX:-64,origY:-85,hp:25,maxHp:25,damage:4,xpReward:65,speed:54,aggroRange:230,attackRange:28,radius:15,hitFlash:0},{id:"enemy_2",name:"Gloam Reaper [Umbri]",sub:"Enemy Harvester",type:"mob",spriteKey:"duskFiend",x:0,y:-105,origX:0,origY:-105,hp:22,maxHp:22,damage:4,xpReward:65,speed:60,aggroRange:230,attackRange:26,radius:14,hitFlash:0},{id:"enemy_3",name:"Brambleheart Behemoth",sub:"Enemy Terra Titan",type:"mob",isBoss:!0,spriteKey:"graniteBoss",x:64,y:-85,origX:64,origY:-85,hp:34,maxHp:34,damage:5,xpReward:110,speed:42,aggroRange:230,attackRange:32,radius:20,hitFlash:0}),document.getElementById("red-nexus-hp").innerText="25 / 25",document.getElementById("blue-nexus-hp").innerText="25 / 25",C("[3v3 Arena] Protect our Solari Nexus & shatter the Umbri Red Nexus!","log-solari")),I.x=n.x,I.y=n.y}function Ze(){return N.filter(e=>!e.isDying&&e.type!=="ally_nexus")}function te(e){D=e;const t=document.getElementById("target-unit-frame");if(!e){t.style.display="none";return}t.style.display="block",document.getElementById("target-name").innerText=e.name,document.getElementById("target-sub").innerText=e.sub||"World Entity",Ee()}function je(){const e=Ze();e.length!==0&&(e.sort((t,a)=>Math.hypot(t.x-n.x,t.y-n.y)-Math.hypot(a.x-n.x,a.y-n.y)),te(D?e[(e.indexOf(D)+1)%e.length]:e[0]))}function Ee(){if(!D)return;const e=D.hp??D.charges??0,t=D.maxHp??D.maxCharges??1,a=Math.max(0,Math.round(e/t*100));if(document.getElementById("target-hp-txt").innerText=`${e} / ${t} (${a}%)`,document.getElementById("target-hp-fill").style.width=`${a}%`,S==="arena_3v3"){const r=N.find(w=>w.id==="red_nexus");r&&(document.getElementById("red-nexus-hp").innerText=`${r.hp} / 25`)}}function H(){document.getElementById("player-level-badge").innerText=b.level;const e=n.shield>0?`${n.hp}/${n.maxHp} (+${n.shield}🛡)`:`${n.hp} / ${n.maxHp}`;document.getElementById("player-hp-txt").innerText=e,document.getElementById("player-hp-fill").style.width=`${Math.min(100,n.hp/n.maxHp*100)}%`,document.getElementById("player-hp-fill").className=n.shield>0?"bar-hp shielded":"bar-hp",document.getElementById("player-res-txt").innerText=`${n.solarCharge} / ${n.maxSolarCharge}`,document.getElementById("player-res-fill").style.width=`${Math.min(100,n.solarCharge/n.maxSolarCharge*100)}%`;const t=Me(b.level);document.getElementById("xp-bar-txt").innerText=`LV.${b.level} SOLARI VANGUARD  •  XP ${b.xp} / ${t}`,document.getElementById("xp-bar-fill").style.width=`${Math.min(100,b.xp/t*100)}%`;const a=document.getElementById("skill-pt-pip");a&&(a.style.display=b.skillPoints>0?"inline-block":"none",a.innerText=`+${b.skillPoints}`);const r=document.getElementById("stat-pt-pip");r&&(r.style.display=b.statPoints>0?"inline-block":"none",r.innerText=`+${b.statPoints}`)}function et(e,t=""){if(!e||e.isDying)return;if(e.isDying=!0,e.deathAge=0,u.playSmokePuff(),Re(e.x,e.y,e.isBoss?46:30),C(`[Void Banish] ${e.name} was cast into the Void!`,"log-combat"),t==="Judgement of the Sun"&&(n.solarCharge=Math.min(n.maxSolarCharge,n.solarCharge+25),L(n.x,n.y-10,"+25 JUDGEMENT GLIMMER","#fde047")),e.xpReward&&ie(e.xpReward,e.name),D===e&&te(null),e.id==="red_nexus"&&S==="arena_3v3"){u.playLevelUp(),L(e.x,e.y,"3v3 VICTORY!","#facc15",!0),C("[VICTORY!] Enemy Nexus shattered! Glory to the Solari Dominion!","log-solari"),setTimeout(()=>{S==="arena_3v3"&&re("main_world")},2800);return}if(e.id==="nexus_core"&&S==="main_world"){u.playLevelUp(),L(e.x,e.y,"NEXUS PURIFIED!","#38bdf8",!0),setTimeout(()=>{S==="main_world"&&(e.isDying=!1,e.deathAge=0,e.hp=e.maxHp,N.includes(e)||N.push(e),Re(e.x,e.y,20),C("[Warzone] Corrupted Rift Nexus re-materialized!","log-gain"))},7e3);return}const a=S,r={...e,hp:e.maxHp,isDying:!1,deathAge:0,inCombat:!1,weakenTimer:0,hitFlash:0,x:e.origX??e.x,y:e.origY??e.y};setTimeout(()=>{S===a&&(r.type==="dummy"||r.type==="mob")&&(N.push(r),Re(r.x,r.y,16))},6500)}function le(e,t,a,r,w=!0){!e||e.isDying||e.type==="node"||e.type==="portal"||(e.hp=Math.max(0,e.hp-t),e.hitFlash=.16,e.type==="mob"&&(e.inCombat=!0),u.playHit(a),ue(e.x,e.y-8,a?["#fde047","#ffffff","#f97316"]:["#ef4444","#fca5a5","#facc15"],a?14:8),L(e.x,e.y,`-${t}`,a?"#facc15":"#f87171",a),C(`[${r}] hit ${e.name} for ${t}${a?" CRIT":""}!`,"log-solari"),w&&e.type==="dummy"&&e.hp>0&&ie(8),S==="tutorial"&&!ee.damaged&&(ee.damaged=!0,document.getElementById("qc-2").classList.add("done"),document.getElementById("qc-2").innerText="✓",document.getElementById("quest-stage-txt").innerText="2 / 4",ie(25,"Training Strike"),C("[Quest] Blade attuned! Now press [E] near the purple Glimmer Node.","log-quest")),(D===e||e.id==="red_nexus")&&Ee(),e.hp<=0&&et(e,r))}function tt(e,t="Enemy"){if(n.isDead||n.hp<=0)return;u.playHit(!1);const a=document.getElementById("damage-vignette");a&&(a.style.display="block",a.style.opacity="0.75",setTimeout(()=>{a.style.opacity="0",setTimeout(()=>a.style.display="none",160)},150));let r=e;if(n.shield>0){const w=Math.min(n.shield,r);n.shield-=w,r-=w,L(n.x,n.y,`GUARD ${w}`,"#38bdf8"),n.shield<=0&&C("[Flash] Radiant Bulwark depleted!","log-combat")}r>0&&(n.hp=Math.max(0,n.hp-r),L(n.x,n.y,`-${r} HP`,"#ef4444"),C(`[Combat] ${t} strikes you for ${r}!`,"log-combat")),H(),n.hp<=0&&at()}function at(){if(n.isDead)return;n.isDead=!0,u.playSmokePuff(),Re(n.x,n.y,35),L(n.x,n.y,"FALLEN","#ef4444",!0);const e=document.getElementById("death-screen");e&&(e.style.display="flex",e.style.opacity="1",e.style.pointerEvents="all");let t=3;const a=setInterval(()=>{t--;const r=document.getElementById("death-timer-txt");r&&(r.innerText=`RE-ANCHORING AT SOLARI SANCTUARY IN ${t}S...`),t<=0&&(clearInterval(a),n.maxHp=se(),n.hp=n.maxHp,n.solarCharge=0,n.shield=0,n.isDead=!1,n.x=0,n.y=S==="tutorial"?92:S==="arena_3v3"?175:148,e&&(e.style.opacity="0",e.style.pointerEvents="none",setTimeout(()=>e.style.display="none",300)),u.playChime(),H())},1e3)}function Fe(){return n.dir==="up"?{dx:0,dy:-1,angle:-Math.PI/2}:n.dir==="down"?{dx:0,dy:1,angle:Math.PI/2}:n.dir==="left"?{dx:-1,dy:0,angle:Math.PI}:{dx:1,dy:0,angle:0}}function me(e,t){const a=e-n.x,r=t-n.y;Math.abs(a)>Math.abs(r)?n.dir=a>=0?"right":"left":n.dir=r>=0?"down":"up"}function De(e){if(D&&!D.isDying&&D.type!=="node"&&D.type!=="portal")return D;let t=null,a=e;for(const r of N){if(r.isDying||r.type!=="mob"&&r.type!=="dummy"&&r.type!=="nexus")continue;const w=Math.hypot(r.x-n.x,r.y-n.y);w<=a&&(a=w,t=r)}return t&&te(t),t}function nt(){for(const e of Y)if(e.type==="consecration"&&Math.hypot(n.x-e.x,n.y-e.y)<=e.radius)return 2;return 0}window.castAbility=function(e){if(n.isDead)return;const t=Pe[e];if(!t)return;if($[e]>0){C(`[Cooldown] ${t.name} ready in ${$[e].toFixed(1)}s`,"log-combat");return}const a=b.ranks[e]||1,r=b.stats.power+nt(),w=Ae(),v=t.tcgType.includes("Flash"),k=()=>{v&&(n.solarCharge=Math.min(n.maxSolarCharge,n.solarCharge+6))};if(e===1){const l=6.5*ne,h=De(l);let m=Fe().angle;if(h){if(Math.hypot(h.x-n.x,h.y-n.y)>l){C("[Range] Move closer to cast Flare Strike!","log-combat");return}me(h.x,h.y),m=Math.atan2(h.y-n.y,h.x-n.x)}u.playSlash(),$[e]=t.baseCd*w,n.slashTimer=.22,n.slashAngle=m,Z.push({x:n.x,y:n.y-6,angle:m,age:0,maxAge:.22}),k();let y=!1;for(const R of N){if(R.isDying||R.type!=="mob"&&R.type!=="dummy"&&R.type!=="nexus")continue;if(Math.hypot(R.x-n.x,R.y-n.y)<=l){const G=Math.atan2(R.y-n.y,R.x-n.x),K=Math.abs(Math.atan2(Math.sin(G-m),Math.cos(G-m)));if(R===h||K<1.15){const ce=Math.floor(Math.random()*4)+3+r+a*2,We=Math.random()<Le();le(R,We?Math.round(ce*1.8):ce,We,"Flare Strike"),y=!0}}}if(y){const R=14+b.stats.resonance*2;n.solarCharge=Math.min(n.maxSolarCharge,n.solarCharge+R)}H()}else if(e===2){const l=25*ne,h=De(l);if(!h){C("[Target] Select a hostile Entity first!","log-combat");return}if(n.solarCharge<t.cost){C("[Glimmer] Solar Flare requires 25 Glimmer!","log-combat");return}if(Math.hypot(h.x-n.x,h.y-n.y)>l){C("[Range] Target out of range (25y)!","log-combat");return}if(he)return;me(h.x,h.y),n.solarCharge-=t.cost,$[e]=t.baseCd*w,H(),he=!0,Ce=t.castTime,Te=0,document.getElementById("cast-bar-container").style.display="block",document.getElementById("cast-name").innerText="RITE: SOLAR FLARE",document.getElementById("cast-time").innerText=`${t.castTime}s`,Se={onComplete:()=>{u.playSpell(),j.push({x:h.x,y:h.y,age:0,maxAge:.45});const m=Math.floor(Math.random()*5)+10+r*2+a*3;le(h,m,!0,"Solar Flare");for(const y of N)y!==h&&!y.isDying&&(y.type==="mob"||y.type==="dummy")&&Math.hypot(y.x-h.x,y.y-h.y)<=54&&le(y,Math.round(m*.6),!1,"Solar Flare")}}}else if(e===3){const l=20*ne,h=De(l);if(!h){C("[Target] Select a target for Judgement of the Sun!","log-combat");return}if(Math.hypot(h.x-n.x,h.y-n.y)>l){C("[Range] Target out of range (20y)!","log-combat");return}me(h.x,h.y),u.playHammer(),$[e]=t.baseCd*w,n.solarCharge=Math.min(n.maxSolarCharge,n.solarCharge+18+b.stats.resonance*2),H(),X.push({type:"hammer",x:n.x,y:n.y-8,target:h,speed:235,rot:0,dmg:Math.floor(Math.random()*4)+6+r+a*2})}else if(e===4)u.playSpell(),$[e]=t.baseCd*w,Y.push({type:"consecration",x:n.x,y:n.y,radius:7.5*ne,tickDmg:2+a+Math.floor(r*.5),age:0,maxAge:6.2,tickTimer:.2}),L(n.x,n.y,"CONSECRATED GROUND","#facc15"),C("[Rite] Consecrated Ground sanctifies the tiles (+2 Power inside)!","log-solari");else if(e===9){u.playShield(),$[e]=t.baseCd*w,k();const l=12+b.stats.bastion*3+a*4;n.shield=l,n.shieldTimer=10,L(n.x,n.y,`+${l} BULWARK`,"#38bdf8"),C(`[Flash] Radiant Bulwark absorbs ${l} DMG!`,"log-gain"),H()}else if(e===10){u.playChime(),$[e]=t.baseCd*w;const l=6+b.stats.bastion*2+a*3;n.hp=Math.min(n.maxHp,n.hp+l),ue(n.x,n.y-6,["#4ade80","#fde047","#ffffff"],14),L(n.x,n.y,`+${l} HP`,"#4ade80"),C(`[Rite] Blessing of Dawn restored +${l} HP!`,"log-heal"),H()}else if(e===11){if(n.solarCharge<t.cost){C("[Glimmer] Wrath of the Daystar requires 30 Glimmer!","log-combat");return}n.solarCharge-=t.cost,$[e]=t.baseCd*w,u.playZenith(),H();const l=14*ne;Y.push({type:"shockwave",x:n.x,y:n.y,radius:l,age:0,maxAge:.42}),L(n.x,n.y,"WRATH OF THE DAYSTAR!","#fde047",!0);let h=0;for(const m of N){if(m.isDying||m.type!=="mob"&&m.type!=="dummy"&&m.type!=="nexus")continue;const y=Math.hypot(m.x-n.x,m.y-n.y);if(y<=l){const R=Math.floor(Math.random()*6)+14+r*2+a*4;le(m,R,!0,"Wrath of the Daystar"),m.type==="mob"&&y>1&&(m.x+=(m.x-n.x)/y*30,m.y+=(m.y-n.y)/y*30),h++}}C(`[Rite] Wrath of the Daystar scorched ${h} target(s)!`,"log-solari")}else if(e===12){u.playDash(),$[e]=t.baseCd*w,k();const{dx:l,dy:h}=Fe(),m=(8.2+a*.4)*ne;for(let y=0;y<4;y++)Q.push({x:n.x+l*(m*(y/4)),y:n.y+h*(m*(y/4)),dir:n.dir,age:0,maxAge:.28+y*.04});n.x=Math.max(-E.halfW+16,Math.min(E.halfW-16,n.x+l*m)),n.y=Math.max(-E.halfH+16,Math.min(E.halfH-16,n.y+h*m));for(const y of N)!y.isDying&&y.type==="mob"&&Math.hypot(y.x-n.x,y.y-n.y)<=72&&(y.weakenTimer=5,L(y.x,y.y-8,"BLINDED -2 ATK","#bae6fd"));ue(n.x,n.y,["#ffffff","#fde047","#38bdf8"],14),L(n.x,n.y,"BLINDING RADIANCE!","#bae6fd"),H()}},window.harvestTarget=function(){let e=D&&D.type==="node"?D:null;if(e||(e=N.find(t=>t.type==="node"&&Math.hypot(t.x-n.x,t.y-n.y)<=6.5*ne),e&&te(e)),!e){C("[Glimmer Node] Move near a purple Glimmer Node spire first!","log-combat");return}if(Math.hypot(e.x-n.x,e.y-n.y)>6.5*ne){C("[Glimmer Node] Step closer to ready the Glimmer Node!","log-combat");return}if(e.charges>0){e.charges--;const t=32+b.stats.resonance*4;n.solarCharge=Math.min(n.maxSolarCharge,n.solarCharge+t),u.playChime(),ue(e.x,e.y-10,["#c084fc","#e879f9","#38bdf8"],16),L(e.x,e.y,`+${t} GLIMMER`,"#c084fc"),ie(25,"Glimmer Node"),S==="tutorial"&&!ee.harvested&&(ee.harvested=!0,document.getElementById("qc-3").classList.add("done"),document.getElementById("qc-3").innerText="✓",document.getElementById("quest-stage-txt").innerText="3 / 4",ie(25,"Resonance Attuned"),C("[Quest] Glimmer attuned! Enter the North Astral Rift to rejoin the Solari!","log-quest")),H(),Ee(),e.charges===0&&setTimeout(()=>{e.charges=e.maxCharges,D===e&&Ee()},11e3)}else C("[Glimmer Node] Spire exhausted — readying during next phase...","log-combat")},window.interactNearestNpc=function(){if(U.length===0)return;const e=U[0];u.playDialogue(),Be(e.dialogue)},window.teleportWorld=function(){u.playPortal(),re(S==="tutorial"?"main_world":"tutorial")},window.toggleMatchmaking=function(){const e=document.getElementById("btn-queue");ve?(clearTimeout(He),ve=!1,e.innerText="⚔️ 3v3 ARENA",C("[Queue] Cancelled 3v3 matchmaking.","log-combat")):(ve=!0,e.innerText="⏳ QUEUEING...",C("[3v3 Queue] Summoning Solari & Aether allies for Nexus Clash...","log-solari"),He=setTimeout(()=>{ve=!1,e.innerText="⚔️ 3v3 ARENA",u.playPortal(),re("arena_3v3")},1800))},window.cyclePixelZoom=function(){o=o===3?4:o===4?2:3,p();const e=document.getElementById("zoom-label");e&&(e.innerText=`${o}x`)};function pe(){for(const t of[1,2,3,4,9,10,11,12]){const a=document.getElementById(`badge-${t}`);a&&W[t]&&(a.innerText=W[t].toUpperCase());const r=document.getElementById(`rank-${t}`);r&&(r.innerText=`R${b.ranks[t]||1}`)}const e=document.getElementById("badge-harvest");e&&W.harvest&&(e.innerText=W.harvest.toUpperCase())}function ae(){const e=document.getElementById("keybind-list-container");if(!e)return;const t=document.getElementById("skill-points-banner");t&&(t.innerText=`SKILL POINTS AVAILABLE: ${b.skillPoints}`,t.style.color=b.skillPoints>0?"#fde047":"#94a3b8"),e.innerHTML="";for(const a of[1,2,3,4,"harvest",9,10,11,12]){const r=Pe[a];if(!r)continue;const w=(W[a]||"").toUpperCase(),v=ye===a,k=typeof a=="number",l=k?b.ranks[a]||1:null,h=k&&b.skillPoints>0&&l<5,m=document.createElement("div");m.className="keybind-row",m.innerHTML=`
+        <div style="flex:1; padding-right:10px;">
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <span style="font-size:14px;">${r.icon}</span>
+            <b style="color:${r.color}; font-size:11px;">${r.name}</b>
+            <span class="spec-pill">${r.tcgType}</span>
+            ${k?`<span class="rank-pill">RANK ${l}/5</span>`:""}
+            <span style="font-size:9px; color:#94a3b8;">CD:${r.baseCd>0?(r.baseCd*Ae()).toFixed(1)+"s":"0s"} | ${r.range}</span>
+          </div>
+          <div style="font-size:10px; color:#e2e8f0; margin-top:3px; line-height:1.35;">${r.desc}</div>
+          <div style="font-size:9px; color:#64748b; margin-top:2px;">${r.lore}</div>
+        </div>
+        <div style="display:flex; gap:6px; align-items:center;">
+          ${k?`
+            <button class="upgrade-btn ${h?"ready":""}" ${h?"":"disabled"} onclick="upgradeSkillRank(${a})">
+              ${l>=5?"MAX":"+RANK"}
+            </button>
+          `:""}
+          <button class="keybind-btn ${v?"listening":""}" onclick="startRebinding('${a}')">
+            ${v?"KEY?":`[${w}]`}
+          </button>
+        </div>
+      `,e.appendChild(m)}}function ge(){const e=document.getElementById("stats-modal-body");if(!e)return;const t=[{key:"power",icon:"⚔️",name:"POWER",val:b.stats.power,desc:"+1 Base Damage on all Rites & Flashes"},{key:"bastion",icon:"🛡️",name:"BASTION",val:b.stats.bastion,desc:"+3 Max HP, +3 Bulwark Shield, +2 Blessing Heal"},{key:"resonance",icon:"🔮",name:"RESONANCE",val:b.stats.resonance,desc:"+8 Max Glimmer & bonus Glimmer from Nodes/Strikes"},{key:"tempo",icon:"⚡",name:"TEMPO (FLASH)",val:b.stats.tempo,desc:"+2.5% Crit, +3% Move Speed, -2% Rite Cooldowns"}];e.innerHTML=`
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#080c18; border:2px solid #1e293b; padding:8px 10px; margin-bottom:8px; font-size:10px;">
+        <div>CHAMPION LEVEL: <b style="color:#facc15;">LV. ${b.level}</b> (${b.xp}/${Me(b.level)} XP)</div>
+        <div style="color:${b.statPoints>0?"#4ade80":"#94a3b8"}; font-weight:bold;">
+          UNSPENT STAT POINTS: ${b.statPoints}
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
+        ${t.map(a=>`
+          <div class="keybind-row" style="margin-bottom:0;">
+            <div>
+              <div style="font-size:11px; color:#f8fafc;">${a.icon} <b>${a.name}</b>: <span style="color:#facc15;">${a.val}</span></div>
+              <div style="font-size:9px; color:#94a3b8; margin-top:2px;">${a.desc}</div>
+            </div>
+            <button class="upgrade-btn ${b.statPoints>0?"ready":""}" ${b.statPoints>0?"":"disabled"} onclick="allocateStat('${a.key}')">
+              +1 STAT
+            </button>
+          </div>
+        `).join("")}
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:10px; background:#080c18; border:2px solid #1e293b; padding:8px 10px;">
+        <div>MAX HEALTH: <b style="color:#4ade80;">${n.maxHp} HP</b></div>
+        <div>MAX GLIMMER: <b style="color:#facc15;">${n.maxSolarCharge}</b></div>
+        <div>CRIT CHANCE: <b style="color:#fde047;">${(Le()*100).toFixed(1)}%</b></div>
+        <div>COOLDOWN MULT: <b style="color:#38bdf8;">${Math.round(Ae()*100)}%</b></div>
+      </div>
+    `}window.startRebinding=function(e){ye=isNaN(Number(e))?e:Number(e),ae()},window.resetDefaultKeybinds=function(){W={...$e};try{localStorage.removeItem("glimmerfall_keybinds")}catch{}u.playChime(),pe(),ae()},window.toggleModal=function(e){const t=document.getElementById(e);if(!t)return;const a=t.style.display!=="block";document.querySelectorAll(".modal").forEach(r=>r.style.display="none"),a&&(e==="char-modal"&&ge(),e==="spellbook-modal"&&ae(),t.style.display="block")},A.addEventListener("mousedown",e=>{u.init();const{wx:t,wy:a}=Je(e.clientX,e.clientY);for(const v of U)if(Math.hypot(v.x-t,v.y-12-a)<22){u.playDialogue(),Be(v.dialogue);return}let r=null,w=26;for(const v of N){if(v.isDying||v.type==="ally_nexus")continue;const k=Math.hypot(v.x-t,v.y-10-a);k<w&&(w=k,r=v)}r?(te(r),me(r.x,r.y),(e.button===2||r.type==="node")&&(r.type==="node"?window.harvestTarget():window.castAbility(1))):e.button===2&&(me(t,a),window.castAbility(1))}),window.addEventListener("contextmenu",e=>e.preventDefault()),A.addEventListener("wheel",e=>{e.preventDefault(),e.deltaY<0&&o<4?o++:e.deltaY>0&&o>2&&o--,p();const t=document.getElementById("zoom-label");t&&(t.innerText=`${o}x`)},{passive:!1});function ze(){for(const e in B)B[e]=!1}window.addEventListener("blur",ze),document.addEventListener("visibilitychange",ze),window.addEventListener("keydown",e=>{if(ye!==null){e.preventDefault();const a=e.key.toLowerCase();if(a!=="escape"){W[ye]=a;try{localStorage.setItem("glimmerfall_keybinds",JSON.stringify(W))}catch{}u.playChime(),pe()}ye=null,ae();return}const t=e.key.toLowerCase();if(t==="w"&&(B.w=!0),t==="a"&&(B.a=!0),t==="s"&&(B.s=!0),t==="d"&&(B.d=!0),t==="arrowup"&&(B.up=!0),t==="arrowdown"&&(B.down=!0),t==="arrowleft"&&(B.left=!0),t==="arrowright"&&(B.right=!0),e.shiftKey&&(B.shift=!0),e.code==="Space"){if(e.preventDefault(),O.length&&oe<O.length){window.advanceDialogue();return}n.z<=0&&!n.isDead&&(n.vz=115,u.playJump());return}if(t==="tab"){e.preventDefault(),je();return}if(t==="escape"){te(null),window.closeDialogue(),document.querySelectorAll(".modal").forEach(a=>a.style.display="none");return}for(const[a,r]of Object.entries(W))if(t===r){e.preventDefault(),a==="harvest"?window.harvestTarget():window.castAbility(Number(a));return}t==="t"&&window.interactNearestNpc(),(t==="p"||t==="b")&&window.toggleModal("spellbook-modal"),t==="c"&&window.toggleModal("char-modal"),t==="k"&&window.toggleModal("cards-modal"),t==="l"&&window.toggleModal("lore-modal")}),window.addEventListener("keyup",e=>{const t=e.key.toLowerCase();t==="w"&&(B.w=!1),t==="a"&&(B.a=!1),t==="s"&&(B.s=!1),t==="d"&&(B.d=!1),t==="arrowup"&&(B.up=!1),t==="arrowdown"&&(B.down=!1),t==="arrowleft"&&(B.left=!1),t==="arrowright"&&(B.right=!1),e.shiftKey||(B.shift=!1)});function ot(e){z+=e;for(const t in $)if($[t]>0){$[t]=Math.max(0,$[t]-e);const a=document.getElementById(`cd-${t}`);a&&(a.style.opacity=$[t]>0?"1":"0",a.innerText=$[t]>0?$[t].toFixed(1):"")}if(n.shield>0&&(n.shieldTimer-=e,n.shieldTimer<=0&&(n.shield=0,H())),n.slashTimer>0&&(n.slashTimer=Math.max(0,n.slashTimer-e)),he&&(Te+=e,document.getElementById("cast-fill").style.width=`${Math.min(100,Te/Ce*100)}%`,Te>=Ce&&(he=!1,document.getElementById("cast-bar-container").style.display="none",Se&&Se.onComplete&&Se.onComplete())),(n.z>0||n.vz>0)&&(n.z+=n.vz*e,n.vz-=360*e,n.z<=0&&(n.z=0,n.vz=0)),!n.isDead){let t=0,a=0;if((B.w||B.up)&&(a-=1),(B.s||B.down)&&(a+=1),(B.a||B.left)&&(t-=1),(B.d||B.right)&&(t+=1),t!==0||a!==0){const r=Math.hypot(t,a);t/=r,a/=r;const v=n.baseSpeed*(1+b.stats.tempo*.03)*(B.shift?n.sprintMult:1);n.x=Math.max(-E.halfW+14,Math.min(E.halfW-14,n.x+t*v*e)),n.y=Math.max(-E.halfH+14,Math.min(E.halfH-14,n.y+a*v*e)),n.isMoving=!0,n.walkTimer+=e*(B.shift?13:9),n.slashTimer<=0&&(Math.abs(t)>Math.abs(a)?n.dir=t>0?"right":"left":n.dir=a>0?"down":"up"),Ie+=e,Ie>(B.shift?.16:.24)&&n.z<=0&&(Ie=0,Qe(n.x,n.y)),S==="tutorial"&&!ee.moved&&(ee.moved=!0,document.getElementById("qc-1").classList.add("done"),document.getElementById("qc-1").innerText="✓",ie(20,"Stasis Broken"),C("[Quest] Limbs restored! Strike the Sanctuary Dummy with Flare Strike [1]!","log-quest"))}else n.isMoving=!1}if(I.x+=(n.x-I.x)*Math.min(1,10*e),I.y+=(n.y-I.y)*Math.min(1,10*e),S==="tutorial"){const t=N.find(a=>a.type==="portal");if(t&&Math.hypot(t.x-n.x,t.y-n.y)<22){ee.portalReady||(ee.portalReady=!0,document.getElementById("qc-4").classList.add("done"),document.getElementById("qc-4").innerText="✓",document.getElementById("quest-stage-txt").innerText="4 / 4",ie(40,"Entered Nexus Warzone")),window.closeDialogue(),u.playPortal(),re("main_world");return}}for(const t of de){const a=N.filter(v=>!v.isDying&&(v.type==="mob"||v.id==="red_nexus"));if(a.length===0)continue;a.sort((v,k)=>Math.hypot(v.x-t.x,v.y-t.y)-Math.hypot(k.x-t.x,k.y-t.y));const r=a[0],w=Math.hypot(r.x-t.x,r.y-t.y);w>t.range?(t.x+=(r.x-t.x)/w*t.speed*e,t.y+=(r.y-t.y)/w*t.speed*e):(t.cd-=e,t.cd<=0&&(t.cd=1.9+Math.random()*.5,X.push({type:"orb",x:t.x,y:t.y-8,target:r,speed:195,color:t.spriteKey==="allyMage"?"#38bdf8":"#4ade80",dmg:2,fromPlayer:!1})))}for(let t=N.length-1;t>=0;t--){const a=N[t];if(a.hitFlash>0&&(a.hitFlash=Math.max(0,a.hitFlash-e)),a.weakenTimer>0&&(a.weakenTimer=Math.max(0,a.weakenTimer-e)),a.isDying){a.deathAge+=e,a.y-=18*e,a.deathAge>=.65&&N.splice(t,1);continue}if(a.type==="mob"&&!n.isDead){const r=Math.hypot(n.x-a.x,n.y-a.y);if(!a.inCombat&&r<=a.aggroRange&&(a.inCombat=!0,C(`[Aggro] ${a.name} emerges from the gloom!`,"log-combat")),a.inCombat){const w=Math.hypot((a.origX??a.x)-a.x,(a.origY??a.y)-a.y);if(S!=="arena_3v3"&&w>235){a.inCombat=!1,a.x=a.origX,a.y=a.origY,a.hp=a.maxHp,L(a.x,a.y,"EVADED","#94a3b8");continue}if(r>a.attackRange)a.x+=(n.x-a.x)/r*a.speed*e,a.y+=(n.y-a.y)/r*a.speed*e;else if(a.atkTimer=(a.atkTimer||0)+e,a.atkTimer>=1.85){a.atkTimer=0;const v=(a.damage||3)-(a.weakenTimer>0?2:0);tt(Math.max(1,v),a.name)}}}}for(let t=X.length-1;t>=0;t--){const a=X[t];if(!a.target||a.target.isDying){X.splice(t,1);continue}const r=a.target.x-a.x,w=a.target.y-8-a.y,v=Math.hypot(r,w);a.rot=(a.rot||0)+18*e,v<10?(le(a.target,a.dmg,!1,a.type==="hammer"?"Judgement of the Sun":"Aetheric Blast",a.fromPlayer!==!1),X.splice(t,1)):(a.x+=r/v*a.speed*e,a.y+=w/v*a.speed*e)}for(let t=Y.length-1;t>=0;t--){const a=Y[t];if(a.age+=e,a.type==="consecration"&&(a.tickTimer-=e,a.tickTimer<=0)){a.tickTimer=1.5;for(const r of N)!r.isDying&&(r.type==="mob"||r.type==="dummy"||r.type==="nexus")&&Math.hypot(r.x-a.x,r.y-a.y)<=a.radius&&le(r,a.tickDmg||3,!1,"Consecrated Ground")}a.age>=a.maxAge&&Y.splice(t,1)}for(let t=J.length-1;t>=0;t--){const a=J[t];a.age+=e,a.x+=a.vx*e,a.y+=a.vy*e,a.z=Math.max(0,a.z+a.vz*e),a.age>=a.maxAge&&J.splice(t,1)}for(let t=Q.length-1;t>=0;t--)Q[t].age+=e,Q[t].age>=Q[t].maxAge&&Q.splice(t,1);for(let t=Z.length-1;t>=0;t--)Z[t].age+=e,Z[t].age>=Z[t].maxAge&&Z.splice(t,1);for(let t=j.length-1;t>=0;t--)j[t].age+=e,j[t].age>=j[t].maxAge&&j.splice(t,1)}function it(e,t){const a=e*V,r=t*V;if(a<-E.halfW||a>=E.halfW||r<-E.halfH||r>=E.halfH){const v=(Math.floor(z*2.5)+Math.abs(e+t))%2;return M.tiles[`void_sea_${v}`]}return a===-E.halfW||a===E.halfW-V||r===-E.halfH||r===E.halfH-V?M.tiles.flagstone_0:S==="tutorial"?Math.abs(e)<=1||t>=0&&t<=2&&e>=-5&&e<=2?M.tiles[`flagstone_${Math.abs(e+t)%2}`]:M.tiles[`sanctuary_grass_${Math.abs(e*7+t*13)%4}`]:S==="arena_3v3"?Math.abs(e)<=2?M.tiles.flagstone_1:r>64?M.tiles.arena_blue:r<-64?M.tiles.arena_red:M.tiles.arena_neutral:Math.abs(e)<=1?M.tiles[`flagstone_${Math.abs(t)%2}`]:M.tiles[`warzone_${Math.abs(e*11+t*17)%4}`]}function xe(e,t,a,r){c.fillStyle="rgba(4, 6, 14, 0.55)",c.fillRect(Math.round(e-a),Math.round(t-r+1),Math.round(a*2),Math.round(r*2-2)),c.fillRect(Math.round(e-a+2),Math.round(t-r),Math.round(a*2-4),Math.round(r*2))}function st(){c.imageSmoothingEnabled=!1,c.fillStyle="#070b19",c.fillRect(0,0,g,x);const e=Math.floor(I.x-g/2),t=Math.floor(I.y-x/2),a=Math.floor(e/V)-1,r=Math.ceil((e+g)/V)+1,w=Math.floor(t/V)-1,v=Math.ceil((t+x)/V)+1;for(let l=w;l<=v;l++)for(let h=a;h<=r;h++)c.drawImage(it(h,l),h*V-e,l*V-t);for(const l of Y){const h=Math.round(l.x-e),m=Math.round(l.y-t);if(l.type==="consecration"){const y=Math.round(l.radius+Math.sin(z*7)*2);c.strokeStyle="#facc15",c.lineWidth=2,c.strokeRect(h-y,m-Math.round(y*.65),y*2,Math.round(y*1.3)),c.fillStyle="rgba(250, 204, 21, 0.14)",c.fillRect(h-y+2,m-Math.round(y*.65)+2,y*2-4,Math.round(y*1.3)-4),c.fillStyle="#fef08a";for(let R=0;R<8;R++){const _=z*1.5+R*Math.PI/4;c.fillRect(Math.round(h+Math.cos(_)*(y*.72))-1,Math.round(m+Math.sin(_)*(y*.45))-1,3,3)}}else if(l.type==="shockwave"){const y=l.age/l.maxAge,R=Math.round(l.radius*y);c.strokeStyle=y<.5?"#ffffff":"#fde047",c.lineWidth=3,c.beginPath(),c.ellipse(h,m,R,Math.max(4,Math.round(R*.68)),0,0,Math.PI*2),c.stroke()}}if(D&&!D.isDying){const l=Math.round(D.x-e),h=Math.round(D.y-t),m=(D.radius||14)+Math.floor(z*6)%2*2,y=Math.round(m*.6);c.fillStyle=D.type==="node"?"#e879f9":"#38bdf8",c.fillRect(l-m,h-y,5,2),c.fillRect(l-m,h-y,2,4),c.fillRect(l+m-5,h-y,5,2),c.fillRect(l+m-2,h-y,2,4),c.fillRect(l-m,h+y-2,5,2),c.fillRect(l-m,h+y-4,2,4),c.fillRect(l+m-5,h+y-2,5,2),c.fillRect(l+m-2,h+y-4,2,4)}const k=[];for(const l of fe)k.push({y:l.y,draw:()=>{const h=Math.round(l.x-e),m=Math.round(l.y-t),y=l.type==="brazier"?M.props.brazier[Math.floor(z*7+l.x)%2]:M.props.pillar;xe(h,m,7,3),c.drawImage(y,Math.round(h-y.width/2),m-y.height+2)}});for(const l of U)k.push({y:l.y,draw:()=>{const h=Math.round(l.x-e),m=Math.round(l.y-t),y=M.heraldNpc[Math.floor(z*3.5)%M.heraldNpc.length];xe(h,m,9,3),c.drawImage(y,Math.round(h-y.width/2),m-y.height+3);const R=Math.floor(Math.sin(z*6)*2),_=m-y.height-9+R;c.fillStyle="#070a12",c.fillRect(h-2,_-1,4,9),c.fillStyle="#fde047",c.fillRect(h-1,_,2,4),c.fillRect(h-1,_+6,2,2)}});for(const l of Q)k.push({y:l.y-1,draw:()=>{const h=M.hero[l.dir][1];c.save(),c.globalAlpha=Math.max(0,.55*(1-l.age/l.maxAge)),c.drawImage(h,Math.round(l.x-e-h.width/2),Math.round(l.y-t-h.height+2)),c.restore()}});for(const l of de)k.push({y:l.y,draw:()=>{const h=M[l.spriteKey],m=h[Math.floor(z*5)%h.length],y=Math.round(l.x-e),R=Math.round(l.y-t);xe(y,R,8,3),c.drawImage(m,Math.round(y-m.width/2),R-m.height+2),c.fillStyle="#0f172a",c.fillRect(y-9,R-m.height-4,18,3),c.fillStyle="#38bdf8",c.fillRect(y-8,R-m.height-3,16,1)}});for(const l of N)k.push({y:l.y,draw:()=>{const h=Math.round(l.x-e),m=Math.round(l.y-t);let y=null;if(l.type==="node")y=l.charges>0?M.node[Math.floor(z*4)%M.node.length]:M.nodeEmpty;else if(l.type==="dummy")y=M.dummy[l.hitFlash>0?1:0];else{const R=M[l.spriteKey];y=R[Math.floor(z*(l.type==="portal"?8:4.5))%R.length]}if(y){if(xe(h,m,Math.round(y.width*.36),4),c.save(),l.isDying){const R=Math.max(.1,1-l.deathAge/.65);c.globalAlpha=R,c.translate(h,m-y.height/2),c.scale(R,R),c.drawImage(y,-y.width/2,-y.height/2)}else c.drawImage(y,Math.round(h-y.width/2),m-y.height+3),l.hitFlash>0&&(c.globalCompositeOperation="source-atop",c.fillStyle="rgba(255,255,255,0.65)",c.fillRect(h-y.width/2,m-y.height,y.width,y.height));if(c.restore(),!l.isDying&&l.type!=="portal"){const R=l.hp??l.charges??0,_=l.maxHp??l.maxCharges??1,G=l.isBoss||l.type==="nexus"||l.type==="ally_nexus"?30:20,K=Math.round(h-G/2),ce=Math.round(m-y.height-5);c.fillStyle="#070a12",c.fillRect(K-1,ce-1,G+2,5),c.fillStyle="#1e293b",c.fillRect(K,ce,G,3),c.fillStyle=l.type==="node"?"#c084fc":l.type==="ally_nexus"||l.id==="nexus_core"?"#38bdf8":"#ef4444",c.fillRect(K,ce,Math.round(R/_*G),3)}}}});n.isDead||k.push({y:n.y,draw:()=>{const l=Math.round(n.x-e),h=Math.round(n.y-t);xe(l,h,Math.max(4,8-Math.floor(n.z*.15)),3);const y=M.hero[n.dir][n.isMoving?Math.floor(n.walkTimer)%2+1:0];if(he&&(c.strokeStyle="#fde047",c.strokeRect(l-12,h-6,24,12)),c.drawImage(y,Math.round(l-y.width/2),Math.round(h-n.z-y.height+3)),n.shield>0)for(let R=0;R<4;R++){const _=z*4.5+R*Math.PI/2,G=Math.round(l+Math.cos(_)*14),K=Math.round(h-n.z-10+Math.sin(_)*8);c.fillStyle="#070a12",c.fillRect(G-3,K-3,6,6),c.fillStyle="#38bdf8",c.fillRect(G-2,K-2,4,4),c.fillStyle="#fef08a",c.fillRect(G-1,K-1,2,2)}}}),k.sort((l,h)=>l.y-h.y);for(const l of k)l.draw();for(const l of Z){const h=Math.round(l.x-e),m=Math.round(l.y-t),y=18+l.age/l.maxAge*8;for(let R=-4;R<=4;R++){const _=l.angle+R*.2;c.fillStyle=Math.abs(R)<=1?"#ffffff":"#facc15",c.fillRect(Math.round(h+Math.cos(_)*y)-2,Math.round(m+Math.sin(_)*y*.8)-2,4,4)}}for(const l of j){const h=Math.round(l.x-e),m=Math.round(l.y-t),y=Math.max(2,Math.round(18*(1-l.age/l.maxAge)));c.fillStyle="rgba(250, 204, 21, 0.45)",c.fillRect(Math.round(h-y),0,y*2,m),c.fillStyle="#ffffff",c.fillRect(Math.round(h-y/2),0,y,m)}for(const l of X){const h=Math.round(l.x-e),m=Math.round(l.y-t);l.type==="hammer"?(c.save(),c.translate(h,m),c.rotate(l.rot),c.fillStyle="#92400e",c.fillRect(-1,-5,2,10),c.fillStyle="#facc15",c.fillRect(-5,-6,10,5),c.fillStyle="#ffffff",c.fillRect(-4,-5,8,2),c.restore()):(c.fillStyle="#070a12",c.fillRect(h-3,m-3,6,6),c.fillStyle=l.color,c.fillRect(h-2,m-2,4,4))}for(const l of J){const h=Math.round(l.x-e),m=Math.round(l.y-l.z-t);c.fillStyle="#070a12",c.fillRect(h-1,m-1,l.size+2,l.size+2),c.fillStyle=l.color,c.fillRect(h,m,l.size,l.size)}}function rt(){s.imageSmoothingEnabled=!1,s.fillStyle="#070b18",s.fillRect(0,0,128,128),s.fillStyle="#111c33";for(let r=16;r<128;r+=16)s.fillRect(r,0,1,128),s.fillRect(0,r,128,1);const e=64,t=64,a=.19;s.strokeStyle="#1e3a8a",s.strokeRect(Math.round(e+(-E.halfW-n.x)*a),Math.round(t+(-E.halfH-n.y)*a),Math.round(E.halfW*2*a),Math.round(E.halfH*2*a));for(const r of U){const w=Math.round(e+(r.x-n.x)*a),v=Math.round(t+(r.y-n.y)*a);s.fillStyle="#fde047",s.fillRect(w-2,v-2,4,4)}for(const r of N){if(r.isDying)continue;const w=Math.round(e+(r.x-n.x)*a),v=Math.round(t+(r.y-n.y)*a);if(w<2||w>124||v<2||v>124)continue;s.fillStyle=r.type==="nexus"&&r.id==="nexus_core"?"#38bdf8":r.type==="ally_nexus"?"#3b82f6":r.type==="node"?"#c084fc":r.type==="portal"?"#7dd3fc":"#ef4444";const k=r.isBoss||r.type==="nexus"?6:4;s.fillRect(w-(k>>1),v-(k>>1),k,k)}s.fillStyle="#4ade80";for(const r of de)s.fillRect(Math.round(e+(r.x-n.x)*a)-2,Math.round(t+(r.y-n.y)*a)-2,4,4);s.fillStyle="#facc15",s.fillRect(e-2,t-2,5,5),s.fillStyle="#ffffff",s.fillRect(e-1,t-1,3,3)}re("tutorial"),H(),pe(),ae(),ge();let qe=performance.now();function Ge(e){requestAnimationFrame(Ge);const t=Math.min(.08,Math.max(.001,(e-qe)/1e3));qe=e,ot(t),st(),rt()}requestAnimationFrame(Ge)}window.addEventListener("selectstart",u=>u.preventDefault());window.addEventListener("dragstart",u=>u.preventDefault());window.toggleScanlines=function(){const u=document.getElementById("crt-overlay");u&&u.classList.toggle("active")};const ke=Xe(),Ke=document.getElementById("portrait-canvas");if(Ke){const u=Ke.getContext("2d");u.imageSmoothingEnabled=!1,u.fillStyle="#1e1b4b",u.fillRect(0,0,28,28),u.drawImage(ke.hero.down[0],2,2)}const Ue=document.getElementById("npc-portrait-canvas");if(Ue&&ke.heraldNpc&&ke.heraldNpc[0]){const u=Ue.getContext("2d");u.imageSmoothingEnabled=!1,u.fillStyle="#0f172a",u.fillRect(0,0,32,32),u.drawImage(ke.heraldNpc[0],2,2)}ft();
+
+</script>
 </body>
 </html>

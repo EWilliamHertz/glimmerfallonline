@@ -1,69 +1,47 @@
-# GlimmerFall Online (3D MMORPG)
+# GlimmerFall Online — 16-Bit 2D Pixel Art MMORPG
 
-> Based on the Glimmerfall TCG universe ([glimmerfalltcg.com](https://www.glimmerfalltcg.com))
+> Set in the canonical **GlimmerFall TCG** universe ([glimmerfalltcg.com](https://www.glimmerfalltcg.com))
 
-An international, scalable 3D browser-based MMORPG powered by Three.js and an automated Meshy v7.1 AI 3D asset generation pipeline via Fal.ai.
+A fast-paced, shared-world **16-bit 2D Pixel Art MMORPG** powered by an **Authoritative 20 Hz WebSocket Server** (`server/`) and **Neon PostgreSQL** (`DATABASE_URL`), featuring all 4 canonical *GlimmerFall TCG* Factions, 8 Playable Archetypes, 35 TCG Rites & Flashes, real-time 24×26 Pixel Paperdoll equipment, 4 Faction Biome Dungeons, 30-minute Scheduled Nexus Siege Events, and a procedural 16-bit Chiptune Soundtrack.
 
 ---
 
 ## 🌟 Key Features
 
-1. **Third-Person MMORPG Combat & Movement**:
-   - `WASD` camera-relative directional movement with lerped orientation.
-   - `Space` jumping with gravity and ground collision.
-   - `Shift` sprinting (60% movement speed boost).
-   - Right-click mouse drag orbit camera & mouse-wheel zoom.
-   - `Tab` target cycling and Left-click entity targeting.
+1. **Interactive Game Frontpage & Multi-Character Roster (`client/frontpage.js`)**:
+   - Create and switch between multiple Champions persisted in **PostgreSQL** (`glimmerfall_accounts` & `glimmerfall_characters`).
+   - Choose your **Name**, **Order Tag (`<SUN>`)**, **Canonical Faction**, **Playable Class**, **Paperdoll Gear**, and custom **8-Slot Rite/Flash Loadout** before entering the realm (or anytime via `👤 HERO` in the HUD).
 
-2. **Full MMORPG World of Warcraft HUD**:
-   - **Player Unit Frame**: HP bar (25 HP rule), resource bar (Solar Charge / Mana), level badge, class indicator.
-   - **Target Unit Frame**: Objective integrity bar, exact HP / percentage, target-of-target display.
-   - **Dual Action Bar (24 Slots)**: Primary row (`1-8`, `E`), Secondary row (`Shift+1` to `Shift+4`) with cooldown radial sweeps.
-   - **Centered Cast Bar**: Shows spell casting progress with cast time animations.
-   - **Interactive Minimap Radar**: Real-time positional radar tracking player, Nexus objective, crystal fonts, and hostile mobs.
-   - **Floating Combat Text**: Dynamic 3D damage numbers, crits, heals, and resource gains.
-   - **Procedural Audio Synthesizer**: Web Audio API retro-MMO sound effects (swords, spells, impacts, chimes).
+2. **All 4 Canonical GlimmerFall TCG Factions & 8 Playable Classes**:
+   - **☀️ Solari *(The Light)*** — *Solari Vanguard*, *Aurora Marshal* | **Guard & Zenith** (100 Glimmer triggers Zenith State +25% DMG & heals allied Outpost Nexus).
+   - **🌑 Umbri *(The Shadow)*** — *Umbral Assassin*, *Graveglass Oracle* | **Stealth & Void Harvest** (Vanish from hostile sight +45% Ambush crit & 20% Rite life-drain).
+   - **🌿 Terra *(The Earth)*** — *Forest Warden*, *Stonekin Elder* | **Overwhelm & Thornbark** (Cleave splash, roots & 15–35% melee damage reflection).
+   - **🔮 Aether *(The Magic)*** — *Chronomancer Sage*, *Nexus Weaver* | **Flash Tempo & Echo** (-12% cooldowns, blinks, freezes & 35% Spell Echo double-cast).
 
-3. **World Entities & Mechanics**:
-   - **Central Nexus Monolith**: 25 HP primary objective matching Glimmerfall rules.
-   - **Aether Resonance Crystal Spires**: Harvestable resource fonts (press `[E]`).
-   - **Umbri Voidstalkers & Terra Golems**: Hostile patrolling mobs.
-   - **Card-Relic Sockets (`K`)**: Socket authentic Glimmerfall TCG cards from `glimmerfalltcg.com` for dynamic class passives.
-   - **Spellbook (`P`)** & **Character Sheet (`C`)**.
+3. **Real-Time 24×26 Pixel Paperdoll Visuals (`[I]`)**:
+   - Equipping weapons, armor, and relics (*Solari Spellblade*, *Scythe of the Soulreaper*, *Ironwood Armor*, *Mirror Shield*, *Sunfire Colossus Greatsword*, etc.) visibly updates your 4-directional 2D character sprite in real time for every player in the room.
+
+4. **Shared World Realms, 4 Faction Biomes & Scheduled Siege Events**:
+   - **Awakening Sanctuary Hub** (up to 60 players per instance, calm starlight island + 4 Biome Waygates).
+   - **Nexus Warzone (4-Faction Siege PvPvE)**: Defend your faction's **25-HP Outpost Nexus**, shatter rival Outposts, and clash every 30 minutes over the central **Shattered Nexus Shard** (or trigger on demand with `/siege`).
+   - **4 Faction Biome Dungeons**: *Golden Citadel* (*Sunfire Colossus*), *Sepulcher Undercity & Duskveil Bog* (*Crypt Lord Malakor*), *Glimmer Orchard* (*Ancient Brambleheart*), and *Mirrorgate Spire* (*Rift Titan*).
+   - **3v3 Ranked Nexus Arena**: Solo or 3-player Squad matchmaking.
+
+5. **Social MMO Layer & 16-Bit Chiptune BGM (`[M]`)**:
+   - Overhead pixel speech bubbles (`[Enter]`), Faction (`/f`), Squad (`/p`), and Order (`/o`) chat, 3-player Squads (`[O]`), plantable Guild/Order War Standards (`[B]`), pixel emotes (`[V]`), and 3 procedural 16-bit tracker BGM themes (*Awakening Isle*, *Warzone*, and *Boss/Siege Climax*).
 
 ---
 
-## 🚀 Running the Project
+## 🚀 Setup & Running Locally
 
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Pre-flight verification (checks API key, network, disk space & image URLs)
-npm run generate:assets:check
+# 2. Configure PostgreSQL (optional — falls back cleanly to local JSON if omitted)
+cp .env.example .env
+# Edit .env and set DATABASE_URL="postgresql://..."
 
-# 3. Simulate generation without consuming API credits
-npm run generate:assets:dry-run
-
-# 4. View asset queue & cached models
-npm run generate:assets:list
-
-# 5. Batch generate 3D GLB assets with PBR textures via Fal.ai Meshy v7.1
-npm run generate:assets
-
-# 6. Start local dev server (binds to 0.0.0.0:8080)
-npm run dev
+# 3. Start both the 20Hz Authoritative MMO Server (:3001) + Vite Client (:8080)
+npm start
 ```
-
----
-
-## 🎨 Asset Generation Pipeline (`scripts/generate-meshy-assets.mjs`)
-
-Uses Fal.ai's `meshy/v7.1/image-to-3d` model to compile full PBR textured `.glb` meshes (BaseColor, Metallic, Roughness, Normal) directly from authentic card art URLs on Vercel Blob:
-
-- `solari_hero.glb`: Solari Vanguard (~12,000 tris)
-- `nexus_core.glb`: Chronocore Prism (~6,000 tris)
-- `resonance_node.glb`: Mana Crystal (~3,000 tris)
-- `umbri_minion.glb`: Void Stalker (~8,000 tris)
-- `terra_golem.glb`: Granite Behemoth (~10,000 tris)
-- `solari_blade.glb`: Solari Spellblade (~2,500 tris)
