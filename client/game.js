@@ -1698,11 +1698,33 @@ export function initGame() {
   // ==========================================
   // Action Bar & Modals: Rites [P], Stats [C], Gear [I], ID [G], Social [O]
   // ==========================================
+  const MODIFIER_KEYS = new Set(['Shift', 'Control', 'Alt', 'AltGraph', 'Meta', 'CapsLock']);
+
+  function normalizeKeyEvent(e) {
+    if (!e) return '';
+    if (e.code && e.code.startsWith('Digit') && e.code.length === 6) {
+      return e.code.slice(5);
+    }
+    if (e.code === 'Space' || e.key === ' ') return 'space';
+    return String(e.key || '').toLowerCase();
+  }
+
+  function formatKeyLabel(rawKey) {
+    const k = String(rawKey || '').toLowerCase();
+    if (!k) return '?';
+    if (k === 'space') return 'SPC';
+    if (k === 'arrowup') return '↑';
+    if (k === 'arrowdown') return '↓';
+    if (k === 'arrowleft') return '←';
+    if (k === 'arrowright') return '→';
+    return k.toUpperCase();
+  }
+
   function updateActionBarBadges() {
     for (const slot of ACTION_SLOTS) {
       const spec = getSlotAbilitySpec(localProfile.loadout, slot);
       const badge = document.getElementById(`badge-${slot}`);
-      if (badge && keybinds[slot]) badge.innerText = keybinds[slot].toUpperCase();
+      if (badge && keybinds[slot]) badge.innerText = formatKeyLabel(keybinds[slot]);
       const rk = document.getElementById(`rank-${slot}`);
       if (rk) rk.innerText = `R${prog.ranks[slot] || 1}`;
       const iconEl = document.getElementById(`icon-${slot}`);
@@ -1717,16 +1739,27 @@ export function initGame() {
       }
     }
     const hb = document.getElementById('badge-harvest');
-    if (hb && keybinds.harvest) hb.innerText = keybinds.harvest.toUpperCase();
+    if (hb && keybinds.harvest) hb.innerText = formatKeyLabel(keybinds.harvest);
   }
+
+  let rebindFeedbackMsg = '';
 
   function renderKeybindUI() {
     const container = document.getElementById('keybind-list-container');
     if (!container) return;
     const ptsHeader = document.getElementById('skill-points-banner');
     if (ptsHeader) {
-      ptsHeader.innerText = `SKILL POINTS AVAILABLE: ${prog.skillPoints}  •  SWAP OR UPGRADE ANY SLOT`;
-      ptsHeader.style.color = prog.skillPoints > 0 ? '#fde047' : '#94a3b8';
+      if (listeningSlot !== null) {
+        const lSpec = getSlotAbilitySpec(localProfile.loadout, listeningSlot);
+        ptsHeader.innerText = `⌨️ PRESS ANY KEY TO BIND "${(lSpec?.name || 'SLOT').toUpperCase()}" (OR [ESC] TO CANCEL)...`;
+        ptsHeader.style.color = '#fde047';
+      } else if (rebindFeedbackMsg) {
+        ptsHeader.innerText = rebindFeedbackMsg;
+        ptsHeader.style.color = '#4ade80';
+      } else {
+        ptsHeader.innerText = `SKILL POINTS AVAILABLE: ${prog.skillPoints}  •  CLICK ANY [KEY] BUTTON TO REBIND`;
+        ptsHeader.style.color = prog.skillPoints > 0 ? '#fde047' : '#94a3b8';
+      }
     }
     container.innerHTML = '';
     const cdMult = calcCdMult(prog, localProfile.equipment, localProfile.classId, localProfile.faction);
@@ -1735,7 +1768,7 @@ export function initGame() {
     for (const slot of [1, 2, 3, 4, 'harvest', 9, 10, 11, 12]) {
       const spec = getSlotAbilitySpec(localProfile.loadout, slot);
       if (!spec) continue;
-      const bound = (keybinds[slot] || '').toUpperCase();
+      const bound = formatKeyLabel(keybinds[slot]);
       const isListening = listeningSlot === slot;
       const isRankable = typeof slot === 'number';
       const curRank = isRankable ? (prog.ranks[slot] || 1) : null;
@@ -1755,7 +1788,7 @@ export function initGame() {
           <div style="font-size:10px; color:#e2e8f0; margin-top:3px; line-height:1.35;">${spec.desc}</div>
           ${isRankable ? `
             <div style="margin-top:4px;">
-              <select class="pixel-input" style="width:auto; padding:2px 6px; font-size:8.5px;" onchange="assignSlotAbilityInGame(${slot}, this.value)">
+              <select class="pixel-input" style="width:auto; padding:2px 6px; font-size:8.5px;" onchange="assignSlotAbilityInGame(${slot}, this.value); this.blur();">
                 ${allChoices.map((ab) => `<option value="${ab.id}" ${spec.id === ab.id ? 'selected' : ''}>${ab.icon} ${ab.name} (${ab.faction})</option>`).join('')}
               </select>
             </div>
@@ -1763,15 +1796,23 @@ export function initGame() {
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
           ${isRankable ? `
-            <button class="upgrade-btn ${canUpgrade ? 'ready' : ''}" ${canUpgrade ? '' : 'disabled'} onclick="upgradeSkillRank(${slot})">
+            <button type="button" class="upgrade-btn ${canUpgrade ? 'ready' : ''}" ${canUpgrade ? '' : 'disabled'} onclick="upgradeSkillRank(${slot})">
               ${curRank >= 5 ? 'MAX' : '+RANK'}
             </button>
           ` : ''}
-          <button class="keybind-btn ${isListening ? 'listening' : ''}" onclick="startRebinding('${slot}')">
+          <button type="button" id="rebind-btn-${slot}" class="keybind-btn ${isListening ? 'listening' : ''}">
             ${isListening ? 'KEY?' : `[${bound}]`}
           </button>
         </div>
       `;
+      const rbBtn = row.querySelector(`#rebind-btn-${slot}`);
+      if (rbBtn) {
+        rbBtn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          window.startRebinding(slot);
+        });
+      }
       container.appendChild(row);
     }
   }
@@ -1842,11 +1883,26 @@ export function initGame() {
   }
 
   window.startRebinding = function (slot) {
-    listeningSlot = isNaN(Number(slot)) ? slot : Number(slot);
+    const parsed = isNaN(Number(slot)) ? slot : Number(slot);
+    rebindFeedbackMsg = '';
+    if (listeningSlot === parsed) {
+      listeningSlot = null;
+      renderKeybindUI();
+      return;
+    }
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+      document.activeElement.blur();
+    }
+    listeningSlot = parsed;
     renderKeybindUI();
+    window.focus();
+    const activeBtn = document.getElementById(`rebind-btn-${parsed}`);
+    if (activeBtn) activeBtn.focus({ preventScroll: true });
   };
 
   window.resetDefaultKeybinds = function () {
+    listeningSlot = null;
+    rebindFeedbackMsg = '✓ Restored default Rite & Flash hotkeys!';
     keybinds = { ...DEFAULT_KEYBINDS };
     try { localStorage.removeItem('glimmerfall_keybinds'); } catch (_) {}
     audio.playChime();
@@ -1858,6 +1914,8 @@ export function initGame() {
     const el = document.getElementById(id);
     if (!el) return;
     const opening = el.style.display !== 'block';
+    listeningSlot = null;
+    rebindFeedbackMsg = '';
     document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
     if (opening) {
       if (id === 'char-modal') renderStatsModal();
@@ -1975,6 +2033,38 @@ export function initGame() {
   document.addEventListener('visibilitychange', resetInputs);
 
   window.addEventListener('keydown', (e) => {
+    // 1. PRIORITY CAPTURE: Rebinding a Rite/Flash hotkey inside [P] Rites!
+    if (listeningSlot !== null) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.repeat || MODIFIER_KEYS.has(e.key)) {
+        return; // Wait for the actual non-modifier key press
+      }
+      const pressed = normalizeKeyEvent(e);
+      if (pressed && pressed !== 'escape') {
+        const targetSlot = listeningSlot;
+        const prevKey = keybinds[targetSlot];
+        // Swap if another slot already uses this key so no two slots ever collide!
+        for (const [otherSlot, existingKey] of Object.entries(keybinds)) {
+          const parsedOther = isNaN(Number(otherSlot)) ? otherSlot : Number(otherSlot);
+          if (parsedOther !== targetSlot && existingKey === pressed) {
+            keybinds[parsedOther] = prevKey;
+          }
+        }
+        keybinds[targetSlot] = pressed;
+        try { localStorage.setItem('glimmerfall_keybinds', JSON.stringify(keybinds)); } catch (_) {}
+        const boundSpec = getSlotAbilitySpec(localProfile.loadout, targetSlot);
+        rebindFeedbackMsg = `✓ Bound ${boundSpec?.name || 'Slot'} to [${formatKeyLabel(pressed)}]!`;
+        audio.playChime();
+        updateActionBarBadges();
+      } else {
+        rebindFeedbackMsg = '';
+      }
+      listeningSlot = null;
+      renderKeybindUI();
+      return;
+    }
+
     if (frontpage.isOpen) {
       if (e.key === 'Escape' && introShown) frontpage.close();
       return;
@@ -1991,20 +2081,6 @@ export function initGame() {
       return;
     }
 
-    if (listeningSlot !== null) {
-      e.preventDefault();
-      const pressed = e.key.toLowerCase();
-      if (pressed !== 'escape') {
-        keybinds[listeningSlot] = pressed;
-        try { localStorage.setItem('glimmerfall_keybinds', JSON.stringify(keybinds)); } catch (_) {}
-        audio.playChime();
-        updateActionBarBadges();
-      }
-      listeningSlot = null;
-      renderKeybindUI();
-      return;
-    }
-
     if (e.key === 'Enter') {
       e.preventDefault();
       const chatInp = document.getElementById('chat-input');
@@ -2013,6 +2089,33 @@ export function initGame() {
     }
 
     const key = e.key.toLowerCase();
+    const normKey = normalizeKeyEvent(e);
+
+    if (key === 'escape') {
+      setTarget(null);
+      window.closeDialogue();
+      document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
+      return;
+    }
+
+    if (key === 'tab') {
+      e.preventDefault();
+      cycleTarget();
+      return;
+    }
+
+    // Check custom Rite/Flash hotkeys BEFORE Space/menu shortcuts so any bound key works!
+    if (!e.repeat) {
+      for (const [slot, boundKey] of Object.entries(keybinds)) {
+        if (boundKey && (key === boundKey || normKey === boundKey)) {
+          e.preventDefault();
+          if (slot === 'harvest') window.harvestTarget();
+          else window.castAbility(Number(slot));
+          return;
+        }
+      }
+    }
+
     if (key === 'w') inputs.w = true;
     if (key === 'a') inputs.a = true;
     if (key === 's') inputs.s = true;
@@ -2025,7 +2128,7 @@ export function initGame() {
 
     if (e.code === 'Space') {
       e.preventDefault();
-      if (activeDialoguePages.length && dialogueIdx < activeDialoguePages.length) {
+      if (!e.repeat && activeDialoguePages.length && dialogueIdx < activeDialoguePages.length) {
         window.advanceDialogue();
         return;
       }
@@ -2036,27 +2139,7 @@ export function initGame() {
       return;
     }
 
-    if (key === 'tab') {
-      e.preventDefault();
-      cycleTarget();
-      return;
-    }
-
-    if (key === 'escape') {
-      setTarget(null);
-      window.closeDialogue();
-      document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
-      return;
-    }
-
-    for (const [slot, boundKey] of Object.entries(keybinds)) {
-      if (key === boundKey) {
-        e.preventDefault();
-        if (slot === 'harvest') window.harvestTarget();
-        else window.castAbility(Number(slot));
-        return;
-      }
-    }
+    if (e.repeat) return;
 
     if (key === 't') window.interactNearestNpc();
     if (key === 'v') window.triggerEmote('cheer');
@@ -2069,7 +2152,7 @@ export function initGame() {
     if (key === 'o') window.toggleModal('social-modal');
     if (key === 'k') window.toggleModal('cards-modal');
     if (key === 'l') window.toggleModal('lore-modal');
-  });
+  }, true);
 
   window.addEventListener('keyup', (e) => {
     const key = e.key.toLowerCase();
