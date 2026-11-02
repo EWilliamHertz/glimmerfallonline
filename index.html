@@ -414,6 +414,7 @@
       z-index: 45;
       background: radial-gradient(ellipse at center, transparent 40%, rgba(239, 68, 68, 0.5) 100%);
       opacity: 0;
+      display: none;
       transition: opacity 0.15s ease-out;
     }
 
@@ -422,14 +423,59 @@
       inset: 0;
       pointer-events: none;
       z-index: 100;
-      background: rgba(2, 6, 23, 0.88);
+      background: rgba(2, 6, 23, 0.92);
       backdrop-filter: blur(8px);
-      display: flex;
+      display: none;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       opacity: 0;
       transition: opacity 0.4s ease-in-out;
+    }
+
+    /* Keybinding & Abilities Manager */
+    .keybind-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 6px;
+      transition: border-color 0.15s;
+    }
+    .keybind-row:hover {
+      border-color: rgba(56, 189, 248, 0.55);
+    }
+    .keybind-btn {
+      background: #0f172a;
+      border: 1px solid #38bdf8;
+      color: #facc15;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 5px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      min-width: 70px;
+      text-align: center;
+      text-transform: uppercase;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
+      transition: all 0.15s;
+    }
+    .keybind-btn:hover {
+      background: #1e293b;
+      box-shadow: 0 0 12px rgba(250, 204, 21, 0.4);
+    }
+    .keybind-btn.listening {
+      background: #9a3412;
+      border-color: #f59e0b;
+      color: #fff;
+      animation: pulseKeybind 0.8s infinite alternate;
+    }
+    @keyframes pulseKeybind {
+      from { transform: scale(1); }
+      to { transform: scale(1.06); box-shadow: 0 0 12px #f59e0b; }
     }
 
     /* Cast Bar */
@@ -542,7 +588,7 @@
     </div>
     <!-- Top Utility Bar -->
     <div id="top-bar">
-      <button class="util-btn" onclick="toggleModal('spellbook-modal')"><span>📖</span> Spellbook [P]</button>
+      <button class="util-btn" onclick="toggleModal('spellbook-modal')"><span>⌨️</span> Keybinds & Spellbook [P]</button>
       <button class="util-btn" onclick="toggleModal('char-modal')"><span>🛡️</span> Character [C]</button>
       <button class="util-btn" onclick="toggleModal('cards-modal')"><span>🃏</span> Relic Cards [K]</button>
       <button class="util-btn queue-btn" id="btn-queue" onclick="toggleMatchmaking()"><span>⚔️</span> Queue 3v3 Nexus Battle</button>
@@ -628,31 +674,31 @@
         <div class="action-button" onclick="castAbility(1)">
           <span class="action-icon">⚔️</span>
           <span class="action-name">Dawn Strike</span>
-          <span class="key-badge">[1]</span>
+          <span class="key-badge" id="badge-1">[1]</span>
           <div class="cooldown-overlay" id="cd-1">0</div>
         </div>
         <div class="action-button" onclick="castAbility(2)">
           <span class="action-icon">☀️</span>
           <span class="action-name">Solar Flare</span>
-          <span class="key-badge">[2]</span>
+          <span class="key-badge" id="badge-2">[2]</span>
           <div class="cooldown-overlay" id="cd-2">0</div>
         </div>
         <div class="action-button" onclick="castAbility(3)">
           <span class="action-icon">🔨</span>
           <span class="action-name">Judgment</span>
-          <span class="key-badge">[3]</span>
+          <span class="key-badge" id="badge-3">[3]</span>
           <div class="cooldown-overlay" id="cd-3">0</div>
         </div>
         <div class="action-button" onclick="castAbility(4)">
           <span class="action-icon">🔥</span>
           <span class="action-name">Consecrate</span>
-          <span class="key-badge">[4]</span>
+          <span class="key-badge" id="badge-4">[4]</span>
           <div class="cooldown-overlay" id="cd-4">0</div>
         </div>
         <div class="action-button" onclick="harvestTarget()">
           <span class="action-icon" style="color: #a855f7;">🔮</span>
           <span class="action-name">Harvest</span>
-          <span class="key-badge">[E]</span>
+          <span class="key-badge" id="badge-harvest">[E]</span>
         </div>
       </div>
 
@@ -664,70 +710,47 @@
         <div class="action-button" onclick="castAbility(9)">
           <span class="action-icon">🛡️</span>
           <span class="action-name">Aegis Ward</span>
-          <span class="key-badge">S-1</span>
+          <span class="key-badge" id="badge-9">[Q]</span>
           <div class="cooldown-overlay" id="cd-9">0</div>
         </div>
         <div class="action-button" onclick="castAbility(10)">
           <span class="action-icon">✨</span>
           <span class="action-name">Mending</span>
-          <span class="key-badge">S-2</span>
+          <span class="key-badge" id="badge-10">[R]</span>
           <div class="cooldown-overlay" id="cd-10">0</div>
         </div>
         <div class="action-button" onclick="castAbility(11)">
           <span class="action-icon">⚡</span>
           <span class="action-name">Zenith</span>
-          <span class="key-badge">S-3</span>
+          <span class="key-badge" id="badge-11">[F]</span>
           <div class="cooldown-overlay" id="cd-11">0</div>
         </div>
         <div class="action-button" onclick="castAbility(12)">
           <span class="action-icon">💨</span>
           <span class="action-name">Sun Dash</span>
-          <span class="key-badge">S-4</span>
+          <span class="key-badge" id="badge-12">[Z]</span>
           <div class="cooldown-overlay" id="cd-12">0</div>
         </div>
       </div>
     </div>
 
     <!-- Modals -->
-    <!-- Spellbook Modal (P) -->
-    <div id="spellbook-modal" class="modal panel">
+    <!-- Spellbook & Keybind Manager Modal (P / B) -->
+    <div id="spellbook-modal" class="modal panel" style="width: 660px; max-width: 94vw;">
       <div class="modal-header">
-        <div class="modal-title">📖 Solari Vanguard Spellbook</div>
-        <div class="modal-close" onclick="toggleModal('spellbook-modal')">✕</div>
+        <div>
+          <div class="modal-title">📖 Solari Vanguard Abilities & Keybind Manager</div>
+          <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">
+            Click any keybind button to reassign its hotkey, or review ability specs and combat lore.
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="util-btn" style="font-size: 10px; padding: 4px 8px;" onclick="resetDefaultKeybinds()">↺ Reset Defaults</button>
+          <div class="modal-close" onclick="toggleModal('spellbook-modal')">✕</div>
+        </div>
       </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; max-height: 420px; overflow-y: auto;">
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px; border: 1px solid rgba(250, 204, 21, 0.25);">
-          <b style="color: #facc15;">⚔️ Dawn Strike [1]</b> &bull; Melee (1.0s CD)<br>
-          <span style="color: #94a3b8;">Slashes target dealing 4-7 Radiant dmg. Generates +15 Solar Charge.</span>
-        </div>
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px; border: 1px solid rgba(250, 204, 21, 0.25);">
-          <b style="color: #facc15;">☀️ Solar Flare [2]</b> &bull; 1.2s Cast (3.5s CD)<br>
-          <span style="color: #94a3b8;">Costs 25 Solar Charge. Blasts condensed sunbeam for 10-15 Radiant dmg.</span>
-        </div>
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px; border: 1px solid rgba(250, 204, 21, 0.25);">
-          <b style="color: #facc15;">🔨 Judgment of Sol [3]</b> &bull; Instant (5.0s CD)<br>
-          <span style="color: #94a3b8;">Hurls a radiant hammer dealing 7-9 dmg & generating +20 Solar Charge.</span>
-        </div>
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px; border: 1px solid rgba(250, 204, 21, 0.25);">
-          <b style="color: #facc15;">🔥 Consecration [4]</b> &bull; Instant (8.0s CD)<br>
-          <span style="color: #94a3b8;">Ignites solar ground runes, burning hostile mobs for periodic radiant damage.</span>
-        </div>
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.25);">
-          <b style="color: #38bdf8;">🛡️ Aegis Ward [Shift+1]</b> &bull; Instant (10.0s CD)<br>
-          <span style="color: #94a3b8;">Summons an orbital solar sphere absorbing up to 15 damage for 10s.</span>
-        </div>
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px; border: 1px solid rgba(74, 222, 128, 0.25);">
-          <b style="color: #4ade80;">✨ Radiant Mending [Shift+2]</b> &bull; Instant (6.0s CD)<br>
-          <span style="color: #94a3b8;">Channels celestial resonance restoring +8 Health to the Vanguard.</span>
-        </div>
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px; border: 1px solid rgba(250, 204, 21, 0.25);">
-          <b style="color: #fde047;">⚡ Zenith Shockwave [Shift+3]</b> &bull; Instant (12.0s CD)<br>
-          <span style="color: #94a3b8;">Costs 30 Solar Charge. Detonates a radiant nova hitting all mobs for 16-22 AoE.</span>
-        </div>
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.25);">
-          <b style="color: #38bdf8;">💨 Sun Dash [Shift+4]</b> &bull; Instant (4.0s CD)<br>
-          <span style="color: #94a3b8;">Surges 8.5 units forward with solar speed particles to dodge attacks.</span>
-        </div>
+      <div id="keybind-list-container" style="display: flex; flex-direction: column; gap: 6px; max-height: 440px; overflow-y: auto; padding-right: 4px;">
+        <!-- Dynamically rendered via renderKeybindUI() -->
       </div>
     </div>
 
@@ -928,6 +951,275 @@
     const audio = new SoundEngine();
 
     // ==========================================
+    // 1b. Floating Combat Text & Combat Log System
+    // ==========================================
+    const fctContainer = document.getElementById('fct-container');
+
+    function spawnFCT(pos, text, color = '#facc15', isCrit = false) {
+      if (!fctContainer) return;
+      const screenPos = pos.clone().project(camera);
+      if (screenPos.z > 1) return;
+
+      const x = ((screenPos.x + 1) * window.innerWidth) / 2;
+      const y = ((-screenPos.y + 1) * window.innerHeight) / 2;
+
+      const el = document.createElement('div');
+      el.className = 'fct-text';
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      el.style.color = color;
+      el.innerText = isCrit ? `💥 CRIT! ${text}` : text;
+      fctContainer.appendChild(el);
+      setTimeout(() => el.remove(), 1200);
+    }
+
+    function logMessage(msg, className = '') {
+      const log = document.getElementById('combat-log');
+      if (!log) return;
+      const div = document.createElement('div');
+      div.className = `log-entry ${className}`;
+      div.innerText = msg;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    // ==========================================
+    // 1c. Smoke Dissolution & Footstep Dust Engine
+    // ==========================================
+    const activeSmokePuffs = [];
+    const dyingEntities = [];
+    const smokeGeo = new THREE.DodecahedronGeometry(0.4, 1);
+
+    function spawnSmokeCloud(pos, count = 35) {
+      for (let i = 0; i < count; i++) {
+        const colors = [0x1e1b4b, 0x312e81, 0x475569, 0x581c87, 0x0f172a];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const mat = new THREE.MeshStandardMaterial({
+          color: color,
+          emissive: 0x581c87,
+          emissiveIntensity: 0.4,
+          roughness: 0.9,
+          transparent: true,
+          opacity: 0.85,
+        });
+        const mesh = new THREE.Mesh(smokeGeo, mat);
+        mesh.position.set(
+          pos.x + (Math.random() - 0.5) * 1.5,
+          pos.y + Math.random() * 1.4 + 0.2,
+          pos.z + (Math.random() - 0.5) * 1.5
+        );
+        mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        const scale = 0.4 + Math.random() * 0.5;
+        mesh.scale.set(scale, scale, scale);
+        scene.add(mesh);
+
+        activeSmokePuffs.push({
+          mesh,
+          velocity: new THREE.Vector3(
+            (Math.random() - 0.5) * 2.5,
+            Math.random() * 3.8 + 2.5,
+            (Math.random() - 0.5) * 2.5
+          ),
+          rotSpeed: new THREE.Vector3((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4),
+          age: 0,
+          maxAge: 0.9 + Math.random() * 0.6,
+        });
+      }
+    }
+
+    function triggerEntityDeath(target) {
+      if (!target || !target.userData || target.userData.isDying) return;
+      target.userData.isDying = true;
+
+      // Audio: deep smoke puff / dissolution sound
+      audio.playSmokePuff();
+
+      // Visuals: spawn billowing smoke particle burst
+      spawnSmokeCloud(target.position, 40);
+
+      // Defeat notification in log (clean defeat text without 'goes up into smoke')
+      logMessage(`[Defeat] ${target.userData.name} was vanquished!`, 'log-combat');
+
+      // Add to dyingEntities to swirl upward and shrink into the smoke
+      dyingEntities.push({
+        group: target,
+        initScale: target.scale.clone(),
+        age: 0,
+      });
+
+      // Remove from interactables list
+      const idx = interactables.indexOf(target);
+      if (idx !== -1) interactables.splice(idx, 1);
+
+      // Deselect if targeted
+      if (currentTarget === target) {
+        setTarget(null);
+      }
+
+      // Respawn timer for training dummies and roaming mobs so world stays active
+      const entityId = target.userData.id;
+      const entityType = target.userData.type;
+      const entityName = target.userData.name;
+      const origPos = target.userData.originalPos;
+      const maxHp = target.userData.maxHp || 25;
+
+      setTimeout(() => {
+        if (entityType === 'dummy' || entityType === 'mob') {
+          if (origPos) {
+            respawnEntity(entityId, entityName, entityType, origPos, maxHp);
+          }
+        }
+      }, 7000);
+    }
+
+    const footstepParticles = [];
+    const dustGeo = new THREE.SphereGeometry(0.09, 6, 6);
+    function spawnFootstepDust(pos) {
+      for (let i = 0; i < 3; i++) {
+        const dustMat = new THREE.MeshBasicMaterial({ color: 0x64748b, transparent: true, opacity: 0.55 });
+        const mesh = new THREE.Mesh(dustGeo, dustMat);
+        mesh.position.set(
+          pos.x + (Math.random() - 0.5) * 0.45,
+          0.06,
+          pos.z + (Math.random() - 0.5) * 0.45
+        );
+        scene.add(mesh);
+        footstepParticles.push({
+          mesh,
+          velocity: new THREE.Vector3((Math.random() - 0.5) * 0.6, Math.random() * 0.7 + 0.3, (Math.random() - 0.5) * 0.6),
+          age: 0,
+          maxAge: 0.32 + Math.random() * 0.15,
+        });
+      }
+    }
+    let lastFootstepPuff = 0;
+    let walkCycle = 0;
+
+    // ==========================================
+    // 1d. Keybinding & Spellbook Lore Data
+    // ==========================================
+    const ABILITY_SPECS = {
+      1: { id: 1, name: 'Dawn Strike', icon: '⚔️', type: 'Melee Instant', range: '5.5y', cost: '0 (+15 Solar Charge)', cd: 1.0, color: '#facc15',
+           desc: 'Slashes the target with solar blade energy dealing 4-7 Radiant damage (crits deal 2x). Charges the solar matrix.',
+           lore: 'The fundamental combat stance of the Sunspire Dominion, channeling concentrated solar radiation through the blade edge.' },
+      2: { id: 2, name: 'Solar Flare', icon: '☀️', type: '1.2s Cast', range: '25y', cost: '25 Solar Charge', cd: 3.5, color: '#facc15',
+           desc: 'Focuses incandescent sunlight into a devastating beam dealing 10-15 Radiant damage with guaranteed critical strike resonance.',
+           lore: 'Synthesized from raw solar flares, this devastating incantation scorches corrupted matter across battlefield distances.' },
+      3: { id: 3, name: 'Judgment of Sol', icon: '🔨', type: 'Ranged Instant', range: '20y', cost: '0 (+20 Solar Charge)', cd: 5.0, color: '#facc15',
+           desc: 'Hurls an ethereal hammer of pure dawn light at the target dealing 7-9 Radiant damage while gathering +20 Solar Charge.',
+           lore: 'An ancient decree from the Golden Citadel that smites heretics and voidstalkers with unerring divine trajectory.' },
+      4: { id: 4, name: 'Consecration', icon: '🔥', type: 'Instant AoE', range: 'Self (7y AoE)', cost: '0', cd: 8.0, color: '#facc15',
+           desc: 'Consecrates the earth beneath the Vanguard with holy solar runes, periodically burning all enemies in radius for radiant damage.',
+           lore: 'Purifies ground defiled by the Umbri corruption, granting safe footing and searing hostile incursions.' },
+      harvest: { id: 'harvest', name: 'Harvest Resonance', icon: '🔮', type: 'Instant Interact', range: '6y', cost: '0', cd: 0, color: '#a855f7',
+           desc: 'Extracts crystallized Aether from nearby Spire Resonance Fonts, replenishing +35 Solar Charge per extraction charge.',
+           lore: 'Aetherial nodes tap into the deep leylines of the Nexus, storing pristine arcane energy.' },
+      9: { id: 9, name: 'Aegis Ward', icon: '🛡️', type: 'Instant Defense', range: 'Self', cost: '0', cd: 10.0, color: '#38bdf8',
+           desc: 'Summons an orbital crystalline solar shield around the Vanguard, completely absorbing up to 15 incoming damage for 10s.',
+           lore: 'Sunforged barrier matrices refract kinetic and void impacts before they reach the armor plating.' },
+      10: { id: 10, name: 'Radiant Mending', icon: '✨', type: 'Instant Healing', range: 'Self', cost: '0', cd: 6.0, color: '#4ade80',
+           desc: 'Channels cellular regeneration through celestial resonance, instantly restoring +8 Health to the Vanguard.',
+           lore: 'The restorative frequencies of the Morning Star knit wounds and purge negative cellular entropy.' },
+      11: { id: 11, name: 'Zenith Shockwave', icon: '⚡', type: 'Instant AoE', range: '14y Nova', cost: '30 Solar Charge', cd: 12.0, color: '#fde047',
+           desc: 'Discharges 30 Solar Charge in an explosive radiant shockwave expanding 14 yards, knocking all hostile mobs back and dealing 16-22 AoE damage.',
+           lore: 'A total discharge of the Vanguard core capacitor that detonates outward in a blinding seismic flash.' },
+      12: { id: 12, name: 'Sun Dash', icon: '💨', type: 'Instant Mobility', range: '8.5y Dash', cost: '0', cd: 4.0, color: '#38bdf8',
+           desc: 'Converts the Vanguard into a burst of solar light, instantly surging forward 8.5 units to evade attacks or close distance.',
+           lore: 'Briefly dematerializes the caster along photonic vectors, making the user near-impossible to intercept.' },
+    };
+
+    const DEFAULT_KEYBINDS = {
+      1: '1',
+      2: '2',
+      3: '3',
+      4: '4',
+      harvest: 'e',
+      9: 'q',
+      10: 'r',
+      11: 'f',
+      12: 'z',
+    };
+
+    let keybinds = { ...DEFAULT_KEYBINDS };
+    try {
+      const saved = localStorage.getItem('glimmerfall_keybinds');
+      if (saved) {
+        keybinds = { ...DEFAULT_KEYBINDS, ...JSON.parse(saved) };
+      }
+    } catch (e) {
+      console.warn('Could not load keybinds from localStorage', e);
+    }
+
+    let listeningSlot = null;
+
+    function updateActionBarBadges() {
+      for (const slot of [1, 2, 3, 4, 9, 10, 11, 12]) {
+        const badge = document.getElementById(`badge-${slot}`);
+        if (badge && keybinds[slot]) {
+          badge.innerText = `[${keybinds[slot].toUpperCase()}]`;
+        }
+      }
+      const harvestBadge = document.getElementById('badge-harvest');
+      if (harvestBadge && keybinds['harvest']) {
+        harvestBadge.innerText = `[${keybinds['harvest'].toUpperCase()}]`;
+      }
+    }
+
+    window.startRebinding = function(slot) {
+      listeningSlot = slot;
+      renderKeybindUI();
+    };
+
+    window.resetDefaultKeybinds = function() {
+      keybinds = { ...DEFAULT_KEYBINDS };
+      try {
+        localStorage.removeItem('glimmerfall_keybinds');
+      } catch (err) {}
+      audio.playChime();
+      updateActionBarBadges();
+      renderKeybindUI();
+      logMessage('[Keybinds] Reset hotkeys to default bindings.', 'log-gain');
+    };
+
+    function renderKeybindUI() {
+      const container = document.getElementById('keybind-list-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const orderedSlots = [1, 2, 3, 4, 'harvest', 9, 10, 11, 12];
+      for (const slot of orderedSlots) {
+        const spec = ABILITY_SPECS[slot];
+        if (!spec) continue;
+
+        const bound = (keybinds[slot] || '').toUpperCase();
+        const isListening = listeningSlot === slot;
+
+        const row = document.createElement('div');
+        row.className = 'keybind-row';
+        row.innerHTML = `
+          <div style="flex: 1; padding-right: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span style="font-size: 16px;">${spec.icon}</span>
+              <b style="color: ${spec.color}; font-size: 13px;">${spec.name}</b>
+              <span style="font-size: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 1px 6px; border-radius: 3px; border: 1px solid rgba(56, 189, 248, 0.3);">${spec.type}</span>
+              <span style="font-size: 10px; color: #94a3b8;">CD: ${spec.cd > 0 ? spec.cd + 's' : 'None'}</span>
+              <span style="font-size: 10px; color: #cbd5e1;">Cost: ${spec.cost}</span>
+              <span style="font-size: 10px; color: #94a3b8;">Range: ${spec.range}</span>
+            </div>
+            <div style="font-size: 11px; color: #cbd5e1; margin-top: 4px; line-height: 1.35;">${spec.desc}</div>
+            <div style="font-size: 10px; color: #64748b; font-style: italic; margin-top: 2px;">"${spec.lore}"</div>
+          </div>
+          <div>
+            <button class="keybind-btn ${isListening ? 'listening' : ''}" onclick="startRebinding('${slot}')">
+              ${isListening ? 'PRESS KEY...' : `[ ${bound} ]`}
+            </button>
+          </div>
+        `;
+        container.appendChild(row);
+      }
+    }
+
+    // ==========================================
     // 2. Game State & Zones
     // ==========================================
     let currentZone = 'tutorial'; // 'tutorial' | 'main_world' | 'arena_3v3'
@@ -1050,7 +1342,9 @@
       (gltf) => {
         const model = gltf.scene;
         model.scale.set(1.2, 1.2, 1.2);
-        model.position.set(0, 1.15, 0);
+        model.updateMatrixWorld(true);
+        const bbox = new THREE.Box3().setFromObject(model);
+        model.position.set(0, -bbox.min.y, 0);
         model.traverse((child) => {
           if (child.isMesh) {
             child.castShadow = true;
@@ -1058,7 +1352,7 @@
           }
         });
         playerVisual.add(model);
-        logMessage('[Character] Solari Vanguard 3D mesh loaded!', 'log-solari');
+        logMessage('[Character] Solari Vanguard 3D mesh loaded & grounded!', 'log-solari');
       },
       undefined,
       () => {
@@ -1260,14 +1554,18 @@
           interactables.push(node);
         });
 
-        // 3. Umbri Voidstalker (Hostile mob)
+        // 3. Umbri Voidstalker (Hostile mob - Large & Menacing)
         const mob = new THREE.Group();
         gltfLoader.load('./models/umbri_minion.glb', (g) => {
-          g.scene.scale.set(1.0, 1.0, 1.0);
+          g.scene.scale.set(2.2, 2.2, 2.2);
           mob.add(g.scene);
+        }, undefined, () => {
+          const cone = new THREE.Mesh(new THREE.ConeGeometry(1.4, 3.2, 8), new THREE.MeshStandardMaterial({ color: 0x581c87, roughness: 0.4 }));
+          cone.position.y = 1.6;
+          mob.add(cone);
         });
-        mob.position.set(-10, 1.0, -10);
-        mob.userData = { id: 'umbri_mob', name: 'Void Stalker (Umbri Mob)', hp: 18, maxHp: 18, type: 'mob', originalPos: [-10, 1.0, -10] };
+        mob.position.set(-10, 1.3, -10);
+        mob.userData = { id: 'umbri_mob', name: 'Void Stalker (Umbri Mob)', hp: 28, maxHp: 28, type: 'mob', originalPos: [-10, 1.3, -10], damage: 4, attackRange: 4.2 };
         zoneObjectsGroup.add(mob);
         interactables.push(mob);
 
@@ -1344,14 +1642,17 @@
 
         // 3 Red Enemies
         const enemyDefs = [
-          { name: 'Void Stalker (Enemy 1)', pos: [-6, 1, -10], hp: 20 },
-          { name: 'Duskblade Fiend (Enemy 2)', pos: [0, 1, -12], hp: 20 },
-          { name: 'Granite Behemoth (Enemy 3)', pos: [6, 1.4, -10], hp: 30 },
+          { name: 'Void Stalker (Enemy 1)', pos: [-6, 1.3, -10], hp: 25, scale: 2.2 },
+          { name: 'Duskblade Fiend (Enemy 2)', pos: [0, 1, -12], hp: 20, scale: 1.2 },
+          { name: 'Granite Behemoth (Enemy 3)', pos: [6, 1.4, -10], hp: 30, scale: 1.5 },
         ];
         enemyDefs.forEach((ed, i) => {
           const em = new THREE.Group();
-          gltfLoader.load('./models/umbri_minion.glb', (g) => em.add(g.scene), undefined, () => {
-            em.add(new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.8, 8), new THREE.MeshStandardMaterial({ color: 0xef4444 })));
+          gltfLoader.load('./models/umbri_minion.glb', (g) => {
+            em.add(g.scene);
+            em.scale.set(ed.scale, ed.scale, ed.scale);
+          }, undefined, () => {
+            em.add(new THREE.Mesh(new THREE.ConeGeometry(0.8 * ed.scale, 1.8 * ed.scale, 8), new THREE.MeshStandardMaterial({ color: 0xef4444 })));
           });
           em.position.set(ed.pos[0], ed.pos[1], ed.pos[2]);
           em.userData = { id: `enemy_${i}`, name: ed.name, hp: ed.hp, maxHp: ed.hp, type: 'mob' };
@@ -1419,11 +1720,60 @@
       cameraOrbit.distance = Math.max(4, Math.min(26, cameraOrbit.distance + e.deltaY * 0.015));
     });
 
-    // S-Key Behavior:
-    // If NOT holding mouse, clicking S smoothly rotates screen & character around (180 turn).
-    // If holding mouse, S acts as normal backpedal.
+    // Input State Reset (fixes alt-tab freezing & stuck keys)
+    function resetAllInputs() {
+      inputs.w = false;
+      inputs.a = false;
+      inputs.s = false;
+      inputs.d = false;
+      inputs.shift = false;
+      inputs.space = false;
+      isMouseDown = false;
+    }
+
+    window.addEventListener('blur', () => {
+      resetAllInputs();
+    });
+
+    window.addEventListener('focus', () => {
+      resetAllInputs();
+      clock.getDelta(); // flush accumulated background delta
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      resetAllInputs();
+      if (!document.hidden) {
+        clock.getDelta(); // flush delta
+      }
+    });
+
+    // Keyboard & Ability Controls
     window.addEventListener('keydown', (e) => {
+      // 1. Check if spellbook keybind listener is waiting for user input
+      if (listeningSlot !== null) {
+        e.preventDefault();
+        e.stopPropagation();
+        const pressed = e.key.toLowerCase();
+        if (pressed === 'escape') {
+          listeningSlot = null;
+          renderKeybindUI();
+          return;
+        }
+        keybinds[listeningSlot] = pressed;
+        try {
+          localStorage.setItem('glimmerfall_keybinds', JSON.stringify(keybinds));
+        } catch (err) {}
+        audio.playChime();
+        logMessage(`[Keybinds] Rebound ${ABILITY_SPECS[listeningSlot]?.name || listeningSlot} to [${pressed.toUpperCase()}]`, 'log-gain');
+        listeningSlot = null;
+        updateActionBarBadges();
+        renderKeybindUI();
+        return;
+      }
+
       const key = e.key.toLowerCase();
+
+      // Navigation / movement inputs
       if (key in inputs) inputs[key] = true;
       if (e.shiftKey) inputs.shift = true;
       if (e.code === 'Space') {
@@ -1433,35 +1783,37 @@
         }
       }
 
-      if (key === 's') {
-        if (!isMouseDown) {
-          // Instant 180 camera swivel around
-          cameraOrbit.yaw += Math.PI;
-          logMessage('[Navigation] 180° Quick Turnaround', 'log-gain');
-        }
-      }
-
       if (key === 'tab') {
         e.preventDefault();
         cycleTarget();
+        return;
       }
       if (key === 'escape') {
         setTarget(null);
         closeAllModals();
+        return;
       }
-      if (e.shiftKey) {
-        if (key === '1' || key === '!') { e.preventDefault(); castAbility(9); }
-        else if (key === '2' || key === '@') { e.preventDefault(); castAbility(10); }
-        else if (key === '3' || key === '#') { e.preventDefault(); castAbility(11); }
-        else if (key === '4' || key === '$') { e.preventDefault(); castAbility(12); }
-      } else {
-        if (key === '1') castAbility(1);
-        if (key === '2') castAbility(2);
-        if (key === '3') castAbility(3);
-        if (key === '4') castAbility(4);
+
+      // 2. Check dynamic ability keybinds
+      for (const [slot, boundKey] of Object.entries(keybinds)) {
+        if (key === boundKey) {
+          e.preventDefault();
+          if (slot === 'harvest') {
+            harvestTarget();
+          } else {
+            castAbility(Number(slot));
+          }
+          return;
+        }
       }
-      if (key === 'e') harvestTarget();
-      if (key === 'p') toggleModal('spellbook-modal');
+
+      // Prevent default on Shift + numbers or browser refresh hotkeys
+      if (e.shiftKey && (key >= '0' && key <= '9')) {
+        e.preventDefault();
+      }
+
+      // UI Modals
+      if (key === 'p' || key === 'b') toggleModal('spellbook-modal');
       if (key === 'c') toggleModal('char-modal');
       if (key === 'k') toggleModal('cards-modal');
     });
@@ -1559,8 +1911,12 @@
     function flashDamageVignette() {
       const vig = document.getElementById('damage-vignette');
       if (vig) {
+        vig.style.display = 'block';
         vig.style.opacity = '0.7';
-        setTimeout(() => { vig.style.opacity = '0'; }, 180);
+        setTimeout(() => {
+          vig.style.opacity = '0';
+          setTimeout(() => { vig.style.display = 'none'; }, 180);
+        }, 180);
       }
     }
 
@@ -1609,6 +1965,7 @@
 
       const ds = document.getElementById('death-screen');
       if (ds) {
+        ds.style.display = 'flex';
         ds.style.opacity = '1';
         ds.style.pointerEvents = 'all';
       }
@@ -1644,6 +2001,9 @@
       if (ds) {
         ds.style.opacity = '0';
         ds.style.pointerEvents = 'none';
+        setTimeout(() => {
+          ds.style.display = 'none';
+        }, 400);
       }
 
       audio.playChime();
@@ -1795,12 +2155,14 @@
           mob.userData = { id, name, hp: maxHp, maxHp, type: 'mob', isBoss: true, damage: 5, attackRange: 4.5, originalPos: pos, isDying: false };
         } else {
           gltfLoader.load('./models/umbri_minion.glb', (g) => {
-            g.scene.scale.set(1.0, 1.0, 1.0);
+            g.scene.scale.set(2.2, 2.2, 2.2);
             mob.add(g.scene);
           }, undefined, () => {
-            mob.add(new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.8, 8), new THREE.MeshStandardMaterial({ color: 0xef4444 })));
+            const cone = new THREE.Mesh(new THREE.ConeGeometry(1.4, 3.2, 8), new THREE.MeshStandardMaterial({ color: 0x581c87, roughness: 0.4 }));
+            cone.position.y = 1.6;
+            mob.add(cone);
           });
-          mob.userData = { id, name, hp: maxHp, maxHp, type: 'mob', originalPos: pos, isDying: false, damage: 3 };
+          mob.userData = { id, name, hp: maxHp, maxHp, type: 'mob', originalPos: pos, isDying: false, damage: 4, attackRange: 4.2 };
         }
         mob.position.set(pos[0], pos[1], pos[2]);
         zoneObjectsGroup.add(mob);
@@ -2075,7 +2437,8 @@
 
     function render() {
       requestAnimationFrame(render);
-      const delta = clock.getDelta();
+      const rawDelta = clock.getDelta();
+      const delta = Math.min(rawDelta, 0.08); // Clamp delta to prevent frame skips on tab-focus
 
       // Cooldown timer updates & UI overlays
       for (const slot in cooldowns) {
@@ -2154,7 +2517,7 @@
 
         const move = new THREE.Vector3(0, 0, 0);
         if (inputs.w) move.add(forward);
-        if (inputs.s && isMouseDown) move.sub(forward); // Backpedal only while holding mouse
+        if (inputs.s) move.sub(forward); // Backpedal freely anytime, no isMouseDown requirement!
         if (inputs.d) move.add(right);
         if (inputs.a) move.sub(right);
 
@@ -2163,13 +2526,24 @@
           const currentSpeed = player.speed * (inputs.shift ? player.sprintMultiplier : 1);
           playerGroup.position.addScaledVector(move, currentSpeed * delta);
 
-          // Turn character to face movement direction
+          // Turn character smoothly toward movement direction
           const targetRot = Math.atan2(move.x, move.z);
-          playerVisual.rotation.y = THREE.MathUtils.lerp(playerVisual.rotation.y, targetRot, 0.25);
+          let diff = targetRot - playerVisual.rotation.y;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          playerVisual.rotation.y += diff * Math.min(1, 14 * delta);
 
-          // Running stride animation
-          playerVisual.position.y = Math.sin(clock.getElapsedTime() * 12) * 0.08;
-          playerVisual.rotation.z = Math.sin(clock.getElapsedTime() * 6) * 0.04;
+          // Dynamic running stride & animation
+          walkCycle += delta * (inputs.shift ? 16 : 10);
+          playerVisual.rotation.x = THREE.MathUtils.lerp(playerVisual.rotation.x, 0.12, 10 * delta); // forward tilt
+          playerVisual.rotation.z = Math.sin(walkCycle) * 0.08; // hip sway
+          playerVisual.position.y = Math.abs(Math.sin(walkCycle)) * 0.14; // foot step bounce
+
+          // Spawn subtle footstep dust on ground
+          if (clock.getElapsedTime() - lastFootstepPuff > 0.24 && player.isGrounded) {
+            lastFootstepPuff = clock.getElapsedTime();
+            spawnFootstepDust(playerGroup.position);
+          }
 
           // Tutorial Quest Step 1 check
           if (currentZone === 'tutorial' && !quests.moved) {
@@ -2179,8 +2553,10 @@
             logMessage('[Quest] Tutorial Step 1 Complete: You walked in 3rd person!', 'log-quest');
           }
         } else {
-          playerVisual.position.y = THREE.MathUtils.lerp(playerVisual.position.y, 0, 0.15);
-          playerVisual.rotation.z = THREE.MathUtils.lerp(playerVisual.rotation.z, 0, 0.15);
+          // Standing idle: recover upright posture & breathe gently
+          playerVisual.rotation.x = THREE.MathUtils.lerp(playerVisual.rotation.x, 0, 8 * delta);
+          playerVisual.rotation.z = THREE.MathUtils.lerp(playerVisual.rotation.z, 0, 8 * delta);
+          playerVisual.position.y = Math.sin(clock.getElapsedTime() * 2.2) * 0.025;
         }
       }
 
@@ -2297,6 +2673,22 @@
         }
       }
 
+      // Animate footstep dust particles
+      for (let i = footstepParticles.length - 1; i >= 0; i--) {
+        const fp = footstepParticles[i];
+        fp.age += delta;
+        fp.mesh.position.addScaledVector(fp.velocity, delta);
+        const progress = fp.age / fp.maxAge;
+        fp.mesh.scale.multiplyScalar(1 + 0.4 * delta);
+        fp.mesh.material.opacity = Math.max(0, (1 - progress) * 0.55);
+        if (fp.age >= fp.maxAge) {
+          scene.remove(fp.mesh);
+          fp.mesh.geometry.dispose();
+          fp.mesh.material.dispose();
+          footstepParticles.splice(i, 1);
+        }
+      }
+
       // Target selection ring positioning
       if (currentTarget) {
         targetRing.position.set(currentTarget.position.x, 0.03, currentTarget.position.z);
@@ -2311,6 +2703,10 @@
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
+
+    // Initialize Keybinding Badges & Spellbook Modal UI
+    updateActionBarBadges();
+    renderKeybindUI();
 
     render();
   </script>
