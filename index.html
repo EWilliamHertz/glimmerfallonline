@@ -393,16 +393,43 @@
     .cooldown-overlay {
       position: absolute;
       inset: 0;
-      background: rgba(0, 0, 0, 0.75);
+      background: rgba(2, 6, 23, 0.85);
+      backdrop-filter: blur(2px);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 800;
-      color: #fff;
+      color: #facc15;
+      text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.1s;
+      transition: opacity 0.15s ease-out;
+    }
+
+    #damage-vignette {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 45;
+      background: radial-gradient(ellipse at center, transparent 40%, rgba(239, 68, 68, 0.5) 100%);
+      opacity: 0;
+      transition: opacity 0.15s ease-out;
+    }
+
+    #death-screen {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 100;
+      background: rgba(2, 6, 23, 0.88);
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.4s ease-in-out;
     }
 
     /* Cast Bar */
@@ -503,6 +530,16 @@
   <div id="fct-container"></div>
 
   <div id="hud">
+    <!-- Screen Damage Flash & Death Revive Overlay -->
+    <div id="damage-vignette"></div>
+    <div id="death-screen">
+      <div style="font-size: 26px; font-weight: 900; color: #ef4444; text-shadow: 0 0 24px rgba(239, 68, 68, 0.85); margin-bottom: 8px;">
+        💀 YOU SUCCUMBED TO THE VOID
+      </div>
+      <div id="death-timer-txt" style="font-size: 13px; color: #cbd5e1; letter-spacing: 0.05em;">
+        Re-anchoring your astral essence at sanctuary in 3s...
+      </div>
+    </div>
     <!-- Top Utility Bar -->
     <div id="top-bar">
       <button class="util-btn" onclick="toggleModal('spellbook-modal')"><span>📖</span> Spellbook [P]</button>
@@ -658,18 +695,38 @@
         <div class="modal-title">📖 Solari Vanguard Spellbook</div>
         <div class="modal-close" onclick="toggleModal('spellbook-modal')">✕</div>
       </div>
-      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
-          <b style="color: #facc15;">Strike of Dawn [1]</b> &bull; Melee Instant<br>
-          <span style="color: #94a3b8;">Slashes target dealing 3-5 Radiant damage. Generates 15 Solar Charge.</span>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; max-height: 420px; overflow-y: auto;">
+        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px; border: 1px solid rgba(250, 204, 21, 0.25);">
+          <b style="color: #facc15;">⚔️ Dawn Strike [1]</b> &bull; Melee (1.0s CD)<br>
+          <span style="color: #94a3b8;">Slashes target dealing 4-7 Radiant dmg. Generates +15 Solar Charge.</span>
         </div>
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
-          <b style="color: #facc15;">Solar Flare [2]</b> &bull; 1.2s Cast, Costs 25 Solar Charge<br>
-          <span style="color: #94a3b8;">Launches a bolt of condensed sunlight dealing 8-12 Radiant damage.</span>
+        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px; border: 1px solid rgba(250, 204, 21, 0.25);">
+          <b style="color: #facc15;">☀️ Solar Flare [2]</b> &bull; 1.2s Cast (3.5s CD)<br>
+          <span style="color: #94a3b8;">Costs 25 Solar Charge. Blasts condensed sunbeam for 10-15 Radiant dmg.</span>
         </div>
-        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;">
-          <b style="color: #facc15;">Judgment of Sol [3]</b> &bull; Instant Holy Hammer<br>
-          <span style="color: #94a3b8;">Hurls a hammer dealing 6 damage and generating 20 Solar Charge.</span>
+        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px; border: 1px solid rgba(250, 204, 21, 0.25);">
+          <b style="color: #facc15;">🔨 Judgment of Sol [3]</b> &bull; Instant (5.0s CD)<br>
+          <span style="color: #94a3b8;">Hurls a radiant hammer dealing 7-9 dmg & generating +20 Solar Charge.</span>
+        </div>
+        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px; border: 1px solid rgba(250, 204, 21, 0.25);">
+          <b style="color: #facc15;">🔥 Consecration [4]</b> &bull; Instant (8.0s CD)<br>
+          <span style="color: #94a3b8;">Ignites solar ground runes, burning hostile mobs for periodic radiant damage.</span>
+        </div>
+        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.25);">
+          <b style="color: #38bdf8;">🛡️ Aegis Ward [Shift+1]</b> &bull; Instant (10.0s CD)<br>
+          <span style="color: #94a3b8;">Summons an orbital solar sphere absorbing up to 15 damage for 10s.</span>
+        </div>
+        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px; border: 1px solid rgba(74, 222, 128, 0.25);">
+          <b style="color: #4ade80;">✨ Radiant Mending [Shift+2]</b> &bull; Instant (6.0s CD)<br>
+          <span style="color: #94a3b8;">Channels celestial resonance restoring +8 Health to the Vanguard.</span>
+        </div>
+        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px; border: 1px solid rgba(250, 204, 21, 0.25);">
+          <b style="color: #fde047;">⚡ Zenith Shockwave [Shift+3]</b> &bull; Instant (12.0s CD)<br>
+          <span style="color: #94a3b8;">Costs 30 Solar Charge. Detonates a radiant nova hitting all mobs for 16-22 AoE.</span>
+        </div>
+        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.25);">
+          <b style="color: #38bdf8;">💨 Sun Dash [Shift+4]</b> &bull; Instant (4.0s CD)<br>
+          <span style="color: #94a3b8;">Surges 8.5 units forward with solar speed particles to dodge attacks.</span>
         </div>
       </div>
     </div>
@@ -825,6 +882,48 @@
         gain.connect(this.ctx.destination);
         noise.start();
       }
+      playDash() {
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(560, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.2);
+      }
+      playShield() {
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(280, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(560, this.ctx.currentTime + 0.28);
+        gain.gain.setValueAtTime(0.28, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.3);
+      }
+      playZenith() {
+        this.init();
+        const osc1 = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc1.type = 'sawtooth';
+        osc1.frequency.setValueAtTime(140, this.ctx.currentTime);
+        osc1.frequency.exponentialRampToValueAtTime(560, this.ctx.currentTime + 0.35);
+        gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
+        osc1.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc1.start();
+        osc1.stop(this.ctx.currentTime + 0.4);
+      }
     }
     const audio = new SoundEngine();
 
@@ -835,6 +934,8 @@
     const player = {
       hp: 25,
       maxHp: 25,
+      shield: 0,
+      shieldTimer: 0,
       solarCharge: 0,
       maxSolarCharge: 100,
       speed: 13,
@@ -842,7 +943,21 @@
       jumpForce: 14,
       vy: 0,
       isGrounded: true,
+      isDead: false,
     };
+
+    const ABILITIES = {
+      1: { name: 'Dawn Strike', cd: 1.0, cost: 0, isMelee: true, range: 5.5 },
+      2: { name: 'Solar Flare', cd: 3.5, cost: 25, isMelee: false, range: 25, castTime: 1.2 },
+      3: { name: 'Judgment of Sol', cd: 5.0, cost: 0, isMelee: false, range: 20 },
+      4: { name: 'Consecration', cd: 8.0, cost: 0, isMelee: false, range: 10 },
+      9: { name: 'Aegis Ward', cd: 10.0, cost: 0, isMelee: false, range: 0 },
+      10: { name: 'Radiant Mending', cd: 6.0, cost: 0, isMelee: false, range: 0 },
+      11: { name: 'Zenith Shockwave', cd: 12.0, cost: 30, isMelee: false, range: 14 },
+      12: { name: 'Sun Dash', cd: 4.0, cost: 0, isMelee: false, range: 0 },
+    };
+
+    const cooldowns = { 1: 0, 2: 0, 3: 0, 4: 0, 9: 0, 10: 0, 11: 0, 12: 0 };
 
     let currentTarget = null;
     let isMouseDown = false;
@@ -956,6 +1071,76 @@
         playerVisual.add(fallbackMesh);
       }
     );
+
+    // Solari Spellblade Weapon
+    const weaponGroup = new THREE.Group();
+    weaponGroup.position.set(0.65, 0.95, 0.25);
+    playerVisual.add(weaponGroup);
+
+    gltfLoader.load(
+      './models/solari_blade.glb',
+      (gltf) => {
+        const blade = gltf.scene;
+        blade.scale.set(0.7, 0.7, 0.7);
+        weaponGroup.add(blade);
+      },
+      undefined,
+      () => {
+        // High-polish Procedural Radiant Spellblade
+        const bladeGeo = new THREE.BoxGeometry(0.08, 1.35, 0.035);
+        const bladeMat = new THREE.MeshStandardMaterial({
+          color: 0xfacc15,
+          emissive: 0xd97706,
+          emissiveIntensity: 0.95,
+          roughness: 0.2,
+          metalness: 0.85,
+        });
+        const bladeMesh = new THREE.Mesh(bladeGeo, bladeMat);
+        bladeMesh.position.y = 0.55;
+        bladeMesh.castShadow = true;
+
+        const guardGeo = new THREE.BoxGeometry(0.38, 0.08, 0.08);
+        const guardMat = new THREE.MeshStandardMaterial({ color: 0x78350f, metalness: 0.9, roughness: 0.3 });
+        const guardMesh = new THREE.Mesh(guardGeo, guardMat);
+        guardMesh.position.y = -0.12;
+
+        const hiltGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.35, 12);
+        const hiltMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
+        const hiltMesh = new THREE.Mesh(hiltGeo, hiltMat);
+        hiltMesh.position.y = -0.3;
+
+        const pommelGeo = new THREE.DodecahedronGeometry(0.075);
+        const pommelMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xb45309, emissiveIntensity: 1.2 });
+        const pommelMesh = new THREE.Mesh(pommelGeo, pommelMat);
+        pommelMesh.position.y = -0.49;
+
+        const bladeLight = new THREE.PointLight(0xfacc15, 1.8, 3.5);
+        bladeLight.position.y = 0.5;
+
+        weaponGroup.add(bladeMesh, guardMesh, hiltMesh, pommelMesh, bladeLight);
+        weaponGroup.rotation.x = Math.PI / 6;
+      }
+    );
+
+    let weaponSwingTimer = 0;
+    function triggerWeaponSwing() {
+      weaponSwingTimer = 0.28;
+    }
+
+    // Aegis Ward Protective Orbital Shield
+    const shieldGeo = new THREE.SphereGeometry(1.5, 24, 24);
+    const shieldMat = new THREE.MeshStandardMaterial({
+      color: 0xfacc15,
+      emissive: 0xeab308,
+      emissiveIntensity: 0.85,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.45,
+    });
+    const playerShieldMesh = new THREE.Mesh(shieldGeo, shieldMat);
+    playerShieldMesh.position.y = 1.1;
+    playerShieldMesh.visible = false;
+    playerGroup.add(playerShieldMesh);
 
     // Target Selection Ring
     const targetRingGeo = new THREE.RingGeometry(1.4, 1.6, 32);
@@ -1088,11 +1273,50 @@
 
         // 4. Granite Behemoth (Terra Golem Boss)
         const golem = new THREE.Group();
-        const golemBody = new THREE.Mesh(new THREE.BoxGeometry(2, 2.8, 2), new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 }));
-        golemBody.position.y = 1.4;
-        golem.add(golemBody);
+        gltfLoader.load(
+          './models/terra_golem.glb',
+          (g) => {
+            g.scene.scale.set(1.8, 1.8, 1.8);
+            golem.add(g.scene);
+          },
+          undefined,
+          () => {
+            const stoneMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.92, metalness: 0.15 });
+            const torso = new THREE.Mesh(new THREE.DodecahedronGeometry(1.6, 1), stoneMat);
+            torso.position.y = 2.4;
+            torso.scale.set(1.2, 1.4, 1.0);
+            torso.castShadow = true;
+            const core = new THREE.Mesh(
+              new THREE.SphereGeometry(0.5, 16, 16),
+              new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xd97706, emissiveIntensity: 2.5, roughness: 0.2 })
+            );
+            core.position.set(0, 2.4, 0.7);
+            core.add(new THREE.PointLight(0xf59e0b, 3.5, 14));
+            const leftBoulder = new THREE.Mesh(new THREE.DodecahedronGeometry(0.85, 0), stoneMat);
+            leftBoulder.position.set(-1.8, 3.2, 0);
+            leftBoulder.castShadow = true;
+            const rightBoulder = new THREE.Mesh(new THREE.DodecahedronGeometry(0.85, 0), stoneMat);
+            rightBoulder.position.set(1.8, 3.2, 0);
+            rightBoulder.castShadow = true;
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 0.9), stoneMat);
+            head.position.set(0, 3.6, 0.2);
+            head.castShadow = true;
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+            const leftEye = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.1), eyeMat);
+            leftEye.position.set(-0.25, 3.65, 0.68);
+            const rightEye = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.1), eyeMat);
+            rightEye.position.set(0.25, 3.65, 0.68);
+            const leftFist = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), stoneMat);
+            leftFist.position.set(-1.6, 1.2, 0.4);
+            leftFist.castShadow = true;
+            const rightFist = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), stoneMat);
+            rightFist.position.set(1.6, 1.2, 0.4);
+            rightFist.castShadow = true;
+            golem.add(torso, core, leftBoulder, rightBoulder, head, leftEye, rightEye, leftFist, rightFist);
+          }
+        );
         golem.position.set(14, 0, -14);
-        golem.userData = { id: 'terra_boss', name: 'Granite Behemoth (World Boss)', hp: 50, maxHp: 50, type: 'mob', originalPos: [14, 0, -14] };
+        golem.userData = { id: 'terra_boss', name: 'Granite Behemoth (World Boss)', hp: 50, maxHp: 50, type: 'mob', isBoss: true, damage: 5, attackRange: 4.5, originalPos: [14, 0, -14] };
         zoneObjectsGroup.add(golem);
         interactables.push(golem);
 
@@ -1225,10 +1449,17 @@
         setTarget(null);
         closeAllModals();
       }
-      if (key === '1') castAbility(1);
-      if (key === '2') castAbility(2);
-      if (key === '3') castAbility(3);
-      if (key === '4') castAbility(4);
+      if (e.shiftKey) {
+        if (key === '1' || key === '!') { e.preventDefault(); castAbility(9); }
+        else if (key === '2' || key === '@') { e.preventDefault(); castAbility(10); }
+        else if (key === '3' || key === '#') { e.preventDefault(); castAbility(11); }
+        else if (key === '4' || key === '$') { e.preventDefault(); castAbility(12); }
+      } else {
+        if (key === '1') castAbility(1);
+        if (key === '2') castAbility(2);
+        if (key === '3') castAbility(3);
+        if (key === '4') castAbility(4);
+      }
       if (key === 'e') harvestTarget();
       if (key === 'p') toggleModal('spellbook-modal');
       if (key === 'c') toggleModal('char-modal');
@@ -1310,129 +1541,194 @@
     }
 
     function updatePlayerUI() {
-      document.getElementById('player-hp-txt').innerText = `${player.hp} / ${player.maxHp}`;
-      document.getElementById('player-hp-fill').style.width = `${(player.hp / player.maxHp) * 100}%`;
+      const hpTxt = player.shield > 0
+        ? `${player.hp} / ${player.maxHp} (+${player.shield} 🛡️)`
+        : `${player.hp} / ${player.maxHp}`;
+      document.getElementById('player-hp-txt').innerText = hpTxt;
+      const hpPct = Math.min(100, (player.hp / player.maxHp) * 100);
+      document.getElementById('player-hp-fill').style.width = `${hpPct}%`;
+      if (player.shield > 0) {
+        document.getElementById('player-hp-fill').style.background = 'linear-gradient(90deg, #facc15, #38bdf8)';
+      } else {
+        document.getElementById('player-hp-fill').style.background = 'linear-gradient(90deg, #22c55e, #16a34a)';
+      }
       document.getElementById('player-res-txt').innerText = `${player.solarCharge} / ${player.maxSolarCharge}`;
       document.getElementById('player-res-fill').style.width = `${(player.solarCharge / player.maxSolarCharge) * 100}%`;
     }
 
-    // ==========================================
-    // 8. Floating Combat Text
-    // ==========================================
-    const fctContainer = document.getElementById('fct-container');
-
-    function spawnFCT(pos, text, color = '#facc15', isCrit = false) {
-      const screenPos = pos.clone().project(camera);
-      if (screenPos.z > 1) return;
-
-      const x = ((screenPos.x + 1) * window.innerWidth) / 2;
-      const y = ((-screenPos.y + 1) * window.innerHeight) / 2;
-
-      const el = document.createElement('div');
-      el.className = 'fct-text';
-      el.style.left = `${x}px`;
-      el.style.top = `${y}px`;
-      el.style.color = color;
-      el.innerText = isCrit ? `💥 CRIT! ${text}` : text;
-      fctContainer.appendChild(el);
-      setTimeout(() => el.remove(), 1200);
-    }
-
-    function logMessage(msg, className = '') {
-      const log = document.getElementById('combat-log');
-      const div = document.createElement('div');
-      div.className = `log-entry ${className}`;
-      div.innerText = msg;
-      log.appendChild(div);
-      log.scrollTop = log.scrollHeight;
-    }
-
-    // ==========================================
-    // 9. Smoke Dissolution & Knockdown Engine
-    // ==========================================
-    const activeSmokePuffs = [];
-    const dyingEntities = [];
-    const smokeGeo = new THREE.DodecahedronGeometry(0.4, 1);
-
-    function spawnSmokeCloud(pos, count = 40) {
-      for (let i = 0; i < count; i++) {
-        const colors = [0x1e1b4b, 0x312e81, 0x475569, 0x581c87, 0x0f172a];
-        const color = colors[Math.floor(Math.random() * colors.length)];
-        const mat = new THREE.MeshStandardMaterial({
-          color: color,
-          emissive: 0x581c87,
-          emissiveIntensity: 0.4,
-          roughness: 0.9,
-          transparent: true,
-          opacity: 0.85,
-        });
-        const mesh = new THREE.Mesh(smokeGeo, mat);
-        mesh.position.set(
-          pos.x + (Math.random() - 0.5) * 1.5,
-          pos.y + Math.random() * 1.4 + 0.2,
-          pos.z + (Math.random() - 0.5) * 1.5
-        );
-        mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-        const scale = 0.4 + Math.random() * 0.5;
-        mesh.scale.set(scale, scale, scale);
-        scene.add(mesh);
-
-        activeSmokePuffs.push({
-          mesh,
-          velocity: new THREE.Vector3(
-            (Math.random() - 0.5) * 2.5,
-            Math.random() * 3.8 + 2.5,
-            (Math.random() - 0.5) * 2.5
-          ),
-          rotSpeed: new THREE.Vector3((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4),
-          age: 0,
-          maxAge: 0.9 + Math.random() * 0.6,
-        });
+    function flashDamageVignette() {
+      const vig = document.getElementById('damage-vignette');
+      if (vig) {
+        vig.style.opacity = '0.7';
+        setTimeout(() => { vig.style.opacity = '0'; }, 180);
       }
     }
 
-    function triggerEntityDeath(target) {
-      if (!target || !target.userData || target.userData.isDying) return;
-      target.userData.isDying = true;
+    function damagePlayer(amount, attackerName = 'Enemy') {
+      if (player.isDead || player.hp <= 0) return;
+      audio.playHit();
+      flashDamageVignette();
 
-      // Audio: deep smoke puff / dissolution sound
+      let remaining = amount;
+      if (player.shield > 0) {
+        if (player.shield >= remaining) {
+          player.shield -= remaining;
+          spawnFCT(playerGroup.position, `ABSORB ${remaining}`, '#38bdf8');
+          remaining = 0;
+        } else {
+          const absorbed = player.shield;
+          remaining -= absorbed;
+          player.shield = 0;
+          if (playerShieldMesh) playerShieldMesh.visible = false;
+          spawnFCT(playerGroup.position, `ABSORB ${absorbed}`, '#38bdf8');
+          logMessage('[Combat] Your Aegis Ward shattered!', 'log-combat');
+        }
+        if (player.shield <= 0 && playerShieldMesh) playerShieldMesh.visible = false;
+      }
+
+      if (remaining > 0) {
+        player.hp = Math.max(0, player.hp - remaining);
+        spawnFCT(playerGroup.position, `-${remaining} HP`, '#ef4444');
+        logMessage(`[Combat] ${attackerName} strikes you for ${remaining} damage!`, 'log-combat');
+      }
+
+      updatePlayerUI();
+
+      if (player.hp <= 0) {
+        handlePlayerDeath();
+      }
+    }
+
+    function handlePlayerDeath() {
+      if (player.isDead) return;
+      player.isDead = true;
       audio.playSmokePuff();
+      spawnSmokeCloud(playerGroup.position, 40);
+      spawnFCT(playerGroup.position, '💀 FALLEN', '#ef4444', true);
+      logMessage('[Defeat] You have fallen in battle! Re-anchoring astral essence...', 'log-combat');
 
-      // Visuals: spawn billowing smoke particle burst
-      spawnSmokeCloud(target.position, 45);
+      const ds = document.getElementById('death-screen');
+      if (ds) {
+        ds.style.opacity = '1';
+        ds.style.pointerEvents = 'all';
+      }
 
-      // Defeat banner
-      spawnFCT(target.position, '💀 UP IN SMOKE', '#c084fc', true);
-      logMessage(`[Defeat] ${target.userData.name} collapsed and went up in smoke!`, 'log-solari');
+      let countdown = 3;
+      const countInterval = setInterval(() => {
+        countdown--;
+        const txt = document.getElementById('death-timer-txt');
+        if (txt) txt.innerText = `Re-anchoring your astral essence at sanctuary in ${countdown}s...`;
+        if (countdown <= 0) {
+          clearInterval(countInterval);
+          respawnPlayer();
+        }
+      }, 1000);
+    }
 
-      // Add to dyingEntities to swirl upward and shrink into the smoke
-      dyingEntities.push({
-        group: target,
-        initScale: target.scale.clone(),
-        age: 0,
+    function respawnPlayer() {
+      player.hp = player.maxHp;
+      player.solarCharge = 0;
+      player.shield = 0;
+      player.isDead = false;
+      if (playerShieldMesh) playerShieldMesh.visible = false;
+
+      if (currentZone === 'tutorial') {
+        playerGroup.position.set(0, 0, 8);
+      } else if (currentZone === 'arena_3v3') {
+        playerGroup.position.set(0, 0, 22);
+      } else {
+        playerGroup.position.set(0, 0, 10);
+      }
+
+      const ds = document.getElementById('death-screen');
+      if (ds) {
+        ds.style.opacity = '0';
+        ds.style.pointerEvents = 'none';
+      }
+
+      audio.playChime();
+      updatePlayerUI();
+      logMessage('[Revival] You have re-emerged with restored vitality!', 'log-solari');
+    }
+
+    function spawnShockwave(pos) {
+      const waveGeo = new THREE.RingGeometry(0.5, 1.4, 32);
+      const waveMat = new THREE.MeshBasicMaterial({
+        color: 0xfde047,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.9,
       });
+      const wave = new THREE.Mesh(waveGeo, waveMat);
+      wave.rotation.x = -Math.PI / 2;
+      wave.position.set(pos.x, 0.05, pos.z);
+      scene.add(wave);
 
-      // Remove from interactables list
-      const idx = interactables.indexOf(target);
-      if (idx !== -1) interactables.splice(idx, 1);
+      let scale = 1.0;
+      let op = 0.9;
+      const waveInterval = setInterval(() => {
+        scale += 0.8;
+        op -= 0.06;
+        wave.scale.set(scale, scale, 1);
+        waveMat.opacity = Math.max(0, op);
+        if (op <= 0) {
+          clearInterval(waveInterval);
+          scene.remove(wave);
+          waveGeo.dispose();
+          waveMat.dispose();
+        }
+      }, 30);
+    }
 
-      // Deselect if targeted
-      if (currentTarget === target) {
-        setTarget(null);
-      }
-
-      // Respawn timer for training dummies and roaming mobs so world stays active
-      const entityId = target.userData.id;
-      const entityType = target.userData.type;
-      const entityName = target.userData.name;
-      const origPos = target.userData.originalPos;
-      const maxHp = target.userData.maxHp || 25;
-
-      if ((entityType === 'dummy' || entityType === 'mob') && origPos) {
+    function spawnDashTrail(pos) {
+      for (let i = 0; i < 12; i++) {
+        const pGeo = new THREE.SphereGeometry(0.15, 8, 8);
+        const pMat = new THREE.MeshBasicMaterial({ color: 0xfef08a, transparent: true, opacity: 0.8 });
+        const p = new THREE.Mesh(pGeo, pMat);
+        p.position.set(
+          pos.x + (Math.random() - 0.5) * 1.0,
+          pos.y + Math.random() * 1.5,
+          pos.z + (Math.random() - 0.5) * 1.0
+        );
+        scene.add(p);
         setTimeout(() => {
-          respawnEntity(entityId, entityName, entityType, origPos, maxHp);
-        }, 7000);
+          scene.remove(p);
+          pGeo.dispose();
+          pMat.dispose();
+        }, 350 + i * 20);
       }
+    }
+
+    function spawnConsecrationGround(pos) {
+      const cGeo = new THREE.RingGeometry(0.1, 7.0, 32);
+      const cMat = new THREE.MeshBasicMaterial({
+        color: 0xfacc15,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.45,
+      });
+      const cMesh = new THREE.Mesh(cGeo, cMat);
+      cMesh.rotation.x = -Math.PI / 2;
+      cMesh.position.set(pos.x, 0.04, pos.z);
+      scene.add(cMesh);
+
+      let ticks = 0;
+      const cInterval = setInterval(() => {
+        ticks++;
+        interactables.forEach((item) => {
+          if (item.userData && (item.userData.type === 'mob' || item.userData.type === 'nexus') && !item.userData.isDying) {
+            if (item.position.distanceTo(pos) <= 7.0) {
+              applyDamageToTarget(item, 3, false, 'Consecration');
+            }
+          }
+        });
+        if (ticks >= 4) {
+          clearInterval(cInterval);
+          scene.remove(cMesh);
+          cGeo.dispose();
+          cMat.dispose();
+        }
+      }, 1500);
     }
 
     function respawnEntity(id, name, type, pos, maxHp) {
@@ -1451,19 +1747,62 @@
         dummyTarget.position.set(0, 1.2, 0.51);
         dummyGroup.add(dummyBody, dummyTarget);
         dummyGroup.position.set(pos[0], pos[1], pos[2]);
-        dummyGroup.userData = { id, name, hp: maxHp, maxHp, type, originalPos: pos, isDying: false };
+        dummyGroup.userData = { id, name, hp: maxHp, maxHp, type: 'dummy', originalPos: pos, isDying: false };
         zoneObjectsGroup.add(dummyGroup);
         interactables.push(dummyGroup);
         spawnSmokeCloud(dummyGroup.position, 20);
-        logMessage(`[World] ${name} respawned!`, 'log-gain');
+        logMessage(`[World] ${name} has reconstructed!`, 'log-solari');
       } else if (type === 'mob') {
         const mob = new THREE.Group();
-        gltfLoader.load('./models/umbri_minion.glb', (g) => {
-          g.scene.scale.set(1.0, 1.0, 1.0);
-          mob.add(g.scene);
-        });
+        if (id === 'terra_boss') {
+          gltfLoader.load(
+            './models/terra_golem.glb',
+            (g) => {
+              g.scene.scale.set(1.8, 1.8, 1.8);
+              mob.add(g.scene);
+            },
+            undefined,
+            () => {
+              const stoneMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.92, metalness: 0.15 });
+              const torso = new THREE.Mesh(new THREE.DodecahedronGeometry(1.6, 1), stoneMat);
+              torso.position.y = 2.4;
+              torso.scale.set(1.2, 1.4, 1.0);
+              torso.castShadow = true;
+              const core = new THREE.Mesh(
+                new THREE.SphereGeometry(0.5, 16, 16),
+                new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xd97706, emissiveIntensity: 2.5, roughness: 0.2 })
+              );
+              core.position.set(0, 2.4, 0.7);
+              core.add(new THREE.PointLight(0xf59e0b, 3.5, 14));
+              const leftBoulder = new THREE.Mesh(new THREE.DodecahedronGeometry(0.85, 0), stoneMat);
+              leftBoulder.position.set(-1.8, 3.2, 0);
+              const rightBoulder = new THREE.Mesh(new THREE.DodecahedronGeometry(0.85, 0), stoneMat);
+              rightBoulder.position.set(1.8, 3.2, 0);
+              const head = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 0.9), stoneMat);
+              head.position.set(0, 3.6, 0.2);
+              const eyeMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+              const leftEye = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.1), eyeMat);
+              leftEye.position.set(-0.25, 3.65, 0.68);
+              const rightEye = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.1), eyeMat);
+              rightEye.position.set(0.25, 3.65, 0.68);
+              const leftFist = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), stoneMat);
+              leftFist.position.set(-1.6, 1.2, 0.4);
+              const rightFist = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), stoneMat);
+              rightFist.position.set(1.6, 1.2, 0.4);
+              mob.add(torso, core, leftBoulder, rightBoulder, head, leftEye, rightEye, leftFist, rightFist);
+            }
+          );
+          mob.userData = { id, name, hp: maxHp, maxHp, type: 'mob', isBoss: true, damage: 5, attackRange: 4.5, originalPos: pos, isDying: false };
+        } else {
+          gltfLoader.load('./models/umbri_minion.glb', (g) => {
+            g.scene.scale.set(1.0, 1.0, 1.0);
+            mob.add(g.scene);
+          }, undefined, () => {
+            mob.add(new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.8, 8), new THREE.MeshStandardMaterial({ color: 0xef4444 })));
+          });
+          mob.userData = { id, name, hp: maxHp, maxHp, type: 'mob', originalPos: pos, isDying: false, damage: 3 };
+        }
         mob.position.set(pos[0], pos[1], pos[2]);
-        mob.userData = { id, name, hp: maxHp, maxHp, type, originalPos: pos, isDying: false };
         zoneObjectsGroup.add(mob);
         interactables.push(mob);
         spawnSmokeCloud(mob.position, 20);
@@ -1475,6 +1814,10 @@
       if (!target || !target.userData || target.userData.isDying) return;
 
       target.userData.hp = Math.max(0, (target.userData.hp ?? 25) - dmg);
+      if (target.userData.type === 'mob') {
+        target.userData.inCombat = true; // Engage combat aggro on strike
+      }
+
       audio.playHit();
       spawnFCT(target.position, `-${dmg}`, isCrit ? '#facc15' : '#ef4444', isCrit);
       logMessage(`[Combat] ${spellName} hits ${target.userData.name} for ${dmg} damage!`, 'log-solari');
@@ -1500,24 +1843,42 @@
     // 10. Abilities & Combat Execution
     // ==========================================
     window.castAbility = function(slot) {
-      if (!currentTarget || currentTarget.userData.isDying) {
-        logMessage(`[Combat] Select an active target first!`, 'log-combat');
+      if (player.isDead) return;
+
+      const ability = ABILITIES[slot];
+      if (!ability) return;
+
+      // Cooldown enforcement
+      if (cooldowns[slot] > 0) {
+        logMessage(`[Combat] ${ability.name} is on cooldown (${cooldowns[slot].toFixed(1)}s remaining)!`, 'log-combat');
         return;
       }
-      const dist = playerGroup.position.distanceTo(currentTarget.position);
+
+      // Target requirements: Slots 1, 2, 3 require active hostile/objective target
+      const requiresTarget = (slot === 1 || slot === 2 || slot === 3);
+      if (requiresTarget) {
+        if (!currentTarget || currentTarget.userData.isDying) {
+          logMessage(`[Combat] Select an active target first!`, 'log-combat');
+          return;
+        }
+      }
+
+      const dist = currentTarget ? playerGroup.position.distanceTo(currentTarget.position) : 0;
 
       if (slot === 1) {
         // Strike of Dawn (Melee Instant)
         if (dist > 5.5) {
-          logMessage(`[Combat] Target is out of melee range!`, 'log-combat');
+          logMessage(`[Combat] Target is out of melee range (5.5y)!`, 'log-combat');
           return;
         }
         audio.playSlash();
-        const dmg = Math.floor(Math.random() * 3) + 4;
+        triggerWeaponSwing();
+        const dmg = Math.floor(Math.random() * 4) + 4;
         const isCrit = Math.random() < 0.25;
         const totalDmg = isCrit ? dmg * 2 : dmg;
 
         player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 15);
+        cooldowns[slot] = ability.cd;
         updatePlayerUI();
         applyDamageToTarget(currentTarget, totalDmg, isCrit, 'Strike of Dawn');
       } else if (slot === 2) {
@@ -1526,33 +1887,93 @@
           logMessage(`[Combat] Requires 25 Solar Charge!`, 'log-combat');
           return;
         }
+        if (dist > 25) {
+          logMessage(`[Combat] Target is out of range (25y)!`, 'log-combat');
+          return;
+        }
         if (isCasting) return;
 
         player.solarCharge -= 25;
+        cooldowns[slot] = ability.cd;
         updatePlayerUI();
         const tgt = currentTarget;
         startCast('Solar Flare', 1.2, () => {
           audio.playSpell();
-          const dmg = Math.floor(Math.random() * 5) + 10;
+          const dmg = Math.floor(Math.random() * 6) + 10;
           applyDamageToTarget(tgt, dmg, true, 'Solar Flare');
         });
       } else if (slot === 3) {
         // Judgment of Sol
-        const dmg = 8;
+        if (dist > 20) {
+          logMessage(`[Combat] Target is out of range (20y)!`, 'log-combat');
+          return;
+        }
+        audio.playSlash();
+        triggerWeaponSwing();
+        const dmg = Math.floor(Math.random() * 3) + 7;
         player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 20);
+        cooldowns[slot] = ability.cd;
         updatePlayerUI();
         applyDamageToTarget(currentTarget, dmg, false, 'Judgment of Sol');
       } else if (slot === 4) {
-        // Consecrate
+        // Consecrated Ground
         audio.playSpell();
+        cooldowns[slot] = ability.cd;
+        spawnConsecrationGround(playerGroup.position.clone());
         spawnFCT(playerGroup.position, `CONSECRATION`, '#facc15');
-        logMessage(`[Combat] Consecrated the field!`, 'log-solari');
+        logMessage(`[Combat] Consecrated the field with solar runes!`, 'log-solari');
+      } else if (slot === 9) {
+        // Aegis Ward (Shield)
+        audio.playShield();
+        cooldowns[slot] = ability.cd;
+        player.shield = 15;
+        player.shieldTimer = 10;
+        if (playerShieldMesh) playerShieldMesh.visible = true;
+        spawnFCT(playerGroup.position, `+15 SHIELD`, '#38bdf8');
+        logMessage(`[Combat] Aegis Ward activated! Absorbs up to 15 damage for 10s.`, 'log-solari');
+        updatePlayerUI();
       } else if (slot === 10) {
         // Radiant Mending (Heal)
         audio.playChime();
-        player.hp = Math.min(player.maxHp, player.hp + 8);
-        spawnFCT(playerGroup.position, `+8 HP`, '#4ade80');
+        cooldowns[slot] = ability.cd;
+        const healAmt = 8;
+        player.hp = Math.min(player.maxHp, player.hp + healAmt);
+        spawnFCT(playerGroup.position, `+${healAmt} HP`, '#4ade80');
+        logMessage(`[Combat] Radiant Mending restored ${healAmt} Health!`, 'log-gain');
         updatePlayerUI();
+      } else if (slot === 11) {
+        // Zenith Shockwave (AoE)
+        if (player.solarCharge < 30) {
+          logMessage(`[Combat] Requires 30 Solar Charge!`, 'log-combat');
+          return;
+        }
+        player.solarCharge -= 30;
+        audio.playZenith();
+        cooldowns[slot] = ability.cd;
+        updatePlayerUI();
+        spawnFCT(playerGroup.position, `ZENITH SHOCKWAVE`, '#fde047', true);
+        spawnShockwave(playerGroup.position.clone());
+        let hits = 0;
+        interactables.forEach((item) => {
+          if (item.userData && (item.userData.type === 'mob' || item.userData.type === 'nexus') && !item.userData.isDying) {
+            const d = playerGroup.position.distanceTo(item.position);
+            if (d <= 14) {
+              const dmg = Math.floor(Math.random() * 6) + 16;
+              applyDamageToTarget(item, dmg, true, 'Zenith Shockwave');
+              hits++;
+            }
+          }
+        });
+        logMessage(`[Combat] Zenith Shockwave struck ${hits} target(s)!`, 'log-solari');
+      } else if (slot === 12) {
+        // Sun Dash
+        audio.playDash();
+        cooldowns[slot] = ability.cd;
+        const forward = new THREE.Vector3(-Math.sin(cameraOrbit.yaw), 0, -Math.cos(cameraOrbit.yaw)).normalize();
+        playerGroup.position.addScaledVector(forward, 8.5);
+        spawnDashTrail(playerGroup.position.clone());
+        spawnFCT(playerGroup.position, `SUN DASH`, '#fde047');
+        logMessage(`[Combat] Sun Dash! Thrust forward with solar speed.`, 'log-gain');
       }
     };
 
@@ -1656,6 +2077,53 @@
       requestAnimationFrame(render);
       const delta = clock.getDelta();
 
+      // Cooldown timer updates & UI overlays
+      for (const slot in cooldowns) {
+        if (cooldowns[slot] > 0) {
+          cooldowns[slot] = Math.max(0, cooldowns[slot] - delta);
+          const overlay = document.getElementById(`cd-${slot}`);
+          if (overlay) {
+            if (cooldowns[slot] > 0) {
+              overlay.innerText = cooldowns[slot].toFixed(1) + 's';
+              overlay.style.opacity = '1';
+            } else {
+              overlay.innerText = '0';
+              overlay.style.opacity = '0';
+            }
+          }
+        }
+      }
+
+      // Shield mesh rotation & timer
+      if (player.shield > 0) {
+        player.shieldTimer -= delta;
+        if (playerShieldMesh) {
+          playerShieldMesh.visible = true;
+          playerShieldMesh.rotation.y += 1.5 * delta;
+          playerShieldMesh.rotation.x += 0.8 * delta;
+        }
+        if (player.shieldTimer <= 0) {
+          player.shield = 0;
+          if (playerShieldMesh) playerShieldMesh.visible = false;
+          updatePlayerUI();
+          logMessage('[Combat] Aegis Ward expired.', 'log-combat');
+        }
+      } else {
+        if (playerShieldMesh) playerShieldMesh.visible = false;
+      }
+
+      // Weapon swing animation during attacks
+      if (weaponSwingTimer > 0) {
+        weaponSwingTimer -= delta;
+        const progress = Math.max(0, weaponSwingTimer / 0.28);
+        const swingAngle = Math.sin((1 - progress) * Math.PI) * 1.5;
+        weaponGroup.rotation.x = (Math.PI / 6) + swingAngle;
+        weaponGroup.rotation.z = -swingAngle * 0.35;
+      } else {
+        weaponGroup.rotation.x = THREE.MathUtils.lerp(weaponGroup.rotation.x, Math.PI / 6, 0.2);
+        weaponGroup.rotation.z = THREE.MathUtils.lerp(weaponGroup.rotation.z, 0, 0.2);
+      }
+
       // Spell Casting progression
       if (isCasting) {
         castProgress += delta;
@@ -1680,38 +2148,40 @@
       }
 
       // Third-Person WASD Movement (Relative to Camera Sightline)
-      const forward = new THREE.Vector3(-Math.sin(cameraOrbit.yaw), 0, -Math.cos(cameraOrbit.yaw)).normalize();
-      const right = new THREE.Vector3(Math.cos(cameraOrbit.yaw), 0, -Math.sin(cameraOrbit.yaw)).normalize();
+      if (!player.isDead) {
+        const forward = new THREE.Vector3(-Math.sin(cameraOrbit.yaw), 0, -Math.cos(cameraOrbit.yaw)).normalize();
+        const right = new THREE.Vector3(Math.cos(cameraOrbit.yaw), 0, -Math.sin(cameraOrbit.yaw)).normalize();
 
-      const move = new THREE.Vector3(0, 0, 0);
-      if (inputs.w) move.add(forward);
-      if (inputs.s && isMouseDown) move.sub(forward); // Backpedal only while holding mouse
-      if (inputs.d) move.add(right);
-      if (inputs.a) move.sub(right);
+        const move = new THREE.Vector3(0, 0, 0);
+        if (inputs.w) move.add(forward);
+        if (inputs.s && isMouseDown) move.sub(forward); // Backpedal only while holding mouse
+        if (inputs.d) move.add(right);
+        if (inputs.a) move.sub(right);
 
-      if (move.lengthSq() > 0) {
-        move.normalize();
-        const currentSpeed = player.speed * (inputs.shift ? player.sprintMultiplier : 1);
-        playerGroup.position.addScaledVector(move, currentSpeed * delta);
+        if (move.lengthSq() > 0) {
+          move.normalize();
+          const currentSpeed = player.speed * (inputs.shift ? player.sprintMultiplier : 1);
+          playerGroup.position.addScaledVector(move, currentSpeed * delta);
 
-        // Turn character to face movement direction
-        const targetRot = Math.atan2(move.x, move.z);
-        playerVisual.rotation.y = THREE.MathUtils.lerp(playerVisual.rotation.y, targetRot, 0.25);
+          // Turn character to face movement direction
+          const targetRot = Math.atan2(move.x, move.z);
+          playerVisual.rotation.y = THREE.MathUtils.lerp(playerVisual.rotation.y, targetRot, 0.25);
 
-        // Running stride animation
-        playerVisual.position.y = Math.sin(clock.getElapsedTime() * 12) * 0.08;
-        playerVisual.rotation.z = Math.sin(clock.getElapsedTime() * 6) * 0.04;
+          // Running stride animation
+          playerVisual.position.y = Math.sin(clock.getElapsedTime() * 12) * 0.08;
+          playerVisual.rotation.z = Math.sin(clock.getElapsedTime() * 6) * 0.04;
 
-        // Tutorial Quest Step 1 check
-        if (currentZone === 'tutorial' && !quests.moved) {
-          quests.moved = true;
-          document.getElementById('qc-1').classList.add('done');
-          document.getElementById('qc-1').innerText = '✓';
-          logMessage('[Quest] Tutorial Step 1 Complete: You walked in 3rd person!', 'log-quest');
+          // Tutorial Quest Step 1 check
+          if (currentZone === 'tutorial' && !quests.moved) {
+            quests.moved = true;
+            document.getElementById('qc-1').classList.add('done');
+            document.getElementById('qc-1').innerText = '✓';
+            logMessage('[Quest] Tutorial Step 1 Complete: You walked in 3rd person!', 'log-quest');
+          }
+        } else {
+          playerVisual.position.y = THREE.MathUtils.lerp(playerVisual.position.y, 0, 0.15);
+          playerVisual.rotation.z = THREE.MathUtils.lerp(playerVisual.rotation.z, 0, 0.15);
         }
-      } else {
-        playerVisual.position.y = THREE.MathUtils.lerp(playerVisual.position.y, 0, 0.15);
-        playerVisual.rotation.z = THREE.MathUtils.lerp(playerVisual.rotation.z, 0, 0.15);
       }
 
       // Portal check on Tutorial Island
@@ -1719,8 +2189,68 @@
         portalMesh.rotation.z += 0.8 * delta;
         const distToPortal = playerGroup.position.distanceTo(portalMesh.position);
         if (distToPortal < 3.2) {
+          if (!quests.portalReady) {
+            quests.portalReady = true;
+            document.getElementById('qc-4').classList.add('done');
+            document.getElementById('qc-4').innerText = '✓';
+            document.getElementById('quest-stage-txt').innerText = '4 / 4';
+            logMessage('[Quest] Tutorial Complete! Traveled to The Nexus Main World!', 'log-solari');
+          }
           buildZone('main_world');
         }
+      }
+
+      // Mob AI: Aggro detection, pursuit, and combat attacks against the player
+      if (!player.isDead) {
+        interactables.forEach((item) => {
+          if (item.userData && item.userData.type === 'mob' && !item.userData.isDying && item.userData.hp > 0) {
+            const dist = playerGroup.position.distanceTo(item.position);
+            const aggroRange = item.userData.isBoss ? 15 : 11;
+            const attackRange = item.userData.attackRange || 3.2;
+            const speed = item.userData.isBoss ? 4.5 : 5.8;
+
+            // Proximity aggro trigger
+            if (!item.userData.inCombat && dist <= aggroRange) {
+              item.userData.inCombat = true;
+              logMessage(`[Aggro] ${item.userData.name} targets you!`, 'log-combat');
+            }
+
+            if (item.userData.inCombat) {
+              // Leash check
+              if (dist > 32) {
+                item.userData.inCombat = false;
+                if (item.userData.originalPos) {
+                  item.position.set(item.userData.originalPos[0], item.userData.originalPos[1] || 0, item.userData.originalPos[2]);
+                }
+                item.userData.hp = item.userData.maxHp;
+                spawnFCT(item.position, 'EVADED', '#94a3b8');
+                logMessage(`[Combat] ${item.userData.name} reset and returned to territory.`, 'log-combat');
+                return;
+              }
+
+              // Pursue player if outside attack range
+              if (dist > attackRange) {
+                const dir = new THREE.Vector3().subVectors(playerGroup.position, item.position);
+                dir.y = 0;
+                dir.normalize();
+                item.position.addScaledVector(dir, speed * delta);
+                item.rotation.y = THREE.MathUtils.lerp(item.rotation.y, Math.atan2(dir.x, dir.z), 0.15);
+              } else {
+                // In melee attack range
+                item.userData.attackTimer = (item.userData.attackTimer || 0) + delta;
+                if (item.userData.attackTimer >= 1.9) {
+                  item.userData.attackTimer = 0;
+                  const mobDmg = item.userData.damage || (Math.floor(Math.random() * 3) + 2);
+                  damagePlayer(mobDmg, item.userData.name);
+
+                  // Attack lunge animation
+                  item.position.y += 0.3;
+                  setTimeout(() => { if (item) item.position.y = Math.max(0, item.position.y - 0.3); }, 120);
+                }
+              }
+            }
+          }
+        });
       }
 
       // Camera Orbit Position: Anchored behind and above the player

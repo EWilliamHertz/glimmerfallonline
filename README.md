@@ -39,10 +39,19 @@ An international, scalable 3D browser-based MMORPG powered by Three.js and an au
 # 1. Install dependencies
 npm install
 
-# 2. Batch generate 3D GLB assets with PBR textures via Fal.ai Meshy v7.1
+# 2. Pre-flight verification (checks API key, network, disk space & image URLs)
+npm run generate:assets:check
+
+# 3. Simulate generation without consuming API credits
+npm run generate:assets:dry-run
+
+# 4. View asset queue & cached models
+npm run generate:assets:list
+
+# 5. Batch generate 3D GLB assets with PBR textures via Fal.ai Meshy v7.1
 npm run generate:assets
 
-# 3. Start local dev server (binds to 0.0.0.0:8080)
+# 6. Start local dev server (binds to 0.0.0.0:8080)
 npm run dev
 ```
 
