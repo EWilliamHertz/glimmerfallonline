@@ -43,27 +43,27 @@ export function drawPixelNameplateAndBubbles(ctx, {
   }
 
   // 2. Bold, High-Contrast Pixel Nameplate + <ORDER> Tag (dark plaque + thick outline)
-  ctx.font = 'bold 8px "Silkscreen", "Press Start 2P", monospace';
+  ctx.font = '700 10px "Pixelify Sans", "Silkscreen", -apple-system, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   const tagPrefix = orderTag && orderTag !== 'NONE' ? `<${orderTag}> ` : '';
   const tcgStar = tcgLinked ? '⚡' : '';
   const label = `${tcgStar}${tagPrefix}${name}`;
-  const ny = isSelf ? topY - 5 : topY - 10;
+  const ny = isSelf ? topY - 6 : topY - 11;
   const labelW = Math.ceil(ctx.measureText(label).width);
   const facColor = FACTIONS_META[faction]?.color || orderColor || '#facc15';
   const textColor = isHostile ? '#fecaca' : isParty ? '#bbf7d0' : '#ffffff';
   const accentColor = isHostile ? '#ef4444' : isParty ? '#4ade80' : facColor;
 
   // Dark semi-opaque plaque with faction-colored underline for instant legibility
-  const plateW = labelW + 8;
+  const plateW = labelW + 10;
   const plateX = Math.round(sx - plateW / 2);
-  ctx.fillStyle = 'rgba(5, 7, 15, 0.82)';
-  ctx.fillRect(plateX, ny - 8, plateW, 11);
+  ctx.fillStyle = 'rgba(5, 7, 15, 0.88)';
+  ctx.fillRect(plateX - 1, ny - 10, plateW + 2, 14);
   ctx.fillStyle = accentColor;
   ctx.fillRect(plateX, ny + 3, plateW, 1);
 
-  // Thick 8-direction black outline
+  // Thick 8-direction black outline for razor-sharp contrast
   ctx.fillStyle = '#000000';
   for (const [ox, oy] of [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]) {
     ctx.fillText(label, sx + ox, ny + oy);
@@ -85,20 +85,20 @@ export function drawPixelNameplateAndBubbles(ctx, {
   if (emote && EMOTES_CATALOG[emote]) {
     const em = EMOTES_CATALOG[emote];
     const bounce = Math.round(Math.sin(globalTime * 10) * 2);
-    const ey = ny - 19 + bounce;
+    const ey = ny - 20 + bounce;
     ctx.fillStyle = '#05070f';
     ctx.fillRect(sx - 8, ey - 7, 16, 12);
     ctx.fillStyle = em.color || '#fde047';
     ctx.fillRect(sx - 7, ey - 6, 14, 10);
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(sx - 6, ey - 5, 12, 8);
-    ctx.font = '7px sans-serif';
+    ctx.font = '8px sans-serif';
     ctx.fillText(em.icon, sx, ey + 2);
   }
 
   // 4. 16-Bit Pixel Speech Bubble (above character's head!)
   if (bubble) {
-    ctx.font = 'bold 7px "Silkscreen", "Press Start 2P", monospace';
+    ctx.font = '600 9px "Pixelify Sans", "Silkscreen", sans-serif';
     const cleanText = String(bubble).slice(0, 64);
     // Wrap up to 2 lines of ~22 chars
     const lines = [];

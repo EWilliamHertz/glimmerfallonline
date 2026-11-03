@@ -1147,21 +1147,32 @@ export function initGame() {
       if (tutQuestBody) tutQuestBody.style.display = 'none';
       if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
 
-      [[-90, 95], [90, 95], [-145, -20], [145, -20], [-75, -135], [75, -135]].forEach(([pxX, pxY], idx) => {
-        props.push({ type: idx % 2 === 0 ? 'pillar' : 'brazier', x: pxX, y: pxY });
-      });
-
       if (resolvedRoomType === ROOM_TYPES.NEXUS_WARZONE) {
+        // Highway waystation markers and landmark pillars across the continent
+        [
+          [-45, 840], [45, 840], [-45, 920], [45, 920], // South Sanctuary Highway Station
+          [-120, -120], [120, -120], [-120, 120], [120, 120], // Central Caldera Bastion
+          [-45, -920], [45, -920], // North Ruins Gate
+        ].forEach(([pxX, pxY], idx) => {
+          props.push({ type: idx % 2 === 0 ? 'pillar' : 'brazier', x: pxX, y: pxY });
+        });
+
         npcs.push({
           id: 'npc_archon',
           name: 'Sunspire Archon',
           role: 'War Commander [Click / T]',
           spriteKey: 'heraldNpc',
           x: -38,
-          y: 138,
+          y: 880,
           dialogue: WARZONE_DIALOGUE,
         });
-      } else if (resolvedRoomType === ROOM_TYPES.SOLARI_CITADEL) {
+      } else {
+        [[-90, 95], [90, 95], [-145, -20], [145, -20], [-75, -135], [75, -135]].forEach(([pxX, pxY], idx) => {
+          props.push({ type: idx % 2 === 0 ? 'pillar' : 'brazier', x: pxX, y: pxY });
+        });
+      }
+
+      if (resolvedRoomType === ROOM_TYPES.SOLARI_CITADEL) {
         npcs.push({
           id: 'npc_vael',
           name: 'Commander Vael',
@@ -1219,9 +1230,6 @@ export function initGame() {
       player.y = 96;
       entities.push(
         { id: 'dummy_1', name: 'Sanctuary Dummy', sub: 'Lv.1 Awakening Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: 12, origX: 0, origY: 12, hp: 30, maxHp: 30, xpReward: 30, radius: 14, hitFlash: 0 },
-        { id: 'tut_stalker_1', name: 'Void Stalker Scout', sub: 'Lv.1 Umbri Minion (Training)', type: 'mob', spriteKey: 'voidStalker', x: -85, y: -45, origX: -85, origY: -45, hp: 20, maxHp: 20, damage: 3, xpReward: 35, speed: 48, aggroRange: 105, attackRange: 26, radius: 15, hitFlash: 0 },
-        { id: 'tut_stalker_2', name: 'Void Stalker Raider', sub: 'Lv.2 Umbri Minion (Training)', type: 'mob', spriteKey: 'voidStalker', x: 85, y: -45, origX: 85, origY: -45, hp: 25, maxHp: 25, damage: 3, xpReward: 45, speed: 50, aggroRange: 105, attackRange: 26, radius: 15, hitFlash: 0 },
-        { id: 'tut_behemoth', name: 'Granite Bouldergut', sub: '★ Lv.3 Terra Training Golem', type: 'mob', isBoss: true, spriteKey: 'graniteBoss', x: 0, y: -90, origX: 0, origY: -90, hp: 45, maxHp: 45, damage: 5, xpReward: 85, speed: 36, aggroRange: 115, attackRange: 32, radius: 20, hitFlash: 0 },
         { id: 'tut_font', name: 'Awakening Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
         { id: 'tut_font_2', name: 'East Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
         { id: 'portal_main', name: 'Nexus Warzone Rift', sub: 'Step In -> Nexus Warzone', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_WARZONE, spriteKey: 'portal', x: 0, y: -158, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 },
@@ -1354,14 +1362,45 @@ export function initGame() {
       );
     } else {
       player.x = 0;
-      player.y = 165;
+      player.y = 860;
       entities.push(
-        { id: 'siege_shard', name: 'Shattered Nexus Shard', sub: '⚡ Siege Event Objective', type: 'siege_shard', isBoss: true, spriteKey: 'siegeShard', x: 0, y: -12, origX: 0, origY: -12, hp: 85, maxHp: 85, xpReward: 240, radius: 24, hitFlash: 0 },
-        { id: 'umbri_1', name: 'Void Stalker', sub: 'Lv.2 Umbri Entity (AWK)', type: 'mob', spriteKey: 'voidStalker', x: -95, y: -25, origX: -95, origY: -25, hp: 30, maxHp: 30, damage: 4, xpReward: 55, speed: 52, aggroRange: 112, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'umbri_2', name: 'Duskblade Fiend', sub: 'Lv.3 Umbri Entity (AWK)', type: 'mob', spriteKey: 'voidStalker', x: 75, y: 35, origX: 75, origY: 35, hp: 26, maxHp: 26, damage: 4, xpReward: 60, speed: 58, aggroRange: 108, attackRange: 26, radius: 13, hitFlash: 0 },
-        { id: 'terra_boss', name: 'Granite Behemoth', sub: '★ Lv.5 Terra World Boss', type: 'mob', isBoss: true, spriteKey: 'graniteBoss', x: 120, y: -105, origX: 120, origY: -105, hp: 60, maxHp: 60, damage: 6, xpReward: 135, speed: 38, aggroRange: 130, attackRange: 34, radius: 21, hitFlash: 0 },
-        { id: 'portal_ruins', name: 'First Nexus Ruins Gate', sub: '🏛️ Forgotten Ruins', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS, spriteKey: 'portal', x: 0, y: -250, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
-        { id: 'portal_hub', name: 'Sanctuary Hub Rift', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 215, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 }
+        // 4 Continental Faction Outposts
+        { id: 'outpost_Terra', faction: 'Terra', name: 'Terra Forest Outpost Nexus', sub: '30 HP Terra Outpost Nexus', type: 'outpost_nexus', spriteKey: 'nexusGreen', x: -850, y: -650, origX: -850, origY: -650, hp: 30, maxHp: 30, xpReward: 200, radius: 24, hitFlash: 0 },
+        { id: 'outpost_Umbri', faction: 'Umbri', name: 'Umbri Shadow Outpost Nexus', sub: '30 HP Umbri Outpost Nexus', type: 'outpost_nexus', spriteKey: 'nexusPurple', x: 850, y: -650, origX: 850, origY: -650, hp: 30, maxHp: 30, xpReward: 200, radius: 24, hitFlash: 0 },
+        { id: 'outpost_Solari', faction: 'Solari', name: 'Solari Radiant Outpost Nexus', sub: '30 HP Solari Outpost Nexus', type: 'outpost_nexus', spriteKey: 'nexusGold', x: -850, y: 650, origX: -850, origY: 650, hp: 30, maxHp: 30, xpReward: 200, radius: 24, hitFlash: 0 },
+        { id: 'outpost_Aether', faction: 'Aether', name: 'Aether Astral Outpost Nexus', sub: '30 HP Aether Outpost Nexus', type: 'outpost_nexus', spriteKey: 'nexusCyan', x: 850, y: 650, origX: 850, origY: 650, hp: 30, maxHp: 30, xpReward: 200, radius: 24, hitFlash: 0 },
+        // Shattered Nexus Shard
+        { id: 'siege_shard', name: 'Shattered Nexus Shard', sub: '⚡ Continental Nexus Core (PvPvE)', type: 'siege_shard', isBoss: true, spriteKey: 'siegeShard', x: 0, y: 0, origX: 0, origY: 0, hp: 85, maxHp: 85, xpReward: 250, radius: 24, hitFlash: 0 },
+        // Continental Portals
+        { id: 'portal_hub', name: 'Sanctuary Return Gate', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 940, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 },
+        { id: 'portal_ruins', name: 'First Nexus Ruins Gate', sub: '🏛️ Forgotten Ruins', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS, spriteKey: 'portal', x: 0, y: -940, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 },
+        { id: 'portal_terra', name: 'Glimmer Orchard Waygate', sub: '🌿 Terra Dungeon Waygate', type: 'portal', targetRoom: ROOM_TYPES.TERRA_ORCHARD, spriteKey: 'portal', x: -1150, y: -780, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
+        { id: 'portal_umbri', name: 'Sepulcher Undercity Waygate', sub: '🌑 Umbri Dungeon Waygate', type: 'portal', targetRoom: ROOM_TYPES.UMBRI_UNDERCITY, spriteKey: 'portal', x: 1150, y: -780, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
+        { id: 'portal_solari', name: 'Golden Citadel Waygate', sub: '☀️ Solari Dungeon Waygate', type: 'portal', targetRoom: ROOM_TYPES.SOLARI_CITADEL, spriteKey: 'portal', x: -1150, y: 780, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
+        { id: 'portal_aether', name: 'Mirrorgate Spire Waygate', sub: '🔮 Aether Dungeon Waygate', type: 'portal', targetRoom: ROOM_TYPES.AETHER_SPIRE, spriteKey: 'portal', x: 1150, y: 780, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
+        // 4 Grand World Bosses
+        { id: 'terra_world_boss', name: 'Elder Ironwood Colossus', sub: '★ Lv.9 Terra Continent World Boss', type: 'mob', isBoss: true, dropGear: 'ironwood_armor', spriteKey: 'graniteBoss', x: -950, y: -850, origX: -950, origY: -850, hp: 125, maxHp: 125, damage: 7, xpReward: 260, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'umbri_world_boss', name: 'Malakor the Soulreaper', sub: '★ Lv.9 Umbri Continent World Boss', type: 'mob', isBoss: true, dropGear: 'scythe_soulreaper', spriteKey: 'umbriBoss', x: 950, y: -850, origX: 950, origY: -850, hp: 115, maxHp: 115, damage: 8, xpReward: 260, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'solari_world_boss', name: 'High Sunfire Juggernaut', sub: '★ Lv.9 Solari Continent World Boss', type: 'mob', isBoss: true, dropGear: 'sunfire_greatsword', spriteKey: 'solariBoss', x: -950, y: 850, origX: -950, origY: 850, hp: 125, maxHp: 125, damage: 7, xpReward: 260, speed: 39, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'aether_world_boss', name: 'Continuum Singularity Paradox', sub: '★ Lv.9 Aether Continent World Boss', type: 'mob', isBoss: true, dropGear: 'chronos_singularity_core', spriteKey: 'aetherBoss', x: 950, y: 850, origX: 950, origY: 850, hp: 118, maxHp: 118, damage: 8, xpReward: 260, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        // Strategic Glimmer Nodes
+        { id: 'node_center_s', name: 'Caldera South Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: 180, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'node_center_n', name: 'Caldera North Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: -180, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'node_terra', name: 'Terra Blossom Spire', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: -800, y: -500, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'node_umbri', name: 'Sepulcher Shadow Spire', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 800, y: -500, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'node_solari', name: 'Dawnfire Solar Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: -800, y: 500, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'node_aether', name: 'Aether Resonance Crystal', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 800, y: 500, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        // Roaming Mob Packs
+        { id: 'ter_mob_1', name: 'Bramble Treant', sub: 'Lv.5 Terra Guardian', type: 'mob', spriteKey: 'terraWarden', x: -680, y: -520, origX: -680, origY: -520, hp: 44, maxHp: 44, damage: 5, xpReward: 85, speed: 52, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'ter_mob_2', name: 'Ironwood Stonekin', sub: 'Lv.6 Forest Sentinel', type: 'mob', spriteKey: 'terraWarden', x: -1020, y: -480, origX: -1020, origY: -480, hp: 48, maxHp: 48, damage: 5, xpReward: 95, speed: 50, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'umb_mob_1', name: 'Void Stalker Vanguard', sub: 'Lv.5 Umbri Assassin', type: 'mob', spriteKey: 'voidStalker', x: 680, y: -520, origX: 680, origY: -520, hp: 42, maxHp: 42, damage: 6, xpReward: 85, speed: 56, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'umb_mob_2', name: 'Graveglass Phantom', sub: 'Lv.6 Gloom Specter', type: 'mob', spriteKey: 'duskFiend', x: 1020, y: -480, origX: 1020, origY: -480, hp: 46, maxHp: 46, damage: 6, xpReward: 95, speed: 56, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'sol_mob_1', name: 'Sunforged Sentinel', sub: 'Lv.5 Solari Construct', type: 'mob', spriteKey: 'solariSentinel', x: -680, y: 520, origX: -680, origY: 520, hp: 45, maxHp: 45, damage: 5, xpReward: 85, speed: 52, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'sol_mob_2', name: 'Dawnblade Crusader', sub: 'Lv.6 Radiant Paladin', type: 'mob', spriteKey: 'solariSentinel', x: -1020, y: 480, origX: -1020, origY: 480, hp: 48, maxHp: 48, damage: 6, xpReward: 95, speed: 54, aggroRange: 115, attackRange: 30, radius: 15, hitFlash: 0 },
+        { id: 'aeth_mob_1', name: 'Chrono Echo', sub: 'Lv.5 Astral Sentinel', type: 'mob', spriteKey: 'aetherWeaver', x: 680, y: 520, origX: 680, origY: 520, hp: 42, maxHp: 42, damage: 6, xpReward: 85, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'aeth_mob_2', name: 'Continuum Weaver', sub: 'Lv.6 Singularity Mage', type: 'mob', spriteKey: 'aetherWeaver', x: 1020, y: 480, origX: 1020, origY: 480, hp: 46, maxHp: 46, damage: 6, xpReward: 95, speed: 55, aggroRange: 115, attackRange: 30, radius: 15, hitFlash: 0 },
+        { id: 'void_mid_1', name: 'Void Stalker Raider', sub: 'Lv.4 Warzone Invader', type: 'mob', spriteKey: 'voidStalker', x: -140, y: -60, origX: -140, origY: -60, hp: 36, maxHp: 36, damage: 4, xpReward: 70, speed: 52, aggroRange: 112, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'void_mid_2', name: 'Duskblade Marauder', sub: 'Lv.4 Warzone Invader', type: 'mob', spriteKey: 'duskFiend', x: 140, y: -60, origX: 140, origY: -60, hp: 34, maxHp: 34, damage: 4, xpReward: 70, speed: 56, aggroRange: 112, attackRange: 26, radius: 14, hitFlash: 0 }
       );
     }
     camera.x = player.x;
@@ -3700,8 +3739,38 @@ export function initGame() {
       return sprites.tiles[`${currentBiomeTheme}_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.warzone_0 || sprites.tiles.flagstone_0;
     }
 
-    // Nexus Warzone crossroad + dark slate terrain
-    if (Math.abs(tx) <= 1 || Math.abs(ty) <= 1) return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
+    // ==========================================
+    // THE NEXUS CONTINENT (OPEN WORLD REALM)
+    // ==========================================
+    // Imperial Paved Cross-Continental Highways (3 tiles wide)
+    if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) {
+      return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
+    }
+    // Diagonal Arterial Roads to 4 Outpost Quadrants
+    if (Math.abs(Math.abs(tx) - Math.abs(ty)) <= 1 && Math.abs(tx) >= 12 && Math.abs(tx) <= 55) {
+      return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
+    }
+    // Central Caldera / Siege Crater (Dark obsidian slate)
+    if (Math.abs(tx) <= 16 && Math.abs(ty) <= 14) {
+      return sprites.tiles[`warzone_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.flagstone_0;
+    }
+    // Northwest Quadrant: Terra Ironwood Wilds (Lush forest moss & emerald flora)
+    if (tx < -12 && ty < -10) {
+      return sprites.tiles[`terra_${Math.abs(tx * 13 + ty * 19) % 4}`] || sprites.tiles.flagstone_0;
+    }
+    // Northeast Quadrant: Umbri Shadow Fens (Abyssal violet mire & fog-shrouded swamp)
+    if (tx > 12 && ty < -10) {
+      return sprites.tiles[`umbri_${Math.abs(tx * 13 + ty * 19) % 4}`] || sprites.tiles.flagstone_0;
+    }
+    // Southwest Quadrant: Solari Sun-Plains (Radiant gold marble & scorched sands)
+    if (tx < -12 && ty > 10) {
+      return sprites.tiles[`solari_${Math.abs(tx * 13 + ty * 19) % 4}`] || sprites.tiles.flagstone_0;
+    }
+    // Southeast Quadrant: Aether Astral Plateau (Crystalline cosmic indigo platforms)
+    if (tx > 12 && ty > 10) {
+      return sprites.tiles[`aether_${Math.abs(tx * 13 + ty * 19) % 4}`] || sprites.tiles.flagstone_0;
+    }
+    // Bordering buffer zones: Dark warzone slate
     return sprites.tiles[`warzone_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.flagstone_0;
   }
 
@@ -3838,12 +3907,24 @@ export function initGame() {
           const img = frames[Math.floor(globalTime * 3.5) % frames.length];
           drawPixelEllipseShadow(sx, sy, 6, 3);
           ctx.drawImage(img, Math.round(sx - img.width / 2), sy - img.height + 2);
-          ctx.font = 'bold 5px "Silkscreen", monospace';
+
+          // Clear, High-Contrast Order Banner Plaque
+          ctx.font = '700 9px "Pixelify Sans", "Silkscreen", sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillStyle = '#05070f';
-          ctx.fillText(`<${b.orderTag}>`, sx + 1, sy - img.height);
+          const bannerTag = `<${b.orderTag || 'STANDARD'}>`;
+          const bw = Math.ceil(ctx.measureText(bannerTag).width);
+          const bpx = Math.round(sx - (bw + 6) / 2);
+          const bpy = sy - img.height - 8;
+          ctx.fillStyle = 'rgba(5, 7, 15, 0.88)';
+          ctx.fillRect(bpx, bpy, bw + 6, 11);
           ctx.fillStyle = b.color || '#fde047';
-          ctx.fillText(`<${b.orderTag}>`, sx, sy - img.height - 1);
+          ctx.fillRect(bpx, bpy + 10, bw + 6, 1);
+          ctx.fillStyle = '#000000';
+          for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+            ctx.fillText(bannerTag, sx + ox, bpy + 8 + oy);
+          }
+          ctx.fillStyle = b.color || '#fde047';
+          ctx.fillText(bannerTag, sx, bpy + 8);
         },
       });
     }
@@ -3858,13 +3939,33 @@ export function initGame() {
           const img = sprList[Math.floor(globalTime * 2.2) % sprList.length];
           drawPixelEllipseShadow(sx, sy, 9, 3);
           ctx.drawImage(img, Math.round(sx - img.width / 2), sy - img.height + 3);
+
+          // Animated quest marker above head
           const bounce = Math.floor(Math.sin(globalTime * 3.5) * 1.5);
-          const qy = sy - img.height - 9 + bounce;
+          const qy = sy - img.height - 21 + bounce;
           ctx.fillStyle = '#070a12';
-          ctx.fillRect(sx - 2, qy - 1, 4, 9);
+          ctx.fillRect(sx - 3, qy - 1, 6, 11);
           ctx.fillStyle = '#fde047';
-          ctx.fillRect(sx - 1, qy, 2, 4);
-          ctx.fillRect(sx - 1, qy + 6, 2, 2);
+          ctx.fillRect(sx - 1.5, qy, 3, 5);
+          ctx.fillRect(sx - 1.5, qy + 7, 3, 2.5);
+
+          // Overhead High-Contrast NPC Badge
+          ctx.font = '700 9.5px "Pixelify Sans", "Silkscreen", sans-serif';
+          ctx.textAlign = 'center';
+          const npcName = npc.name || 'Herald Lyra';
+          const nw = Math.ceil(ctx.measureText(npcName).width);
+          const npx = Math.round(sx - (nw + 8) / 2);
+          const npy = sy - img.height - 9;
+          ctx.fillStyle = 'rgba(5, 7, 18, 0.90)';
+          ctx.fillRect(npx, npy - 1, nw + 8, 12);
+          ctx.fillStyle = '#fde047';
+          ctx.fillRect(npx, npy + 10, nw + 8, 1);
+          ctx.fillStyle = '#000000';
+          for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+            ctx.fillText(npcName, sx + ox, npy + 8 + oy);
+          }
+          ctx.fillStyle = '#fde047';
+          ctx.fillText(npcName, sx, npy + 8);
         },
       });
     }
@@ -3948,20 +4049,50 @@ export function initGame() {
           }
           ctx.restore();
 
-          // Portal destination label
+          // Portal destination badge & interact prompt
           if (ent.type === 'portal') {
-            ctx.font = 'bold 5px "Silkscreen", monospace';
+            ctx.font = '700 9.5px "Pixelify Sans", "Silkscreen", sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillStyle = '#05070f';
-            ctx.fillText(ent.name, sx + 1, sy - img.height);
+            const nameStr = ent.name;
+            const subStr = ent.sub || 'Step In [W]';
+            const nw = Math.ceil(ctx.measureText(nameStr).width);
+            const badgeW = Math.max(nw + 12, 64);
+            const badgeH = 17;
+            const bx = Math.round(sx - badgeW / 2);
+            const by = Math.round(sy - img.height - 17);
+
+            // Dark plaque with cyan cybernetic border
+            ctx.fillStyle = 'rgba(5, 9, 24, 0.92)';
+            ctx.fillRect(bx, by, badgeW, badgeH);
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(bx, by, badgeW, 1);
+            ctx.fillRect(bx, by + badgeH - 1, badgeW, 1);
+            ctx.fillRect(bx, by, 1, badgeH);
+            ctx.fillRect(bx + badgeW - 1, by, 1, badgeH);
+
+            // Nameplate text with 4-way stroke
+            ctx.fillStyle = '#000000';
+            for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+              ctx.fillText(nameStr, sx + ox, by + 8.5 + oy);
+            }
             ctx.fillStyle = '#7dd3fc';
-            ctx.fillText(ent.name, sx, sy - img.height - 1);
+            ctx.fillText(nameStr, sx, by + 8.5);
+
+            // Subtitle prompt
+            ctx.font = '600 7.5px "Pixelify Sans", sans-serif';
+            ctx.fillStyle = '#000000';
+            ctx.fillText(subStr, sx + 0.5, by + 15.5);
+            ctx.fillStyle = '#fde047';
+            ctx.fillText(subStr, sx, by + 15);
           } else if (!ent.isDying) {
             const val = ent.hp ?? ent.charges ?? 0;
             const max = ent.maxHp ?? ent.maxCharges ?? 1;
-            const bw = ent.isBoss || ent.type === 'nexus' || ent.type === 'ally_nexus' || ent.type === 'outpost_nexus' ? 30 : 20;
+            const isBossOrCore = ent.isBoss || ent.type === 'nexus' || ent.type === 'ally_nexus' || ent.type === 'outpost_nexus' || ent.type === 'siege_shard';
+            const bw = isBossOrCore ? 34 : 22;
             const bx = Math.round(sx - bw / 2);
             const by = Math.round(sy - img.height - 5);
+
+            // Dark border & healthbar fill
             ctx.fillStyle = '#070a12';
             ctx.fillRect(bx - 1, by - 1, bw + 2, 5);
             ctx.fillStyle = '#1e293b';
@@ -3973,6 +4104,42 @@ export function initGame() {
               ent.type === 'ally_nexus' ? '#38bdf8' :
               '#ef4444';
             ctx.fillRect(bx, by, Math.round((val / max) * bw), 3);
+
+            // Overhead entity label for Bosses, Objectives, Targeted entity, Dummy, or nearby entities
+            const isTargeted = currentTarget && currentTarget.id === ent.id;
+            const dPlayer = Math.hypot(ent.x - player.x, ent.y - player.y);
+            const showName = isBossOrCore || isTargeted || dPlayer < 95 || ent.type === 'dummy' || (ent.type === 'node' && dPlayer < 120);
+
+            if (showName) {
+              ctx.font = isBossOrCore ? '700 9px "Pixelify Sans", sans-serif' : '600 8px "Pixelify Sans", sans-serif';
+              ctx.textAlign = 'center';
+              const label = ent.type === 'dummy'
+                ? 'Training Dummy'
+                : ent.type === 'node'
+                  ? (ent.charges > 0 ? `${ent.name} [E]` : 'Depleted Node')
+                  : ent.isBoss
+                    ? `★ ${ent.name}`
+                    : ent.name;
+
+              const lw = Math.ceil(ctx.measureText(label).width);
+              const lpx = Math.round(sx - (lw + 6) / 2);
+              const lpy = Math.round(by - (isBossOrCore ? 12 : 10));
+              const badgeColor = isBossOrCore ? '#facc15' : isTargeted ? '#38bdf8' : ent.type === 'node' ? '#c084fc' : '#ffffff';
+
+              ctx.fillStyle = 'rgba(5, 7, 16, 0.88)';
+              ctx.fillRect(lpx, lpy, lw + 6, isBossOrCore ? 11 : 9.5);
+              if (isBossOrCore || isTargeted) {
+                ctx.fillStyle = badgeColor;
+                ctx.fillRect(lpx, lpy + (isBossOrCore ? 10 : 8.5), lw + 6, 1);
+              }
+
+              ctx.fillStyle = '#000000';
+              for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+                ctx.fillText(label, sx + ox, lpy + (isBossOrCore ? 8 : 7) + oy);
+              }
+              ctx.fillStyle = badgeColor;
+              ctx.fillText(label, sx, lpy + (isBossOrCore ? 8 : 7));
+            }
           }
         },
       });
@@ -4188,20 +4355,61 @@ export function initGame() {
     }
   }
 
+  function getOpenWorldSubRegion(px, py) {
+    if (Math.abs(px) <= 240 && Math.abs(py) <= 200) return 'THE NEXUS CALDERA';
+    if (px < -200 && py < -160) return 'TERRA IRONWOOD WILDS';
+    if (px > 200 && py < -160) return 'UMBRI SHADOW FENS';
+    if (px < -200 && py > 160) return 'SOLARI SUN-PLAINS';
+    if (px > 200 && py > 160) return 'AETHER ASTRAL PLATEAU';
+    if (py > 750) return 'SOUTH SANCTUARY REACH';
+    if (py < -750) return 'NORTH RUINS APPROACH';
+    return 'IMPERIAL HIGHWAY';
+  }
+
   function renderMinimap() {
     mmCtx.imageSmoothingEnabled = false;
     mmCtx.fillStyle = '#070b18';
     mmCtx.fillRect(0, 0, 128, 128);
 
-    mmCtx.fillStyle = '#111c33';
-    for (let g = 16; g < 128; g += 16) {
-      mmCtx.fillRect(g, 0, 1, 128);
-      mmCtx.fillRect(0, g, 128, 1);
-    }
-
+    const isContinent = mapBounds.halfW >= 1000;
     const cx = 64;
     const cy = 64;
-    const scale = 0.16;
+    const scale = isContinent ? 0.038 : 0.16;
+
+    // Real-Time Continental Sub-Region Banner Update
+    if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
+      const sub = getOpenWorldSubRegion(player.x, player.y);
+      const zoneTitle = document.getElementById('minimap-zone-title');
+      const zoneLabel = document.getElementById('zone-label');
+      if (zoneTitle) zoneTitle.innerText = `OPEN WORLD • ${sub}`;
+      if (zoneLabel) zoneLabel.innerText = sub;
+    }
+
+    // Draw continent quadrant backdrop when on Nexus Continent
+    if (isContinent) {
+      // NW Terra Wilds
+      mmCtx.fillStyle = 'rgba(34, 197, 94, 0.09)';
+      mmCtx.fillRect(Math.round(cx + (-mapBounds.halfW - player.x) * scale), Math.round(cy + (-mapBounds.halfH - player.y) * scale), Math.round(mapBounds.halfW * scale), Math.round(mapBounds.halfH * scale));
+      // NE Umbri Fens
+      mmCtx.fillStyle = 'rgba(168, 85, 247, 0.09)';
+      mmCtx.fillRect(Math.round(cx + (0 - player.x) * scale), Math.round(cy + (-mapBounds.halfH - player.y) * scale), Math.round(mapBounds.halfW * scale), Math.round(mapBounds.halfH * scale));
+      // SW Solari Plains
+      mmCtx.fillStyle = 'rgba(234, 179, 8, 0.09)';
+      mmCtx.fillRect(Math.round(cx + (-mapBounds.halfW - player.x) * scale), Math.round(cy + (0 - player.y) * scale), Math.round(mapBounds.halfW * scale), Math.round(mapBounds.halfH * scale));
+      // SE Aether Plateau
+      mmCtx.fillStyle = 'rgba(56, 189, 248, 0.09)';
+      mmCtx.fillRect(Math.round(cx + (0 - player.x) * scale), Math.round(cy + (0 - player.y) * scale), Math.round(mapBounds.halfW * scale), Math.round(mapBounds.halfH * scale));
+      // Highway Grid Lines on Minimap
+      mmCtx.fillStyle = 'rgba(148, 163, 184, 0.28)';
+      mmCtx.fillRect(Math.round(cx + (0 - player.x) * scale) - 1, 0, 3, 128);
+      mmCtx.fillRect(0, Math.round(cy + (0 - player.y) * scale) - 1, 128, 3);
+    } else {
+      mmCtx.fillStyle = '#111c33';
+      for (let g = 16; g < 128; g += 16) {
+        mmCtx.fillRect(g, 0, 1, 128);
+        mmCtx.fillRect(0, g, 128, 1);
+      }
+    }
 
     mmCtx.strokeStyle = '#1e3a8a';
     mmCtx.strokeRect(
@@ -4227,8 +4435,9 @@ export function initGame() {
         e.type === 'ally_nexus' ? '#3b82f6' :
         e.type === 'node' ? '#c084fc' :
         e.type === 'portal' ? '#7dd3fc' :
+        e.isBoss ? '#facc15' :
         '#ef4444';
-      const sz = e.isBoss || e.type === 'nexus' || e.type === 'outpost_nexus' || e.type === 'siege_shard' ? 6 : 4;
+      const sz = e.isBoss || e.type === 'nexus' || e.type === 'outpost_nexus' || e.type === 'siege_shard' ? (isContinent ? 5 : 6) : (isContinent ? 3 : 4);
       mmCtx.fillRect(ex - (sz >> 1), ey - (sz >> 1), sz, sz);
     }
 
@@ -4242,6 +4451,7 @@ export function initGame() {
       mmCtx.fillRect(rx - 2, ry - 2, 4, 4);
     }
 
+    // Local Player Blip (Glowing Gold + White Core)
     mmCtx.fillStyle = '#facc15';
     mmCtx.fillRect(cx - 2, cy - 2, 5, 5);
     mmCtx.fillStyle = '#ffffff';

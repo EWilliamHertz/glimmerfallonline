@@ -6,7 +6,7 @@
   <title>GlimmerFall Online — 2D Pixel MMORPG</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;600;700&family=Press+Start+2P&family=Silkscreen:wght@400;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after {
       margin: 0;
@@ -26,8 +26,9 @@
     }
 
     :root {
-      --font-pixel: 'Silkscreen', 'Press Start 2P', 'Courier New', monospace;
-      --font-header: 'Press Start 2P', 'Silkscreen', monospace;
+      --font-pixel: 'Pixelify Sans', 'Silkscreen', 'Press Start 2P', monospace;
+      --font-header: 'Press Start 2P', 'Pixelify Sans', monospace;
+      --font-clean: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       --bg-panel: rgba(11, 16, 30, 0.94);
       --border-hi: #38bdf8;
       --border-gold: #facc15;
@@ -818,14 +819,21 @@
     }
     .fct-text {
       position: absolute;
-      font-family: var(--font-header);
-      font-size: 10.5px;
-      text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+      font-family: 'Pixelify Sans', 'Outfit', sans-serif;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 2px 4px rgba(0, 0, 0, 0.9);
       pointer-events: none;
       transform: translate(-50%, -50%);
       animation: pixelFloat 0.95s steps(12) forwards;
     }
-    .fct-crit { font-size: 13px; }
+    .fct-crit {
+      font-size: 14.5px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 2px 6px rgba(250, 204, 21, 0.75);
+    }
     @keyframes pixelFloat {
       0% { opacity: 1; transform: translate(-50%, 0); }
       75% { opacity: 1; transform: translate(-50%, -34px); }
