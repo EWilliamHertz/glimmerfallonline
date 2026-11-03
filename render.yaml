@@ -1,0 +1,18 @@
+# Render Blueprint — free always-on-demand host for the GlimmerFall 20Hz WebSocket game server.
+# Render > New > Blueprint > pick this repo > paste DATABASE_URL when asked.
+services:
+  - type: web
+    name: glimmerfall-online
+    runtime: node
+    plan: free
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: node server/index.js
+    healthCheckPath: /api/status
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      # Same Neon connection string you set in Vercel. It also derives the shared login-token
+      # secret, so accounts/logins work on both hosts.
+      - key: DATABASE_URL
+        sync: false

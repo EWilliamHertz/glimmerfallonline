@@ -45,3 +45,19 @@ cp .env.example .env
 # 3. Start both the 20Hz Authoritative MMO Server (:3001) + Vite Client (:8080)
 npm start
 ```
+
+## Hosting online multiplayer for free (Vercel + Render)
+
+Vercel can serve the web client and the login/character `/api`, but serverless functions cannot hold the 20 Hz
+WebSocket game loop. Run the game server (`server/index.js`) on a free Node host and point the Vercel client at it:
+
+1. **Render** (free): *New → Blueprint →* this repo (uses [render.yaml](render.yaml)). Paste your Neon `DATABASE_URL`.
+   You get e.g. `https://glimmerfall-online.onrender.com` — this URL alone is already a full playable site.
+2. **Vercel**: *Settings → Environment Variables →* `DATABASE_URL` (same Neon string) and
+   `VITE_GAME_SERVER_URL=https://glimmerfall-online.onrender.com`, then redeploy.
+3. *(Optional)* GitHub → *Settings → Variables → Actions →* `GAME_SERVER_URL` = the Render URL. The
+   [keepalive](.github/workflows/keepalive.yml) workflow pings it every 10 min so it doesn't sleep.
+
+Because both hosts share the same `DATABASE_URL`, accounts and characters made on either one work on the other.
+If the free server is asleep, login falls back to Vercel's `/api` and the game connects as soon as it wakes (~30–50 s).
+Players can also override the server from the `[O]` Social modal or `?server=https://...`.

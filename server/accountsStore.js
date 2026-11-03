@@ -217,11 +217,11 @@ export class AccountsStore {
     return acc;
   }
 
-  async ensureFreshFromPostgres({ id = null, username = null } = {}) {
+  async ensureFreshFromPostgres({ id = null, username = null, force = false } = {}) {
     if (!this.db) return;
     try {
       let accRow = null;
-      if (id && !this.accountsById.has(id)) {
+      if (id && (force || !this.accountsById.has(id))) {
         const res = await this.db.query('SELECT * FROM glimmerfall_accounts WHERE id = $1 LIMIT 1', [id]);
         accRow = res.rows[0] || null;
       } else if (username) {

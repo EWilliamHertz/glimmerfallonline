@@ -30,6 +30,14 @@ export class MultiplayerClient {
     }
   }
 
+  getDefaultServerBase() {
+    try {
+      const env = import.meta.env?.VITE_GAME_SERVER_URL;
+      if (env) return String(env).trim().replace(/\/+$/, '');
+    } catch (_) {}
+    return '';
+  }
+
   getServerBase() {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -42,7 +50,15 @@ export class MultiplayerClient {
       const stored = localStorage.getItem('glimmerfall_server_url');
       if (stored) return stored.trim().replace(/\/+$/, '');
     } catch (_) {}
-    return '';
+    return this.getDefaultServerBase();
+  }
+
+  // Free hosts (Render etc.) sleep when idle — poke the game server as early as possible
+  // so it is awake by the time the player finishes the character screen.
+  wakeServer() {
+    const base = this.getServerBase();
+    if (!base || typeof fetch === 'undefined') return;
+    fetch(`${base}/api/status`, { mode: 'cors', headers: { 'ngrok-skip-browser-warning': '1' } }).catch(() => {});
   }
 
   setServerBase(url) {
@@ -78,8 +94,13 @@ export class MultiplayerClient {
     } catch (_) {}
 
     // 2. Ensure valid guest or persistent GlimmerFall ID token via /api/auth/guest
+    this.wakeServer();
     try {
-      const res = await fetch('/api/auth/guest', {
+      const gBase = this.getServerBase();
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const abortTimer = ctrl ? setTimeout(() => ctrl.abort(), 7000) : null;
+      const res = await fetch(`${gBase}/api/auth/guest`, {
+        signal: ctrl ? ctrl.signal : undefined,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -90,6 +111,7 @@ export class MultiplayerClient {
           clientProgression,
         }),
       });
+      if (abortTimer) clearTimeout(abortTimer);
       if (res.ok) {
         const data = await res.json();
         if (data.token) this.saveStoredToken(data.token);
@@ -111,6 +133,11 @@ export class MultiplayerClient {
       try { this.ws.close(); } catch (_) {}
       this.ws = null;
     }
+
+    const qs = new URLSearchParams();
+    if (this.token) qs.set('token', this.token);
+    if (this.preferredRoom) qs.set('room', this.preferredRoom);
+    const qStr = qs.toString() ? `?${qs.toString()}` : '';
 
     const serverBase = this.getServerBase();
     let url;
@@ -230,10 +257,8 @@ export class MultiplayerClient {
 
   async apiCall(path, method = 'POST', body = null) {
     const base = this.getServerBase();
-    const fullUrl = base ? `${base}${path}` : path;
-    let res;
-    try {
-      res = await fetch(fullUrl, {
+    const doFetch = (url) =>
+      fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -242,14 +267,28 @@ export class MultiplayerClient {
         },
         body: body ? JSON.stringify(body) : undefined,
       });
+
+    let res;
+    try {
+      res = await doFetch(base ? `${base}${path}` : path);
     } catch (_networkErr) {
-      const action = MultiplayerClient.WS_RPC_MAP[`${method} ${path}`];
-      if (action) {
-        const data = await this.wsRpc(action, body || {});
-        if (!data.ok) throw new Error(data.error || 'Server request failed');
-        return data;
+      // Game server asleep/unreachable: same-origin serverless /api (Vercel) shares the same Neon DB
+      if (base) {
+        try {
+          res = await doFetch(path);
+        } catch (_) {
+          res = null;
+        }
       }
-      throw new Error('Cannot reach the GlimmerFall server. Check your connection and try again.');
+      if (!res) {
+        const action = MultiplayerClient.WS_RPC_MAP[`${method} ${path}`];
+        if (action && this.ws && this.ws.readyState === 1) {
+          const data = await this.wsRpc(action, body || {});
+          if (!data.ok) throw new Error(data.error || 'Server request failed');
+          return data;
+        }
+        throw new Error('Cannot reach the GlimmerFall server. If it was idle it may be waking up — wait ~30s and try again.');
+      }
     }
 
     if (res.status === 404 && this.ws && this.ws.readyState === 1) {

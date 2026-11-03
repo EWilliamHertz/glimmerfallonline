@@ -352,6 +352,16 @@ export function createGlimmerFallServer() {
       return;
     }
 
+    // Accounts/characters created or edited through the Vercel serverless /api live only in Neon;
+    // pull the latest copy before authenticating so the WS session sees them.
+    // (Skip the forced reload if that account is already online here, to protect unsaved progress.)
+    try {
+      const sub = accounts.decodeTokenSubject(url.searchParams.get('token'));
+      if (sub) {
+        await accounts.ensureFreshFromPostgres({ id: sub, force: !rooms.clients.has(sub) });
+      }
+    } catch (_) {}
+
     wss.handleUpgrade(req, socket, head, (ws) => {
       wss.emit('connection', ws, req, url);
     });
