@@ -203,6 +203,70 @@ export class RoomManager {
           dammers: new Set(),
         },
         {
+          id: 'tut_stalker_1',
+          name: 'Void Stalker Scout',
+          sub: 'Lv.1 Umbri Minion (Training)',
+          type: 'mob',
+          spriteKey: 'voidStalker',
+          x: -85,
+          y: -45,
+          origX: -85,
+          origY: -45,
+          hp: 20,
+          maxHp: 20,
+          damage: 3,
+          xpReward: 35,
+          speed: 48,
+          aggroRange: 105,
+          attackRange: 26,
+          radius: 15,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          id: 'tut_stalker_2',
+          name: 'Void Stalker Raider',
+          sub: 'Lv.2 Umbri Minion (Training)',
+          type: 'mob',
+          spriteKey: 'voidStalker',
+          x: 85,
+          y: -45,
+          origX: 85,
+          origY: -45,
+          hp: 25,
+          maxHp: 25,
+          damage: 3,
+          xpReward: 45,
+          speed: 50,
+          aggroRange: 105,
+          attackRange: 26,
+          radius: 15,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          id: 'tut_behemoth',
+          name: 'Granite Bouldergut',
+          sub: '★ Lv.3 Terra Training Golem',
+          type: 'mob',
+          isBoss: true,
+          spriteKey: 'graniteBoss',
+          x: 0,
+          y: -90,
+          origX: 0,
+          origY: -90,
+          hp: 45,
+          maxHp: 45,
+          damage: 5,
+          xpReward: 85,
+          speed: 36,
+          aggroRange: 115,
+          attackRange: 32,
+          radius: 20,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
           id: 'tut_font',
           name: 'Awakening Glimmer Node',
           sub: 'Glimmer Leyline Spire [E]',
@@ -1954,7 +2018,12 @@ export class RoomManager {
       if (!t || t.isDying) return;
       t.hp = Math.max(0, t.hp - dmg);
       t.hitFlash = 0.14;
-      if (t.type === 'mob') t.inCombat = true;
+      if (t.type === 'mob') {
+        if (!t.inCombat) {
+          room.fxQueue.push({ kind: 'fct', x: t.x, y: t.y - 12, text: 'AGGRO!', color: '#ef4444' });
+        }
+        t.inCombat = true;
+      }
       if (attackerPlayer && t.dammers) t.dammers.add(attackerPlayer.id);
 
       room.fxQueue.push({
@@ -2551,16 +2620,19 @@ export class RoomManager {
           e.inCombat = false;
         } else if (nearestPlayer && !e.inCombat && bestD <= e.aggroRange) {
           e.inCombat = true;
+          room.fxQueue.push({ kind: 'fct', x: e.x, y: e.y - 12, text: 'AGGRO!', color: '#ef4444' });
         }
 
         const speedMult = e.snareTimer > 0 ? 0.35 : e.slowTimer > 0 ? 0.55 : 1.0;
 
         if (e.inCombat && nearestPlayer) {
-          const distHome = Math.hypot((e.origX ?? e.x) - e.x, (e.origY ?? e.y) - e.y);
-          if (room.type !== ROOM_TYPES.ARENA_3V3 && distHome > 255) {
+          const origX = e.origX ?? e.x;
+          const origY = e.origY ?? e.y;
+          const distHome = Math.hypot(origX - e.x, origY - e.y);
+          if (room.type !== ROOM_TYPES.ARENA_3V3 && distHome > 240) {
             e.inCombat = false;
-            e.x = e.origX;
-            e.y = e.origY;
+            e.x = origX;
+            e.y = origY;
             e.hp = e.maxHp;
             e.dammers = new Set();
             room.fxQueue.push({ kind: 'fct', x: e.x, y: e.y, text: 'EVADED', color: '#94a3b8' });
@@ -2747,6 +2819,7 @@ export class RoomManager {
       maxCharges: e.maxCharges,
       radius: e.radius,
       frozen: (e.freezeTimer || 0) > 0,
+      inCombat: Boolean(e.inCombat),
       isDying: Boolean(e.isDying),
       deathAge: e.deathAge ? Math.round(e.deathAge * 100) / 100 : 0,
     }));

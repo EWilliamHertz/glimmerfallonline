@@ -942,7 +942,11 @@ export function initGame() {
       player.y = 96;
       entities.push(
         { id: 'dummy_1', name: 'Sanctuary Dummy', sub: 'Lv.1 Awakening Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: 12, origX: 0, origY: 12, hp: 30, maxHp: 30, xpReward: 30, radius: 14, hitFlash: 0 },
+        { id: 'tut_stalker_1', name: 'Void Stalker Scout', sub: 'Lv.1 Umbri Minion (Training)', type: 'mob', spriteKey: 'voidStalker', x: -85, y: -45, origX: -85, origY: -45, hp: 20, maxHp: 20, damage: 3, xpReward: 35, speed: 48, aggroRange: 105, attackRange: 26, radius: 15, hitFlash: 0 },
+        { id: 'tut_stalker_2', name: 'Void Stalker Raider', sub: 'Lv.2 Umbri Minion (Training)', type: 'mob', spriteKey: 'voidStalker', x: 85, y: -45, origX: 85, origY: -45, hp: 25, maxHp: 25, damage: 3, xpReward: 45, speed: 50, aggroRange: 105, attackRange: 26, radius: 15, hitFlash: 0 },
+        { id: 'tut_behemoth', name: 'Granite Bouldergut', sub: '★ Lv.3 Terra Training Golem', type: 'mob', isBoss: true, spriteKey: 'graniteBoss', x: 0, y: -90, origX: 0, origY: -90, hp: 45, maxHp: 45, damage: 5, xpReward: 85, speed: 36, aggroRange: 115, attackRange: 32, radius: 20, hitFlash: 0 },
         { id: 'tut_font', name: 'Awakening Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'tut_font_2', name: 'East Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
         { id: 'portal_main', name: 'Nexus Warzone Rift', sub: 'Step In -> Nexus Warzone', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_WARZONE, spriteKey: 'portal', x: 0, y: -158, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 },
         { id: 'portal_solari', name: 'Lantern District Gate', sub: '☀️ Solari Dungeon', type: 'portal', targetRoom: ROOM_TYPES.SOLARI_CITADEL, spriteKey: 'portal', x: -128, y: -136, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
         { id: 'portal_umbri', name: 'Sepulcher Undercity Rift', sub: '🌑 Umbri Dungeon', type: 'portal', targetRoom: ROOM_TYPES.UMBRI_UNDERCITY, spriteKey: 'portal', x: 128, y: -136, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
@@ -955,38 +959,40 @@ export function initGame() {
       entities.push(
         { id: 'blue_nexus', name: 'Solari Sanctuary Nexus', sub: '25 HP Ally Core', type: 'ally_nexus', spriteKey: 'nexusBlue', x: 0, y: 220, hp: 25, maxHp: 25, radius: 22, hitFlash: 0 },
         { id: 'red_nexus', name: 'Umbri Dominion Nexus', sub: '25 HP Enemy Core', type: 'nexus', spriteKey: 'nexusRed', x: 0, y: -215, hp: 25, maxHp: 25, xpReward: 220, radius: 22, hitFlash: 0 },
-        { id: 'enemy_1', name: 'Void Stalker [Umbri]', sub: 'Enemy Vanguard', type: 'mob', spriteKey: 'voidStalker', x: -64, y: -85, origX: -64, origY: -85, hp: 25, maxHp: 25, damage: 4, xpReward: 65, speed: 54, aggroRange: 230, attackRange: 28, radius: 15, hitFlash: 0 }
+        { id: 'enemy_1', name: 'Void Stalker [Umbri]', sub: 'Enemy Vanguard', type: 'mob', spriteKey: 'voidStalker', x: -64, y: -85, origX: -64, origY: -85, hp: 25, maxHp: 25, damage: 4, xpReward: 65, speed: 54, aggroRange: 230, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'enemy_2', name: 'Gloam Reaper [Umbri]', sub: 'Enemy Harvester', type: 'mob', spriteKey: 'voidStalker', x: 0, y: -105, origX: 0, origY: -105, hp: 22, maxHp: 22, damage: 4, xpReward: 65, speed: 60, aggroRange: 230, attackRange: 26, radius: 14, hitFlash: 0 },
+        { id: 'enemy_3', name: 'Brambleheart Behemoth', sub: 'Enemy Terra Titan', type: 'mob', isBoss: true, spriteKey: 'graniteBoss', x: 64, y: -85, origX: 64, origY: -85, hp: 34, maxHp: 34, damage: 5, xpReward: 110, speed: 42, aggroRange: 230, attackRange: 32, radius: 20, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.SOLARI_CITADEL) {
       player.x = 0;
       player.y = 170;
       entities.push(
-        { id: 'sol_mob_1', name: 'Sunforged Sentinel', sub: 'Lv.3 Solari Construct', type: 'mob', spriteKey: 'solariSentinel', x: -75, y: 35, origX: -75, origY: 35, hp: 36, maxHp: 36, damage: 4, xpReward: 65, radius: 15, hitFlash: 0 },
-        { id: 'sol_boss', name: 'High Sunfire Colossus', sub: '★ Lv.6 Golden Citadel Boss', type: 'mob', isBoss: true, spriteKey: 'solariBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 85, maxHp: 85, damage: 6, xpReward: 185, radius: 22, hitFlash: 0 },
+        { id: 'sol_mob_1', name: 'Sunforged Sentinel', sub: 'Lv.3 Solari Construct', type: 'mob', spriteKey: 'solariSentinel', x: -75, y: 35, origX: -75, origY: 35, hp: 36, maxHp: 36, damage: 4, xpReward: 65, speed: 52, aggroRange: 112, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'sol_boss', name: 'High Sunfire Colossus', sub: '★ Lv.6 Golden Citadel Boss', type: 'mob', isBoss: true, spriteKey: 'solariBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 85, maxHp: 85, damage: 6, xpReward: 185, speed: 40, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         { id: 'portal_hub', name: 'Return to Sanctuary', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 205, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.UMBRI_UNDERCITY) {
       player.x = 0;
       player.y = 170;
       entities.push(
-        { id: 'umb_mob_1', name: 'Duskveil Stalker', sub: 'Lv.3 Umbri Assassin', type: 'mob', spriteKey: 'voidStalker', x: -80, y: 30, origX: -80, origY: 30, hp: 34, maxHp: 34, damage: 5, xpReward: 65, radius: 15, hitFlash: 0 },
-        { id: 'umb_boss', name: 'Graveglass Archlich', sub: '★ Lv.6 Sepulcher Boss', type: 'mob', isBoss: true, spriteKey: 'umbriBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 80, maxHp: 80, damage: 7, xpReward: 185, radius: 22, hitFlash: 0 },
+        { id: 'umb_mob_1', name: 'Duskveil Stalker', sub: 'Lv.3 Umbri Assassin', type: 'mob', spriteKey: 'voidStalker', x: -80, y: 30, origX: -80, origY: 30, hp: 34, maxHp: 34, damage: 5, xpReward: 65, speed: 55, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'umb_boss', name: 'Graveglass Archlich', sub: '★ Lv.6 Sepulcher Boss', type: 'mob', isBoss: true, spriteKey: 'umbriBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 80, maxHp: 80, damage: 7, xpReward: 185, speed: 40, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         { id: 'portal_hub', name: 'Return to Sanctuary', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 205, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.TERRA_ORCHARD) {
       player.x = 0;
       player.y = 170;
       entities.push(
-        { id: 'ter_mob_1', name: 'Bramble Treant', sub: 'Lv.3 Terra Guardian', type: 'mob', spriteKey: 'terraWarden', x: -78, y: 32, origX: -78, origY: 32, hp: 40, maxHp: 40, damage: 4, xpReward: 65, radius: 16, hitFlash: 0 },
-        { id: 'ter_boss', name: 'Elder Rootdeep Behemoth', sub: '★ Lv.6 Orchard Boss', type: 'mob', isBoss: true, spriteKey: 'graniteBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 95, maxHp: 95, damage: 6, xpReward: 185, radius: 22, hitFlash: 0 },
+        { id: 'ter_mob_1', name: 'Bramble Treant', sub: 'Lv.3 Terra Guardian', type: 'mob', spriteKey: 'terraWarden', x: -78, y: 32, origX: -78, origY: 32, hp: 40, maxHp: 40, damage: 4, xpReward: 65, speed: 52, aggroRange: 112, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'ter_boss', name: 'Elder Rootdeep Behemoth', sub: '★ Lv.6 Orchard Boss', type: 'mob', isBoss: true, spriteKey: 'graniteBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 95, maxHp: 95, damage: 6, xpReward: 185, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         { id: 'portal_hub', name: 'Return to Sanctuary', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 205, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.AETHER_SPIRE) {
       player.x = 0;
       player.y = 170;
       entities.push(
-        { id: 'aeth_mob_1', name: 'Chrono Anomaly', sub: 'Lv.3 Aether Construct', type: 'mob', spriteKey: 'aetherWeaver', x: -78, y: 32, origX: -78, origY: 32, hp: 34, maxHp: 34, damage: 5, xpReward: 65, radius: 15, hitFlash: 0 },
-        { id: 'aeth_boss', name: 'Archon of the Continuum', sub: '★ Lv.6 Mirrorgate Boss', type: 'mob', isBoss: true, spriteKey: 'aetherBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 82, maxHp: 82, damage: 7, xpReward: 185, radius: 22, hitFlash: 0 },
+        { id: 'aeth_mob_1', name: 'Chrono Anomaly', sub: 'Lv.3 Aether Construct', type: 'mob', spriteKey: 'aetherWeaver', x: -78, y: 32, origX: -78, origY: 32, hp: 34, maxHp: 34, damage: 5, xpReward: 65, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'aeth_boss', name: 'Archon of the Continuum', sub: '★ Lv.6 Mirrorgate Boss', type: 'mob', isBoss: true, spriteKey: 'aetherBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 82, maxHp: 82, damage: 7, xpReward: 185, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         { id: 'portal_hub', name: 'Return to Sanctuary', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 205, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
       );
     } else {
@@ -995,6 +1001,7 @@ export function initGame() {
       entities.push(
         { id: 'siege_shard', name: 'Shattered Nexus Shard', sub: '⚡ Siege Event Objective', type: 'siege_shard', isBoss: true, spriteKey: 'siegeShard', x: 0, y: -12, origX: 0, origY: -12, hp: 85, maxHp: 85, xpReward: 240, radius: 24, hitFlash: 0 },
         { id: 'umbri_1', name: 'Void Stalker', sub: 'Lv.2 Umbri Entity (AWK)', type: 'mob', spriteKey: 'voidStalker', x: -95, y: -25, origX: -95, origY: -25, hp: 30, maxHp: 30, damage: 4, xpReward: 55, speed: 52, aggroRange: 112, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'umbri_2', name: 'Duskblade Fiend', sub: 'Lv.3 Umbri Entity (AWK)', type: 'mob', spriteKey: 'voidStalker', x: 75, y: 35, origX: 75, origY: 35, hp: 26, maxHp: 26, damage: 4, xpReward: 60, speed: 58, aggroRange: 108, attackRange: 26, radius: 13, hitFlash: 0 },
         { id: 'terra_boss', name: 'Granite Behemoth', sub: '★ Lv.5 Terra World Boss', type: 'mob', isBoss: true, spriteKey: 'graniteBoss', x: 120, y: -105, origX: 120, origY: -105, hp: 60, maxHp: 60, damage: 6, xpReward: 135, speed: 38, aggroRange: 130, attackRange: 34, radius: 21, hitFlash: 0 },
         { id: 'portal_hub', name: 'Sanctuary Hub Rift', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 215, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 }
       );
@@ -1155,13 +1162,22 @@ export function initGame() {
     entities = (snap.entities || []).map((se) => {
       const prev = prevById.get(se.id);
       if (prev) {
-        prev.x = prev.x + (se.x - prev.x) * 0.45;
-        prev.y = prev.y + (se.y - prev.y) * 0.45;
+        if (Math.hypot(se.x - prev.x, se.y - prev.y) > 60) {
+          prev.x = se.x;
+          prev.y = se.y;
+        } else {
+          prev.x = prev.x + (se.x - prev.x) * 0.45;
+          prev.y = prev.y + (se.y - prev.y) * 0.45;
+        }
+        if (Math.abs(se.x - prev.x) > 0.5) {
+          prev.facingDir = se.x < prev.x ? -1 : 1;
+        }
         prev.hp = se.hp;
         prev.maxHp = se.maxHp;
         prev.charges = se.charges;
         prev.maxCharges = se.maxCharges;
         prev.frozen = se.frozen;
+        prev.inCombat = Boolean(se.inCombat);
         prev.isDying = Boolean(se.isDying);
         prev.deathAge = se.isDying ? Math.max(prev.deathAge || 0, se.deathAge || 0) : 0;
         return prev;
@@ -1692,6 +1708,12 @@ export function initGame() {
     if (!ent || ent.isDying || ent.type === 'node' || ent.type === 'portal') return;
     ent.hp = Math.max(0, ent.hp - dmg);
     ent.hitFlash = 0.14;
+    if (ent.type === 'mob') {
+      if (!ent.inCombat) {
+        spawnFCT(ent.x, ent.y - 12, 'AGGRO!', '#ef4444');
+      }
+      ent.inCombat = true;
+    }
     audio.playHit(isCrit);
     spawnSparkBurst(
       ent.x,
@@ -1739,6 +1761,65 @@ export function initGame() {
         }, 220);
       }
     }
+  }
+
+  function damageOfflinePlayer(amount, attackerName, attackerRef = null) {
+    if (player.isDead || player.hp <= 0) return;
+
+    // Terra Faction Mechanic: Thornbark damage reflection!
+    const reflectPct = player.thornbark ? 0.35 : localProfile.faction === 'Terra' ? 0.15 : 0;
+    if (reflectPct > 0 && attackerRef && attackerRef.hp !== undefined) {
+      const refl = Math.max(1, Math.round(amount * reflectPct));
+      damageOfflineEntity(attackerRef, refl, false, false, 'Thornbark');
+      spawnFCT(attackerRef.x, attackerRef.y - 8, `🌿 -${refl} THORNS`, '#4ade80');
+    }
+
+    let rem = amount;
+    if (player.shield > 0) {
+      const absorbed = Math.min(player.shield, rem);
+      player.shield -= absorbed;
+      rem -= absorbed;
+      spawnFCT(player.x, player.y - 12, `GUARD ${absorbed}`, '#38bdf8');
+    }
+
+    if (rem > 0) {
+      player.hp = Math.max(0, player.hp - rem);
+      audio.playHit(false);
+      spawnSparkBurst(player.x, player.y - 8, ['#ef4444', '#f87171', '#facc15'], 8);
+      spawnFCT(player.x, player.y - 10, `-${rem} HP`, '#ef4444');
+
+      const vig = document.getElementById('damage-vignette');
+      if (vig) {
+        vig.style.opacity = '0.65';
+        setTimeout(() => {
+          vig.style.opacity = '0';
+        }, 180);
+      }
+
+      logMessage(`[Combat] ${attackerName} strikes you for ${rem} damage!`, 'log-combat');
+
+      if (player.hp <= 0) {
+        player.isDead = true;
+        logMessage(`[Defeat] Slain by ${attackerName}! Re-anchoring at Sanctuary...`, 'log-danger', 'combat');
+        showDeathScreen(3);
+        setTimeout(() => {
+          player.isDead = false;
+          player.hp = player.maxHp;
+          player.shield = 0;
+          player.solarCharge = 0;
+          hideDeathScreen();
+          const cfg = ROOM_CONFIGS[ROOM_TYPES.SANCTUARY_HUB];
+          player.x = cfg.spawnX;
+          player.y = cfg.spawnY;
+          if (currentRoomType !== ROOM_TYPES.SANCTUARY_HUB) {
+            buildOfflineZone(ROOM_TYPES.SANCTUARY_HUB);
+          }
+          updatePlayerUI();
+          logMessage(`[Awakening] Re-anchored at Sanctuary!`, 'log-solari', 'quest');
+        }, 3000);
+      }
+    }
+    updatePlayerUI();
   }
 
   window.castAbility = function (slot) {
@@ -2872,6 +2953,81 @@ export function initGame() {
         if (e.deathAge >= 0.65) {
           entities.splice(i, 1);
         }
+        continue;
+      }
+
+      // Offline Mob AI: Aggro detection, pursuit, and combat attacks against the player
+      if (!net.connected && e.type === 'mob' && e.hp > 0) {
+        if (e.freezeTimer > 0) continue; // Frozen by Frost Nova
+
+        const dist = Math.hypot(player.x - e.x, player.y - e.y);
+        const aggroRange = e.aggroRange || (e.isBoss ? 130 : 110);
+        const attackRange = e.attackRange || (e.isBoss ? 34 : 28);
+        const speed = e.speed || (e.isBoss ? 38 : 52);
+        const playerStealthed = Boolean(player.stealthed);
+
+        // Proximity aggro trigger
+        if (!e.inCombat && !player.isDead && !playerStealthed && dist <= aggroRange) {
+          e.inCombat = true;
+          spawnFCT(e.x, e.y - 12, 'AGGRO!', '#ef4444');
+          audio.playHit(false);
+          logMessage(`[Aggro] ${e.name} targets you!`, 'log-combat');
+        }
+
+        if (e.inCombat) {
+          if (player.isDead || playerStealthed) {
+            e.inCombat = false;
+          }
+
+          // Leash check: return home if dragged too far
+          const origX = e.origX ?? e.x;
+          const origY = e.origY ?? e.y;
+          const distHome = Math.hypot(origX - e.x, origY - e.y);
+
+          if (distHome > 240) {
+            e.inCombat = false;
+            e.x = origX;
+            e.y = origY;
+            e.hp = e.maxHp;
+            spawnFCT(e.x, e.y - 12, 'EVADED', '#94a3b8');
+            logMessage(`[Combat] ${e.name} reset and returned to territory.`, 'log-combat');
+            continue;
+          }
+
+          if (e.inCombat) {
+            const speedMult = e.snareTimer > 0 ? 0.35 : e.slowTimer > 0 ? 0.55 : 1.0;
+            e.facingDir = player.x < e.x ? -1 : 1;
+
+            if (dist > attackRange) {
+              e.x += ((player.x - e.x) / dist) * speed * speedMult * dt;
+              e.y += ((player.y - e.y) / dist) * speed * speedMult * dt;
+            } else {
+              e.atkTimer = (e.atkTimer || 0) + dt;
+              if (e.atkTimer >= 1.85) {
+                e.atkTimer = 0;
+                const rawDmg = Math.max(1, (e.damage || (e.isBoss ? 6 : 4)) - (e.weakenTimer > 0 ? 2 : 0));
+                damageOfflinePlayer(rawDmg, e.name, e);
+                e.hitFlash = 0.12;
+              }
+            }
+          }
+        } else if (currentRoomType === ROOM_TYPES.ARENA_3V3) {
+          const blueNexus = entities.find((n) => n.id === 'blue_nexus' && !n.isDying);
+          if (blueNexus) {
+            const dn = Math.hypot(blueNexus.x - e.x, blueNexus.y - e.y);
+            const speedMult = e.snareTimer > 0 ? 0.35 : e.slowTimer > 0 ? 0.55 : 1.0;
+            if (dn > 32) {
+              e.x += ((blueNexus.x - e.x) / dn) * speed * speedMult * dt;
+              e.y += ((blueNexus.y - e.y) / dn) * speed * speedMult * dt;
+            } else {
+              e.atkTimer = (e.atkTimer || 0) + dt;
+              if (e.atkTimer >= 2.0) {
+                e.atkTimer = 0;
+                damageOfflineEntity(blueNexus, 2, false, false, e.name);
+              }
+            }
+          }
+        }
       }
     }
 
@@ -3211,7 +3367,15 @@ export function initGame() {
             ctx.scale(sc, sc);
             ctx.drawImage(img, -img.width / 2, -img.height / 2);
           } else {
-            ctx.drawImage(img, Math.round(sx + shakeX - img.width / 2), sy - img.height + 3);
+            if (ent.facingDir === -1) {
+              ctx.save();
+              ctx.translate(sx, 0);
+              ctx.scale(-1, 1);
+              ctx.drawImage(img, Math.round(-img.width / 2), sy - img.height + 3);
+              ctx.restore();
+            } else {
+              ctx.drawImage(img, Math.round(sx + shakeX - img.width / 2), sy - img.height + 3);
+            }
             if (ent.frozen) {
               ctx.strokeStyle = '#7dd3fc';
               ctx.strokeRect(sx - 9, sy - img.height + 4, 18, img.height - 2);
