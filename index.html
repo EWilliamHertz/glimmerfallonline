@@ -282,6 +282,58 @@
       margin-top: 4px;
     }
 
+    #arena-invite-toast {
+      position: absolute;
+      top: 392px;
+      left: 12px;
+      width: 262px;
+      display: none;
+      border-color: #38bdf8;
+      z-index: 30;
+      font-size: 9px;
+    }
+    .arena-slot-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+      margin: 8px 0;
+    }
+    .arena-slot {
+      background: #0d1324;
+      border: 2px dashed #334155;
+      padding: 6px 4px;
+      min-height: 46px;
+      text-align: center;
+      font-size: 8.5px;
+      color: #64748b;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+    }
+    .arena-slot.filled {
+      border-style: solid;
+      color: #f8fafc;
+      background: #101a33;
+    }
+    .arena-btn-primary {
+      width: 100%;
+      font-size: 10px;
+      padding: 9px 8px;
+      margin-top: 6px;
+    }
+    .arena-timer-bar {
+      height: 8px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      margin-top: 4px;
+    }
+    .arena-timer-fill {
+      height: 100%;
+      width: 0%;
+      background: #38bdf8;
+    }
+
     #party-invite-toast {
       position: absolute;
       top: 318px;
@@ -1177,6 +1229,15 @@
       </div>
     </div>
 
+    <div id="arena-invite-toast" class="panel">
+      <div style="font-family:var(--font-header); font-size:7.5px; color:#38bdf8; margin-bottom:4px;">⚔️ 3v3 ARENA LOBBY!</div>
+      <div id="arena-invite-txt" style="color:#f8fafc; margin-bottom:6px;">A champion is looking for a 3v3 match.</div>
+      <div style="display:flex; gap:6px;">
+        <button class="util-btn" style="flex:1; border-color:#4ade80; color:#4ade80; font-size:8px;" onclick="joinArenaFromInvite()">JOIN LOBBY ▸</button>
+        <button class="util-btn" style="flex:1; border-color:#64748b; color:#94a3b8; font-size:8px;" onclick="dismissArenaInvite()">LATER ✕</button>
+      </div>
+    </div>
+
     <div id="party-invite-toast" class="panel">
       <div style="font-family:var(--font-header); font-size:7.5px; color:#fde047; margin-bottom:4px;">🛡️ SQUAD INVITE!</div>
       <div id="party-invite-txt" style="color:#f8fafc; margin-bottom:6px;">Vanguard invited you to a 3-player squad.</div>
@@ -1415,6 +1476,15 @@
         <div class="modal-close" onclick="toggleModal('account-modal')">✕</div>
       </div>
       <div id="account-modal-body"></div>
+    </div>
+
+    <!-- MODAL 4A: 3v3 Nexus Arena Multiplayer Lobby -->
+    <div id="arena-modal" class="modal panel" style="width: 560px;">
+      <div class="modal-header">
+        <div class="modal-title">⚔️ 3v3 NEXUS ARENA — MULTIPLAYER LOBBY</div>
+        <div class="modal-close" onclick="toggleModal('arena-modal')">✕</div>
+      </div>
+      <div id="arena-modal-body"></div>
     </div>
 
     <!-- MODAL 4: Social MMO Layer — Rooms, Online Players, 3-Player Squad & Emotes [O] -->

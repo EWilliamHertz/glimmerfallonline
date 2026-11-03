@@ -32,6 +32,7 @@ import {
 } from '../shared/protocol.js';
 
 const SIEGE_INTERVAL_MS = 30 * 60 * 1000; // Every 30 minutes per roadmap spec
+const ARENA_WAIT_MS = 45 * 1000; // Open 3v3 lobby waits this long before computer entities fill empty slots
 
 function nextThirtyMinBoundary(now = Date.now()) {
   const next = Math.ceil((now + 5000) / SIEGE_INTERVAL_MS) * SIEGE_INTERVAL_MS;
@@ -877,8 +878,45 @@ export class RoomManager {
   // ==========================================
   // 3v3 Ranked Nexus Arena Matchmaking
   // ==========================================
-  queueForArena(client) {
+  getArenaLobbyInfo() {
+    const now = Date.now();
+    const players = [];
+    for (const q of this.arenaQueue) {
+      for (const id of q.memberIds) {
+        const m = this.clients.get(id);
+        if (!m) continue;
+        players.push({
+          id: m.id,
+          name: m.displayName,
+          faction: m.faction,
+          level: m.prog?.level || 1,
+          isLeader: m.id === q.leaderId,
+          partySize: q.memberIds.length,
+        });
+      }
+    }
+    const oldest = this.arenaQueue.find((q) => q.mode === 'wait');
+    return {
+      type: 'arena_lobby',
+      players,
+      total: players.length,
+      capacity: 6,
+      waitMs: ARENA_WAIT_MS,
+      autoFillInMs: oldest ? Math.max(0, ARENA_WAIT_MS - (now - oldest.queuedAt)) : null,
+    };
+  }
+
+  broadcastArenaLobby() {
+    const info = this.getArenaLobbyInfo();
+    for (const c of this.clients.values()) c.send(info);
+  }
+
+  queueForArena(client, mode = 'wait') {
     if (!client) return;
+    if (client.roomType === ROOM_TYPES.ARENA_3V3) {
+      client.send({ type: 'sys_msg', category: 'zone', text: '[3v3 Arena] You are already inside a match!' });
+      return;
+    }
     const party = this.parties.getPartyForPlayer(client.id);
     if (party && party.leaderId !== client.id) {
       client.send({
@@ -896,17 +934,72 @@ export class RoomManager {
       leaderId: client.id,
       memberIds,
       queuedAt: Date.now(),
+      mode: mode === 'bots' ? 'bots' : 'wait',
+      forceFill: false,
+      lastAnnounceAt: 0,
     });
 
+    const groupLabel = memberIds.length === 1 ? 'Solo' : `${memberIds.length}-Player Squad`;
     for (const id of memberIds) {
       const m = this.clients.get(id);
       if (m) {
-        m.send({ type: 'queue_state', queueing: true, partySize: memberIds.length });
+        m.send({ type: 'queue_state', queueing: true, partySize: memberIds.length, mode });
         m.send({
           type: 'sys_msg',
           category: 'zone',
-          text: `[3v3 Queue] Matchmaking started (${memberIds.length === 1 ? 'Solo' : `${memberIds.length}-Player Squad`})...`,
+          text:
+            mode === 'bots'
+              ? `[3v3 Arena] Starting a match vs. computer entities (${groupLabel})...`
+              : `[3v3 Arena] Lobby open (${groupLabel}) — waiting for other champions. Computer entities fill empty slots after ${Math.round(ARENA_WAIT_MS / 1000)}s!`,
         });
+      }
+    }
+
+    if (mode !== 'bots') {
+      this.announceArenaLobby(client, true);
+    }
+    this.broadcastArenaLobby();
+  }
+
+  announceArenaLobby(client, auto = false) {
+    const entry = this.arenaQueue.find((q) => q.memberIds.includes(client.id));
+    if (!entry || entry.mode !== 'wait') return;
+    const now = Date.now();
+    if (now - entry.lastAnnounceAt < 20000) {
+      if (!auto) {
+        client.send({ type: 'sys_msg', category: 'zone', text: '[3v3 Arena] You can re-announce every 20 seconds.' });
+      }
+      return;
+    }
+    entry.lastAnnounceAt = now;
+    const info = this.getArenaLobbyInfo();
+    const icon = FACTIONS_META[client.faction]?.icon || '⚔️';
+    const text = `📢 [3v3 ARENA LFG] ${icon} ${client.displayName} (Lv.${client.prog?.level || 1} ${client.faction}) is queueing — ${info.total}/6 champions ready! Click ⚔️ 3v3 ARENA to join the lobby (computer entities fill empty slots).`;
+    for (const c of this.clients.values()) {
+      c.send({ type: 'sys_msg', category: 'chat', text });
+      if (c.id !== client.id && !entry.memberIds.includes(c.id) && c.roomType !== ROOM_TYPES.ARENA_3V3) {
+        c.send({
+          type: 'arena_invite',
+          fromName: client.displayName,
+          fromFaction: client.faction,
+          total: info.total,
+          capacity: 6,
+        });
+      }
+    }
+  }
+
+  forceArenaFill(client) {
+    const entry = this.arenaQueue.find((q) => q.memberIds.includes(client.id));
+    if (!entry) return;
+    entry.forceFill = true;
+    this.broadcastToArenaQueue('[3v3 Arena] Filling empty slots with computer entities — match starting!');
+  }
+
+  broadcastToArenaQueue(text) {
+    for (const q of this.arenaQueue) {
+      for (const id of q.memberIds) {
+        this.clients.get(id)?.send({ type: 'sys_msg', category: 'zone', text });
       }
     }
   }
@@ -920,37 +1013,59 @@ export class RoomManager {
       const m = this.clients.get(id);
       if (m) m.send({ type: 'queue_state', queueing: false });
     }
+    this.broadcastArenaLobby();
   }
 
   processMatchmaking() {
     if (this.arenaQueue.length === 0) return;
     const now = Date.now();
-    const oldest = this.arenaQueue[0];
-    if (this.arenaQueue.length < 2 && now - oldest.queuedAt < 1800) return;
 
-    const bluePlayers = [];
-    const redPlayers = [];
-
-    while (this.arenaQueue.length > 0) {
-      const group = this.arenaQueue[0];
-      const validMembers = group.memberIds.map((id) => this.clients.get(id)).filter(Boolean);
-      if (validMembers.length === 0) {
-        this.arenaQueue.shift();
-        continue;
-      }
-      if (bluePlayers.length + validMembers.length <= 3 && (bluePlayers.length === 0 || redPlayers.length > 0)) {
-        this.arenaQueue.shift();
-        bluePlayers.push(...validMembers);
-      } else if (redPlayers.length + validMembers.length <= 3) {
-        this.arenaQueue.shift();
-        redPlayers.push(...validMembers);
-      } else {
-        break;
-      }
+    // 1. "Play with computer entities" — instant AI match for this group only
+    const botIdx = this.arenaQueue.findIndex((q) => q.mode === 'bots');
+    if (botIdx !== -1) {
+      const [entry] = this.arenaQueue.splice(botIdx, 1);
+      const members = entry.memberIds.map((id) => this.clients.get(id)).filter(Boolean).slice(0, 3);
+      if (members.length > 0) this.startArenaMatch(members, []);
+      this.broadcastArenaLobby();
+      return;
     }
 
-    if (bluePlayers.length === 0 && redPlayers.length === 0) return;
+    // 2. Open lobby — start on 6 champions, forced fill, or after the wait window
+    this.arenaQueue = this.arenaQueue.filter((q) => q.memberIds.some((id) => this.clients.has(id)));
+    if (this.arenaQueue.length === 0) return;
+    const totalPlayers = this.arenaQueue.reduce(
+      (n, q) => n + q.memberIds.filter((id) => this.clients.has(id)).length,
+      0
+    );
+    const forced = this.arenaQueue.some((q) => q.forceFill);
+    const timedOut = now - this.arenaQueue[0].queuedAt >= ARENA_WAIT_MS;
+    if (totalPlayers < 6 && !forced && !timedOut) return;
 
+    // Balanced team assignment (largest squads first, always into the emptier team)
+    const blue = [];
+    const red = [];
+    const groups = [...this.arenaQueue].sort((a, b) => b.memberIds.length - a.memberIds.length);
+    const placed = [];
+    for (const g of groups) {
+      const members = g.memberIds.map((id) => this.clients.get(id)).filter(Boolean);
+      if (members.length === 0) continue;
+      const target = blue.length <= red.length ? blue : red;
+      const other = target === blue ? red : blue;
+      if (target.length + members.length <= 3) {
+        target.push(...members);
+        placed.push(g);
+      } else if (other.length + members.length <= 3) {
+        other.push(...members);
+        placed.push(g);
+      }
+    }
+    if (placed.length === 0) return;
+    this.arenaQueue = this.arenaQueue.filter((q) => !placed.includes(q));
+    this.startArenaMatch(blue, red);
+    this.broadcastArenaLobby();
+  }
+
+  startArenaMatch(bluePlayers, redPlayers) {
     const matchId = `arena_3v3_${crypto.randomUUID().slice(0, 6)}`;
     const room = this.createRoomInstance(ROOM_TYPES.ARENA_3V3, matchId);
 
@@ -980,19 +1095,27 @@ export class RoomManager {
         damage: 5, xpReward: 110, speed: 42, aggroRange: 250, attackRange: 32, radius: 20, hitFlash: 0, dammers: new Set(),
       },
     ];
-    for (let i = 0; i < Math.max(0, 3 - redPlayers.length); i++) {
+    const redBots = Math.max(0, 3 - redPlayers.length);
+    for (let i = 0; i < redBots; i++) {
       room.entities.push(aiRedTemplates[i]);
     }
+
+    const blueBots = Math.max(0, 3 - bluePlayers.length);
+    const summary =
+      `[3v3 Arena] Match found! Blue: ${bluePlayers.length} champion(s)${blueBots ? ` + ${blueBots} computer ally` : ''}` +
+      ` vs Red: ${redPlayers.length} champion(s)${redBots ? ` + ${redBots} computer foe` : ''}.`;
 
     for (const p of bluePlayers) {
       p.hp = p.maxHp;
       p.send({ type: 'queue_state', queueing: false });
       this.joinRoom(p, room.id, 'blue');
+      p.send({ type: 'sys_msg', category: 'zone', text: summary });
     }
     for (const p of redPlayers) {
       p.hp = p.maxHp;
       p.send({ type: 'queue_state', queueing: false });
       this.joinRoom(p, room.id, 'red');
+      p.send({ type: 'sys_msg', category: 'zone', text: summary });
     }
   }
 
@@ -1083,8 +1206,20 @@ export class RoomManager {
       }
 
       case 'queue_arena':
-        if (msg.join) this.queueForArena(client);
+        if (msg.join) this.queueForArena(client, msg.mode === 'bots' ? 'bots' : 'wait');
         else this.leaveArenaQueue(client);
+        break;
+
+      case 'arena_fill':
+        this.forceArenaFill(client);
+        break;
+
+      case 'arena_announce':
+        this.announceArenaLobby(client, false);
+        break;
+
+      case 'arena_lobby_info':
+        client.send(this.getArenaLobbyInfo());
         break;
 
       case 'cast_ability':

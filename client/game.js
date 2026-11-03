@@ -1297,6 +1297,11 @@ export function initGame() {
           player.team = msg.team || null;
           if (player.isDead) player.isDead = false;
           hideDeathScreen();
+          if (msg.roomType === ROOM_TYPES.ARENA_3V3) {
+            const am = document.getElementById('arena-modal');
+            if (am) am.style.display = 'none';
+            window.dismissArenaInvite?.();
+          }
           camera.x = player.x;
           camera.y = player.y;
           setupZoneDecor(msg.roomType, msg.roomTitle);
@@ -1354,7 +1359,27 @@ export function initGame() {
         case 'queue_state': {
           isQueueing = Boolean(msg.queueing);
           const btn = document.getElementById('btn-queue');
-          if (btn) btn.innerText = isQueueing ? '⏳ QUEUEING...' : '⚔️ 3v3 ARENA';
+          if (btn) btn.innerText = isQueueing ? '⏳ IN LOBBY...' : '⚔️ 3v3 ARENA';
+          if (document.getElementById('arena-modal')?.style.display === 'block') renderArenaModal();
+          break;
+        }
+
+        case 'arena_lobby':
+          applyArenaLobby(msg);
+          break;
+
+        case 'arena_invite': {
+          if (isQueueing || currentRoomType === ROOM_TYPES.ARENA_3V3) break;
+          const toast = document.getElementById('arena-invite-toast');
+          const txt = document.getElementById('arena-invite-txt');
+          if (toast && txt) {
+            const fm = FACTIONS_META[msg.fromFaction] || FACTIONS_META.Solari;
+            txt.innerText = `${fm.icon} ${msg.fromName} is queueing for 3v3 Arena — ${msg.total}/${msg.capacity} champions ready!`;
+            toast.style.display = 'block';
+            audio.playPartyInvite();
+            clearTimeout(arenaInviteTimer);
+            arenaInviteTimer = setTimeout(() => (toast.style.display = 'none'), 18000);
+          }
           break;
         }
 
@@ -2054,26 +2079,154 @@ export function initGame() {
     }
   };
 
-  window.toggleMatchmaking = function () {
+  // ==========================================
+  // 3v3 Arena Multiplayer Lobby Modal (announce in chat, queue, or play vs computer entities)
+  // ==========================================
+  let arenaLobby = { players: [], total: 0, capacity: 6, waitMs: 45000, autoFillEnd: null };
+  let arenaInviteTimer = null;
+
+  function escHtml(v) {
+    return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function applyArenaLobby(msg) {
+    arenaLobby = {
+      players: msg.players || [],
+      total: msg.total || 0,
+      capacity: msg.capacity || 6,
+      waitMs: msg.waitMs || 45000,
+      autoFillEnd: msg.autoFillInMs != null ? performance.now() + msg.autoFillInMs : null,
+    };
+    if (document.getElementById('arena-modal')?.style.display === 'block') renderArenaModal();
+  }
+
+  function renderArenaModal() {
+    const body = document.getElementById('arena-modal-body');
+    if (!body) return;
+    const online = net.connected;
+    const myId = net.playerId || localProfile.id;
+    const players = arenaLobby.players;
+    const slots = [];
+    for (let i = 0; i < arenaLobby.capacity; i++) {
+      const pl = players[i];
+      if (pl) {
+        const fm = FACTIONS_META[pl.faction] || FACTIONS_META.Solari;
+        slots.push(`
+          <div class="arena-slot filled" style="border-color:${fm.color};">
+            <div style="font-size:14px;">${fm.icon}</div>
+            <b style="color:${fm.color};">${escHtml(pl.name)}${pl.id === myId ? ' (You)' : ''}</b>
+            <span style="color:#94a3b8;">Lv.${pl.level}${pl.partySize > 1 ? ` • Squad ${pl.partySize}` : ''}</span>
+          </div>`);
+      } else {
+        slots.push(`
+          <div class="arena-slot">
+            <div style="font-size:14px;">🤖</div>
+            <span>OPEN SLOT</span>
+            <span style="font-size:7.5px;">Computer entity fills</span>
+          </div>`);
+      }
+    }
+
+    const others = players.filter((p) => p.id !== myId).length;
+    let actions = '';
+    if (!online) {
+      actions = `
+        <div style="font-size:8.5px; color:#fbbf24; margin:6px 0;">Server offline — only single-player computer matches are available.</div>
+        <button class="util-btn arena-btn-primary" style="border-color:#4ade80; color:#4ade80;" onclick="arenaPlayWithComputer()">🤖 PLAY WITH COMPUTER ENTITIES</button>`;
+    } else if (isQueueing) {
+      actions = `
+        <button class="util-btn arena-btn-primary" style="border-color:#4ade80; color:#4ade80;" onclick="arenaFillNow()">🤖 FILL EMPTY SLOTS WITH COMPUTER ENTITIES & START NOW</button>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">
+          <button class="util-btn" style="border-color:#facc15; color:#fde047;" onclick="arenaAnnounce()">📢 RE-ANNOUNCE IN CHAT</button>
+          <button class="util-btn" style="border-color:#ef4444; color:#f87171;" onclick="arenaLeaveQueue()">✕ LEAVE QUEUE</button>
+        </div>`;
+    } else {
+      actions = `
+        <button class="util-btn arena-btn-primary" style="border-color:#facc15; color:#fde047;" onclick="arenaOpenLobby()">
+          📢 ${others > 0 ? `JOIN LOBBY (${others} WAITING)` : 'OPEN LOBBY & ANNOUNCE IN CHAT'}
+        </button>
+        <button class="util-btn arena-btn-primary" style="border-color:#4ade80; color:#4ade80;" onclick="arenaPlayWithComputer()">🤖 PLAY WITH COMPUTER ENTITIES</button>`;
+    }
+
+    body.innerHTML = `
+      <div style="font-size:9px; color:#cbd5e1; line-height:1.45; background:#080c18; border:2px solid #1e293b; padding:8px 10px;">
+        Shatter the enemy <b style="color:#f87171;">25-HP Nexus</b> while defending yours. Open a lobby to announce it in chat and gather
+        up to <b style="color:#fde047;">6 champions</b> — or jump in right now against <b style="color:#4ade80;">computer entities</b>.
+        Empty slots are always filled automatically.
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:9px;">
+        <b style="color:#38bdf8;">LOBBY: ${arenaLobby.total} / ${arenaLobby.capacity} CHAMPIONS</b>
+        <span id="arena-timer-txt" style="color:#94a3b8;"></span>
+      </div>
+      <div class="arena-timer-bar"><div class="arena-timer-fill" id="arena-timer-fill"></div></div>
+      <div class="arena-slot-grid">${slots.join('')}</div>
+      ${actions}
+    `;
+    updateArenaTimer();
+  }
+
+  function updateArenaTimer() {
+    const txt = document.getElementById('arena-timer-txt');
+    const fill = document.getElementById('arena-timer-fill');
+    if (!txt || !fill) return;
+    if (arenaLobby.autoFillEnd == null || arenaLobby.total === 0) {
+      txt.innerText = arenaLobby.total === 0 ? 'No open lobby' : '';
+      fill.style.width = '0%';
+      return;
+    }
+    const remMs = Math.max(0, arenaLobby.autoFillEnd - performance.now());
+    txt.innerText = `Computer entities fill in ${Math.ceil(remMs / 1000)}s`;
+    fill.style.width = `${Math.min(100, (1 - remMs / arenaLobby.waitMs) * 100)}%`;
+  }
+  setInterval(() => {
+    if (document.getElementById('arena-modal')?.style.display === 'block') updateArenaTimer();
+  }, 250);
+
+  window.arenaOpenLobby = function () {
+    audio.playChime();
+    net.send({ type: 'queue_arena', join: true, mode: 'wait' });
+  };
+  window.arenaPlayWithComputer = function () {
+    audio.playPortal();
     if (net.connected) {
-      net.send({ type: 'queue_arena', join: !isQueueing });
+      net.send({ type: 'queue_arena', join: true, mode: 'bots' });
       return;
     }
     const btn = document.getElementById('btn-queue');
-    if (!isQueueing) {
-      isQueueing = true;
-      btn.innerText = '⏳ QUEUEING...';
-      queueTimer = setTimeout(() => {
-        isQueueing = false;
-        btn.innerText = '⚔️ 3v3 ARENA';
-        audio.playPortal();
-        buildOfflineZone(ROOM_TYPES.ARENA_3V3);
-      }, 1500);
-    } else {
-      clearTimeout(queueTimer);
+    isQueueing = true;
+    if (btn) btn.innerText = '⏳ STARTING...';
+    clearTimeout(queueTimer);
+    queueTimer = setTimeout(() => {
       isQueueing = false;
-      btn.innerText = '⚔️ 3v3 ARENA';
-    }
+      if (btn) btn.innerText = '⚔️ 3v3 ARENA';
+      document.getElementById('arena-modal').style.display = 'none';
+      buildOfflineZone(ROOM_TYPES.ARENA_3V3);
+    }, 900);
+  };
+  window.arenaFillNow = function () {
+    audio.playChime();
+    net.send({ type: 'arena_fill' });
+  };
+  window.arenaAnnounce = function () {
+    net.send({ type: 'arena_announce' });
+  };
+  window.arenaLeaveQueue = function () {
+    audio.playChime();
+    net.send({ type: 'queue_arena', join: false });
+  };
+  window.joinArenaFromInvite = function () {
+    window.dismissArenaInvite();
+    if (document.getElementById('arena-modal')?.style.display !== 'block') window.toggleModal('arena-modal');
+  };
+  window.dismissArenaInvite = function () {
+    clearTimeout(arenaInviteTimer);
+    const toast = document.getElementById('arena-invite-toast');
+    if (toast) toast.style.display = 'none';
+  };
+
+  window.toggleMatchmaking = function () {
+    if (net.connected) net.send({ type: 'arena_lobby_info' });
+    window.toggleModal('arena-modal');
   };
 
   window.cyclePixelZoom = function () {
@@ -2308,6 +2461,7 @@ export function initGame() {
     if (opening) {
       if (id === 'char-modal') renderStatsModal();
       if (id === 'spellbook-modal') renderKeybindUI();
+      if (id === 'arena-modal') renderArenaModal();
       if (id === 'paperdoll-modal') renderInGamePaperdollModal({ profile: localProfile });
       if (id === 'account-modal') {
         renderAccountModal({ profile: localProfile, authTab: accountAuthTab, statusMsg: accountStatusMsg });
