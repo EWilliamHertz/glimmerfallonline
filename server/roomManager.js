@@ -29,6 +29,7 @@ import {
   calcMaxGlimmer,
   calcCritChance,
   calcCdMult,
+  isWaterTile,
 } from '../shared/protocol.js';
 
 const SIEGE_INTERVAL_MS = 30 * 60 * 1000; // Every 30 minutes per roadmap spec
@@ -2237,20 +2238,32 @@ export class RoomManager {
         const ny = Number(msg.y);
         if (!Number.isFinite(nx) || !Number.isFinite(ny)) return;
 
-        const targetX = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, nx));
-        const targetY = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, ny));
+        let targetX = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, nx));
+        let targetY = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, ny));
 
         const dist = Math.hypot(targetX - client.x, targetY - client.y);
         const MAX_STEP = 240;
-        if (dist <= MAX_STEP) {
+        if (dist > MAX_STEP) {
+          // Graceful vector clamping on lag spikes / packet bunching
+          const ratio = MAX_STEP / dist;
+          targetX = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, client.x + (targetX - client.x) * ratio));
+          targetY = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, client.y + (targetY - client.y) * ratio));
+        }
+
+        // Authoritative Water Collision Check: Cannot walk across deep water without bridges
+        const currentlyInWater = isWaterTile(client.x, client.y, room.type);
+        if (!currentlyInWater && isWaterTile(targetX, targetY, room.type)) {
+          // Slide along unobstructed axis
+          if (!isWaterTile(targetX, client.y, room.type)) {
+            client.x = targetX;
+          } else if (!isWaterTile(client.x, targetY, room.type)) {
+            client.y = targetY;
+          }
+        } else {
           client.x = targetX;
           client.y = targetY;
-        } else {
-          // Graceful vector clamping on lag spikes / packet bunching (completely prevents rubberband desync loops)
-          const ratio = MAX_STEP / dist;
-          client.x = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, client.x + (targetX - client.x) * ratio));
-          client.y = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, client.y + (targetY - client.y) * ratio));
         }
+
         client.z = Math.max(0, Math.min(80, Number(msg.z) || 0));
         if (['up', 'down', 'left', 'right'].includes(msg.dir)) {
           client.dir = msg.dir;
@@ -3704,8 +3717,16 @@ export class RoomManager {
           }
 
           if (bestD > e.attackRange) {
-            e.x += ((nearestPlayer.x - e.x) / bestD) * e.speed * speedMult * dt;
-            e.y += ((nearestPlayer.y - e.y) / bestD) * e.speed * speedMult * dt;
+            const nextMobX = e.x + ((nearestPlayer.x - e.x) / bestD) * e.speed * speedMult * dt;
+            const nextMobY = e.y + ((nearestPlayer.y - e.y) / bestD) * e.speed * speedMult * dt;
+            if (!isWaterTile(nextMobX, nextMobY, room.type)) {
+              e.x = nextMobX;
+              e.y = nextMobY;
+            } else if (!isWaterTile(nextMobX, e.y, room.type)) {
+              e.x = nextMobX;
+            } else if (!isWaterTile(e.x, nextMobY, room.type)) {
+              e.y = nextMobY;
+            }
           } else {
             e.atkTimer = (e.atkTimer || 0) + dt;
             if (e.atkTimer >= 1.85) {

@@ -915,3 +915,42 @@ export function calcCdMult(prog, equipment = {}, classId = 'solari_vanguard', fa
   const aetherBonus = faction === 'Aether' ? 0.12 : 0;
   return Math.max(0.55, 1 - eff.tempo * 0.02 - aetherBonus);
 }
+
+// Deep Water & Abyss Collision Detection
+export function isWaterTile(x, y, roomType = ROOM_TYPES.NEXUS_WARZONE) {
+  if (roomType === ROOM_TYPES.NEXUS_WARZONE) {
+    const tx = Math.floor(x / TILE_SIZE);
+    const ty = Math.floor(y / TILE_SIZE);
+
+    // 1. South Sanctuary River (meanders horizontally between ty: 75 and 80)
+    const southRiverY = 77 + Math.round(Math.sin(tx * 0.08) * 2.5);
+    const isSouthRiver = Math.abs(ty - southRiverY) <= 1;
+
+    // 2. Northwest Mountain Gorge Stream flowing down through Terra Ironwood Wilds
+    const streamX = -65 + Math.round(Math.cos(ty * 0.08) * 4);
+    const isNWStream = tx >= streamX - 1 && tx <= streamX + 1 && ty >= -85 && ty <= 20;
+
+    if (!isSouthRiver && !isNWStream) return false;
+
+    // Bridges crossing rivers allow safe traversal on foot:
+    const isMainSouthBridge = isSouthRiver && Math.abs(tx) <= 3;
+    const isWestTimberBridge = isSouthRiver && Math.abs(tx - (-80)) <= 2;
+    const isEastTimberBridge = isSouthRiver && Math.abs(tx - 80) <= 2;
+    const isNWGorgeBridge = isNWStream && Math.abs(ty - (-35)) <= 2;
+
+    if (isMainSouthBridge || isWestTimberBridge || isEastTimberBridge || isNWGorgeBridge) {
+      return false; // Walkable bridge
+    }
+
+    return true; // Deep river water blocks movement
+  }
+
+  if (roomType === ROOM_TYPES.AETHER_FRACTURED_ARCHIVE) {
+    const tx = Math.floor(x / TILE_SIZE);
+    const ty = Math.floor(y / TILE_SIZE);
+    if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) return false;
+    return (Math.abs(tx) % 6 <= 1 && Math.abs(ty) % 6 <= 1);
+  }
+
+  return false;
+}

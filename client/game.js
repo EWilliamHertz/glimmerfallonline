@@ -38,6 +38,7 @@ import {
   calcMaxGlimmer,
   calcCritChance,
   calcCdMult,
+  isWaterTile,
 } from '../shared/protocol.js';
 
 const DEFAULT_KEYBINDS = {
@@ -2661,17 +2662,38 @@ export function initGame() {
     if (spec.kind === 'dash' || spec.kind === 'shadow_step') {
       const startX = player.x;
       const startY = player.y;
+      let targetX = startX;
+      let targetY = startY;
+
       if (spec.kind === 'shadow_step' && acquiredTarget) {
         const ang = Math.atan2(acquiredTarget.y - player.y, acquiredTarget.x - player.x);
-        player.x = Math.max(-mapBounds.halfW + 16, Math.min(mapBounds.halfW - 16, acquiredTarget.x + Math.cos(ang) * 18));
-        player.y = Math.max(-mapBounds.halfH + 16, Math.min(mapBounds.halfH - 16, acquiredTarget.y + Math.sin(ang) * 18));
+        targetX = Math.max(-mapBounds.halfW + 16, Math.min(mapBounds.halfW - 16, acquiredTarget.x + Math.cos(ang) * 18));
+        targetY = Math.max(-mapBounds.halfH + 16, Math.min(mapBounds.halfH - 16, acquiredTarget.y + Math.sin(ang) * 18));
         damageOfflineEntity(acquiredTarget, 6 + eff.power + rank * 2, true, false, spec.name);
       } else {
         const { dx, dy } = getFacingVector();
         const dist = ((spec.rangeYards || 8.5) + rank * 0.35) * YARD_PX;
-        player.x = Math.max(-mapBounds.halfW + 16, Math.min(mapBounds.halfW - 16, player.x + dx * dist));
-        player.y = Math.max(-mapBounds.halfH + 16, Math.min(mapBounds.halfH - 16, player.y + dy * dist));
+        targetX = Math.max(-mapBounds.halfW + 16, Math.min(mapBounds.halfW - 16, player.x + dx * dist));
+        targetY = Math.max(-mapBounds.halfH + 16, Math.min(mapBounds.halfH - 16, player.y + dy * dist));
       }
+
+      // If landing in deep water, step back towards starting point until dry ground or bridge
+      if (!isWaterTile(startX, startY, currentRoomType) && isWaterTile(targetX, targetY, currentRoomType)) {
+        for (let step = 1; step <= 12; step++) {
+          const frac = 1 - step * 0.08;
+          const testX = startX + (targetX - startX) * frac;
+          const testY = startY + (targetY - startY) * frac;
+          if (!isWaterTile(testX, testY, currentRoomType)) {
+            targetX = testX;
+            targetY = testY;
+            break;
+          }
+        }
+      }
+
+      player.x = targetX;
+      player.y = targetY;
+
       for (let s = 0; s < 4; s++) {
         afterimages.push({
           x: startX + (player.x - startX) * (s / 4),
@@ -3525,8 +3547,54 @@ export function initGame() {
         const eff = getEffectiveStats(prog, localProfile.equipment, localProfile.classId);
         const tempoSpeed = player.baseSpeed * (1 + eff.tempo * 0.03);
         const spd = tempoSpeed * (inputs.shift ? player.sprintMult : 1);
-        player.x = Math.max(-mapBounds.halfW + 14, Math.min(mapBounds.halfW - 14, player.x + mx * spd * dt));
-        player.y = Math.max(-mapBounds.halfH + 14, Math.min(mapBounds.halfH - 14, player.y + my * spd * dt));
+        const stepDist = spd * dt;
+
+        const targetX = Math.max(-mapBounds.halfW + 14, Math.min(mapBounds.halfW - 14, player.x + mx * stepDist));
+        const targetY = Math.max(-mapBounds.halfH + 14, Math.min(mapBounds.halfH - 14, player.y + my * stepDist));
+
+        // Water & Chasm Collision: Cannot walk on water unless crossing a bridge!
+        const currentlyInWater = isWaterTile(player.x, player.y, currentRoomType);
+        const colRadius = 8;
+        const testX = targetX + Math.sign(mx) * colRadius;
+        const testY = targetY + Math.sign(my) * colRadius;
+
+        const canMoveX = currentlyInWater || !isWaterTile(testX, player.y, currentRoomType);
+        const canMoveY = currentlyInWater || !isWaterTile(player.x, testY, currentRoomType);
+
+        if (canMoveX && canMoveY && mx !== 0 && my !== 0) {
+          if (!currentlyInWater && isWaterTile(testX, testY, currentRoomType)) {
+            // Corner hit! Smoothly slide along primary axis
+            if (Math.abs(mx) >= Math.abs(my)) {
+              player.x = targetX;
+            } else {
+              player.y = targetY;
+            }
+          } else {
+            player.x = targetX;
+            player.y = targetY;
+          }
+        } else {
+          if (canMoveX) player.x = targetX;
+          if (canMoveY) player.y = targetY;
+        }
+
+        // Spawn gentle water droplet ripple when moving against the water's edge
+        if ((!canMoveX && mx !== 0) || (!canMoveY && my !== 0)) {
+          if (Math.random() < 0.15) {
+            particles.push({
+              x: player.x + mx * 8 + (Math.random() - 0.5) * 6,
+              y: player.y + my * 8 + (Math.random() - 0.5) * 4,
+              z: 1 + Math.random() * 3,
+              vx: (Math.random() - 0.5) * 14,
+              vy: (Math.random() - 0.5) * 14,
+              vz: 7 + Math.random() * 9,
+              size: 2,
+              color: '#38bdf8',
+              age: 0,
+              maxAge: 0.28,
+            });
+          }
+        }
         player.isMoving = true;
         player.walkTimer += dt * (inputs.shift ? 13 : 9);
 
@@ -3890,7 +3958,8 @@ export function initGame() {
     }
 
     if (isSouthRiver || isNWStream) {
-      return sprites.tiles[`river_water_${Math.abs(tx + ty) % 2}`];
+      const waterFrame = Math.floor(globalTime * 2.2 + (tx + ty) * 0.25) % 2;
+      return sprites.tiles[`river_water_${Math.abs(waterFrame)}`];
     }
 
     // 2. Whispering Mountain Pass Trail (Cuts through the grand central mountain ridge)
