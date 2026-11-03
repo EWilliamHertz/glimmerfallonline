@@ -925,7 +925,11 @@ export function initGame() {
       entities.push(
         { id: 'dummy_1', name: 'Sanctuary Dummy', sub: 'Lv.1 Awakening Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: 12, origX: 0, origY: 12, hp: 30, maxHp: 30, xpReward: 30, radius: 14, hitFlash: 0 },
         { id: 'tut_font', name: 'Awakening Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'portal_main', name: 'Nexus Warzone Rift', sub: 'Step In -> Nexus Warzone', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_WARZONE, spriteKey: 'portal', x: 0, y: -158, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 }
+        { id: 'portal_main', name: 'Nexus Warzone Rift', sub: 'Step In -> Nexus Warzone', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_WARZONE, spriteKey: 'portal', x: 0, y: -158, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 },
+        { id: 'portal_solari', name: 'Lantern District Gate', sub: '☀️ Solari Dungeon', type: 'portal', targetRoom: ROOM_TYPES.SOLARI_CITADEL, spriteKey: 'portal', x: -128, y: -136, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
+        { id: 'portal_umbri', name: 'Sepulcher Undercity Rift', sub: '🌑 Umbri Dungeon', type: 'portal', targetRoom: ROOM_TYPES.UMBRI_UNDERCITY, spriteKey: 'portal', x: 128, y: -136, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
+        { id: 'portal_terra', name: 'Glimmer Orchard Waygate', sub: '🌿 Terra Dungeon', type: 'portal', targetRoom: ROOM_TYPES.TERRA_ORCHARD, spriteKey: 'portal', x: -145, y: 112, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
+        { id: 'portal_aether', name: 'Mirrorgate Spire Rift', sub: '🔮 Aether Dungeon', type: 'portal', targetRoom: ROOM_TYPES.AETHER_SPIRE, spriteKey: 'portal', x: 145, y: 112, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.ARENA_3V3) {
       player.x = 0;
@@ -935,13 +939,46 @@ export function initGame() {
         { id: 'red_nexus', name: 'Umbri Dominion Nexus', sub: '25 HP Enemy Core', type: 'nexus', spriteKey: 'nexusRed', x: 0, y: -215, hp: 25, maxHp: 25, xpReward: 220, radius: 22, hitFlash: 0 },
         { id: 'enemy_1', name: 'Void Stalker [Umbri]', sub: 'Enemy Vanguard', type: 'mob', spriteKey: 'voidStalker', x: -64, y: -85, origX: -64, origY: -85, hp: 25, maxHp: 25, damage: 4, xpReward: 65, speed: 54, aggroRange: 230, attackRange: 28, radius: 15, hitFlash: 0 }
       );
+    } else if (currentRoomType === ROOM_TYPES.SOLARI_CITADEL) {
+      player.x = 0;
+      player.y = 170;
+      entities.push(
+        { id: 'sol_mob_1', name: 'Sunforged Sentinel', sub: 'Lv.3 Solari Construct', type: 'mob', spriteKey: 'solariSentinel', x: -75, y: 35, origX: -75, origY: 35, hp: 36, maxHp: 36, damage: 4, xpReward: 65, radius: 15, hitFlash: 0 },
+        { id: 'sol_boss', name: 'High Sunfire Colossus', sub: '★ Lv.6 Golden Citadel Boss', type: 'mob', isBoss: true, spriteKey: 'solariBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 85, maxHp: 85, damage: 6, xpReward: 185, radius: 22, hitFlash: 0 },
+        { id: 'portal_hub', name: 'Return to Sanctuary', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 205, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+      );
+    } else if (currentRoomType === ROOM_TYPES.UMBRI_UNDERCITY) {
+      player.x = 0;
+      player.y = 170;
+      entities.push(
+        { id: 'umb_mob_1', name: 'Duskveil Stalker', sub: 'Lv.3 Umbri Assassin', type: 'mob', spriteKey: 'voidStalker', x: -80, y: 30, origX: -80, origY: 30, hp: 34, maxHp: 34, damage: 5, xpReward: 65, radius: 15, hitFlash: 0 },
+        { id: 'umb_boss', name: 'Graveglass Archlich', sub: '★ Lv.6 Sepulcher Boss', type: 'mob', isBoss: true, spriteKey: 'umbriBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 80, maxHp: 80, damage: 7, xpReward: 185, radius: 22, hitFlash: 0 },
+        { id: 'portal_hub', name: 'Return to Sanctuary', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 205, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+      );
+    } else if (currentRoomType === ROOM_TYPES.TERRA_ORCHARD) {
+      player.x = 0;
+      player.y = 170;
+      entities.push(
+        { id: 'ter_mob_1', name: 'Bramble Treant', sub: 'Lv.3 Terra Guardian', type: 'mob', spriteKey: 'terraWarden', x: -78, y: 32, origX: -78, origY: 32, hp: 40, maxHp: 40, damage: 4, xpReward: 65, radius: 16, hitFlash: 0 },
+        { id: 'ter_boss', name: 'Elder Rootdeep Behemoth', sub: '★ Lv.6 Orchard Boss', type: 'mob', isBoss: true, spriteKey: 'graniteBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 95, maxHp: 95, damage: 6, xpReward: 185, radius: 22, hitFlash: 0 },
+        { id: 'portal_hub', name: 'Return to Sanctuary', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 205, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+      );
+    } else if (currentRoomType === ROOM_TYPES.AETHER_SPIRE) {
+      player.x = 0;
+      player.y = 170;
+      entities.push(
+        { id: 'aeth_mob_1', name: 'Chrono Anomaly', sub: 'Lv.3 Aether Construct', type: 'mob', spriteKey: 'aetherWeaver', x: -78, y: 32, origX: -78, origY: 32, hp: 34, maxHp: 34, damage: 5, xpReward: 65, radius: 15, hitFlash: 0 },
+        { id: 'aeth_boss', name: 'Archon of the Continuum', sub: '★ Lv.6 Mirrorgate Boss', type: 'mob', isBoss: true, spriteKey: 'aetherBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 82, maxHp: 82, damage: 7, xpReward: 185, radius: 22, hitFlash: 0 },
+        { id: 'portal_hub', name: 'Return to Sanctuary', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 205, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+      );
     } else {
       player.x = 0;
       player.y = 165;
       entities.push(
-        { id: 'siege_shard', name: 'Shattered Nexus Shard', sub: '⚡ Siege Event Objective', type: 'siege_shard', isBoss: true, spriteKey: 'siegeShard', x: 0, y: -12, hp: 85, maxHp: 85, xpReward: 240, radius: 24, hitFlash: 0 },
+        { id: 'siege_shard', name: 'Shattered Nexus Shard', sub: '⚡ Siege Event Objective', type: 'siege_shard', isBoss: true, spriteKey: 'siegeShard', x: 0, y: -12, origX: 0, origY: -12, hp: 85, maxHp: 85, xpReward: 240, radius: 24, hitFlash: 0 },
         { id: 'umbri_1', name: 'Void Stalker', sub: 'Lv.2 Umbri Entity (AWK)', type: 'mob', spriteKey: 'voidStalker', x: -95, y: -25, origX: -95, origY: -25, hp: 30, maxHp: 30, damage: 4, xpReward: 55, speed: 52, aggroRange: 112, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'terra_boss', name: 'Granite Behemoth', sub: '★ Lv.5 Terra World Boss', type: 'mob', isBoss: true, spriteKey: 'graniteBoss', x: 120, y: -105, origX: 120, origY: -105, hp: 60, maxHp: 60, damage: 6, xpReward: 135, speed: 38, aggroRange: 130, attackRange: 34, radius: 21, hitFlash: 0 }
+        { id: 'terra_boss', name: 'Granite Behemoth', sub: '★ Lv.5 Terra World Boss', type: 'mob', isBoss: true, spriteKey: 'graniteBoss', x: 120, y: -105, origX: 120, origY: -105, hp: 60, maxHp: 60, damage: 6, xpReward: 135, speed: 38, aggroRange: 130, attackRange: 34, radius: 21, hitFlash: 0 },
+        { id: 'portal_hub', name: 'Sanctuary Hub Rift', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 215, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 }
       );
     }
     camera.x = player.x;
@@ -1068,8 +1105,8 @@ export function initGame() {
         prev.charges = se.charges;
         prev.maxCharges = se.maxCharges;
         prev.frozen = se.frozen;
-        prev.isDying = se.isDying;
-        prev.deathAge = se.deathAge;
+        prev.isDying = Boolean(se.isDying);
+        prev.deathAge = se.isDying ? Math.max(prev.deathAge || 0, se.deathAge || 0) : 0;
         return prev;
       }
       return { ...se, hitFlash: 0 };
@@ -1353,6 +1390,8 @@ export function initGame() {
       audio.setBgmTheme(ROOM_CONFIGS[startingRealm]?.bgm || 'sanctuary');
       if (net.connected && startingRealm && !currentRoomId.startsWith(startingRealm)) {
         net.send({ type: 'switch_room', roomType: startingRealm });
+      } else if (!net.connected && startingRealm && startingRealm !== currentRoomType) {
+        buildOfflineZone(startingRealm);
       } else if (!introShown && currentRoomType === ROOM_TYPES.SANCTUARY_HUB) {
         introShown = true;
         openDialogue(AWAKENING_DIALOGUE);
@@ -1520,6 +1559,103 @@ export function initGame() {
     return best;
   }
 
+  let offlineEchoPrimed = false;
+
+  function killOfflineEntity(ent) {
+    if (!ent || ent.isDying) return;
+    ent.isDying = true;
+    ent.deathAge = 0;
+
+    if (currentTarget && currentTarget.id === ent.id) {
+      setTarget(null);
+    }
+
+    audio.playSmokePuff();
+    spawnSmokeBurst(ent.x, ent.y, ent.isBoss ? 44 : 28);
+    logMessage(`[Void Banish] ${ent.name} was cast into the Void!`, 'log-gain', 'combat');
+    awardXP(ent.xpReward || 30, ent.name);
+
+    const deathRoom = currentRoomType;
+    const respawnTemplate = {
+      ...ent,
+      hp: ent.maxHp,
+      isDying: false,
+      deathAge: 0,
+      frozen: false,
+      freezeTimer: 0,
+      hitFlash: 0,
+      x: ent.origX ?? ent.x,
+      y: ent.origY ?? ent.y,
+    };
+
+    const delayMs =
+      ent.type === 'nexus' || ent.type === 'outpost_nexus' || ent.type === 'siege_shard'
+        ? 10000
+        : ent.isBoss
+        ? 11000
+        : 6500;
+
+    setTimeout(() => {
+      if (net.connected || currentRoomType !== deathRoom) return;
+      if (entities.some((existing) => existing.id === respawnTemplate.id)) return;
+      entities.push(respawnTemplate);
+      spawnSmokeBurst(respawnTemplate.x, respawnTemplate.y, 16);
+    }, delayMs);
+  }
+
+  function damageOfflineEntity(ent, dmg, isCrit = false, isRite = false, spellName = '') {
+    if (!ent || ent.isDying || ent.type === 'node' || ent.type === 'portal') return;
+    ent.hp = Math.max(0, ent.hp - dmg);
+    ent.hitFlash = 0.14;
+    audio.playHit(isCrit);
+    spawnSparkBurst(
+      ent.x,
+      ent.y - 8,
+      isCrit ? ['#fde047', '#ffffff', '#38bdf8'] : ['#ef4444', '#fca5a5', '#facc15'],
+      isCrit ? 12 : 7
+    );
+    spawnFCT(ent.x, ent.y, `-${dmg}`, isCrit ? '#facc15' : '#f87171', isCrit);
+
+    if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !quests.damaged) {
+      quests.damaged = true;
+      const qc2 = document.getElementById('qc-2');
+      if (qc2) {
+        qc2.classList.add('done');
+        qc2.innerText = '✓';
+      }
+      const qStage = document.getElementById('quest-stage-txt');
+      if (qStage) qStage.innerText = '2 / 4';
+    }
+
+    if (currentTarget && currentTarget.id === ent.id) {
+      updateTargetUI();
+    }
+
+    if (ent.type === 'dummy' && ent.hp > 0) {
+      awardXP(8, '');
+    }
+
+    // Umbri Void Harvest life-leech
+    if (isRite && localProfile.faction === 'Umbri') {
+      player.hp = Math.min(player.maxHp, player.hp + Math.max(1, Math.round(dmg * 0.2)));
+    }
+
+    if (ent.hp <= 0) {
+      killOfflineEntity(ent);
+    } else if (isRite && !String(spellName).includes('Echo')) {
+      const shouldEcho = offlineEchoPrimed || (localProfile.faction === 'Aether' && Math.random() < 0.35);
+      if (shouldEcho) {
+        offlineEchoPrimed = false;
+        const echoDmg = Math.max(2, Math.round(dmg * 0.45));
+        setTimeout(() => {
+          if (net.connected || ent.isDying || ent.hp <= 0) return;
+          spawnFCT(ent.x, ent.y - 14, `🔮 ECHO +${echoDmg}`, '#38bdf8', true);
+          damageOfflineEntity(ent, echoDmg, true, false, `${spellName} (Echo)`);
+        }, 220);
+      }
+    }
+  }
+
   window.castAbility = function (slot) {
     if (player.isDead || player.frozen) return;
     const spec = getSlotAbilitySpec(localProfile.loadout, slot);
@@ -1537,8 +1673,17 @@ export function initGame() {
 
     const cdMult = calcCdMult(prog, localProfile.equipment, localProfile.classId, localProfile.faction);
     const rangePx = (spec.rangeYards || 8) * YARD_PX;
-    const needsTarget = ['cast_beam', 'projectile', 'drain_bolt', 'execute_bolt', 'shadow_step'].includes(spec.kind);
+    const needsTarget = [
+      'cast_beam',
+      'projectile',
+      'drain_beam',
+      'execute_beam',
+      'drain_bolt',
+      'execute_bolt',
+      'shadow_step',
+    ].includes(spec.kind);
 
+    let acquiredTarget = null;
     if (needsTarget) {
       const tgt = autoAcquireNearestHostile(rangePx);
       if (!tgt) {
@@ -1550,10 +1695,12 @@ export function initGame() {
         return;
       }
       faceToward(tgt.x, tgt.y);
+      acquiredTarget = tgt;
     } else if (spec.kind === 'melee_cleave') {
       const tgt = autoAcquireNearestHostile(rangePx);
       if (tgt && Math.hypot(tgt.x - player.x, tgt.y - player.y) <= rangePx + 8) {
         faceToward(tgt.x, tgt.y);
+        acquiredTarget = tgt;
       }
     }
 
@@ -1572,15 +1719,15 @@ export function initGame() {
       });
     } else if (spec.kind === 'shield' || spec.kind === 'thornbark') {
       audio.playShield();
-    } else if (spec.kind === 'heal_cleanse') {
+    } else if (spec.kind === 'heal' || spec.kind === 'heal_glimmer' || spec.kind === 'timeloop') {
       audio.playChime();
     } else if (spec.kind === 'stealth') {
       audio.playStealth();
     } else if (spec.kind === 'frost_nova') {
       audio.playFreeze();
-    } else if (spec.kind === 'dash_blind' || spec.kind === 'blink_reset' || spec.kind === 'shadow_step' || spec.kind === 'charge_slam') {
+    } else if (spec.kind === 'dash' || spec.kind === 'shadow_step') {
       audio.playDash();
-    } else if (spec.kind === 'aoe_burst') {
+    } else if (spec.kind === 'nova') {
       audio.playZenith();
     }
 
@@ -1602,25 +1749,224 @@ export function initGame() {
       return;
     }
 
-    // Offline single-player fallback
+    // Offline single-player simulation (full support for all 4 Factions & Rites/Flashes)
     const rank = prog.ranks[slot] || 1;
     const eff = getEffectiveStats(prog, localProfile.equipment, localProfile.classId);
-    for (const e of entities) {
-      if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
-        if (Math.hypot(e.x - player.x, e.y - player.y) <= Math.max(rangePx, 80)) {
-          const dmg = 5 + eff.power + rank * 2;
-          e.hp = Math.max(0, e.hp - dmg);
-          e.hitFlash = 0.14;
-          spawnFCT(e.x, e.y, `-${dmg}`, spec.color || '#facc15');
-          if (e.hp <= 0) {
-            e.isDying = true;
-            e.deathAge = 0;
-            awardXP(e.xpReward || 30, e.name);
+    const critChance = calcCritChance(prog, localProfile.equipment, localProfile.classId);
+    const isRite = spec.tcgType.includes('Rite');
+    const isFlash = spec.tcgType.includes('Flash');
+
+    if (spec.cost > 0) {
+      player.solarCharge = Math.max(0, player.solarCharge - spec.cost);
+    }
+    if (isFlash) {
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 8);
+    }
+
+    if (spec.kind === 'cast_beam' && acquiredTarget) {
+      isCasting = true;
+      castDuration = spec.castTime || 0.95;
+      castProgress = 0;
+      document.getElementById('cast-bar-container').style.display = 'block';
+      document.getElementById('cast-name').innerText = `RITE: ${spec.name.toUpperCase()}`;
+      document.getElementById('cast-time').innerText = `${castDuration.toFixed(1)}s`;
+      const beamTargetId = acquiredTarget.id;
+      currentSpell = {
+        onComplete() {
+          const tgt = entities.find((e) => e.id === beamTargetId && !e.isDying);
+          if (!tgt) return;
+          audio.playSpell();
+          skyBeams.push({ x: tgt.x, y: tgt.y, color: spec.color || '#38bdf8', age: 0, maxAge: 0.45 });
+          const dmg = Math.max(5, Math.floor(Math.random() * 5) + 10 + eff.power * 2 + rank * 3);
+          damageOfflineEntity(tgt, dmg, true, true, spec.name);
+          for (const near of entities) {
+            if (near !== tgt && !near.isDying && isHostileEntity(near) && near.type !== 'node' && near.type !== 'portal') {
+              if (Math.hypot(near.x - tgt.x, near.y - tgt.y) <= 56) {
+                damageOfflineEntity(near, Math.round(dmg * 0.55), false, false, spec.name);
+              }
+            }
+          }
+          updatePlayerUI();
+        },
+      };
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'projectile' && acquiredTarget) {
+      audio.playHammer();
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 18 + eff.resonance * 2);
+      projectiles.push({
+        id: `off_prj_${Date.now()}_${Math.random()}`,
+        type: spec.projType || 'orb',
+        color: spec.color,
+        spellName: spec.name,
+        isRite,
+        x: player.x,
+        y: player.y - 8,
+        targetId: acquiredTarget.id,
+        speed: spec.projType === 'aether_orb' ? 265 : 225,
+        rot: 0,
+        dmg: Math.max(3, Math.floor(Math.random() * 4) + 6 + eff.power + rank * 2),
+      });
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'ground_zone') {
+      const zx = acquiredTarget ? acquiredTarget.x : currentTarget && !currentTarget.isDying ? currentTarget.x : player.x;
+      const zy = acquiredTarget ? acquiredTarget.y : currentTarget && !currentTarget.isDying ? currentTarget.y : player.y;
+      groundZones.push({
+        id: `off_gz_${Date.now()}`,
+        type: spec.zoneType || 'consecration',
+        color: spec.color,
+        spellName: spec.name,
+        x: zx,
+        y: zy,
+        radius: rangePx,
+        tickDmg: Math.max(2, 2 + rank + Math.floor(eff.power * 0.5)),
+        age: 0,
+        maxAge: 6.2,
+        tickTimer: 0.2,
+      });
+      spawnFCT(zx, zy - 6, spec.name.toUpperCase(), spec.color || '#38bdf8');
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'nova' || spec.kind === 'frost_nova') {
+      groundZones.push({
+        id: `off_ring_${Date.now()}`,
+        type: spec.kind === 'frost_nova' ? 'frost_ring' : 'shockwave',
+        color: spec.color,
+        x: player.x,
+        y: player.y,
+        radius: rangePx,
+        age: 0,
+        maxAge: 0.45,
+      });
+      for (const e of [...entities]) {
+        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
+          if (Math.hypot(e.x - player.x, e.y - player.y) <= rangePx) {
+            const dmg = Math.max(5, 11 + Math.round(eff.power * 1.7) + rank * 3);
+            damageOfflineEntity(e, dmg, true, isRite, spec.name);
+            if (!e.isDying && spec.kind === 'frost_nova') {
+              e.frozen = true;
+              e.freezeTimer = 3.2;
+              spawnFCT(e.x, e.y - 10, '❄️ FROZEN!', '#bae6fd');
+            }
           }
         }
       }
+      updatePlayerUI();
+      return;
     }
-    player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 18);
+
+    if (spec.kind === 'dash' || spec.kind === 'shadow_step') {
+      const startX = player.x;
+      const startY = player.y;
+      if (spec.kind === 'shadow_step' && acquiredTarget) {
+        const ang = Math.atan2(acquiredTarget.y - player.y, acquiredTarget.x - player.x);
+        player.x = Math.max(-mapBounds.halfW + 16, Math.min(mapBounds.halfW - 16, acquiredTarget.x + Math.cos(ang) * 18));
+        player.y = Math.max(-mapBounds.halfH + 16, Math.min(mapBounds.halfH - 16, acquiredTarget.y + Math.sin(ang) * 18));
+        damageOfflineEntity(acquiredTarget, 6 + eff.power + rank * 2, true, false, spec.name);
+      } else {
+        const { dx, dy } = getFacingVector();
+        const dist = ((spec.rangeYards || 8.5) + rank * 0.35) * YARD_PX;
+        player.x = Math.max(-mapBounds.halfW + 16, Math.min(mapBounds.halfW - 16, player.x + dx * dist));
+        player.y = Math.max(-mapBounds.halfH + 16, Math.min(mapBounds.halfH - 16, player.y + dy * dist));
+      }
+      for (let s = 0; s < 4; s++) {
+        afterimages.push({
+          x: startX + (player.x - startX) * (s / 4),
+          y: startY + (player.y - startY) * (s / 4),
+          dir: player.dir,
+          age: 0,
+          maxAge: 0.28 + s * 0.04,
+        });
+      }
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 12);
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'shield' || spec.kind === 'thornbark') {
+      const absorb = 13 + eff.bastion * 3 + rank * 4;
+      player.shield = absorb;
+      player.thornbark = spec.kind === 'thornbark';
+      spawnFCT(player.x, player.y - 8, `+${absorb} SHIELD`, spec.color || '#38bdf8');
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'heal' || spec.kind === 'heal_glimmer') {
+      const healAmt = 7 + eff.bastion * 2 + rank * 3;
+      player.hp = Math.min(player.maxHp, player.hp + healAmt);
+      if (spec.kind === 'heal_glimmer') {
+        player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 25);
+      }
+      spawnFCT(player.x, player.y - 8, `+${healAmt} HP`, '#4ade80');
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'stealth') {
+      player.stealthed = true;
+      setTimeout(() => {
+        if (!net.connected) player.stealthed = false;
+      }, 3500);
+      spawnSmokeBurst(player.x, player.y, 16);
+      spawnFCT(player.x, player.y - 10, '🌑 STEALTH', '#c084fc');
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'timeloop') {
+      const rewindHp = Math.max(5, Math.round(player.maxHp * 0.25) + rank * 2);
+      player.hp = Math.min(player.maxHp, player.hp + rewindHp);
+      for (const s of ACTION_SLOTS) {
+        if (s !== slot && cooldowns[s] > 0) cooldowns[s] = Math.max(0, cooldowns[s] - (2.2 + rank * 0.3));
+      }
+      offlineEchoPrimed = true;
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 15);
+      spawnSparkBurst(player.x, player.y - 8, ['#38bdf8', '#e0f2fe', '#c084fc'], 14);
+      spawnFCT(player.x, player.y - 10, `⏳ REWIND +${rewindHp} HP & ECHO!`, '#7dd3fc', true);
+      updatePlayerUI();
+      return;
+    }
+
+    if ((spec.kind === 'drain_beam' || spec.kind === 'execute_beam') && acquiredTarget) {
+      let dmg = Math.max(4, 8 + Math.round(eff.power * 1.5) + rank * 3);
+      if (spec.kind === 'execute_beam' && acquiredTarget.hp <= acquiredTarget.maxHp * 0.5) {
+        dmg = Math.round(dmg * 1.5);
+      }
+      skyBeams.push({ x: acquiredTarget.x, y: acquiredTarget.y, color: spec.color || '#e11d48', age: 0, maxAge: 0.45 });
+      damageOfflineEntity(acquiredTarget, dmg, true, true, spec.name);
+      if (spec.kind === 'drain_beam') {
+        const drainHeal = Math.max(2, Math.round(dmg * 0.6));
+        player.hp = Math.min(player.maxHp, player.hp + drainHeal);
+        spawnFCT(player.x, player.y - 8, `+${drainHeal} SIPHON`, '#4ade80');
+      }
+      updatePlayerUI();
+      return;
+    }
+
+    // Default Melee Cleave (Flare Strike, Whisper of the Void, Tectonic Slam, Reality Fracture)
+    let hitAny = false;
+    for (const e of [...entities]) {
+      if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
+        if (Math.hypot(e.x - player.x, e.y - player.y) <= rangePx + 14) {
+          const isCrit = Math.random() < critChance;
+          const base = Math.max(2, Math.floor(Math.random() * 4) + 3 + eff.power + rank * 2);
+          const dmg = isCrit ? Math.round(base * 1.75) : base;
+          damageOfflineEntity(e, dmg, isCrit, isRite, spec.name);
+          hitAny = true;
+        }
+      }
+    }
+    if (hitAny) {
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 14 + eff.resonance * 2);
+    }
     updatePlayerUI();
   };
 
@@ -2296,8 +2642,80 @@ export function initGame() {
     camera.x += (player.x - camera.x) * Math.min(1, 10 * dt);
     camera.y += (player.y - camera.y) * Math.min(1, 10 * dt);
 
-    for (const e of entities) {
+    for (let i = entities.length - 1; i >= 0; i--) {
+      const e = entities[i];
       if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
+      if (!net.connected && e.freezeTimer > 0) {
+        e.freezeTimer = Math.max(0, e.freezeTimer - dt);
+        if (e.freezeTimer <= 0) e.frozen = false;
+      }
+      if (e.isDying) {
+        e.deathAge = (e.deathAge || 0) + dt;
+        e.y -= 18 * dt;
+        if (currentTarget && currentTarget.id === e.id) {
+          setTarget(null);
+        }
+        if (e.deathAge >= 0.65) {
+          entities.splice(i, 1);
+        }
+      }
+    }
+
+    // Advance offline projectiles & ground zones when running in local fallback
+    if (!net.connected) {
+      for (let i = projectiles.length - 1; i >= 0; i--) {
+        const prj = projectiles[i];
+        const tgt = entities.find((e) => e.id === prj.targetId && !e.isDying);
+        if (!tgt) {
+          projectiles.splice(i, 1);
+          continue;
+        }
+        const dx = tgt.x - prj.x;
+        const dy = tgt.y - 8 - prj.y;
+        const d = Math.hypot(dx, dy);
+        prj.rot = (prj.rot || 0) + 18 * dt;
+        if (d < 12) {
+          damageOfflineEntity(tgt, prj.dmg || 8, false, Boolean(prj.isRite), prj.spellName || 'Arcane Bolt');
+          projectiles.splice(i, 1);
+          updatePlayerUI();
+        } else {
+          prj.x += (dx / d) * (prj.speed || 235) * dt;
+          prj.y += (dy / d) * (prj.speed || 235) * dt;
+        }
+      }
+
+      for (let i = groundZones.length - 1; i >= 0; i--) {
+        const gz = groundZones[i];
+        gz.age = (gz.age || 0) + dt;
+        if (['consecration', 'plague', 'briar', 'gravity'].includes(gz.type)) {
+          if (gz.type === 'gravity') {
+            for (const e of entities) {
+              if (!e.isDying && e.type === 'mob') {
+                const dist = Math.hypot(gz.x - e.x, gz.y - e.y);
+                if (dist > 10 && dist <= gz.radius) {
+                  e.x += ((gz.x - e.x) / dist) * 28 * dt;
+                  e.y += ((gz.y - e.y) / dist) * 28 * dt;
+                }
+              }
+            }
+          }
+          gz.tickTimer = (gz.tickTimer ?? 0.25) - dt;
+          if (gz.tickTimer <= 0) {
+            gz.tickTimer = 1.4;
+            for (const e of [...entities]) {
+              if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
+                if (Math.hypot(e.x - gz.x, e.y - gz.y) <= gz.radius) {
+                  damageOfflineEntity(e, gz.tickDmg || 4, false, true, gz.spellName || 'Ground Rite');
+                }
+              }
+            }
+            updatePlayerUI();
+          }
+        }
+        if (gz.age >= (gz.maxAge || 0.45)) {
+          groundZones.splice(i, 1);
+        }
+      }
     }
 
     for (let i = particles.length - 1; i >= 0; i--) {

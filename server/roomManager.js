@@ -1273,6 +1273,8 @@ export class RoomManager {
     const echoDmg = Math.max(2, Math.round(baseDmg * 0.45));
     setTimeout(() => {
       if (!this.rooms.has(room.id)) return;
+      if (targetWrap.kind === 'entity' && (!targetWrap.ref || targetWrap.ref.isDying || targetWrap.ref.hp <= 0)) return;
+      if (targetWrap.kind === 'player' && (!targetWrap.ref || targetWrap.ref.isDead || targetWrap.ref.hp <= 0)) return;
       room.fxQueue.push({ kind: 'fct', x: targetWrap.ref.x, y: targetWrap.ref.y - 14, text: `🔮 ECHO +${echoDmg}`, color: '#38bdf8', isCrit: true });
       this.applyAuthoritativeDamage(room, player, targetWrap, echoDmg, true, `${spellName} (Echo)`, false);
     }, 220);
@@ -1514,6 +1516,7 @@ export class RoomManager {
       for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, novaRad)) {
         const dmg = Math.max(5, Math.floor(Math.random() * 5) + 11 + Math.round(effPower * 1.7) + rank * 3);
         this.applyAuthoritativeDamage(room, player, h, dmg, true, spec.name, isRite);
+        if ((h.kind === 'entity' && h.ref.isDying) || (h.kind === 'player' && h.ref.isDead)) continue;
         if (spec.kind === 'frost_nova') {
           h.ref.freezeTimer = 3.2;
           room.fxQueue.push({ kind: 'fct', x: h.ref.x, y: h.ref.y - 10, text: '❄️ FROZEN!', color: '#bae6fd' });
@@ -2402,6 +2405,7 @@ export class RoomManager {
         const caster = room.players.get(gz.ownerId) || null;
         if (caster && gz.type === 'gravity') {
           for (const h of this.getAllHostilesInRadius(room, caster, gz.x, gz.y, gz.radius)) {
+            if (h.kind === 'entity' && h.ref.isDying) continue;
             const dist = Math.hypot(gz.x - h.ref.x, gz.y - h.ref.y);
             if (dist > 10 && (h.kind === 'player' || h.ref.type === 'mob')) {
               h.ref.x += ((gz.x - h.ref.x) / dist) * 28 * dt;
@@ -2414,6 +2418,7 @@ export class RoomManager {
           gz.tickTimer = 1.4;
           if (caster) {
             for (const h of this.getAllHostilesInRadius(room, caster, gz.x, gz.y, gz.radius)) {
+              if (h.kind === 'entity' && h.ref.isDying) continue;
               if (gz.type === 'plague') h.ref.slowTimer = 1.8;
               if (gz.type === 'briar') h.ref.snareTimer = 1.8;
               this.applyAuthoritativeDamage(room, caster, h, gz.tickDmg, false, gz.spellName || 'Ground Rite', true);
