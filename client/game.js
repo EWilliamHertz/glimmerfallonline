@@ -59,6 +59,11 @@ const PORTAL_ID_TO_ROOM = {
   portal_terra: ROOM_TYPES.TERRA_ORCHARD,
   portal_aether: ROOM_TYPES.AETHER_SPIRE,
   portal_hub: ROOM_TYPES.SANCTUARY_HUB,
+  portal_ruins: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
+  portal_solari_vault: ROOM_TYPES.SOLARI_SUNKEN_VAULT,
+  portal_umbri_lab: ROOM_TYPES.UMBRI_SHADOW_LABYRINTH,
+  portal_terra_sanctuary: ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY,
+  portal_aether_archive: ROOM_TYPES.AETHER_FRACTURED_ARCHIVE,
 };
 
 const AWAKENING_DIALOGUE = [
@@ -68,7 +73,7 @@ const AWAKENING_DIALOGUE = [
   },
   {
     speaker: 'AURORA MARSHAL • SOLARI HERALD',
-    text: 'Explore all 4 Faction Biome Waygates around this Sanctuary, customize your Paperdoll Gear [I] & TCG Loadout [👤 HERO], or form a 3-player Squad [O]!',
+    text: 'Explore all 4 Faction Biome Waygates around this Sanctuary, visit the Forgotten First Nexus Ruins to the South, customize your Paperdoll Gear [I] & TCG Loadout [👤 HERO], or form a Squad [O]!',
   },
   {
     speaker: 'AURORA MARSHAL • SOLARI HERALD',
@@ -83,7 +88,94 @@ const WARZONE_DIALOGUE = [
   },
   {
     speaker: 'SUNSPIRE ARCHON • WAR COMMANDER',
-    text: 'Defend your Faction’s 25-HP Outpost Nexus, shatter rival Outposts, plant your Order Banner [B] (+1 Power), and queue 3v3 Ranked Arena!',
+    text: 'Defend your Faction’s 25-HP Outpost Nexus, shatter rival Outposts, plant your Order Banner [B] (+1 Power), or venture North into the Forgotten Ruins!',
+  },
+];
+
+const RUINS_DIALOGUE = [
+  {
+    speaker: 'ATLAS THE WANDERER • HIGH CARTOGRAPHER',
+    text: 'Hail, seeker of antiquity! You stand at the First Nexus—the ancient axis where Solari, Umbri, Terra, and Aether once convened in unbroken harmony before the Shattering.',
+  },
+  {
+    speaker: 'ATLAS THE WANDERER • HIGH CARTOGRAPHER',
+    text: 'Look beneath your boots: the four quadrant stones converge right here. Beware the sleeping Prismatic Keystone Guardian at the center—vanquishing it yields a legendary omni-relic!',
+  },
+  {
+    speaker: 'ATLAS THE WANDERER • HIGH CARTOGRAPHER',
+    text: 'High-density Glimmer nodes flourish here. Channel them with [E] to replenish your energy and advance your summoner ranks!',
+  },
+];
+
+const SOLARI_VAULT_DIALOGUE = [
+  {
+    speaker: 'ARCHON LUCIAN • KEEPER OF THE DAWN FLAME',
+    text: 'Tread with honor, Knight. This Sunken Vault enshrines the ancient solar pyres that ignited the First Lantern of the Golden Citadel.',
+  },
+  {
+    speaker: 'ARCHON LUCIAN • KEEPER OF THE DAWN FLAME',
+    text: 'Deep within slumbers the Solaris Core Colossus. Defeat this radiant guardian to claim the Sunfire Greatsword and the sacred Dawnfire Crest!',
+  },
+];
+
+const UMBRI_LABYRINTH_DIALOGUE = [
+  {
+    speaker: 'WRAITHMOTHER VESPERA • WEAVER OF THE DEEP FOG',
+    text: 'Hush... do not disturb the Graveglass mists. In this Labyrinth of Shadows, forgotten echoes wander between the twilight and the abyss.',
+  },
+  {
+    speaker: 'WRAITHMOTHER VESPERA • WEAVER OF THE DEEP FOG',
+    text: 'The Abyssal Devourer lurks at the labyrinth’s dark core. Wield your Umbral Flashes with precision, or forfeit your soul to the void!',
+  },
+];
+
+const TERRA_GROVE_DIALOGUE = [
+  {
+    speaker: 'DRYAD SYLVANUS • VOICE OF THE IRONWOOD',
+    text: 'Welcome to the Primordial Hollow. Listen to the deep pulse of the mycorrhizal roots humming beneath the emerald moss.',
+  },
+  {
+    speaker: 'DRYAD SYLVANUS • VOICE OF THE IRONWOOD',
+    text: 'The ancient Elder Treant, Primordial Ironbark, stands guard over the heartbloom. Fulfill the rites of Terra to earn living Ironbark armor!',
+  },
+];
+
+const AETHER_ARCHIVE_DIALOGUE = [
+  {
+    speaker: 'CHRONOS SAGE ZEPHYR • CONTINUUM CHRONOLOGER',
+    text: 'Greetings across time, Summoner! This fractured archive floats beyond conventional causality, recording every timeline of the Great Nexus.',
+  },
+  {
+    speaker: 'CHRONOS SAGE ZEPHYR • CONTINUUM CHRONOLOGER',
+    text: 'The Continuum Singularity at the center bends cooldowns and gravitational planes. Strike decisively before temporal paradoxes engulf the chamber!',
+  },
+];
+
+const SOLARI_CITADEL_DIALOGUE = [
+  {
+    speaker: 'COMMANDER VAEL • SOLARI HIGH CAPTAIN',
+    text: 'Glory to the Dawn! The Lantern District stands as an unyielding fortress against the dark. The north portal leads into our deepest Sunken Vault!',
+  },
+];
+
+const UMBRI_UNDERCITY_DIALOGUE = [
+  {
+    speaker: 'SHADOW BROKER NYX • DUSKVEIL SMUGGLER',
+    text: 'Keep your voice down, friend... The north Gloomgate leads straight to the Shadow Labyrinth. Few who enter return unchanged.',
+  },
+];
+
+const TERRA_ORCHARD_DIALOGUE = [
+  {
+    speaker: 'GROVE TENDER ROWAN • TERRA HERBALIST',
+    text: 'May the canopy shelter you! The north Waygate connects directly to the Primordial Hollow where ancient Ironbark treants slumber.',
+  },
+];
+
+const AETHER_SPIRE_DIALOGUE = [
+  {
+    speaker: 'ASTROMANCER KAELEN • MIRRORGATE STARGAZER',
+    text: 'The celestial mirrors resonate tonight! Ascend to the north rift to enter the Fractured Chrono-Archive and witness the Continuum.',
   },
 ];
 
@@ -884,6 +976,7 @@ export function initGame() {
         id: 'npc_aurora',
         name: 'Aurora Marshal',
         role: 'Solari Herald [Click / T]',
+        spriteKey: 'heraldNpc',
         x: 38,
         y: 82,
         dialogue: AWAKENING_DIALOGUE,
@@ -907,6 +1000,140 @@ export function initGame() {
         { type: 'pillar', x: -110, y: 0 },
         { type: 'pillar', x: 110, y: 0 }
       );
+    } else if (resolvedRoomType === ROOM_TYPES.NEXUS_FORGOTTEN_RUINS) {
+      zoneTitle.innerText = roomTitleOverride || 'FORGOTTEN FIRST NEXUS RUINS';
+      zoneLabel.innerText = 'To Sanctuary';
+      arenaBanner.style.display = 'none';
+      if (tutQuestBody) tutQuestBody.style.display = 'none';
+      if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
+
+      props.push(
+        { type: 'monument', x: 0, y: -30 },
+        { type: 'crystalPillar', x: -140, y: 60 },
+        { type: 'crystalPillar', x: 140, y: 60 },
+        { type: 'brazier', x: -70, y: 140 },
+        { type: 'brazier', x: 70, y: 140 },
+        { type: 'brazier', x: -70, y: -140 },
+        { type: 'brazier', x: 70, y: -140 },
+        { type: 'pillar', x: -160, y: -90 },
+        { type: 'pillar', x: 160, y: -90 }
+      );
+      npcs.push({
+        id: 'npc_atlas',
+        name: 'Atlas the Wanderer',
+        role: 'High Cartographer [Click / T]',
+        spriteKey: 'cartographerNpc',
+        x: 42,
+        y: 135,
+        dialogue: RUINS_DIALOGUE,
+      });
+    } else if (resolvedRoomType === ROOM_TYPES.SOLARI_SUNKEN_VAULT) {
+      zoneTitle.innerText = roomTitleOverride || 'SUNKEN VAULT OF THE DAWN';
+      zoneLabel.innerText = 'To Golden Citadel';
+      arenaBanner.style.display = 'none';
+      if (tutQuestBody) tutQuestBody.style.display = 'none';
+      if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
+
+      props.push(
+        { type: 'crystalPillar', x: -110, y: -40 },
+        { type: 'crystalPillar', x: 110, y: -40 },
+        { type: 'pillar', x: -130, y: 90 },
+        { type: 'pillar', x: 130, y: 90 },
+        { type: 'brazier', x: -45, y: 130 },
+        { type: 'brazier', x: 45, y: 130 },
+        { type: 'brazier', x: -45, y: 40 },
+        { type: 'brazier', x: 45, y: 40 },
+        { type: 'brazier', x: -45, y: -50 },
+        { type: 'brazier', x: 45, y: -50 }
+      );
+      npcs.push({
+        id: 'npc_lucian',
+        name: 'Archon Lucian',
+        role: 'Keeper of Dawn Flame [Click / T]',
+        spriteKey: 'heraldNpc',
+        x: 36,
+        y: 130,
+        dialogue: SOLARI_VAULT_DIALOGUE,
+      });
+    } else if (resolvedRoomType === ROOM_TYPES.UMBRI_SHADOW_LABYRINTH) {
+      zoneTitle.innerText = roomTitleOverride || 'DUSKVEIL SHADOW LABYRINTH';
+      zoneLabel.innerText = 'To Undercity';
+      arenaBanner.style.display = 'none';
+      if (tutQuestBody) tutQuestBody.style.display = 'none';
+      if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
+
+      props.push(
+        { type: 'monument', x: 0, y: -30 },
+        { type: 'pillar', x: -130, y: 80 },
+        { type: 'pillar', x: 130, y: 80 },
+        { type: 'pillar', x: -130, y: -80 },
+        { type: 'pillar', x: 130, y: -80 },
+        { type: 'brazier', x: -60, y: 140 },
+        { type: 'brazier', x: 60, y: 140 },
+        { type: 'brazier', x: -60, y: -40 },
+        { type: 'brazier', x: 60, y: -40 }
+      );
+      npcs.push({
+        id: 'npc_vespera',
+        name: 'Wraithmother Vespera',
+        role: 'Weaver of Deep Fog [Click / T]',
+        spriteKey: 'shadowNpc',
+        x: -36,
+        y: 130,
+        dialogue: UMBRI_LABYRINTH_DIALOGUE,
+      });
+    } else if (resolvedRoomType === ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY) {
+      zoneTitle.innerText = roomTitleOverride || 'ROOTDEEP PRIMORDIAL HOLLOW';
+      zoneLabel.innerText = 'To Glimmer Orchard';
+      arenaBanner.style.display = 'none';
+      if (tutQuestBody) tutQuestBody.style.display = 'none';
+      if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
+
+      props.push(
+        { type: 'monument', x: 0, y: -30 },
+        { type: 'crystalPillar', x: -120, y: 70 },
+        { type: 'crystalPillar', x: 120, y: 70 },
+        { type: 'pillar', x: -140, y: -80 },
+        { type: 'pillar', x: 140, y: -80 },
+        { type: 'brazier', x: -50, y: 130 },
+        { type: 'brazier', x: 50, y: 130 },
+        { type: 'brazier', x: -50, y: 0 },
+        { type: 'brazier', x: 50, y: 0 }
+      );
+      npcs.push({
+        id: 'npc_sylvanus',
+        name: 'Dryad Sylvanus',
+        role: 'Voice of the Ironwood [Click / T]',
+        spriteKey: 'druidNpc',
+        x: 36,
+        y: 130,
+        dialogue: TERRA_GROVE_DIALOGUE,
+      });
+    } else if (resolvedRoomType === ROOM_TYPES.AETHER_FRACTURED_ARCHIVE) {
+      zoneTitle.innerText = roomTitleOverride || 'FRACTURED CHRONO-ARCHIVE';
+      zoneLabel.innerText = 'To Mirrorgate Spire';
+      arenaBanner.style.display = 'none';
+      if (tutQuestBody) tutQuestBody.style.display = 'none';
+      if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
+
+      props.push(
+        { type: 'crystalPillar', x: -120, y: 70 },
+        { type: 'crystalPillar', x: 120, y: 70 },
+        { type: 'crystalPillar', x: -120, y: -70 },
+        { type: 'crystalPillar', x: 120, y: -70 },
+        { type: 'monument', x: 0, y: -30 },
+        { type: 'brazier', x: -55, y: 135 },
+        { type: 'brazier', x: 55, y: 135 }
+      );
+      npcs.push({
+        id: 'npc_zephyr',
+        name: 'Chronos Sage Zephyr',
+        role: 'Continuum Chronologer [Click / T]',
+        spriteKey: 'chronoNpc',
+        x: -36,
+        y: 130,
+        dialogue: AETHER_ARCHIVE_DIALOGUE,
+      });
     } else {
       zoneTitle.innerText = roomTitleOverride || cfg.shortTitle || 'NEXUS WARZONE';
       zoneLabel.innerText = 'To Sanctuary';
@@ -923,9 +1150,50 @@ export function initGame() {
           id: 'npc_archon',
           name: 'Sunspire Archon',
           role: 'War Commander [Click / T]',
+          spriteKey: 'heraldNpc',
           x: -38,
           y: 138,
           dialogue: WARZONE_DIALOGUE,
+        });
+      } else if (resolvedRoomType === ROOM_TYPES.SOLARI_CITADEL) {
+        npcs.push({
+          id: 'npc_vael',
+          name: 'Commander Vael',
+          role: 'Solari High Captain [Click / T]',
+          spriteKey: 'heraldNpc',
+          x: -45,
+          y: 125,
+          dialogue: SOLARI_CITADEL_DIALOGUE,
+        });
+      } else if (resolvedRoomType === ROOM_TYPES.UMBRI_UNDERCITY) {
+        npcs.push({
+          id: 'npc_nyx',
+          name: 'Shadow Broker Nyx',
+          role: 'Duskveil Smuggler [Click / T]',
+          spriteKey: 'shadowNpc',
+          x: 45,
+          y: 125,
+          dialogue: UMBRI_UNDERCITY_DIALOGUE,
+        });
+      } else if (resolvedRoomType === ROOM_TYPES.TERRA_ORCHARD) {
+        npcs.push({
+          id: 'npc_rowan',
+          name: 'Grove Tender Rowan',
+          role: 'Terra Herbalist [Click / T]',
+          spriteKey: 'druidNpc',
+          x: -45,
+          y: 125,
+          dialogue: TERRA_ORCHARD_DIALOGUE,
+        });
+      } else if (resolvedRoomType === ROOM_TYPES.AETHER_SPIRE) {
+        npcs.push({
+          id: 'npc_kaelen',
+          name: 'Astromancer Kaelen',
+          role: 'Mirrorgate Stargazer [Click / T]',
+          spriteKey: 'chronoNpc',
+          x: 45,
+          y: 125,
+          dialogue: AETHER_SPIRE_DIALOGUE,
         });
       }
     }
@@ -954,7 +1222,8 @@ export function initGame() {
         { id: 'portal_solari', name: 'Lantern District Gate', sub: '☀️ Solari Dungeon', type: 'portal', targetRoom: ROOM_TYPES.SOLARI_CITADEL, spriteKey: 'portal', x: -128, y: -136, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
         { id: 'portal_umbri', name: 'Sepulcher Undercity Rift', sub: '🌑 Umbri Dungeon', type: 'portal', targetRoom: ROOM_TYPES.UMBRI_UNDERCITY, spriteKey: 'portal', x: 128, y: -136, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
         { id: 'portal_terra', name: 'Glimmer Orchard Waygate', sub: '🌿 Terra Dungeon', type: 'portal', targetRoom: ROOM_TYPES.TERRA_ORCHARD, spriteKey: 'portal', x: -145, y: 112, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
-        { id: 'portal_aether', name: 'Mirrorgate Spire Rift', sub: '🔮 Aether Dungeon', type: 'portal', targetRoom: ROOM_TYPES.AETHER_SPIRE, spriteKey: 'portal', x: 145, y: 112, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+        { id: 'portal_aether', name: 'Mirrorgate Spire Rift', sub: '🔮 Aether Dungeon', type: 'portal', targetRoom: ROOM_TYPES.AETHER_SPIRE, spriteKey: 'portal', x: 145, y: 112, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
+        { id: 'portal_ruins', name: 'First Nexus Ruins Gate', sub: '🏛️ Forgotten Ruins', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS, spriteKey: 'portal', x: 0, y: 195, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.ARENA_3V3) {
       player.x = 0;
@@ -971,7 +1240,10 @@ export function initGame() {
       player.y = 170;
       entities.push(
         { id: 'sol_mob_1', name: 'Sunforged Sentinel', sub: 'Lv.3 Solari Construct', type: 'mob', spriteKey: 'solariSentinel', x: -75, y: 35, origX: -75, origY: 35, hp: 36, maxHp: 36, damage: 4, xpReward: 65, speed: 52, aggroRange: 112, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'sol_boss', name: 'High Sunfire Colossus', sub: '★ Lv.6 Golden Citadel Boss', type: 'mob', isBoss: true, spriteKey: 'solariBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 85, maxHp: 85, damage: 6, xpReward: 185, speed: 40, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'sol_mob_2', name: 'Lantern Inquisitor', sub: 'Lv.4 Radiant Zealot', type: 'mob', spriteKey: 'solariSentinel', x: 75, y: 25, origX: 75, origY: 25, hp: 38, maxHp: 38, damage: 5, xpReward: 75, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'sol_node_1', name: 'Solari Dawn Well', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 40, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'sol_boss', name: 'High Sunfire Colossus', sub: '★ Lv.6 Golden Citadel Boss', type: 'mob', isBoss: true, dropGear: 'sunfire_greatsword', spriteKey: 'solariBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 85, maxHp: 85, damage: 6, xpReward: 185, speed: 40, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'portal_solari_vault', name: 'Sunken Vault Waygate', sub: '☀️ Secret Solari Crypt', type: 'portal', targetRoom: ROOM_TYPES.SOLARI_SUNKEN_VAULT, spriteKey: 'portal', x: 0, y: -215, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
         { id: 'portal_hub', name: 'Return to Sanctuary', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 205, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.UMBRI_UNDERCITY) {
@@ -979,7 +1251,10 @@ export function initGame() {
       player.y = 170;
       entities.push(
         { id: 'umb_mob_1', name: 'Duskveil Stalker', sub: 'Lv.3 Umbri Assassin', type: 'mob', spriteKey: 'voidStalker', x: -80, y: 30, origX: -80, origY: 30, hp: 34, maxHp: 34, damage: 5, xpReward: 65, speed: 55, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'umb_boss', name: 'Graveglass Archlich', sub: '★ Lv.6 Sepulcher Boss', type: 'mob', isBoss: true, spriteKey: 'umbriBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 80, maxHp: 80, damage: 7, xpReward: 185, speed: 40, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'umb_mob_2', name: 'Duskveil Bog Fiend', sub: 'Lv.4 Graveglass Reaper', type: 'mob', spriteKey: 'duskFiend', x: 80, y: 25, origX: 80, origY: 25, hp: 36, maxHp: 36, damage: 5, xpReward: 75, speed: 56, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'umb_node_1', name: 'Duskveil Shadow Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 40, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'umb_boss', name: 'Graveglass Archlich', sub: '★ Lv.6 Sepulcher Boss', type: 'mob', isBoss: true, dropGear: 'scythe_soulreaper', spriteKey: 'umbriBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 80, maxHp: 80, damage: 7, xpReward: 185, speed: 40, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'portal_umbri_lab', name: 'Shadow Labyrinth Gloomgate', sub: '🌑 Twisted Umbri Crypt', type: 'portal', targetRoom: ROOM_TYPES.UMBRI_SHADOW_LABYRINTH, spriteKey: 'portal', x: 0, y: -215, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
         { id: 'portal_hub', name: 'Return to Sanctuary', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 205, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.TERRA_ORCHARD) {
@@ -987,7 +1262,10 @@ export function initGame() {
       player.y = 170;
       entities.push(
         { id: 'ter_mob_1', name: 'Bramble Treant', sub: 'Lv.3 Terra Guardian', type: 'mob', spriteKey: 'terraWarden', x: -78, y: 32, origX: -78, origY: 32, hp: 40, maxHp: 40, damage: 4, xpReward: 65, speed: 52, aggroRange: 112, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'ter_boss', name: 'Elder Rootdeep Behemoth', sub: '★ Lv.6 Orchard Boss', type: 'mob', isBoss: true, spriteKey: 'graniteBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 95, maxHp: 95, damage: 6, xpReward: 185, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'ter_mob_2', name: 'Rootdeep Stonekin', sub: 'Lv.4 Ironwood Guardian', type: 'mob', spriteKey: 'terraWarden', x: 78, y: 25, origX: 78, origY: 25, hp: 42, maxHp: 42, damage: 5, xpReward: 75, speed: 50, aggroRange: 112, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'ter_node_1', name: 'Terra Root Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 40, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'ter_boss', name: 'Elder Rootdeep Behemoth', sub: '★ Lv.6 Orchard Boss', type: 'mob', isBoss: true, dropGear: 'ironwood_armor', spriteKey: 'graniteBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 95, maxHp: 95, damage: 6, xpReward: 185, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'portal_terra_sanctuary', name: 'Primordial Hollow Rootgate', sub: '🌿 Sacred Ironwood Grove', type: 'portal', targetRoom: ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY, spriteKey: 'portal', x: 0, y: -215, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
         { id: 'portal_hub', name: 'Return to Sanctuary', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 205, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.AETHER_SPIRE) {
@@ -995,8 +1273,78 @@ export function initGame() {
       player.y = 170;
       entities.push(
         { id: 'aeth_mob_1', name: 'Chrono Anomaly', sub: 'Lv.3 Aether Construct', type: 'mob', spriteKey: 'aetherWeaver', x: -78, y: 32, origX: -78, origY: 32, hp: 34, maxHp: 34, damage: 5, xpReward: 65, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'aeth_boss', name: 'Archon of the Continuum', sub: '★ Lv.6 Mirrorgate Boss', type: 'mob', isBoss: true, spriteKey: 'aetherBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 82, maxHp: 82, damage: 7, xpReward: 185, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'aeth_mob_2', name: 'Chrono Construct', sub: 'Lv.4 Fractured Sentinel', type: 'mob', spriteKey: 'aetherWeaver', x: 78, y: 25, origX: 78, origY: 25, hp: 36, maxHp: 36, damage: 5, xpReward: 75, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'aeth_node_1', name: 'Mirrorgate Star Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 40, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'aeth_boss', name: 'Archon of the Continuum', sub: '★ Lv.6 Mirrorgate Boss', type: 'mob', isBoss: true, dropGear: 'mirror_shield', spriteKey: 'aetherBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 82, maxHp: 82, damage: 7, xpReward: 185, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'portal_aether_archive', name: 'Chrono-Archive Rift', sub: '🔮 Astral Archive', type: 'portal', targetRoom: ROOM_TYPES.AETHER_FRACTURED_ARCHIVE, spriteKey: 'portal', x: 0, y: -215, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
         { id: 'portal_hub', name: 'Return to Sanctuary', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 205, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+      );
+    } else if (currentRoomType === ROOM_TYPES.NEXUS_FORGOTTEN_RUINS) {
+      player.x = 0;
+      player.y = 190;
+      entities.push(
+        { id: 'ruin_mob_1', name: 'Ancient Ruin Golem', sub: 'Lv.4 Keystone Construct', type: 'mob', spriteKey: 'graniteBoss', x: -90, y: 40, origX: -90, origY: 40, hp: 44, maxHp: 44, damage: 4, xpReward: 75, speed: 42, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'ruin_mob_2', name: 'Ancient Ruin Golem', sub: 'Lv.4 Keystone Construct', type: 'mob', spriteKey: 'graniteBoss', x: 90, y: 40, origX: 90, origY: 40, hp: 44, maxHp: 44, damage: 4, xpReward: 75, speed: 42, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'ruin_mob_3', name: 'Lost Shard Sentinel', sub: 'Lv.5 Prismatic Sentinel', type: 'mob', spriteKey: 'mobSolari', x: -75, y: -50, origX: -75, origY: -50, hp: 48, maxHp: 48, damage: 5, xpReward: 85, speed: 52, aggroRange: 120, attackRange: 30, radius: 15, hitFlash: 0 },
+        { id: 'ruin_mob_4', name: 'Lost Shard Sentinel', sub: 'Lv.5 Prismatic Sentinel', type: 'mob', spriteKey: 'mobAether', x: 75, y: -50, origX: 75, origY: -50, hp: 48, maxHp: 48, damage: 5, xpReward: 85, speed: 52, aggroRange: 120, attackRange: 30, radius: 15, hitFlash: 0 },
+        { id: 'ruin_boss', name: 'The Prismatic Golem', sub: '★ Lv.7 First Nexus Guardian', type: 'mob', isBoss: true, dropGear: 'prismatic_keystone', spriteKey: 'graniteBoss', x: 0, y: -120, origX: 0, origY: -120, hp: 88, maxHp: 88, damage: 7, xpReward: 210, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'tut_font_ruins_c', name: 'Prismatic Keystone Spire', sub: 'Ancient Prismatic Node [E]', type: 'node', spriteKey: 'node', x: 0, y: 0, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
+        { id: 'tut_font_ruins_w', name: 'West Ruin Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -140, y: -30, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'tut_font_ruins_e', name: 'East Ruin Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 140, y: -30, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'portal_hub', name: 'Sanctuary Hub Gate', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 240, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
+        { id: 'portal_warzone', name: 'Warzone North Rift', sub: 'Step In -> Nexus Warzone', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_WARZONE, spriteKey: 'portal', x: 0, y: -240, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 }
+      );
+    } else if (currentRoomType === ROOM_TYPES.SOLARI_SUNKEN_VAULT) {
+      player.x = 0;
+      player.y = 180;
+      entities.push(
+        { id: 'vault_mob_1', name: 'Sunfire Automaton', sub: 'Lv.4 Solari Automaton', type: 'mob', spriteKey: 'solariSentinel', x: -85, y: 30, origX: -85, origY: 30, hp: 42, maxHp: 42, damage: 5, xpReward: 80, speed: 52, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'vault_mob_2', name: 'Sunfire Automaton', sub: 'Lv.4 Solari Automaton', type: 'mob', spriteKey: 'solariSentinel', x: 85, y: 30, origX: 85, origY: 30, hp: 42, maxHp: 42, damage: 5, xpReward: 80, speed: 52, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'vault_mob_3', name: 'Dawnblade Crusader', sub: 'Lv.5 Solari Elite Guard', type: 'mob', spriteKey: 'solariSentinel', x: -60, y: -50, origX: -60, origY: -50, hp: 46, maxHp: 46, damage: 5, xpReward: 90, speed: 55, aggroRange: 118, attackRange: 30, radius: 15, hitFlash: 0 },
+        { id: 'vault_boss', name: 'Solaris Core Colossus', sub: '★ Lv.8 Sunken Dawn Titan', type: 'mob', isBoss: true, dropGear: 'dawnfire_crest', spriteKey: 'solariBoss', x: 0, y: -120, origX: 0, origY: -120, hp: 96, maxHp: 96, damage: 7, xpReward: 240, speed: 40, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'vault_node_1', name: 'Dawnstone Glimmer Well', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'vault_node_2', name: 'Solar Core Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'portal_citadel', name: 'Return to Golden Citadel', sub: 'Step In -> Golden Citadel', type: 'portal', targetRoom: ROOM_TYPES.SOLARI_CITADEL, spriteKey: 'portal', x: 0, y: 220, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
+        { id: 'portal_hub', name: 'Sanctuary Return Gate', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: -180, y: 180, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+      );
+    } else if (currentRoomType === ROOM_TYPES.UMBRI_SHADOW_LABYRINTH) {
+      player.x = 0;
+      player.y = 180;
+      entities.push(
+        { id: 'lab_mob_1', name: 'Graveglass Phantom', sub: 'Lv.4 Umbri Specter', type: 'mob', spriteKey: 'voidStalker', x: -90, y: 30, origX: -90, origY: 30, hp: 38, maxHp: 38, damage: 6, xpReward: 80, speed: 56, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'lab_mob_2', name: 'Graveglass Phantom', sub: 'Lv.4 Umbri Specter', type: 'mob', spriteKey: 'voidStalker', x: 90, y: 30, origX: 90, origY: 30, hp: 38, maxHp: 38, damage: 6, xpReward: 80, speed: 56, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'lab_mob_3', name: 'Gloam Assassin', sub: 'Lv.5 Umbri Elite', type: 'mob', spriteKey: 'duskFiend', x: -65, y: -60, origX: -65, origY: -60, hp: 42, maxHp: 42, damage: 6, xpReward: 90, speed: 60, aggroRange: 120, attackRange: 30, radius: 14, hitFlash: 0 },
+        { id: 'lab_boss', name: 'Abyssal Devourer', sub: '★ Lv.8 Shade of the Void', type: 'mob', isBoss: true, dropGear: 'void_soulblade', spriteKey: 'umbriBoss', x: 0, y: -120, origX: 0, origY: -120, hp: 92, maxHp: 92, damage: 8, xpReward: 240, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'lab_node_1', name: 'Graveglass Leyline Shroud', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'lab_node_2', name: 'Void Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'portal_undercity', name: 'Return to Sepulcher Undercity', sub: 'Step In -> Undercity', type: 'portal', targetRoom: ROOM_TYPES.UMBRI_UNDERCITY, spriteKey: 'portal', x: 0, y: 220, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
+        { id: 'portal_hub', name: 'Sanctuary Return Gate', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 180, y: 180, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+      );
+    } else if (currentRoomType === ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY) {
+      player.x = 0;
+      player.y = 180;
+      entities.push(
+        { id: 'hollow_mob_1', name: 'Ironwood Barkkin', sub: 'Lv.4 Terra Forestkin', type: 'mob', spriteKey: 'terraWarden', x: -85, y: 30, origX: -85, origY: 30, hp: 48, maxHp: 48, damage: 4, xpReward: 80, speed: 50, aggroRange: 112, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'hollow_mob_2', name: 'Ironwood Barkkin', sub: 'Lv.4 Terra Forestkin', type: 'mob', spriteKey: 'terraWarden', x: 85, y: 30, origX: 85, origY: 30, hp: 48, maxHp: 48, damage: 4, xpReward: 80, speed: 50, aggroRange: 112, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'hollow_mob_3', name: 'Sporeling Stalker', sub: 'Lv.5 Terra Beast', type: 'mob', spriteKey: 'terraWarden', x: 70, y: -60, origX: 70, origY: -60, hp: 44, maxHp: 44, damage: 5, xpReward: 90, speed: 55, aggroRange: 118, attackRange: 30, radius: 15, hitFlash: 0 },
+        { id: 'hollow_boss', name: 'Primordial Ironbark', sub: '★ Lv.8 Elder Treant of the Hollow', type: 'mob', isBoss: true, dropGear: 'primordial_bark_chest', spriteKey: 'graniteBoss', x: 0, y: -120, origX: 0, origY: -120, hp: 110, maxHp: 110, damage: 7, xpReward: 250, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'hollow_node_1', name: 'Ironwood Blossom Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'hollow_node_2', name: 'Rootdeep Heart Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'portal_orchard', name: 'Return to Glimmer Orchard', sub: 'Step In -> Orchard', type: 'portal', targetRoom: ROOM_TYPES.TERRA_ORCHARD, spriteKey: 'portal', x: 0, y: 220, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
+        { id: 'portal_hub', name: 'Sanctuary Return Gate', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: -180, y: 180, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+      );
+    } else if (currentRoomType === ROOM_TYPES.AETHER_FRACTURED_ARCHIVE) {
+      player.x = 0;
+      player.y = 180;
+      entities.push(
+        { id: 'archive_mob_1', name: 'Chrono Echo', sub: 'Lv.4 Aether Construct', type: 'mob', spriteKey: 'aetherWeaver', x: -85, y: 30, origX: -85, origY: 30, hp: 38, maxHp: 38, damage: 6, xpReward: 80, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'archive_mob_2', name: 'Chrono Echo', sub: 'Lv.4 Aether Construct', type: 'mob', spriteKey: 'aetherWeaver', x: 85, y: 30, origX: 85, origY: 30, hp: 38, maxHp: 38, damage: 6, xpReward: 80, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'archive_mob_3', name: 'Astral Weaver', sub: 'Lv.5 Continuum Mage', type: 'mob', spriteKey: 'aetherWeaver', x: -70, y: -60, origX: -70, origY: -60, hp: 42, maxHp: 42, damage: 6, xpReward: 90, speed: 56, aggroRange: 118, attackRange: 30, radius: 15, hitFlash: 0 },
+        { id: 'archive_boss', name: 'Continuum Singularity', sub: '★ Lv.8 Paradox Titan', type: 'mob', isBoss: true, dropGear: 'chronos_singularity_core', spriteKey: 'aetherBoss', x: 0, y: -120, origX: 0, origY: -120, hp: 94, maxHp: 94, damage: 8, xpReward: 240, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'archive_node_1', name: 'Continuum Time Spire', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'archive_node_2', name: 'Astral Mirrorgate Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'portal_spire', name: 'Return to Mirrorgate Spire', sub: 'Step In -> Spire', type: 'portal', targetRoom: ROOM_TYPES.AETHER_SPIRE, spriteKey: 'portal', x: 0, y: 220, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
+        { id: 'portal_hub', name: 'Sanctuary Return Gate', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 180, y: 180, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
       );
     } else {
       player.x = 0;
@@ -1006,6 +1354,7 @@ export function initGame() {
         { id: 'umbri_1', name: 'Void Stalker', sub: 'Lv.2 Umbri Entity (AWK)', type: 'mob', spriteKey: 'voidStalker', x: -95, y: -25, origX: -95, origY: -25, hp: 30, maxHp: 30, damage: 4, xpReward: 55, speed: 52, aggroRange: 112, attackRange: 28, radius: 15, hitFlash: 0 },
         { id: 'umbri_2', name: 'Duskblade Fiend', sub: 'Lv.3 Umbri Entity (AWK)', type: 'mob', spriteKey: 'voidStalker', x: 75, y: 35, origX: 75, origY: 35, hp: 26, maxHp: 26, damage: 4, xpReward: 60, speed: 58, aggroRange: 108, attackRange: 26, radius: 13, hitFlash: 0 },
         { id: 'terra_boss', name: 'Granite Behemoth', sub: '★ Lv.5 Terra World Boss', type: 'mob', isBoss: true, spriteKey: 'graniteBoss', x: 120, y: -105, origX: 120, origY: -105, hp: 60, maxHp: 60, damage: 6, xpReward: 135, speed: 38, aggroRange: 130, attackRange: 34, radius: 21, hitFlash: 0 },
+        { id: 'portal_ruins', name: 'First Nexus Ruins Gate', sub: '🏛️ Forgotten Ruins', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS, spriteKey: 'portal', x: 0, y: -250, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
         { id: 'portal_hub', name: 'Sanctuary Hub Rift', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 215, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 }
       );
     }
@@ -2266,8 +2615,17 @@ export function initGame() {
 
   window.interactNearestNpc = function () {
     if (npcs.length === 0) return;
+    let best = npcs[0];
+    let bestDist = Infinity;
+    for (const n of npcs) {
+      const d = Math.hypot(n.x - player.x, n.y - player.y);
+      if (d < bestDist) {
+        bestDist = d;
+        best = n;
+      }
+    }
     audio.playDialogue();
-    openDialogue(npcs[0].dialogue);
+    openDialogue(best.dialogue);
   };
 
   window.teleportWorld = function () {
@@ -3257,6 +3615,63 @@ export function initGame() {
       return sprites.tiles.arena_neutral;
     }
 
+    if (currentBiomeTheme === 'ruins') {
+      // Grand cross crossroads in ancient flagstone
+      if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) {
+        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
+      }
+      // 4 quadrant elemental convergence: Terra (NW), Umbri (NE), Solari (SW), Aether (SE)
+      if (tx < 0 && ty < 0) return sprites.tiles[`terra_${Math.abs(tx * 7 + ty * 11) % 4}`];
+      if (tx > 0 && ty < 0) return sprites.tiles[`umbri_${Math.abs(tx * 7 + ty * 11) % 4}`];
+      if (tx < 0 && ty > 0) return sprites.tiles[`solari_${Math.abs(tx * 7 + ty * 11) % 4}`];
+      return sprites.tiles[`aether_${Math.abs(tx * 7 + ty * 11) % 4}`];
+    }
+
+    if (currentBiomeTheme === 'solari_vault') {
+      // Center ceremonial altar
+      if (Math.abs(tx) <= 3 && Math.abs(ty) <= 3) {
+        return sprites.tiles[`flagstone_${Math.abs(tx * 3 + ty * 5) % 2}`];
+      }
+      // Geometric diamond sun rays
+      if ((Math.abs(tx) + Math.abs(ty)) % 5 === 0 || Math.abs(tx) <= 1) {
+        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
+      }
+      return sprites.tiles[`solari_${Math.abs(tx * 11 + ty * 17) % 4}`];
+    }
+
+    if (currentBiomeTheme === 'umbri_labyrinth') {
+      // Winding maze corridors
+      const cellX = Math.floor(tx / 4);
+      const cellY = Math.floor(ty / 4);
+      if ((cellX + cellY) % 2 === 0 || Math.abs(tx) <= 1 || Math.abs(ty) <= 1) {
+        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
+      }
+      return sprites.tiles[`umbri_${Math.abs(tx * 13 + ty * 19) % 4}`];
+    }
+
+    if (currentBiomeTheme === 'terra_grove') {
+      // Concentric organic rings
+      const dist = Math.hypot(tx, ty);
+      if ((dist >= 5 && dist <= 7) || (dist >= 12 && dist <= 14) || Math.abs(tx) <= 1) {
+        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
+      }
+      if (dist < 5) {
+        return sprites.tiles[`sanctuary_grass_${Math.abs(tx * 7 + ty * 13) % 4}`];
+      }
+      return sprites.tiles[`terra_${Math.abs(tx * 11 + ty * 17) % 4}`];
+    }
+
+    if (currentBiomeTheme === 'aether_archive') {
+      // Astral geometric platforms over deep rift chasms
+      if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) {
+        return sprites.tiles.flagstone_1;
+      }
+      if (Math.abs(tx) % 6 <= 1 && Math.abs(ty) % 6 <= 1) {
+        return sprites.tiles[`void_sea_${Math.abs(tx + ty) % 2}`];
+      }
+      return sprites.tiles[`aether_${Math.abs(tx * 11 + ty * 17) % 4}`];
+    }
+
     if (['solari', 'umbri', 'terra', 'aether'].includes(currentBiomeTheme)) {
       if (Math.abs(tx) <= 1) return sprites.tiles[`flagstone_${Math.abs(ty) % 2}`];
       return sprites.tiles[`${currentBiomeTheme}_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.warzone_0;
@@ -3379,7 +3794,11 @@ export function initGame() {
           const sy = Math.round(pr.y - camTop);
           const img = pr.type === 'brazier'
             ? sprites.props.brazier[Math.floor(globalTime * 1.8 + Math.abs(pr.x)) % 2]
-            : sprites.props.pillar;
+            : pr.type === 'monument'
+              ? (sprites.props.monument || sprites.props.pillar)
+              : pr.type === 'crystalPillar'
+                ? ((sprites.props.crystalPillar && sprites.props.crystalPillar[Math.floor(globalTime * 2.0 + Math.abs(pr.x)) % sprites.props.crystalPillar.length]) || sprites.props.pillar)
+                : sprites.props.pillar;
           drawPixelEllipseShadow(sx, sy, 7, 3);
           ctx.drawImage(img, Math.round(sx - img.width / 2), sy - img.height + 2);
         },
@@ -3412,7 +3831,8 @@ export function initGame() {
         draw: () => {
           const sx = Math.round(npc.x - camLeft);
           const sy = Math.round(npc.y - camTop);
-          const img = sprites.heraldNpc[Math.floor(globalTime * 2.2) % sprites.heraldNpc.length];
+          const sprList = (npc.spriteKey && sprites[npc.spriteKey]) || sprites.heraldNpc;
+          const img = sprList[Math.floor(globalTime * 2.2) % sprList.length];
           drawPixelEllipseShadow(sx, sy, 9, 3);
           ctx.drawImage(img, Math.round(sx - img.width / 2), sy - img.height + 3);
           const bounce = Math.floor(Math.sin(globalTime * 3.5) * 1.5);

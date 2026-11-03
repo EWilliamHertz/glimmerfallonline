@@ -277,6 +277,10 @@ export function buildSpriteSheet() {
     hero: null,
     heroByFaction: {},
     heraldNpc: [],
+    cartographerNpc: [],
+    shadowNpc: [],
+    druidNpc: [],
+    chronoNpc: [],
     allyPaladin: [],
     allyMage: [],
     dummy: [],
@@ -502,6 +506,38 @@ export function buildSpriteSheet() {
     sprites.props.pillar = addPixelOutline(c);
   }
 
+  // Ancient Weathered Runic Monument
+  {
+    const { c, ctx } = makeCanvas(24, 34);
+    rect(ctx, 3, 28, 18, 5, '#1e293b');
+    rect(ctx, 5, 25, 14, 3, '#334155');
+    rect(ctx, 6, 6, 12, 19, '#475569');
+    rect(ctx, 7, 7, 10, 17, '#64748b');
+    rect(ctx, 8, 4, 8, 3, '#94a3b8');
+    rect(ctx, 10, 2, 4, 2, '#cbd5e1');
+    // Glowing omni-elemental runes
+    rect(ctx, 9, 9, 6, 2, '#38bdf8');
+    rect(ctx, 11, 11, 2, 4, '#fde047');
+    rect(ctx, 9, 15, 6, 2, '#4ade80');
+    rect(ctx, 11, 17, 2, 3, '#c084fc');
+    sprites.props.monument = addPixelOutline(c);
+  }
+
+  // Floating Astral Crystal Pillar
+  sprites.props.crystalPillar = [];
+  for (let f = 0; f < 2; f++) {
+    const hover = f === 1 ? -1 : 0;
+    const { c, ctx } = makeCanvas(20, 36);
+    rect(ctx, 4, 30, 12, 4, '#1e293b');
+    rect(ctx, 6, 28, 8, 2, '#334155');
+    // Floating upper spire crystal
+    rect(ctx, 8, 3 + hover, 4, 23, '#0284c7');
+    rect(ctx, 6, 7 + hover, 8, 15, '#0ea5e9');
+    rect(ctx, 7, 9 + hover, 6, 11, '#38bdf8');
+    rect(ctx, 9, 11 + hover, 2, 7, '#ffffff');
+    sprites.props.crystalPillar.push(addPixelOutline(c));
+  }
+
   // ==========================================
   // 3. DEFAULT FACTION HERO SPRITES (Via Paperdoll Composer)
   // ==========================================
@@ -567,6 +603,93 @@ export function buildSpriteSheet() {
       rect(ctx, 13, 21, 4, 3, '#365314');
       sprites.allyPaladin.push(addPixelOutline(c));
     }
+  }
+
+  // Atlas the Wanderer / High Cartographer NPC (Traveler cowl, pack, brass astrolabe)
+  for (let f = 0; f < 2; f++) {
+    const bob = f === 1 ? -1 : 0;
+    const { c, ctx } = makeCanvas(26, 28);
+    // Brown leather boots
+    rect(ctx, 8, 21 + bob, 4, 4, '#451a03');
+    rect(ctx, 14, 21 + bob, 4, 4, '#451a03');
+    // Traveler Cloak & Tunic
+    rect(ctx, 6, 10 + bob, 14, 11, '#78350f');
+    rect(ctx, 8, 11 + bob, 10, 10, '#b45309');
+    rect(ctx, 9, 12 + bob, 8, 8, '#d97706');
+    // Back scroll pack & compass
+    rect(ctx, 2, 8 + bob, 4, 9, '#92400e');
+    rect(ctx, 3, 9 + bob, 2, 7, '#fef08a');
+    // Cowl & Head
+    rect(ctx, 7, 4 + bob, 12, 7, '#78350f');
+    rect(ctx, 8, 5 + bob, 10, 5, '#fed7aa');
+    px(ctx, 10, 7 + bob, '#451a03');
+    px(ctx, 14, 7 + bob, '#451a03');
+    // Brass Telescope / Map Staff
+    rect(ctx, 20, 3 + bob, 2, 22, '#ca8a04');
+    rect(ctx, 19, 2 + bob, 4, 3, '#facc15');
+    px(ctx, 20, 3 + bob, '#ffffff');
+    sprites.cartographerNpc.push(addPixelOutline(c));
+  }
+
+  // Wraithmother Vespera / Shadow Broker NPC (Duskveil shrouded cowl, glowing magenta eyes)
+  for (let f = 0; f < 2; f++) {
+    const bob = f === 1 ? -1 : 0;
+    const { c, ctx } = makeCanvas(26, 28);
+    rect(ctx, 7, 10 + bob, 12, 13, '#1e1b4b');
+    rect(ctx, 8, 11 + bob, 10, 11, '#3b0764');
+    rect(ctx, 9, 12 + bob, 8, 9, '#581c87');
+    rect(ctx, 7, 3 + bob, 12, 8, '#2e1065');
+    rect(ctx, 9, 5 + bob, 8, 5, '#0f172a');
+    // Piercing glowing violet eyes
+    rect(ctx, 10, 7 + bob, 2, 2, '#f43f5e');
+    rect(ctx, 14, 7 + bob, 2, 2, '#f43f5e');
+    // Spectral Soul Lantern
+    rect(ctx, 19, 9 + bob, 4, 8, '#7e22ce');
+    rect(ctx, 20, 11 + bob, 2, 4, '#f472b6');
+    px(ctx, 20, 12 + bob, '#ffffff');
+    sprites.shadowNpc.push(addPixelOutline(c));
+  }
+
+  // Dryad Sylvanus / Grove Tender NPC (Verdant leaf mantle, antler crown, blossom staff)
+  for (let f = 0; f < 2; f++) {
+    const bob = f === 1 ? -1 : 0;
+    const { c, ctx } = makeCanvas(26, 28);
+    rect(ctx, 6, 11 + bob, 14, 12, '#14532d');
+    rect(ctx, 8, 12 + bob, 10, 10, '#16a34a');
+    rect(ctx, 9, 13 + bob, 8, 8, '#4ade80');
+    // Head & Leaf Hood
+    rect(ctx, 7, 4 + bob, 12, 7, '#166534');
+    rect(ctx, 9, 5 + bob, 8, 5, '#bbf7d0');
+    px(ctx, 10, 7 + bob, '#14532d');
+    px(ctx, 14, 7 + bob, '#14532d');
+    // Verdant Stag Horns
+    rect(ctx, 5, 1 + bob, 2, 4, '#84cc16');
+    rect(ctx, 19, 1 + bob, 2, 4, '#84cc16');
+    // Living Bloom Staff
+    rect(ctx, 20, 4 + bob, 2, 21, '#78350f');
+    rect(ctx, 19, 2 + bob, 4, 4, '#22c55e');
+    rect(ctx, 20, 3 + bob, 2, 2, '#fde047');
+    sprites.druidNpc.push(addPixelOutline(c));
+  }
+
+  // Chronos Sage Zephyr / Astromancer NPC (Starweave hood, time-dial orb, cyan aura)
+  for (let f = 0; f < 2; f++) {
+    const bob = f === 1 ? -1 : 0;
+    const { c, ctx } = makeCanvas(26, 28);
+    rect(ctx, 6, 11 + bob, 14, 12, '#0c4a6e');
+    rect(ctx, 8, 12 + bob, 10, 10, '#0284c7');
+    rect(ctx, 9, 13 + bob, 8, 8, '#38bdf8');
+    rect(ctx, 7, 3 + bob, 12, 8, '#082f49');
+    rect(ctx, 8, 5 + bob, 10, 5, '#e0f2fe');
+    px(ctx, 10, 7 + bob, '#0369a1');
+    px(ctx, 14, 7 + bob, '#0369a1');
+    // Floating Sundial Chrono Ring
+    rect(ctx, 8, 1 + bob, 10, 2, '#38bdf8');
+    px(ctx, 12, 0 + bob, '#ffffff');
+    // Floating Time Warp Focus
+    rect(ctx, 19, 10 + bob, 5, 5, '#0ea5e9');
+    rect(ctx, 20, 11 + bob, 3, 3, '#ffffff');
+    sprites.chronoNpc.push(addPixelOutline(c));
   }
 
   // ==========================================
@@ -789,6 +912,14 @@ export function buildSpriteSheet() {
   sprites.bossSolari = buildColossusBoss('#92400e', '#facc15', '#fb923c', '#38bdf8');  // Sunfire Colossus
   sprites.bossUmbri = buildColossusBoss('#3b0764', '#9333ea', '#f43f5e', '#fde047');   // Crypt Lord Malakor
   sprites.bossAether = buildColossusBoss('#1e3a8a', '#38bdf8', '#c084fc', '#ffffff');  // Rift Titan
+
+  // Seamless Aliases for Mobs & Bosses (Both offline and server authoritative names)
+  sprites.solariSentinel = sprites.mobSolari;
+  sprites.terraWarden = sprites.mobTerra;
+  sprites.aetherWeaver = sprites.mobAether;
+  sprites.solariBoss = sprites.bossSolari;
+  sprites.umbriBoss = sprites.bossUmbri;
+  sprites.aetherBoss = sprites.bossAether;
 
   return sprites;
 }
