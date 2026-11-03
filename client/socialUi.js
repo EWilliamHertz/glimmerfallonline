@@ -42,29 +42,50 @@ export function drawPixelNameplateAndBubbles(ctx, {
     ctx.fillRect(bx, by, Math.max(0, Math.round((hp / Math.max(1, maxHp)) * bw)), 2);
   }
 
-  // 2. Crisp Pixel Nameplate + <ORDER> Tag
-  ctx.font = 'bold 5px "Silkscreen", monospace';
+  // 2. Bold, High-Contrast Pixel Nameplate + <ORDER> Tag (dark plaque + thick outline)
+  ctx.font = 'bold 8px "Silkscreen", "Press Start 2P", monospace';
   ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
   const tagPrefix = orderTag && orderTag !== 'NONE' ? `<${orderTag}> ` : '';
   const tcgStar = tcgLinked ? '⚡' : '';
   const label = `${tcgStar}${tagPrefix}${name}`;
-  const ny = isSelf ? topY - 4 : topY - 8;
+  const ny = isSelf ? topY - 5 : topY - 10;
+  const labelW = Math.ceil(ctx.measureText(label).width);
+  const facColor = FACTIONS_META[faction]?.color || orderColor || '#facc15';
+  const textColor = isHostile ? '#fecaca' : isParty ? '#bbf7d0' : '#ffffff';
+  const accentColor = isHostile ? '#ef4444' : isParty ? '#4ade80' : facColor;
 
-  ctx.fillStyle = '#05070f';
-  ctx.fillText(label, sx + 1, ny + 1);
-  ctx.fillText(label, sx - 1, ny);
-  ctx.fillStyle = isHostile
-    ? '#fca5a5'
-    : isParty
-      ? '#86efac'
-      : FACTIONS_META[faction]?.color || orderColor || '#facc15';
+  // Dark semi-opaque plaque with faction-colored underline for instant legibility
+  const plateW = labelW + 8;
+  const plateX = Math.round(sx - plateW / 2);
+  ctx.fillStyle = 'rgba(5, 7, 15, 0.82)';
+  ctx.fillRect(plateX, ny - 8, plateW, 11);
+  ctx.fillStyle = accentColor;
+  ctx.fillRect(plateX, ny + 3, plateW, 1);
+
+  // Thick 8-direction black outline
+  ctx.fillStyle = '#000000';
+  for (const [ox, oy] of [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]) {
+    ctx.fillText(label, sx + ox, ny + oy);
+  }
+  // Bright fill (white by default, tinted when hostile/party) so name never washes out
+  ctx.fillStyle = textColor;
   ctx.fillText(label, sx, ny);
+  // Faction-colored name overlay for the actual character name (keeps faction identity)
+  if (!isHostile && !isParty) {
+    const nameW = Math.ceil(ctx.measureText(name).width);
+    const prefixW = labelW - nameW;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = facColor;
+    ctx.fillText(name, Math.round(sx - labelW / 2 + prefixW), ny);
+    ctx.textAlign = 'center';
+  }
 
   // 3. Pixel Emote Badge (bouncing above nameplate)
   if (emote && EMOTES_CATALOG[emote]) {
     const em = EMOTES_CATALOG[emote];
     const bounce = Math.round(Math.sin(globalTime * 10) * 2);
-    const ey = ny - 15 + bounce;
+    const ey = ny - 19 + bounce;
     ctx.fillStyle = '#05070f';
     ctx.fillRect(sx - 8, ey - 7, 16, 12);
     ctx.fillStyle = em.color || '#fde047';
@@ -77,17 +98,17 @@ export function drawPixelNameplateAndBubbles(ctx, {
 
   // 4. 16-Bit Pixel Speech Bubble (above character's head!)
   if (bubble) {
-    ctx.font = '5px "Silkscreen", monospace';
+    ctx.font = 'bold 7px "Silkscreen", "Press Start 2P", monospace';
     const cleanText = String(bubble).slice(0, 64);
-    // Wrap up to 2 lines of ~24 chars
+    // Wrap up to 2 lines of ~22 chars
     const lines = [];
-    if (cleanText.length <= 24) {
+    if (cleanText.length <= 22) {
       lines.push(cleanText);
     } else {
-      const splitAt = cleanText.lastIndexOf(' ', 24);
-      const idx = splitAt > 8 ? splitAt : 24;
+      const splitAt = cleanText.lastIndexOf(' ', 22);
+      const idx = splitAt > 8 ? splitAt : 22;
       lines.push(cleanText.slice(0, idx).trim());
-      lines.push(cleanText.slice(idx).trim().slice(0, 26));
+      lines.push(cleanText.slice(idx).trim().slice(0, 24));
     }
 
     let maxLineW = 24;
@@ -95,11 +116,11 @@ export function drawPixelNameplateAndBubbles(ctx, {
       maxLineW = Math.max(maxLineW, Math.ceil(ctx.measureText(ln).width));
     }
     const padX = 5;
-    const lineH = 7;
+    const lineH = 9;
     const boxW = maxLineW + padX * 2;
     const boxH = lines.length * lineH + 5;
     const bx = Math.round(sx - boxW / 2);
-    const by = Math.round((emote ? ny - 26 : ny - 10) - boxH);
+    const by = Math.round((emote ? ny - 32 : ny - 13) - boxH);
     const accent = FACTIONS_META[faction]?.color || '#38bdf8';
 
     // Outer pixel outline
@@ -119,7 +140,7 @@ export function drawPixelNameplateAndBubbles(ctx, {
 
     ctx.fillStyle = '#f8fafc';
     lines.forEach((ln, idx) => {
-      ctx.fillText(ln, sx, by + 7 + idx * lineH);
+      ctx.fillText(ln, sx, by + 8 + idx * lineH);
     });
   }
 
