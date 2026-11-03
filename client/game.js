@@ -610,6 +610,24 @@ export function initGame() {
     }
   };
 
+  window.saveCustomServerUrl = function () {
+    const inp = document.getElementById('custom-server-inp');
+    const val = inp?.value?.trim() || '';
+    if (!val) {
+      alert('Please enter a valid server URL (e.g. https://your-server.ngrok-free.dev or http://localhost:3001)');
+      return;
+    }
+    net.setServerBase(val);
+    logMessage(`[Server] Connecting to multiplayer host: ${val}`, 'log-solari', 'chat');
+  };
+
+  window.resetCustomServerUrl = function () {
+    net.setServerBase('');
+    const inp = document.getElementById('custom-server-inp');
+    if (inp) inp.value = '';
+    logMessage(`[Server] Reset to default same-origin / Vercel serverless host.`, 'log-system', 'chat');
+  };
+
   // ==========================================
   // Dialogue Helpers
   // ==========================================

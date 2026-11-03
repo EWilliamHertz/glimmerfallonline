@@ -30,6 +30,29 @@ export class MultiplayerClient {
     }
   }
 
+  getServerBase() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const qServer = params.get('server');
+      if (qServer) {
+        const clean = qServer.trim().replace(/\/+$/, '');
+        localStorage.setItem('glimmerfall_server_url', clean);
+        return clean;
+      }
+      const stored = localStorage.getItem('glimmerfall_server_url');
+      if (stored) return stored.trim().replace(/\/+$/, '');
+    } catch (_) {}
+    return '';
+  }
+
+  setServerBase(url) {
+    try {
+      if (url) localStorage.setItem('glimmerfall_server_url', String(url).trim().replace(/\/+$/, ''));
+      else localStorage.removeItem('glimmerfall_server_url');
+    } catch (_) {}
+    this.connectWebSocket();
+  }
+
   saveStoredToken(tok) {
     this.token = tok || '';
     try {
@@ -89,12 +112,17 @@ export class MultiplayerClient {
       this.ws = null;
     }
 
-    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const qs = new URLSearchParams();
-    if (this.token) qs.set('token', this.token);
-    if (this.preferredRoom) qs.set('room', this.preferredRoom);
-    const qStr = qs.toString() ? `?${qs.toString()}` : '';
-    const url = `${wsProto}//${window.location.host}/ws${qStr}`;
+    const serverBase = this.getServerBase();
+    let url;
+    if (serverBase) {
+      const isHttps = serverBase.startsWith('https:');
+      const wsProto = isHttps ? 'wss:' : 'ws:';
+      const cleanHost = serverBase.replace(/^https?:\/\//i, '');
+      url = `${wsProto}//${cleanHost}/ws${qStr}`;
+    } else {
+      const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      url = `${wsProto}//${window.location.host}/ws${qStr}`;
+    }
 
     let sock;
     try {
@@ -201,9 +229,11 @@ export class MultiplayerClient {
   }
 
   async apiCall(path, method = 'POST', body = null) {
+    const base = this.getServerBase();
+    const fullUrl = base ? `${base}${path}` : path;
     let res;
     try {
-      res = await fetch(path, {
+      res = await fetch(fullUrl, {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -222,10 +252,22 @@ export class MultiplayerClient {
       throw new Error('Cannot reach the GlimmerFall server. Check your connection and try again.');
     }
 
+    if (res.status === 404 && this.ws && this.ws.readyState === 1) {
+      const action = MultiplayerClient.WS_RPC_MAP[`${method} ${path}`];
+      if (action) {
+        const data = await this.wsRpc(action, body || {});
+        if (!data.ok) throw new Error(data.error || 'Server request failed');
+        return data;
+      }
+    }
+
     let data = null;
     try {
       data = await res.json();
     } catch (_) {
+      if (res.status === 404) {
+        throw new Error('API returned 404. Ensure Vercel deployment has /api serverless functions enabled and DATABASE_URL set in Vercel settings.');
+      }
       throw new Error(`Server returned an unexpected response (HTTP ${res.status}). Please try again.`);
     }
     if (!res.ok || !data.ok) {
