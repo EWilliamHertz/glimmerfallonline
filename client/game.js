@@ -54,11 +54,17 @@ const DEFAULT_KEYBINDS = {
 
 const PORTAL_ID_TO_ROOM = {
   portal_main: ROOM_TYPES.NEXUS_WARZONE,
-  portal_solari: ROOM_TYPES.SOLARI_CITADEL,
-  portal_umbri: ROOM_TYPES.UMBRI_UNDERCITY,
-  portal_terra: ROOM_TYPES.TERRA_ORCHARD,
-  portal_aether: ROOM_TYPES.AETHER_SPIRE,
+  portal_warzone: ROOM_TYPES.NEXUS_WARZONE,
+  portal_sanctuary: ROOM_TYPES.SANCTUARY_HUB,
   portal_hub: ROOM_TYPES.SANCTUARY_HUB,
+  portal_solari: ROOM_TYPES.SOLARI_CITADEL,
+  portal_citadel: ROOM_TYPES.SOLARI_CITADEL,
+  portal_umbri: ROOM_TYPES.UMBRI_UNDERCITY,
+  portal_undercity: ROOM_TYPES.UMBRI_UNDERCITY,
+  portal_terra: ROOM_TYPES.TERRA_ORCHARD,
+  portal_orchard: ROOM_TYPES.TERRA_ORCHARD,
+  portal_aether: ROOM_TYPES.AETHER_SPIRE,
+  portal_spire: ROOM_TYPES.AETHER_SPIRE,
   portal_ruins: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
   portal_solari_vault: ROOM_TYPES.SOLARI_SUNKEN_VAULT,
   portal_umbri_lab: ROOM_TYPES.UMBRI_SHADOW_LABYRINTH,
@@ -1374,8 +1380,10 @@ export function initGame() {
       return;
     }
     const roomPop = remotePlayers.size + 1;
-    pill.style.color = '#4ade80';
-    pill.innerText = `● 20Hz • ${roomPop}/${currentRoomMax} IN ROOM (${onlineTotal} ON)`;
+    const ping = net.pingMs || 1;
+    const pingColor = ping < 55 ? '#4ade80' : ping < 130 ? '#facc15' : '#f87171';
+    pill.style.color = pingColor;
+    pill.innerText = `● 20Hz • ${ping}ms • ${roomPop}/${currentRoomMax} IN ROOM (${onlineTotal} ON)`;
   }
 
   function isRemoteHostile(rp) {
@@ -1486,9 +1494,13 @@ export function initGame() {
           player.isDead = false;
           hideDeathScreen();
         }
-        if (Math.hypot(sp.x - player.x, sp.y - player.y) > 75) {
+        const errDist = Math.hypot(sp.x - player.x, sp.y - player.y);
+        if (errDist > 160) {
           player.x = sp.x;
           player.y = sp.y;
+        } else if (errDist > 20) {
+          player.x += (sp.x - player.x) * 0.3;
+          player.y += (sp.y - player.y) * 0.3;
         }
         updatePlayerUI();
       } else {
@@ -1675,14 +1687,19 @@ export function initGame() {
           frontpage.syncFromProfile(msg.profile);
           break;
 
-        case 'room_joined':
+        case 'room_joined': {
+          const roomChanged = currentRoomId !== msg.roomId || currentRoomType !== msg.roomType;
           currentRoomId = msg.roomId;
           currentRoomMax = msg.maxPlayers || 60;
+          net.preferredRoom = msg.roomType;
           remotePlayers.clear();
-          player.x = msg.x;
-          player.y = msg.y;
+          if (roomChanged || Math.hypot(msg.x - player.x, msg.y - player.y) > 120) {
+            player.x = msg.x;
+            player.y = msg.y;
+          }
           player.dir = msg.dir || 'up';
           player.team = msg.team || null;
+          portalCooldown = 2.5;
           if (player.isDead) player.isDead = false;
           hideDeathScreen();
           if (msg.roomType === ROOM_TYPES.ARENA_3V3) {
@@ -1702,7 +1719,9 @@ export function initGame() {
             }
           }
           applyServerSnapshot(msg.snapshot);
+          updateNetStatusPill();
           break;
+        }
 
         case 'world_state':
           if (msg.roomId === currentRoomId) {
@@ -1833,6 +1852,7 @@ export function initGame() {
       }
     },
   });
+  net.onPing = () => updateNetStatusPill();
 
   // ==========================================
   // Game Frontpage Controller (Character Select, Faction, Class & Loadout)
@@ -3385,6 +3405,9 @@ export function initGame() {
       player.isMoving = false;
     }
 
+    net.currentCoords = { x: player.x, y: player.y };
+    net.preferredRoom = currentRoomType;
+
     if (net.connected) {
       moveSyncAccum += dt;
       if (moveSyncAccum >= 0.05) {
@@ -3651,35 +3674,35 @@ export function initGame() {
 
     if (currentBiomeTheme === 'terra_grove') {
       // Concentric organic rings
-      const dist = Math.hypot(tx, ty);
-      if ((dist >= 5 && dist <= 7) || (dist >= 12 && dist <= 14) || Math.abs(tx) <= 1) {
-        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
+      const d2 = tx * tx + ty * ty;
+      if ((d2 >= 25 && d2 <= 49) || (d2 >= 144 && d2 <= 196) || Math.abs(tx) <= 1) {
+        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
       }
-      if (dist < 5) {
-        return sprites.tiles[`sanctuary_grass_${Math.abs(tx * 7 + ty * 13) % 4}`];
+      if (d2 < 25) {
+        return sprites.tiles[`sanctuary_grass_${Math.abs(tx * 7 + ty * 13) % 4}`] || sprites.tiles.flagstone_0;
       }
-      return sprites.tiles[`terra_${Math.abs(tx * 11 + ty * 17) % 4}`];
+      return sprites.tiles[`terra_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.flagstone_0;
     }
 
     if (currentBiomeTheme === 'aether_archive') {
       // Astral geometric platforms over deep rift chasms
       if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) {
-        return sprites.tiles.flagstone_1;
+        return sprites.tiles.flagstone_1 || sprites.tiles.flagstone_0;
       }
       if (Math.abs(tx) % 6 <= 1 && Math.abs(ty) % 6 <= 1) {
-        return sprites.tiles[`void_sea_${Math.abs(tx + ty) % 2}`];
+        return sprites.tiles[`void_sea_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
       }
-      return sprites.tiles[`aether_${Math.abs(tx * 11 + ty * 17) % 4}`];
+      return sprites.tiles[`aether_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.flagstone_0;
     }
 
     if (['solari', 'umbri', 'terra', 'aether'].includes(currentBiomeTheme)) {
-      if (Math.abs(tx) <= 1) return sprites.tiles[`flagstone_${Math.abs(ty) % 2}`];
-      return sprites.tiles[`${currentBiomeTheme}_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.warzone_0;
+      if (Math.abs(tx) <= 1) return sprites.tiles[`flagstone_${Math.abs(ty) % 2}`] || sprites.tiles.flagstone_0;
+      return sprites.tiles[`${currentBiomeTheme}_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.warzone_0 || sprites.tiles.flagstone_0;
     }
 
     // Nexus Warzone crossroad + dark slate terrain
-    if (Math.abs(tx) <= 1 || Math.abs(ty) <= 1) return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
-    return sprites.tiles[`warzone_${Math.abs(tx * 11 + ty * 17) % 4}`];
+    if (Math.abs(tx) <= 1 || Math.abs(ty) <= 1) return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
+    return sprites.tiles[`warzone_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.flagstone_0;
   }
 
   function drawPixelEllipseShadow(cx, cy, rx, ry) {

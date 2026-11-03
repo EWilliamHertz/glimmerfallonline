@@ -14,6 +14,7 @@ export class MultiplayerClient {
     this.playerId = null;
     this.profile = null;
     this.pingMs = 0;
+    this.onPing = null;
     this.reconnectTimer = null;
     this.pingInterval = null;
     this.token = this.loadStoredToken();
@@ -137,6 +138,10 @@ export class MultiplayerClient {
     const qs = new URLSearchParams();
     if (this.token) qs.set('token', this.token);
     if (this.preferredRoom) qs.set('room', this.preferredRoom);
+    if (this.currentCoords && Number.isFinite(this.currentCoords.x) && Number.isFinite(this.currentCoords.y)) {
+      qs.set('x', String(Math.round(this.currentCoords.x)));
+      qs.set('y', String(Math.round(this.currentCoords.y)));
+    }
     const qStr = qs.toString() ? `?${qs.toString()}` : '';
 
     const serverBase = this.getServerBase();
@@ -169,7 +174,7 @@ export class MultiplayerClient {
       this.send({ type: 'ping', ts: performance.now() });
       this.pingInterval = setInterval(() => {
         this.send({ type: 'ping', ts: performance.now() });
-      }, 3000);
+      }, 1500);
     };
 
     sock.onmessage = (ev) => {
@@ -190,6 +195,7 @@ export class MultiplayerClient {
         }
         if (msg.type === 'pong' && msg.ts) {
           this.pingMs = Math.max(1, Math.round(performance.now() - msg.ts));
+          if (this.onPing) this.onPing(this.pingMs);
           return;
         }
         if (msg.type === 'welcome') {

@@ -370,6 +370,8 @@ export function createGlimmerFallServer() {
   wss.on('connection', (ws, _req, url) => {
     const token = url.searchParams.get('token');
     const preferredRoom = url.searchParams.get('room') || null;
+    const reqX = url.searchParams.get('x');
+    const reqY = url.searchParams.get('y');
     let account = token ? accounts.verifyToken(token) : null;
     let issuedToken = null;
 
@@ -383,7 +385,7 @@ export function createGlimmerFallServer() {
       issuedToken = created.token;
     }
 
-    const session = rooms.attachConnection(ws, account, preferredRoom);
+    const session = rooms.attachConnection(ws, account, preferredRoom, reqX, reqY);
     if (issuedToken) {
       session.send({ type: 'session_token', token: issuedToken });
     }

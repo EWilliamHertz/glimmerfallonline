@@ -1600,7 +1600,7 @@ export class RoomManager {
     return out;
   }
 
-  attachConnection(ws, account, preferredRoom = null) {
+  attachConnection(ws, account, preferredRoom = null, reqX = null, reqY = null) {
     const existing = this.clients.get(account.id);
     if (existing && existing.ws !== ws) {
       try {
@@ -1680,7 +1680,7 @@ export class RoomManager {
       rooms: this.listPublicRooms(),
     });
 
-    this.joinRoom(client, preferredRoom || ROOM_TYPES.SANCTUARY_HUB);
+    this.joinRoom(client, preferredRoom || ROOM_TYPES.SANCTUARY_HUB, null, reqX, reqY);
     return client;
   }
 
@@ -1733,7 +1733,7 @@ export class RoomManager {
     }
   }
 
-  joinRoom(client, targetRoomOrType, teamOverride = null) {
+  joinRoom(client, targetRoomOrType, teamOverride = null, reqX = null, reqY = null) {
     if (client.roomId && this.rooms.has(client.roomId)) {
       const prev = this.rooms.get(client.roomId);
       prev.players.delete(client.id);
@@ -1758,10 +1758,16 @@ export class RoomManager {
     client.roomType = room.type;
     client.team = teamOverride;
     client.castState = null;
-    client.portalCooldown = 1.6;
+    client.portalCooldown = 2.5;
 
     const jitterX = Math.round((Math.random() - 0.5) * 28);
-    if (room.type === ROOM_TYPES.ARENA_3V3 && teamOverride === 'red') {
+    const hasReqCoords = reqX !== null && reqY !== null && Number.isFinite(Number(reqX)) && Number.isFinite(Number(reqY));
+    if (hasReqCoords) {
+      // Seamless reconnect position preservation
+      client.x = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, Number(reqX)));
+      client.y = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, Number(reqY)));
+      client.dir = 'up';
+    } else if (room.type === ROOM_TYPES.ARENA_3V3 && teamOverride === 'red') {
       client.x = jitterX;
       client.y = -170;
       client.dir = 'down';
@@ -2115,10 +2121,19 @@ export class RoomManager {
         const ny = Number(msg.y);
         if (!Number.isFinite(nx) || !Number.isFinite(ny)) return;
 
-        const dist = Math.hypot(nx - client.x, ny - client.y);
-        if (dist <= 110) {
-          client.x = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, nx));
-          client.y = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, ny));
+        const targetX = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, nx));
+        const targetY = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, ny));
+
+        const dist = Math.hypot(targetX - client.x, targetY - client.y);
+        const MAX_STEP = 240;
+        if (dist <= MAX_STEP) {
+          client.x = targetX;
+          client.y = targetY;
+        } else {
+          // Graceful vector clamping on lag spikes / packet bunching (completely prevents rubberband desync loops)
+          const ratio = MAX_STEP / dist;
+          client.x = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, client.x + (targetX - client.x) * ratio));
+          client.y = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, client.y + (targetY - client.y) * ratio));
         }
         client.z = Math.max(0, Math.min(80, Number(msg.z) || 0));
         if (['up', 'down', 'left', 'right'].includes(msg.dir)) {
@@ -3394,6 +3409,9 @@ export class RoomManager {
   }
 
   tickRoom(room, dt, now) {
+    // Early exit for unoccupied rooms (except Warzone to process siege timers)
+    if (room.players.size === 0 && room.type !== ROOM_TYPES.NEXUS_WARZONE) return;
+
     // Scheduled 30-Minute Warzone Siege Event Trigger
     if (room.type === ROOM_TYPES.NEXUS_WARZONE && room.siege) {
       if (!room.siege.active && now >= room.siege.nextSiegeAt) {
@@ -3460,6 +3478,7 @@ export class RoomManager {
       if (p.portalCooldown <= 0) {
         for (const ent of room.entities) {
           if (ent.type === 'portal' && ent.targetRoom && Math.hypot(p.x - ent.x, p.y - ent.y) < 22) {
+            p.portalCooldown = 2.5;
             if (!p.portalQuestDone && ent.targetRoom === ROOM_TYPES.NEXUS_WARZONE) {
               p.portalQuestDone = true;
               this.awardPlayerXP(p, 40, 'Entered Nexus Warzone');
@@ -3739,6 +3758,7 @@ export class RoomManager {
       name: e.name,
       sub: e.sub,
       type: e.type,
+      targetRoom: e.targetRoom,
       faction: e.faction,
       team: e.team,
       isBoss: e.isBoss || false,

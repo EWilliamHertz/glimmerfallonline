@@ -50,7 +50,7 @@ export const ROOM_CONFIGS = {
     halfH: 320,
     pvp: true,
     spawnX: 0,
-    spawnY: 165,
+    spawnY: 130,
   },
   [ROOM_TYPES.SOLARI_CITADEL]: {
     type: ROOM_TYPES.SOLARI_CITADEL,
@@ -63,7 +63,7 @@ export const ROOM_CONFIGS = {
     halfH: 272,
     pvp: false,
     spawnX: 0,
-    spawnY: 170,
+    spawnY: 110,
   },
   [ROOM_TYPES.UMBRI_UNDERCITY]: {
     type: ROOM_TYPES.UMBRI_UNDERCITY,
@@ -76,7 +76,7 @@ export const ROOM_CONFIGS = {
     halfH: 272,
     pvp: false,
     spawnX: 0,
-    spawnY: 170,
+    spawnY: 110,
   },
   [ROOM_TYPES.TERRA_ORCHARD]: {
     type: ROOM_TYPES.TERRA_ORCHARD,
@@ -89,7 +89,7 @@ export const ROOM_CONFIGS = {
     halfH: 272,
     pvp: false,
     spawnX: 0,
-    spawnY: 170,
+    spawnY: 110,
   },
   [ROOM_TYPES.AETHER_SPIRE]: {
     type: ROOM_TYPES.AETHER_SPIRE,
@@ -102,7 +102,7 @@ export const ROOM_CONFIGS = {
     halfH: 272,
     pvp: false,
     spawnX: 0,
-    spawnY: 170,
+    spawnY: 110,
   },
   [ROOM_TYPES.ARENA_3V3]: {
     type: ROOM_TYPES.ARENA_3V3,
@@ -128,7 +128,7 @@ export const ROOM_CONFIGS = {
     halfH: 300,
     pvp: false,
     spawnX: 0,
-    spawnY: 190,
+    spawnY: 110,
   },
   [ROOM_TYPES.SOLARI_SUNKEN_VAULT]: {
     type: ROOM_TYPES.SOLARI_SUNKEN_VAULT,
@@ -141,7 +141,7 @@ export const ROOM_CONFIGS = {
     halfH: 272,
     pvp: false,
     spawnX: 0,
-    spawnY: 180,
+    spawnY: 110,
   },
   [ROOM_TYPES.UMBRI_SHADOW_LABYRINTH]: {
     type: ROOM_TYPES.UMBRI_SHADOW_LABYRINTH,
@@ -154,7 +154,7 @@ export const ROOM_CONFIGS = {
     halfH: 290,
     pvp: false,
     spawnX: 0,
-    spawnY: 180,
+    spawnY: 110,
   },
   [ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY]: {
     type: ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY,
@@ -167,7 +167,7 @@ export const ROOM_CONFIGS = {
     halfH: 272,
     pvp: false,
     spawnX: 0,
-    spawnY: 180,
+    spawnY: 110,
   },
   [ROOM_TYPES.AETHER_FRACTURED_ARCHIVE]: {
     type: ROOM_TYPES.AETHER_FRACTURED_ARCHIVE,
@@ -180,7 +180,7 @@ export const ROOM_CONFIGS = {
     halfH: 280,
     pvp: false,
     spawnX: 0,
-    spawnY: 180,
+    spawnY: 110,
   },
 };
 
