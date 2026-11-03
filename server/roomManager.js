@@ -1171,7 +1171,118 @@ export class RoomManager {
       case 'list_rooms':
         client.send({ type: 'rooms_list', rooms: this.listPublicRooms() });
         break;
+
+      case 'auth_rpc':
+        this.handleWsAuthRpc(client, msg).catch((err) => {
+          client.send({
+            type: 'auth_rpc_res',
+            reqId: msg.reqId,
+            ok: false,
+            error: err.message || 'Authentication request failed',
+          });
+        });
+        break;
     }
+  }
+
+  async handleWsAuthRpc(client, msg) {
+    const reqId = msg.reqId;
+    const action = msg.action;
+    const payload = msg.payload || {};
+
+    if (action === 'register') {
+      await this.accounts.ensureFreshFromPostgres({ id: client.id, username: payload.username });
+      const { account, token } = this.accounts.registerAccount({
+        ...payload,
+        upgradeAccountId: client.id,
+      });
+      await this.accounts.flushToPostgres();
+      this.refreshClientFromAccount(account.id);
+      client.send({
+        type: 'auth_rpc_res',
+        reqId,
+        ok: true,
+        token,
+        profile: this.accounts.toPublicProfile(account),
+      });
+      return;
+    }
+
+    if (action === 'login') {
+      await this.accounts.ensureFreshFromPostgres({ username: payload.username });
+      const { account, token } = this.accounts.loginAccount(payload);
+      await this.accounts.flushToPostgres();
+      client.send({
+        type: 'auth_rpc_res',
+        reqId,
+        ok: true,
+        token,
+        profile: this.accounts.toPublicProfile(account),
+      });
+      return;
+    }
+
+    if (action === 'save_character') {
+      await this.accounts.ensureFreshFromPostgres({ id: client.id });
+      const charObj = this.accounts.createOrSelectCharacter(client.id, payload);
+      await this.accounts.flushToPostgres();
+      this.refreshClientFromAccount(client.id);
+      if (payload.enterRealm) {
+        this.joinRoom(client, payload.enterRealm);
+      }
+      const acc = this.accounts.accountsById.get(client.id);
+      client.send({
+        type: 'auth_rpc_res',
+        reqId,
+        ok: true,
+        character: charObj,
+        profile: this.accounts.toPublicProfile(acc),
+      });
+      return;
+    }
+
+    if (action === 'delete_character') {
+      this.accounts.deleteCharacter(client.id, payload.characterId);
+      await this.accounts.flushToPostgres();
+      this.refreshClientFromAccount(client.id);
+      const acc = this.accounts.accountsById.get(client.id);
+      client.send({
+        type: 'auth_rpc_res',
+        reqId,
+        ok: true,
+        profile: this.accounts.toPublicProfile(acc),
+      });
+      return;
+    }
+
+    if (action === 'update_profile') {
+      const updated = this.accounts.updateProfile(client.id, payload);
+      await this.accounts.flushToPostgres();
+      this.refreshClientFromAccount(updated.id);
+      client.send({
+        type: 'auth_rpc_res',
+        reqId,
+        ok: true,
+        profile: this.accounts.toPublicProfile(updated),
+      });
+      return;
+    }
+
+    if (action === 'link_tcg') {
+      const updated = this.accounts.linkGlimmerFallTcgAccount(client.id, payload);
+      await this.accounts.flushToPostgres();
+      this.refreshClientFromAccount(updated.id);
+      client.send({
+        type: 'auth_rpc_res',
+        reqId,
+        ok: true,
+        token: this.accounts.signToken(updated.id),
+        profile: this.accounts.toPublicProfile(updated),
+      });
+      return;
+    }
+
+    throw new Error(`Unknown auth action: ${action}`);
   }
 
   // ==========================================

@@ -31,11 +31,18 @@ function ensureDataDir() {
 function loadSessionSecret() {
   if (process.env.GLIMMERFALL_SSO_SECRET) return process.env.GLIMMERFALL_SSO_SECRET;
   if (process.env.SUPABASE_JWT_SECRET) return process.env.SUPABASE_JWT_SECRET;
-  ensureDataDir();
-  if (fs.existsSync(SECRET_PATH)) return fs.readFileSync(SECRET_PATH, 'utf8').trim();
-  const generated = crypto.randomBytes(32).toString('hex');
-  fs.writeFileSync(SECRET_PATH, generated, { mode: 0o600 });
-  return generated;
+  if (process.env.DATABASE_URL) {
+    return crypto.createHash('sha256').update(`glimmerfall-id-secret:${process.env.DATABASE_URL}`).digest('hex');
+  }
+  try {
+    ensureDataDir();
+    if (fs.existsSync(SECRET_PATH)) return fs.readFileSync(SECRET_PATH, 'utf8').trim();
+    const generated = crypto.randomBytes(32).toString('hex');
+    fs.writeFileSync(SECRET_PATH, generated, { mode: 0o600 });
+    return generated;
+  } catch (_) {
+    return 'glimmerfall-fallback-dev-secret-2026';
+  }
 }
 
 function sanitizeName(raw, fallback = 'Vanguard') {
@@ -174,6 +181,98 @@ export class AccountsStore {
       this.charactersByAccount.get(ch.accountId).set(ch.id, ch);
     }
     console.log(`[PostgreSQL] Loaded ${this.accountsById.size} accounts & ${charRes.rows.length} characters from Neon DB.`);
+  }
+
+  hydrateAccountRow(row) {
+    const acc = {
+      id: row.id,
+      username: row.username,
+      usernameLower: row.username_lower,
+      displayName: row.display_name,
+      passwordHash: row.password_hash,
+      isGuest: row.is_guest,
+      ssoSubject: row.sso_subject,
+      tcgLinked: row.tcg_linked,
+      tcgHandle: row.tcg_handle,
+      tcgEmail: row.tcg_email,
+      tcgSyncedAt: row.tcg_synced_at ? new Date(row.tcg_synced_at).toISOString() : null,
+      faction: row.faction || 'Solari',
+      classId: row.class_id || 'solari_vanguard',
+      orderTag: row.order_tag || 'SUN',
+      orderName: row.order_name || 'Order of Dawn',
+      orderColor: row.order_color || '#facc15',
+      loadout: normalizeLoadout(row.loadout, row.class_id),
+      equipment: normalizeEquipment(row.equipment, row.class_id),
+      progression: this.mergeValidProgression(createDefaultProgression(), row.progression),
+      statsMeta: row.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
+      activeCharacterId: row.active_character_id || null,
+      createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
+      lastLoginAt: row.last_login_at ? new Date(row.last_login_at).toISOString() : new Date().toISOString(),
+    };
+    this.accountsById.set(acc.id, acc);
+    if (acc.usernameLower) this.idByUsername.set(acc.usernameLower, acc.id);
+    if (!this.charactersByAccount.has(acc.id)) {
+      this.charactersByAccount.set(acc.id, new Map());
+    }
+    return acc;
+  }
+
+  async ensureFreshFromPostgres({ id = null, username = null } = {}) {
+    if (!this.db) return;
+    try {
+      let accRow = null;
+      if (id && !this.accountsById.has(id)) {
+        const res = await this.db.query('SELECT * FROM glimmerfall_accounts WHERE id = $1 LIMIT 1', [id]);
+        accRow = res.rows[0] || null;
+      } else if (username) {
+        const lower = String(username).trim().toLowerCase();
+        if (lower && !this.idByUsername.has(lower)) {
+          const res = await this.db.query('SELECT * FROM glimmerfall_accounts WHERE username_lower = $1 LIMIT 1', [lower]);
+          accRow = res.rows[0] || null;
+        }
+      }
+      if (accRow) {
+        const acc = this.hydrateAccountRow(accRow);
+        const cRes = await this.db.query('SELECT * FROM glimmerfall_characters WHERE account_id = $1 ORDER BY created_at ASC', [acc.id]);
+        const cmap = this.charactersByAccount.get(acc.id);
+        for (const r of cRes.rows) {
+          cmap.set(r.id, {
+            id: r.id,
+            accountId: r.account_id,
+            name: r.name,
+            faction: r.faction,
+            classId: r.class_id,
+            orderTag: r.order_tag || 'SUN',
+            orderName: r.order_name || 'Order of Dawn',
+            orderColor: r.order_color || '#facc15',
+            homeBiome: r.home_biome || ROOM_TYPES.SANCTUARY_HUB,
+            loadout: normalizeLoadout(r.loadout, r.class_id),
+            equipment: normalizeEquipment(r.equipment, r.class_id),
+            unlockedGear: Array.isArray(r.unlocked_gear) ? r.unlocked_gear : Object.keys(EQUIPMENT_CATALOG),
+            progression: this.mergeValidProgression(createDefaultProgression(), r.progression),
+            statsMeta: r.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  decodeTokenSubject(token) {
+    if (!token || typeof token !== 'string') return null;
+    const raw = token.startsWith('Bearer ') ? token.slice(7).trim() : token.trim();
+    if (!raw.startsWith('gfid_')) return null;
+    const parts = raw.slice(5).split('.');
+    if (parts.length !== 2) return null;
+    const [body, sig] = parts;
+    const expected = crypto.createHmac('sha256', this.secret).update(body).digest('base64url');
+    if (sig !== expected) return null;
+    try {
+      const data = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+      if (data.exp && data.exp < Math.floor(Date.now() / 1000)) return null;
+      return data.sub || null;
+    } catch (_) {
+      return null;
+    }
   }
 
   schedulePersist(accountId, characterId = null) {
@@ -537,6 +636,8 @@ export class AccountsStore {
     classId = 'solari_vanguard',
     orderTag,
     orderName,
+    loadout,
+    equipment,
     tcgHandle,
     upgradeAccountId = null,
     clientProgression = null,
@@ -567,6 +668,8 @@ export class AccountsStore {
       acc.classId = norm.classId;
       acc.orderTag = cleanTag;
       acc.orderName = cleanOrderName;
+      if (loadout) acc.loadout = normalizeLoadout(loadout, norm.classId);
+      if (equipment) acc.equipment = normalizeEquipment(equipment, norm.classId);
       if (tcgHandle) {
         acc.tcgLinked = true;
         acc.tcgHandle = sanitizeName(tcgHandle, cleanUser);
@@ -583,6 +686,10 @@ export class AccountsStore {
         ch.name = acc.displayName;
         ch.faction = acc.faction;
         ch.classId = acc.classId;
+        ch.orderTag = acc.orderTag;
+        ch.orderName = acc.orderName;
+        if (loadout) ch.loadout = acc.loadout;
+        if (equipment) ch.equipment = acc.equipment;
       }
       this.schedulePersist(acc.id, acc.activeCharacterId);
       return { account: acc, token: this.signToken(acc.id) };
@@ -606,8 +713,8 @@ export class AccountsStore {
       orderTag: cleanTag,
       orderName: cleanOrderName,
       orderColor: preset.color,
-      loadout: normalizeLoadout(null, norm.classId),
-      equipment: normalizeEquipment(null, norm.classId),
+      loadout: normalizeLoadout(loadout || null, norm.classId),
+      equipment: normalizeEquipment(equipment || null, norm.classId),
       progression: this.mergeValidProgression(createDefaultProgression(), clientProgression),
       statsMeta: { kills: 0, arenaWins: 0, siegeClaims: 0 },
       activeCharacterId: null,

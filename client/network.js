@@ -19,6 +19,7 @@ export class MultiplayerClient {
     this.token = this.loadStoredToken();
     this.manualReconnect = false;
     this.preferredRoom = null;
+    this.pendingRpc = new Map();
   }
 
   loadStoredToken() {
@@ -123,6 +124,15 @@ export class MultiplayerClient {
           this.saveStoredToken(msg.token);
           return;
         }
+        if (msg.type === 'auth_rpc_res') {
+          const pending = this.pendingRpc.get(msg.reqId);
+          if (pending) {
+            clearTimeout(pending.timer);
+            this.pendingRpc.delete(msg.reqId);
+            pending.resolve(msg);
+          }
+          return;
+        }
         if (msg.type === 'pong' && msg.ts) {
           this.pingMs = Math.max(1, Math.round(performance.now() - msg.ts));
           return;
@@ -163,16 +173,61 @@ export class MultiplayerClient {
     return false;
   }
 
-  async apiCall(path, method = 'POST', body = null) {
-    const res = await fetch(path, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
-      },
-      body: body ? JSON.stringify(body) : undefined,
+  // Map REST endpoints to authenticated WebSocket RPC actions (used if HTTP fetch fails,
+  // e.g. Safari "Load failed" over tunnels / proxies).
+  static WS_RPC_MAP = {
+    'POST /api/auth/register': 'register',
+    'POST /api/auth/login': 'login',
+    'POST /api/characters': 'save_character',
+    'DELETE /api/characters': 'delete_character',
+    'PATCH /api/account/profile': 'update_profile',
+    'POST /api/auth/sso/glimmerfall': 'link_tcg',
+  };
+
+  wsRpc(action, payload, timeoutMs = 9000) {
+    return new Promise((resolve, reject) => {
+      if (!this.ws || this.ws.readyState !== 1) {
+        reject(new Error('Cannot reach the GlimmerFall server. Check your connection and try again.'));
+        return;
+      }
+      const reqId = `rpc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const timer = setTimeout(() => {
+        this.pendingRpc.delete(reqId);
+        reject(new Error('Server timed out. Please try again.'));
+      }, timeoutMs);
+      this.pendingRpc.set(reqId, { resolve, reject, timer });
+      this.ws.send(JSON.stringify({ type: 'auth_rpc', reqId, action, payload }));
     });
-    const data = await res.json();
+  }
+
+  async apiCall(path, method = 'POST', body = null) {
+    let res;
+    try {
+      res = await fetch(path, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': '1',
+          ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (_networkErr) {
+      const action = MultiplayerClient.WS_RPC_MAP[`${method} ${path}`];
+      if (action) {
+        const data = await this.wsRpc(action, body || {});
+        if (!data.ok) throw new Error(data.error || 'Server request failed');
+        return data;
+      }
+      throw new Error('Cannot reach the GlimmerFall server. Check your connection and try again.');
+    }
+
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (_) {
+      throw new Error(`Server returned an unexpected response (HTTP ${res.status}). Please try again.`);
+    }
     if (!res.ok || !data.ok) {
       throw new Error(data.error || 'Server request failed');
     }

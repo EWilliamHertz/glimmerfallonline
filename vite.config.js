@@ -4,18 +4,22 @@ import { spawn } from 'node:child_process';
 
 function autoStartMmoBackend() {
   let backendProc = null;
+  let watchdog = null;
+  let stopping = false;
 
   return {
     name: 'glimmerfall-mmo-backend',
     configureServer(server) {
-      const checkAndEnsureBackend = () => {
+      stopping = false;
+
+      const ensureBackend = () => {
+        if (stopping) return;
         const probe = net.createConnection({ host: '127.0.0.1', port: 3001 });
-        probe.once('connect', () => {
+        probe.setTimeout(1200);
+        probe.once('connect', () => probe.destroy());
+        const onDown = () => {
           probe.destroy();
-        });
-        probe.once('error', () => {
-          probe.destroy();
-          if (backendProc) return;
+          if (stopping || (backendProc && backendProc.exitCode === null && !backendProc.killed)) return;
           console.log('[Vite] Starting GlimmerFall 20Hz Authoritative Server (:3001)...');
           backendProc = spawn(process.execPath, ['server/index.js'], {
             cwd: process.cwd(),
@@ -25,16 +29,18 @@ function autoStartMmoBackend() {
           backendProc.on('exit', () => {
             backendProc = null;
           });
-        });
+        };
+        probe.once('error', onDown);
+        probe.once('timeout', onDown);
       };
 
-      checkAndEnsureBackend();
+      ensureBackend();
+      // Watchdog: if the MMO backend ever dies, bring it back automatically.
+      watchdog = setInterval(ensureBackend, 4000);
 
       server.httpServer?.once('close', () => {
-        if (backendProc && !backendProc.killed) {
-          backendProc.kill('SIGTERM');
-          backendProc = null;
-        }
+        stopping = true;
+        clearInterval(watchdog);
       });
     },
   };
