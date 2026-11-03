@@ -1036,6 +1036,53 @@ export function initGame() {
     }
   }
 
+  // ==========================================
+  // Death Screen (live countdown + guaranteed dismissal)
+  // ==========================================
+  let deathScreenVisible = false;
+  let deathCountdownTimer = null;
+  let deathHideTimer = null;
+
+  function showDeathScreen(seconds = 3) {
+    const ds = document.getElementById('death-screen');
+    if (!ds) return;
+    clearTimeout(deathHideTimer);
+    clearInterval(deathCountdownTimer);
+    deathScreenVisible = true;
+    ds.style.display = 'flex';
+    ds.style.opacity = '1';
+    const txt = document.getElementById('death-timer-txt');
+    const endAt = performance.now() + seconds * 1000;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((endAt - performance.now()) / 1000));
+      if (txt) {
+        txt.innerText = remaining > 0
+          ? `RE-ANCHORING AT SANCTUARY IN ${remaining}S...`
+          : 'RE-ANCHORING...';
+      }
+    };
+    tick();
+    deathCountdownTimer = setInterval(tick, 200);
+    // Safety net: never leave the black screen up if the server respawn packet is lost
+    clearTimeout(deathHideTimer);
+    deathHideTimer = setTimeout(() => {
+      if (deathScreenVisible && !player.isDead) hideDeathScreen();
+    }, seconds * 1000 + 4000);
+  }
+
+  function hideDeathScreen() {
+    clearInterval(deathCountdownTimer);
+    deathCountdownTimer = null;
+    clearTimeout(deathHideTimer);
+    deathScreenVisible = false;
+    const ds = document.getElementById('death-screen');
+    if (!ds) return;
+    ds.style.opacity = '0';
+    deathHideTimer = setTimeout(() => {
+      if (!deathScreenVisible) ds.style.display = 'none';
+    }, 250);
+  }
+
   function applyServerSnapshot(snap) {
     if (!snap) return;
 
@@ -1057,18 +1104,10 @@ export function initGame() {
 
         if (sp.isDead && !player.isDead) {
           player.isDead = true;
-          const ds = document.getElementById('death-screen');
-          if (ds) {
-            ds.style.display = 'flex';
-            ds.style.opacity = '1';
-          }
-        } else if (!sp.isDead && player.isDead) {
+          showDeathScreen(3);
+        } else if (!sp.isDead && (player.isDead || deathScreenVisible)) {
           player.isDead = false;
-          const ds = document.getElementById('death-screen');
-          if (ds) {
-            ds.style.opacity = '0';
-            setTimeout(() => (ds.style.display = 'none'), 250);
-          }
+          hideDeathScreen();
         }
         if (Math.hypot(sp.x - player.x, sp.y - player.y) > 75) {
           player.x = sp.x;
@@ -1256,6 +1295,8 @@ export function initGame() {
           player.y = msg.y;
           player.dir = msg.dir || 'up';
           player.team = msg.team || null;
+          if (player.isDead) player.isDead = false;
+          hideDeathScreen();
           camera.x = player.x;
           camera.y = player.y;
           setupZoneDecor(msg.roomType, msg.roomTitle);
@@ -1305,6 +1346,7 @@ export function initGame() {
           player.y = msg.y;
           player.hp = msg.hp;
           player.isDead = false;
+          hideDeathScreen();
           audio.playChime();
           updatePlayerUI();
           break;
