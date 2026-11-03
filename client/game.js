@@ -1149,22 +1149,122 @@ export function initGame() {
       if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
 
       if (resolvedRoomType === ROOM_TYPES.NEXUS_WARZONE) {
-        // Highway waystation markers and landmark pillars across the continent
-        [
-          [-45, 840], [45, 840], [-45, 920], [45, 920], // South Sanctuary Highway Station
-          [-120, -120], [120, -120], [-120, 120], [120, 120], // Central Caldera Bastion
-          [-45, -920], [45, -920], // North Ruins Gate
-        ].forEach(([pxX, pxY], idx) => {
-          props.push({ type: idx % 2 === 0 ? 'pillar' : 'brazier', x: pxX, y: pxY });
-        });
+        // Decorate the massive 4800x3600 Open World Continent
+        // 1. South Sanctuary Vale (Meadows, Campfires, Ancient Oaks, River Bridges)
+        props.push(
+          { type: 'campfire', x: 0, y: 1490 },
+          { type: 'campfire', x: 130, y: 1380 },
+          { type: 'woodenSign', x: 34, y: 1420 }, // Trail sign
+          { type: 'woodenSign', x: -30, y: 1260 }, // Bridge sign
+          { type: 'ancientOak', x: -160, y: 1520 },
+          { type: 'ancientOak', x: 160, y: 1520 },
+          { type: 'ancientOak', x: -260, y: 1380 },
+          { type: 'ancientOak', x: 260, y: 1380 },
+          { type: 'ancientOak', x: -100, y: 1620 },
+          { type: 'ancientOak', x: 100, y: 1620 },
+          // River Bridge Torches
+          { type: 'brazier', x: -38, y: 1220 },
+          { type: 'brazier', x: 38, y: 1220 },
+          { type: 'brazier', x: -38, y: 1270 },
+          { type: 'brazier', x: 38, y: 1270 }
+        );
+
+        // 2. Whispering Mountain Pass (Pines, Granite Crags, Waystation Campfires, Signs)
+        props.push(
+          { type: 'woodenSign', x: 36, y: 1060 },
+          { type: 'woodenSign', x: -36, y: 370 },
+          { type: 'campfire', x: -45, y: 740 },
+          { type: 'campfire', x: 50, y: 490 },
+          // Evergreen Pines along the Pass
+          { type: 'pineTree', x: -85, y: 1020 },
+          { type: 'pineTree', x: 85, y: 1020 },
+          { type: 'pineTree', x: -95, y: 860 },
+          { type: 'pineTree', x: 95, y: 860 },
+          { type: 'pineTree', x: -80, y: 690 },
+          { type: 'pineTree', x: 100, y: 700 },
+          { type: 'pineTree', x: -85, y: 530 },
+          { type: 'pineTree', x: 90, y: 530 },
+          { type: 'pineTree', x: -90, y: 400 },
+          { type: 'pineTree', x: 85, y: 400 },
+          // Granite Boulders & Crags
+          { type: 'mountainCrag', x: -135, y: 960 },
+          { type: 'mountainCrag', x: 140, y: 960 },
+          { type: 'mountainCrag', x: -150, y: 780 },
+          { type: 'mountainCrag', x: 155, y: 780 },
+          { type: 'mountainCrag', x: -160, y: 590 },
+          { type: 'mountainCrag', x: 165, y: 590 },
+          { type: 'mountainCrag', x: -140, y: 440 },
+          { type: 'mountainCrag', x: 145, y: 440 }
+        );
+
+        // 3. Central Caldera Bastion (Arches, Braziers, Obelisks)
+        props.push(
+          { type: 'ruinedArch', x: 0, y: 260 },
+          { type: 'ruinedArch', x: 0, y: -260 },
+          { type: 'ruinedArch', x: -260, y: 0 },
+          { type: 'ruinedArch', x: 260, y: 0 },
+          { type: 'brazier', x: -90, y: 90 },
+          { type: 'brazier', x: 90, y: 90 },
+          { type: 'brazier', x: -90, y: -90 },
+          { type: 'brazier', x: 90, y: -90 },
+          { type: 'pillar', x: -140, y: 0 },
+          { type: 'pillar', x: 140, y: 0 }
+        );
+
+        // 4. North Forgotten Ruins Plateau (Ruined Arches, Ancient Monuments, Stone Pillars)
+        props.push(
+          { type: 'ruinedArch', x: 0, y: -520 },
+          { type: 'ruinedArch', x: 0, y: -960 },
+          { type: 'ruinedArch', x: 0, y: -1380 },
+          { type: 'monument', x: 0, y: -740 },
+          { type: 'monument', x: -110, y: -1150 },
+          { type: 'monument', x: 110, y: -1150 },
+          { type: 'pillar', x: -75, y: -620 },
+          { type: 'pillar', x: 75, y: -620 },
+          { type: 'pillar', x: -75, y: -860 },
+          { type: 'pillar', x: 75, y: -860 },
+          { type: 'pillar', x: -75, y: -1250 },
+          { type: 'pillar', x: 75, y: -1250 }
+        );
+
+        // 5. Regional Wilderness Features
+        // NW Terra Ironwood Wilds
+        props.push(
+          { type: 'ancientOak', x: -650, y: -450 },
+          { type: 'ancientOak', x: -900, y: -480 },
+          { type: 'ancientOak', x: -1150, y: -680 },
+          { type: 'pineTree', x: -780, y: -720 },
+          { type: 'pineTree', x: -1020, y: -880 }
+        );
+        // NE Umbri Shadow Fens
+        props.push(
+          { type: 'monument', x: 880, y: -450 },
+          { type: 'brazier', x: 700, y: -550 },
+          { type: 'brazier', x: 1050, y: -750 },
+          { type: 'pillar', x: 920, y: -820 }
+        );
+        // SW Solari Sun-Canyon
+        props.push(
+          { type: 'mountainCrag', x: -720, y: 420 },
+          { type: 'mountainCrag', x: -1050, y: 620 },
+          { type: 'brazier', x: -880, y: 480 },
+          { type: 'monument', x: -920, y: 820 }
+        );
+        // SE Aether Astral Plateau
+        props.push(
+          { type: 'crystalPillar', x: 720, y: 420 },
+          { type: 'crystalPillar', x: 1050, y: 620 },
+          { type: 'crystalPillar', x: -880, y: 480 },
+          { type: 'monument', x: 920, y: 820 }
+        );
 
         npcs.push({
           id: 'npc_archon',
           name: 'Sunspire Archon',
           role: 'War Commander [Click / T]',
           spriteKey: 'heraldNpc',
-          x: -38,
-          y: 880,
+          x: -36,
+          y: 1420, // Waystation in South Sanctuary Vale
           dialogue: WARZONE_DIALOGUE,
         });
       } else {
@@ -1363,8 +1463,10 @@ export function initGame() {
       );
     } else {
       player.x = 0;
-      player.y = 860;
+      player.y = 1450;
       entities.push(
+        // Peaceful South Sanctuary Vale Target Dummy
+        { id: 'val_dummy', name: 'Vale Training Dummy', sub: 'Lv.1 Target Post', type: 'dummy', spriteKey: 'dummy', x: 60, y: 1440, origX: 60, origY: 1440, hp: 40, maxHp: 40, xpReward: 30, radius: 14, hitFlash: 0 },
         // 4 Continental Faction Outposts
         { id: 'outpost_Terra', faction: 'Terra', name: 'Terra Forest Outpost Nexus', sub: '30 HP Terra Outpost Nexus', type: 'outpost_nexus', spriteKey: 'nexusGreen', x: -850, y: -650, origX: -850, origY: -650, hp: 30, maxHp: 30, xpReward: 200, radius: 24, hitFlash: 0 },
         { id: 'outpost_Umbri', faction: 'Umbri', name: 'Umbri Shadow Outpost Nexus', sub: '30 HP Umbri Outpost Nexus', type: 'outpost_nexus', spriteKey: 'nexusPurple', x: 850, y: -650, origX: 850, origY: -650, hp: 30, maxHp: 30, xpReward: 200, radius: 24, hitFlash: 0 },
@@ -1372,26 +1474,37 @@ export function initGame() {
         { id: 'outpost_Aether', faction: 'Aether', name: 'Aether Astral Outpost Nexus', sub: '30 HP Aether Outpost Nexus', type: 'outpost_nexus', spriteKey: 'nexusCyan', x: 850, y: 650, origX: 850, origY: 650, hp: 30, maxHp: 30, xpReward: 200, radius: 24, hitFlash: 0 },
         // Shattered Nexus Shard
         { id: 'siege_shard', name: 'Shattered Nexus Shard', sub: '⚡ Continental Nexus Core (PvPvE)', type: 'siege_shard', isBoss: true, spriteKey: 'siegeShard', x: 0, y: 0, origX: 0, origY: 0, hp: 85, maxHp: 85, xpReward: 250, radius: 24, hitFlash: 0 },
-        // Continental Portals
-        { id: 'portal_hub', name: 'Sanctuary Return Gate', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 940, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 },
-        { id: 'portal_ruins', name: 'First Nexus Ruins Gate', sub: '🏛️ Forgotten Ruins', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS, spriteKey: 'portal', x: 0, y: -940, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 },
-        { id: 'portal_terra', name: 'Glimmer Orchard Waygate', sub: '🌿 Terra Dungeon Waygate', type: 'portal', targetRoom: ROOM_TYPES.TERRA_ORCHARD, spriteKey: 'portal', x: -1150, y: -780, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
-        { id: 'portal_umbri', name: 'Sepulcher Undercity Waygate', sub: '🌑 Umbri Dungeon Waygate', type: 'portal', targetRoom: ROOM_TYPES.UMBRI_UNDERCITY, spriteKey: 'portal', x: 1150, y: -780, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
-        { id: 'portal_solari', name: 'Golden Citadel Waygate', sub: '☀️ Solari Dungeon Waygate', type: 'portal', targetRoom: ROOM_TYPES.SOLARI_CITADEL, spriteKey: 'portal', x: -1150, y: 780, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
-        { id: 'portal_aether', name: 'Mirrorgate Spire Waygate', sub: '🔮 Aether Dungeon Waygate', type: 'portal', targetRoom: ROOM_TYPES.AETHER_SPIRE, spriteKey: 'portal', x: 1150, y: 780, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
+        // Continental Portals (Deep Sanctuaries / Return Gates)
+        { id: 'portal_hub', name: 'Sanctuary Return Gate', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 1580, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 },
+        { id: 'portal_ruins', name: 'First Nexus Ruins Gate', sub: '🏛️ Forgotten Ruins', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS, spriteKey: 'portal', x: 0, y: -1500, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 },
+        { id: 'portal_terra', name: 'Glimmer Orchard Waygate', sub: '🌿 Terra Dungeon Waygate', type: 'portal', targetRoom: ROOM_TYPES.TERRA_ORCHARD, spriteKey: 'portal', x: -1400, y: -900, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
+        { id: 'portal_umbri', name: 'Sepulcher Undercity Waygate', sub: '🌑 Umbri Dungeon Waygate', type: 'portal', targetRoom: ROOM_TYPES.UMBRI_UNDERCITY, spriteKey: 'portal', x: 1400, y: -900, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
+        { id: 'portal_solari', name: 'Golden Citadel Waygate', sub: '☀️ Solari Dungeon Waygate', type: 'portal', targetRoom: ROOM_TYPES.SOLARI_CITADEL, spriteKey: 'portal', x: -1400, y: 900, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
+        { id: 'portal_aether', name: 'Mirrorgate Spire Waygate', sub: '🔮 Aether Dungeon Waygate', type: 'portal', targetRoom: ROOM_TYPES.AETHER_SPIRE, spriteKey: 'portal', x: 1400, y: 900, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
         // 4 Grand World Bosses
         { id: 'terra_world_boss', name: 'Elder Ironwood Colossus', sub: '★ Lv.9 Terra Continent World Boss', type: 'mob', isBoss: true, dropGear: 'ironwood_armor', spriteKey: 'graniteBoss', x: -950, y: -850, origX: -950, origY: -850, hp: 125, maxHp: 125, damage: 7, xpReward: 260, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         { id: 'umbri_world_boss', name: 'Malakor the Soulreaper', sub: '★ Lv.9 Umbri Continent World Boss', type: 'mob', isBoss: true, dropGear: 'scythe_soulreaper', spriteKey: 'umbriBoss', x: 950, y: -850, origX: 950, origY: -850, hp: 115, maxHp: 115, damage: 8, xpReward: 260, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         { id: 'solari_world_boss', name: 'High Sunfire Juggernaut', sub: '★ Lv.9 Solari Continent World Boss', type: 'mob', isBoss: true, dropGear: 'sunfire_greatsword', spriteKey: 'solariBoss', x: -950, y: 850, origX: -950, origY: 850, hp: 125, maxHp: 125, damage: 7, xpReward: 260, speed: 39, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         { id: 'aether_world_boss', name: 'Continuum Singularity Paradox', sub: '★ Lv.9 Aether Continent World Boss', type: 'mob', isBoss: true, dropGear: 'chronos_singularity_core', spriteKey: 'aetherBoss', x: 950, y: 850, origX: 950, origY: 850, hp: 118, maxHp: 118, damage: 8, xpReward: 260, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        // Strategic Glimmer Nodes
+        // Strategic Glimmer Nodes across valleys, mountain passes, and wilderness
+        { id: 'node_sanctuary', name: 'Sanctuary Vale Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: 1380, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'node_pass', name: 'Whispering Pass Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: 700, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
         { id: 'node_center_s', name: 'Caldera South Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: 180, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
         { id: 'node_center_n', name: 'Caldera North Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: -180, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'node_terra', name: 'Terra Blossom Spire', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: -800, y: -500, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'node_umbri', name: 'Sepulcher Shadow Spire', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 800, y: -500, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'node_solari', name: 'Dawnfire Solar Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: -800, y: 500, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'node_aether', name: 'Aether Resonance Crystal', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 800, y: 500, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        // Roaming Mob Packs
+        { id: 'node_ruins', name: 'Forgotten Ruins Keystone Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: -900, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'node_terra', name: 'Terra Blossom Spire', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: -1100, y: -700, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'node_umbri', name: 'Sepulcher Shadow Spire', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 1100, y: -700, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'node_solari', name: 'Dawnfire Solar Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: -1100, y: 700, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'node_aether', name: 'Aether Resonance Crystal', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 1100, y: 700, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        // Whispering Mountain Pass Mobs (Hike north through the crags)
+        { id: 'pass_mob_1', name: 'Granite Ridge Sentinel', sub: 'Lv.4 Mountain Golem', type: 'mob', spriteKey: 'graniteBoss', x: -60, y: 880, origX: -60, origY: 880, hp: 42, maxHp: 42, damage: 4, xpReward: 75, speed: 40, aggroRange: 110, attackRange: 30, radius: 18, hitFlash: 0 },
+        { id: 'pass_mob_2', name: 'Whispering Pass Raider', sub: 'Lv.5 Highland Marauder', type: 'mob', spriteKey: 'voidStalker', x: 70, y: 640, origX: 70, origY: 640, hp: 38, maxHp: 38, damage: 5, xpReward: 80, speed: 52, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'pass_mob_3', name: 'High Crag Behemoth', sub: 'Lv.6 Ridge Colossus', type: 'mob', spriteKey: 'graniteBoss', x: -80, y: 460, origX: -80, origY: 460, hp: 54, maxHp: 54, damage: 6, xpReward: 100, speed: 38, aggroRange: 120, attackRange: 32, radius: 20, hitFlash: 0 },
+        // North Forgotten Ruins Plateau (Ancient Megaliths)
+        { id: 'ruin_guard_1', name: 'Ancient Keystone Golem', sub: 'Lv.6 Forgotten Golem', type: 'mob', spriteKey: 'graniteBoss', x: -90, y: -750, origX: -90, origY: -750, hp: 52, maxHp: 52, damage: 6, xpReward: 105, speed: 40, aggroRange: 115, attackRange: 30, radius: 18, hitFlash: 0 },
+        { id: 'ruin_guard_2', name: 'Lost Shard Sentinel', sub: 'Lv.6 Keystone Sentinel', type: 'mob', spriteKey: 'mobSolari', x: 90, y: -750, origX: 90, origY: -750, hp: 50, maxHp: 50, damage: 6, xpReward: 100, speed: 52, aggroRange: 115, attackRange: 30, radius: 16, hitFlash: 0 },
+        { id: 'ruin_boss_field', name: 'The Prismatic Overlord', sub: '★ Lv.9 Megalith World Boss', type: 'mob', isBoss: true, dropGear: 'prismatic_keystone', spriteKey: 'graniteBoss', x: 0, y: -1150, origX: 0, origY: -1150, hp: 130, maxHp: 130, damage: 8, xpReward: 275, speed: 38, aggroRange: 135, attackRange: 34, radius: 24, hitFlash: 0 },
+        // Roaming Mob Packs across the 4 Continents & Central Caldera
         { id: 'ter_mob_1', name: 'Bramble Treant', sub: 'Lv.5 Terra Guardian', type: 'mob', spriteKey: 'terraWarden', x: -680, y: -520, origX: -680, origY: -520, hp: 44, maxHp: 44, damage: 5, xpReward: 85, speed: 52, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
         { id: 'ter_mob_2', name: 'Ironwood Stonekin', sub: 'Lv.6 Forest Sentinel', type: 'mob', spriteKey: 'terraWarden', x: -1020, y: -480, origX: -1020, origY: -480, hp: 48, maxHp: 48, damage: 5, xpReward: 95, speed: 50, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
         { id: 'umb_mob_1', name: 'Void Stalker Vanguard', sub: 'Lv.5 Umbri Assassin', type: 'mob', spriteKey: 'voidStalker', x: 680, y: -520, origX: 680, origY: -520, hp: 42, maxHp: 42, damage: 6, xpReward: 85, speed: 56, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
@@ -3755,37 +3868,92 @@ export function initGame() {
     }
 
     // ==========================================
-    // THE NEXUS CONTINENT (OPEN WORLD REALM)
+    // THE NEXUS CONTINENT (MASSIVE OPEN WORLD REALM)
     // ==========================================
-    // Imperial Paved Cross-Continental Highways (3 tiles wide)
+    // 1. South Sanctuary River & Tributary Streams
+    // River meanders horizontally between ty: 75 and 80 (wy: 1200 - 1280)
+    const southRiverY = 77 + Math.round(Math.sin(tx * 0.08) * 2.5);
+    const isSouthRiver = Math.abs(ty - southRiverY) <= 1;
+
+    // Northwest Mountain Gorge Stream flowing down through Terra Ironwood Wilds
+    const streamX = -65 + Math.round(Math.cos(ty * 0.08) * 4);
+    const isNWStream = tx >= streamX - 1 && tx <= streamX + 1 && ty >= -85 && ty <= 20;
+
+    // Bridges crossing rivers
+    const isMainSouthBridge = isSouthRiver && Math.abs(tx) <= 3;
+    const isWestTimberBridge = isSouthRiver && Math.abs(tx - (-80)) <= 2;
+    const isEastTimberBridge = isSouthRiver && Math.abs(tx - 80) <= 2;
+    const isNWGorgeBridge = isNWStream && Math.abs(ty - (-35)) <= 2;
+
+    if (isMainSouthBridge || isWestTimberBridge || isEastTimberBridge || isNWGorgeBridge) {
+      return sprites.tiles[`bridge_wood_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
+    }
+
+    if (isSouthRiver || isNWStream) {
+      return sprites.tiles[`river_water_${Math.abs(tx + ty) % 2}`];
+    }
+
+    // 2. Whispering Mountain Pass Trail (Cuts through the grand central mountain ridge)
+    // Mountain ridge spans ty: 22 to 70 (wy: 352 to 1120)
+    const passCurveX = Math.round(Math.sin(ty * 0.07) * 7);
+    const isWhisperingPass = ty >= 22 && ty <= 70 && Math.abs(tx - passCurveX) <= 3;
+    if (isWhisperingPass) {
+      return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
+    }
+
+    // 3. Imperial Cross-Continental Highways (3 tiles wide, connects Caldera to all regions)
     if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) {
       return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
     }
-    // Diagonal Arterial Roads to 4 Outpost Quadrants
-    if (Math.abs(Math.abs(tx) - Math.abs(ty)) <= 1 && Math.abs(tx) >= 12 && Math.abs(tx) <= 55) {
+
+    // 4. Diagonal Arterial Trails to the 4 Faction Outposts & Highlands
+    if (Math.abs(Math.abs(tx) - Math.abs(ty)) <= 1 && Math.abs(tx) >= 14 && Math.abs(tx) <= 75) {
       return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
     }
-    // Central Caldera / Siege Crater (Dark obsidian slate)
-    if (Math.abs(tx) <= 16 && Math.abs(ty) <= 14) {
+
+    // 5. South Sanctuary Vale (Peaceful green meadow valley south of the mountain range)
+    if (ty >= 70) {
+      return sprites.tiles[`sanctuary_grass_${Math.abs(tx * 7 + ty * 13) % 4}`];
+    }
+
+    // 6. Granite Mountain Ridge & Whispering Peaks (ty: 22 to 70)
+    if (ty >= 22 && ty < 70) {
+      // High mountain snow peaks on outer flanks
+      if (Math.abs(tx) >= 55 || (Math.abs(tx) >= 28 && ((tx * 3 + ty * 5) % 7 === 0))) {
+        return sprites.tiles[`mountain_peak_${Math.abs(tx * 7 + ty * 11) % 4}`];
+      }
+      return sprites.tiles[`mountain_rock_${Math.abs(tx * 11 + ty * 17) % 4}`];
+    }
+
+    // 7. North Forgotten Ruins & Megalith Plateau (ty < -22 and central corridor)
+    if (ty <= -22 && Math.abs(tx) <= 26) {
+      return sprites.tiles[`flagstone_${Math.abs(tx * 3 + ty * 5) % 2}`] || sprites.tiles.flagstone_0;
+    }
+
+    // 8. Central Caldera / Siege Crater (Dark obsidian slate around the Shattered Nexus Shard)
+    if (Math.abs(tx) <= 18 && Math.abs(ty) <= 16) {
       return sprites.tiles[`warzone_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.flagstone_0;
     }
+
+    // 9. Four Regional Wilderness Quadrants
     // Northwest Quadrant: Terra Ironwood Wilds (Lush forest moss & emerald flora)
-    if (tx < -12 && ty < -10) {
+    if (tx < -14 && ty < -8) {
       return sprites.tiles[`terra_${Math.abs(tx * 13 + ty * 19) % 4}`] || sprites.tiles.flagstone_0;
     }
     // Northeast Quadrant: Umbri Shadow Fens (Abyssal violet mire & fog-shrouded swamp)
-    if (tx > 12 && ty < -10) {
+    if (tx > 14 && ty < -8) {
       return sprites.tiles[`umbri_${Math.abs(tx * 13 + ty * 19) % 4}`] || sprites.tiles.flagstone_0;
     }
-    // Southwest Quadrant: Solari Sun-Plains (Radiant gold marble & scorched sands)
-    if (tx < -12 && ty > 10) {
+    // Southwest Quadrant: Solari Sun-Canyon (Golden marble, sandstone & scorched mesas)
+    if (tx < -14 && ty >= -8 && ty < 70) {
       return sprites.tiles[`solari_${Math.abs(tx * 13 + ty * 19) % 4}`] || sprites.tiles.flagstone_0;
     }
     // Southeast Quadrant: Aether Astral Plateau (Crystalline cosmic indigo platforms)
-    if (tx > 12 && ty > 10) {
+    if (tx > 14 && ty >= -8 && ty < 70) {
       return sprites.tiles[`aether_${Math.abs(tx * 13 + ty * 19) % 4}`] || sprites.tiles.flagstone_0;
     }
-    // Bordering buffer zones: Dark warzone slate
+
+    // Buffer zones: Dark warzone obsidian slate
     return sprites.tiles[`warzone_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.flagstone_0;
   }
 
@@ -3899,15 +4067,43 @@ export function initGame() {
         draw: () => {
           const sx = Math.round(pr.x - camLeft);
           const sy = Math.round(pr.y - camTop);
-          const img = pr.type === 'brazier'
-            ? sprites.props.brazier[Math.floor(globalTime * 1.8 + Math.abs(pr.x)) % 2]
-            : pr.type === 'monument'
-              ? (sprites.props.monument || sprites.props.pillar)
-              : pr.type === 'crystalPillar'
-                ? ((sprites.props.crystalPillar && sprites.props.crystalPillar[Math.floor(globalTime * 2.0 + Math.abs(pr.x)) % sprites.props.crystalPillar.length]) || sprites.props.pillar)
-                : sprites.props.pillar;
-          drawPixelEllipseShadow(sx, sy, 7, 3);
-          ctx.drawImage(img, Math.round(sx - img.width / 2), sy - img.height + 2);
+          let img = sprites.props.pillar;
+          let shadowRx = 7;
+          let shadowRy = 3;
+
+          if (pr.type === 'brazier') {
+            img = sprites.props.brazier[Math.floor(globalTime * 1.8 + Math.abs(pr.x)) % 2];
+            shadowRx = 6; shadowRy = 3;
+          } else if (pr.type === 'monument') {
+            img = sprites.props.monument || sprites.props.pillar;
+            shadowRx = 9; shadowRy = 3;
+          } else if (pr.type === 'crystalPillar') {
+            img = (sprites.props.crystalPillar && sprites.props.crystalPillar[Math.floor(globalTime * 2.0 + Math.abs(pr.x)) % sprites.props.crystalPillar.length]) || sprites.props.pillar;
+            shadowRx = 8; shadowRy = 3;
+          } else if (pr.type === 'pineTree') {
+            img = sprites.props.pineTree || sprites.props.pillar;
+            shadowRx = 9; shadowRy = 4;
+          } else if (pr.type === 'ancientOak') {
+            img = sprites.props.ancientOak || sprites.props.pillar;
+            shadowRx = 14; shadowRy = 5;
+          } else if (pr.type === 'mountainCrag') {
+            img = sprites.props.mountainCrag || sprites.props.pillar;
+            shadowRx = 11; shadowRy = 4;
+          } else if (pr.type === 'campfire') {
+            img = (sprites.props.campfire && sprites.props.campfire[Math.floor(globalTime * 3.5 + Math.abs(pr.x)) % sprites.props.campfire.length]) || sprites.props.brazier[0];
+            shadowRx = 7; shadowRy = 3;
+          } else if (pr.type === 'ruinedArch') {
+            img = sprites.props.ruinedArch || sprites.props.pillar;
+            shadowRx = 13; shadowRy = 4;
+          } else if (pr.type === 'woodenSign') {
+            img = sprites.props.woodenSign || sprites.props.pillar;
+            shadowRx = 5; shadowRy = 2;
+          }
+
+          if (img) {
+            drawPixelEllipseShadow(sx, sy, shadowRx, shadowRy);
+            ctx.drawImage(img, Math.round(sx - img.width / 2), sy - img.height + 2);
+          }
         },
       });
     }
@@ -4371,13 +4567,18 @@ export function initGame() {
   }
 
   function getOpenWorldSubRegion(px, py) {
-    if (Math.abs(px) <= 240 && Math.abs(py) <= 200) return 'THE NEXUS CALDERA';
-    if (px < -200 && py < -160) return 'TERRA IRONWOOD WILDS';
-    if (px > 200 && py < -160) return 'UMBRI SHADOW FENS';
-    if (px < -200 && py > 160) return 'SOLARI SUN-PLAINS';
-    if (px > 200 && py > 160) return 'AETHER ASTRAL PLATEAU';
-    if (py > 750) return 'SOUTH SANCTUARY REACH';
-    if (py < -750) return 'NORTH RUINS APPROACH';
+    if (py >= 1100) return 'SANCTUARY MEADOW VALE';
+    if (py >= 350 && py < 1100) {
+      if (Math.abs(px) <= 220) return 'WHISPERING MOUNTAIN PASS';
+      if (px < -220) return 'SOLARI SUN-CANYON';
+      return 'AETHER ASTRAL PLATEAU';
+    }
+    if (Math.abs(px) <= 280 && Math.abs(py) <= 260) return 'THE NEXUS CALDERA';
+    if (py <= -350 && Math.abs(px) <= 380) return 'FORGOTTEN RUINS PLATEAU';
+    if (px < -260 && py < -100) return 'TERRA IRONWOOD WILDS';
+    if (px > 260 && py < -100) return 'UMBRI SHADOW FENS';
+    if (px < -260) return 'SOLARI SUN-CANYON';
+    if (px > 260) return 'AETHER ASTRAL PLATEAU';
     return 'IMPERIAL HIGHWAY';
   }
 
@@ -4389,7 +4590,7 @@ export function initGame() {
     const isContinent = mapBounds.halfW >= 1000;
     const cx = 64;
     const cy = 64;
-    const scale = isContinent ? 0.038 : 0.16;
+    const scale = isContinent ? 0.024 : 0.16;
 
     // Real-Time Continental Sub-Region Banner Update
     if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
@@ -4400,22 +4601,46 @@ export function initGame() {
       if (zoneLabel) zoneLabel.innerText = sub;
     }
 
-    // Draw continent quadrant backdrop when on Nexus Continent
+    // Draw continent geographic zones on minimap
     if (isContinent) {
       // NW Terra Wilds
-      mmCtx.fillStyle = 'rgba(34, 197, 94, 0.09)';
-      mmCtx.fillRect(Math.round(cx + (-mapBounds.halfW - player.x) * scale), Math.round(cy + (-mapBounds.halfH - player.y) * scale), Math.round(mapBounds.halfW * scale), Math.round(mapBounds.halfH * scale));
+      mmCtx.fillStyle = 'rgba(34, 197, 94, 0.14)';
+      mmCtx.fillRect(Math.round(cx + (-mapBounds.halfW - player.x) * scale), Math.round(cy + (-mapBounds.halfH - player.y) * scale), Math.round((mapBounds.halfW - 300) * scale), Math.round((mapBounds.halfH - 200) * scale));
+
       // NE Umbri Fens
-      mmCtx.fillStyle = 'rgba(168, 85, 247, 0.09)';
-      mmCtx.fillRect(Math.round(cx + (0 - player.x) * scale), Math.round(cy + (-mapBounds.halfH - player.y) * scale), Math.round(mapBounds.halfW * scale), Math.round(mapBounds.halfH * scale));
-      // SW Solari Plains
-      mmCtx.fillStyle = 'rgba(234, 179, 8, 0.09)';
-      mmCtx.fillRect(Math.round(cx + (-mapBounds.halfW - player.x) * scale), Math.round(cy + (0 - player.y) * scale), Math.round(mapBounds.halfW * scale), Math.round(mapBounds.halfH * scale));
+      mmCtx.fillStyle = 'rgba(168, 85, 247, 0.14)';
+      mmCtx.fillRect(Math.round(cx + (300 - player.x) * scale), Math.round(cy + (-mapBounds.halfH - player.y) * scale), Math.round((mapBounds.halfW - 300) * scale), Math.round((mapBounds.halfH - 200) * scale));
+
+      // SW Solari Canyon
+      mmCtx.fillStyle = 'rgba(234, 179, 8, 0.14)';
+      mmCtx.fillRect(Math.round(cx + (-mapBounds.halfW - player.x) * scale), Math.round(cy + (-100 - player.y) * scale), Math.round((mapBounds.halfW - 300) * scale), Math.round(1200 * scale));
+
       // SE Aether Plateau
-      mmCtx.fillStyle = 'rgba(56, 189, 248, 0.09)';
-      mmCtx.fillRect(Math.round(cx + (0 - player.x) * scale), Math.round(cy + (0 - player.y) * scale), Math.round(mapBounds.halfW * scale), Math.round(mapBounds.halfH * scale));
-      // Highway Grid Lines on Minimap
-      mmCtx.fillStyle = 'rgba(148, 163, 184, 0.28)';
+      mmCtx.fillStyle = 'rgba(56, 189, 248, 0.14)';
+      mmCtx.fillRect(Math.round(cx + (300 - player.x) * scale), Math.round(cy + (-100 - player.y) * scale), Math.round((mapBounds.halfW - 300) * scale), Math.round(1200 * scale));
+
+      // North Forgotten Ruins Plateau
+      mmCtx.fillStyle = 'rgba(148, 163, 184, 0.18)';
+      mmCtx.fillRect(Math.round(cx + (-380 - player.x) * scale), Math.round(cy + (-mapBounds.halfH - player.y) * scale), Math.round(760 * scale), Math.round(1400 * scale));
+
+      // Central Mountain Ridge (Granite Crags & Whispering Pass)
+      mmCtx.fillStyle = 'rgba(71, 85, 105, 0.32)';
+      mmCtx.fillRect(Math.round(cx + (-mapBounds.halfW - player.x) * scale), Math.round(cy + (350 - player.y) * scale), Math.round(mapBounds.halfW * 2 * scale), Math.round(750 * scale));
+
+      // Whispering Pass Opening in Mountains
+      mmCtx.fillStyle = 'rgba(203, 213, 225, 0.28)';
+      mmCtx.fillRect(Math.round(cx + (-140 - player.x) * scale), Math.round(cy + (350 - player.y) * scale), Math.round(280 * scale), Math.round(750 * scale));
+
+      // South Sanctuary Vale (Meadow Basin)
+      mmCtx.fillStyle = 'rgba(16, 185, 129, 0.18)';
+      mmCtx.fillRect(Math.round(cx + (-mapBounds.halfW - player.x) * scale), Math.round(cy + (1100 - player.y) * scale), Math.round(mapBounds.halfW * 2 * scale), Math.round((mapBounds.halfH - 1100) * scale));
+
+      // South River Blue Shimmer Line
+      mmCtx.fillStyle = 'rgba(2, 132, 199, 0.6)';
+      mmCtx.fillRect(Math.round(cx + (-mapBounds.halfW - player.x) * scale), Math.round(cy + (1230 - player.y) * scale), Math.round(mapBounds.halfW * 2 * scale), Math.max(2, Math.round(40 * scale)));
+
+      // Imperial Highway Roads on Minimap
+      mmCtx.fillStyle = 'rgba(226, 232, 240, 0.35)';
       mmCtx.fillRect(Math.round(cx + (0 - player.x) * scale) - 1, 0, 3, 128);
       mmCtx.fillRect(0, Math.round(cy + (0 - player.y) * scale) - 1, 128, 3);
     } else {

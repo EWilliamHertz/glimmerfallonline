@@ -478,6 +478,97 @@ export function buildSpriteSheet() {
     sprites.tiles[`void_sea_${f}`] = c;
   }
 
+  // Granite Mountain Crag Tiles (Rugged Mountain Ranges & Passes)
+  for (let v = 0; v < 4; v++) {
+    const { c, ctx } = makeCanvas(16, 16);
+    rect(ctx, 0, 0, 16, 16, '#28313e');
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const r = hash2d(x, y, 120 + v);
+        if (r < 0.22) px(ctx, x, y, '#1e2530');
+        else if (r < 0.35) px(ctx, x, y, '#374254');
+        else if (r > 0.88) px(ctx, x, y, '#4b5970');
+      }
+    }
+    // Jagged facet ridges
+    if (v === 0) {
+      rect(ctx, 2, 4, 6, 2, '#4b5970');
+      rect(ctx, 8, 8, 5, 2, '#1e2530');
+    } else if (v === 1) {
+      rect(ctx, 4, 10, 8, 2, '#4b5970');
+      px(ctx, 11, 3, '#64748b');
+    } else if (v === 2) {
+      rect(ctx, 3, 2, 7, 2, '#374254');
+      rect(ctx, 7, 9, 6, 2, '#1e2530');
+    } else {
+      px(ctx, 5, 5, '#64748b');
+      px(ctx, 12, 12, '#1e2530');
+    }
+    sprites.tiles[`mountain_rock_${v}`] = c;
+  }
+
+  // Snow-Dusted High Mountain Peaks
+  for (let v = 0; v < 4; v++) {
+    const { c, ctx } = makeCanvas(16, 16);
+    rect(ctx, 0, 0, 16, 16, '#334155');
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const r = hash2d(x, y, 150 + v);
+        if (r < 0.25) px(ctx, x, y, '#1e293b');
+        else if (r < 0.45) px(ctx, x, y, '#475569');
+        else if (r > 0.82) px(ctx, x, y, '#cbd5e1'); // Snow dusting
+      }
+    }
+    if (v === 0 || v === 2) {
+      rect(ctx, 4, 2, 8, 2, '#f1f5f9');
+      rect(ctx, 5, 4, 5, 1, '#cbd5e1');
+    } else {
+      rect(ctx, 6, 6, 6, 2, '#f1f5f9');
+    }
+    sprites.tiles[`mountain_peak_${v}`] = c;
+  }
+
+  // Rushing Valley River Water (Flowing Streams & Valley Basins)
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(16, 16);
+    rect(ctx, 0, 0, 16, 16, '#0284c7');
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const r = hash2d(x, y, 200 + f);
+        if (r < 0.28) px(ctx, x, y, '#0369a1');
+        else if (r > 0.88) px(ctx, x, y, '#38bdf8');
+      }
+    }
+    // Flowing foam ripples
+    const offset = f * 3;
+    rect(ctx, (2 + offset) % 16, 3, 5, 1, '#bae6fd');
+    rect(ctx, (8 + offset) % 16, 8, 6, 1, '#e0f2fe');
+    rect(ctx, (1 + offset) % 16, 13, 4, 1, '#bae6fd');
+    sprites.tiles[`river_water_${f}`] = c;
+  }
+
+  // Wooden Bridge Planks (Crossing Mountain Chasm & Rivers)
+  for (let v = 0; v < 2; v++) {
+    const { c, ctx } = makeCanvas(16, 16);
+    rect(ctx, 0, 0, 16, 16, '#78350f');
+    // Horizontal wood planks
+    rect(ctx, 0, 0, 16, 1, '#451a03');
+    rect(ctx, 0, 4, 16, 1, '#451a03');
+    rect(ctx, 0, 8, 16, 1, '#451a03');
+    rect(ctx, 0, 12, 16, 1, '#451a03');
+    // Wood grain highlights
+    rect(ctx, 2, 2, 12, 1, '#92400e');
+    rect(ctx, 3, 6, 10, 1, '#92400e');
+    rect(ctx, 1, 10, 14, 1, '#92400e');
+    rect(ctx, 4, 14, 8, 1, '#92400e');
+    // Iron bolts / rivets on plank ends
+    px(ctx, 1, 2, '#d97706');
+    px(ctx, 14, 2, '#d97706');
+    px(ctx, 1, 10, '#d97706');
+    px(ctx, 14, 10, '#d97706');
+    sprites.tiles[`bridge_wood_${v}`] = c;
+  }
+
   // ==========================================
   // 2. WORLD PROPS (Gentle Warm Brazier & Pillar)
   // ==========================================
@@ -536,6 +627,142 @@ export function buildSpriteSheet() {
     rect(ctx, 7, 9 + hover, 6, 11, '#38bdf8');
     rect(ctx, 9, 11 + hover, 2, 7, '#ffffff');
     sprites.props.crystalPillar.push(addPixelOutline(c));
+  }
+
+  // Mountain Evergreen Pine Tree (22x34 px)
+  {
+    const { c, ctx } = makeCanvas(22, 34);
+    // Tree trunk
+    rect(ctx, 9, 24, 4, 10, '#451a03');
+    rect(ctx, 10, 24, 2, 10, '#78350f');
+    // Bottom boughs
+    rect(ctx, 3, 20, 16, 5, '#14532d');
+    rect(ctx, 5, 18, 12, 3, '#166534');
+    rect(ctx, 7, 19, 8, 2, '#22c55e');
+    // Middle boughs
+    rect(ctx, 5, 13, 12, 5, '#14532d');
+    rect(ctx, 7, 11, 8, 3, '#166534');
+    rect(ctx, 8, 12, 6, 2, '#22c55e');
+    // Top boughs
+    rect(ctx, 7, 6, 8, 5, '#14532d');
+    rect(ctx, 8, 4, 6, 3, '#166534');
+    rect(ctx, 9, 3, 4, 2, '#22c55e');
+    // Peak needle tip
+    rect(ctx, 10, 1, 2, 3, '#4ade80');
+    sprites.props.pineTree = addPixelOutline(c);
+  }
+
+  // Sprawling Valley Ancient Oak (32x40 px)
+  {
+    const { c, ctx } = makeCanvas(32, 40);
+    // Sturdy root base & trunk
+    rect(ctx, 11, 28, 10, 12, '#271b12');
+    rect(ctx, 9, 36, 4, 4, '#271b12');
+    rect(ctx, 19, 36, 4, 4, '#271b12');
+    rect(ctx, 13, 28, 6, 10, '#451a03');
+    rect(ctx, 14, 30, 4, 6, '#78350f');
+    // Lower lush foliage tier
+    rect(ctx, 4, 14, 24, 15, '#14532d');
+    rect(ctx, 2, 17, 28, 9, '#14532d');
+    rect(ctx, 6, 12, 20, 12, '#166534');
+    rect(ctx, 8, 10, 16, 12, '#15803d');
+    // Foliage highlights & leaf clumps
+    rect(ctx, 9, 8, 14, 8, '#22c55e');
+    rect(ctx, 11, 5, 10, 6, '#4ade80');
+    rect(ctx, 7, 17, 7, 4, '#22c55e');
+    rect(ctx, 18, 17, 7, 4, '#22c55e');
+    px(ctx, 13, 7, '#86efac');
+    px(ctx, 17, 11, '#86efac');
+    sprites.props.ancientOak = addPixelOutline(c);
+  }
+
+  // Granite Mountain Crag / Boulder Formation (26x24 px)
+  {
+    const { c, ctx } = makeCanvas(26, 24);
+    // Shadow / dark rock base
+    rect(ctx, 3, 10, 20, 13, '#1e293b');
+    rect(ctx, 2, 13, 22, 9, '#1e293b');
+    // Angular rock facets
+    rect(ctx, 5, 8, 16, 12, '#334155');
+    rect(ctx, 7, 5, 12, 10, '#475569');
+    rect(ctx, 9, 3, 8, 7, '#64748b');
+    // Crisp facet ridges & light catch
+    rect(ctx, 9, 3, 5, 4, '#94a3b8');
+    rect(ctx, 11, 4, 2, 2, '#cbd5e1');
+    rect(ctx, 6, 9, 6, 2, '#64748b');
+    rect(ctx, 15, 11, 7, 2, '#334155');
+    sprites.props.mountainCrag = addPixelOutline(c);
+  }
+
+  // Cozy Waystation Campfire (18x20 px, 2-frame animation)
+  sprites.props.campfire = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(18, 20);
+    // Crossed wood logs
+    rect(ctx, 3, 14, 12, 3, '#451a03');
+    rect(ctx, 4, 15, 10, 2, '#78350f');
+    rect(ctx, 6, 13, 6, 5, '#271b12');
+    rect(ctx, 7, 14, 4, 3, '#451a03');
+    // Glowing hot embers
+    rect(ctx, 7, 14, 4, 2, '#dc2626');
+    px(ctx, 8, 14, '#f97316');
+    // Dancing fire flame
+    const flicker = f === 0 ? 0 : 1;
+    rect(ctx, 6, 9 - flicker, 6, 5 + flicker, '#ea580c');
+    rect(ctx, 7, 6 - flicker, 4, 6 + flicker, '#f59e0b');
+    rect(ctx, 8, 3 - flicker, 2, 6, '#fde047');
+    px(ctx, 8, 2 - flicker, '#ffffff');
+    if (f === 1) {
+      px(ctx, 6, 7, '#fde047');
+      px(ctx, 11, 8, '#f59e0b');
+    }
+    sprites.props.campfire.push(addPixelOutline(c));
+  }
+
+  // Ancient Weathered Ruined Keystone Arch (28x36 px)
+  {
+    const { c, ctx } = makeCanvas(28, 36);
+    // Base plinths
+    rect(ctx, 2, 30, 8, 6, '#1e293b');
+    rect(ctx, 18, 30, 8, 6, '#1e293b');
+    rect(ctx, 3, 31, 6, 4, '#334155');
+    rect(ctx, 19, 31, 6, 4, '#334155');
+    // Left & Right stone columns
+    rect(ctx, 4, 10, 6, 21, '#475569');
+    rect(ctx, 5, 10, 3, 20, '#64748b');
+    rect(ctx, 18, 10, 6, 21, '#475569');
+    rect(ctx, 19, 10, 3, 20, '#64748b');
+    // Keystone overhead arch
+    rect(ctx, 3, 6, 22, 5, '#334155');
+    rect(ctx, 4, 7, 20, 3, '#64748b');
+    rect(ctx, 11, 4, 6, 6, '#94a3b8');
+    rect(ctx, 12, 3, 4, 2, '#cbd5e1');
+    // Ivy vine wrapping left pillar
+    px(ctx, 4, 22, '#22c55e');
+    px(ctx, 5, 23, '#15803d');
+    px(ctx, 6, 18, '#22c55e');
+    px(ctx, 4, 14, '#166534');
+    px(ctx, 5, 13, '#4ade80');
+    sprites.props.ruinedArch = addPixelOutline(c);
+  }
+
+  // Wooden Trail Guide Signpost (16x22 px)
+  {
+    const { c, ctx } = makeCanvas(16, 22);
+    // Vertical stake
+    rect(ctx, 7, 6, 3, 16, '#451a03');
+    rect(ctx, 8, 7, 1, 14, '#78350f');
+    // Upper direction plank
+    rect(ctx, 2, 4, 11, 4, '#78350f');
+    rect(ctx, 3, 5, 9, 2, '#b45309');
+    px(ctx, 12, 5, '#fde047'); // Arrow pointer
+    px(ctx, 13, 6, '#fde047');
+    // Lower direction plank
+    rect(ctx, 4, 10, 10, 4, '#78350f');
+    rect(ctx, 5, 11, 8, 2, '#92400e');
+    px(ctx, 4, 12, '#fde047'); // Arrow pointer
+    px(ctx, 3, 11, '#fde047');
+    sprites.props.woodenSign = addPixelOutline(c);
   }
 
   // ==========================================

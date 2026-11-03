@@ -381,7 +381,7 @@ export class RoomManager {
           targetRoom: ROOM_TYPES.SANCTUARY_HUB,
           spriteKey: 'portal',
           x: 0,
-          y: 940,
+          y: 1580,
           hp: 1,
           maxHp: 1,
           radius: 20,
@@ -395,7 +395,7 @@ export class RoomManager {
           targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
           spriteKey: 'portal',
           x: 0,
-          y: -940,
+          y: -1500,
           hp: 1,
           maxHp: 1,
           radius: 20,
@@ -408,8 +408,8 @@ export class RoomManager {
           type: 'portal',
           targetRoom: ROOM_TYPES.TERRA_ORCHARD,
           spriteKey: 'portal',
-          x: -1150,
-          y: -780,
+          x: -1400,
+          y: -900,
           hp: 1,
           maxHp: 1,
           radius: 19,
@@ -422,8 +422,8 @@ export class RoomManager {
           type: 'portal',
           targetRoom: ROOM_TYPES.UMBRI_UNDERCITY,
           spriteKey: 'portal',
-          x: 1150,
-          y: -780,
+          x: 1400,
+          y: -900,
           hp: 1,
           maxHp: 1,
           radius: 19,
@@ -436,8 +436,8 @@ export class RoomManager {
           type: 'portal',
           targetRoom: ROOM_TYPES.SOLARI_CITADEL,
           spriteKey: 'portal',
-          x: -1150,
-          y: 780,
+          x: -1400,
+          y: 900,
           hp: 1,
           maxHp: 1,
           radius: 19,
@@ -450,11 +450,28 @@ export class RoomManager {
           type: 'portal',
           targetRoom: ROOM_TYPES.AETHER_SPIRE,
           spriteKey: 'portal',
-          x: 1150,
-          y: 780,
+          x: 1400,
+          y: 900,
           hp: 1,
           maxHp: 1,
           radius: 19,
+          hitFlash: 0,
+        },
+        // Peaceful South Sanctuary Vale Target Dummy
+        {
+          id: 'val_dummy',
+          name: 'Vale Training Dummy',
+          sub: 'Lv.1 Target Post',
+          type: 'dummy',
+          spriteKey: 'dummy',
+          x: 60,
+          y: 1440,
+          origX: 60,
+          origY: 1440,
+          hp: 40,
+          maxHp: 40,
+          xpReward: 30,
+          radius: 14,
           hitFlash: 0,
         }
       );
@@ -555,14 +572,17 @@ export class RoomManager {
         }
       );
 
-      // 6 Strategic Glimmer Leyline Nodes across regions
+      // Strategic Glimmer Leyline Nodes across valleys, mountain passes, and wilderness
       const continentalNodes = [
+        { id: 'node_sanctuary', name: 'Sanctuary Vale Font', x: 0, y: 1380 },
+        { id: 'node_pass', name: 'Whispering Pass Font', x: 0, y: 700 },
         { id: 'node_center_s', name: 'Caldera South Font', x: 0, y: 180 },
         { id: 'node_center_n', name: 'Caldera North Font', x: 0, y: -180 },
-        { id: 'node_terra', name: 'Terra Blossom Spire', x: -800, y: -500 },
-        { id: 'node_umbri', name: 'Sepulcher Shadow Spire', x: 800, y: -500 },
-        { id: 'node_solari', name: 'Dawnfire Solar Font', x: -800, y: 500 },
-        { id: 'node_aether', name: 'Aether Resonance Crystal', x: 800, y: 500 },
+        { id: 'node_ruins', name: 'Forgotten Ruins Keystone Font', x: 0, y: -900 },
+        { id: 'node_terra', name: 'Terra Blossom Spire', x: -1100, y: -700 },
+        { id: 'node_umbri', name: 'Sepulcher Shadow Spire', x: 1100, y: -700 },
+        { id: 'node_solari', name: 'Dawnfire Solar Font', x: -1100, y: 700 },
+        { id: 'node_aether', name: 'Aether Resonance Crystal', x: 1100, y: 700 },
       ];
       for (const nd of continentalNodes) {
         room.entities.push({
@@ -581,8 +601,16 @@ export class RoomManager {
         });
       }
 
-      // Roaming Mob Packs across the 4 Continents & Central Caldera
+      // Roaming Mob Packs across the Mountains, Ruins, Wilderness, and Caldera
       const openWorldMobs = [
+        // Whispering Mountain Pass Mobs (Hike north through the crags)
+        { id: 'pass_mob_1', name: 'Granite Ridge Sentinel', sub: 'Lv.4 Mountain Golem', spriteKey: 'graniteBoss', x: -60, y: 880, hp: 42, maxHp: 42, damage: 4, xpReward: 75, speed: 40, aggroRange: 110, attackRange: 30, radius: 18 },
+        { id: 'pass_mob_2', name: 'Whispering Pass Raider', sub: 'Lv.5 Highland Marauder', spriteKey: 'voidStalker', x: 70, y: 640, hp: 38, maxHp: 38, damage: 5, xpReward: 80, speed: 52, aggroRange: 115, attackRange: 28, radius: 15 },
+        { id: 'pass_mob_3', name: 'High Crag Behemoth', sub: 'Lv.6 Ridge Colossus', spriteKey: 'graniteBoss', x: -80, y: 460, hp: 54, maxHp: 54, damage: 6, xpReward: 100, speed: 38, aggroRange: 120, attackRange: 32, radius: 20 },
+        // North Forgotten Ruins Plateau (Ancient Megaliths)
+        { id: 'ruin_guard_1', name: 'Ancient Keystone Golem', sub: 'Lv.6 Forgotten Golem', spriteKey: 'graniteBoss', x: -90, y: -750, hp: 52, maxHp: 52, damage: 6, xpReward: 105, speed: 40, aggroRange: 115, attackRange: 30, radius: 18 },
+        { id: 'ruin_guard_2', name: 'Lost Shard Sentinel', sub: 'Lv.6 Keystone Sentinel', spriteKey: 'mobSolari', x: 90, y: -750, hp: 50, maxHp: 50, damage: 6, xpReward: 100, speed: 52, aggroRange: 115, attackRange: 30, radius: 16 },
+        { id: 'ruin_boss_field', name: 'The Prismatic Overlord', sub: '★ Lv.9 Megalith World Boss', isBoss: true, dropGear: 'prismatic_keystone', spriteKey: 'graniteBoss', x: 0, y: -1150, hp: 130, maxHp: 130, damage: 8, xpReward: 275, speed: 38, aggroRange: 135, attackRange: 34, radius: 24 },
         // Terra Ironwood Wilds (NW)
         { id: 'ter_mob_1', name: 'Bramble Treant', sub: 'Lv.5 Terra Guardian', spriteKey: 'terraWarden', x: -680, y: -520, hp: 44, maxHp: 44, damage: 5, xpReward: 85, speed: 52, aggroRange: 115, attackRange: 28, radius: 16 },
         { id: 'ter_mob_2', name: 'Ironwood Stonekin', sub: 'Lv.6 Forest Sentinel', spriteKey: 'terraWarden', x: -1020, y: -480, hp: 48, maxHp: 48, damage: 5, xpReward: 95, speed: 50, aggroRange: 115, attackRange: 28, radius: 16 },
@@ -591,7 +619,7 @@ export class RoomManager {
         { id: 'umb_mob_1', name: 'Void Stalker Vanguard', sub: 'Lv.5 Umbri Assassin', spriteKey: 'voidStalker', x: 680, y: -520, hp: 42, maxHp: 42, damage: 6, xpReward: 85, speed: 56, aggroRange: 115, attackRange: 28, radius: 15 },
         { id: 'umb_mob_2', name: 'Graveglass Phantom', sub: 'Lv.6 Gloom Specter', spriteKey: 'duskFiend', x: 1020, y: -480, hp: 46, maxHp: 46, damage: 6, xpReward: 95, speed: 56, aggroRange: 115, attackRange: 28, radius: 15 },
         { id: 'umb_mob_3', name: 'Sepulcher Reaver', sub: 'Lv.6 Shadow Knight', spriteKey: 'voidStalker', x: 780, y: -880, hp: 50, maxHp: 50, damage: 6, xpReward: 105, speed: 54, aggroRange: 120, attackRange: 30, radius: 16 },
-        // Solari Sun-Plains (SW)
+        // Solari Sun-Canyon (SW)
         { id: 'sol_mob_1', name: 'Sunforged Sentinel', sub: 'Lv.5 Solari Construct', spriteKey: 'solariSentinel', x: -680, y: 520, hp: 45, maxHp: 45, damage: 5, xpReward: 85, speed: 52, aggroRange: 115, attackRange: 28, radius: 15 },
         { id: 'sol_mob_2', name: 'Dawnblade Crusader', sub: 'Lv.6 Radiant Paladin', spriteKey: 'solariSentinel', x: -1020, y: 480, hp: 48, maxHp: 48, damage: 6, xpReward: 95, speed: 54, aggroRange: 115, attackRange: 30, radius: 15 },
         { id: 'sol_mob_3', name: 'Sunfire Automaton', sub: 'Lv.6 Citadel Colossus', spriteKey: 'solariSentinel', x: -780, y: 880, hp: 52, maxHp: 52, damage: 6, xpReward: 105, speed: 48, aggroRange: 120, attackRange: 30, radius: 16 },
