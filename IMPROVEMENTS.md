@@ -62,7 +62,13 @@ Expanded character creation and the new **Game Frontpage** (`client/frontpage.js
 ## 5. Polish, Accessibility & Viral Distribution
 - [ ] **Hand-Crafted PNG Pixel Atlas Pipeline**:
   - Complement procedural pixel sprites with an artist-editable PNG spritesheet & Tiled (`.tmj`) map loader for rapid zone authoring.
-- [ ] **Mobile & Tablet Touch Controls**:
+- [x] **Mobile & Tablet Touch Controls** (`client/touch.js`):
   - Virtual pixel thumbstick + tap-to-cast Rite/Flash radial buttons so TCG fans clicking links from TikTok, Discord, X, or QR codes on physical card packs can play instantly on mobile browsers.
 - [ ] **Streamable 60s "Play Now" Embed Widget**:
   - Embed *Awakening Isle* directly as an interactive hero banner or iframe on `glimmerfalltcg.com` ("Don't just read the lore—play a Solari Vanguard in 2 seconds").
+
+---
+
+## 6. Recently Shipped
+- [x] **Loot Shards**: mobs drop pixel *Vital* (heal 25%), *Glimmer* (+30 Glimmer) and boss-only *Relic* (+60 XP) shards that pop out, bob, blink before expiring, and auto-collect on touch — server-authoritative online, mirrored in offline/Vercel play.
+- [x] **Touch Controls**: pixel thumbstick, latching SPRINT, TARGET, GLIMMER and CHAT buttons; action bar auto-scales to narrow screens (`?touch=1` forces on, `?touch=0` off).

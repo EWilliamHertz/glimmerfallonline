@@ -11,6 +11,7 @@ import {
   getCharacterSprites,
 } from './sprites.js';
 import { MultiplayerClient } from './network.js';
+import { initTouchControls } from './touch.js';
 import { FrontpageController, renderInGamePaperdollModal } from './frontpage.js';
 import {
   drawPixelNameplateAndBubbles,
@@ -211,6 +212,7 @@ export function initGame() {
   let projectiles = [];
   let groundZones = [];
   let worldBanners = [];
+  let lootDrops = [];
   let particles = [];
   let afterimages = [];
   let slashArcs = [];
@@ -232,7 +234,7 @@ export function initGame() {
   let introShown = false;
 
   const quests = { moved: false, damaged: false, harvested: false, portalReady: false };
-  const inputs = { w: false, a: false, s: false, d: false, up: false, down: false, left: false, right: false, shift: false };
+  const inputs = { w: false, a: false, s: false, d: false, up: false, down: false, left: false, right: false, shift: false, axisX: 0, axisY: 0 };
 
   let keybinds = { ...DEFAULT_KEYBINDS };
   try {
@@ -936,6 +938,7 @@ export function initGame() {
     projectiles = [];
     groundZones = [];
     worldBanners = [];
+    lootDrops = [];
 
     if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB) {
       player.x = 0;
@@ -1221,6 +1224,7 @@ export function initGame() {
     projectiles = snap.projectiles || [];
     groundZones = snap.groundZones || [];
     worldBanners = snap.banners || [];
+    lootDrops = snap.loot || [];
 
     for (const fx of snap.fx || []) {
       if (fx.kind === 'slash') {
@@ -1286,6 +1290,7 @@ export function initGame() {
         spawnSparkBurst(fx.x, fx.y, fx.colors || ['#facc15', '#ffffff'], 14);
       } else if (fx.kind === 'fct') {
         spawnFCT(fx.x, fx.y, fx.text, fx.color || '#facc15', Boolean(fx.isCrit));
+        if (typeof fx.text === 'string' && fx.text.includes('SHARD')) audio.playPickup();
       } else if (fx.kind === 'sfx') {
         if (fx.sfx === 'hammer') audio.playHammer();
         else if (fx.sfx === 'freeze') audio.playFreeze();
@@ -1662,6 +1667,102 @@ export function initGame() {
 
   let offlineEchoPrimed = false;
 
+  // ==========================================
+  // Loot Shards (Vital / Glimmer / Relic) — offline simulation mirror of server loot
+  // ==========================================
+  let lootSeq = 0;
+  function spawnOfflineLoot(ent) {
+    const count = ent.isBoss ? 4 : Math.random() < 0.55 ? 1 : 0;
+    for (let i = 0; i < count; i++) {
+      let kind = Math.random() < 0.5 ? 'vital' : 'glimmer';
+      if (ent.isBoss && i === 0) kind = 'relic';
+      const ang = (Math.PI * 2 * i) / Math.max(1, count) + Math.random() * 0.8;
+      const dist = count > 1 ? 14 + Math.random() * 8 : 0;
+      lootSeq++;
+      lootDrops.push({
+        id: `loot_off_${lootSeq}`,
+        kind,
+        x: ent.x + Math.cos(ang) * dist,
+        y: ent.y + Math.sin(ang) * dist * 0.6,
+        ttl: 28,
+        age: 0,
+      });
+    }
+  }
+
+  function updateOfflineLoot(dt) {
+    for (let i = lootDrops.length - 1; i >= 0; i--) {
+      const l = lootDrops[i];
+      l.ttl -= dt;
+      l.age = (l.age || 0) + dt;
+      if (l.ttl <= 0) {
+        lootDrops.splice(i, 1);
+        continue;
+      }
+      if (player.isDead || l.age < 0.6) continue;
+      if (Math.hypot(player.x - l.x, player.y - l.y) > 18) continue;
+      lootDrops.splice(i, 1);
+      audio.playPickup();
+      if (l.kind === 'vital') {
+        const heal = Math.max(3, Math.round(player.maxHp * 0.25));
+        player.hp = Math.min(player.maxHp, player.hp + heal);
+        spawnFCT(player.x, player.y - 14, `+${heal} VITAL SHARD`, '#f87171');
+      } else if (l.kind === 'glimmer') {
+        player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 30);
+        spawnFCT(player.x, player.y - 14, '+30 GLIMMER SHARD', '#38bdf8');
+      } else {
+        awardXP(60, 'Relic Shard');
+        spawnFCT(player.x, player.y - 14, '✦ RELIC SHARD +60 XP', '#fde047', true);
+      }
+      spawnSmokeBurst(l.x, l.y, 6);
+      updatePlayerUI();
+    }
+  }
+
+  const LOOT_STYLE = {
+    vital: { core: '#ef4444', light: '#fecaca', dark: '#7f1d1d' },
+    glimmer: { core: '#38bdf8', light: '#e0f2fe', dark: '#0c4a6e' },
+    relic: { core: '#facc15', light: '#fffbeb', dark: '#854d0e' },
+  };
+
+  function drawLootShard(l, sx, sy) {
+    const st = LOOT_STYLE[l.kind] || LOOT_STYLE.glimmer;
+    const age = l.age ?? (28 - l.ttl);
+    // pop-out arc on spawn
+    const pop = age < 0.6 ? Math.sin((age / 0.6) * Math.PI) * 9 : 0;
+    const bob = Math.round(Math.sin(globalTime * 4 + (l.x + l.y) * 0.05) * 1.5);
+    const blink = l.ttl < 6 && Math.floor(globalTime * 8) % 2 === 0;
+    if (blink) return;
+    const cy = sy - 6 - Math.round(pop) + bob;
+    drawPixelEllipseShadow(sx, sy, 4, 2);
+    // 7px pixel diamond
+    ctx.fillStyle = '#05070f';
+    ctx.fillRect(sx - 1, cy - 5, 3, 1);
+    ctx.fillRect(sx - 3, cy - 4, 7, 1);
+    ctx.fillRect(sx - 4, cy - 3, 9, 6);
+    ctx.fillRect(sx - 3, cy + 3, 7, 1);
+    ctx.fillRect(sx - 1, cy + 4, 3, 1);
+    ctx.fillStyle = st.dark;
+    ctx.fillRect(sx - 3, cy - 3, 7, 5);
+    ctx.fillStyle = st.core;
+    ctx.fillRect(sx - 2, cy - 3, 5, 5);
+    ctx.fillRect(sx - 1, cy - 4, 3, 1);
+    ctx.fillRect(sx - 1, cy + 2, 3, 1);
+    ctx.fillStyle = st.light;
+    ctx.fillRect(sx - 2, cy - 3, 2, 2);
+    // twinkle
+    if (Math.floor(globalTime * 3 + l.x) % 3 === 0) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(sx + 3, cy - 5, 1, 1);
+      ctx.fillRect(sx + 2, cy - 4, 3, 1);
+      ctx.fillRect(sx + 3, cy - 3, 1, 1);
+    }
+    if (l.kind === 'relic') {
+      ctx.fillStyle = 'rgba(250,204,21,0.35)';
+      ctx.fillRect(sx - 6, cy - 1, 13, 1);
+    }
+  }
+
   function killOfflineEntity(ent) {
     if (!ent || ent.isDying) return;
     ent.isDying = true;
@@ -1675,6 +1776,7 @@ export function initGame() {
     spawnSmokeBurst(ent.x, ent.y, ent.isBoss ? 44 : 28);
     logMessage(`[Void Banish] ${ent.name} was cast into the Void!`, 'log-gain', 'combat');
     awardXP(ent.xpReward || 30, ent.name);
+    if (ent.type === 'mob') spawnOfflineLoot(ent);
 
     const deathRoom = currentRoomType;
     const respawnTemplate = {
@@ -2668,10 +2770,17 @@ export function initGame() {
   }, { passive: false });
 
   function resetInputs() {
-    for (const k in inputs) inputs[k] = false;
+    for (const k in inputs) inputs[k] = k === 'axisX' || k === 'axisY' ? 0 : false;
   }
   window.addEventListener('blur', resetInputs);
   document.addEventListener('visibilitychange', resetInputs);
+
+  initTouchControls({
+    inputs,
+    cycleTarget: () => cycleTarget(),
+    harvestTarget: () => window.harvestTarget(),
+    onFirstTouch: () => audio.init(),
+  });
 
   window.addEventListener('keydown', (e) => {
     // 1. PRIORITY CAPTURE: Rebinding a Rite/Flash hotkey inside [P] Rites!
@@ -2865,6 +2974,10 @@ export function initGame() {
       if (inputs.s || inputs.down) my += 1;
       if (inputs.a || inputs.left) mx -= 1;
       if (inputs.d || inputs.right) mx += 1;
+      if (inputs.axisX || inputs.axisY) {
+        mx += inputs.axisX;
+        my += inputs.axisY;
+      }
 
       if (mx !== 0 || my !== 0) {
         const len = Math.hypot(mx, my);
@@ -3033,6 +3146,7 @@ export function initGame() {
 
     // Advance offline projectiles & ground zones when running in local fallback
     if (!net.connected) {
+      updateOfflineLoot(dt);
       for (let i = projectiles.length - 1; i >= 0; i--) {
         const prj = projectiles[i];
         const tgt = entities.find((e) => e.id === prj.targetId && !e.isDying);
@@ -3336,6 +3450,13 @@ export function initGame() {
           drawPixelEllipseShadow(sx, sy, 8, 3);
           ctx.drawImage(img, Math.round(sx - img.width / 2), sy - img.height + 2);
         },
+      });
+    }
+
+    for (const l of lootDrops) {
+      renderables.push({
+        y: l.y,
+        draw: () => drawLootShard(l, Math.round(l.x - camLeft), Math.round(l.y - camTop)),
       });
     }
 

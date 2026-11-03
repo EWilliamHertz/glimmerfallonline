@@ -101,6 +101,8 @@ export class RoomManager {
       projectiles: [],
       groundZones: [],
       banners: [],
+      loot: [],
+      lootSeq: 0,
       fxQueue: [],
       createdAt: Date.now(),
       matchEnded: false,
@@ -2108,6 +2110,68 @@ export class RoomManager {
     }
   }
 
+  spawnLootDrops(room, ent) {
+    const count = ent.isBoss ? 4 : Math.random() < 0.55 ? 1 : 0;
+    if (!room.loot) room.loot = [];
+    const drops = [];
+    for (let i = 0; i < count; i++) {
+      let kind = Math.random() < 0.5 ? 'vital' : 'glimmer';
+      if (ent.isBoss && i === 0) kind = 'relic';
+      drops.push(kind);
+    }
+    drops.forEach((kind, i) => {
+      const ang = (Math.PI * 2 * i) / Math.max(1, drops.length) + Math.random() * 0.8;
+      const dist = drops.length > 1 ? 14 + Math.random() * 8 : 0;
+      room.lootSeq = (room.lootSeq || 0) + 1;
+      room.loot.push({
+        id: `loot_${room.lootSeq}`,
+        kind,
+        x: Math.round((ent.x + Math.cos(ang) * dist) * 10) / 10,
+        y: Math.round((ent.y + Math.sin(ang) * dist * 0.6) * 10) / 10,
+        ttl: 28,
+        maxTtl: 28,
+      });
+    });
+  }
+
+  tickLoot(room, dt) {
+    if (!room.loot || room.loot.length === 0) return;
+    for (let i = room.loot.length - 1; i >= 0; i--) {
+      const l = room.loot[i];
+      l.ttl -= dt;
+      if (l.ttl <= 0) {
+        room.loot.splice(i, 1);
+        continue;
+      }
+      if (l.ttl > l.maxTtl - 0.6) continue; // brief spawn delay so the pop animation reads
+      let taker = null;
+      let bestD = 18;
+      for (const p of room.players.values()) {
+        if (p.isDead) continue;
+        const d = Math.hypot(p.x - l.x, p.y - l.y);
+        if (d <= bestD) {
+          bestD = d;
+          taker = p;
+        }
+      }
+      if (!taker) continue;
+      room.loot.splice(i, 1);
+      if (l.kind === 'vital') {
+        const heal = Math.max(3, Math.round(taker.maxHp * 0.25));
+        taker.hp = Math.min(taker.maxHp, taker.hp + heal);
+        this.parties.syncPlayerVitals(taker.id);
+        room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 14, text: `+${heal} VITAL SHARD`, color: '#f87171' });
+      } else if (l.kind === 'glimmer') {
+        this.addPlayerGlimmer(room, taker, 30);
+        room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 14, text: '+30 GLIMMER SHARD', color: '#38bdf8' });
+      } else {
+        this.awardPlayerXP(taker, 60, 'Relic Shard');
+        room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 14, text: '✦ RELIC SHARD +60 XP', color: '#fde047', isCrit: true });
+      }
+      room.fxQueue.push({ kind: 'smoke', x: l.x, y: l.y, count: 6 });
+    }
+  }
+
   handleEntityDeath(room, ent, killerPlayer, killerSpell) {
     if (ent.isDying) return;
     ent.isDying = true;
@@ -2232,6 +2296,8 @@ export class RoomManager {
       }, 10000);
       return;
     }
+
+    if (ent.type === 'mob') this.spawnLootDrops(room, ent);
 
     // Standard Mob / Dummy / Dungeon Boss Respawn
     const template = {
@@ -2755,6 +2821,9 @@ export class RoomManager {
       }
     }
 
+    // 6b. Loot Shard pickups
+    this.tickLoot(room, dt);
+
     // 7. Broadcast 20 Hz Authoritative Snapshot
     const snapshot = this.buildSnapshot(room, now);
     const fx = room.fxQueue.length > 0 ? room.fxQueue.splice(0, room.fxQueue.length) : undefined;
@@ -2882,6 +2951,7 @@ export class RoomManager {
       projectiles,
       groundZones,
       banners,
+      loot: (room.loot || []).map((l) => ({ id: l.id, kind: l.kind, x: l.x, y: l.y, ttl: Math.round(l.ttl * 10) / 10 })),
       siegeState,
     };
   }

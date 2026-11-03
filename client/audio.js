@@ -277,6 +277,10 @@ export class PixelSoundEngine {
     });
   }
 
+  playPickup() {
+    this.playTone({ type: 'square', freqs: [880, 1174.66, 1567.98], stepTime: 0.045, gainVal: 0.11 });
+  }
+
   playSmokePuff() {
     this.playNoise({ duration: 0.38, bandpassFreq: 520, endFreq: 65, gainVal: 0.28 });
     this.playTone({ type: 'triangle', freqs: [196, 164.8, 130.8, 98, 65.4], stepTime: 0.06, gainVal: 0.18 });
