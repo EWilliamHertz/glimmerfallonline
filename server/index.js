@@ -342,9 +342,14 @@ export function createGlimmerFallServer() {
     sendJson(res, 404, { ok: false, error: 'Not found' });
   });
 
-  const wss = new WebSocketServer({ noServer: true });
+  const wss = new WebSocketServer({
+    noServer: true,
+    perMessageDeflate: false, // Disables compression overhead and buffer queues for low latency
+  });
 
   server.on('upgrade', async (req, socket, head) => {
+    socket.setNoDelay(true); // Disable Nagle's algorithm on TCP socket to prevent 200ms packet bunching
+    socket.setKeepAlive(true, 15000);
     await ready;
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
     if (url.pathname !== '/ws') {
@@ -368,6 +373,11 @@ export function createGlimmerFallServer() {
   });
 
   wss.on('connection', (ws, _req, url) => {
+    if (ws._socket) {
+      ws._socket.setNoDelay(true);
+      ws._socket.setKeepAlive(true, 15000);
+    }
+
     const token = url.searchParams.get('token');
     const preferredRoom = url.searchParams.get('room') || null;
     const reqX = url.searchParams.get('x');
@@ -393,6 +403,11 @@ export function createGlimmerFallServer() {
     ws.on('message', (raw) => {
       try {
         const msg = JSON.parse(String(raw));
+        // Immediate low-latency ping response
+        if (msg.type === 'ping') {
+          ws.send(JSON.stringify({ type: 'pong', ts: msg.ts, serverTs: Date.now() }));
+          return;
+        }
         rooms.handlePacket(session, msg);
       } catch (_) {}
     });

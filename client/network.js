@@ -173,8 +173,10 @@ export class MultiplayerClient {
       clearInterval(this.pingInterval);
       this.send({ type: 'ping', ts: performance.now() });
       this.pingInterval = setInterval(() => {
-        this.send({ type: 'ping', ts: performance.now() });
-      }, 1500);
+        if (this.ws && this.ws.readyState === 1) {
+          this.send({ type: 'ping', ts: performance.now() });
+        }
+      }, 1000);
     };
 
     sock.onmessage = (ev) => {
@@ -193,8 +195,14 @@ export class MultiplayerClient {
           }
           return;
         }
-        if (msg.type === 'pong' && msg.ts) {
-          this.pingMs = Math.max(1, Math.round(performance.now() - msg.ts));
+        if (msg.type === 'pong' && typeof msg.ts === 'number') {
+          const sample = Math.max(1, Math.round(performance.now() - msg.ts));
+          // Moving average filter to prevent transient timer outliers from latching
+          if (!this.pingMs || this.pingMs <= 0) {
+            this.pingMs = sample;
+          } else {
+            this.pingMs = Math.round(this.pingMs * 0.65 + sample * 0.35);
+          }
           if (this.onPing) this.onPing(this.pingMs);
           return;
         }

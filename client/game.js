@@ -326,6 +326,7 @@ export function initGame() {
   let globalTime = 0;
   let footstepAccum = 0;
   let moveSyncAccum = 0;
+  let lastSentMove = { x: null, y: null, z: null, dir: null, isMoving: null, time: 0 };
 
   let activeDialoguePages = [];
   let dialogueIdx = 0;
@@ -1534,12 +1535,18 @@ export function initGame() {
           hideDeathScreen();
         }
         const errDist = Math.hypot(sp.x - player.x, sp.y - player.y);
-        if (errDist > 160) {
+        if (errDist > 180) {
+          // Hard teleport / portal jump / respawn
           player.x = sp.x;
           player.y = sp.y;
-        } else if (errDist > 20) {
-          player.x += (sp.x - player.x) * 0.3;
-          player.y += (sp.y - player.y) * 0.3;
+        } else if (!player.isMoving && errDist > 4) {
+          // Smooth settling when standing still (no jitter while walking)
+          player.x += (sp.x - player.x) * 0.35;
+          player.y += (sp.y - player.y) * 0.35;
+        } else if (player.isMoving && errDist > 90) {
+          // Large discrepancy while moving (e.g. wall collision or root)
+          player.x += (sp.x - player.x) * 0.2;
+          player.y += (sp.y - player.y) * 0.2;
         }
         updatePlayerUI();
       } else {
@@ -3451,14 +3458,22 @@ export function initGame() {
       moveSyncAccum += dt;
       if (moveSyncAccum >= 0.05) {
         moveSyncAccum = 0;
-        net.send({
-          type: 'move',
-          x: Math.round(player.x * 10) / 10,
-          y: Math.round(player.y * 10) / 10,
-          z: Math.round(player.z),
-          dir: player.dir,
-          isMoving: player.isMoving,
-        });
+        const curX = Math.round(player.x * 10) / 10;
+        const curY = Math.round(player.y * 10) / 10;
+        const curZ = Math.round(player.z);
+        const now = performance.now();
+        const changed = curX !== lastSentMove.x || curY !== lastSentMove.y || curZ !== lastSentMove.z || player.dir !== lastSentMove.dir || player.isMoving !== lastSentMove.isMoving;
+        if (changed || player.isMoving || now - lastSentMove.time > 1200) {
+          lastSentMove = { x: curX, y: curY, z: curZ, dir: player.dir, isMoving: player.isMoving, time: now };
+          net.send({
+            type: 'move',
+            x: curX,
+            y: curY,
+            z: curZ,
+            dir: player.dir,
+            isMoving: player.isMoving,
+          });
+        }
       }
     }
 

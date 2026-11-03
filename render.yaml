@@ -5,6 +5,7 @@ services:
     name: glimmerfall-online
     runtime: node
     plan: free
+    region: oregon # Pick closest: oregon (US-West), ohio (US-East), frankfurt (EU), singapore (Asia)
     buildCommand: npm install --include=dev && npm run build
     startCommand: node server/index.js
     healthCheckPath: /api/status
