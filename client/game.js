@@ -11,7 +11,7 @@ import {
   getCharacterSprites,
 } from './sprites.js';
 import { MultiplayerClient } from './network.js';
-import { initTouchControls } from './touch.js';
+import { initTouchControls, updateTouchUiButtons, toggleTouchControls } from './touch.js';
 import { FrontpageController, renderInGamePaperdollModal } from './frontpage.js';
 import {
   drawPixelNameplateAndBubbles,
@@ -2622,6 +2622,7 @@ export function initGame() {
       roomPlayers,
       selfId: net.playerId || localProfile.id,
     });
+    updateTouchUiButtons(document.body.classList.contains('touch-mode'));
   }
 
   window.startRebinding = function (slot) {

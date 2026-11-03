@@ -395,6 +395,19 @@ export function renderSocialModal({ rooms = [], currentRoomId = '', roomPlayers 
       </div>
     </div>
 
+    <!-- Controls & Touchpad Settings -->
+    <div style="background:#080c18; border:2px solid #1e293b; padding:8px 10px; font-size:8.5px; margin-top:8px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <b style="color:#fde047;">📱 MOBILE / VIRTUAL TOUCHPAD:</b>
+          <div style="color:#94a3b8; font-size:7.5px; margin-top:2px;">Enables on-screen virtual joystick and touch action buttons</div>
+        </div>
+        <button id="modal-touch-toggle-btn" class="util-btn" style="border-color:#38bdf8; color:#38bdf8; font-size:8px; padding:4px 8px;" onclick="toggleTouchControls()">
+          TOGGLE TOUCHPAD
+        </button>
+      </div>
+    </div>
+
     <!-- Multiplayer Server (Optional for Vercel Deployments) -->
     <div style="background:#080c18; border:2px solid #1e293b; padding:8px 10px; font-size:8.5px; margin-top:8px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">

@@ -1,11 +1,14 @@
 // ==========================================
 // GlimmerFall Online 2D — Mobile & Tablet Touch Controls
 // Pixel virtual thumbstick + SPRINT / TARGET / GLIMMER buttons.
-// Auto-enabled on coarse-pointer devices (or with ?touch=1).
+// Toggleable in Settings/HUD, saved in localStorage ('glimmerfall_touch_controls').
 // ==========================================
 
 export function shouldEnableTouch() {
   try {
+    const stored = localStorage.getItem('glimmerfall_touch_controls');
+    if (stored === '1') return true;
+    if (stored === '0') return false;
     const q = new URLSearchParams(window.location.search);
     if (q.get('touch') === '0') return false;
     if (q.get('touch') === '1') return true;
@@ -57,11 +60,34 @@ const TOUCH_CSS = `
   #touch-btn-chat { right: 82px; bottom: 176px; border-color: #94a3b8; }
 `;
 
+export function updateTouchUiButtons(enabled) {
+  const btn = document.getElementById('btn-touch-toggle');
+  if (btn) {
+    btn.innerHTML = `📱 TOUCH <span style="color:${enabled ? '#4ade80' : '#94a3b8'};">${enabled ? 'ON' : 'OFF'}</span>`;
+    btn.style.borderColor = enabled ? '#38bdf8' : '#475569';
+  }
+  const modalBtn = document.getElementById('modal-touch-toggle-btn');
+  if (modalBtn) {
+    modalBtn.innerHTML = `VIRTUAL TOUCHPAD: <b style="color:${enabled ? '#4ade80' : '#ef4444'};">${enabled ? 'ON' : 'OFF'}</b>`;
+    modalBtn.style.borderColor = enabled ? '#4ade80' : '#64748b';
+  }
+}
+
+export function toggleTouchControls(force) {
+  const isCurrentlyOn = document.body.classList.contains('touch-mode');
+  const next = typeof force === 'boolean' ? force : !isCurrentlyOn;
+  if (next) {
+    document.body.classList.add('touch-mode');
+    localStorage.setItem('glimmerfall_touch_controls', '1');
+  } else {
+    document.body.classList.remove('touch-mode');
+    localStorage.setItem('glimmerfall_touch_controls', '0');
+  }
+  updateTouchUiButtons(next);
+  return next;
+}
+
 export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstTouch }) {
-  if (!shouldEnableTouch()) return { enabled: false };
-
-  document.body.classList.add('touch-mode');
-
   const style = document.createElement('style');
   style.textContent = TOUCH_CSS;
   document.head.appendChild(style);
@@ -76,6 +102,13 @@ export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstT
     <div class="touch-btn" id="touch-btn-chat"><span class="ti">💬</span>CHAT</div>
   `;
   document.body.appendChild(layer);
+
+  const initialEnabled = shouldEnableTouch();
+  if (initialEnabled) {
+    document.body.classList.add('touch-mode');
+  }
+  window.toggleTouchControls = toggleTouchControls;
+  updateTouchUiButtons(initialEnabled);
 
   const stick = layer.querySelector('#touch-stick');
   const knob = layer.querySelector('#touch-knob');
@@ -190,5 +223,5 @@ export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstT
     e.preventDefault();
   }, { passive: false });
 
-  return { enabled: true, resetStick };
+  return { enabled: true, resetStick, toggle: toggleTouchControls };
 }
