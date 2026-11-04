@@ -902,9 +902,11 @@
       pointer-events: none;
       z-index: 46;
       opacity: 0;
-      box-shadow: inset 0 0 95px 40px rgba(56, 189, 248, 0.55), inset 0 0 180px 80px rgba(14, 165, 233, 0.35);
-      background: radial-gradient(ellipse at center, transparent 35%, rgba(56, 189, 248, 0.12) 65%, rgba(2, 132, 199, 0.42) 100%);
-      transition: opacity 0.15s ease-out;
+      background: radial-gradient(circle at center, transparent 40%, rgba(56, 189, 248, 0.22) 100%);
+      box-shadow: inset 0 0 36px 8px rgba(56, 189, 248, 0.35);
+      transform: translateZ(0);
+      will-change: opacity;
+      transition: opacity 0.12s ease-out;
     }
     #portal-mist-fx.active {
       opacity: 1;
@@ -1391,7 +1393,7 @@
         <div class="unit-header-row">
           <div class="unit-name" id="player-name-label">SOLARI VANGUARD</div>
           <div style="display:flex; gap:2px;">
-            <button class="id-mini-btn" onclick="openFrontpage()" title="Character Select &amp; Loadout">👤 HERO</button>
+            <button class="id-mini-btn" onclick="openFrontpage()" title="Champion Roster &amp; Realm Select [H]" style="border-color:#facc15; color:#fde047; font-weight:bold;">👤 HERO [H]</button>
             <button class="id-mini-btn" onclick="toggleModal('account-modal')">🆔</button>
           </div>
         </div>
@@ -1497,26 +1499,6 @@
     <div id="zone-controls">
       <button class="util-btn queue-btn" id="btn-queue" onclick="toggleMatchmaking()">⚔️ 3v3 ARENA</button>
       <button class="util-btn" style="border-color:#facc15; color:#fde047;" onclick="plantOrderBanner()" title="Plant your Guild/Order Standard (+1 Power Aura)">⚑ BANNER [B]</button>
-    </div>
-
-    <!-- TEST SANDBOX HUD OVERLAY (Only visible in 1-Player Test Mode) -->
-    <div id="testmode-bar" class="panel" style="display:none; position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:40; border-color:#a855f7; padding:6px 12px; display:none; align-items:center; gap:8px;">
-      <span style="font-weight:bold; color:#e879f9; font-size:10px;">🧪 TEST SANDBOX (LV.10 ALL ABILITIES)</span>
-      <select id="testmode-class-select" class="pixel-input" style="padding:2px 6px; font-size:9px; background:#080d1a; color:#facc15; border:1px solid #334155;" onchange="testModeSwitchClass(this.value)">
-        <option value="solari_vanguard">Solari Vanguard</option>
-        <option value="aurora_marshal">Aurora Marshal</option>
-        <option value="umbral_assassin">Umbral Assassin</option>
-        <option value="graveglass_oracle">Graveglass Oracle</option>
-        <option value="forest_warden">Forest Warden</option>
-        <option value="stonekin_elder">Stonekin Elder</option>
-        <option value="chronomancer_sage">Chronomancer Sage</option>
-        <option value="nexus_weaver">Nexus Weaver</option>
-      </select>
-      <button class="util-btn" style="padding:2px 6px; font-size:9px; border-color:#38bdf8; color:#38bdf8;" onclick="testModeResetCooldowns()">⚡ RESET CDS</button>
-      <button class="util-btn" id="testmode-inf-glimmer-btn" style="padding:2px 6px; font-size:9px; border-color:#c084fc; color:#c084fc;" onclick="testModeToggleInfiniteGlimmer()">🔮 INF GLIMMER: OFF</button>
-      <button class="util-btn" style="padding:2px 6px; font-size:9px; border-color:#fde047; color:#fde047;" onclick="testModeSpawnBossDummy()">🎯 SPAWN BOSS DUMMY</button>
-      <span id="testmode-dps-meter" style="color:#4ade80; font-weight:bold; font-size:10px; margin-left:4px;">DPS: 0.0</span>
-      <button class="util-btn" style="padding:2px 6px; font-size:9px; border-color:#ef4444; color:#ef4444;" onclick="disableTestMode()">✕ EXIT TEST</button>
     </div>
 
     <!-- 4. BOTTOM-LEFT: Social MMO Chat, Speech Bubbles, Faction (/f) & Emotes -->
@@ -1679,7 +1661,6 @@
           </div>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
-          <button class="util-btn" id="d2-max-skills-btn" style="display:none; font-size:9.5px; border-color:#a855f7; color:#e9d5ff;" onclick="testModeMaxAllSkills()">🧪 MAX ALL SKILLS</button>
           <div class="modal-close" onclick="toggleModal('spellbook-modal')">✕</div>
         </div>
       </div>
@@ -1738,15 +1719,12 @@
           </div>
         </div>
 
-        <!-- Practice Sandbox -->
+        <!-- Controls Helper -->
         <div style="background: #080c18; border: 1px solid #1e293b; padding: 10px; border-radius: 4px;">
-          <div style="font-weight: 700; color: #a855f7; margin-bottom: 6px;">🧪 1-PLAYER PRACTICE SANDBOX</div>
-          <div style="font-size: 10px; color: #94a3b8; margin-bottom: 8px;">
-            Test characters with all abilities unlocked, instant cooldowns, and infinite Glimmer.
+          <div style="font-weight: 700; color: #facc15; margin-bottom: 6px;">🎮 CONTROLS &amp; SHORTCUTS</div>
+          <div style="font-size: 10px; color: #cbd5e1; line-height: 1.6;">
+            <b>WASD</b>: Move • <b>Space</b>: Jump • <b>1-4 / Q,R,F,Z</b>: Cast Rites/Flashes • <b>P</b>: Skill Tree • <b>H</b>: Hero Selection • <b>ESC</b>: Settings
           </div>
-          <button class="util-btn" style="border-color: #a855f7; color: #e9d5ff;" onclick="toggleTestMode(); toggleModal('settings-modal');">
-            🧪 ENTER PRACTICE ARENA
-          </button>
         </div>
       </div>
     </div>

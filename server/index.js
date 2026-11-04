@@ -378,6 +378,25 @@ export function createGlimmerFallServer() {
       ws._socket.setKeepAlive(true, 15000);
     }
 
+    // RFC 6455 Ping/Pong Heartbeat to keep ngrok & intermediate reverse proxies alive
+    ws.isAlive = true;
+    ws.on('pong', () => {
+      ws.isAlive = true;
+    });
+    const heartbeatTimer = setInterval(() => {
+      if (ws.readyState !== 1) {
+        clearInterval(heartbeatTimer);
+        return;
+      }
+      if (ws.isAlive === false) {
+        clearInterval(heartbeatTimer);
+        try { ws.terminate(); } catch (_) {}
+        return;
+      }
+      ws.isAlive = false;
+      try { ws.ping(); } catch (_) {}
+    }, 12000);
+
     const token = url.searchParams.get('token');
     const preferredRoom = url.searchParams.get('room') || null;
     const reqX = url.searchParams.get('x');
@@ -413,10 +432,12 @@ export function createGlimmerFallServer() {
     });
 
     ws.on('close', () => {
+      clearInterval(heartbeatTimer);
       rooms.removeClient(session);
     });
 
     ws.on('error', () => {
+      clearInterval(heartbeatTimer);
       rooms.removeClient(session);
     });
   });

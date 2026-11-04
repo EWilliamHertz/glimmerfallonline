@@ -1,70 +1,148 @@
 // ==========================================
-// GlimmerFall Online 2D — Game Frontpage (Character Roster, All 4 Factions,
-// 8 Playable Archetypes, Live Pixel Paperdoll & 8-Slot TCG Loadout Builder)
+// GlimmerFall Online 2D — Game Frontpage
+// 1. Account / Login • Single Player & Multiplayer Realms • Champion Creation
+// 4 Canonical Factions • 8 Archetypes • 24x26 Live Paperdoll Preview
 // ==========================================
 
 import {
-  ACTION_SLOTS,
   ROOM_TYPES,
   FACTIONS_META,
   CLASSES_CATALOG,
   EQUIPMENT_CATALOG,
-  ABILITIES_CATALOG,
-  getSlotAbilitySpec,
   getEquipmentStatBonuses,
+  createDefaultProgression,
 } from '../shared/protocol.js';
 import { getCharacterSprites } from './sprites.js';
 
-const SLOT_LABELS = {
-  1: '1', 2: '2', 3: '3', 4: '4',
-  9: 'Q', 10: 'R', 11: 'F', 12: 'Z',
-};
+const SP_STORAGE_KEY = 'glimmerfall_sp_roster_v2';
+const SP_ACTIVE_KEY = 'glimmerfall_sp_active_id';
 
 export class FrontpageController {
   constructor({ net, audio, onEnterWorld }) {
     this.net = net;
     this.audio = audio;
     this.onEnterWorld = onEnterWorld;
+    if (typeof window !== 'undefined') {
+      window._fp = this;
+    }
 
     this.isOpen = true;
     this.previewAnimTimer = null;
     this.previewDirIdx = 0;
     this.previewFrame = 0;
 
-    // Draft Character State
-    this.editingCharacterId = null; // null = creating new, or existing char id
+    // Realm Mode: 'singleplayer' (zero lag / local) or 'multiplayer' (online authoritative)
+    let savedMode = 'singleplayer';
+    try {
+      savedMode = localStorage.getItem('glimmerfall_play_mode') || 'singleplayer';
+    } catch (_) {}
+    this.playMode = savedMode;
+
+    // Draft / Selected Character State
+    this.editingCharacterId = null; // null = creating new
     this.name = 'Solari Vanguard';
     this.orderTag = 'SUN';
     this.faction = 'Solari';
     this.classId = 'solari_vanguard';
     this.equipment = { ...CLASSES_CATALOG.solari_vanguard.defaultEquipment };
     this.loadout = { ...CLASSES_CATALOG.solari_vanguard.defaultLoadout };
-    this.selectedSlot = 1;
     this.startingRealm = ROOM_TYPES.SANCTUARY_HUB;
     this.authMessage = '';
+
+    // Initialize Single Player default roster if none exists
+    this.ensureSinglePlayerDefaults();
+  }
+
+  ensureSinglePlayerDefaults() {
+    try {
+      const existing = this.getSinglePlayerRoster();
+      if (!existing || existing.length === 0) {
+        const starter = {
+          id: 'sp_char_starter',
+          name: 'Solari Vanguard',
+          faction: 'Solari',
+          classId: 'solari_vanguard',
+          orderTag: 'SUN',
+          equipment: { ...CLASSES_CATALOG.solari_vanguard.defaultEquipment },
+          loadout: { ...CLASSES_CATALOG.solari_vanguard.defaultLoadout },
+          progression: createDefaultProgression(),
+          homeBiome: ROOM_TYPES.SANCTUARY_HUB,
+        };
+        localStorage.setItem(SP_STORAGE_KEY, JSON.stringify([starter]));
+        localStorage.setItem(SP_ACTIVE_KEY, starter.id);
+        this.selectRosterCharacter(starter, false);
+      } else {
+        const activeId = localStorage.getItem(SP_ACTIVE_KEY);
+        const activeChar = existing.find((c) => c.id === activeId) || existing[0];
+        if (this.playMode === 'singleplayer' && activeChar) {
+          this.selectRosterCharacter(activeChar, false);
+        }
+      }
+    } catch (_) {}
+  }
+
+  getSinglePlayerRoster() {
+    try {
+      const raw = localStorage.getItem(SP_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  saveSinglePlayerRoster(list) {
+    try {
+      localStorage.setItem(SP_STORAGE_KEY, JSON.stringify(list));
+    } catch (_) {}
+  }
+
+  setPlayMode(mode) {
+    this.playMode = mode === 'multiplayer' ? 'multiplayer' : 'singleplayer';
+    try {
+      localStorage.setItem('glimmerfall_play_mode', this.playMode);
+    } catch (_) {}
+
+    if (this.audio?.playChime) this.audio.playChime();
+
+    // In Single Player, ensure network is disconnected so zero server lag occurs
+    if (this.playMode === 'singleplayer') {
+      if (this.net?.disconnect) this.net.disconnect();
+      const spChars = this.getSinglePlayerRoster();
+      const active = spChars.find((c) => c.id === this.editingCharacterId) || spChars[0];
+      if (active) this.selectRosterCharacter(active, false);
+      else this.startNewCharacter(false);
+    } else {
+      // Connect to multiplayer server to load cloud characters
+      if (this.net && !this.net.connected) {
+        this.net.bootstrapAndConnect().then((prof) => {
+          if (prof) this.syncFromProfile(prof);
+        }).catch(() => {});
+      }
+      const mpChars = this.net?.profile?.characters || [];
+      const active = mpChars.find((c) => c.id === this.net?.profile?.activeCharacterId) || mpChars[0];
+      if (active) this.selectRosterCharacter(active, false);
+      else this.startNewCharacter(false);
+    }
+
+    if (this.isOpen) this.render();
   }
 
   syncFromProfile(profile) {
     if (!profile) return;
-    const chars = profile.characters || [];
-    const active = chars.find((c) => c.id === profile.activeCharacterId) || chars[0];
-    if (active) {
-      this.selectRosterCharacter(active, false);
-    } else {
-      this.name = profile.displayName || 'Solari Vanguard';
-      this.faction = profile.faction || 'Solari';
-      this.classId = profile.classId || 'solari_vanguard';
-      const cls = CLASSES_CATALOG[this.classId] || CLASSES_CATALOG.solari_vanguard;
-      this.equipment = { ...cls.defaultEquipment, ...(profile.equipment || {}) };
-      this.loadout = { ...cls.defaultLoadout, ...(profile.loadout || {}) };
-      this.orderTag = profile.orderTag || 'SUN';
+    if (this.playMode === 'multiplayer') {
+      const chars = profile.characters || [];
+      const active = chars.find((c) => c.id === profile.activeCharacterId) || chars[0];
+      if (active) {
+        this.selectRosterCharacter(active, false);
+      }
+      if (this.isOpen) this.render();
     }
-    if (this.isOpen) this.render();
   }
 
   selectRosterCharacter(ch, rerender = true) {
+    if (!ch) return;
     this.editingCharacterId = ch.id;
-    this.name = ch.name || 'Vanguard';
+    this.name = ch.name || 'Champion';
     this.faction = ch.faction || 'Solari';
     this.classId = ch.classId || 'solari_vanguard';
     const cls = CLASSES_CATALOG[this.classId] || CLASSES_CATALOG.solari_vanguard;
@@ -72,13 +150,20 @@ export class FrontpageController {
     this.loadout = { ...cls.defaultLoadout, ...(ch.loadout || {}) };
     this.orderTag = ch.orderTag || 'SUN';
     this.startingRealm = ch.homeBiome || ROOM_TYPES.SANCTUARY_HUB;
+
+    if (this.playMode === 'singleplayer') {
+      try {
+        localStorage.setItem(SP_ACTIVE_KEY, ch.id);
+      } catch (_) {}
+    }
+
     if (rerender) {
-      this.audio.playChime();
+      if (this.audio?.playChime) this.audio.playChime();
       this.render();
     }
   }
 
-  startNewCharacter() {
+  startNewCharacter(playSfx = true) {
     this.editingCharacterId = null;
     this.faction = 'Solari';
     this.classId = 'solari_vanguard';
@@ -88,8 +173,8 @@ export class FrontpageController {
     this.equipment = { ...CLASSES_CATALOG.solari_vanguard.defaultEquipment };
     this.loadout = { ...CLASSES_CATALOG.solari_vanguard.defaultLoadout };
     this.startingRealm = ROOM_TYPES.SANCTUARY_HUB;
-    this.audio.playChime();
-    this.render();
+    if (playSfx && this.audio?.playChime) this.audio.playChime();
+    if (this.isOpen) this.render();
   }
 
   pickFaction(facId) {
@@ -99,7 +184,7 @@ export class FrontpageController {
     this.pickClass(firstCls.id, false);
     const defaultTags = { Solari: 'SUN', Umbri: 'VOID', Terra: 'ROOT', Aether: 'AETH' };
     this.orderTag = defaultTags[facId] || 'SUN';
-    this.audio.playChime();
+    if (this.audio?.playChime) this.audio.playChime();
     this.render();
   }
 
@@ -113,28 +198,14 @@ export class FrontpageController {
     if (!this.editingCharacterId && (this.name.startsWith('Solari') || this.name.startsWith('Champion_') || Object.values(CLASSES_CATALOG).some((c) => c.name === this.name))) {
       this.name = cls.name;
     }
-    if (playSfx) this.audio.playChime();
+    if (playSfx && this.audio?.playChime) this.audio.playChime();
     this.render();
   }
 
   pickEquipment(slot, itemId) {
     if (!EQUIPMENT_CATALOG[itemId]) return;
     this.equipment = { ...this.equipment, [slot]: itemId };
-    this.audio.playShield();
-    this.render();
-  }
-
-  pickSlotAbility(slot, abilityId) {
-    if (!ABILITIES_CATALOG[abilityId]) return;
-    this.loadout = { ...this.loadout, [slot]: abilityId };
-    this.audio.playSpell();
-    this.render();
-  }
-
-  resetClassLoadout() {
-    const cls = CLASSES_CATALOG[this.classId] || CLASSES_CATALOG.solari_vanguard;
-    this.loadout = { ...cls.defaultLoadout };
-    this.audio.playChime();
+    if (this.audio?.playShield) this.audio.playShield();
     this.render();
   }
 
@@ -202,44 +273,82 @@ export class FrontpageController {
     }
   }
 
-  async enterTestMode() {
-    this.audio.init();
-    if (this.audio.playLevelUp) this.audio.playLevelUp();
-    else this.audio.playPortal();
-
-    const nameInput = document.getElementById('fp-char-name');
-    const tagInput = document.getElementById('fp-order-tag');
-    if (nameInput && nameInput.value.trim()) this.name = nameInput.value.trim();
-    if (tagInput && tagInput.value.trim()) this.orderTag = tagInput.value.trim().toUpperCase();
-
-    const testProfile = {
-      displayName: this.name,
-      faction: this.faction,
-      classId: this.classId,
-      orderTag: this.orderTag,
-      loadout: this.loadout,
-      equipment: this.equipment,
-    };
-
-    this.close();
-    if (this.onEnterWorld) {
-      this.onEnterWorld({
-        profile: testProfile,
-        startingRealm: ROOM_TYPES.SANCTUARY_HUB,
-        isTestMode: true,
-      });
-    }
-  }
-
   async enterWorld() {
-    this.audio.init();
-    this.audio.playPortal();
+    if (this.audio?.init) this.audio.init();
+    if (this.audio?.playPortal) this.audio.playPortal();
 
     const nameInput = document.getElementById('fp-char-name');
     const tagInput = document.getElementById('fp-order-tag');
     if (nameInput && nameInput.value.trim()) this.name = nameInput.value.trim();
     if (tagInput && tagInput.value.trim()) this.orderTag = tagInput.value.trim().toUpperCase();
 
+    const cls = CLASSES_CATALOG[this.classId] || CLASSES_CATALOG.solari_vanguard;
+
+    // === SINGLE PLAYER (OFFLINE / 0ms) ===
+    if (this.playMode === 'singleplayer') {
+      const spRoster = this.getSinglePlayerRoster();
+      let charObj = null;
+
+      if (this.editingCharacterId) {
+        charObj = spRoster.find((c) => c.id === this.editingCharacterId);
+      }
+
+      if (charObj) {
+        charObj.name = this.name;
+        charObj.faction = this.faction;
+        charObj.classId = this.classId;
+        charObj.orderTag = this.orderTag;
+        charObj.equipment = { ...this.equipment };
+        charObj.loadout = { ...cls.defaultLoadout, ...(charObj.loadout || {}) };
+        charObj.homeBiome = this.startingRealm;
+      } else {
+        charObj = {
+          id: `sp_char_${Date.now()}`,
+          name: this.name,
+          faction: this.faction,
+          classId: this.classId,
+          orderTag: this.orderTag,
+          equipment: { ...this.equipment },
+          loadout: { ...cls.defaultLoadout },
+          progression: createDefaultProgression(),
+          homeBiome: this.startingRealm,
+        };
+        spRoster.push(charObj);
+        this.editingCharacterId = charObj.id;
+      }
+
+      this.saveSinglePlayerRoster(spRoster);
+      try {
+        localStorage.setItem(SP_ACTIVE_KEY, charObj.id);
+      } catch (_) {}
+
+      const singlePlayerProfile = {
+        id: charObj.id,
+        displayName: charObj.name,
+        faction: charObj.faction,
+        classId: charObj.classId,
+        orderTag: charObj.orderTag,
+        orderName: `Order of ${charObj.faction}`,
+        loadout: charObj.loadout,
+        equipment: charObj.equipment,
+        progression: charObj.progression || createDefaultProgression(),
+        characters: spRoster,
+        activeCharacterId: charObj.id,
+        isGuest: true,
+      };
+
+      this.close();
+      if (this.onEnterWorld) {
+        this.onEnterWorld({
+          profile: singlePlayerProfile,
+          startingRealm: this.startingRealm,
+          playMode: 'singleplayer',
+        });
+      }
+      return;
+    }
+
+    // === MULTIPLAYER (ONLINE REALM) ===
     let updatedProfile = null;
     try {
       const res = await this.net.saveOrSelectCharacter({
@@ -248,21 +357,24 @@ export class FrontpageController {
         faction: this.faction,
         classId: this.classId,
         orderTag: this.orderTag,
-        loadout: this.loadout,
+        loadout: cls.defaultLoadout,
         equipment: this.equipment,
         homeBiome: this.startingRealm,
         enterRealm: this.startingRealm,
       });
       updatedProfile = res.profile;
+      if (updatedProfile && !updatedProfile.orderTag) {
+        updatedProfile.orderTag = this.orderTag;
+      }
       this.editingCharacterId = res.character?.id || this.editingCharacterId;
     } catch (_) {
-      // Offline / local fallback profile
+      // Local fallback profile
       updatedProfile = {
         displayName: this.name,
         faction: this.faction,
         classId: this.classId,
         orderTag: this.orderTag,
-        loadout: this.loadout,
+        loadout: cls.defaultLoadout,
         equipment: this.equipment,
       };
     }
@@ -272,6 +384,7 @@ export class FrontpageController {
       this.onEnterWorld({
         profile: updatedProfile,
         startingRealm: this.startingRealm,
+        playMode: 'multiplayer',
       });
     }
   }
@@ -303,7 +416,29 @@ export class FrontpageController {
     }
   }
 
+  handleLogout() {
+    if (this.net?.logout) this.net.logout();
+    this.authMessage = 'Logged out. Guest session active.';
+    this.editingCharacterId = null;
+    this.render();
+  }
+
   async removeRosterChar(charId) {
+    if (this.playMode === 'singleplayer') {
+      let spRoster = this.getSinglePlayerRoster().filter((c) => c.id !== charId);
+      if (spRoster.length === 0) {
+        this.saveSinglePlayerRoster([]);
+        this.ensureSinglePlayerDefaults();
+        return;
+      }
+      this.saveSinglePlayerRoster(spRoster);
+      if (this.editingCharacterId === charId) {
+        this.selectRosterCharacter(spRoster[0], false);
+      }
+      this.render();
+      return;
+    }
+
     try {
       const prof = await this.net.deleteCharacter(charId);
       this.syncFromProfile(prof);
@@ -317,9 +452,14 @@ export class FrontpageController {
     const root = document.getElementById('frontpage-body');
     if (!root) return;
 
-    const prof = this.net.profile;
-    const chars = prof?.characters || [];
-    const dbOk = prof?.dbConnected !== false;
+    const prof = this.net?.profile;
+    const isSingle = this.playMode === 'singleplayer';
+
+    // Roster depends strictly on selected realm mode!
+    const spRoster = this.getSinglePlayerRoster();
+    const mpRoster = prof?.characters || [];
+    const activeRoster = isSingle ? spRoster : mpRoster;
+
     const fm = FACTIONS_META[this.faction] || FACTIONS_META.Solari;
     const cls = CLASSES_CATALOG[this.classId] || CLASSES_CATALOG.solari_vanguard;
     const eqBonus = getEquipmentStatBonuses(this.equipment, this.classId);
@@ -328,78 +468,108 @@ export class FrontpageController {
     const armors = Object.values(EQUIPMENT_CATALOG).filter((i) => i.slot === 'armor');
     const offhands = Object.values(EQUIPMENT_CATALOG).filter((i) => i.slot === 'offhand');
 
-    // Available abilities for slot picker: selected Faction first, then other Factions
-    const facAbilities = Object.values(ABILITIES_CATALOG).filter((a) => a.faction === this.faction);
-    const crossAbilities = Object.values(ABILITIES_CATALOG).filter((a) => a.faction !== this.faction && a.faction !== 'All');
-    const curSlotSpec = getSlotAbilitySpec(this.loadout, this.selectedSlot);
-
     const factionClasses = Object.values(CLASSES_CATALOG).filter((c) => c.faction === this.faction);
 
     root.innerHTML = `
-      <div class="fp-grid">
-        <!-- LEFT COLUMN: Character Roster & Cloud Realm Account -->
+      <div class="fp-grid" style="grid-template-columns: 310px 1fr; gap: 14px;">
+        <!-- LEFT COLUMN: 1. Login & Realm Selection & Roster -->
         <div class="fp-col">
-          <div class="fp-section-title">1. CHAMPION ROSTER</div>
-          <div style="font-size:8px; color:${dbOk ? '#4ade80' : '#fbbf24'}; margin-bottom:6px;">
-            ${dbOk ? '● CLOUD REALM SYNCED' : '● LOCAL ADVENTURE'}
-            ${prof && !prof.isGuest ? ` • @${prof.username}` : ' • Guest ID'}
+          <!-- 1. LOGIN & ACCOUNT -->
+          <div class="fp-section-title">1. GLIMMERFALL ACCOUNT &amp; REALM</div>
+
+          ${prof && !prof.isGuest ? `
+            <div style="background:#091224; border:1px solid #38bdf8; padding:7px 9px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-size:9.5px; color:#38bdf8; font-weight:bold;">✓ CONNECTED: @${prof.username}</div>
+                <div style="font-size:7.5px; color:#94a3b8;">Cloud Profile Synced</div>
+              </div>
+              <button class="id-mini-btn" style="border-color:#ef4444; color:#fca5a5;" onclick="window._fp.handleLogout()">LOGOUT</button>
+            </div>
+          ` : `
+            <div style="background:#060a16; border:1px solid #1e293b; padding:7px 8px; margin-bottom:8px; display:flex; flex-direction:column; gap:5px;">
+              <input id="fp-auth-user" class="pixel-input" placeholder="GlimmerFall ID Username" value="${prof?.username || ''}" maxlength="18" />
+              <input id="fp-auth-pass" class="pixel-input" type="password" placeholder="Password" maxlength="48" />
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
+                <button class="util-btn" style="font-size:8px; border-color:#facc15; color:#fde047;" onclick="window._fp.handleQuickAuth('register')">✨ REGISTER</button>
+                <button class="util-btn" style="font-size:8px; border-color:#38bdf8; color:#bae6fd;" onclick="window._fp.handleQuickAuth('login')">🔑 LOGIN</button>
+              </div>
+              ${this.authMessage ? `<div style="font-size:8px; color:#fde047; margin-top:2px;">${this.authMessage}</div>` : ''}
+            </div>
+          `}
+
+          <!-- REALM MODE SELECTOR: Single Player vs Multiplayer -->
+          <div style="font-size:8px; color:#94a3b8; margin-bottom:4px; font-weight:bold;">SELECT ADVENTURE REALM:</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px;">
+            <button class="util-btn ${isSingle ? 'active' : ''}" style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:7px 4px; ${isSingle ? 'border-color:#38bdf8; background:#172554; color:#bae6fd;' : 'opacity:0.75;'}" onclick="window._fp.setPlayMode('singleplayer')">
+              <span style="font-size:12px;">🕹️ SINGLE PLAYER</span>
+              <span style="font-size:7px; color:${isSingle ? '#fde047' : '#94a3b8'};">0ms • ZERO SERVER LAG</span>
+            </button>
+            <button class="util-btn ${!isSingle ? 'active' : ''}" style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:7px 4px; ${!isSingle ? 'border-color:#4ade80; background:#14532d; color:#bbf7d0;' : 'opacity:0.75;'}" onclick="window._fp.setPlayMode('multiplayer')">
+              <span style="font-size:12px;">🌐 MULTIPLAYER</span>
+              <span style="font-size:7px; color:${!isSingle ? '#fde047' : '#94a3b8'};">ONLINE REALM SERVER</span>
+            </button>
           </div>
 
-          <div class="fp-roster-list">
-            ${chars.map((ch) => {
+          <!-- REALM CHAMPION ROSTER -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <div class="fp-section-title" style="margin-bottom:0;">
+              ${isSingle ? '🕹️ SINGLE PLAYER ROSTER' : '🌐 MULTIPLAYER ROSTER'}
+            </div>
+            <div style="font-size:7.5px; color:${isSingle ? '#38bdf8' : '#4ade80'};">
+              ${isSingle ? '● LOCAL STORAGE' : '● CLOUD REALM'}
+            </div>
+          </div>
+
+          <div class="fp-roster-list" style="max-height: 155px; margin-bottom:6px;">
+            ${activeRoster.length ? activeRoster.map((ch) => {
               const cf = FACTIONS_META[ch.faction] || FACTIONS_META.Solari;
               const cCls = CLASSES_CATALOG[ch.classId] || CLASSES_CATALOG.solari_vanguard;
               const active = ch.id === this.editingCharacterId;
+              const lvl = ch.progression?.level || ch.level || 1;
               return `
                 <div class="fp-roster-item ${active ? 'active' : ''}" onclick="window._fp.selectRosterCharacterById('${ch.id}')">
                   <div>
                     <div style="font-size:9.5px; color:${cf.color}; font-weight:bold;">
-                      ${cf.icon} ${ch.name} <span style="color:#fde047;">Lv.${ch.progression?.level || 1}</span>
+                      ${cf.icon} ${ch.name} <span style="color:#fde047;">Lv.${lvl}</span>
                     </div>
                     <div style="font-size:8px; color:#94a3b8;">${cCls.name} • &lt;${ch.orderTag || 'SUN'}&gt;</div>
                   </div>
-                  ${chars.length > 1 ? `<button class="id-mini-btn" style="border-color:#ef4444; color:#fca5a5;" onclick="event.stopPropagation(); window._fp.removeRosterChar('${ch.id}')">✕</button>` : ''}
+                  ${activeRoster.length > 1 ? `<button class="id-mini-btn" style="border-color:#ef4444; color:#fca5a5;" onclick="event.stopPropagation(); window._fp.removeRosterChar('${ch.id}')" title="Delete Champion">✕</button>` : ''}
                 </div>
               `;
-            }).join('')}
+            }).join('') : `
+              <div style="text-align:center; padding:14px; font-size:8.5px; color:#94a3b8; border:1px dashed #334155;">
+                No characters found on this realm. Click below to create one!
+              </div>
+            `}
           </div>
 
-          <button class="util-btn" style="width:100%; margin-top:6px; border-color:#4ade80; color:#4ade80;" onclick="window._fp.startNewCharacter()">
+          <button class="util-btn" style="width:100%; border-color:#facc15; color:#fde047; font-size:8.5px; padding:6px;" onclick="window._fp.startNewCharacter()">
             ➕ CREATE NEW CHAMPION
           </button>
-
-          <div class="fp-section-title" style="margin-top:12px;">GLIMMERFALL ID &amp; TCG LOGIN</div>
-          <div style="display:flex; flex-direction:column; gap:5px;">
-            <input id="fp-auth-user" class="pixel-input" placeholder="GlimmerFall ID Username" value="${prof?.username || ''}" maxlength="18" />
-            <input id="fp-auth-pass" class="pixel-input" type="password" placeholder="Password" maxlength="48" />
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
-              <button class="util-btn" style="font-size:8px; border-color:#facc15; color:#fde047;" onclick="window._fp.handleQuickAuth('register')">✨ REGISTER</button>
-              <button class="util-btn" style="font-size:8px; border-color:#38bdf8; color:#bae6fd;" onclick="window._fp.handleQuickAuth('login')">🔑 LOGIN</button>
-            </div>
-            ${this.authMessage ? `<div style="font-size:8px; color:#fde047;">${this.authMessage}</div>` : ''}
-          </div>
         </div>
 
-        <!-- CENTER COLUMN: Faction, Archetype, Name & Live 24x26 Paperdoll -->
+        <!-- RIGHT COLUMN: Champion Creator, Faction, Archetype & Visage (No Gear Switchers) -->
         <div class="fp-col">
-          <div class="fp-section-title">2. IDENTITY, FACTION &amp; ARCHETYPE</div>
-          <div style="display:grid; grid-template-columns:1fr 78px; gap:6px; margin-bottom:8px;">
+          <div class="fp-section-title">2. CHAMPION IDENTITY, FACTION &amp; ARCHETYPE</div>
+
+          <div style="display:grid; grid-template-columns:1fr 88px; gap:8px; margin-bottom:8px;">
             <div>
-              <label style="font-size:8px; color:#94a3b8;">CHARACTER NAME</label>
-              <input id="fp-char-name" class="pixel-input" value="${this.name}" maxlength="18" oninput="window._fp.name = this.value" />
+              <label style="font-size:8px; color:#94a3b8; font-weight:bold;">CHARACTER NAME</label>
+              <input id="fp-char-name" class="pixel-input" value="${this.name}" maxlength="18" oninput="window._fp.name = this.value" placeholder="Enter name..." />
             </div>
             <div>
-              <label style="font-size:8px; color:#94a3b8;">&lt;ORDER&gt;</label>
+              <label style="font-size:8px; color:#94a3b8; font-weight:bold;">&lt;ORDER TAG&gt;</label>
               <input id="fp-order-tag" class="pixel-input" value="${this.orderTag}" maxlength="5" oninput="window._fp.orderTag = this.value.toUpperCase()" />
             </div>
           </div>
 
-          <label style="font-size:8px; color:#94a3b8;">CANONICAL GLIMMERFALL TCG FACTION (ALL 4 PLAYABLE):</label>
-          <div class="faction-choice-grid" style="margin-bottom:8px;">
+          <label style="font-size:8px; color:#94a3b8; font-weight:bold;">CANONICAL GLIMMERFALL TCG FACTIONS:</label>
+          <div class="faction-choice-grid" style="margin:4px 0 8px; display:grid; grid-template-columns:repeat(4, 1fr); gap:6px;">
             ${Object.values(FACTIONS_META).map((f) => `
-              <div class="faction-card-btn ${this.faction === f.id ? 'selected' : ''}" style="${this.faction === f.id ? `border-color:${f.color};` : ''}" onclick="window._fp.pickFaction('${f.id}')">
-                <div style="font-size:15px;">${f.icon}</div>
-                <b style="color:${f.color}; font-size:8.5px;">${f.id.toUpperCase()}</b>
+              <div class="faction-card-btn ${this.faction === f.id ? 'selected' : ''}" style="${this.faction === f.id ? `border-color:${f.color}; background:#0f1d3a;` : 'border-color:#1e293b;'}" onclick="window._fp.pickFaction('${f.id}')">
+                <div style="font-size:16px;">${f.icon}</div>
+                <b style="color:${f.color}; font-size:9px;">${f.id.toUpperCase()}</b>
               </div>
             `).join('')}
           </div>
@@ -409,112 +579,53 @@ export class FrontpageController {
             <span style="color:#cbd5e1;">${fm.mechanicDesc}</span>
           </div>
 
-          <label style="font-size:8px; color:#94a3b8;">PLAYABLE CLASS ARCHETYPE:</label>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;">
+          <label style="font-size:8px; color:#94a3b8; font-weight:bold;">PLAYABLE CLASS ARCHETYPE (2 PER FACTION):</label>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:4px 0 10px;">
             ${factionClasses.map((c) => `
-              <div class="fp-class-card ${this.classId === c.id ? 'selected' : ''}" onclick="window._fp.pickClass('${c.id}')">
-                <div style="color:${fm.color}; font-weight:bold; font-size:9px;">${c.name}</div>
+              <div class="fp-class-card ${this.classId === c.id ? 'selected' : ''}" onclick="window._fp.pickClass('${c.id}')" style="cursor:pointer; border:2px solid ${this.classId === c.id ? '#38bdf8' : '#1e293b'}; background:${this.classId === c.id ? '#172554' : '#090e1f'}; padding:7px 8px;">
+                <div style="color:${fm.color}; font-weight:bold; font-size:9.5px;">${c.name}</div>
                 <div style="color:#94a3b8; font-size:7.5px; margin-top:2px;">${c.role}</div>
+                <div style="color:#cbd5e1; font-size:7px; margin-top:3px;">${c.desc}</div>
               </div>
             `).join('')}
           </div>
 
-          <!-- Live Paperdoll Preview + Gear Selector -->
-          <div style="display:flex; gap:10px; align-items:center; background:#060a15; border:2px solid #1e293b; padding:8px;">
+          <!-- Pure Champion Visage & Archetype Profile (Item switchers removed) -->
+          <div style="display:flex; gap:12px; align-items:center; background:#060a15; border:2px solid #1e293b; padding:10px 12px; margin-bottom:10px;">
             <div style="text-align:center;">
               <canvas id="fp-paperdoll-canvas" width="92" height="96" style="border:2px solid ${fm.color}; background:#090f20;"></canvas>
-              <div style="font-size:7.5px; color:#94a3b8; margin-top:3px;">LIVE 24×26 SPRITE</div>
+              <div style="font-size:7.5px; color:#94a3b8; margin-top:3px;">LIVE 24×26 VISAGE</div>
             </div>
-            <div style="flex:1; display:flex; flex-direction:column; gap:5px; font-size:8.5px;">
-              <div>
-                <label style="color:#94a3b8; font-size:7.5px;">🗡️ WEAPON PAPERDOLL</label>
-                <select class="pixel-input" style="padding:3px 5px; font-size:8.5px;" onchange="window._fp.pickEquipment('weapon', this.value)">
-                  ${weapons.map((w) => `<option value="${w.id}" ${this.equipment.weapon === w.id ? 'selected' : ''}>${w.icon} ${w.name}</option>`).join('')}
-                </select>
+            <div style="flex:1; display:flex; flex-direction:column; gap:4px; font-size:8.5px;">
+              <div style="color:${fm.color}; font-weight:bold; font-size:10px;">
+                ${cls.name} <span style="color:#94a3b8; font-size:8px;">[${cls.role}]</span>
               </div>
-              <div>
-                <label style="color:#94a3b8; font-size:7.5px;">🥋 ARMOR PAPERDOLL</label>
-                <select class="pixel-input" style="padding:3px 5px; font-size:8.5px;" onchange="window._fp.pickEquipment('armor', this.value)">
-                  ${armors.map((a) => `<option value="${a.id}" ${this.equipment.armor === a.id ? 'selected' : ''}>${a.icon} ${a.name}</option>`).join('')}
-                </select>
+              <div style="color:#cbd5e1; font-size:7.5px; line-height:1.4;">
+                ${cls.desc}
               </div>
-              <div>
-                <label style="color:#94a3b8; font-size:7.5px;">🛡️ RELIC / SHIELD PAPERDOLL</label>
-                <select class="pixel-input" style="padding:3px 5px; font-size:8.5px;" onchange="window._fp.pickEquipment('offhand', this.value)">
-                  ${offhands.map((o) => `<option value="${o.id}" ${this.equipment.offhand === o.id ? 'selected' : ''}>${o.icon} ${o.name}</option>`).join('')}
-                </select>
-              </div>
-              <div style="color:#4ade80; font-size:8px;">
-                GEAR BONUS: +${eqBonus.power} PWR • +${eqBonus.bastion} BAS • +${eqBonus.resonance} RES • +${eqBonus.tempo} TMP
+              <div style="background:#091224; border:1px solid #1e293b; padding:4px 6px; margin-top:2px; font-size:7.5px; color:#38bdf8;">
+                🛡️ Archetype Starter Gear Equipped • Unlock &amp; switch Legendary Relics in-game via Hero Paperdoll [C] / [H]
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- RIGHT COLUMN: 8-Slot TCG Skill Loadout & Enter Realm -->
-        <div class="fp-col">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div class="fp-section-title" style="margin-bottom:0;">3. CHARACTER RITE &amp; FLASH LOADOUT</div>
-            <button class="id-mini-btn" onclick="window._fp.resetClassLoadout()">↺ DEFAULT</button>
-          </div>
-          <div style="font-size:8px; color:#94a3b8; margin:4px 0 6px;">
-            Click any Action Slot below, then assign any GlimmerFall TCG Rite or Flash!
-          </div>
-
-          <div class="fp-loadout-bar">
-            ${ACTION_SLOTS.map((slot) => {
-              const sp = getSlotAbilitySpec(this.loadout, slot);
-              const sel = this.selectedSlot === slot;
-              return `
-                <div class="fp-slot-btn ${sel ? 'selected' : ''}" onclick="window._fp.selectedSlot = ${slot}; window._fp.render();">
-                  <span style="font-size:7px; color:#facc15;">[${SLOT_LABELS[slot]}]</span>
-                  <span style="font-size:14px;">${sp.icon}</span>
-                  <span style="font-size:7px; color:#cbd5e1;">${sp.short}</span>
-                </div>
-              `;
-            }).join('')}
-          </div>
-
-          <div style="background:#060a15; border:1px solid #38bdf8; padding:6px 8px; margin:6px 0; font-size:8.5px;">
-            <div style="color:${curSlotSpec.color}; font-weight:bold;">
-              SLOT [${SLOT_LABELS[this.selectedSlot]}]: ${curSlotSpec.icon} ${curSlotSpec.name}
-              <span style="color:#94a3b8; font-weight:normal;">(${curSlotSpec.tcgType} • ${curSlotSpec.cost ? `${curSlotSpec.cost} Glimmer` : '0 Cost'})</span>
+          <!-- Starting Biome & Launch Button -->
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; align-items:center; margin-top:6px;">
+            <div>
+              <label style="font-size:8px; color:#94a3b8; font-weight:bold;">STARTING BIOME:</label>
+              <select class="pixel-input" style="margin-top:3px; padding:6px;" onchange="window._fp.startingRealm = this.value">
+                <option value="${ROOM_TYPES.SANCTUARY_HUB}" ${this.startingRealm === ROOM_TYPES.SANCTUARY_HUB ? 'selected' : ''}>🏛️ Awakening Sanctuary Hub (Safe Hub)</option>
+                <option value="${fm.homeBiome}" ${this.startingRealm === fm.homeBiome ? 'selected' : ''}>${fm.icon} ${fm.id} Home Biome</option>
+                <option value="${ROOM_TYPES.NEXUS_WARZONE}" ${this.startingRealm === ROOM_TYPES.NEXUS_WARZONE ? 'selected' : ''}>⚔️ Nexus Warzone (Open World)</option>
+              </select>
             </div>
-            <div style="color:#e2e8f0; margin-top:2px;">${curSlotSpec.desc}</div>
-          </div>
 
-          <div class="fp-ability-picker">
-            ${[...facAbilities, ...crossAbilities].map((ab) => {
-              const isEquippedHere = this.loadout[this.selectedSlot] === ab.id;
-              return `
-                <div class="fp-ability-choice ${isEquippedHere ? 'equipped' : ''}" onclick="window._fp.pickSlotAbility(${this.selectedSlot}, '${ab.id}')">
-                  <div>
-                    <span>${ab.icon}</span>
-                    <b style="color:${ab.color};">${ab.name}</b>
-                    <span style="color:#64748b; font-size:7.5px;">(${ab.faction})</span>
-                  </div>
-                  <span style="font-size:7.5px; color:${isEquippedHere ? '#4ade80' : '#94a3b8'};">
-                    ${isEquippedHere ? 'EQUIPPED' : `${ab.baseCd}s CD`}
-                  </span>
-                </div>
-              `;
-            }).join('')}
-          </div>
-
-          <div style="margin-top:8px;">
-            <label style="font-size:8px; color:#94a3b8;">STARTING REALM / BIOME:</label>
-            <select class="pixel-input" style="margin-top:3px; margin-bottom:8px;" onchange="window._fp.startingRealm = this.value">
-              <option value="${ROOM_TYPES.SANCTUARY_HUB}" ${this.startingRealm === ROOM_TYPES.SANCTUARY_HUB ? 'selected' : ''}>🏛️ Awakening Sanctuary Hub (Safe Social Hub)</option>
-              <option value="${fm.homeBiome}" ${this.startingRealm === fm.homeBiome ? 'selected' : ''}>${fm.icon} ${fm.id} Home Biome Dungeon</option>
-              <option value="${ROOM_TYPES.NEXUS_WARZONE}" ${this.startingRealm === ROOM_TYPES.NEXUS_WARZONE ? 'selected' : ''}>⚔️ Nexus Warzone (4-Faction Siege PvPvE)</option>
-            </select>
-
-            <button class="fp-enter-btn" onclick="window._fp.enterWorld()">
-              ⚔️ ENTER GLIMMERFALL ONLINE ▸
+            <button class="fp-enter-btn" style="padding:12px 10px; font-size:10.5px; ${isSingle ? 'background:linear-gradient(180deg, #38bdf8, #0284c7); border-color:#bae6fd; color:#030712;' : 'background:linear-gradient(180deg, #eab308, #ca8a04); border-color:#fef08a; color:#05070f;'}" onclick="window._fp.enterWorld()">
+              ${isSingle ? '🕹️ ENTER SINGLE PLAYER REALM (0ms) ▸' : '🌐 ENTER MULTIPLAYER REALM ▸'}
             </button>
-            <button class="fp-enter-btn" style="background:linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%); border-color:#818cf8; color:#e0e7ff; margin-top:6px;" onclick="window._fp.enterTestMode()">
-              🧪 1-PLAYER TEST MODE (TRY ALL CHARACTERS &amp; ABILITIES) ▸
-            </button>
+          </div>
+          <div style="font-size:7.5px; color:#94a3b8; text-align:right; margin-top:3px;">
+            ${isSingle ? '⚡ 100% Offline Local Engine • Zero Server Lag • Instant 60 FPS' : '🌐 Real-Time Authoritative Server • Shared World • Co-Op & PvPvE'}
           </div>
         </div>
       </div>
@@ -524,8 +635,13 @@ export class FrontpageController {
   }
 
   selectRosterCharacterById(id) {
-    const ch = (this.net.profile?.characters || []).find((c) => c.id === id);
-    if (ch) this.selectRosterCharacter(ch, true);
+    if (this.playMode === 'singleplayer') {
+      const ch = this.getSinglePlayerRoster().find((c) => c.id === id);
+      if (ch) this.selectRosterCharacter(ch, true);
+    } else {
+      const ch = (this.net?.profile?.characters || []).find((c) => c.id === id);
+      if (ch) this.selectRosterCharacter(ch, true);
+    }
   }
 }
 
@@ -578,12 +694,14 @@ export function renderInGamePaperdollModal({ profile, onEquip }) {
   `;
 
   const cv = document.getElementById('ingame-paperdoll-canvas');
-  if (cv) {
+  if (cv && typeof cv.getContext === 'function') {
     const ctx = cv.getContext('2d');
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#090f20';
     ctx.fillRect(0, 0, cv.width, cv.height);
     const set = getCharacterSprites(faction, classId, equip);
-    ctx.drawImage(set.down[0], 6, 5, 72, 78);
+    if (set && set.down && set.down[0]) {
+      ctx.drawImage(set.down[0], 6, 5, 72, 78);
+    }
   }
 }

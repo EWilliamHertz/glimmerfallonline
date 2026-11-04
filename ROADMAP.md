@@ -1,0 +1,258 @@
+# GlimmerFall Online 2D — Master Development Roadmap
+
+> **Daily Sprint Schedule**: Minimum **1 Hour of Active Development Every Single Day**  
+> **Core Direction**: Top-Down 2D Retro Pixel MMORPG inspired by Diablo 2 skill trees, GlimmerFall TCG faction mechanics, open landscape exploration, and fast-paced 60 FPS action.  
+> **Repo Policy**: Strictly Local Work — `DONT PUSH TO GITHUB`.
+
+---
+
+## 🏛️ Project Vision & Design Pillars
+
+1. **Diablo 2-Inspired Manual Progression & Dopamine Hits**
+   - No automatic unlocking of spells. Players level up by slaying monsters and harvesting leylines, earning **Stat Points (3/lvl)** and **Skill Points (1/lvl)**.
+   - Authentic Diablo 2 style Skill Trees with prerequisite trees, level requirements (Lv. 1, 3, 6, 12, 18, 24, 30), and multi-rank upgrades (Ranks 1 to 5).
+   - Instant Flashes (0.0s cast time for mobility, interrupts, defensive counters) paired with Cast-Time Rites (authoritative casting bar, vulnerable to interrupts and movement cancel).
+
+2. **Late-Game Paragon Resonance Beyond Level 30**
+   - Reaching Level 30 unlocks the **Paragon Mastery System** (Paragon 1 to 100+).
+   - XP feeds into Paragon Levels, granting Paragon Points to invest across 4 Ancient Leyline Affinities:
+     * **Solari Radiant Wrath**: +% Critical Strike Damage & Holy Radiance Burst.
+     * **Umbri Void Leech**: +% Movement Speed, Dodge & Life Leech.
+     * **Terra Primal Bastion**: +Max Health, Health Regeneration & Damage Reduction.
+     * **Aether Chrono-Surge**: -% Cooldown Reduction, Cast Speed & Max Glimmer.
+
+3. **Seamless World Traversal (Foot Travel Only)**
+   - All artificial waygate portals have been eliminated. Players travel exclusively by foot across contiguous border zones.
+   - Walking into the center edge road smoothly transfers the champion into neighboring biomes with predictive client interpolation and zero rubberbanding.
+
+4. **Zero-Lag Dual Realm Architecture**
+   - **Single Player Realm (0ms)**: 100% offline local simulation. No servers, zero ping, instant 60 FPS client responsiveness.
+   - **Multiplayer Realm**: Authoritative 20Hz tick server, client-side movement prediction, smooth lag compensation, and persistent cloud save state.
+
+5. **Crystal-Clear Retro Visuals**
+   - High-fidelity typography with antialiased fonts (`Outfit`, `Cinzel`, pixel badges).
+   - Zero technical or database terminology in the user interface (no infrastructure references).
+   - Clean character creation frontpage showing only **Factions and Characters** (item paperdoll switching isolated to in-game Hero Sheet `[C]`/`[H]`).
+
+---
+
+## 📅 Daily 1-Hour Sprint Schedule (30-Day Master Plan)
+
+Every day contains one dedicated, realistic, high-impact 60-minute sprint.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       GLIMMERFALL ONLINE 30-DAY SPRINT                      │
+├───────────────────┬───────────────────┬───────────────────┬─────────────────┤
+│ PHASE 1: DAYS 1-7 │ PHASE 2: DAYS 8-14│ PHASE 3: DAYS 15-21│ PHASE 4: DAYS 22+│
+│ Late-Game & Stats │ Biomes & Dungeons │ Economy & Crafting│ Raids & Polish  │
+└───────────────────┴───────────────────┴───────────────────┴─────────────────┘
+```
+
+---
+
+### Phase 1: Combat Depth, Progression & Late Game Foundations (Days 1–7)
+
+#### Day 1 — Paragon Resonance Mastery System & Deep Stats *(COMPLETED)*
+- [x] Implement `MAX_BASE_LEVEL = 30` with Paragon XP rollover.
+- [x] Author 4 Paragon Affinities (`solari_radiance`, `umbri_shadowcraft`, `terra_bulwark`, `aether_chronoflux`).
+- [x] Add interactive Paragon Mastery investment UI to the Character Sheet (`[C]`).
+- [x] Synchronize Paragon stats authoritatively across both Single Player and Multiplayer realms.
+- [x] Remove room transition lag & rubberbanding (client prediction preserved, movement packets unlocked during transitions).
+
+#### Day 2 — Multi-Phase Continental World Bosses
+- [ ] Add dynamic AoE telegraph rings (solar bursts, void pools, earth tremors) to the 4 Continental World Bosses.
+- [ ] Implement Phase 2 Enrage mechanics (<40% HP: +35% attack speed, summoning faction minions).
+- [ ] Add world-wide boss kill announcements and guaranteed Legendary drop chests.
+- [ ] *Sprint Target*: High Sunfire Juggernaut (Solari) and Malakor the Soulreaper (Umbri) multi-phase encounters.
+
+#### Day 3 — Mythic Leyline Keystones & Dungeon Modifiers
+- [ ] Introduce Keystone items (Tier 1 to 10) for faction crypts (Sunken Vault, Shadow Labyrinth, Overgrowth Sanctuary, Fractured Archive).
+- [ ] Implement dynamic dungeon affixes:
+  * **Volcanic**: Erupting lava plumes spawn beneath players standing still.
+  * **Bolstering**: Slaying regular monsters empowers nearby enemies by +15% HP and Damage.
+  * **Sanguine**: Defeated enemies leave pools of blood that heal remaining foes.
+- [ ] Add Keystone timer and completion reward cache.
+
+#### Day 4 — Legendary Relic Infusion & Leyline Socketing
+- [ ] Expand Hero Paperdoll (`[C]`) with Socket slots on Helm, Armor, and Weapon.
+- [ ] Add socketable Ancient Runes and Glimmer Gems dropped by World Bosses.
+- [ ] Enable Runeword synergies (e.g. `DAWN + LIGHT = +25% Solar Flare Radius`).
+- [ ] Create socketing UI in the Sanctuary Hub Forge NPC.
+
+#### Day 5 — Faction Territory Control & Warzone Outpost Siege Battles
+- [ ] Expand the 4 Outpost Nexuses in Nexus Warzone into capturable faction strongholds.
+- [ ] Implement a 30-minute territory influence cycle with visual faction flags and border banners.
+- [ ] Control of 2+ outposts grants realm-wide passive buffs (+15% XP, +10% Glimmer harvest yield) to all members of that faction.
+- [ ] Add mini-map territory ownership indicators.
+
+#### Day 6 — Guild Architecture, Outpost Heralds & Shared Stashes
+- [ ] Implement in-game Guild creation (`/guild create <Name> <Tag>`).
+- [ ] Guild member roster modal with online status, level, faction, and guild ranks (Leader, Officer, Member).
+- [ ] Shared Guild Bank Stash (24-slot persistent chest in Sanctuary Hub).
+- [ ] Guild Outpost heralds placing custom banners on the battlefield.
+
+#### Day 7 — 3v3 Arena Competitive Ladder & Gladiator Seasons
+- [ ] Implement ELO MMR calculation for 3v3 Arena matches.
+- [ ] Add Seasonal Leaderboard tab in the Arena Lobby UI with Tier badges (Bronze, Silver, Gold, Platinum, Diamond, Gladiator).
+- [ ] Arena season reward titles and exclusive cosmetic weapon enchant glows.
+- [ ] End-of-match combat statistics screen (Damage Done, Healing, Damage Taken, Kills, Deaths).
+
+---
+
+### Phase 2: World Expansion & Procedural Content (Days 8–14)
+
+#### Day 8 — Deep Biome Expansion: Solari Sunken Vault & Dawn Spire Catacombs
+- [ ] Expand the Solari Citadel north entrance into a multi-room dungeon layout.
+- [ ] Add puzzle doors opened by harvesting Dawnstone Leyline Nodes.
+- [ ] Add new monster types: *Dawnblade Inquisitor* and *Solar Flare Automaton*.
+- [ ] Custom ambient soundscape for Sunken Vault.
+
+#### Day 9 — Deep Biome Expansion: Umbri Abyssal Underchasm & Gloom River
+- [ ] Expand the Sepulcher Undercity into dark subterranean catacombs.
+- [ ] Implement creeping shadow darkness mechanic (stepping into light wards restores vision).
+- [ ] Add new monster types: *Gloam Widow*, *Duskwraith*, and *Abyssal Devourer*.
+- [ ] Ambient subterranean dripping water soundscape.
+
+#### Day 10 — Deep Biome Expansion: Terra Ironwood Canopy & Ancient Rootways
+- [ ] Expand Glimmer Orchard into an interconnected Ironwood Canopy with wooden rope bridges.
+- [ ] Foliage wind sway effects and dynamic fallen leaf particles.
+- [ ] Add new monster types: *Ironwood Thornkin*, *Spore Hydra*, and *Bramble Colossus*.
+- [ ] Forest ambient breeze and insect soundscape.
+
+#### Day 11 — Deep Biome Expansion: Aether Continuum Fractal Archives
+- [ ] Expand Mirrorgate Spire into fractured floating astral platforms.
+- [ ] Moving platforms and temporal rewind hazards.
+- [ ] Add new monster types: *Paradox Sentinel*, *Chrono-Weaver*, and *Astral Remnant*.
+- [ ] Cosmic resonant chime ambient soundscape.
+
+#### Day 12 — Procedural Delves & Dynamic Warzone Encounters
+- [ ] Add dynamic micro-events that spawn randomly in Nexus Warzone every 15 minutes (Glimmer Meteor Crash, Wandering Elite Caravan, Void Incursion).
+- [ ] Mini-delve caves with randomized mob compositions and treasure chests.
+- [ ] Realm-wide map announcement when a dynamic event triggers.
+
+#### Day 13 — Elite Monster Affixes (Diablo 2 Champions)
+- [ ] Spawn rare Elite champions with gold/purple nameplates and random affix combos:
+  * **Fast**: +40% movement and attack speed.
+  * **Frozen**: Periodically casts frost novae that chill and slow nearby players.
+  * **Lightning-Enchanted**: Emits charged bolts in 8 directions when struck.
+  * **Fire-Enchanted**: Death explosion dealing heavy area damage.
+- [ ] Elite champions have 3x HP and drop 3x loot + rare crafting materials.
+
+#### Day 14 — World Map Cartography, Fog of War & Discovery Waypoints
+- [ ] Add full-screen interactive World Map (`[M]`).
+- [ ] Fog of war uncovering as players explore continental territories.
+- [ ] Waypoint Shrines: discoverable stone markers that can be activated on foot to mark waypoints on the map.
+- [ ] Cartographer Atlas NPC dialogues and exploration milestone rewards.
+
+---
+
+### Phase 3: Player Economy, Crafting & Social Systems (Days 15–21)
+
+#### Day 15 — Leyline Gathering & Resource Refining
+- [ ] Expand Leyline Nodes into 3 gathering disciplines:
+  * Mining: Sunstone, Gloam Ore, Ironwood Vein, Chrono-Quartz.
+  * Herbalism: Dawn Blossom, Duskweed, Primordial Root, Astral Petal.
+  * Glimmer Wellsprings: Pure condensed Glimmer essence.
+- [ ] Gathering tool upgrades and gathering level progression (1-50).
+
+#### Day 16 — Blacksmithing, Tailoring & Artificing
+- [ ] Sanctuary Hub crafting station with interactable anvil and alchemy cauldron.
+- [ ] Craftable equipment recipes for each of the 4 factions and 8 classes.
+- [ ] Item Reforging: reroll stat ranges on rare equipment using Glimmer essences.
+- [ ] Crafting discovery recipes unlocked by defeating dungeon bosses.
+
+#### Day 17 — Player-to-Player Trading & Secure Trade Windows
+- [ ] Right-click another player -> `[Trade]` option.
+- [ ] Two-sided secure trade window with item slots and Glimmer currency exchange.
+- [ ] Dual-confirmation trade accept button to prevent trade scams.
+- [ ] Authoritative server-side inventory atomic swap.
+
+#### Day 18 — Continental Auction Stalls & Player Market
+- [ ] Merchant Pavilion in Sanctuary Hub with persistent Auctioneer NPC.
+- [ ] Search items by faction, slot, rarity, and level requirement.
+- [ ] 24-hour buyouts and bidding system.
+- [ ] Mailbox tab to claim sold auction earnings and purchased gear.
+
+#### Day 19 — Expanded Chat Channels, Player Inspect & Dueling
+- [ ] Chat channel tabs: `[All]`, `[Party]`, `[Guild]`, `[Combat]`, `[Trade]`.
+- [ ] `[Shift + Click]` on gear items to link them in chat with interactive tooltips.
+- [ ] Right-click a player -> `[Inspect]` to view their equipped paperdoll and allocated stats.
+- [ ] Friendly Dueling: `/duel <PlayerName>` anywhere in peaceful zones with 3-second countdown.
+
+#### Day 20 — Emote Wheel, Character Flair & Cosmetic Titles
+- [ ] Radial Emote Wheel (`[V]`) with pixel animations and floating overhead emotes.
+- [ ] Unlockable player titles based on achievements (e.g. `<Sunforged Hero>`, `<Void Slayer>`, `<Gladiator>`).
+- [ ] Custom cosmetic order standards and faction weapon glows.
+
+#### Day 21 — In-Game Achievements & GlimmerFall TCG Lore Codex
+- [ ] Comprehensive Achievement System (`[Y]`) covering Combat, Exploration, Dungeons, PvP, and Gathering.
+- [ ] GlimmerFall TCG Lore Codex: unlockable lore entries and digital cards detailing the history of the First Nexus and the 4 Factions.
+- [ ] Completionist rewards (exclusive character visages and title badges).
+
+---
+
+### Phase 4: Endgame Raids, Polish, Balance & Performance (Days 22–30+)
+
+#### Day 22 — The Continental Apex Raid: "Fall of the Primeval Nexus"
+- [ ] Design a 10-player cooperative raid encounter deep inside the First Nexus Ruins.
+- [ ] 3-phase raid boss: **The Primeval Harbinger** (1,500 HP):
+  * Phase 1: Elemental Attunement (cycles immunity through Solari, Umbri, Terra, Aether).
+  * Phase 2: Leyline Siphon (players must destroy 4 corner pylons before the room wipes).
+  * Phase 3: Total Supernova (enraged frenzy with cascading cosmic shockwaves).
+- [ ] Raid-tier Legendary drops with unique set bonuses.
+
+#### Day 23 — Class Balancing & Skill Tree Synergy Pass
+- [ ] Comprehensive DPS and survivability telemetry across all 8 archetypes.
+- [ ] Fine-tune casting times on Rites and cooldowns on Flashes.
+- [ ] Enhance Diablo 2 style cross-skill synergies (e.g. upgrading Flash increases Rite critical multiplier).
+- [ ] Balance Arena 3v3 team compositions.
+
+#### Day 24 — Boss Encounter VFX & Retro Soundscape Mastery
+- [ ] Custom 8-bit/16-bit retro synthesizers for unique boss battle themes.
+- [ ] Dynamic boss health bar at the top of the screen with phase indicators.
+- [ ] Dramatic screen shake and impact particle bursts on heavy boss attacks.
+- [ ] Audible voice chimes on critical combat events.
+
+#### Day 25 — Mobile & Controller Input Optimization
+- [ ] Refine virtual analog stick and touch action buttons for tablet/mobile devices.
+- [ ] Add full gamepad support (Xbox, PlayStation, Steam Deck) via Gamepad API.
+- [ ] Intuitive gamepad button mappings (A: Attack, X/Y/B: Flashes, Bumpers: Rites).
+- [ ] Controller vibration / haptic feedback on hits and critical strikes.
+
+#### Day 26 — Anti-Cheat & Authoritative Combat Verification Hardening
+- [ ] Server-side speed-hack and vector validation hardening.
+- [ ] Cooldown and glimmer cheat verification.
+- [ ] Line-of-sight obstruction checks on high-damage rites.
+- [ ] Automated rate-limiting on incoming WebSocket frames.
+
+#### Day 27 — Cross-Zone Audio Transitions & Dynamic Ambient Soundscapes
+- [ ] Smooth cross-fade between biome audio tracks during foot transitions.
+- [ ] Positional audio for nearby waterfalls, crackling braziers, and howling winds.
+- [ ] Combat tension music layer that swells when entering combat and softens when peaceful.
+
+#### Day 28 — Realm Stress Testing & 500+ Player Concurrency
+- [ ] Headless bot simulator testing 500 simultaneous players fighting in Warzone.
+- [ ] Memory leak audit and garbage collection spike reduction.
+- [ ] Spatial partitioning optimization on the server 20Hz loop.
+- [ ] Sub-5ms server tick duration under peak load.
+
+#### Day 29 — End-of-Season Tournament Engine
+- [ ] Automated bracket tournament system for 3v3 Arena.
+- [ ] Spectator mode: players in Sanctuary Hub can click a scrying pool to watch live tournament matches.
+- [ ] In-game trophy pedestals displaying the reigning Gladiator champions of the season.
+
+#### Day 30+ — Live Operations & Future Expansions
+- [ ] Bi-weekly balance patches and community feedback integration.
+- [ ] New continental expansion lands: *The Frostveil Wastes* and *The Molten Caldera*.
+- [ ] Global Seasonal Events (Solstice of Dawn, Night of the Eclipse, Bloom of the World Tree).
+- [ ] Continual expansion of the GlimmerFall universe!
+
+---
+
+## 🔒 Operating Rules & Constraints
+
+- **STRICT**: `DONT PUSH TO GITHUB PLEASE`. All commits and changes remain local.
+- **Minimum Daily Cadence**: 1 hour of focused coding and testing per calendar day.
+- **Zero Jargon**: Never expose backend, database, or infrastructure terminology to players.
+- **Purity of Experience**: Keep fonts crisp, combat snappy, and manual progression rewarding.

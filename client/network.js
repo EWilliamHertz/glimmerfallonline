@@ -21,6 +21,7 @@ export class MultiplayerClient {
     this.manualReconnect = false;
     this.preferredRoom = null;
     this.pendingRpc = new Map();
+    this.isBootstrapping = false;
   }
 
   loadStoredToken() {
@@ -79,54 +80,66 @@ export class MultiplayerClient {
   }
 
   async bootstrapAndConnect(clientProgression = null) {
-    // 1. Check URL query string for OAuth / glimmerfalltcg.com SSO handoff token!
+    if (this.isBootstrapping) return this.profile;
+    this.isBootstrapping = true;
     try {
-      const params = new URLSearchParams(window.location.search);
-      const ssoTok = params.get('sso_token') || params.get('glimmerfall_token');
-      const tcgHandle = params.get('tcg_handle');
-      if (ssoTok || tcgHandle) {
-        await this.linkTcgSso({ ssoToken: ssoTok, tcgHandle });
-        params.delete('sso_token');
-        params.delete('glimmerfall_token');
-        params.delete('tcg_handle');
-        const cleanQuery = params.toString();
-        window.history.replaceState({}, '', window.location.pathname + (cleanQuery ? `?${cleanQuery}` : ''));
-      }
-    } catch (_) {}
+      // 1. Check URL query string for OAuth / glimmerfalltcg.com SSO handoff token!
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const ssoTok = params.get('sso_token') || params.get('glimmerfall_token');
+        const tcgHandle = params.get('tcg_handle');
+        if (ssoTok || tcgHandle) {
+          await this.linkTcgSso({ ssoToken: ssoTok, tcgHandle });
+          params.delete('sso_token');
+          params.delete('glimmerfall_token');
+          params.delete('tcg_handle');
+          const cleanQuery = params.toString();
+          window.history.replaceState({}, '', window.location.pathname + (cleanQuery ? `?${cleanQuery}` : ''));
+        }
+      } catch (_) {}
 
-    // 2. Ensure valid guest or persistent GlimmerFall ID token via /api/auth/guest
-    this.wakeServer();
-    try {
-      const gBase = this.getServerBase();
-      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      const abortTimer = ctrl ? setTimeout(() => ctrl.abort(), 7000) : null;
-      const res = await fetch(`${gBase}/api/auth/guest`, {
-        signal: ctrl ? ctrl.signal : undefined,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
-        },
-        body: JSON.stringify({
-          token: this.token || undefined,
-          clientProgression,
-        }),
-      });
-      if (abortTimer) clearTimeout(abortTimer);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.token) this.saveStoredToken(data.token);
-        if (data.profile) this.profile = data.profile;
-      }
-    } catch (_) {}
+      // 2. Ensure valid guest or persistent GlimmerFall ID token via /api/auth/guest
+      this.wakeServer();
+      try {
+        const gBase = this.getServerBase();
+        const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const abortTimer = ctrl ? setTimeout(() => ctrl.abort(), 7000) : null;
+        const res = await fetch(`${gBase}/api/auth/guest`, {
+          signal: ctrl ? ctrl.signal : undefined,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': '1',
+            ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+          },
+          body: JSON.stringify({
+            token: this.token || undefined,
+            clientProgression,
+          }),
+        });
+        if (abortTimer) clearTimeout(abortTimer);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.token) this.saveStoredToken(data.token);
+          if (data.profile) this.profile = data.profile;
+        }
+      } catch (_) {}
 
-    this.connectWebSocket();
-    return this.profile;
+      this.connectWebSocket();
+      return this.profile;
+    } finally {
+      this.isBootstrapping = false;
+    }
   }
 
   connectWebSocket() {
     if (typeof window === 'undefined' || !window.WebSocket) return;
     if (window.location.protocol === 'file:') return;
+
+    // Prevent thrashing if connection is already healthy and active
+    if (this.ws && (this.ws.readyState === 0 || this.ws.readyState === 1)) {
+      return;
+    }
 
     clearTimeout(this.reconnectTimer);
     if (this.ws) {
@@ -138,6 +151,7 @@ export class MultiplayerClient {
     const qs = new URLSearchParams();
     if (this.token) qs.set('token', this.token);
     if (this.preferredRoom) qs.set('room', this.preferredRoom);
+    qs.set('ngrok-skip-browser-warning', '1');
     if (this.currentCoords && Number.isFinite(this.currentCoords.x) && Number.isFinite(this.currentCoords.y)) {
       qs.set('x', String(Math.round(this.currentCoords.x)));
       qs.set('y', String(Math.round(this.currentCoords.y)));
@@ -216,22 +230,43 @@ export class MultiplayerClient {
       } catch (_) {}
     };
 
-    sock.onclose = () => {
+    sock.onclose = (ev) => {
       const wasConnected = this.connected;
       this.connected = false;
       clearInterval(this.pingInterval);
-      if (wasConnected && this.onStatusChange) this.onStatusChange(false);
+      const isSuperseded = ev?.code === 4001;
+      if (wasConnected && this.onStatusChange) {
+        this.onStatusChange(false, isSuperseded ? 'superseded' : 'disconnected');
+      }
+      if (isSuperseded) {
+        console.warn('[Network] Disconnected: Session opened from another window or tab.');
+        return; // Halt reconnect duel: do not schedule reconnect!
+      }
       if (!this.manualReconnect) {
         this.scheduleReconnect();
       }
     };
 
-    sock.onerror = () => {};
+    sock.onerror = (err) => {
+      console.warn('[Network] WebSocket error occurred:', err?.message || err);
+    };
   }
 
   scheduleReconnect() {
     clearTimeout(this.reconnectTimer);
     this.reconnectTimer = setTimeout(() => this.connectWebSocket(), 2500);
+  }
+
+  disconnect() {
+    this.manualReconnect = true;
+    clearTimeout(this.reconnectTimer);
+    clearInterval(this.pingInterval);
+    if (this.ws) {
+      try { this.ws.close(); } catch (_) {}
+      this.ws = null;
+    }
+    this.connected = false;
+    if (this.onStatusChange) this.onStatusChange(false);
   }
 
   send(packet) {

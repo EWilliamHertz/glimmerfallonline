@@ -969,10 +969,59 @@ export const SLOT_UNLOCK_LEVELS = {
   12: 8, // Ultimate Flash / Apex (Lv. 8)
 };
 
-export function isSlotUnlocked(prog, slot, isTestMode = false) {
-  if (isTestMode) return true;
+export function isSlotUnlocked(prog, slot) {
   const req = SLOT_UNLOCK_LEVELS[slot] || 1;
   return (prog?.level || 1) >= req;
+}
+
+export const MAX_BASE_LEVEL = 30;
+
+export const PARAGON_AFFINITIES = {
+  solari_radiance: {
+    id: 'solari_radiance',
+    name: 'Solari Radiant Wrath',
+    icon: '☀️',
+    color: '#facc15',
+    desc: '+1.5% Critical Damage & +1% Holy Radiance Damage per point',
+    maxRank: 50,
+  },
+  umbri_shadowcraft: {
+    id: 'umbri_shadowcraft',
+    name: 'Umbri Void Leech',
+    icon: '🌑',
+    color: '#c084fc',
+    desc: '+0.8% Movement Speed & +0.8% Life Leech per point',
+    maxRank: 50,
+  },
+  terra_bulwark: {
+    id: 'terra_bulwark',
+    name: 'Terra Primal Bastion',
+    icon: '🌿',
+    color: '#4ade80',
+    desc: '+6 Max Health, +0.5 HP/s Regen & +1% Damage Reduction per point',
+    maxRank: 50,
+  },
+  aether_chronoflux: {
+    id: 'aether_chronoflux',
+    name: 'Aether Chrono-Surge',
+    icon: '🔮',
+    color: '#38bdf8',
+    desc: '-0.8% Ability Cooldowns, +1% Cast Speed & +5 Max Glimmer per point',
+    maxRank: 50,
+  },
+};
+
+export function paragonXpForLevel(paragonLvl = 0) {
+  return 300 + (Math.max(0, paragonLvl)) * 120;
+}
+
+export function canUpgradeParagon(prog, affinityId) {
+  const spec = PARAGON_AFFINITIES[affinityId];
+  if (!spec) return false;
+  if ((prog?.paragonPoints || 0) <= 0) return false;
+  const cur = prog?.paragon?.[affinityId] || 0;
+  if (cur >= (spec.maxRank || 50)) return false;
+  return true;
 }
 
 export function createDefaultProgression() {
@@ -984,11 +1033,19 @@ export function createDefaultProgression() {
     stats: { power: 2, bastion: 2, resonance: 1, tempo: 1 },
     ranks: { 1: 0, 2: 0, 3: 0, 4: 0, 9: 0, 10: 0, 11: 0, 12: 0 },
     skills: {}, // abilityId -> rank (0 to 5)
+    paragonLevel: 0,
+    paragonXp: 0,
+    paragonPoints: 0,
+    paragon: {
+      solari_radiance: 0,
+      umbri_shadowcraft: 0,
+      terra_bulwark: 0,
+      aether_chronoflux: 0,
+    },
   };
 }
 
-export function getAbilityRank(prog, abilityId, isTestMode = false) {
-  if (isTestMode) return 5;
+export function getAbilityRank(prog, abilityId) {
   if (!abilityId) return 0;
   if (abilityId === 'harvest') return 1;
   const spec = ABILITIES_CATALOG[abilityId];
@@ -997,20 +1054,18 @@ export function getAbilityRank(prog, abilityId, isTestMode = false) {
   if (r !== undefined && r !== null) {
     return Math.max(0, Math.min(spec.maxRank || 5, Math.floor(Number(r) || 0)));
   }
-  // Fallback for legacy slots where skill wasn't explicitly saved yet
   return 0;
 }
 
-export function canUpgradeAbility(prog, abilityId, isTestMode = false) {
-  if (isTestMode) return false;
+export function canUpgradeAbility(prog, abilityId) {
   const spec = ABILITIES_CATALOG[abilityId];
   if (!spec) return false;
-  const curRank = getAbilityRank(prog, abilityId, isTestMode);
+  const curRank = getAbilityRank(prog, abilityId);
   if (curRank >= (spec.maxRank || 5)) return false;
   if ((prog?.skillPoints || 0) <= 0) return false;
   if ((prog?.level || 1) < (spec.reqLevel || 1)) return false;
   if (spec.prereq) {
-    const prereqRank = getAbilityRank(prog, spec.prereq, isTestMode);
+    const prereqRank = getAbilityRank(prog, spec.prereq);
     if (prereqRank < 1) return false;
   }
   return true;
@@ -1065,23 +1120,27 @@ export function xpForNextLevel(lvl) {
 
 export function calcMaxHp(prog, equipment = {}, classId = 'solari_vanguard') {
   const eff = getEffectiveStats(prog, equipment, classId);
-  return 25 + ((prog?.level || 1) - 1) * 3 + (eff.bastion - 2) * 3;
+  const paragonHp = (prog?.paragon?.terra_bulwark || 0) * 6;
+  return 25 + ((prog?.level || 1) - 1) * 3 + (eff.bastion - 2) * 3 + paragonHp;
 }
 
 export function calcMaxGlimmer(prog, equipment = {}, classId = 'solari_vanguard') {
   const eff = getEffectiveStats(prog, equipment, classId);
-  return 100 + (eff.resonance - 1) * 8;
+  const paragonGlimmer = (prog?.paragon?.aether_chronoflux || 0) * 5;
+  return 100 + (eff.resonance - 1) * 8 + paragonGlimmer;
 }
 
 export function calcCritChance(prog, equipment = {}, classId = 'solari_vanguard') {
   const eff = getEffectiveStats(prog, equipment, classId);
-  return Math.min(0.7, 0.2 + eff.tempo * 0.025);
+  const paragonCrit = (prog?.paragon?.solari_radiance || 0) * 0.005;
+  return Math.min(0.75, 0.2 + eff.tempo * 0.025 + paragonCrit);
 }
 
 export function calcCdMult(prog, equipment = {}, classId = 'solari_vanguard', faction = 'Solari') {
   const eff = getEffectiveStats(prog, equipment, classId);
   const aetherBonus = faction === 'Aether' ? 0.12 : 0;
-  return Math.max(0.55, 1 - eff.tempo * 0.02 - aetherBonus);
+  const paragonCd = (prog?.paragon?.aether_chronoflux || 0) * 0.008;
+  return Math.max(0.45, 1 - eff.tempo * 0.02 - aetherBonus - paragonCd);
 }
 
 // Deep Water & Abyss Collision Detection

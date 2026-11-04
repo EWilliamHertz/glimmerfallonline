@@ -39,6 +39,10 @@ import {
   getEffectiveStats,
   createDefaultProgression,
   xpForNextLevel,
+  MAX_BASE_LEVEL,
+  PARAGON_AFFINITIES,
+  paragonXpForLevel,
+  canUpgradeParagon,
   calcMaxHp,
   calcMaxGlimmer,
   calcCritChance,
@@ -301,156 +305,22 @@ export function initGame() {
   function saveProgressionLocal() {
     try {
       localStorage.setItem('glimmerfall_prog_v2', JSON.stringify(prog));
+      if (isSinglePlayer && localProfile?.id) {
+        const raw = localStorage.getItem('glimmerfall_sp_roster_v2');
+        const roster = raw ? JSON.parse(raw) : [];
+        const idx = roster.findIndex((c) => c.id === localProfile.id);
+        if (idx >= 0) {
+          roster[idx].progression = prog;
+          roster[idx].equipment = localProfile.equipment;
+          roster[idx].loadout = localProfile.loadout;
+          localStorage.setItem('glimmerfall_sp_roster_v2', JSON.stringify(roster));
+        }
+      }
     } catch (_) {}
   }
 
-  // ==========================================
-  // 1-Player Test Mode / Practice Arena State
-  // ==========================================
-  let isTestMode = false;
-  let testModeSavedProg = null;
-  let infiniteGlimmer = false;
-  let instantCooldowns = false;
-  let dpsTracker = { totalDmg: 0, startTime: 0, hits: 0, lastHitTime: 0 };
-
-  window.enableTestMode = function () {
-    if (isTestMode) return;
-    testModeSavedProg = JSON.parse(JSON.stringify(prog));
-    isTestMode = true;
-    prog = {
-      level: 10,
-      xp: 0,
-      statPoints: 20,
-      skillPoints: 12,
-      stats: { power: 8, bastion: 8, resonance: 6, tempo: 6 },
-      ranks: { 1: 5, 2: 5, 3: 5, 4: 5, 9: 5, 10: 5, 11: 5, 12: 5 },
-    };
-    recalcVitalsFromProfile();
-    player.hp = player.maxHp;
-    player.solarCharge = player.maxSolarCharge;
-    dpsTracker = { totalDmg: 0, startTime: 0, hits: 0, lastHitTime: 0 };
-    if (audio.playLevelUp) audio.playLevelUp();
-    logMessage('🧪 [TEST SANDBOX MODE] Activated! Lv. 10 with all 8 Rites & Flashes unlocked!', 'log-solari', 'combat');
-    updatePlayerUI();
-    updateActionBarBadges();
-    renderStatsModal();
-    renderKeybindUI();
-    const bar = document.getElementById('testmode-bar');
-    if (bar) bar.style.display = 'flex';
-    const clsSel = document.getElementById('testmode-class-select');
-    if (clsSel) clsSel.value = localProfile.classId;
-  };
-
-  window.disableTestMode = function () {
-    if (!isTestMode) return;
-    isTestMode = false;
-    if (testModeSavedProg) {
-      prog = testModeSavedProg;
-      testModeSavedProg = null;
-    } else {
-      prog = createDefaultProgression();
-    }
-    recalcVitalsFromProfile();
-    player.hp = player.maxHp;
-    player.solarCharge = 0;
-    if (audio.playChime) audio.playChime();
-    logMessage('⚔️ [STANDARD MODE] Restored normal character level & progression.', 'log-quest', 'chat');
-    updatePlayerUI();
-    updateActionBarBadges();
-    renderStatsModal();
-    renderKeybindUI();
-    const bar = document.getElementById('testmode-bar');
-    if (bar) bar.style.display = 'none';
-  };
-
-  window.toggleTestMode = function () {
-    if (isTestMode) window.disableTestMode();
-    else window.enableTestMode();
-  };
-
-  window.testModeSwitchClass = function (newClassId) {
-    const cls = CLASSES_CATALOG[newClassId];
-    if (!cls) return;
-    localProfile.classId = cls.id;
-    localProfile.faction = cls.faction;
-    localProfile.loadout = { ...cls.defaultLoadout };
-    localProfile.equipment = { ...cls.defaultEquipment };
-    recalcVitalsFromProfile();
-    player.hp = player.maxHp;
-    player.solarCharge = player.maxSolarCharge;
-    refreshHeroPortrait();
-    updatePlayerUI();
-    updateActionBarBadges();
-    renderStatsModal();
-    renderKeybindUI();
-    if (audio.playSpell) audio.playSpell();
-    logMessage(`Swapped Archetype to [${cls.name}] (${cls.faction})! All abilities ready!`, 'log-solari', 'combat');
-  };
-
-  window.testModeResetCooldowns = function () {
-    for (const k in cooldowns) cooldowns[k] = 0;
-    player.solarCharge = player.maxSolarCharge;
-    if (audio.playChime) audio.playChime();
-    logMessage('⚡ All ability cooldowns reset to 0s! Glimmer refilled!', 'log-solari', 'combat');
-  };
-
-  window.testModeToggleInfiniteGlimmer = function () {
-    infiniteGlimmer = !infiniteGlimmer;
-    const btn = document.getElementById('testmode-inf-glimmer-btn');
-    if (btn) {
-      btn.innerText = infiniteGlimmer ? '🔮 INF GLIMMER: ON' : '🔮 INF GLIMMER: OFF';
-      btn.style.color = infiniteGlimmer ? '#4ade80' : '#c084fc';
-      btn.style.borderColor = infiniteGlimmer ? '#4ade80' : '#c084fc';
-    }
-    logMessage(infiniteGlimmer ? '🔮 Infinite Glimmer enabled!' : 'Glimmer consumption restored.', 'log-combat');
-  };
-
-  window.testModeSpawnBossDummy = function () {
-    const existing = entities.find((e) => e.id === 'test_boss_dummy');
-    if (existing) {
-      existing.hp = existing.maxHp = 5000;
-      existing.x = player.x + (player.dir === 'left' ? -48 : player.dir === 'right' ? 48 : 0);
-      existing.y = player.y + (player.dir === 'up' ? -48 : player.dir === 'down' ? 48 : 0);
-    } else {
-      entities.push({
-        id: 'test_boss_dummy',
-        name: 'World Boss Test Golem',
-        sub: '★ 5,000 HP DPS Test Entity',
-        type: 'dummy',
-        isBoss: true,
-        spriteKey: 'graniteBoss',
-        x: player.x + (player.dir === 'left' ? -48 : player.dir === 'right' ? 48 : 0),
-        y: player.y + (player.dir === 'up' ? -48 : player.dir === 'down' ? 48 : 0),
-        origX: player.x,
-        origY: player.y,
-        hp: 5000,
-        maxHp: 5000,
-        xpReward: 500,
-        radius: 24,
-        hitFlash: 0,
-      });
-    }
-    dpsTracker = { totalDmg: 0, startTime: 0, hits: 0, lastHitTime: 0 };
-    if (audio.playCrit) audio.playCrit();
-    logMessage('🎯 Spawned 5,000 HP World Boss Test Golem! Unleash all abilities to test DPS!', 'log-solari', 'combat');
-  };
-
-  function recordTestModeDamage(dmg) {
-    if (!isTestMode || dmg <= 0) return;
-    const now = performance.now();
-    if (!dpsTracker.startTime || now - dpsTracker.lastHitTime > 6000) {
-      dpsTracker.startTime = now;
-      dpsTracker.totalDmg = 0;
-      dpsTracker.hits = 0;
-    }
-    dpsTracker.totalDmg += dmg;
-    dpsTracker.hits++;
-    dpsTracker.lastHitTime = now;
-    const elapsed = Math.max(0.5, (now - dpsTracker.startTime) / 1000);
-    const dps = (dpsTracker.totalDmg / elapsed).toFixed(1);
-    const meter = document.getElementById('testmode-dps-meter');
-    if (meter) meter.innerText = `DPS: ${dps} (${dpsTracker.totalDmg} total)`;
-  }
+  // Single Player (Offline Local Realm) vs Multiplayer (Online Authoritative Realm)
+  let isSinglePlayer = false;
 
   const player = {
     x: 0,
@@ -586,6 +456,7 @@ export function initGame() {
         ...prof.progression,
         stats: { ...prog.stats, ...(prof.progression.stats || {}) },
         ranks: { ...prog.ranks, ...(prof.progression.ranks || {}) },
+        paragon: { ...(prog.paragon || {}), ...(prof.progression.paragon || {}) },
       };
       saveProgressionLocal();
     }
@@ -636,7 +507,8 @@ export function initGame() {
     if (!log) return;
     const div = document.createElement('div');
     div.className = `log-entry ${className}`;
-    div.dataset.cat = category;
+    if (div.dataset) div.dataset.cat = category;
+    div.setAttribute('data-cat', category);
     if (activeChatFilter !== 'all' && activeChatFilter !== category) {
       div.style.display = 'none';
     }
@@ -740,7 +612,7 @@ export function initGame() {
   window.assignSlotAbilityInGame = function (slot, abilityId) {
     const ab = ABILITIES_CATALOG[abilityId];
     if (!ab) return;
-    const rank = getAbilityRank(prog, ab.id, isTestMode);
+    const rank = getAbilityRank(prog, ab.id);
     if (rank < 1) {
       logMessage(`🔒 Must allocate a Skill Point in ${ab.name} in the Skill Tree [P] before equipping!`, 'log-combat');
       audio.playHurt();
@@ -1011,25 +883,46 @@ export function initGame() {
   // ==========================================
   function awardXP(amount, reason = '') {
     if (amount <= 0) return;
-    prog.xp += amount;
     let leveled = false;
+    let paragonLeveled = false;
 
-    while (prog.xp >= xpForNextLevel(prog.level)) {
-      prog.xp -= xpForNextLevel(prog.level);
-      prog.level++;
-      prog.statPoints += 3;
-      prog.skillPoints += 1;
-      leveled = true;
+    if ((prog.level || 1) < MAX_BASE_LEVEL) {
+      prog.xp = (prog.xp || 0) + amount;
+      while ((prog.level || 1) < MAX_BASE_LEVEL && prog.xp >= xpForNextLevel(prog.level)) {
+        prog.xp -= xpForNextLevel(prog.level);
+        prog.level++;
+        prog.statPoints = (prog.statPoints || 0) + 3;
+        prog.skillPoints = (prog.skillPoints || 0) + 1;
+        leveled = true;
+      }
+    } else {
+      if (!prog.paragon) {
+        prog.paragon = { solari_radiance: 0, umbri_shadowcraft: 0, terra_bulwark: 0, aether_chronoflux: 0 };
+      }
+      prog.paragonLevel = prog.paragonLevel || 0;
+      prog.paragonPoints = prog.paragonPoints || 0;
+      prog.paragonXp = (prog.paragonXp || 0) + amount;
+      while (prog.paragonXp >= paragonXpForLevel(prog.paragonLevel)) {
+        prog.paragonXp -= paragonXpForLevel(prog.paragonLevel);
+        prog.paragonLevel++;
+        prog.paragonPoints++;
+        paragonLeveled = true;
+      }
     }
 
     recalcVitalsFromProfile();
 
-    if (leveled) {
+    if (leveled || paragonLeveled) {
       player.hp = player.maxHp;
       audio.playLevelUp();
-      spawnSparkBurst(player.x, player.y - 8, ['#fde047', '#38bdf8', '#4ade80', '#ffffff'], 26);
-      spawnFCT(player.x, player.y - 12, `LEVEL ${prog.level}!`, '#fde047', true);
-      logMessage(`[LEVEL UP!] Reached Level ${prog.level}! +3 Stat Pts [C] & +1 Rite Pt [P]!`, 'log-solari');
+      spawnSparkBurst(player.x, player.y - 8, ['#fde047', '#38bdf8', '#4ade80', '#c084fc', '#ffffff'], 26);
+      const lvlTxt = paragonLeveled ? `PARAGON ${prog.paragonLevel}!` : `LEVEL ${prog.level}!`;
+      spawnFCT(player.x, player.y - 12, lvlTxt, paragonLeveled ? '#c084fc' : '#fde047', true);
+      if (paragonLeveled) {
+        logMessage(`[PARAGON RESONANCE!] Attained Paragon Level ${prog.paragonLevel}! +1 Paragon Point [C]!`, 'log-solari');
+      } else {
+        logMessage(`[LEVEL UP!] Reached Level ${prog.level}! +3 Stat Pts [C] & +1 Rite Pt [P]!`, 'log-solari');
+      }
       renderStatsModal();
       renderKeybindUI();
     } else if (reason) {
@@ -1053,6 +946,26 @@ export function initGame() {
     recalcVitalsFromProfile();
     player.hp = Math.min(player.maxHp, player.hp + Math.max(0, player.maxHp - prevMax));
     audio.playChime();
+    saveProgressionLocal();
+    updatePlayerUI();
+    renderStatsModal();
+  };
+
+  window.upgradeParagon = function (affinityId) {
+    if (!canUpgradeParagon(prog, affinityId)) return;
+    audio.playChime();
+    if (net.connected) {
+      net.send({ type: 'upgrade_paragon', affinityId });
+      return;
+    }
+    if (!prog.paragon) {
+      prog.paragon = { solari_radiance: 0, umbri_shadowcraft: 0, terra_bulwark: 0, aether_chronoflux: 0 };
+    }
+    prog.paragonPoints = (prog.paragonPoints || 0) - 1;
+    prog.paragon[affinityId] = (prog.paragon[affinityId] || 0) + 1;
+    const prevMax = player.maxHp;
+    recalcVitalsFromProfile();
+    player.hp = Math.min(player.maxHp, player.hp + Math.max(0, player.maxHp - prevMax));
     saveProgressionLocal();
     updatePlayerUI();
     renderStatsModal();
@@ -1155,6 +1068,9 @@ export function initGame() {
   // ==========================================
   // Zone Setup (All 7 Room Types: Hub, Warzone, 4 Biomes & 3v3 Arena)
   // ==========================================
+  let lastDecorRoomType = null;
+  let isTransitioningZone = false;
+
   function setupZoneDecor(zoneType, roomTitleOverride = null) {
     const resolvedRoomType = ROOM_CONFIGS[zoneType]
       ? zoneType
@@ -1163,6 +1079,11 @@ export function initGame() {
         : zoneType === 'arena_3v3'
           ? ROOM_TYPES.ARENA_3V3
           : ROOM_TYPES.NEXUS_WARZONE;
+
+    if (lastDecorRoomType === resolvedRoomType && !roomTitleOverride) {
+      return;
+    }
+    lastDecorRoomType = resolvedRoomType;
 
     const cfg = ROOM_CONFIGS[resolvedRoomType] || ROOM_CONFIGS[ROOM_TYPES.SANCTUARY_HUB];
     currentRoomType = resolvedRoomType;
@@ -1555,7 +1476,7 @@ export function initGame() {
     }
   }
 
-  function buildOfflineZone(zone) {
+  function buildOfflineZone(zone, spawnX = null, spawnY = null) {
     setupZoneDecor(zone);
     entities = [];
     allies = [];
@@ -1564,20 +1485,28 @@ export function initGame() {
     worldBanners = [];
     lootDrops = [];
 
+    const hasCustomSpawn = spawnX !== null && spawnY !== null && Number.isFinite(Number(spawnX)) && Number.isFinite(Number(spawnY));
+    if (hasCustomSpawn) {
+      player.x = Number(spawnX);
+      player.y = Number(spawnY);
+    }
+
     if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB) {
-      player.x = 0;
-      player.y = 96;
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 96;
+      }
       entities.push(
         { id: 'dummy_1', name: 'Sanctuary Dummy', sub: 'Lv.1 Awakening Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: 12, origX: 0, origY: 12, hp: 30, maxHp: 30, xpReward: 30, radius: 14, hitFlash: 0 },
         { id: 'dummy_2', name: 'Armored Training Post', sub: 'Lv.5 Resilient Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: -45, origX: 0, origY: -45, hp: 120, maxHp: 120, xpReward: 65, radius: 15, hitFlash: 0 },
         { id: 'tut_font', name: 'Awakening Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'tut_font_2', name: 'East Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'portal_main', name: 'Nexus Warzone Rift', sub: 'Step In -> Nexus Warzone (PvPvE)', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_WARZONE, spriteKey: 'portal', x: 0, y: -158, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 },
-        { id: 'portal_ruins', name: 'Forgotten Crypt Entrance', sub: '🏛️ Trial of Champions Dungeon', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS, spriteKey: 'portal', x: 0, y: 195, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+        { id: 'tut_font_2', name: 'East Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.ARENA_3V3) {
-      player.x = 0;
-      player.y = 175;
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 175;
+      }
       entities.push(
         { id: 'blue_nexus', name: 'Solari Sanctuary Nexus', sub: '25 HP Ally Core', type: 'ally_nexus', spriteKey: 'nexusBlue', x: 0, y: 220, hp: 25, maxHp: 25, radius: 22, hitFlash: 0 },
         { id: 'red_nexus', name: 'Umbri Dominion Nexus', sub: '25 HP Enemy Core', type: 'nexus', spriteKey: 'nexusRed', x: 0, y: -215, hp: 25, maxHp: 25, xpReward: 220, radius: 22, hitFlash: 0 },
@@ -1586,52 +1515,54 @@ export function initGame() {
         { id: 'enemy_3', name: 'Brambleheart Behemoth', sub: 'Enemy Terra Titan', type: 'mob', isBoss: true, spriteKey: 'graniteBoss', x: 64, y: -85, origX: 64, origY: -85, hp: 34, maxHp: 34, damage: 5, xpReward: 110, speed: 42, aggroRange: 230, attackRange: 32, radius: 20, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.SOLARI_CITADEL) {
-      player.x = 0;
-      player.y = 170;
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 170;
+      }
       entities.push(
         { id: 'sol_mob_1', name: 'Sunforged Sentinel', sub: 'Lv.3 Solari Construct', type: 'mob', spriteKey: 'solariSentinel', x: -75, y: 35, origX: -75, origY: 35, hp: 36, maxHp: 36, damage: 4, xpReward: 65, speed: 52, aggroRange: 112, attackRange: 28, radius: 15, hitFlash: 0 },
         { id: 'sol_mob_2', name: 'Lantern Inquisitor', sub: 'Lv.4 Radiant Zealot', type: 'mob', spriteKey: 'solariSentinel', x: 75, y: 25, origX: 75, origY: 25, hp: 38, maxHp: 38, damage: 5, xpReward: 75, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
         { id: 'sol_node_1', name: 'Solari Dawn Well', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 40, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'sol_boss', name: 'High Sunfire Colossus', sub: '★ Lv.6 Golden Citadel Boss', type: 'mob', isBoss: true, dropGear: 'sunfire_greatsword', spriteKey: 'solariBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 85, maxHp: 85, damage: 6, xpReward: 185, speed: 40, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        { id: 'portal_solari_vault', name: 'Sunken Vault Waygate', sub: '☀️ Secret Solari Crypt', type: 'portal', targetRoom: ROOM_TYPES.SOLARI_SUNKEN_VAULT, spriteKey: 'portal', x: 0, y: -215, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
-        { id: 'portal_hub', name: 'Return to Sanctuary', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 205, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+        { id: 'sol_boss', name: 'High Sunfire Colossus', sub: '★ Lv.6 Golden Citadel Boss', type: 'mob', isBoss: true, dropGear: 'sunfire_greatsword', spriteKey: 'solariBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 85, maxHp: 85, damage: 6, xpReward: 185, speed: 40, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.UMBRI_UNDERCITY) {
-      player.x = 0;
-      player.y = 170;
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 170;
+      }
       entities.push(
         { id: 'umb_mob_1', name: 'Duskveil Stalker', sub: 'Lv.3 Umbri Assassin', type: 'mob', spriteKey: 'voidStalker', x: -80, y: 30, origX: -80, origY: 30, hp: 34, maxHp: 34, damage: 5, xpReward: 65, speed: 55, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
         { id: 'umb_mob_2', name: 'Duskveil Bog Fiend', sub: 'Lv.4 Graveglass Reaper', type: 'mob', spriteKey: 'duskFiend', x: 80, y: 25, origX: 80, origY: 25, hp: 36, maxHp: 36, damage: 5, xpReward: 75, speed: 56, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
         { id: 'umb_node_1', name: 'Duskveil Shadow Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 40, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'umb_boss', name: 'Graveglass Archlich', sub: '★ Lv.6 Sepulcher Boss', type: 'mob', isBoss: true, dropGear: 'scythe_soulreaper', spriteKey: 'umbriBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 80, maxHp: 80, damage: 7, xpReward: 185, speed: 40, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        { id: 'portal_umbri_lab', name: 'Shadow Labyrinth Gloomgate', sub: '🌑 Twisted Umbri Crypt', type: 'portal', targetRoom: ROOM_TYPES.UMBRI_SHADOW_LABYRINTH, spriteKey: 'portal', x: 0, y: -215, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
-        { id: 'portal_hub', name: 'Return to Sanctuary', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 205, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+        { id: 'umb_boss', name: 'Graveglass Archlich', sub: '★ Lv.6 Sepulcher Boss', type: 'mob', isBoss: true, dropGear: 'scythe_soulreaper', spriteKey: 'umbriBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 80, maxHp: 80, damage: 7, xpReward: 185, speed: 40, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.TERRA_ORCHARD) {
-      player.x = 0;
-      player.y = 170;
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 170;
+      }
       entities.push(
         { id: 'ter_mob_1', name: 'Bramble Treant', sub: 'Lv.3 Terra Guardian', type: 'mob', spriteKey: 'terraWarden', x: -78, y: 32, origX: -78, origY: 32, hp: 40, maxHp: 40, damage: 4, xpReward: 65, speed: 52, aggroRange: 112, attackRange: 28, radius: 16, hitFlash: 0 },
         { id: 'ter_mob_2', name: 'Rootdeep Stonekin', sub: 'Lv.4 Ironwood Guardian', type: 'mob', spriteKey: 'terraWarden', x: 78, y: 25, origX: 78, origY: 25, hp: 42, maxHp: 42, damage: 5, xpReward: 75, speed: 50, aggroRange: 112, attackRange: 28, radius: 16, hitFlash: 0 },
         { id: 'ter_node_1', name: 'Terra Root Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 40, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'ter_boss', name: 'Elder Rootdeep Behemoth', sub: '★ Lv.6 Orchard Boss', type: 'mob', isBoss: true, dropGear: 'ironwood_armor', spriteKey: 'graniteBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 95, maxHp: 95, damage: 6, xpReward: 185, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        { id: 'portal_terra_sanctuary', name: 'Primordial Hollow Rootgate', sub: '🌿 Sacred Ironwood Grove', type: 'portal', targetRoom: ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY, spriteKey: 'portal', x: 0, y: -215, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
-        { id: 'portal_hub', name: 'Return to Sanctuary', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 205, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+        { id: 'ter_boss', name: 'Elder Rootdeep Behemoth', sub: '★ Lv.6 Orchard Boss', type: 'mob', isBoss: true, dropGear: 'ironwood_armor', spriteKey: 'graniteBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 95, maxHp: 95, damage: 6, xpReward: 185, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.AETHER_SPIRE) {
-      player.x = 0;
-      player.y = 170;
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 170;
+      }
       entities.push(
         { id: 'aeth_mob_1', name: 'Chrono Anomaly', sub: 'Lv.3 Aether Construct', type: 'mob', spriteKey: 'aetherWeaver', x: -78, y: 32, origX: -78, origY: 32, hp: 34, maxHp: 34, damage: 5, xpReward: 65, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
         { id: 'aeth_mob_2', name: 'Chrono Construct', sub: 'Lv.4 Fractured Sentinel', type: 'mob', spriteKey: 'aetherWeaver', x: 78, y: 25, origX: 78, origY: 25, hp: 36, maxHp: 36, damage: 5, xpReward: 75, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
         { id: 'aeth_node_1', name: 'Mirrorgate Star Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 40, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'aeth_boss', name: 'Archon of the Continuum', sub: '★ Lv.6 Mirrorgate Boss', type: 'mob', isBoss: true, dropGear: 'mirror_shield', spriteKey: 'aetherBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 82, maxHp: 82, damage: 7, xpReward: 185, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        { id: 'portal_aether_archive', name: 'Chrono-Archive Rift', sub: '🔮 Astral Archive', type: 'portal', targetRoom: ROOM_TYPES.AETHER_FRACTURED_ARCHIVE, spriteKey: 'portal', x: 0, y: -215, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
-        { id: 'portal_hub', name: 'Return to Sanctuary', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 205, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+        { id: 'aeth_boss', name: 'Archon of the Continuum', sub: '★ Lv.6 Mirrorgate Boss', type: 'mob', isBoss: true, dropGear: 'mirror_shield', spriteKey: 'aetherBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 82, maxHp: 82, damage: 7, xpReward: 185, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.NEXUS_FORGOTTEN_RUINS) {
-      player.x = 0;
-      player.y = 190;
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 190;
+      }
       entities.push(
         { id: 'ruin_mob_1', name: 'Ancient Ruin Golem', sub: 'Lv.4 Keystone Construct', type: 'mob', spriteKey: 'graniteBoss', x: -90, y: 40, origX: -90, origY: 40, hp: 44, maxHp: 44, damage: 4, xpReward: 75, speed: 42, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
         { id: 'ruin_mob_2', name: 'Ancient Ruin Golem', sub: 'Lv.4 Keystone Construct', type: 'mob', spriteKey: 'graniteBoss', x: 90, y: 40, origX: 90, origY: 40, hp: 44, maxHp: 44, damage: 4, xpReward: 75, speed: 42, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
@@ -1640,9 +1571,7 @@ export function initGame() {
         { id: 'ruin_boss', name: 'The Prismatic Golem', sub: '★ Lv.7 First Nexus Guardian', type: 'mob', isBoss: true, dropGear: 'prismatic_keystone', spriteKey: 'graniteBoss', x: 0, y: -120, origX: 0, origY: -120, hp: 88, maxHp: 88, damage: 7, xpReward: 210, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         { id: 'tut_font_ruins_c', name: 'Prismatic Keystone Spire', sub: 'Ancient Prismatic Node [E]', type: 'node', spriteKey: 'node', x: 0, y: 0, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
         { id: 'tut_font_ruins_w', name: 'West Ruin Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -140, y: -30, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'tut_font_ruins_e', name: 'East Ruin Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 140, y: -30, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'portal_hub', name: 'Sanctuary Hub Gate', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 240, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
-        { id: 'portal_warzone', name: 'Warzone North Rift', sub: 'Step In -> Nexus Warzone', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_WARZONE, spriteKey: 'portal', x: 0, y: -240, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 }
+        { id: 'tut_font_ruins_e', name: 'East Ruin Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 140, y: -30, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.SOLARI_SUNKEN_VAULT) {
       player.x = 0;
@@ -1653,9 +1582,7 @@ export function initGame() {
         { id: 'vault_mob_3', name: 'Dawnblade Crusader', sub: 'Lv.5 Solari Elite Guard', type: 'mob', spriteKey: 'solariSentinel', x: -60, y: -50, origX: -60, origY: -50, hp: 46, maxHp: 46, damage: 5, xpReward: 90, speed: 55, aggroRange: 118, attackRange: 30, radius: 15, hitFlash: 0 },
         { id: 'vault_boss', name: 'Solaris Core Colossus', sub: '★ Lv.8 Sunken Dawn Titan', type: 'mob', isBoss: true, dropGear: 'dawnfire_crest', spriteKey: 'solariBoss', x: 0, y: -120, origX: 0, origY: -120, hp: 96, maxHp: 96, damage: 7, xpReward: 240, speed: 40, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         { id: 'vault_node_1', name: 'Dawnstone Glimmer Well', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'vault_node_2', name: 'Solar Core Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'portal_citadel', name: 'Return to Golden Citadel', sub: 'Step In -> Golden Citadel', type: 'portal', targetRoom: ROOM_TYPES.SOLARI_CITADEL, spriteKey: 'portal', x: 0, y: 220, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
-        { id: 'portal_hub', name: 'Sanctuary Return Gate', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: -180, y: 180, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+        { id: 'vault_node_2', name: 'Solar Core Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.UMBRI_SHADOW_LABYRINTH) {
       player.x = 0;
@@ -1666,9 +1593,7 @@ export function initGame() {
         { id: 'lab_mob_3', name: 'Gloam Assassin', sub: 'Lv.5 Umbri Elite', type: 'mob', spriteKey: 'duskFiend', x: -65, y: -60, origX: -65, origY: -60, hp: 42, maxHp: 42, damage: 6, xpReward: 90, speed: 60, aggroRange: 120, attackRange: 30, radius: 14, hitFlash: 0 },
         { id: 'lab_boss', name: 'Abyssal Devourer', sub: '★ Lv.8 Shade of the Void', type: 'mob', isBoss: true, dropGear: 'void_soulblade', spriteKey: 'umbriBoss', x: 0, y: -120, origX: 0, origY: -120, hp: 92, maxHp: 92, damage: 8, xpReward: 240, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         { id: 'lab_node_1', name: 'Graveglass Leyline Shroud', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'lab_node_2', name: 'Void Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'portal_undercity', name: 'Return to Sepulcher Undercity', sub: 'Step In -> Undercity', type: 'portal', targetRoom: ROOM_TYPES.UMBRI_UNDERCITY, spriteKey: 'portal', x: 0, y: 220, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
-        { id: 'portal_hub', name: 'Sanctuary Return Gate', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 180, y: 180, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+        { id: 'lab_node_2', name: 'Void Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY) {
       player.x = 0;
@@ -1679,9 +1604,7 @@ export function initGame() {
         { id: 'hollow_mob_3', name: 'Sporeling Stalker', sub: 'Lv.5 Terra Beast', type: 'mob', spriteKey: 'terraWarden', x: 70, y: -60, origX: 70, origY: -60, hp: 44, maxHp: 44, damage: 5, xpReward: 90, speed: 55, aggroRange: 118, attackRange: 30, radius: 15, hitFlash: 0 },
         { id: 'hollow_boss', name: 'Primordial Ironbark', sub: '★ Lv.8 Elder Treant of the Hollow', type: 'mob', isBoss: true, dropGear: 'primordial_bark_chest', spriteKey: 'graniteBoss', x: 0, y: -120, origX: 0, origY: -120, hp: 110, maxHp: 110, damage: 7, xpReward: 250, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         { id: 'hollow_node_1', name: 'Ironwood Blossom Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'hollow_node_2', name: 'Rootdeep Heart Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'portal_orchard', name: 'Return to Glimmer Orchard', sub: 'Step In -> Orchard', type: 'portal', targetRoom: ROOM_TYPES.TERRA_ORCHARD, spriteKey: 'portal', x: 0, y: 220, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
-        { id: 'portal_hub', name: 'Sanctuary Return Gate', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: -180, y: 180, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+        { id: 'hollow_node_2', name: 'Rootdeep Heart Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.AETHER_FRACTURED_ARCHIVE) {
       player.x = 0;
@@ -1692,9 +1615,7 @@ export function initGame() {
         { id: 'archive_mob_3', name: 'Astral Weaver', sub: 'Lv.5 Continuum Mage', type: 'mob', spriteKey: 'aetherWeaver', x: -70, y: -60, origX: -70, origY: -60, hp: 42, maxHp: 42, damage: 6, xpReward: 90, speed: 56, aggroRange: 118, attackRange: 30, radius: 15, hitFlash: 0 },
         { id: 'archive_boss', name: 'Continuum Singularity', sub: '★ Lv.8 Paradox Titan', type: 'mob', isBoss: true, dropGear: 'chronos_singularity_core', spriteKey: 'aetherBoss', x: 0, y: -120, origX: 0, origY: -120, hp: 94, maxHp: 94, damage: 8, xpReward: 240, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         { id: 'archive_node_1', name: 'Continuum Time Spire', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'archive_node_2', name: 'Astral Mirrorgate Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'portal_spire', name: 'Return to Mirrorgate Spire', sub: 'Step In -> Spire', type: 'portal', targetRoom: ROOM_TYPES.AETHER_SPIRE, spriteKey: 'portal', x: 0, y: 220, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
-        { id: 'portal_hub', name: 'Sanctuary Return Gate', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 180, y: 180, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+        { id: 'archive_node_2', name: 'Astral Mirrorgate Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
       );
     } else {
       player.x = 0;
@@ -1709,13 +1630,6 @@ export function initGame() {
         { id: 'outpost_Aether', faction: 'Aether', name: 'Aether Astral Outpost Nexus', sub: '30 HP Aether Outpost Nexus', type: 'outpost_nexus', spriteKey: 'nexusCyan', x: 850, y: 650, origX: 850, origY: 650, hp: 30, maxHp: 30, xpReward: 200, radius: 24, hitFlash: 0 },
         // Shattered Nexus Shard
         { id: 'siege_shard', name: 'Shattered Nexus Shard', sub: '⚡ Continental Nexus Core (PvPvE)', type: 'siege_shard', isBoss: true, spriteKey: 'siegeShard', x: 0, y: 0, origX: 0, origY: 0, hp: 85, maxHp: 85, xpReward: 250, radius: 24, hitFlash: 0 },
-        // Continental Portals (Deep Sanctuaries / Return Gates)
-        { id: 'portal_hub', name: 'Sanctuary Return Gate', sub: 'Step In -> Sanctuary Hub', type: 'portal', targetRoom: ROOM_TYPES.SANCTUARY_HUB, spriteKey: 'portal', x: 0, y: 1580, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 },
-        { id: 'portal_ruins', name: 'First Nexus Ruins Gate', sub: '🏛️ Forgotten Ruins', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS, spriteKey: 'portal', x: 0, y: -1500, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 },
-        { id: 'portal_terra', name: 'Glimmer Orchard Waygate', sub: '🌿 Terra Dungeon Waygate', type: 'portal', targetRoom: ROOM_TYPES.TERRA_ORCHARD, spriteKey: 'portal', x: -1400, y: -900, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
-        { id: 'portal_umbri', name: 'Sepulcher Undercity Waygate', sub: '🌑 Umbri Dungeon Waygate', type: 'portal', targetRoom: ROOM_TYPES.UMBRI_UNDERCITY, spriteKey: 'portal', x: 1400, y: -900, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
-        { id: 'portal_solari', name: 'Golden Citadel Waygate', sub: '☀️ Solari Dungeon Waygate', type: 'portal', targetRoom: ROOM_TYPES.SOLARI_CITADEL, spriteKey: 'portal', x: -1400, y: 900, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
-        { id: 'portal_aether', name: 'Mirrorgate Spire Waygate', sub: '🔮 Aether Dungeon Waygate', type: 'portal', targetRoom: ROOM_TYPES.AETHER_SPIRE, spriteKey: 'portal', x: 1400, y: 900, hp: 1, maxHp: 1, radius: 19, hitFlash: 0 },
         // 4 Grand World Bosses
         { id: 'terra_world_boss', name: 'Elder Ironwood Colossus', sub: '★ Lv.9 Terra Continent World Boss', type: 'mob', isBoss: true, dropGear: 'ironwood_armor', spriteKey: 'graniteBoss', x: -950, y: -850, origX: -950, origY: -850, hp: 125, maxHp: 125, damage: 7, xpReward: 260, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         { id: 'umbri_world_boss', name: 'Malakor the Soulreaper', sub: '★ Lv.9 Umbri Continent World Boss', type: 'mob', isBoss: true, dropGear: 'scythe_soulreaper', spriteKey: 'umbriBoss', x: 950, y: -850, origX: 950, origY: -850, hp: 115, maxHp: 115, damage: 8, xpReward: 260, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
@@ -1754,10 +1668,6 @@ export function initGame() {
     }
     camera.x = player.x;
     camera.y = player.y;
-    inputs.up = inputs.down = inputs.left = inputs.right = false;
-    player.isMoving = false;
-    portalCooldown = 2.0;
-    triggerPortalMist(0.5);
   }
 
   // ==========================================
@@ -1766,9 +1676,14 @@ export function initGame() {
   function updateNetStatusPill() {
     const pill = document.getElementById('net-status-pill');
     if (!pill) return;
+    if (isSinglePlayer) {
+      pill.style.color = '#38bdf8';
+      pill.innerText = '● SINGLE PLAYER • 0ms • LOCAL REALM';
+      return;
+    }
     if (!net.connected) {
       pill.style.color = '#fbbf24';
-      pill.innerText = '● LOCAL / RECONNECTING...';
+      pill.innerText = '● CONNECTING TO REALM...';
       return;
     }
     const roomPop = remotePlayers.size + 1;
@@ -1887,14 +1802,8 @@ export function initGame() {
           hideDeathScreen();
         }
         const errDist = Math.hypot(sp.x - player.x, sp.y - player.y);
-        if (portalCooldown > 1.2) {
-          // Clean authoritative alignment right after portal travel (prevents any screen vibration)
-          player.x = sp.x;
-          player.y = sp.y;
-          camera.x = player.x;
-          camera.y = player.y;
-        } else if (errDist > 180) {
-          // Hard teleport / portal jump / respawn
+        if (errDist > 180 && !isTransitioningZone) {
+          // Hard teleport / respawn
           player.x = sp.x;
           player.y = sp.y;
           camera.x = player.x;
@@ -1903,10 +1812,10 @@ export function initGame() {
           // Smooth settling when standing still (no jitter while walking)
           player.x += (sp.x - player.x) * 0.35;
           player.y += (sp.y - player.y) * 0.35;
-        } else if (player.isMoving && errDist > 90) {
-          // Large discrepancy while moving (e.g. wall collision or root)
-          player.x += (sp.x - player.x) * 0.2;
-          player.y += (sp.y - player.y) * 0.2;
+        } else if (player.isMoving && errDist > 85) {
+          // Gentle drift correction while moving without hitching
+          player.x += (sp.x - player.x) * 0.15;
+          player.y += (sp.y - player.y) * 0.15;
         }
         updatePlayerUI();
       } else {
@@ -2027,7 +1936,6 @@ export function initGame() {
         audio.playHit(fx.isCrit);
         const hitEnt = entities.find((e) => Math.hypot(e.x - fx.x, e.y - fx.y) < 22);
         if (hitEnt) hitEnt.hitFlash = 0.14;
-        recordTestModeDamage(fx.dmg);
         spawnSparkBurst(fx.x, fx.y - 8, fx.isCrit ? ['#fde047', '#ffffff', '#f97316'] : ['#ef4444', '#fca5a5', '#facc15'], fx.isCrit ? 12 : 7);
         spawnFCT(fx.x, fx.y, `-${fx.dmg}`, fx.isCrit ? '#facc15' : '#f87171', fx.isCrit);
         if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !quests.damaged) {
@@ -2072,13 +1980,19 @@ export function initGame() {
   }
 
   const net = new MultiplayerClient({
-    onStatusChange(connected) {
+    onStatusChange(connected, reason) {
       updateNetStatusPill();
       if (connected) {
         logMessage('[Server] Connected to GlimmerFall Online Realm!', 'log-gain', 'chat');
       } else {
         remotePlayers.clear();
-        logMessage('[Server] Connection lost — running local fallback & reconnecting...', 'log-combat', 'chat');
+        if (!isSinglePlayer) {
+          if (reason === 'superseded') {
+            logMessage('[Account] Session active in another window/tab. This window is now running offline.', 'log-solari', 'chat');
+          } else {
+            logMessage('[Server] Connection lost — running local fallback & reconnecting...', 'log-combat', 'chat');
+          }
+        }
       }
     },
     onPacket(msg) {
@@ -2095,6 +2009,7 @@ export function initGame() {
           break;
 
         case 'room_joined': {
+          isTransitioningZone = false;
           const roomChanged = currentRoomId !== msg.roomId || currentRoomType !== msg.roomType;
           currentRoomId = msg.roomId;
           currentRoomType = msg.roomType;
@@ -2106,17 +2021,21 @@ export function initGame() {
           }
           net.preferredRoom = msg.roomType;
           remotePlayers.clear();
-          player.x = msg.x;
-          player.y = msg.y;
+
+          // Smooth Client Prediction Preservation:
+          // If player already walked forward into the new zone, avoid rubberbanding back to the gate line
+          const distFromSpawn = Math.hypot(player.x - msg.x, player.y - msg.y);
+          if (distFromSpawn > 100 || roomChanged) {
+            if (distFromSpawn > 140) {
+              player.x = msg.x;
+              player.y = msg.y;
+            }
+          }
           player.z = 0;
           player.vz = 0;
           player.isJumping = false;
-          player.isMoving = false;
-          inputs.up = inputs.down = inputs.left = inputs.right = false;
-          player.dir = msg.dir || 'up';
-          player.team = msg.team || null;
-          portalCooldown = 2.0;
-          triggerPortalMist(0.5);
+          if (msg.team) player.team = msg.team;
+          portalCooldown = Math.max(portalCooldown, 0.8);
           if (player.isDead) player.isDead = false;
           hideDeathScreen();
           if (msg.roomType === ROOM_TYPES.ARENA_3V3) {
@@ -2124,17 +2043,21 @@ export function initGame() {
             if (am) am.style.display = 'none';
             window.dismissArenaInvite?.();
           }
-          camera.x = player.x;
-          camera.y = player.y;
+          if (Math.hypot(camera.x - player.x, camera.y - player.y) > 160) {
+            camera.x = player.x;
+            camera.y = player.y;
+          }
           lastSentMove = {
             x: player.x,
             y: player.y,
             z: 0,
             dir: player.dir,
-            isMoving: false,
+            isMoving: Boolean(inputs.up || inputs.down || inputs.left || inputs.right),
             time: performance.now(),
           };
-          setupZoneDecor(msg.roomType, msg.roomTitle);
+          if (roomChanged) {
+            setupZoneDecor(msg.roomType, msg.roomTitle);
+          }
           if (msg.roomType !== ROOM_TYPES.SANCTUARY_HUB && !quests.portalReady) {
             quests.portalReady = true;
             const qc4 = document.getElementById('qc-4');
@@ -2149,7 +2072,7 @@ export function initGame() {
         }
 
         case 'world_state':
-          if (msg.roomId === currentRoomId) {
+          if (currentRoomId && msg.roomId === currentRoomId && !isTransitioningZone) {
             onlineTotal = msg.onlineTotal || 1;
             applyServerSnapshot(msg);
           }
@@ -2161,6 +2084,7 @@ export function initGame() {
             ...msg.progression,
             stats: { ...prog.stats, ...(msg.progression.stats || {}) },
             ranks: { ...prog.ranks, ...(msg.progression.ranks || {}) },
+            paragon: { ...(prog.paragon || {}), ...(msg.progression.paragon || {}) },
           };
           player.hp = msg.hp ?? player.hp;
           player.maxHp = msg.maxHp ?? calcMaxHp(prog, localProfile.equipment, localProfile.classId);
@@ -2293,22 +2217,36 @@ export function initGame() {
   const frontpage = new FrontpageController({
     net,
     audio,
-    onEnterWorld({ profile, startingRealm, isTestMode: testRequested }) {
+    onEnterWorld({ profile, startingRealm, playMode }) {
+      isSinglePlayer = playMode === 'singleplayer';
       if (profile) applyProfile(profile);
-      if (testRequested) {
-        window.enableTestMode();
-      }
       audio.setBgmTheme(ROOM_CONFIGS[startingRealm]?.bgm || 'sanctuary');
-      if (net.connected && startingRealm && !currentRoomId.startsWith(startingRealm)) {
+
+      if (isSinglePlayer) {
+        net.disconnect();
         portalCooldown = 2.0;
         triggerPortalMist(0.5);
         inputs.up = inputs.down = inputs.left = inputs.right = false;
         player.isMoving = false;
         moveSyncAccum = 0;
-        net.send({ type: 'switch_room', roomType: startingRealm, epoch: currentEpoch });
-      } else if (!net.connected && startingRealm && startingRealm !== currentRoomType) {
         buildOfflineZone(startingRealm);
-      } else if (!introShown && currentRoomType === ROOM_TYPES.SANCTUARY_HUB) {
+        updateNetStatusPill();
+        logMessage('[Realm] Entered Single Player Realm (Offline • 0ms). Zero server lag!', 'log-solari', 'chat');
+      } else {
+        if (net.connected && startingRealm && !currentRoomId.startsWith(startingRealm)) {
+          portalCooldown = 2.0;
+          triggerPortalMist(0.5);
+          inputs.up = inputs.down = inputs.left = inputs.right = false;
+          player.isMoving = false;
+          moveSyncAccum = 0;
+          net.send({ type: 'switch_room', roomType: startingRealm, epoch: currentEpoch });
+        } else if (!net.connected) {
+          net.bootstrapAndConnect(prog);
+        }
+        updateNetStatusPill();
+      }
+
+      if (!introShown && currentRoomType === ROOM_TYPES.SANCTUARY_HUB) {
         introShown = true;
         openDialogue(AWAKENING_DIALOGUE, 'heraldNpc');
       }
@@ -2620,7 +2558,6 @@ export function initGame() {
     if (!ent || ent.isDying || ent.type === 'node' || ent.type === 'portal') return;
     ent.hp = Math.max(0, ent.hp - dmg);
     ent.hitFlash = 0.14;
-    recordTestModeDamage(dmg);
     if (ent.type === 'mob') {
       if (!ent.inCombat) {
         spawnFCT(ent.x, ent.y - 12, 'AGGRO!', '#ef4444');
@@ -2737,7 +2674,7 @@ export function initGame() {
 
   window.castAbility = function (slot) {
     if (player.isDead || player.frozen) return;
-    if (!isSlotUnlocked(prog, slot, isTestMode)) {
+    if (!isSlotUnlocked(prog, slot)) {
       const reqLvl = SLOT_UNLOCK_LEVELS[slot] || 1;
       logMessage(`🔒 Slot locked! Reach Level ${reqLvl} to unlock this ${slot >= 9 ? 'Flash' : 'Rite'}.`, 'log-combat');
       return;
@@ -2746,7 +2683,7 @@ export function initGame() {
     if (!spec) return;
 
     // Diablo 2 Requirement: Abilities with 0 points allocated cannot be cast!
-    const abilityRank = getAbilityRank(prog, spec.id, isTestMode);
+    const abilityRank = getAbilityRank(prog, spec.id);
     if (abilityRank < 1) {
       logMessage(`🔒 ${spec.name} is not learned yet! Open Spellbook [P] to allocate your Skill Point!`, 'log-combat');
       audio.playHurt();
@@ -2756,10 +2693,6 @@ export function initGame() {
     if (isCasting) {
       logMessage('⏳ Already channeling a Rite!', 'log-combat');
       return;
-    }
-
-    if (infiniteGlimmer) {
-      player.solarCharge = player.maxSolarCharge;
     }
 
     if (cooldowns[slot] > 0) {
@@ -3343,9 +3276,9 @@ export function initGame() {
   function updateActionBarBadges() {
     for (const slot of ACTION_SLOTS) {
       const spec = getSlotAbilitySpec(localProfile.loadout, slot);
-      const unlocked = isSlotUnlocked(prog, slot, isTestMode);
+      const unlocked = isSlotUnlocked(prog, slot);
       const reqLvl = SLOT_UNLOCK_LEVELS[slot] || 1;
-      const abilityRank = getAbilityRank(prog, spec?.id, isTestMode);
+      const abilityRank = getAbilityRank(prog, spec?.id);
       const isLearned = abilityRank >= 1;
 
       const badge = document.getElementById(`badge-${slot}`);
@@ -3412,8 +3345,6 @@ export function initGame() {
 
     const treeContent = document.getElementById('skill-tree-content');
     const kbContainer = document.getElementById('keybind-list-container');
-    const d2MaxBtn = document.getElementById('d2-max-skills-btn');
-    if (d2MaxBtn) d2MaxBtn.style.display = isTestMode ? 'inline-block' : 'none';
 
     if (tab === 'keybinds') {
       if (treeContent) treeContent.style.display = 'none';
@@ -3429,7 +3360,7 @@ export function initGame() {
   window.upgradeAbilityInTree = function (abilityId) {
     const spec = ABILITIES_CATALOG[abilityId];
     if (!spec) return;
-    if (!canUpgradeAbility(prog, abilityId, isTestMode)) {
+    if (!canUpgradeAbility(prog, abilityId)) {
       audio.playHurt();
       return;
     }
@@ -3457,24 +3388,6 @@ export function initGame() {
     if (net.connected) {
       net.send({ type: 'upgrade_skill', abilityId });
     }
-  };
-
-  window.testModeMaxAllSkills = function () {
-    if (!isTestMode) return;
-    if (!prog.skills) prog.skills = {};
-    for (const spec of Object.values(ABILITIES_CATALOG)) {
-      if (spec.id === 'harvest') continue;
-      prog.skills[spec.id] = 5;
-    }
-    for (const slot of ACTION_SLOTS) {
-      prog.ranks[slot] = 5;
-    }
-    prog.skillPoints = 0;
-    audio.playZenith();
-    logMessage('🧪 [Sandbox] Maxed all abilities across all trees to Rank 5!', 'log-gain');
-    updateActionBarBadges();
-    renderSkillTreeUI();
-    renderKeybindUI();
   };
 
   function renderSkillTreeUI() {
@@ -3534,8 +3447,8 @@ export function initGame() {
       `;
 
       for (const ab of skillsInTier) {
-        const curRank = getAbilityRank(prog, ab.id, isTestMode);
-        const canUp = canUpgradeAbility(prog, ab.id, isTestMode);
+        const curRank = getAbilityRank(prog, ab.id);
+        const canUp = canUpgradeAbility(prog, ab.id);
         const isMax = curRank >= (ab.maxRank || 5);
         const isLearned = curRank >= 1;
 
@@ -3551,7 +3464,7 @@ export function initGame() {
         if (ab.prereq) {
           const pSpec = ABILITIES_CATALOG[ab.prereq];
           prereqName = pSpec?.name || ab.prereq;
-          prereqMet = getAbilityRank(prog, ab.prereq, isTestMode) >= 1;
+          prereqMet = getAbilityRank(prog, ab.prereq) >= 1;
         }
 
         // Check if currently equipped in loadout
@@ -3668,16 +3581,16 @@ export function initGame() {
       const bound = formatKeyLabel(keybinds[slot]);
       const isListening = listeningSlot === slot;
       const isRankable = typeof slot === 'number';
-      const curRank = isRankable ? getAbilityRank(prog, spec.id, isTestMode) : null;
+      const curRank = isRankable ? getAbilityRank(prog, spec.id) : null;
       const isLearned = isRankable ? curRank >= 1 : true;
-      const canUpgrade = isRankable && canUpgradeAbility(prog, spec.id, isTestMode);
+      const canUpgrade = isRankable && canUpgradeAbility(prog, spec.id);
 
       // Available choices for this slot: only learned spells matching tree type!
       const isFlashSlot = typeof slot === 'number' && slot >= 9;
       const allowedChoices = Object.values(ABILITIES_CATALOG).filter(
         (ab) => ab.faction !== 'All' &&
           (isFlashSlot ? ab.tree === 'flashes' : ab.tree === 'rites') &&
-          getAbilityRank(prog, ab.id, isTestMode) >= 1
+          getAbilityRank(prog, ab.id) >= 1
       );
 
       const castTimeTxt = spec.castTime > 0 ? `${spec.castTime.toFixed(1)}s Cast` : 'Instant';
@@ -3698,7 +3611,7 @@ export function initGame() {
             <div style="margin-top:5px;">
               <select class="pixel-input" style="width:auto; padding:3px 8px; font-size:10.5px;" onchange="assignSlotAbilityInGame(${slot}, this.value); this.blur();">
                 ${allowedChoices.length > 0
-                  ? allowedChoices.map((ab) => `<option value="${ab.id}" ${spec.id === ab.id ? 'selected' : ''}>${ab.icon} ${ab.name} (Rank ${getAbilityRank(prog, ab.id, isTestMode)}/5)</option>`).join('')
+                  ? allowedChoices.map((ab) => `<option value="${ab.id}" ${spec.id === ab.id ? 'selected' : ''}>${ab.icon} ${ab.name} (Rank ${getAbilityRank(prog, ab.id)}/5)</option>`).join('')
                   : `<option disabled selected>🔒 No ${isFlashSlot ? 'Flashes' : 'Rites'} learned yet — allocate points in Spellbook [P]!</option>`}
               </select>
             </div>
@@ -3769,6 +3682,39 @@ export function initGame() {
         <div>MAX GLIMMER: <b style="color:#facc15;">${player.maxSolarCharge}</b></div>
         <div>CRIT CHANCE: <b style="color:#fde047;">${(calcCritChance(prog, localProfile.equipment, localProfile.classId) * 100).toFixed(1)}%</b></div>
         <div>COOLDOWN MULT: <b style="color:#38bdf8;">${Math.round(calcCdMult(prog, localProfile.equipment, localProfile.classId, localProfile.faction) * 100)}%</b></div>
+      </div>
+
+      <!-- Late Game Paragon Resonance Mastery -->
+      <div style="background:#090618; border:2px solid #581c87; padding:8px 10px; margin-top:8px; font-size:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <div>
+            <span style="color:#c084fc; font-weight:bold; font-size:10.5px;">🔮 PARAGON RESONANCE:</span>
+            <b style="color:#facc15;">PARAGON ${prog.paragonLevel || 0}</b>
+            <span style="font-size:8px; color:#94a3b8;">(${prog.paragonXp || 0}/${paragonXpForLevel(prog.paragonLevel || 0)} XP)</span>
+          </div>
+          <div style="color:${(prog.paragonPoints || 0) > 0 ? '#4ade80' : '#94a3b8'}; font-weight:bold; font-size:9.5px;">
+            PARAGON PTS: ${prog.paragonPoints || 0}
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          ${Object.values(PARAGON_AFFINITIES).map((aff) => {
+            const curRank = prog.paragon?.[aff.id] || 0;
+            const canUp = canUpgradeParagon(prog, aff.id);
+            return `
+              <div class="keybind-row" style="margin-bottom:0; padding:4px 8px; border-color:#3b0764; background:#0f0926;">
+                <div>
+                  <div style="font-size:10px; color:${aff.color}; font-weight:bold;">
+                    ${aff.icon} ${aff.name} <span style="color:#f8fafc; font-size:8.5px;">[Rank ${curRank}/${aff.maxRank}]</span>
+                  </div>
+                  <div style="font-size:8px; color:#94a3b8; margin-top:1px;">${aff.desc}</div>
+                </div>
+                <button class="upgrade-btn ${canUp ? 'ready' : ''}" style="padding:4px 8px; font-size:8.5px;" ${canUp ? '' : 'disabled'} onclick="upgradeParagon('${aff.id}')">
+                  ${curRank >= aff.maxRank ? 'MAX' : '+INVEST'}
+                </button>
+              </div>
+            `;
+          }).join('')}
+        </div>
       </div>
     `;
   }
@@ -3865,13 +3811,14 @@ export function initGame() {
   // ==========================================
   function enterPortalEntity(ent) {
     const dest = ent.targetRoom || PORTAL_ID_TO_ROOM[ent.id] || ROOM_TYPES.NEXUS_WARZONE;
-    portalCooldown = 2.0;
-    triggerPortalMist(0.5);
-    inputs.up = inputs.down = inputs.left = inputs.right = false;
-    player.isMoving = false;
-    moveSyncAccum = 0;
+    portalCooldown = 0.9;
+    triggerPortalMist(0.25);
     audio.playPortal();
+    setupZoneDecor(dest);
     if (net.connected) {
+      isTransitioningZone = true;
+      currentRoomType = dest;
+      currentRoomId = null;
       net.send({ type: 'switch_room', roomType: dest, epoch: currentEpoch });
     } else {
       buildOfflineZone(dest);
@@ -4115,8 +4062,15 @@ export function initGame() {
   // ==========================================
   // 60 FPS Simulation & Interpolation Loop
   // ==========================================
+  let netStatusTimer = 0;
+
   function update(dt) {
     globalTime += dt;
+    netStatusTimer += dt;
+    if (netStatusTimer >= 0.5) {
+      netStatusTimer = 0;
+      updateNetStatusPill();
+    }
     if (portalCooldown > 0) portalCooldown = Math.max(0, portalCooldown - dt);
     if (portalMistTimer > 0) portalMistTimer = Math.max(0, portalMistTimer - dt);
 
@@ -4284,47 +4238,46 @@ export function initGame() {
             if (player.x >= mapBounds.halfW - edgePad && cfg.edgeTransitions.east && Math.abs(player.y) <= GATE_HALF_WIDTH) {
               dest = cfg.edgeTransitions.east;
               const nextCfg = ROOM_CONFIGS[dest];
-              nextX = nextCfg ? -nextCfg.halfW + 28 : 28;
+              nextX = nextCfg ? -nextCfg.halfW + 56 : 56;
               nextY = Math.max(-36, Math.min(36, player.y));
             } else if (player.x <= -mapBounds.halfW + edgePad && cfg.edgeTransitions.west && Math.abs(player.y) <= GATE_HALF_WIDTH) {
               dest = cfg.edgeTransitions.west;
               const nextCfg = ROOM_CONFIGS[dest];
-              nextX = nextCfg ? nextCfg.halfW - 28 : -28;
+              nextX = nextCfg ? nextCfg.halfW - 56 : -56;
               nextY = Math.max(-36, Math.min(36, player.y));
             } else if (player.y <= -mapBounds.halfH + edgePad && cfg.edgeTransitions.north && Math.abs(player.x) <= GATE_HALF_WIDTH) {
               dest = cfg.edgeTransitions.north;
               const nextCfg = ROOM_CONFIGS[dest];
               nextX = Math.max(-36, Math.min(36, player.x));
-              nextY = nextCfg ? nextCfg.halfH - 28 : -28;
+              nextY = nextCfg ? nextCfg.halfH - 56 : -56;
             } else if (player.y >= mapBounds.halfH - edgePad && cfg.edgeTransitions.south && Math.abs(player.x) <= GATE_HALF_WIDTH) {
               dest = cfg.edgeTransitions.south;
               const nextCfg = ROOM_CONFIGS[dest];
               nextX = Math.max(-36, Math.min(36, player.x));
-              nextY = nextCfg ? -nextCfg.halfH + 28 : 28;
+              nextY = nextCfg ? -nextCfg.halfH + 56 : 56;
             }
 
             if (dest) {
-              portalCooldown = 2.0;
-              triggerPortalMist(0.5);
-              inputs.up = inputs.down = inputs.left = inputs.right = false;
-              player.isMoving = false;
+              portalCooldown = 0.9;
+              triggerPortalMist(0.25);
               moveSyncAccum = 0;
               audio.playPortal();
+              player.x = nextX;
+              player.y = nextY;
+              camera.x = player.x;
+              camera.y = player.y;
+              lastSentMove = { x: Math.round(nextX * 10) / 10, y: Math.round(nextY * 10) / 10, z: 0, dir: player.dir, isMoving: player.isMoving, time: performance.now() };
+              setupZoneDecor(dest);
               if (net.connected) {
-                net.send({ type: 'switch_room', roomType: dest, x: nextX, y: nextY, epoch: currentEpoch });
+                // Optimistic client switch: zero waiting, zero screen freezes across ngrok
+                isTransitioningZone = true;
+                currentRoomType = dest;
+                currentRoomId = null;
+                net.send({ type: 'switch_room', roomType: dest, x: nextX, y: nextY, dir: player.dir, epoch: currentEpoch });
               } else {
-                buildOfflineZone(dest);
-                player.x = nextX;
-                player.y = nextY;
-                camera.x = player.x;
-                camera.y = player.y;
+                buildOfflineZone(dest, nextX, nextY);
               }
             }
-          }
-
-          const hitPortal = entities.find((e) => e.type === 'portal' && Math.hypot(e.x - player.x, e.y - player.y) <= 18);
-          if (hitPortal) {
-            enterPortalEntity(hitPortal);
           }
         }
       } else {
@@ -5587,13 +5540,18 @@ export function initGame() {
   renderStatsModal();
   renderPartyHud(null, localProfile.id);
 
-  // Open Character Select / Loadout Frontpage and connect to Realm Server!
+  // Open Character Select / Loadout Frontpage
   try {
     frontpage.open();
   } catch (err) {
     console.error('[Frontpage] Failed to open on startup:', err);
   }
-  net.bootstrapAndConnect(prog);
+  if (frontpage.playMode === 'multiplayer') {
+    net.bootstrapAndConnect(prog);
+  } else {
+    isSinglePlayer = true;
+    updateNetStatusPill();
+  }
 
   let lastTs = performance.now();
   function frame(now) {

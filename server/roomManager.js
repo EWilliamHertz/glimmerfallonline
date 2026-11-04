@@ -30,6 +30,10 @@ import {
   getEffectiveStats,
   createDefaultProgression,
   xpForNextLevel,
+  MAX_BASE_LEVEL,
+  PARAGON_AFFINITIES,
+  paragonXpForLevel,
+  canUpgradeParagon,
   calcMaxHp,
   calcMaxGlimmer,
   calcCritChance,
@@ -1376,7 +1380,7 @@ export class RoomManager {
     if (existing && existing.ws !== ws) {
       try {
         existing.send({ type: 'sys_msg', category: 'system', text: '[System] Logged in from another window.' });
-        existing.ws.close();
+        existing.ws.close(4001, 'Logged in from another window');
       } catch (_) {}
       this.removeClient(existing);
     }
@@ -1504,8 +1508,9 @@ export class RoomManager {
     }
   }
 
-  joinRoom(client, targetRoomOrType, teamOverride = null, reqX = null, reqY = null) {
+  joinRoom(client, targetRoomOrType, teamOverride = null, reqX = null, reqY = null, reqDir = null) {
     if (typeof teamOverride === 'number') {
+      reqDir = reqY;
       reqY = reqX;
       reqX = teamOverride;
       teamOverride = null;
@@ -1534,7 +1539,7 @@ export class RoomManager {
     client.roomType = room.type;
     client.team = teamOverride;
     client.castState = null;
-    client.portalCooldown = 2.0;
+    client.portalCooldown = 1.0;
     client.roomEpoch = (client.roomEpoch || 0) + 1;
 
     const hasReqCoords = reqX !== null && reqY !== null && Number.isFinite(Number(reqX)) && Number.isFinite(Number(reqY));
@@ -1542,7 +1547,9 @@ export class RoomManager {
       // Seamless reconnect position preservation
       client.x = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, Number(reqX)));
       client.y = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, Number(reqY)));
-      client.dir = 'up';
+      if (reqDir && ['up', 'down', 'left', 'right'].includes(reqDir)) {
+        client.dir = reqDir;
+      }
     } else if (room.type === ROOM_TYPES.ARENA_3V3 && teamOverride === 'red') {
       client.x = 0;
       client.y = -170;
@@ -1894,8 +1901,7 @@ export class RoomManager {
 
       case 'move': {
         if (!room || client.isDead || client.freezeTimer > 0) return;
-        if (msg.epoch && Number(msg.epoch) !== client.roomEpoch) return;
-        if (client.portalCooldown > 1.2) return;
+        if (msg.epoch && Number(msg.epoch) < client.roomEpoch - 1) return;
         const nx = Number(msg.x);
         const ny = Number(msg.y);
         if (!Number.isFinite(nx) || !Number.isFinite(ny)) return;
@@ -1941,10 +1947,10 @@ export class RoomManager {
 
       case 'switch_room': {
         const target = msg.roomId || msg.roomType || ROOM_TYPES.NEXUS_WARZONE;
-        if (client.portalCooldown > 1.2 && (client.roomType === target || client.roomId === target)) {
+        if (client.portalCooldown > 0.4 && (client.roomType === target || client.roomId === target || client.roomId?.startsWith(target))) {
           break;
         }
-        this.joinRoom(client, target, null, msg.x ?? null, msg.y ?? null);
+        this.joinRoom(client, target, null, msg.x ?? null, msg.y ?? null, msg.dir ?? null);
         break;
       }
 
@@ -2009,6 +2015,10 @@ export class RoomManager {
 
       case 'allocate_stat':
         this.handleAllocateStat(client, msg.statKey);
+        break;
+
+      case 'upgrade_paragon':
+        this.handleUpgradeParagon(client, msg.affinityId);
         break;
 
       case 'upgrade_skill':
@@ -2280,13 +2290,13 @@ export class RoomManager {
   handleCastAbility(room, player, slot, targetId, facingDir) {
     if (player.isDead || player.freezeTimer > 0) return;
     if (!ACTION_SLOTS.includes(slot)) return;
-    if (!isSlotUnlocked(player.prog, slot, player.isTestMode)) return;
+    if (!isSlotUnlocked(player.prog, slot)) return;
     const spec = getSlotAbilitySpec(player.loadout, slot);
     if (!spec) return;
     if ((player.cooldowns[slot] || 0) > 0.05) return;
 
     // Diablo 2 requirement: Unlearned spells (rank 0) cannot be cast!
-    const rank = getAbilityRank(player.prog, spec.id, player.isTestMode);
+    const rank = getAbilityRank(player.prog, spec.id);
     if (rank < 1) return;
 
     if (['up', 'down', 'left', 'right'].includes(facingDir)) {
@@ -3076,29 +3086,47 @@ export class RoomManager {
   }
 
   // ==========================================
-  // Authoritative Progression (XP, Levels, Stats, Ranks)
+  // Authoritative Progression (XP, Levels, Stats, Ranks & Paragon)
   // ==========================================
   awardPlayerXP(player, amount, reason = '', statsMetaPatch = null) {
     if (amount <= 0) return;
-    player.prog.xp += amount;
     let leveled = false;
+    let paragonLeveled = false;
 
-    while (player.prog.xp >= xpForNextLevel(player.prog.level)) {
-      player.prog.xp -= xpForNextLevel(player.prog.level);
-      player.prog.level++;
-      player.prog.statPoints += 3;
-      player.prog.skillPoints += 1;
-      leveled = true;
+    if ((player.prog.level || 1) < MAX_BASE_LEVEL) {
+      player.prog.xp = (player.prog.xp || 0) + amount;
+      while ((player.prog.level || 1) < MAX_BASE_LEVEL && player.prog.xp >= xpForNextLevel(player.prog.level)) {
+        player.prog.xp -= xpForNextLevel(player.prog.level);
+        player.prog.level++;
+        player.prog.statPoints = (player.prog.statPoints || 0) + 3;
+        player.prog.skillPoints = (player.prog.skillPoints || 0) + 1;
+        leveled = true;
+      }
+    } else {
+      // Late Game: XP overflows into Paragon Resonance!
+      if (!player.prog.paragon) {
+        player.prog.paragon = { solari_radiance: 0, umbri_shadowcraft: 0, terra_bulwark: 0, aether_chronoflux: 0 };
+      }
+      player.prog.paragonLevel = player.prog.paragonLevel || 0;
+      player.prog.paragonPoints = player.prog.paragonPoints || 0;
+      player.prog.paragonXp = (player.prog.paragonXp || 0) + amount;
+      while (player.prog.paragonXp >= paragonXpForLevel(player.prog.paragonLevel)) {
+        player.prog.paragonXp -= paragonXpForLevel(player.prog.paragonLevel);
+        player.prog.paragonLevel++;
+        player.prog.paragonPoints++;
+        paragonLeveled = true;
+      }
     }
 
     player.maxHp = calcMaxHp(player.prog, player.equipment, player.classId);
     player.maxSolarCharge = calcMaxGlimmer(player.prog, player.equipment, player.classId);
-    if (leveled) {
+    if (leveled || paragonLeveled) {
       player.hp = player.maxHp;
       const room = this.rooms.get(player.roomId);
       if (room) {
-        room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 8, colors: ['#fde047', '#38bdf8', '#4ade80', '#ffffff'] });
-        room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 12, text: `LEVEL ${player.prog.level}!`, color: '#fde047', isCrit: true });
+        room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 8, colors: ['#fde047', '#38bdf8', '#4ade80', '#c084fc', '#ffffff'] });
+        const lvlTxt = paragonLeveled ? `PARAGON ${player.prog.paragonLevel}!` : `LEVEL ${player.prog.level}!`;
+        room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 12, text: lvlTxt, color: paragonLeveled ? '#c084fc' : '#fde047', isCrit: true });
       }
     }
 
@@ -3111,7 +3139,29 @@ export class RoomManager {
       maxSolarCharge: player.maxSolarCharge,
       xpGained: amount,
       reason,
-      leveled,
+      leveled: leveled || paragonLeveled,
+    });
+    this.parties.syncPlayerVitals(player.id);
+  }
+
+  handleUpgradeParagon(player, affinityId) {
+    if (!canUpgradeParagon(player.prog, affinityId)) return;
+    if (!player.prog.paragon) {
+      player.prog.paragon = { solari_radiance: 0, umbri_shadowcraft: 0, terra_bulwark: 0, aether_chronoflux: 0 };
+    }
+    player.prog.paragonPoints = (player.prog.paragonPoints || 0) - 1;
+    player.prog.paragon[affinityId] = (player.prog.paragon[affinityId] || 0) + 1;
+    const prevMax = player.maxHp;
+    player.maxHp = calcMaxHp(player.prog, player.equipment, player.classId);
+    player.hp = Math.min(player.maxHp, player.hp + Math.max(0, player.maxHp - prevMax));
+    player.maxSolarCharge = calcMaxGlimmer(player.prog, player.equipment, player.classId);
+    this.accounts.saveProgression(player.id, player.prog);
+    player.send({
+      type: 'progression_sync',
+      progression: player.prog,
+      hp: player.hp,
+      maxHp: player.maxHp,
+      maxSolarCharge: player.maxSolarCharge,
     });
     this.parties.syncPlayerVitals(player.id);
   }
@@ -3139,7 +3189,7 @@ export class RoomManager {
     if (!abilityId) return;
     const spec = ABILITIES_CATALOG[abilityId];
     if (!spec) return;
-    if (!canUpgradeAbility(player.prog, abilityId, player.isTestMode)) return;
+    if (!canUpgradeAbility(player.prog, abilityId)) return;
 
     player.prog.skillPoints = Math.max(0, (player.prog.skillPoints || 0) - 1);
     if (!player.prog.skills) player.prog.skills = {};
@@ -3383,33 +3433,33 @@ export class RoomManager {
           const pad = 14;
           const GATE_HALF_WIDTH = 48; // Center road opening
           if (p.x >= room.halfW - pad && room.edgeTransitions.east && Math.abs(p.y) <= GATE_HALF_WIDTH) {
-            p.portalCooldown = 2.0;
+            p.portalCooldown = 1.0;
             const dest = room.edgeTransitions.east;
             if (!p.portalQuestDone && dest === ROOM_TYPES.NEXUS_WARZONE) {
               p.portalQuestDone = true;
               this.awardPlayerXP(p, 40, 'Entered Nexus Warzone');
             }
             const targetCfg = ROOM_CONFIGS[dest];
-            const newX = targetCfg ? -targetCfg.halfW + 28 : 28;
+            const newX = targetCfg ? -targetCfg.halfW + 56 : 56;
             const newY = Math.max(-36, Math.min(36, p.y));
-            this.joinRoom(p, dest, null, newX, newY);
+            this.joinRoom(p, dest, null, newX, newY, 'right');
             continue;
           }
           if (p.x <= -room.halfW + pad && room.edgeTransitions.west && Math.abs(p.y) <= GATE_HALF_WIDTH) {
-            p.portalCooldown = 2.0;
+            p.portalCooldown = 1.0;
             const dest = room.edgeTransitions.west;
             if (!p.portalQuestDone && dest === ROOM_TYPES.NEXUS_WARZONE) {
               p.portalQuestDone = true;
               this.awardPlayerXP(p, 40, 'Entered Nexus Warzone');
             }
             const targetCfg = ROOM_CONFIGS[dest];
-            const newX = targetCfg ? targetCfg.halfW - 28 : -28;
+            const newX = targetCfg ? targetCfg.halfW - 56 : -56;
             const newY = Math.max(-36, Math.min(36, p.y));
-            this.joinRoom(p, dest, null, newX, newY);
+            this.joinRoom(p, dest, null, newX, newY, 'left');
             continue;
           }
           if (p.y <= -room.halfH + pad && room.edgeTransitions.north && Math.abs(p.x) <= GATE_HALF_WIDTH) {
-            p.portalCooldown = 2.0;
+            p.portalCooldown = 1.0;
             const dest = room.edgeTransitions.north;
             if (!p.portalQuestDone && dest === ROOM_TYPES.NEXUS_WARZONE) {
               p.portalQuestDone = true;
@@ -3417,12 +3467,12 @@ export class RoomManager {
             }
             const targetCfg = ROOM_CONFIGS[dest];
             const newX = Math.max(-36, Math.min(36, p.x));
-            const newY = targetCfg ? targetCfg.halfH - 28 : -28;
-            this.joinRoom(p, dest, null, newX, newY);
+            const newY = targetCfg ? targetCfg.halfH - 56 : -56;
+            this.joinRoom(p, dest, null, newX, newY, 'up');
             continue;
           }
           if (p.y >= room.halfH - pad && room.edgeTransitions.south && Math.abs(p.x) <= GATE_HALF_WIDTH) {
-            p.portalCooldown = 2.0;
+            p.portalCooldown = 1.0;
             const dest = room.edgeTransitions.south;
             if (!p.portalQuestDone && dest === ROOM_TYPES.NEXUS_WARZONE) {
               p.portalQuestDone = true;
@@ -3430,8 +3480,8 @@ export class RoomManager {
             }
             const targetCfg = ROOM_CONFIGS[dest];
             const newX = Math.max(-36, Math.min(36, p.x));
-            const newY = targetCfg ? -targetCfg.halfH + 28 : 28;
-            this.joinRoom(p, dest, null, newX, newY);
+            const newY = targetCfg ? -targetCfg.halfH + 56 : 56;
+            this.joinRoom(p, dest, null, newX, newY, 'down');
             continue;
           }
         }
