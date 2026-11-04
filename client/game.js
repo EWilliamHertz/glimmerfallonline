@@ -47,6 +47,14 @@ import {
   calcMaxGlimmer,
   calcCritChance,
   calcCdMult,
+  calcCastSpeedMult,
+  calcCritDamageMult,
+  calcDodgeChance,
+  calcDamageReduction,
+  calcLifeLeechPct,
+  calcHpRegenPerSec,
+  calcHolyRadianceBurstDmg,
+  calcMoveSpeedMult,
   isWaterTile,
 } from '../shared/protocol.js';
 
@@ -2592,9 +2600,27 @@ export function initGame() {
       awardXP(8, '');
     }
 
-    // Umbri Void Harvest life-leech
-    if (isRite && localProfile.faction === 'Umbri') {
-      player.hp = Math.min(player.maxHp, player.hp + Math.max(1, Math.round(dmg * 0.2)));
+    // Solari Paragon: Holy Radiance Burst on critical strike!
+    if (isCrit) {
+      const burstDmg = calcHolyRadianceBurstDmg(prog);
+      if (burstDmg > 0) {
+        spawnSparkBurst(ent.x, ent.y - 8, ['#facc15', '#fef08a', '#ffffff'], 14);
+        spawnFCT(ent.x, ent.y - 14, `☀️ HOLY BURST +${burstDmg}!`, '#facc15', true);
+        for (const near of entities) {
+          if (near !== ent && !near.isDying && isHostileEntity(near) && near.type !== 'node' && near.type !== 'portal') {
+            if (Math.hypot(near.x - ent.x, near.y - ent.y) <= 48) {
+              damageOfflineEntity(near, burstDmg, false, false, 'Holy Radiance');
+            }
+          }
+        }
+      }
+    }
+
+    // Umbri Paragon: Void Leech on all damage dealt!
+    const leechPct = calcLifeLeechPct(prog, localProfile.faction) * (player.voidformTimer > 0 ? 2 : 1);
+    if (leechPct > 0 && !player.isDead) {
+      const leechHeal = Math.max(1, Math.round(dmg * leechPct));
+      player.hp = Math.min(player.maxHp, player.hp + leechHeal);
     }
 
     if (ent.hp <= 0) {
@@ -2613,15 +2639,46 @@ export function initGame() {
     }
   }
 
-  function damageOfflinePlayer(amount, attackerName, attackerRef = null) {
+  function damageOfflinePlayer(amount, attackerName, attackerRef = null, isCrit = false) {
     if (player.isDead || player.hp <= 0) return;
 
+    // Umbri Paragon: Dodge Chance!
+    const dodgeChance = player.abyssalShroudTimer > 0 ? 1.0 : calcDodgeChance(prog);
+    if (dodgeChance > 0 && Math.random() < dodgeChance) {
+      spawnFCT(player.x, player.y - 12, '💨 DODGE!', '#c084fc', true);
+      return;
+    }
+
+    // Terra Paragon & Buffs: Damage Reduction!
+    const dmgRedPct = calcDamageReduction(prog) + (player.rootedBastionTimer > 0 ? 0.40 : 0);
+    if (dmgRedPct > 0) {
+      amount = Math.max(1, Math.round(amount * (1 - Math.min(0.70, dmgRedPct))));
+    }
+
+    // Solari Sun Aegis Rebuke Reactive Counter
+    if (player.rebukeTimer > 0 && attackerRef && attackerRef.hp !== undefined) {
+      const reb = Math.max(2, Math.round(amount * 0.4));
+      damageOfflineEntity(attackerRef, reb, false, false, 'Sun Rebuke');
+      attackerRef.weakenTimer = 4.0;
+      spawnFCT(attackerRef.x, attackerRef.y - 8, `☀️ -${reb} REBUKE`, '#facc15');
+    }
+
     // Terra Faction Mechanic: Thornbark damage reflection!
-    const reflectPct = player.thornbark ? 0.35 : localProfile.faction === 'Terra' ? 0.15 : 0;
+    const reflectPct = player.thornbark ? (player.treantFormTimer > 0 ? 0.60 : 0.35) : localProfile.faction === 'Terra' ? 0.15 : 0;
     if (reflectPct > 0 && attackerRef && attackerRef.hp !== undefined) {
       const refl = Math.max(1, Math.round(amount * reflectPct));
       damageOfflineEntity(attackerRef, refl, false, false, 'Thornbark');
       spawnFCT(attackerRef.x, attackerRef.y - 8, `🌿 -${refl} THORNS`, '#4ade80');
+    }
+
+    // Cast Interruption on Heavy Hit or Crit
+    if (isCasting && (isCrit || amount >= player.maxHp * 0.18)) {
+      isCasting = false;
+      castProgress = 0;
+      document.getElementById('cast-bar-container').style.display = 'none';
+      currentSpell = null;
+      spawnFCT(player.x, player.y - 12, 'INTERRUPTED!', '#f87171');
+      logMessage('🚫 Rite channeling interrupted by damage!', 'log-combat');
     }
 
     let rem = amount;
@@ -2744,8 +2801,10 @@ export function initGame() {
 
     // Rites channel for castTime; Flashes fire instantly!
     if (isRite && (spec.castTime || 0) > 0) {
+      const castSpeedMult = calcCastSpeedMult(prog) * (player.temporalApotheosisTimer > 0 ? 0.25 : 1.0);
+      const effectiveDuration = Math.max(0.3, spec.castTime * castSpeedMult);
       isCasting = true;
-      castDuration = spec.castTime;
+      castDuration = effectiveDuration;
       castProgress = 0;
       document.getElementById('cast-bar-container').style.display = 'block';
       document.getElementById('cast-name').innerText = `RITE: ${spec.name.toUpperCase()}`;
@@ -2763,17 +2822,17 @@ export function initGame() {
         age: 0,
         maxAge: 0.22,
       });
-    } else if (spec.kind === 'shield' || spec.kind === 'thornbark') {
+    } else if (spec.kind === 'shield' || spec.kind === 'thornbark' || spec.kind === 'reactive_barrier' || spec.kind === 'iron_fortify' || spec.kind === 'treant_form') {
       audio.playShield();
     } else if (spec.kind === 'heal' || spec.kind === 'heal_glimmer' || spec.kind === 'timeloop') {
       audio.playChime();
-    } else if (spec.kind === 'stealth') {
+    } else if (spec.kind === 'stealth' || spec.kind === 'stealth_burst' || spec.kind === 'voidform') {
       audio.playStealth();
-    } else if (spec.kind === 'frost_nova') {
+    } else if (spec.kind === 'frost_nova' || spec.kind === 'stasis_bubble') {
       audio.playFreeze();
-    } else if (spec.kind === 'dash' || spec.kind === 'shadow_step') {
+    } else if (spec.kind === 'dash' || spec.kind === 'shadow_step' || spec.kind === 'dash_cleave' || spec.kind === 'rift_teleport') {
       audio.playDash();
-    } else if (spec.kind === 'nova') {
+    } else if (spec.kind === 'nova' || spec.kind === 'cleanse_sprint' || spec.kind === 'archon_form' || spec.kind === 'colossus_stomp' || spec.kind === 'apotheosis' || spec.kind === 'continental_quake' || spec.kind === 'singularity_collapse' || spec.kind === 'supernova') {
       audio.playZenith();
     }
 
@@ -3011,6 +3070,251 @@ export function initGame() {
         const drainHeal = Math.max(2, Math.round(dmg * 0.6));
         player.hp = Math.min(player.maxHp, player.hp + drainHeal);
         spawnFCT(player.x, player.y - 8, `+${drainHeal} SIPHON`, '#4ade80');
+      }
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'reactive_barrier') {
+      const shieldVal = 18 + eff.bastion * 3 + rank * 4;
+      player.shield = shieldVal;
+      player.rebukeTimer = 4.0;
+      spawnSparkBurst(player.x, player.y - 8, ['#facc15', '#fef08a', '#ffffff'], 16);
+      spawnFCT(player.x, player.y - 10, `☀️ REBUKE (+${shieldVal})`, spec.color || '#facc15');
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'cleanse_sprint') {
+      player.slowTimer = 0; player.snareTimer = 0; player.weakenTimer = 0;
+      player.auroraStrideTimer = 4.0;
+      spawnSparkBurst(player.x, player.y - 6, ['#fef08a', '#ffffff'], 12);
+      spawnFCT(player.x, player.y - 10, '✨ AURORA STRIDE (+50% SPD)!', '#fef08a');
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'archon_form') {
+      player.solarAscensionTimer = 8.0;
+      for (const s of [9, 10, 11, 12]) cooldowns[s] = 0;
+      spawnSparkBurst(player.x, player.y - 8, ['#fde047', '#facc15', '#ffffff'], 24);
+      spawnFCT(player.x, player.y - 14, '👑 SOLAR ASCENSION APEX ARCHON!', '#fde047', true);
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'stealth_burst') {
+      player.abyssalShroudTimer = 2.0;
+      player.stealthed = true;
+      setTimeout(() => { if (!net.connected) player.stealthed = false; }, 2000);
+      spawnSmokeBurst(player.x, player.y, 20);
+      spawnFCT(player.x, player.y - 10, '🌫️ ABYSSAL SHROUD (100% DODGE)!', '#9333ea', true);
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'dash_cleave') {
+      const { dx, dy } = getFacingVector();
+      const dist = 10 * YARD_PX;
+      const startX = player.x;
+      const startY = player.y;
+      player.x = Math.max(-mapBounds.halfW + 16, Math.min(mapBounds.halfW - 16, player.x + dx * dist));
+      player.y = Math.max(-mapBounds.halfH + 16, Math.min(mapBounds.halfH - 16, player.y + dy * dist));
+      for (let s = 0; s < 4; s++) {
+        afterimages.push({ x: startX + (player.x - startX) * (s / 4), y: startY + (player.y - startY) * (s / 4), dir: player.dir, age: 0, maxAge: 0.3 });
+      }
+      for (const e of [...entities]) {
+        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
+          if (Math.hypot(e.x - player.x, e.y - player.y) <= 80) {
+            damageOfflineEntity(e, Math.max(5, 12 + eff.power * 2 + rank * 3), true, false, spec.name);
+          }
+        }
+      }
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'voidform') {
+      player.voidformTimer = 8.0;
+      player.stealthed = true;
+      setTimeout(() => { if (!net.connected) player.stealthed = false; }, 8000);
+      spawnSmokeBurst(player.x, player.y, 24);
+      spawnFCT(player.x, player.y - 14, '👑 AVATAR OF THE VOID!', '#a855f7', true);
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'iron_fortify') {
+      player.rootedBastionTimer = 3.5;
+      spawnFCT(player.x, player.y - 10, '🌳 ROOTED BASTION (-40% DMG / CC IMMUNE)!', '#15803d', true);
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'bramble_burst') {
+      const burstRad = 8 * YARD_PX;
+      groundZones.push({ id: `off_ring_${Date.now()}`, type: 'shockwave', color: '#4ade80', x: player.x, y: player.y, radius: burstRad, age: 0, maxAge: 0.35 });
+      spawnFCT(player.x, player.y - 10, '🌿 BRAMBLE REVERSAL!', '#4ade80');
+      for (const e of [...entities]) {
+        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
+          if (Math.hypot(e.x - player.x, e.y - player.y) <= burstRad) {
+            damageOfflineEntity(e, 8 + eff.power + rank * 2, false, false, spec.name);
+          }
+        }
+      }
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'colossus_stomp') {
+      const stompRad = 10 * YARD_PX;
+      groundZones.push({ id: `off_ring_${Date.now()}`, type: 'shockwave', color: '#84cc16', x: player.x, y: player.y, radius: stompRad, age: 0, maxAge: 0.4 });
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 25);
+      spawnFCT(player.x, player.y - 10, '🪨 IRONWOOD COLOSSUS!', '#84cc16', true);
+      for (const e of [...entities]) {
+        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
+          if (Math.hypot(e.x - player.x, e.y - player.y) <= stompRad) {
+            damageOfflineEntity(e, 14 + eff.power * 2 + rank * 3, true, false, spec.name);
+          }
+        }
+      }
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'treant_form') {
+      player.shield = 250;
+      player.thornbark = true;
+      player.treantFormTimer = 8.0;
+      spawnFCT(player.x, player.y - 14, '👑 AVATAR OF THE IRONWOOD!', '#22c55e', true);
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'ethereal_jaunt') {
+      player.phaseShiftTimer = 1.2;
+      spawnSparkBurst(player.x, player.y - 8, ['#7dd3fc', '#bae6fd'], 12);
+      spawnFCT(player.x, player.y - 10, '🌌 PHASE SHIFT (UNTOUCHABLE)!', '#7dd3fc');
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'rift_teleport') {
+      const { dx, dy } = getFacingVector();
+      const dist = 11 * YARD_PX;
+      const startX = player.x;
+      const startY = player.y;
+      player.x = Math.max(-mapBounds.halfW + 16, Math.min(mapBounds.halfW - 16, player.x + dx * dist));
+      player.y = Math.max(-mapBounds.halfH + 16, Math.min(mapBounds.halfH - 16, player.y + dy * dist));
+      groundZones.push({ id: `off_gz_${Date.now()}`, type: 'frost_ring', color: '#38bdf8', x: startX, y: startY, radius: 48, age: 0, maxAge: 4.0 });
+      for (const e of [...entities]) {
+        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
+          if (Math.hypot(e.x - startX, e.y - startY) <= 52) {
+            damageOfflineEntity(e, 8 + eff.power + rank * 2, false, false, spec.name);
+          }
+        }
+      }
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'apotheosis') {
+      player.temporalApotheosisTimer = 8.0;
+      for (const s of ACTION_SLOTS) {
+        if (s !== slot) cooldowns[s] = 0;
+      }
+      spawnSparkBurst(player.x, player.y - 8, ['#e0f2fe', '#38bdf8', '#c084fc'], 24);
+      spawnFCT(player.x, player.y - 14, '👑 TEMPORAL APOTHEOSIS!', '#e0f2fe', true);
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'scythe_wave') {
+      const waveAngle = getFacingVector().angle;
+      slashArcs.push({ x: player.x, y: player.y - 6, angle: waveAngle, color: '#9333ea', age: 0, maxAge: 0.35 });
+      spawnFCT(player.x, player.y - 8, '🌑 ECLIPSE HARVESTER!', '#9333ea', true);
+      for (const e of [...entities]) {
+        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
+          if (Math.hypot(e.x - player.x, e.y - player.y) <= 20 * YARD_PX) {
+            damageOfflineEntity(e, 14 + eff.power * 2 + rank * 3, true, true, spec.name);
+          }
+        }
+      }
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'singularity_collapse') {
+      groundZones.push({ id: `off_gz_${Date.now()}`, type: 'gravity', color: '#c084fc', spellName: spec.name, x: player.x, y: player.y, radius: 16 * YARD_PX, tickDmg: 8 + rank * 2, age: 0, maxAge: 3.5, tickTimer: 0.2 });
+      spawnFCT(player.x, player.y - 12, '🌌 VOID ANNIHILATION APEX!', '#c084fc', true);
+      for (const e of [...entities]) {
+        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
+          if (Math.hypot(e.x - player.x, e.y - player.y) <= 16 * YARD_PX) {
+            damageOfflineEntity(e, 50 + eff.power * 3 + rank * 4, true, true, spec.name);
+          }
+        }
+      }
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'fissure_line') {
+      const { dx, dy } = getFacingVector();
+      spawnFCT(player.x, player.y - 8, '⛰️ TECTONIC FISSURE!', '#65a30d', true);
+      for (let step = 1; step <= 5; step++) {
+        const fx = player.x + dx * step * 28;
+        const fy = player.y + dy * step * 28;
+        groundZones.push({ id: `off_gz_${Date.now()}_${step}`, type: 'briar', color: '#65a30d', spellName: 'Tectonic Fissure', x: fx, y: fy, radius: 32, tickDmg: 4 + rank, age: 0, maxAge: 5.0, tickTimer: 0.3 });
+      }
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'continental_quake') {
+      const quakeRad = 16 * YARD_PX;
+      groundZones.push({ id: `off_ring_${Date.now()}`, type: 'shockwave', color: '#4ade80', x: player.x, y: player.y, radius: quakeRad, age: 0, maxAge: 0.6 });
+      spawnFCT(player.x, player.y - 12, '🌳 WRATH OF GAIA APEX!', '#4ade80', true);
+      for (const e of [...entities]) {
+        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
+          if (Math.hypot(e.x - player.x, e.y - player.y) <= quakeRad) {
+            e.frozen = true;
+            e.freezeTimer = 3.0;
+            damageOfflineEntity(e, 48 + eff.power * 3 + rank * 4, true, true, spec.name);
+          }
+        }
+      }
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'supernova') {
+      const cx = acquiredTarget ? acquiredTarget.x : player.x;
+      const cy = acquiredTarget ? acquiredTarget.y : player.y;
+      groundZones.push({ id: `off_ring_${Date.now()}`, type: 'shockwave', color: '#38bdf8', x: cx, y: cy, radius: 13 * YARD_PX, age: 0, maxAge: 0.5 });
+      spawnFCT(cx, cy - 10, '💥 SUPERNOVA COLLAPSE!', '#38bdf8', true);
+      for (const e of [...entities]) {
+        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
+          if (Math.hypot(e.x - cx, e.y - cy) <= 13 * YARD_PX) {
+            damageOfflineEntity(e, 16 + Math.round(eff.power * 1.8) + rank * 3, true, true, spec.name);
+          }
+        }
+      }
+      updatePlayerUI();
+      return;
+    }
+
+    if (spec.kind === 'stasis_bubble') {
+      const stasisRad = 14 * YARD_PX;
+      groundZones.push({ id: `off_gz_${Date.now()}`, type: 'frost_ring', color: '#0284c7', x: player.x, y: player.y, radius: stasisRad, age: 0, maxAge: 3.5 });
+      spawnFCT(player.x, player.y - 12, '🌌 CHRONO STASIS APEX!', '#7dd3fc', true);
+      for (const e of [...entities]) {
+        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
+          if (Math.hypot(e.x - player.x, e.y - player.y) <= stasisRad) {
+            e.frozen = true;
+            e.freezeTimer = 3.5;
+            damageOfflineEntity(e, 50 + eff.power * 3 + rank * 4, true, true, spec.name);
+          }
+        }
       }
       updatePlayerUI();
       return;
@@ -3378,7 +3682,8 @@ export function initGame() {
 
     // Audio chime fanfare for dopamine hit!
     audio.playChime();
-    spawnFCT(player.x, player.y - 14, `★ ${spec.name.toUpperCase()} (RANK ${newRank})!`, spec.color || '#facc15', true);
+    spawnSparkBurst(player.x, player.y - 8, [spec.color || '#fde047', '#ffffff', '#facc15'], 24);
+    spawnFCT(player.x, player.y - 14, `★ ${spec.name.toUpperCase()} (RANK ${newRank}/5)!`, spec.color || '#facc15', true);
     logMessage(`🌟 Upgraded ${spec.name} to Rank ${newRank}/5!`, 'log-gain', 'combat');
 
     updateActionBarBadges();
@@ -3412,14 +3717,15 @@ export function initGame() {
       (ab) => ab.tree === targetTree && (ab.faction === myFaction || ab.faction === 'All')
     );
 
-    // Group by Tier (1 to 6)
+    // Group by Tier (1 to 7)
     const tiers = [
-      { tier: 1, reqLevel: 1 },
-      { tier: 2, reqLevel: 3 },
-      { tier: 3, reqLevel: 6 },
-      { tier: 4, reqLevel: 12 },
-      { tier: 5, reqLevel: 18 },
-      { tier: 6, reqLevel: 24 },
+      { tier: 1, reqLevel: 1, name: 'NOVICE' },
+      { tier: 2, reqLevel: 3, name: 'INITIATE' },
+      { tier: 3, reqLevel: 6, name: 'ADEPT' },
+      { tier: 4, reqLevel: 12, name: 'VANGUARD' },
+      { tier: 5, reqLevel: 18, name: 'MASTER' },
+      { tier: 6, reqLevel: 24, name: 'CHAMPION' },
+      { tier: 7, reqLevel: 30, name: 'APEX ULTIMATE' },
     ];
 
     let html = '';
@@ -3431,16 +3737,16 @@ export function initGame() {
       const tierUnlocked = (prog.level || 1) >= t.reqLevel;
 
       html += `
-        <div class="d2-tier-row">
-          <div class="d2-tier-header">
+        <div class="d2-tier-row" style="${t.tier === 7 ? 'border: 2px solid #ca8a04; background: rgba(30, 20, 5, 0.85); box-shadow: 0 0 15px rgba(234, 179, 8, 0.2);' : ''}">
+          <div class="d2-tier-header" style="${t.tier === 7 ? 'border-bottom-color: #854d0e;' : ''}">
             <div>
-              <span style="color:#fde047; font-weight:800;">TIER ${t.tier}</span>
+              <span style="color:${t.tier === 7 ? '#fde047' : '#facc15'}; font-weight:800;">${t.tier === 7 ? '★ ' : ''}TIER ${t.tier}: ${t.name}</span>
               <span style="color:#94a3b8; margin-left:8px;">(Requires Champion Level ${t.reqLevel})</span>
             </div>
             <div>
               ${tierUnlocked
-                ? `<span style="color:#4ade80; font-size:10px;">✓ UNLOCKED</span>`
-                : `<span style="color:#ef4444; font-size:10px;">🔒 LOCKED (Level ${t.reqLevel})</span>`}
+                ? `<span style="color:#4ade80; font-size:10px; font-weight:bold;">✓ UNLOCKED</span>`
+                : `<span style="color:#ef4444; font-size:10px; font-weight:bold;">🔒 LOCKED (Level ${t.reqLevel})</span>`}
             </div>
           </div>
           <div class="d2-skills-grid">
@@ -4096,6 +4402,36 @@ export function initGame() {
       }
     }
 
+    if (player.rebukeTimer > 0) player.rebukeTimer = Math.max(0, player.rebukeTimer - dt);
+    if (player.auroraStrideTimer > 0) player.auroraStrideTimer = Math.max(0, player.auroraStrideTimer - dt);
+    if (player.solarAscensionTimer > 0) {
+      player.solarAscensionTimer = Math.max(0, player.solarAscensionTimer - dt);
+      player.ascensionPulse = (player.ascensionPulse || 0) + dt;
+      if (player.ascensionPulse >= 1.2) {
+        player.ascensionPulse = 0;
+        spawnSparkBurst(player.x, player.y - 6, ['#facc15', '#fef08a', '#ffffff'], 12);
+        for (const e of entities) {
+          if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
+            if (Math.hypot(e.x - player.x, e.y - player.y) <= 64) {
+              damageOfflineEntity(e, 6, false, false, 'Solar Radiance Pulse');
+            }
+          }
+        }
+      }
+    }
+    if (player.abyssalShroudTimer > 0) player.abyssalShroudTimer = Math.max(0, player.abyssalShroudTimer - dt);
+    if (player.voidformTimer > 0) player.voidformTimer = Math.max(0, player.voidformTimer - dt);
+    if (player.rootedBastionTimer > 0) player.rootedBastionTimer = Math.max(0, player.rootedBastionTimer - dt);
+    if (player.treantFormTimer > 0) player.treantFormTimer = Math.max(0, player.treantFormTimer - dt);
+    if (player.phaseShiftTimer > 0) player.phaseShiftTimer = Math.max(0, player.phaseShiftTimer - dt);
+    if (player.temporalApotheosisTimer > 0) player.temporalApotheosisTimer = Math.max(0, player.temporalApotheosisTimer - dt);
+
+    // Terra Primal Bastion Passive Health Regeneration (0.5 HP/s per point)
+    const hpRegen = calcHpRegenPerSec(prog);
+    if (hpRegen > 0 && !player.isDead && player.hp < player.maxHp) {
+      player.hp = Math.min(player.maxHp, player.hp + hpRegen * dt);
+    }
+
     if (player.slashTimer > 0) player.slashTimer = Math.max(0, player.slashTimer - dt);
 
     if (isCasting) {
@@ -4145,8 +4481,10 @@ export function initGame() {
         my /= len;
 
         const eff = getEffectiveStats(prog, localProfile.equipment, localProfile.classId);
-        const tempoSpeed = player.baseSpeed * (1 + eff.tempo * 0.03);
-        const spd = tempoSpeed * (inputs.shift ? player.sprintMult : 1);
+        const umbriSpeedMult = calcMoveSpeedMult(prog);
+        const sprintBonus = player.auroraStrideTimer > 0 || player.temporalApotheosisTimer > 0 ? 1.5 : (inputs.shift ? player.sprintMult : 1);
+        const tempoSpeed = player.baseSpeed * (1 + eff.tempo * 0.03) * umbriSpeedMult;
+        const spd = tempoSpeed * sprintBonus;
         const stepDist = spd * dt;
 
         const GATE_HALF_WIDTH = 48;

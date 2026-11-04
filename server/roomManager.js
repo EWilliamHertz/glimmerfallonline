@@ -38,6 +38,14 @@ import {
   calcMaxGlimmer,
   calcCritChance,
   calcCdMult,
+  calcCastSpeedMult,
+  calcCritDamageMult,
+  calcDodgeChance,
+  calcDamageReduction,
+  calcLifeLeechPct,
+  calcHpRegenPerSec,
+  calcHolyRadianceBurstDmg,
+  calcMoveSpeedMult,
   isWaterTile,
 } from '../shared/protocol.js';
 
@@ -2337,6 +2345,9 @@ export class RoomManager {
         }
       }
 
+      const castSpeedMult = calcCastSpeedMult(player.prog) * (player.temporalApotheosisTimer > 0 ? 0.25 : 1.0);
+      const effectiveCastTime = Math.max(0.3, (spec.castTime || 1.0) * castSpeedMult);
+
       player.solarCharge -= spec.cost;
       player.cooldowns[slot] = spec.baseCd * cdMult;
       player.castState = {
@@ -2345,8 +2356,8 @@ export class RoomManager {
         spellName: spec.name,
         color: spec.color,
         targetId: tgt ? (tgt.kind === 'player' ? `p_${tgt.ref.id}` : tgt.ref.id) : targetId,
-        remaining: spec.castTime,
-        totalDuration: spec.castTime,
+        remaining: effectiveCastTime,
+        totalDuration: effectiveCastTime,
         effPower,
         effBastion: effStats.bastion,
         effResonance: effStats.resonance,
@@ -2361,7 +2372,7 @@ export class RoomManager {
         kind: 'cast_start',
         actorId: player.id,
         spellName: spec.name,
-        duration: spec.castTime,
+        duration: effectiveCastTime,
         color: spec.color,
       });
       return;
@@ -2369,7 +2380,7 @@ export class RoomManager {
 
     // FLASHES EXECUTE INSTANTLY (castTime === 0)
     const wasStealthed = player.stealthedTimer > 0;
-    if (spec.kind !== 'stealth') {
+    if (spec.kind !== 'stealth' && spec.kind !== 'stealth_burst') {
       player.stealthedTimer = 0; // Attacking breaks stealth
     }
 
@@ -2394,7 +2405,8 @@ export class RoomManager {
           let base = Math.max(2, Math.floor(Math.random() * 4) + 3 + effPower + rank * 2);
           if (wasStealthed) base = Math.round(base * 1.45);
           const isCrit = wasStealthed || Math.random() < critChance;
-          const finalDmg = isCrit ? Math.round(base * 1.75) : base;
+          const critMult = isCrit ? calcCritDamageMult(player.prog) : 1.0;
+          const finalDmg = isCrit ? Math.round(base * critMult) : base;
           this.applyAuthoritativeDamage(room, player, h, finalDmg, isCrit, spec.name, false);
           if (wasStealthed) {
             room.fxQueue.push({ kind: 'fct', x: h.ref.x, y: h.ref.y - 12, text: 'AMBUSH!', color: '#c084fc', isCrit: true });
@@ -2470,7 +2482,7 @@ export class RoomManager {
       return;
     }
 
-    // 4. DASH / BLINK / WILDSHAPE SURGE
+    // 4. DASH / BLINK / WILDSHAPE SURGE / SOLAR INTERVENE
     if (spec.kind === 'dash') {
       player.cooldowns[slot] = spec.baseCd * cdMult;
       this.addPlayerGlimmer(room, player, spec.id === 'wildshape_surge' ? 15 : 12);
@@ -2500,6 +2512,9 @@ export class RoomManager {
         } else if (spec.id === 'blinding_radiance') {
           h.ref.weakenTimer = 5.0;
           room.fxQueue.push({ kind: 'fct', x: h.ref.x, y: h.ref.y - 8, text: 'BLINDED -2 ATK', color: '#bae6fd' });
+        } else if (spec.id === 'solar_intervene') {
+          player.shield = Math.max(player.shield, 12 + rank * 3);
+          player.shieldTimer = 6;
         }
       }
       return;
@@ -2541,6 +2556,179 @@ export class RoomManager {
       this.addPlayerGlimmer(room, player, 12);
       room.fxQueue.push({ kind: 'smoke', x: player.x, y: player.y, count: 16 });
       room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 10, text: '🌑 STEALTH (3.5s)', color: '#c084fc' });
+      return;
+    }
+
+    // 7. REACTIVE BARRIER (Sun Aegis Rebuke)
+    if (spec.kind === 'reactive_barrier') {
+      player.cooldowns[slot] = spec.baseCd * cdMult;
+      const shieldVal = 18 + effStats.bastion * 3 + rank * 4;
+      player.shield = shieldVal;
+      player.shieldTimer = 8;
+      player.rebukeTimer = 4.0;
+      this.addPlayerGlimmer(room, player, 15);
+      room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 8, colors: ['#facc15', '#fef08a', '#ffffff'], count: 16 });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 10, text: `☀️ SUN AEGIS REBUKE (+${shieldVal})`, color: '#facc15' });
+      return;
+    }
+
+    // 8. CLEANSE SPRINT (Aurora Stride)
+    if (spec.kind === 'cleanse_sprint') {
+      player.cooldowns[slot] = spec.baseCd * cdMult;
+      player.slowTimer = 0;
+      player.snareTimer = 0;
+      player.weakenTimer = 0;
+      player.auroraStrideTimer = 4.0;
+      this.addPlayerGlimmer(room, player, 15);
+      room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 6, colors: ['#fef08a', '#ffffff'] });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 10, text: '✨ AURORA STRIDE (+50% SPD)!', color: '#fef08a' });
+      return;
+    }
+
+    // 9. ARCHON FORM (Solar Ascension Apex)
+    if (spec.kind === 'archon_form') {
+      player.cooldowns[slot] = spec.baseCd * cdMult;
+      player.solarAscensionTimer = 8.0;
+      for (const s of [9, 10, 11, 12]) player.cooldowns[s] = 0;
+      this.addPlayerGlimmer(room, player, 40);
+      room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 8, colors: ['#fde047', '#facc15', '#ffffff'], count: 24 });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: '👑 SOLAR ASCENSION APEX ARCHON!', color: '#fde047', isCrit: true });
+      return;
+    }
+
+    // 10. STEALTH BURST (Abyssal Shroud)
+    if (spec.kind === 'stealth_burst') {
+      player.cooldowns[slot] = spec.baseCd * cdMult;
+      player.abyssalShroudTimer = 2.0;
+      player.stealthedTimer = 2.0;
+      this.addPlayerGlimmer(room, player, 15);
+      room.fxQueue.push({ kind: 'smoke', x: player.x, y: player.y, count: 20 });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 10, text: '🌫️ ABYSSAL SHROUD (100% DODGE)!', color: '#9333ea', isCrit: true });
+      return;
+    }
+
+    // 11. DASH CLEAVE (Eclipse Reap)
+    if (spec.kind === 'dash_cleave') {
+      player.cooldowns[slot] = spec.baseCd * cdMult;
+      const { dx, dy } = getDirAngle(player.dir);
+      const dist = 10 * YARD_PX;
+      const startX = player.x;
+      const startY = player.y;
+      player.x = Math.max(-room.halfW + 16, Math.min(room.halfW - 16, player.x + dx * dist));
+      player.y = Math.max(-room.halfH + 16, Math.min(room.halfH - 16, player.y + dy * dist));
+      room.fxQueue.push({ kind: 'dash', actorId: player.id, fromX: startX, fromY: startY, toX: player.x, toY: player.y, dir: player.dir, color: '#c084fc' });
+      this.addPlayerGlimmer(room, player, 18);
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, 80)) {
+        const reapDmg = Math.max(5, 12 + effPower * 2 + rank * 3);
+        this.applyAuthoritativeDamage(room, player, h, reapDmg, true, 'Eclipse Reap', false);
+      }
+      return;
+    }
+
+    // 12. VOIDFORM (Avatar of the Void Apex)
+    if (spec.kind === 'voidform') {
+      player.cooldowns[slot] = spec.baseCd * cdMult;
+      player.voidformTimer = 8.0;
+      player.stealthedTimer = 8.0;
+      this.addPlayerGlimmer(room, player, 40);
+      room.fxQueue.push({ kind: 'smoke', x: player.x, y: player.y, count: 24 });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: '👑 AVATAR OF THE VOID!', color: '#a855f7', isCrit: true });
+      return;
+    }
+
+    // 13. IRON FORTIFY (Rooted Bastion)
+    if (spec.kind === 'iron_fortify') {
+      player.cooldowns[slot] = spec.baseCd * cdMult;
+      player.rootedBastionTimer = 3.5;
+      player.slowTimer = 0;
+      player.snareTimer = 0;
+      this.addPlayerGlimmer(room, player, 16);
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 10, text: '🌳 ROOTED BASTION (-40% DMG / CC IMMUNE)!', color: '#15803d', isCrit: true });
+      return;
+    }
+
+    // 14. BRAMBLE BURST (Bramble Reversal)
+    if (spec.kind === 'bramble_burst') {
+      player.cooldowns[slot] = spec.baseCd * cdMult;
+      const burstRad = 8 * YARD_PX;
+      room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'shockwave', color: '#4ade80', ownerId: player.id, x: player.x, y: player.y, radius: burstRad, age: 0, maxAge: 0.35 });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 10, text: '🌿 BRAMBLE REVERSAL!', color: '#4ade80' });
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, burstRad)) {
+        h.ref.snareTimer = 4.0;
+        const d = Math.hypot(h.ref.x - player.x, h.ref.y - player.y);
+        if (h.kind === 'entity' && h.ref.type === 'mob' && d > 1) {
+          h.ref.x += ((h.ref.x - player.x) / d) * 28;
+          h.ref.y += ((h.ref.y - player.y) / d) * 28;
+        }
+        this.applyAuthoritativeDamage(room, player, h, 8 + effPower + rank * 2, false, 'Bramble Reversal', false);
+      }
+      return;
+    }
+
+    // 15. COLOSSUS STOMP (Ironwood Colossus)
+    if (spec.kind === 'colossus_stomp') {
+      player.cooldowns[slot] = spec.baseCd * cdMult;
+      const stompRad = 10 * YARD_PX;
+      room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'shockwave', color: '#84cc16', ownerId: player.id, x: player.x, y: player.y, radius: stompRad, age: 0, maxAge: 0.4 });
+      this.addPlayerGlimmer(room, player, 25);
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 10, text: '🪨 IRONWOOD COLOSSUS!', color: '#84cc16', isCrit: true });
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, stompRad)) {
+        this.applyAuthoritativeDamage(room, player, h, 14 + effPower * 2 + rank * 3, true, 'Ironwood Colossus', false);
+      }
+      return;
+    }
+
+    // 16. TREANT FORM (Avatar of the Ironwood Apex)
+    if (spec.kind === 'treant_form') {
+      player.cooldowns[slot] = spec.baseCd * cdMult;
+      player.shield = 250;
+      player.shieldTimer = 12;
+      player.thornbarkTimer = 8.0;
+      player.treantFormTimer = 8.0;
+      this.addPlayerGlimmer(room, player, 40);
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: '👑 AVATAR OF THE IRONWOOD!', color: '#22c55e', isCrit: true });
+      return;
+    }
+
+    // 17. ETHEREAL JAUNT (Phase Shift)
+    if (spec.kind === 'ethereal_jaunt') {
+      player.cooldowns[slot] = spec.baseCd * cdMult;
+      player.phaseShiftTimer = 1.2;
+      this.addPlayerGlimmer(room, player, 16);
+      room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 8, colors: ['#7dd3fc', '#bae6fd'] });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 10, text: '🌌 PHASE SHIFT (UNTOUCHABLE)!', color: '#7dd3fc' });
+      return;
+    }
+
+    // 18. RIFT TELEPORT (Chrono Rift)
+    if (spec.kind === 'rift_teleport') {
+      player.cooldowns[slot] = spec.baseCd * cdMult;
+      const { dx, dy } = getDirAngle(player.dir);
+      const riftDist = 11 * YARD_PX;
+      const startX = player.x;
+      const startY = player.y;
+      player.x = Math.max(-room.halfW + 16, Math.min(room.halfW - 16, player.x + dx * riftDist));
+      player.y = Math.max(-room.halfH + 16, Math.min(room.halfH - 16, player.y + dy * riftDist));
+      room.fxQueue.push({ kind: 'dash', actorId: player.id, fromX: startX, fromY: startY, toX: player.x, toY: player.y, dir: player.dir, color: '#38bdf8' });
+      this.addPlayerGlimmer(room, player, 20);
+      room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'frost_ring', color: '#38bdf8', ownerId: player.id, x: startX, y: startY, radius: 48, age: 0, maxAge: 4.0 });
+      for (const h of this.getAllHostilesInRadius(room, player, startX, startY, 52)) {
+        h.ref.slowTimer = 3.5;
+        this.applyAuthoritativeDamage(room, player, h, 8 + effPower + rank * 2, false, 'Chrono Rift', false);
+      }
+      return;
+    }
+
+    // 19. APOTHEOSIS (Temporal Apotheosis Apex)
+    if (spec.kind === 'apotheosis') {
+      player.cooldowns[slot] = spec.baseCd * cdMult;
+      player.temporalApotheosisTimer = 8.0;
+      for (const s of ACTION_SLOTS) {
+        if (s !== slot) player.cooldowns[s] = 0;
+      }
+      this.addPlayerGlimmer(room, player, 40);
+      room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 8, colors: ['#e0f2fe', '#38bdf8', '#c084fc'], count: 24 });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: '👑 TEMPORAL APOTHEOSIS!', color: '#e0f2fe', isCrit: true });
       return;
     }
   }
@@ -2724,6 +2912,163 @@ export class RoomManager {
       this.parties.syncPlayerVitals(player.id);
       return;
     }
+
+    // 8. SCYTHE WAVE RITE (Eclipse Harvester)
+    if (spec.kind === 'scythe_wave') {
+      const tgt = this.findHostileTargetById(room, player, cs.targetId);
+      const waveAngle = tgt ? Math.atan2(tgt.ref.y - player.y, tgt.ref.x - player.x) : (player.dir === 'up' ? -Math.PI/2 : player.dir === 'down' ? Math.PI/2 : player.dir === 'left' ? Math.PI : 0);
+      room.fxQueue.push({ kind: 'slash', x: player.x, y: player.y - 6, angle: waveAngle, color: '#9333ea', actorId: player.id });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 8, text: '🌑 ECLIPSE HARVESTER!', color: '#9333ea', isCrit: true });
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, 20 * YARD_PX)) {
+        const ang = Math.atan2(h.ref.y - player.y, h.ref.x - player.x);
+        if (Math.abs(Math.atan2(Math.sin(ang - waveAngle), Math.cos(ang - waveAngle))) < 1.35) {
+          const dmg = Math.max(6, 14 + Math.round(effPower * 1.6) + rank * 3);
+          this.applyAuthoritativeDamage(room, player, h, dmg, true, spec.name, true);
+        }
+      }
+      return;
+    }
+
+    // 9. SINGULARITY COLLAPSE RITE (Void Annihilation Apex)
+    if (spec.kind === 'singularity_collapse') {
+      const zx = player.x;
+      const zy = player.y;
+      room.groundZones.push({
+        id: `gz_${crypto.randomUUID().slice(0, 6)}`,
+        type: 'gravity',
+        color: '#c084fc',
+        spellName: spec.name,
+        ownerId: player.id,
+        x: zx,
+        y: zy,
+        radius: 16 * YARD_PX,
+        tickDmg: 8 + rank * 2,
+        age: 0,
+        maxAge: 3.5,
+        tickTimer: 0.2,
+      });
+      room.fxQueue.push({ kind: 'fct', x: zx, y: zy - 12, text: '🌌 VOID ANNIHILATION APEX!', color: '#c084fc', isCrit: true });
+      for (const h of this.getAllHostilesInRadius(room, player, zx, zy, 16 * YARD_PX)) {
+        const d = Math.hypot(h.ref.x - zx, h.ref.y - zy);
+        if (h.kind === 'entity' && h.ref.type === 'mob' && d > 4) {
+          h.ref.x += ((zx - h.ref.x) / d) * 32;
+          h.ref.y += ((zy - h.ref.y) / d) * 32;
+        }
+        const apexDmg = Math.max(10, 50 + effPower * 3 + rank * 4);
+        this.applyAuthoritativeDamage(room, player, h, apexDmg, true, spec.name, true);
+      }
+      return;
+    }
+
+    // 10. FISSURE LINE RITE (Tectonic Fissure)
+    if (spec.kind === 'fissure_line') {
+      const getDirAngle = (dir) => {
+        if (dir === 'up') return { dx: 0, dy: -1 };
+        if (dir === 'down') return { dx: 0, dy: 1 };
+        if (dir === 'left') return { dx: -1, dy: 0 };
+        return { dx: 1, dy: 0 };
+      };
+      const { dx, dy } = getDirAngle(player.dir);
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 8, text: '⛰️ TECTONIC FISSURE!', color: '#65a30d', isCrit: true });
+      for (let step = 1; step <= 5; step++) {
+        const fx = player.x + dx * step * 28;
+        const fy = player.y + dy * step * 28;
+        room.groundZones.push({
+          id: `gz_${crypto.randomUUID().slice(0, 6)}`,
+          type: 'briar',
+          color: '#65a30d',
+          spellName: 'Tectonic Fissure',
+          ownerId: player.id,
+          x: fx,
+          y: fy,
+          radius: 32,
+          tickDmg: 4 + rank + Math.floor(effPower * 0.4),
+          age: 0,
+          maxAge: 5.0,
+          tickTimer: 0.3,
+        });
+        for (const h of this.getAllHostilesInRadius(room, player, fx, fy, 32)) {
+          this.applyAuthoritativeDamage(room, player, h, 10 + effPower + rank * 2, false, 'Tectonic Fissure', true);
+        }
+      }
+      return;
+    }
+
+    // 11. CONTINENTAL QUAKE RITE (Wrath of Gaia Apex)
+    if (spec.kind === 'continental_quake') {
+      const quakeRad = 16 * YARD_PX;
+      room.groundZones.push({
+        id: `gz_${crypto.randomUUID().slice(0, 6)}`,
+        type: 'shockwave',
+        color: '#4ade80',
+        ownerId: player.id,
+        x: player.x,
+        y: player.y,
+        radius: quakeRad,
+        age: 0,
+        maxAge: 0.6,
+      });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 12, text: '🌳 WRATH OF GAIA APEX!', color: '#4ade80', isCrit: true });
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, quakeRad)) {
+        const apexDmg = Math.max(10, 48 + effPower * 3 + rank * 4);
+        this.applyAuthoritativeDamage(room, player, h, apexDmg, true, spec.name, true);
+        if (h.kind === 'entity' && h.ref.type === 'mob') {
+          h.ref.freezeTimer = 3.0;
+          room.fxQueue.push({ kind: 'fct', x: h.ref.x, y: h.ref.y - 10, text: 'STUNNED (3s)!', color: '#86efac' });
+        }
+      }
+      return;
+    }
+
+    // 12. SUPERNOVA RITE (Supernova Collapse)
+    if (spec.kind === 'supernova') {
+      const tgt = this.findHostileTargetById(room, player, cs.targetId);
+      const cx = tgt ? tgt.ref.x : player.x;
+      const cy = tgt ? tgt.ref.y : player.y;
+      room.groundZones.push({
+        id: `gz_${crypto.randomUUID().slice(0, 6)}`,
+        type: 'shockwave',
+        color: '#38bdf8',
+        ownerId: player.id,
+        x: cx,
+        y: cy,
+        radius: 13 * YARD_PX,
+        age: 0,
+        maxAge: 0.5,
+      });
+      room.fxQueue.push({ kind: 'fct', x: cx, y: cy - 10, text: '💥 SUPERNOVA COLLAPSE!', color: '#38bdf8', isCrit: true });
+      for (const h of this.getAllHostilesInRadius(room, player, cx, cy, 13 * YARD_PX)) {
+        const dmg = Math.max(8, 16 + Math.round(effPower * 1.8) + rank * 3);
+        this.applyAuthoritativeDamage(room, player, h, dmg, true, spec.name, true);
+      }
+      return;
+    }
+
+    // 13. STASIS BUBBLE RITE (Chrono Stasis Singularity Apex)
+    if (spec.kind === 'stasis_bubble') {
+      const stasisRad = 14 * YARD_PX;
+      room.groundZones.push({
+        id: `gz_${crypto.randomUUID().slice(0, 6)}`,
+        type: 'frost_ring',
+        color: '#0284c7',
+        ownerId: player.id,
+        x: player.x,
+        y: player.y,
+        radius: stasisRad,
+        age: 0,
+        maxAge: 3.5,
+      });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 12, text: '🌌 CHRONO STASIS APEX!', color: '#7dd3fc', isCrit: true });
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, stasisRad)) {
+        if (h.kind === 'entity' && h.ref.type === 'mob') {
+          h.ref.freezeTimer = 3.5;
+          room.fxQueue.push({ kind: 'fct', x: h.ref.x, y: h.ref.y - 10, text: '⏳ TIME STOP!', color: '#38bdf8' });
+        }
+        const apexDmg = Math.max(10, 50 + effPower * 3 + rank * 4);
+        this.applyAuthoritativeDamage(room, player, h, apexDmg, true, spec.name, true);
+      }
+      return;
+    }
   }
 
   handleHarvestNode(room, player, nodeId) {
@@ -2807,11 +3152,28 @@ export class RoomManager {
       }
     }
 
-    // Umbri Faction Mechanic: Void Harvest (20% Rite life-leech!)
-    if (attackerPlayer && isRite && attackerPlayer.faction === 'Umbri' && !attackerPlayer.isDead) {
-      const leech = Math.max(1, Math.round(dmg * 0.2));
-      attackerPlayer.hp = Math.min(attackerPlayer.maxHp, attackerPlayer.hp + leech);
-      this.parties.syncPlayerVitals(attackerPlayer.id);
+    // Solari Paragon: Holy Radiance Burst on critical strike!
+    if (attackerPlayer && isCrit) {
+      const burstDmg = calcHolyRadianceBurstDmg(attackerPlayer.prog);
+      if (burstDmg > 0) {
+        room.fxQueue.push({ kind: 'spark', x: t.x, y: t.y, colors: ['#facc15', '#fef08a', '#ffffff'], count: 14 });
+        room.fxQueue.push({ kind: 'fct', x: t.x, y: t.y - 14, text: `☀️ HOLY BURST +${burstDmg}!`, color: '#facc15', isCrit: true });
+        for (const nearby of this.getAllHostilesInRadius(room, attackerPlayer, t.x, t.y, 48)) {
+          if (nearby.ref !== t) {
+            this.applyAuthoritativeDamage(room, attackerPlayer, nearby, burstDmg, false, 'Holy Radiance', false);
+          }
+        }
+      }
+    }
+
+    // Umbri Paragon: Void Leech on all damage dealt!
+    if (attackerPlayer && !attackerPlayer.isDead) {
+      const leechPct = calcLifeLeechPct(attackerPlayer.prog, attackerPlayer.faction) * (attackerPlayer.voidformTimer > 0 ? 2 : 1);
+      if (leechPct > 0) {
+        const leech = Math.max(1, Math.round(dmg * leechPct));
+        attackerPlayer.hp = Math.min(attackerPlayer.maxHp, attackerPlayer.hp + leech);
+        this.parties.syncPlayerVitals(attackerPlayer.id);
+      }
     }
 
     // Aether Faction Mechanic: Spell Echo!
@@ -2823,8 +3185,34 @@ export class RoomManager {
   damagePlayerSession(room, targetPlayer, amount, attackerName, isCrit = false, attackerRef = null) {
     if (targetPlayer.isDead || targetPlayer.hp <= 0) return;
 
+    // Umbri Paragon: Dodge Chance!
+    const dodgeChance = targetPlayer.abyssalShroudTimer > 0 ? 1.0 : calcDodgeChance(targetPlayer.prog);
+    if (dodgeChance > 0 && Math.random() < dodgeChance) {
+      room.fxQueue.push({ kind: 'fct', x: targetPlayer.x, y: targetPlayer.y - 12, text: '💨 DODGE!', color: '#c084fc', isCrit: true });
+      return;
+    }
+
+    // Terra Paragon & Buffs: Damage Reduction!
+    const dmgRedPct = calcDamageReduction(targetPlayer.prog) + (targetPlayer.rootedBastionTimer > 0 ? 0.40 : 0);
+    if (dmgRedPct > 0) {
+      amount = Math.max(1, Math.round(amount * (1 - Math.min(0.70, dmgRedPct))));
+    }
+
+    // Solari Sun Aegis Rebuke Reactive Counter
+    if (targetPlayer.rebukeTimer > 0 && attackerRef) {
+      const reb = Math.max(2, Math.round(amount * 0.4));
+      if (attackerRef.hp !== undefined && attackerRef.type === 'mob') {
+        this.applyAuthoritativeDamage(room, targetPlayer, { kind: 'entity', ref: attackerRef }, reb, false, 'Sun Rebuke', false);
+        attackerRef.weakenTimer = 4.0;
+      } else if (attackerRef.ws) {
+        attackerRef.hp = Math.max(1, attackerRef.hp - reb);
+        attackerRef.weakenTimer = 4.0;
+        room.fxQueue.push({ kind: 'fct', x: attackerRef.x, y: attackerRef.y - 8, text: `☀️ -${reb} REBUKE`, color: '#facc15' });
+      }
+    }
+
     // Terra Faction Mechanic: Thornbark damage reflection!
-    const reflectPct = targetPlayer.thornbarkTimer > 0 ? 0.35 : targetPlayer.faction === 'Terra' ? 0.15 : 0;
+    const reflectPct = targetPlayer.thornbarkTimer > 0 ? (targetPlayer.treantFormTimer > 0 ? 0.60 : 0.35) : targetPlayer.faction === 'Terra' ? 0.15 : 0;
     if (reflectPct > 0 && attackerRef) {
       const refl = Math.max(1, Math.round(amount * reflectPct));
       if (attackerRef.hp !== undefined && attackerRef.type === 'mob') {
@@ -2833,6 +3221,13 @@ export class RoomManager {
         attackerRef.hp = Math.max(1, attackerRef.hp - refl);
         room.fxQueue.push({ kind: 'fct', x: attackerRef.x, y: attackerRef.y - 8, text: `🌿 -${refl} THORNS`, color: '#4ade80' });
       }
+    }
+
+    // Cast Interruption on Heavy Hit or Crit
+    if (targetPlayer.castState && (isCrit || amount >= targetPlayer.maxHp * 0.18)) {
+      targetPlayer.castState = null;
+      targetPlayer.send({ type: 'cast_cancel' });
+      room.fxQueue.push({ kind: 'fct', x: targetPlayer.x, y: targetPlayer.y - 12, text: 'INTERRUPTED!', color: '#f87171' });
     }
 
     let rem = amount;
@@ -3388,6 +3783,31 @@ export class RoomManager {
       if (p.stealthedTimer > 0) p.stealthedTimer = Math.max(0, p.stealthedTimer - dt);
       if (p.thornbarkTimer > 0) p.thornbarkTimer = Math.max(0, p.thornbarkTimer - dt);
       if (p.zenithTimer > 0) p.zenithTimer = Math.max(0, p.zenithTimer - dt);
+      if (p.rebukeTimer > 0) p.rebukeTimer = Math.max(0, p.rebukeTimer - dt);
+      if (p.auroraStrideTimer > 0) p.auroraStrideTimer = Math.max(0, p.auroraStrideTimer - dt);
+      if (p.solarAscensionTimer > 0) {
+        p.solarAscensionTimer = Math.max(0, p.solarAscensionTimer - dt);
+        p.ascensionPulse = (p.ascensionPulse || 0) + dt;
+        if (p.ascensionPulse >= 1.2) {
+          p.ascensionPulse = 0;
+          room.fxQueue.push({ kind: 'spark', x: p.x, y: p.y - 6, colors: ['#facc15', '#fef08a', '#ffffff'], count: 12 });
+          for (const h of this.getAllHostilesInRadius(room, p, p.x, p.y, 64)) {
+            this.applyAuthoritativeDamage(room, p, h, 6, false, 'Solar Radiance Pulse', false);
+          }
+        }
+      }
+      if (p.abyssalShroudTimer > 0) p.abyssalShroudTimer = Math.max(0, p.abyssalShroudTimer - dt);
+      if (p.voidformTimer > 0) p.voidformTimer = Math.max(0, p.voidformTimer - dt);
+      if (p.rootedBastionTimer > 0) p.rootedBastionTimer = Math.max(0, p.rootedBastionTimer - dt);
+      if (p.treantFormTimer > 0) p.treantFormTimer = Math.max(0, p.treantFormTimer - dt);
+      if (p.phaseShiftTimer > 0) p.phaseShiftTimer = Math.max(0, p.phaseShiftTimer - dt);
+      if (p.temporalApotheosisTimer > 0) p.temporalApotheosisTimer = Math.max(0, p.temporalApotheosisTimer - dt);
+
+      // Terra Primal Bastion Passive Health Regeneration (0.5 HP/s per point)
+      const hpRegen = calcHpRegenPerSec(p.prog);
+      if (hpRegen > 0 && !p.isDead && p.hp < p.maxHp) {
+        p.hp = Math.min(p.maxHp, p.hp + hpRegen * dt);
+      }
 
       if (p.speechBubble && p.speechBubble.expiresAt <= now) p.speechBubble = null;
       if (p.activeEmote && p.activeEmote.expiresAt <= now) p.activeEmote = null;
