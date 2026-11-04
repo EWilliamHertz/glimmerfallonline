@@ -478,49 +478,49 @@ export class FrontpageController {
           <div class="fp-section-title">1. GLIMMERFALL ACCOUNT &amp; REALM</div>
 
           ${prof && !prof.isGuest ? `
-            <div style="background:#091224; border:1px solid #38bdf8; padding:7px 9px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="background:#091224; border:1px solid #38bdf8; padding:8px 10px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
               <div>
-                <div style="font-size:9.5px; color:#38bdf8; font-weight:bold;">✓ CONNECTED: @${prof.username}</div>
-                <div style="font-size:7.5px; color:#94a3b8;">Cloud Profile Synced</div>
+                <div style="font-size:11.5px; color:#38bdf8; font-weight:bold;">✓ CONNECTED: @${prof.username}</div>
+                <div style="font-size:10px; color:#94a3b8;">Champion Profile Synced</div>
               </div>
-              <button class="id-mini-btn" style="border-color:#ef4444; color:#fca5a5;" onclick="window._fp.handleLogout()">LOGOUT</button>
+              <button class="id-mini-btn" style="border-color:#ef4444; color:#fca5a5; font-size:10px;" onclick="window._fp.handleLogout()">LOGOUT</button>
             </div>
           ` : `
-            <div style="background:#060a16; border:1px solid #1e293b; padding:7px 8px; margin-bottom:8px; display:flex; flex-direction:column; gap:5px;">
-              <input id="fp-auth-user" class="pixel-input" placeholder="GlimmerFall ID Username" value="${prof?.username || ''}" maxlength="18" />
-              <input id="fp-auth-pass" class="pixel-input" type="password" placeholder="Password" maxlength="48" />
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
-                <button class="util-btn" style="font-size:8px; border-color:#facc15; color:#fde047;" onclick="window._fp.handleQuickAuth('register')">✨ REGISTER</button>
-                <button class="util-btn" style="font-size:8px; border-color:#38bdf8; color:#bae6fd;" onclick="window._fp.handleQuickAuth('login')">🔑 LOGIN</button>
+            <div style="background:#060a16; border:1px solid #1e293b; padding:8px 10px; margin-bottom:8px; display:flex; flex-direction:column; gap:6px;">
+              <input id="fp-auth-user" class="pixel-input" placeholder="GlimmerFall ID Username" value="${prof?.username || ''}" maxlength="18" style="font-size:11.5px; padding:6px 8px;" />
+              <input id="fp-auth-pass" class="pixel-input" type="password" placeholder="Password" maxlength="48" style="font-size:11.5px; padding:6px 8px;" />
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                <button class="util-btn" style="font-size:10.5px; border-color:#facc15; color:#fde047; padding:5px;" onclick="window._fp.handleQuickAuth('register')">✨ REGISTER</button>
+                <button class="util-btn" style="font-size:10.5px; border-color:#38bdf8; color:#bae6fd; padding:5px;" onclick="window._fp.handleQuickAuth('login')">🔑 LOGIN</button>
               </div>
-              ${this.authMessage ? `<div style="font-size:8px; color:#fde047; margin-top:2px;">${this.authMessage}</div>` : ''}
+              ${this.authMessage ? `<div style="font-size:10px; color:#fde047; margin-top:2px;">${this.authMessage}</div>` : ''}
             </div>
           `}
 
           <!-- REALM MODE SELECTOR: Single Player vs Multiplayer -->
-          <div style="font-size:8px; color:#94a3b8; margin-bottom:4px; font-weight:bold;">SELECT ADVENTURE REALM:</div>
+          <div style="font-size:10.5px; color:#94a3b8; margin-bottom:5px; font-weight:bold; letter-spacing:0.02em;">SELECT ADVENTURE REALM:</div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px;">
-            <button class="util-btn ${isSingle ? 'active' : ''}" style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:7px 4px; ${isSingle ? 'border-color:#38bdf8; background:#172554; color:#bae6fd;' : 'opacity:0.75;'}" onclick="window._fp.setPlayMode('singleplayer')">
-              <span style="font-size:12px;">🕹️ SINGLE PLAYER</span>
-              <span style="font-size:7px; color:${isSingle ? '#fde047' : '#94a3b8'};">0ms • ZERO SERVER LAG</span>
+            <button class="util-btn ${isSingle ? 'active' : ''}" style="display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 4px; ${isSingle ? 'border-color:#38bdf8; background:#172554; color:#bae6fd;' : 'opacity:0.75;'}" onclick="window._fp.setPlayMode('singleplayer')">
+              <span style="font-size:12.5px; font-weight:bold;">🕹️ SINGLE PLAYER</span>
+              <span style="font-size:10px; color:${isSingle ? '#fde047' : '#94a3b8'}; font-weight:600;">0ms • ZERO LAG</span>
             </button>
-            <button class="util-btn ${!isSingle ? 'active' : ''}" style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:7px 4px; ${!isSingle ? 'border-color:#4ade80; background:#14532d; color:#bbf7d0;' : 'opacity:0.75;'}" onclick="window._fp.setPlayMode('multiplayer')">
-              <span style="font-size:12px;">🌐 MULTIPLAYER</span>
-              <span style="font-size:7px; color:${!isSingle ? '#fde047' : '#94a3b8'};">ONLINE REALM SERVER</span>
+            <button class="util-btn ${!isSingle ? 'active' : ''}" style="display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 4px; ${!isSingle ? 'border-color:#4ade80; background:#14532d; color:#bbf7d0;' : 'opacity:0.75;'}" onclick="window._fp.setPlayMode('multiplayer')">
+              <span style="font-size:12.5px; font-weight:bold;">🌐 MULTIPLAYER</span>
+              <span style="font-size:10px; color:${!isSingle ? '#fde047' : '#94a3b8'}; font-weight:600;">ONLINE REALM</span>
             </button>
           </div>
 
           <!-- REALM CHAMPION ROSTER -->
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <div class="fp-section-title" style="margin-bottom:0;">
               ${isSingle ? '🕹️ SINGLE PLAYER ROSTER' : '🌐 MULTIPLAYER ROSTER'}
             </div>
-            <div style="font-size:7.5px; color:${isSingle ? '#38bdf8' : '#4ade80'};">
-              ${isSingle ? '● LOCAL STORAGE' : '● CLOUD REALM'}
+            <div style="font-size:10px; font-weight:bold; color:${isSingle ? '#38bdf8' : '#4ade80'};">
+              ${isSingle ? '● OFFLINE REALM' : '● ONLINE REALM'}
             </div>
           </div>
 
-          <div class="fp-roster-list" style="max-height: 155px; margin-bottom:6px;">
+          <div class="fp-roster-list" style="max-height: 165px; margin-bottom:8px;">
             ${activeRoster.length ? activeRoster.map((ch) => {
               const cf = FACTIONS_META[ch.faction] || FACTIONS_META.Solari;
               const cCls = CLASSES_CATALOG[ch.classId] || CLASSES_CATALOG.solari_vanguard;
@@ -529,82 +529,82 @@ export class FrontpageController {
               return `
                 <div class="fp-roster-item ${active ? 'active' : ''}" onclick="window._fp.selectRosterCharacterById('${ch.id}')">
                   <div>
-                    <div style="font-size:9.5px; color:${cf.color}; font-weight:bold;">
-                      ${cf.icon} ${ch.name} <span style="color:#fde047;">Lv.${lvl}</span>
+                    <div style="font-size:12px; color:${cf.color}; font-weight:bold;">
+                      ${cf.icon} ${ch.name} <span style="color:#fde047; font-size:11px;">Lv.${lvl}</span>
                     </div>
-                    <div style="font-size:8px; color:#94a3b8;">${cCls.name} • &lt;${ch.orderTag || 'SUN'}&gt;</div>
+                    <div style="font-size:10.5px; color:#94a3b8; margin-top:2px;">${cCls.name} • &lt;${ch.orderTag || 'SUN'}&gt;</div>
                   </div>
-                  ${activeRoster.length > 1 ? `<button class="id-mini-btn" style="border-color:#ef4444; color:#fca5a5;" onclick="event.stopPropagation(); window._fp.removeRosterChar('${ch.id}')" title="Delete Champion">✕</button>` : ''}
+                  ${activeRoster.length > 1 ? `<button class="id-mini-btn" style="border-color:#ef4444; color:#fca5a5; font-size:10px;" onclick="event.stopPropagation(); window._fp.removeRosterChar('${ch.id}')" title="Delete Champion">✕</button>` : ''}
                 </div>
               `;
             }).join('') : `
-              <div style="text-align:center; padding:14px; font-size:8.5px; color:#94a3b8; border:1px dashed #334155;">
+              <div style="text-align:center; padding:16px; font-size:11px; color:#94a3b8; border:1px dashed #334155;">
                 No characters found on this realm. Click below to create one!
               </div>
             `}
           </div>
 
-          <button class="util-btn" style="width:100%; border-color:#facc15; color:#fde047; font-size:8.5px; padding:6px;" onclick="window._fp.startNewCharacter()">
+          <button class="util-btn" style="width:100%; border-color:#facc15; color:#fde047; font-size:11px; font-weight:bold; padding:7px;" onclick="window._fp.startNewCharacter()">
             ➕ CREATE NEW CHAMPION
           </button>
         </div>
 
-        <!-- RIGHT COLUMN: Champion Creator, Faction, Archetype & Visage (No Gear Switchers) -->
+        <!-- RIGHT COLUMN: Champion Creator, Faction, Archetype & Visage (Pure Factions & Characters) -->
         <div class="fp-col">
           <div class="fp-section-title">2. CHAMPION IDENTITY, FACTION &amp; ARCHETYPE</div>
 
-          <div style="display:grid; grid-template-columns:1fr 88px; gap:8px; margin-bottom:8px;">
+          <div style="display:grid; grid-template-columns:1fr 96px; gap:8px; margin-bottom:8px;">
             <div>
-              <label style="font-size:8px; color:#94a3b8; font-weight:bold;">CHARACTER NAME</label>
-              <input id="fp-char-name" class="pixel-input" value="${this.name}" maxlength="18" oninput="window._fp.name = this.value" placeholder="Enter name..." />
+              <label style="font-size:10.5px; color:#94a3b8; font-weight:bold;">CHARACTER NAME</label>
+              <input id="fp-char-name" class="pixel-input" value="${this.name}" maxlength="18" oninput="window._fp.name = this.value" placeholder="Enter name..." style="font-size:11.5px; padding:6px 8px;" />
             </div>
             <div>
-              <label style="font-size:8px; color:#94a3b8; font-weight:bold;">&lt;ORDER TAG&gt;</label>
-              <input id="fp-order-tag" class="pixel-input" value="${this.orderTag}" maxlength="5" oninput="window._fp.orderTag = this.value.toUpperCase()" />
+              <label style="font-size:10.5px; color:#94a3b8; font-weight:bold;">&lt;ORDER TAG&gt;</label>
+              <input id="fp-order-tag" class="pixel-input" value="${this.orderTag}" maxlength="5" oninput="window._fp.orderTag = this.value.toUpperCase()" style="font-size:11.5px; padding:6px 8px;" />
             </div>
           </div>
 
-          <label style="font-size:8px; color:#94a3b8; font-weight:bold;">CANONICAL GLIMMERFALL TCG FACTIONS:</label>
-          <div class="faction-choice-grid" style="margin:4px 0 8px; display:grid; grid-template-columns:repeat(4, 1fr); gap:6px;">
+          <label style="font-size:10.5px; color:#94a3b8; font-weight:bold;">CANONICAL GLIMMERFALL TCG FACTIONS:</label>
+          <div class="faction-choice-grid" style="margin:5px 0 8px; display:grid; grid-template-columns:repeat(4, 1fr); gap:6px;">
             ${Object.values(FACTIONS_META).map((f) => `
               <div class="faction-card-btn ${this.faction === f.id ? 'selected' : ''}" style="${this.faction === f.id ? `border-color:${f.color}; background:#0f1d3a;` : 'border-color:#1e293b;'}" onclick="window._fp.pickFaction('${f.id}')">
-                <div style="font-size:16px;">${f.icon}</div>
-                <b style="color:${f.color}; font-size:9px;">${f.id.toUpperCase()}</b>
+                <div style="font-size:18px;">${f.icon}</div>
+                <b style="color:${f.color}; font-size:11px; font-family:var(--font-header);">${f.id.toUpperCase()}</b>
               </div>
             `).join('')}
           </div>
 
-          <div style="background:#060a15; border-left:3px solid ${fm.color}; padding:6px 8px; margin-bottom:8px; font-size:8.5px;">
-            <b style="color:${fm.color};">${fm.icon} ${fm.mechanicName}:</b>
+          <div style="background:#060a15; border-left:3px solid ${fm.color}; padding:8px 10px; margin-bottom:8px; font-size:11px; line-height:1.45;">
+            <b style="color:${fm.color}; font-size:11.5px;">${fm.icon} ${fm.mechanicName}:</b>
             <span style="color:#cbd5e1;">${fm.mechanicDesc}</span>
           </div>
 
-          <label style="font-size:8px; color:#94a3b8; font-weight:bold;">PLAYABLE CLASS ARCHETYPE (2 PER FACTION):</label>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:4px 0 10px;">
+          <label style="font-size:10.5px; color:#94a3b8; font-weight:bold;">PLAYABLE CLASS ARCHETYPE (2 PER FACTION):</label>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:5px 0 10px;">
             ${factionClasses.map((c) => `
-              <div class="fp-class-card ${this.classId === c.id ? 'selected' : ''}" onclick="window._fp.pickClass('${c.id}')" style="cursor:pointer; border:2px solid ${this.classId === c.id ? '#38bdf8' : '#1e293b'}; background:${this.classId === c.id ? '#172554' : '#090e1f'}; padding:7px 8px;">
-                <div style="color:${fm.color}; font-weight:bold; font-size:9.5px;">${c.name}</div>
-                <div style="color:#94a3b8; font-size:7.5px; margin-top:2px;">${c.role}</div>
-                <div style="color:#cbd5e1; font-size:7px; margin-top:3px;">${c.desc}</div>
+              <div class="fp-class-card ${this.classId === c.id ? 'selected' : ''}" onclick="window._fp.pickClass('${c.id}')" style="cursor:pointer; border:2px solid ${this.classId === c.id ? '#38bdf8' : '#1e293b'}; background:${this.classId === c.id ? '#172554' : '#090e1f'}; padding:8px 10px;">
+                <div style="color:${fm.color}; font-weight:bold; font-size:12px; font-family:var(--font-header);">${c.name}</div>
+                <div style="color:#94a3b8; font-size:10.5px; margin-top:2px;">${c.role}</div>
+                <div style="color:#cbd5e1; font-size:10px; margin-top:3px; line-height:1.35;">${c.desc}</div>
               </div>
             `).join('')}
           </div>
 
-          <!-- Pure Champion Visage & Archetype Profile (Item switchers removed) -->
+          <!-- Pure Champion Visage & Archetype Profile (Item switchers isolated to in-game Hero Sheet [C]/[H]) -->
           <div style="display:flex; gap:12px; align-items:center; background:#060a15; border:2px solid #1e293b; padding:10px 12px; margin-bottom:10px;">
             <div style="text-align:center;">
               <canvas id="fp-paperdoll-canvas" width="92" height="96" style="border:2px solid ${fm.color}; background:#090f20;"></canvas>
-              <div style="font-size:7.5px; color:#94a3b8; margin-top:3px;">LIVE 24×26 VISAGE</div>
+              <div style="font-size:10px; color:#94a3b8; margin-top:4px; font-weight:bold;">LIVE 24×26 VISAGE</div>
             </div>
-            <div style="flex:1; display:flex; flex-direction:column; gap:4px; font-size:8.5px;">
-              <div style="color:${fm.color}; font-weight:bold; font-size:10px;">
-                ${cls.name} <span style="color:#94a3b8; font-size:8px;">[${cls.role}]</span>
+            <div style="flex:1; display:flex; flex-direction:column; gap:4px; font-size:11px;">
+              <div style="color:${fm.color}; font-weight:bold; font-size:12.5px; font-family:var(--font-header);">
+                ${cls.name} <span style="color:#94a3b8; font-size:10.5px;">[${cls.role}]</span>
               </div>
-              <div style="color:#cbd5e1; font-size:7.5px; line-height:1.4;">
+              <div style="color:#cbd5e1; font-size:10.5px; line-height:1.45;">
                 ${cls.desc}
               </div>
-              <div style="background:#091224; border:1px solid #1e293b; padding:4px 6px; margin-top:2px; font-size:7.5px; color:#38bdf8;">
-                🛡️ Archetype Starter Gear Equipped • Unlock &amp; switch Legendary Relics in-game via Hero Paperdoll [C] / [H]
+              <div style="background:#091224; border:1px solid #1e293b; padding:5px 8px; margin-top:3px; font-size:10.5px; color:#38bdf8;">
+                🛡️ Canonical starter relics equipped • Customize &amp; switch relics in-game via Hero Sheet [C] / [I]
               </div>
             </div>
           </div>
@@ -612,20 +612,20 @@ export class FrontpageController {
           <!-- Starting Biome & Launch Button -->
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; align-items:center; margin-top:6px;">
             <div>
-              <label style="font-size:8px; color:#94a3b8; font-weight:bold;">STARTING BIOME:</label>
-              <select class="pixel-input" style="margin-top:3px; padding:6px;" onchange="window._fp.startingRealm = this.value">
+              <label style="font-size:10.5px; color:#94a3b8; font-weight:bold;">STARTING BIOME:</label>
+              <select class="pixel-input" style="margin-top:3px; padding:7px; font-size:11px;" onchange="window._fp.startingRealm = this.value">
                 <option value="${ROOM_TYPES.SANCTUARY_HUB}" ${this.startingRealm === ROOM_TYPES.SANCTUARY_HUB ? 'selected' : ''}>🏛️ Awakening Sanctuary Hub (Safe Hub)</option>
                 <option value="${fm.homeBiome}" ${this.startingRealm === fm.homeBiome ? 'selected' : ''}>${fm.icon} ${fm.id} Home Biome</option>
                 <option value="${ROOM_TYPES.NEXUS_WARZONE}" ${this.startingRealm === ROOM_TYPES.NEXUS_WARZONE ? 'selected' : ''}>⚔️ Nexus Warzone (Open World)</option>
               </select>
             </div>
 
-            <button class="fp-enter-btn" style="padding:12px 10px; font-size:10.5px; ${isSingle ? 'background:linear-gradient(180deg, #38bdf8, #0284c7); border-color:#bae6fd; color:#030712;' : 'background:linear-gradient(180deg, #eab308, #ca8a04); border-color:#fef08a; color:#05070f;'}" onclick="window._fp.enterWorld()">
+            <button class="fp-enter-btn" style="padding:12px 10px; font-size:12px; ${isSingle ? 'background:linear-gradient(180deg, #38bdf8, #0284c7); border-color:#bae6fd; color:#030712;' : 'background:linear-gradient(180deg, #eab308, #ca8a04); border-color:#fef08a; color:#05070f;'}" onclick="window._fp.enterWorld()">
               ${isSingle ? '🕹️ ENTER SINGLE PLAYER REALM (0ms) ▸' : '🌐 ENTER MULTIPLAYER REALM ▸'}
             </button>
           </div>
-          <div style="font-size:7.5px; color:#94a3b8; text-align:right; margin-top:3px;">
-            ${isSingle ? '⚡ 100% Offline Local Engine • Zero Server Lag • Instant 60 FPS' : '🌐 Real-Time Authoritative Server • Shared World • Co-Op & PvPvE'}
+          <div style="font-size:10px; color:#94a3b8; text-align:right; margin-top:4px;">
+            ${isSingle ? '⚡ 100% Offline Local Engine • Zero Latency • Instant 60 FPS' : '🌐 Shared Online Realm • Co-Op &amp; PvPvE Battles'}
           </div>
         </div>
       </div>

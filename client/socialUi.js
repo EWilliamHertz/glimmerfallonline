@@ -271,33 +271,33 @@ export function renderAccountModal({ profile, authTab = 'register', statusMsg = 
 
     <!-- 2. Unified GlimmerFall ID Registration / Login & glimmerfalltcg.com SSO -->
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-      <div style="background:#080c18; border:2px solid #1e293b; padding:9px 10px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <span style="font-family:var(--font-header); font-size:7.5px; color:#facc15;">2. PERSISTENT GLIMMERFALL ID</span>
-          <div style="display:flex; gap:3px;">
-            <button class="chat-tab ${authTab === 'register' ? 'active' : ''}" onclick="switchAccountAuthTab('register')">REGISTER</button>
-            <button class="chat-tab ${authTab === 'login' ? 'active' : ''}" onclick="switchAccountAuthTab('login')">LOGIN</button>
+      <div style="background:#080c18; border:2px solid #1e293b; padding:10px 12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-family:var(--font-header); font-size:12px; font-weight:700; color:#facc15;">2. PERSISTENT GLIMMERFALL ID</span>
+          <div style="display:flex; gap:4px;">
+            <button class="chat-tab ${authTab === 'register' ? 'active' : ''}" style="font-size:10px;" onclick="switchAccountAuthTab('register')">REGISTER</button>
+            <button class="chat-tab ${authTab === 'login' ? 'active' : ''}" style="font-size:10px;" onclick="switchAccountAuthTab('login')">LOGIN</button>
           </div>
         </div>
-        <div style="display:flex; flex-direction:column; gap:5px;">
-          <input id="auth-username" class="pixel-input" placeholder="GlimmerFall ID Username" maxlength="18" />
-          <input id="auth-password" class="pixel-input" type="password" placeholder="Password (min 4 chars)" maxlength="48" />
-          <button class="util-btn" style="border-color:#facc15; color:#fde047;" onclick="submitGlimmerFallAuth('${authTab}')">
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <input id="auth-username" class="pixel-input" placeholder="GlimmerFall ID Username" maxlength="18" style="font-size:11px; padding:6px 8px;" />
+          <input id="auth-password" class="pixel-input" type="password" placeholder="Password (min 4 chars)" maxlength="48" style="font-size:11px; padding:6px 8px;" />
+          <button class="util-btn" style="border-color:#facc15; color:#fde047; font-size:11px; padding:6px;" onclick="submitGlimmerFallAuth('${authTab}')">
             ${authTab === 'register' ? '✨ CLAIM / REGISTER ID (KEEPS XP)' : '🔑 SIGN IN TO GLIMMERFALL ID'}
           </button>
         </div>
       </div>
 
-      <div style="background:#080c18; border:2px solid #1e293b; padding:9px 10px;">
-        <div style="font-family:var(--font-header); font-size:7.5px; color:#38bdf8; margin-bottom:5px;">
+      <div style="background:#080c18; border:2px solid #1e293b; padding:10px 12px;">
+        <div style="font-family:var(--font-header); font-size:12px; font-weight:700; color:#38bdf8; margin-bottom:6px;">
           3. GLIMMERFALLTCG.COM SSO LINK
         </div>
-        <p style="font-size:8.5px; color:#cbd5e1; line-height:1.35; margin-bottom:6px;">
-          Link your <b>glimmerfalltcg.com</b> Summoner handle/email (or shared OAuth/Supabase JWT) to unify your MMO Hero &amp; Card Collection!
+        <p style="font-size:11px; color:#cbd5e1; line-height:1.45; margin-bottom:8px;">
+          Link your <b>glimmerfalltcg.com</b> Summoner handle/email to unify your MMO Champion &amp; Card Collection!
         </p>
-        <div style="display:flex; flex-direction:column; gap:5px;">
-          <input id="sso-tcg-handle" class="pixel-input" placeholder="glimmerfalltcg.com Handle or Email" value="${p.tcgHandle || ''}" />
-          <button class="util-btn" style="border-color:#38bdf8; color:#bae6fd;" onclick="submitTcgSsoLink()">
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <input id="sso-tcg-handle" class="pixel-input" placeholder="glimmerfalltcg.com Handle or Email" value="${p.tcgHandle || ''}" style="font-size:11px; padding:6px 8px;" />
+          <button class="util-btn" style="border-color:#38bdf8; color:#bae6fd; font-size:11px; padding:6px;" onclick="submitTcgSsoLink()">
             ⚡ LINK GLIMMERFALLTCG.COM ID
           </button>
         </div>
@@ -315,8 +315,8 @@ export function renderSocialModal({ rooms = [], currentRoomId = '', roomPlayers 
   container.innerHTML = `
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
       <!-- Room Instances Browser -->
-      <div style="background:#080c18; border:2px solid #1e293b; padding:9px;">
-        <div style="font-family:var(--font-header); font-size:7.5px; color:#facc15; margin-bottom:6px;">
+      <div style="background:#080c18; border:2px solid #1e293b; padding:10px;">
+        <div style="font-family:var(--font-header); font-size:12px; font-weight:700; color:#facc15; margin-bottom:8px;">
           🌐 LIVE REALM INSTANCES
         </div>
         <div style="display:flex; flex-direction:column; gap:5px;">
@@ -328,41 +328,41 @@ export function renderSocialModal({ rooms = [], currentRoomId = '', roomPlayers 
             { id: 'terra_orchard_1', title: 'GLIMMER ORCHARD #1', players: 0, maxPlayers: 30, pvp: false },
             { id: 'aether_spire_1', title: 'MIRRORGATE SPIRE #1', players: 0, maxPlayers: 30, pvp: false },
           ]).map((r) => `
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#0d1324; border:1px solid ${r.id === currentRoomId ? '#facc15' : '#334155'}; padding:5px 7px; font-size:8.5px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#0d1324; border:1px solid ${r.id === currentRoomId ? '#facc15' : '#334155'}; padding:6px 8px; font-size:11px;">
               <div>
-                <b style="color:${r.pvp ? '#f87171' : '#38bdf8'};">${r.title}</b>
-                ${r.siegeActive ? '<span style="color:#fde047; font-size:7.5px;"> ⚡SIEGE</span>' : ''}
-                <div style="color:#94a3b8; font-size:8px;">${r.players} / ${r.maxPlayers} Players • ${r.pvp ? 'PvPvE' : 'Co-op / Hub'}</div>
+                <b style="color:${r.pvp ? '#f87171' : '#38bdf8'}; font-size:11.5px;">${r.title}</b>
+                ${r.siegeActive ? '<span style="color:#fde047; font-size:10px; font-weight:bold;"> ⚡SIEGE</span>' : ''}
+                <div style="color:#94a3b8; font-size:10px; margin-top:2px;">${r.players} / ${r.maxPlayers} Players • ${r.pvp ? 'PvPvE' : 'Co-op / Hub'}</div>
               </div>
               ${r.id === currentRoomId
-                ? '<span style="color:#4ade80; font-size:8px; font-weight:bold;">HERE</span>'
-                : `<button class="id-mini-btn" onclick="switchServerRoom('${r.id}')">JOIN ▸</button>`}
+                ? '<span style="color:#4ade80; font-size:11px; font-weight:bold;">HERE</span>'
+                : `<button class="id-mini-btn" style="font-size:10px; padding:3px 7px;" onclick="switchServerRoom('${r.id}')">JOIN ▸</button>`}
             </div>
           `).join('')}
         </div>
       </div>
 
       <!-- Nearby Players & 3-Player Squad Invites -->
-      <div style="background:#080c18; border:2px solid #1e293b; padding:9px;">
-        <div style="font-family:var(--font-header); font-size:7.5px; color:#4ade80; margin-bottom:6px;">
+      <div style="background:#080c18; border:2px solid #1e293b; padding:10px;">
+        <div style="font-family:var(--font-header); font-size:12px; font-weight:700; color:#4ade80; margin-bottom:8px;">
           🛡️ PLAYERS IN THIS INSTANCE (${roomPlayers.length})
         </div>
-        <div style="display:flex; gap:4px; margin-bottom:6px;">
-          <input id="manual-invite-input" class="pixel-input" placeholder="Invite player by name..." />
-          <button class="util-btn" style="font-size:8px; border-color:#4ade80; color:#4ade80;" onclick="inviteByInput()">+INVITE</button>
+        <div style="display:flex; gap:6px; margin-bottom:8px;">
+          <input id="manual-invite-input" class="pixel-input" placeholder="Invite player by name..." style="font-size:11px; padding:5px 8px; flex:1;" />
+          <button class="util-btn" style="font-size:10.5px; border-color:#4ade80; color:#4ade80; padding:4px 8px;" onclick="inviteByInput()">+INVITE</button>
         </div>
-        <div style="display:flex; flex-direction:column; gap:4px; max-height:135px; overflow-y:auto;">
+        <div style="display:flex; flex-direction:column; gap:5px; max-height:145px; overflow-y:auto;">
           ${others.length === 0
-            ? '<div style="font-size:8.5px; color:#94a3b8;">No other champions in this room right now — share your tunnel URL to quest together!</div>'
+            ? '<div style="font-size:11px; color:#94a3b8; padding:8px 0;">No other champions in this room right now — invite friends by name to quest together!</div>'
             : others.map((pl) => {
                 const fm = FACTIONS_META[pl.faction] || FACTIONS_META.Solari;
                 return `
-                  <div style="display:flex; justify-content:space-between; align-items:center; background:#0d1324; border:1px solid #334155; padding:4px 6px; font-size:8.5px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; background:#0d1324; border:1px solid #334155; padding:5px 7px; font-size:11px;">
                     <div>
                       <span>${fm.icon} <b style="color:${fm.color};">${pl.name}</b></span>
-                      <span style="color:#94a3b8;"> Lv.${pl.level} ${pl.orderTag ? `&lt;${pl.orderTag}&gt;` : ''}</span>
+                      <span style="color:#94a3b8; font-size:10px;"> Lv.${pl.level} ${pl.orderTag ? `&lt;${pl.orderTag}&gt;` : ''}</span>
                     </div>
-                    <button class="id-mini-btn" style="border-color:#4ade80; color:#86efac;" onclick="sendPartyInviteTo('${pl.id}')">+SQUAD</button>
+                    <button class="id-mini-btn" style="border-color:#4ade80; color:#86efac; font-size:10px; padding:2px 6px;" onclick="sendPartyInviteTo('${pl.id}')">+SQUAD</button>
                   </div>
                 `;
               }).join('')}
@@ -371,21 +371,21 @@ export function renderSocialModal({ rooms = [], currentRoomId = '', roomPlayers 
     </div>
 
     <!-- Emotes & Chat Slash Commands -->
-    <div style="background:#080c18; border:2px solid #1e293b; padding:8px 10px; font-size:8.5px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:5px;">
-        <b style="color:#fde047;">PIXEL EMOTES [V] &amp; ORDER BANNER [B]:</b>
-        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+    <div style="background:#080c18; border:2px solid #1e293b; padding:10px 12px; font-size:11px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
+        <b style="color:#fde047; font-size:11.5px;">PIXEL EMOTES [V] &amp; ORDER BANNER [B]:</b>
+        <div style="display:flex; gap:5px; flex-wrap:wrap;">
           ${Object.values(EMOTES_CATALOG).map((em) => `
-            <button class="id-mini-btn" onclick="triggerEmote('${em.id}'); toggleModal('social-modal');">
+            <button class="id-mini-btn" style="font-size:10.5px; padding:3px 7px;" onclick="triggerEmote('${em.id}'); toggleModal('social-modal');">
               ${em.icon} ${em.label}
             </button>
           `).join('')}
-          <button class="id-mini-btn" style="border-color:#facc15; color:#fde047;" onclick="plantOrderBanner(); toggleModal('social-modal');">
+          <button class="id-mini-btn" style="border-color:#facc15; color:#fde047; font-size:10.5px; padding:3px 7px;" onclick="plantOrderBanner(); toggleModal('social-modal');">
             ⚑ PLANT BANNER [B]
           </button>
         </div>
       </div>
-      <div style="color:#94a3b8;">
+      <div style="color:#94a3b8; font-size:10.5px;">
         <b>Chat Slash Commands:</b>
         <code>/s</code> Zone Bubble •
         <code>/f</code> Faction Chat •
@@ -397,28 +397,28 @@ export function renderSocialModal({ rooms = [], currentRoomId = '', roomPlayers 
     </div>
 
     <!-- Controls & Touchpad Settings -->
-    <div style="background:#080c18; border:2px solid #1e293b; padding:8px 10px; font-size:8.5px; margin-top:8px;">
+    <div style="background:#080c18; border:2px solid #1e293b; padding:10px 12px; font-size:11px; margin-top:8px;">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <div>
-          <b style="color:#fde047;">📱 MOBILE / VIRTUAL TOUCHPAD:</b>
-          <div style="color:#94a3b8; font-size:7.5px; margin-top:2px;">Enables on-screen virtual joystick and touch action buttons</div>
+          <b style="color:#fde047; font-size:11.5px;">📱 MOBILE / VIRTUAL TOUCHPAD:</b>
+          <div style="color:#94a3b8; font-size:10px; margin-top:2px;">Enables on-screen virtual joystick and touch action buttons</div>
         </div>
-        <button id="modal-touch-toggle-btn" class="util-btn" style="border-color:#38bdf8; color:#38bdf8; font-size:8px; padding:4px 8px;" onclick="toggleTouchControls()">
+        <button id="modal-touch-toggle-btn" class="util-btn" style="border-color:#38bdf8; color:#38bdf8; font-size:10px; padding:5px 9px;" onclick="toggleTouchControls()">
           TOGGLE TOUCHPAD
         </button>
       </div>
     </div>
 
-    <!-- Multiplayer Realm Server Route (Optional) -->
-    <div style="background:#080c18; border:2px solid #1e293b; padding:8px 10px; font-size:8.5px; margin-top:8px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-        <b style="color:#38bdf8;">🌐 MULTIPLAYER REALM ROUTER:</b>
-        <span style="color:#94a3b8;">Default: Cloud Realm</span>
+    <!-- Multiplayer Realm Gateway (Optional) -->
+    <div style="background:#080c18; border:2px solid #1e293b; padding:10px 12px; font-size:11px; margin-top:8px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+        <b style="color:#38bdf8; font-size:11.5px;">🌐 REALM GATEWAY (ADVANCED):</b>
+        <span style="color:#94a3b8; font-size:10px;">Default: Official Realm</span>
       </div>
       <div style="display:flex; gap:6px;">
-        <input id="custom-server-inp" class="pixel-input" placeholder="e.g. https://your-server.ngrok-free.dev" value="${(typeof localStorage !== 'undefined' && localStorage.getItem('glimmerfall_server_url')) || ''}" style="flex:1;" />
-        <button class="util-btn" style="border-color:#38bdf8; color:#38bdf8; font-size:8px;" onclick="saveCustomServerUrl()">CONNECT</button>
-        <button class="util-btn" style="border-color:#64748b; color:#94a3b8; font-size:8px;" onclick="resetCustomServerUrl()">RESET</button>
+        <input id="custom-server-inp" class="pixel-input" placeholder="e.g. custom realm URL or leave blank" value="${(typeof localStorage !== 'undefined' && localStorage.getItem('glimmerfall_server_url')) || ''}" style="flex:1; font-size:11px; padding:5px 8px;" />
+        <button class="util-btn" style="border-color:#38bdf8; color:#38bdf8; font-size:10px; padding:4px 8px;" onclick="saveCustomServerUrl()">CONNECT</button>
+        <button class="util-btn" style="border-color:#64748b; color:#94a3b8; font-size:10px; padding:4px 8px;" onclick="resetCustomServerUrl()">RESET</button>
       </div>
     </div>
   `;

@@ -644,7 +644,7 @@ export function initGame() {
   // ==========================================
   window.sendPartyInviteTo = function (targetIdOrName) {
     if (!net.connected) {
-      logMessage('[Party] Connect to the online server to invite players.', 'log-combat', 'party');
+      logMessage('[Squad] Enter Multiplayer Realm to invite players.', 'log-combat', 'party');
       return;
     }
     net.send({ type: 'party_invite', target: targetIdOrName });
@@ -806,18 +806,18 @@ export function initGame() {
     const inp = document.getElementById('custom-server-inp');
     const val = inp?.value?.trim() || '';
     if (!val) {
-      alert('Please enter a valid server URL (e.g. https://your-server.ngrok-free.dev or http://localhost:3001)');
+      alert('Please enter a valid realm address');
       return;
     }
     net.setServerBase(val);
-    logMessage(`[Server] Connecting to multiplayer host: ${val}`, 'log-solari', 'chat');
+    logMessage(`[Realm] Connecting to custom realm address: ${val}`, 'log-solari', 'chat');
   };
 
   window.resetCustomServerUrl = function () {
     net.setServerBase('');
     const inp = document.getElementById('custom-server-inp');
     if (inp) inp.value = '';
-    logMessage(`[Server] Reset to default cloud realm host.`, 'log-system', 'chat');
+    logMessage(`[Realm] Reset to official realm gateway.`, 'log-system', 'chat');
   };
 
   // ==========================================
@@ -1991,14 +1991,14 @@ export function initGame() {
     onStatusChange(connected, reason) {
       updateNetStatusPill();
       if (connected) {
-        logMessage('[Server] Connected to GlimmerFall Online Realm!', 'log-gain', 'chat');
+        logMessage('[Realm] Connected to GlimmerFall Online Realm!', 'log-gain', 'chat');
       } else {
         remotePlayers.clear();
         if (!isSinglePlayer) {
           if (reason === 'superseded') {
             logMessage('[Account] Session active in another window/tab. This window is now running offline.', 'log-solari', 'chat');
           } else {
-            logMessage('[Server] Connection lost — running local fallback & reconnecting...', 'log-combat', 'chat');
+            logMessage('[Realm] Connection lost — reconnecting...', 'log-combat', 'chat');
           }
         }
       }
@@ -2239,7 +2239,7 @@ export function initGame() {
         moveSyncAccum = 0;
         buildOfflineZone(startingRealm);
         updateNetStatusPill();
-        logMessage('[Realm] Entered Single Player Realm (Offline • 0ms). Zero server lag!', 'log-solari', 'chat');
+        logMessage('[Realm] Entered Single Player Realm (Offline • 0ms). Instant local response!', 'log-solari', 'chat');
       } else {
         if (net.connected && startingRealm && !currentRoomId.startsWith(startingRealm)) {
           portalCooldown = 2.0;
@@ -3447,7 +3447,7 @@ export function initGame() {
     let actions = '';
     if (!online) {
       actions = `
-        <div style="font-size:8.5px; color:#fbbf24; margin:6px 0;">Server offline — only single-player computer matches are available.</div>
+        <div style="font-size:11px; color:#fbbf24; margin:6px 0;">Multiplayer realm resting — solo training matches are available.</div>
         <button class="util-btn arena-btn-primary" style="border-color:#4ade80; color:#4ade80;" onclick="arenaPlayWithComputer()">🤖 PLAY WITH COMPUTER ENTITIES</button>`;
     } else if (isQueueing) {
       actions = `
@@ -3699,18 +3699,28 @@ export function initGame() {
     const container = document.getElementById('skill-tree-content');
     if (!container) return;
 
-    const spBadge = document.getElementById('sp-count-txt');
-    if (spBadge) spBadge.innerText = String(prog.skillPoints || 0);
-
-    const banner = document.getElementById('skill-points-banner');
-    if (banner) {
-      banner.innerHTML = `⚡ UNSPENT SKILL POINTS: <span id="sp-count-txt" class="skill-pts-badge">${prog.skillPoints || 0}</span>` +
-        ((prog.skillPoints || 0) > 0 ? ' <span style="color:#4ade80; margin-left:8px;">★ POINTS READY TO ALLOCATE!</span>' : '');
-    }
-
     const isFlashesTab = currentSkillTreeTab === 'flashes';
     const targetTree = isFlashesTab ? 'flashes' : 'rites';
     const myFaction = localProfile.faction || 'Solari';
+    const sp = prog.skillPoints || 0;
+
+    const spBadge = document.getElementById('sp-count-txt');
+    if (spBadge) spBadge.innerText = String(sp);
+
+    const banner = document.getElementById('skill-points-banner');
+    if (banner) {
+      banner.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:6px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="color:#fde047; font-size:12.5px; font-weight:800; letter-spacing:0.02em;">⚡ UNSPENT SKILL POINTS: <span id="sp-count-txt" class="skill-pts-badge" style="font-size:12px; padding:3px 9px;">${sp}</span></span>
+            ${sp > 0 ? '<span style="color:#4ade80; font-weight:800; font-size:11px; animation:pulseAlloc 1.4s infinite alternate;">★ READY TO INVEST!</span>' : '<span style="color:#94a3b8; font-size:11px;">(Slay monsters or level up to earn +1 SP/level)</span>'}
+          </div>
+          <div style="font-size:11px; color:#cbd5e1; font-family:var(--font-clean);">
+            CHAMPION LV. <b style="color:#facc15;">${prog.level || 1}</b> • <b style="color:${myFaction === 'Solari' ? '#facc15' : myFaction === 'Umbri' ? '#c084fc' : myFaction === 'Terra' ? '#4ade80' : '#38bdf8'};">${myFaction.toUpperCase()}</b>
+          </div>
+        </div>
+      `;
+    }
 
     // Filter skills for this tree and faction
     const treeSkills = Object.values(ABILITIES_CATALOG).filter(
@@ -3865,16 +3875,32 @@ export function initGame() {
     if (!container) return;
     const ptsHeader = document.getElementById('skill-points-banner');
     if (ptsHeader) {
+      const sp = prog.skillPoints || 0;
       if (listeningSlot !== null) {
         const lSpec = getSlotAbilitySpec(localProfile.loadout, listeningSlot);
-        ptsHeader.innerText = `⌨️ PRESS ANY KEY TO BIND "${(lSpec?.name || 'SLOT').toUpperCase()}" (OR [ESC] TO CANCEL)...`;
-        ptsHeader.style.color = '#fde047';
+        ptsHeader.innerHTML = `
+          <div style="color:#fde047; font-size:12px; font-weight:800;">
+            ⌨️ PRESS ANY KEY TO BIND "${(lSpec?.name || 'SLOT').toUpperCase()}" (OR [ESC] TO CANCEL)...
+          </div>
+        `;
       } else if (rebindFeedbackMsg) {
-        ptsHeader.innerText = rebindFeedbackMsg;
-        ptsHeader.style.color = '#4ade80';
+        ptsHeader.innerHTML = `
+          <div style="color:#4ade80; font-size:12px; font-weight:800;">
+            ${rebindFeedbackMsg}
+          </div>
+        `;
       } else {
-        ptsHeader.innerText = `SKILL POINTS AVAILABLE: ${prog.skillPoints || 0}  •  CLICK ANY [KEY] BUTTON TO REBIND`;
-        ptsHeader.style.color = (prog.skillPoints || 0) > 0 ? '#fde047' : '#94a3b8';
+        ptsHeader.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:6px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="color:#fde047; font-size:12.5px; font-weight:800;">⚡ UNSPENT SKILL POINTS: <span class="skill-pts-badge" style="font-size:12px; padding:3px 9px;">${sp}</span></span>
+              ${sp > 0 ? '<span style="color:#4ade80; font-weight:800; font-size:11px;">★ READY TO INVEST!</span>' : ''}
+            </div>
+            <div style="font-size:11px; color:#cbd5e1;">
+              CLICK ANY <b style="color:#38bdf8;">[KEY]</b> BUTTON BELOW TO REBIND ACTION BAR
+            </div>
+          </div>
+        `;
       }
     }
     container.innerHTML = '';
@@ -3958,32 +3984,32 @@ export function initGame() {
       { key: 'tempo', icon: '⚡', name: 'TEMPO (FLASH)', base: prog.stats.tempo, total: eff.tempo, desc: '+2.5% Crit, +3% Move Speed, -2% Cooldowns' },
     ];
     body.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; background:#080c18; border:2px solid #1e293b; padding:8px 10px; margin-bottom:8px; font-size:10px;">
-        <div>CHAMPION LEVEL: <b style="color:#facc15;">LV. ${prog.level}</b> (${prog.xp}/${xpForNextLevel(prog.level)} XP)</div>
-        <div style="color:${prog.statPoints > 0 ? '#4ade80' : '#94a3b8'}; font-weight:bold;">
-          UNSPENT STAT POINTS: ${prog.statPoints}
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#080c18; border:2px solid #1e293b; padding:10px 12px; margin-bottom:10px; font-size:12px;">
+        <div>CHAMPION LEVEL: <b style="color:#facc15; font-size:13px;">LV. ${prog.level}</b> <span style="color:#94a3b8; font-size:11px;">(${prog.xp}/${xpForNextLevel(prog.level)} XP)</span></div>
+        <div style="color:${prog.statPoints > 0 ? '#4ade80' : '#94a3b8'}; font-weight:bold; font-size:12px;">
+          UNSPENT STAT POINTS: <span class="skill-pts-badge" style="font-size:12px; padding:2px 7px;">${prog.statPoints}</span>
         </div>
       </div>
-      <div style="background:#080c18; border-left:3px solid ${fm.color}; padding:6px 8px; margin-bottom:8px; font-size:9px;">
-        <b style="color:${fm.color};">${fm.icon} ${fm.mechanicName}:</b> ${fm.mechanicDesc}
+      <div style="background:#080c18; border-left:3px solid ${fm.color}; padding:8px 10px; margin-bottom:10px; font-size:11px; line-height:1.45;">
+        <b style="color:${fm.color}; font-size:12px;">${fm.icon} ${fm.mechanicName}:</b> ${fm.mechanicDesc}
       </div>
       <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
         ${statDefs.map((s) => `
-          <div class="keybind-row" style="margin-bottom:0;">
+          <div class="keybind-row" style="margin-bottom:0; padding:8px 10px;">
             <div>
-              <div style="font-size:11px; color:#f8fafc;">
-                ${s.icon} <b>${s.name}</b>: <span style="color:#facc15;">${s.total}</span>
-                <span style="font-size:9px; color:#94a3b8;">(Base ${s.base} + Gear ${s.total - s.base})</span>
+              <div style="font-size:12px; color:#f8fafc;">
+                ${s.icon} <b style="letter-spacing:0.02em;">${s.name}</b>: <span style="color:#facc15; font-weight:800; font-size:13px;">${s.total}</span>
+                <span style="font-size:10.5px; color:#94a3b8;">(Base ${s.base} + Gear ${s.total - s.base})</span>
               </div>
-              <div style="font-size:9px; color:#94a3b8; margin-top:2px;">${s.desc}</div>
+              <div style="font-size:10.5px; color:#cbd5e1; margin-top:3px;">${s.desc}</div>
             </div>
-            <button class="upgrade-btn ${prog.statPoints > 0 ? 'ready' : ''}" ${prog.statPoints > 0 ? '' : 'disabled'} onclick="allocateStat('${s.key}')">
+            <button class="upgrade-btn ${prog.statPoints > 0 ? 'ready' : ''}" style="font-size:11px; padding:6px 12px;" ${prog.statPoints > 0 ? '' : 'disabled'} onclick="allocateStat('${s.key}')">
               +1 STAT
             </button>
           </div>
         `).join('')}
       </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:10px; background:#080c18; border:2px solid #1e293b; padding:8px 10px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11.5px; background:#080c18; border:2px solid #1e293b; padding:10px 12px; margin-bottom:10px;">
         <div>MAX HEALTH: <b style="color:#4ade80;">${player.maxHp} HP</b></div>
         <div>MAX GLIMMER: <b style="color:#facc15;">${player.maxSolarCharge}</b></div>
         <div>CRIT CHANCE: <b style="color:#fde047;">${(calcCritChance(prog, localProfile.equipment, localProfile.classId) * 100).toFixed(1)}%</b></div>
@@ -3991,30 +4017,30 @@ export function initGame() {
       </div>
 
       <!-- Late Game Paragon Resonance Mastery -->
-      <div style="background:#090618; border:2px solid #581c87; padding:8px 10px; margin-top:8px; font-size:10px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <div style="background:#090618; border:2px solid #581c87; padding:10px 12px; margin-top:8px; font-size:11px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <div>
-            <span style="color:#c084fc; font-weight:bold; font-size:10.5px;">🔮 PARAGON RESONANCE:</span>
-            <b style="color:#facc15;">PARAGON ${prog.paragonLevel || 0}</b>
-            <span style="font-size:8px; color:#94a3b8;">(${prog.paragonXp || 0}/${paragonXpForLevel(prog.paragonLevel || 0)} XP)</span>
+            <span style="color:#c084fc; font-weight:bold; font-size:12px; font-family:var(--font-header);">🔮 PARAGON RESONANCE:</span>
+            <b style="color:#facc15; font-size:12px;">PARAGON ${prog.paragonLevel || 0}</b>
+            <span style="font-size:10px; color:#94a3b8;">(${prog.paragonXp || 0}/${paragonXpForLevel(prog.paragonLevel || 0)} XP)</span>
           </div>
-          <div style="color:${(prog.paragonPoints || 0) > 0 ? '#4ade80' : '#94a3b8'}; font-weight:bold; font-size:9.5px;">
-            PARAGON PTS: ${prog.paragonPoints || 0}
+          <div style="color:${(prog.paragonPoints || 0) > 0 ? '#4ade80' : '#94a3b8'}; font-weight:bold; font-size:11px;">
+            PARAGON PTS: <span class="skill-pts-badge" style="font-size:11px; padding:2px 6px;">${prog.paragonPoints || 0}</span>
           </div>
         </div>
-        <div style="display:flex; flex-direction:column; gap:4px;">
+        <div style="display:flex; flex-direction:column; gap:6px;">
           ${Object.values(PARAGON_AFFINITIES).map((aff) => {
             const curRank = prog.paragon?.[aff.id] || 0;
             const canUp = canUpgradeParagon(prog, aff.id);
             return `
-              <div class="keybind-row" style="margin-bottom:0; padding:4px 8px; border-color:#3b0764; background:#0f0926;">
+              <div class="keybind-row" style="margin-bottom:0; padding:6px 10px; border-color:#3b0764; background:#0f0926;">
                 <div>
-                  <div style="font-size:10px; color:${aff.color}; font-weight:bold;">
-                    ${aff.icon} ${aff.name} <span style="color:#f8fafc; font-size:8.5px;">[Rank ${curRank}/${aff.maxRank}]</span>
+                  <div style="font-size:11.5px; color:${aff.color}; font-weight:bold;">
+                    ${aff.icon} ${aff.name} <span style="color:#f8fafc; font-size:10px;">[Rank ${curRank}/${aff.maxRank}]</span>
                   </div>
-                  <div style="font-size:8px; color:#94a3b8; margin-top:1px;">${aff.desc}</div>
+                  <div style="font-size:10px; color:#cbd5e1; margin-top:2px;">${aff.desc}</div>
                 </div>
-                <button class="upgrade-btn ${canUp ? 'ready' : ''}" style="padding:4px 8px; font-size:8.5px;" ${canUp ? '' : 'disabled'} onclick="upgradeParagon('${aff.id}')">
+                <button class="upgrade-btn ${canUp ? 'ready' : ''}" style="padding:5px 10px; font-size:10.5px;" ${canUp ? '' : 'disabled'} onclick="upgradeParagon('${aff.id}')">
                   ${curRank >= aff.maxRank ? 'MAX' : '+INVEST'}
                 </button>
               </div>
