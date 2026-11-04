@@ -832,7 +832,13 @@ export class AccountsStore {
         }
       }
     }
-    return { level: lvl, xp, statPoints, skillPoints, stats, ranks };
+    const skills = { ...(base.skills || {}) };
+    if (incoming.skills && typeof incoming.skills === 'object') {
+      for (const [k, v] of Object.entries(incoming.skills)) {
+        skills[k] = Math.max(0, Math.min(5, Math.floor(Number(v) || 0)));
+      }
+    }
+    return { level: lvl, xp, statPoints, skillPoints, stats, ranks, skills };
   }
 
   saveProgression(accountId, progression, statsMetaPatch = null) {

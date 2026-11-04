@@ -22,14 +22,15 @@ if (portraitCanvas) {
   pctx.drawImage(sheet.hero.down[0], 2, 2);
 }
 
-// Render Solari Herald mentor portrait into RPG dialogue box
+// Render default Solari Herald mentor portrait into RPG dialogue box
 const npcCanvas = document.getElementById('npc-portrait-canvas');
-if (npcCanvas && sheet.heraldNpc && sheet.heraldNpc[0]) {
+if (npcCanvas) {
   const nctx = npcCanvas.getContext('2d');
   nctx.imageSmoothingEnabled = false;
-  nctx.fillStyle = '#0f172a';
-  nctx.fillRect(0, 0, 32, 32);
-  nctx.drawImage(sheet.heraldNpc[0], 2, 2);
+  const portrait = sheet.npcPortraits?.heraldNpc || (sheet.heraldNpc && sheet.heraldNpc[0]);
+  if (portrait) {
+    nctx.drawImage(portrait, 0, 0);
+  }
 }
 
 initGame();

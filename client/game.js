@@ -1,6 +1,6 @@
 // ==========================================
 // GlimmerFall Online 2D — Top-Down Pixel Art MMORPG Client Engine
-// Authoritative 20Hz WebSocket Sync + Neon PostgreSQL Roster + All 4 Factions
+// Real-Time Realm Sync + Persistent Cloud Roster + All 4 Factions
 // ==========================================
 
 import { PixelSoundEngine } from './audio.js';
@@ -23,6 +23,8 @@ import {
   TILE_SIZE,
   YARD_PX,
   ACTION_SLOTS,
+  SLOT_UNLOCK_LEVELS,
+  isSlotUnlocked,
   ROOM_TYPES,
   ROOM_CONFIGS,
   FACTIONS_META,
@@ -31,6 +33,9 @@ import {
   ABILITIES_CATALOG,
   EMOTES_CATALOG,
   getSlotAbilitySpec,
+  getAbilityRank,
+  canUpgradeAbility,
+  getRankStats,
   getEffectiveStats,
   createDefaultProgression,
   xpForNextLevel,
@@ -75,92 +80,109 @@ const PORTAL_ID_TO_ROOM = {
 
 const AWAKENING_DIALOGUE = [
   {
-    speaker: 'AURORA MARSHAL • SOLARI HERALD',
+    speaker: 'HERALD LYRA • SOLARI SUNSPIRE HERALD',
+    spriteKey: 'heraldNpc',
     text: 'Awake at last, Summoner-Knight! Centuries have passed since the Great Nexus shattered between the Glimmer and the Fall, scattering its crystal shards across four warring realms.',
   },
   {
-    speaker: 'AURORA MARSHAL • SOLARI HERALD',
+    speaker: 'HERALD LYRA • SOLARI SUNSPIRE HERALD',
+    spriteKey: 'heraldNpc',
     text: 'Explore all 4 Faction Biome Waygates around this Sanctuary, visit the Forgotten First Nexus Ruins to the South, customize your Paperdoll Gear [I] & TCG Loadout [👤 HERO], or form a Squad [O]!',
   },
   {
-    speaker: 'AURORA MARSHAL • SOLARI HERALD',
+    speaker: 'HERALD LYRA • SOLARI SUNSPIRE HERALD',
+    spriteKey: 'heraldNpc',
     text: 'Strike the Dummy with [1], channel the Glimmer Node [E], then step into the North Rift to clash in the 4-Faction Nexus Warzone Siege!',
   },
 ];
 
 const WARZONE_DIALOGUE = [
   {
-    speaker: 'SUNSPIRE ARCHON • WAR COMMANDER',
+    speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+    spriteKey: 'warzoneArchonNpc',
     text: 'Welcome to the Nexus Warzone! Every 30 minutes, a Shattered Nexus Shard spawns in the center (or type /siege to rally an instant clash)!',
   },
   {
-    speaker: 'SUNSPIRE ARCHON • WAR COMMANDER',
+    speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+    spriteKey: 'warzoneArchonNpc',
     text: 'Defend your Faction’s 25-HP Outpost Nexus, shatter rival Outposts, plant your Order Banner [B] (+1 Power), or venture North into the Forgotten Ruins!',
   },
 ];
 
 const RUINS_DIALOGUE = [
   {
-    speaker: 'ATLAS THE WANDERER • HIGH CARTOGRAPHER',
+    speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
+    spriteKey: 'cartographerNpc',
     text: 'Hail, seeker of antiquity! You stand at the First Nexus—the ancient axis where Solari, Umbri, Terra, and Aether once convened in unbroken harmony before the Shattering.',
   },
   {
-    speaker: 'ATLAS THE WANDERER • HIGH CARTOGRAPHER',
+    speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
+    spriteKey: 'cartographerNpc',
     text: 'Look beneath your boots: the four quadrant stones converge right here. Beware the sleeping Prismatic Keystone Guardian at the center—vanquishing it yields a legendary omni-relic!',
   },
   {
-    speaker: 'ATLAS THE WANDERER • HIGH CARTOGRAPHER',
+    speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
+    spriteKey: 'cartographerNpc',
     text: 'High-density Glimmer nodes flourish here. Channel them with [E] to replenish your energy and advance your summoner ranks!',
   },
 ];
 
 const SOLARI_VAULT_DIALOGUE = [
   {
-    speaker: 'ARCHON LUCIAN • KEEPER OF THE DAWN FLAME',
+    speaker: 'PYREMASTER LUCIAN • SUNKEN VAULT FLAMEKEEPER',
+    spriteKey: 'solariFlamekeeperNpc',
     text: 'Tread with honor, Knight. This Sunken Vault enshrines the ancient solar pyres that ignited the First Lantern of the Golden Citadel.',
   },
   {
-    speaker: 'ARCHON LUCIAN • KEEPER OF THE DAWN FLAME',
+    speaker: 'PYREMASTER LUCIAN • SUNKEN VAULT FLAMEKEEPER',
+    spriteKey: 'solariFlamekeeperNpc',
     text: 'Deep within slumbers the Solaris Core Colossus. Defeat this radiant guardian to claim the Sunfire Greatsword and the sacred Dawnfire Crest!',
   },
 ];
 
 const UMBRI_LABYRINTH_DIALOGUE = [
   {
-    speaker: 'WRAITHMOTHER VESPERA • WEAVER OF THE DEEP FOG',
+    speaker: 'WRAITHMOTHER VESPERA • WEAVER OF GRAVEGLASS',
+    spriteKey: 'shadowWraithmotherNpc',
     text: 'Hush... do not disturb the Graveglass mists. In this Labyrinth of Shadows, forgotten echoes wander between the twilight and the abyss.',
   },
   {
-    speaker: 'WRAITHMOTHER VESPERA • WEAVER OF THE DEEP FOG',
+    speaker: 'WRAITHMOTHER VESPERA • WEAVER OF GRAVEGLASS',
+    spriteKey: 'shadowWraithmotherNpc',
     text: 'The Abyssal Devourer lurks at the labyrinth’s dark core. Wield your Umbral Flashes with precision, or forfeit your soul to the void!',
   },
 ];
 
 const TERRA_GROVE_DIALOGUE = [
   {
-    speaker: 'DRYAD SYLVANUS • VOICE OF THE IRONWOOD',
+    speaker: 'ELDER DRUID SYLVANUS • VOICE OF IRONBARK',
+    spriteKey: 'terraElderDruidNpc',
     text: 'Welcome to the Primordial Hollow. Listen to the deep pulse of the mycorrhizal roots humming beneath the emerald moss.',
   },
   {
-    speaker: 'DRYAD SYLVANUS • VOICE OF THE IRONWOOD',
+    speaker: 'ELDER DRUID SYLVANUS • VOICE OF IRONBARK',
+    spriteKey: 'terraElderDruidNpc',
     text: 'The ancient Elder Treant, Primordial Ironbark, stands guard over the heartbloom. Fulfill the rites of Terra to earn living Ironbark armor!',
   },
 ];
 
 const AETHER_ARCHIVE_DIALOGUE = [
   {
-    speaker: 'CHRONOS SAGE ZEPHYR • CONTINUUM CHRONOLOGER',
+    speaker: 'CHRONOS SAGE ZEPHYR • CHRONOCORE ARCHON',
+    spriteKey: 'aetherChronosNpc',
     text: 'Greetings across time, Summoner! This fractured archive floats beyond conventional causality, recording every timeline of the Great Nexus.',
   },
   {
-    speaker: 'CHRONOS SAGE ZEPHYR • CONTINUUM CHRONOLOGER',
+    speaker: 'CHRONOS SAGE ZEPHYR • CHRONOCORE ARCHON',
+    spriteKey: 'aetherChronosNpc',
     text: 'The Continuum Singularity at the center bends cooldowns and gravitational planes. Strike decisively before temporal paradoxes engulf the chamber!',
   },
 ];
 
 const SOLARI_CITADEL_DIALOGUE = [
   {
-    speaker: 'COMMANDER VAEL • SOLARI HIGH CAPTAIN',
+    speaker: 'CAPTAIN VAELEN • LANTERN DISTRICT TEMPLAR',
+    spriteKey: 'solariCaptainNpc',
     text: 'Glory to the Dawn! The Lantern District stands as an unyielding fortress against the dark. The north portal leads into our deepest Sunken Vault!',
   },
 ];
@@ -168,13 +190,15 @@ const SOLARI_CITADEL_DIALOGUE = [
 const UMBRI_UNDERCITY_DIALOGUE = [
   {
     speaker: 'SHADOW BROKER NYX • DUSKVEIL SMUGGLER',
+    spriteKey: 'shadowBrokerNpc',
     text: 'Keep your voice down, friend... The north Gloomgate leads straight to the Shadow Labyrinth. Few who enter return unchanged.',
   },
 ];
 
 const TERRA_ORCHARD_DIALOGUE = [
   {
-    speaker: 'GROVE TENDER ROWAN • TERRA HERBALIST',
+    speaker: 'GROVE TENDER ROWAN • ROOTDEEP HERBALIST',
+    spriteKey: 'terraHerbalistNpc',
     text: 'May the canopy shelter you! The north Waygate connects directly to the Primordial Hollow where ancient Ironbark treants slumber.',
   },
 ];
@@ -182,6 +206,7 @@ const TERRA_ORCHARD_DIALOGUE = [
 const AETHER_SPIRE_DIALOGUE = [
   {
     speaker: 'ASTROMANCER KAELEN • MIRRORGATE STARGAZER',
+    spriteKey: 'aetherAstromancerNpc',
     text: 'The celestial mirrors resonate tonight! Ascend to the north rift to enter the Fractured Chrono-Archive and witness the Continuum.',
   },
 ];
@@ -222,8 +247,22 @@ export function initGame() {
   let currentRoomMax = 60;
   let onlineTotal = 1;
   let publicRoomsList = [];
-  const mapBounds = { halfW: 288, halfH: 240 };
+  const mapBounds = { halfW: 384, halfH: 384 };
   let portalCooldown = 0;
+  let portalMistTimer = 0;
+  let currentEpoch = 1;
+
+  function triggerPortalMist(duration = 0.5) {
+    portalMistTimer = duration;
+    const fx = document.getElementById('portal-mist-fx');
+    if (fx) {
+      fx.classList.add('active');
+      clearTimeout(fx._mistTimeout);
+      fx._mistTimeout = setTimeout(() => {
+        fx.classList.remove('active');
+      }, duration * 1000);
+    }
+  }
 
   // ==========================================
   // Progression, Class, Loadout & Equipment State
@@ -263,6 +302,154 @@ export function initGame() {
     try {
       localStorage.setItem('glimmerfall_prog_v2', JSON.stringify(prog));
     } catch (_) {}
+  }
+
+  // ==========================================
+  // 1-Player Test Mode / Practice Arena State
+  // ==========================================
+  let isTestMode = false;
+  let testModeSavedProg = null;
+  let infiniteGlimmer = false;
+  let instantCooldowns = false;
+  let dpsTracker = { totalDmg: 0, startTime: 0, hits: 0, lastHitTime: 0 };
+
+  window.enableTestMode = function () {
+    if (isTestMode) return;
+    testModeSavedProg = JSON.parse(JSON.stringify(prog));
+    isTestMode = true;
+    prog = {
+      level: 10,
+      xp: 0,
+      statPoints: 20,
+      skillPoints: 12,
+      stats: { power: 8, bastion: 8, resonance: 6, tempo: 6 },
+      ranks: { 1: 5, 2: 5, 3: 5, 4: 5, 9: 5, 10: 5, 11: 5, 12: 5 },
+    };
+    recalcVitalsFromProfile();
+    player.hp = player.maxHp;
+    player.solarCharge = player.maxSolarCharge;
+    dpsTracker = { totalDmg: 0, startTime: 0, hits: 0, lastHitTime: 0 };
+    if (audio.playLevelUp) audio.playLevelUp();
+    logMessage('🧪 [TEST SANDBOX MODE] Activated! Lv. 10 with all 8 Rites & Flashes unlocked!', 'log-solari', 'combat');
+    updatePlayerUI();
+    updateActionBarBadges();
+    renderStatsModal();
+    renderKeybindUI();
+    const bar = document.getElementById('testmode-bar');
+    if (bar) bar.style.display = 'flex';
+    const clsSel = document.getElementById('testmode-class-select');
+    if (clsSel) clsSel.value = localProfile.classId;
+  };
+
+  window.disableTestMode = function () {
+    if (!isTestMode) return;
+    isTestMode = false;
+    if (testModeSavedProg) {
+      prog = testModeSavedProg;
+      testModeSavedProg = null;
+    } else {
+      prog = createDefaultProgression();
+    }
+    recalcVitalsFromProfile();
+    player.hp = player.maxHp;
+    player.solarCharge = 0;
+    if (audio.playChime) audio.playChime();
+    logMessage('⚔️ [STANDARD MODE] Restored normal character level & progression.', 'log-quest', 'chat');
+    updatePlayerUI();
+    updateActionBarBadges();
+    renderStatsModal();
+    renderKeybindUI();
+    const bar = document.getElementById('testmode-bar');
+    if (bar) bar.style.display = 'none';
+  };
+
+  window.toggleTestMode = function () {
+    if (isTestMode) window.disableTestMode();
+    else window.enableTestMode();
+  };
+
+  window.testModeSwitchClass = function (newClassId) {
+    const cls = CLASSES_CATALOG[newClassId];
+    if (!cls) return;
+    localProfile.classId = cls.id;
+    localProfile.faction = cls.faction;
+    localProfile.loadout = { ...cls.defaultLoadout };
+    localProfile.equipment = { ...cls.defaultEquipment };
+    recalcVitalsFromProfile();
+    player.hp = player.maxHp;
+    player.solarCharge = player.maxSolarCharge;
+    refreshHeroPortrait();
+    updatePlayerUI();
+    updateActionBarBadges();
+    renderStatsModal();
+    renderKeybindUI();
+    if (audio.playSpell) audio.playSpell();
+    logMessage(`Swapped Archetype to [${cls.name}] (${cls.faction})! All abilities ready!`, 'log-solari', 'combat');
+  };
+
+  window.testModeResetCooldowns = function () {
+    for (const k in cooldowns) cooldowns[k] = 0;
+    player.solarCharge = player.maxSolarCharge;
+    if (audio.playChime) audio.playChime();
+    logMessage('⚡ All ability cooldowns reset to 0s! Glimmer refilled!', 'log-solari', 'combat');
+  };
+
+  window.testModeToggleInfiniteGlimmer = function () {
+    infiniteGlimmer = !infiniteGlimmer;
+    const btn = document.getElementById('testmode-inf-glimmer-btn');
+    if (btn) {
+      btn.innerText = infiniteGlimmer ? '🔮 INF GLIMMER: ON' : '🔮 INF GLIMMER: OFF';
+      btn.style.color = infiniteGlimmer ? '#4ade80' : '#c084fc';
+      btn.style.borderColor = infiniteGlimmer ? '#4ade80' : '#c084fc';
+    }
+    logMessage(infiniteGlimmer ? '🔮 Infinite Glimmer enabled!' : 'Glimmer consumption restored.', 'log-combat');
+  };
+
+  window.testModeSpawnBossDummy = function () {
+    const existing = entities.find((e) => e.id === 'test_boss_dummy');
+    if (existing) {
+      existing.hp = existing.maxHp = 5000;
+      existing.x = player.x + (player.dir === 'left' ? -48 : player.dir === 'right' ? 48 : 0);
+      existing.y = player.y + (player.dir === 'up' ? -48 : player.dir === 'down' ? 48 : 0);
+    } else {
+      entities.push({
+        id: 'test_boss_dummy',
+        name: 'World Boss Test Golem',
+        sub: '★ 5,000 HP DPS Test Entity',
+        type: 'dummy',
+        isBoss: true,
+        spriteKey: 'graniteBoss',
+        x: player.x + (player.dir === 'left' ? -48 : player.dir === 'right' ? 48 : 0),
+        y: player.y + (player.dir === 'up' ? -48 : player.dir === 'down' ? 48 : 0),
+        origX: player.x,
+        origY: player.y,
+        hp: 5000,
+        maxHp: 5000,
+        xpReward: 500,
+        radius: 24,
+        hitFlash: 0,
+      });
+    }
+    dpsTracker = { totalDmg: 0, startTime: 0, hits: 0, lastHitTime: 0 };
+    if (audio.playCrit) audio.playCrit();
+    logMessage('🎯 Spawned 5,000 HP World Boss Test Golem! Unleash all abilities to test DPS!', 'log-solari', 'combat');
+  };
+
+  function recordTestModeDamage(dmg) {
+    if (!isTestMode || dmg <= 0) return;
+    const now = performance.now();
+    if (!dpsTracker.startTime || now - dpsTracker.lastHitTime > 6000) {
+      dpsTracker.startTime = now;
+      dpsTracker.totalDmg = 0;
+      dpsTracker.hits = 0;
+    }
+    dpsTracker.totalDmg += dmg;
+    dpsTracker.hits++;
+    dpsTracker.lastHitTime = now;
+    const elapsed = Math.max(0.5, (now - dpsTracker.startTime) / 1000);
+    const dps = (dpsTracker.totalDmg / elapsed).toFixed(1);
+    const meter = document.getElementById('testmode-dps-meter');
+    if (meter) meter.innerText = `DPS: ${dps} (${dpsTracker.totalDmg} total)`;
   }
 
   const player = {
@@ -352,10 +539,18 @@ export function initGame() {
   }
   syncBgmButtonLabel();
 
-  window.toggleBgmMute = function () {
-    const playing = audio.toggleBgm();
+  window.toggleBgmMute = function (force) {
+    let playing;
+    if (typeof force === 'boolean') {
+      audio.setBgmEnabled(force);
+      playing = force;
+    } else {
+      playing = audio.toggleBgm();
+    }
     const btn = document.getElementById('btn-bgm-toggle');
     if (btn) btn.innerText = playing ? '🎵 BGM' : '🔇 BGM';
+    const cb = document.getElementById('settings-bgm-checkbox');
+    if (cb) cb.checked = playing;
   };
 
   function refreshHeroPortrait() {
@@ -545,10 +740,20 @@ export function initGame() {
   window.assignSlotAbilityInGame = function (slot, abilityId) {
     const ab = ABILITIES_CATALOG[abilityId];
     if (!ab) return;
+    const rank = getAbilityRank(prog, ab.id, isTestMode);
+    if (rank < 1) {
+      logMessage(`🔒 Must allocate a Skill Point in ${ab.name} in the Skill Tree [P] before equipping!`, 'log-combat');
+      audio.playHurt();
+      return;
+    }
     localProfile.loadout = { ...(localProfile.loadout || {}), [slot]: ab.id };
+    if (prog.ranks) {
+      prog.ranks[slot] = rank;
+    }
     audio.playSpell();
     updateActionBarBadges();
     renderKeybindUI();
+    if (typeof renderSkillTreeUI === 'function') renderSkillTreeUI();
     if (net.connected) {
       net.send({ type: 'update_loadout', loadout: localProfile.loadout });
     }
@@ -594,8 +799,13 @@ export function initGame() {
 
   window.switchServerRoom = function (roomId) {
     if (net.connected) {
+      portalCooldown = 2.0;
+      triggerPortalMist(0.5);
+      inputs.up = inputs.down = inputs.left = inputs.right = false;
+      player.isMoving = false;
+      moveSyncAccum = 0;
       audio.playPortal();
-      net.send({ type: 'switch_room', roomId });
+      net.send({ type: 'switch_room', roomId, epoch: currentEpoch });
       document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
     }
   };
@@ -727,15 +937,40 @@ export function initGame() {
     net.setServerBase('');
     const inp = document.getElementById('custom-server-inp');
     if (inp) inp.value = '';
-    logMessage(`[Server] Reset to default same-origin / Vercel serverless host.`, 'log-system', 'chat');
+    logMessage(`[Server] Reset to default cloud realm host.`, 'log-system', 'chat');
   };
 
   // ==========================================
-  // Dialogue Helpers
+  // Dialogue Helpers & Unique NPC Portrait Renderer
   // ==========================================
-  function openDialogue(pages) {
-    activeDialoguePages = pages;
+  let activeDialogueSpriteKey = 'heraldNpc';
+
+  function updateNpcPortrait(spriteKey) {
+    const canvas = document.getElementById('npc-portrait-canvas');
+    if (!canvas) return;
+    const pctx = canvas.getContext('2d');
+    pctx.imageSmoothingEnabled = false;
+    pctx.clearRect(0, 0, canvas.width, canvas.height);
+    const key = spriteKey || activeDialogueSpriteKey || 'heraldNpc';
+    const portrait = (sprites.npcPortraits && sprites.npcPortraits[key]) ||
+                     (sprites[key] && sprites[key][0]) ||
+                     sprites.npcPortraits?.heraldNpc ||
+                     sprites.heraldNpc?.[0];
+    if (portrait) {
+      pctx.drawImage(portrait, 0, 0, canvas.width, canvas.height);
+    }
+  }
+
+  function openDialogue(pages, customSpriteKey = null) {
+    activeDialoguePages = pages || [];
     dialogueIdx = 0;
+    if (customSpriteKey) {
+      activeDialogueSpriteKey = customSpriteKey;
+    } else if (pages && pages[0] && pages[0].spriteKey) {
+      activeDialogueSpriteKey = pages[0].spriteKey;
+    } else {
+      activeDialogueSpriteKey = 'heraldNpc';
+    }
     renderDialogueBox();
   }
 
@@ -756,6 +991,8 @@ export function initGame() {
         ? `NEXT (${dialogueIdx + 1}/${activeDialoguePages.length}) ▸`
         : 'BEGIN TRAINING ✓';
     }
+    const key = page.spriteKey || activeDialogueSpriteKey || 'heraldNpc';
+    updateNpcPortrait(key);
   }
 
   window.advanceDialogue = function () {
@@ -964,8 +1201,8 @@ export function initGame() {
     }
 
     if (resolvedRoomType === ROOM_TYPES.SANCTUARY_HUB) {
-      zoneTitle.innerText = roomTitleOverride || 'SANCTUARY HUB #1';
-      zoneLabel.innerText = 'To Warzone';
+      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'SANCTUARY HUB #1';
+      if (zoneLabel) zoneLabel.innerText = 'To Warzone';
       arenaBanner.style.display = 'none';
       if (tutQuestBody) tutQuestBody.style.display = 'block';
       if (warzoneQuestBody) warzoneQuestBody.style.display = 'none';
@@ -982,8 +1219,8 @@ export function initGame() {
       );
       npcs.push({
         id: 'npc_aurora',
-        name: 'Aurora Marshal',
-        role: 'Solari Herald [Click / T]',
+        name: 'Herald Lyra',
+        role: 'Sunspire Herald [Click / T]',
         spriteKey: 'heraldNpc',
         x: 38,
         y: 82,
@@ -991,11 +1228,11 @@ export function initGame() {
       });
       if (!introShown && !frontpage.isOpen) {
         introShown = true;
-        openDialogue(AWAKENING_DIALOGUE);
+        openDialogue(AWAKENING_DIALOGUE, 'heraldNpc');
       }
     } else if (resolvedRoomType === ROOM_TYPES.ARENA_3V3) {
-      zoneTitle.innerText = roomTitleOverride || '3v3 NEXUS ARENA';
-      zoneLabel.innerText = 'Exit Arena';
+      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || '3v3 NEXUS ARENA';
+      if (zoneLabel) zoneLabel.innerText = 'Exit Arena';
       arenaBanner.style.display = 'flex';
       if (tutQuestBody) tutQuestBody.style.display = 'none';
       if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
@@ -1009,8 +1246,8 @@ export function initGame() {
         { type: 'pillar', x: 110, y: 0 }
       );
     } else if (resolvedRoomType === ROOM_TYPES.NEXUS_FORGOTTEN_RUINS) {
-      zoneTitle.innerText = roomTitleOverride || 'FORGOTTEN FIRST NEXUS RUINS';
-      zoneLabel.innerText = 'To Sanctuary';
+      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'FORGOTTEN FIRST NEXUS RUINS';
+      if (zoneLabel) zoneLabel.innerText = 'To Sanctuary';
       arenaBanner.style.display = 'none';
       if (tutQuestBody) tutQuestBody.style.display = 'none';
       if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
@@ -1028,16 +1265,16 @@ export function initGame() {
       );
       npcs.push({
         id: 'npc_atlas',
-        name: 'Atlas the Wanderer',
-        role: 'High Cartographer [Click / T]',
+        name: 'Atlas the Cartographer',
+        role: 'Keystone Seeker [Click / T]',
         spriteKey: 'cartographerNpc',
         x: 42,
         y: 135,
         dialogue: RUINS_DIALOGUE,
       });
     } else if (resolvedRoomType === ROOM_TYPES.SOLARI_SUNKEN_VAULT) {
-      zoneTitle.innerText = roomTitleOverride || 'SUNKEN VAULT OF THE DAWN';
-      zoneLabel.innerText = 'To Golden Citadel';
+      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'SUNKEN VAULT OF THE DAWN';
+      if (zoneLabel) zoneLabel.innerText = 'To Golden Citadel';
       arenaBanner.style.display = 'none';
       if (tutQuestBody) tutQuestBody.style.display = 'none';
       if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
@@ -1056,16 +1293,16 @@ export function initGame() {
       );
       npcs.push({
         id: 'npc_lucian',
-        name: 'Archon Lucian',
-        role: 'Keeper of Dawn Flame [Click / T]',
-        spriteKey: 'heraldNpc',
+        name: 'Pyremaster Lucian',
+        role: 'Sunken Vault Flamekeeper [Click / T]',
+        spriteKey: 'solariFlamekeeperNpc',
         x: 36,
         y: 130,
         dialogue: SOLARI_VAULT_DIALOGUE,
       });
     } else if (resolvedRoomType === ROOM_TYPES.UMBRI_SHADOW_LABYRINTH) {
-      zoneTitle.innerText = roomTitleOverride || 'DUSKVEIL SHADOW LABYRINTH';
-      zoneLabel.innerText = 'To Undercity';
+      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'DUSKVEIL SHADOW LABYRINTH';
+      if (zoneLabel) zoneLabel.innerText = 'To Undercity';
       arenaBanner.style.display = 'none';
       if (tutQuestBody) tutQuestBody.style.display = 'none';
       if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
@@ -1084,15 +1321,15 @@ export function initGame() {
       npcs.push({
         id: 'npc_vespera',
         name: 'Wraithmother Vespera',
-        role: 'Weaver of Deep Fog [Click / T]',
-        spriteKey: 'shadowNpc',
+        role: 'Weaver of Graveglass [Click / T]',
+        spriteKey: 'shadowWraithmotherNpc',
         x: -36,
         y: 130,
         dialogue: UMBRI_LABYRINTH_DIALOGUE,
       });
     } else if (resolvedRoomType === ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY) {
-      zoneTitle.innerText = roomTitleOverride || 'ROOTDEEP PRIMORDIAL HOLLOW';
-      zoneLabel.innerText = 'To Glimmer Orchard';
+      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'ROOTDEEP PRIMORDIAL HOLLOW';
+      if (zoneLabel) zoneLabel.innerText = 'To Glimmer Orchard';
       arenaBanner.style.display = 'none';
       if (tutQuestBody) tutQuestBody.style.display = 'none';
       if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
@@ -1110,16 +1347,16 @@ export function initGame() {
       );
       npcs.push({
         id: 'npc_sylvanus',
-        name: 'Dryad Sylvanus',
-        role: 'Voice of the Ironwood [Click / T]',
-        spriteKey: 'druidNpc',
+        name: 'Elder Druid Sylvanus',
+        role: 'Voice of Ironbark [Click / T]',
+        spriteKey: 'terraElderDruidNpc',
         x: 36,
         y: 130,
         dialogue: TERRA_GROVE_DIALOGUE,
       });
     } else if (resolvedRoomType === ROOM_TYPES.AETHER_FRACTURED_ARCHIVE) {
-      zoneTitle.innerText = roomTitleOverride || 'FRACTURED CHRONO-ARCHIVE';
-      zoneLabel.innerText = 'To Mirrorgate Spire';
+      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'FRACTURED CHRONO-ARCHIVE';
+      if (zoneLabel) zoneLabel.innerText = 'To Mirrorgate Spire';
       arenaBanner.style.display = 'none';
       if (tutQuestBody) tutQuestBody.style.display = 'none';
       if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
@@ -1136,15 +1373,15 @@ export function initGame() {
       npcs.push({
         id: 'npc_zephyr',
         name: 'Chronos Sage Zephyr',
-        role: 'Continuum Chronologer [Click / T]',
-        spriteKey: 'chronoNpc',
+        role: 'Chronocore Archon [Click / T]',
+        spriteKey: 'aetherChronosNpc',
         x: -36,
         y: 130,
         dialogue: AETHER_ARCHIVE_DIALOGUE,
       });
     } else {
-      zoneTitle.innerText = roomTitleOverride || cfg.shortTitle || 'NEXUS WARZONE';
-      zoneLabel.innerText = 'To Sanctuary';
+      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || cfg.shortTitle || 'NEXUS WARZONE';
+      if (zoneLabel) zoneLabel.innerText = 'To Sanctuary';
       arenaBanner.style.display = 'none';
       if (tutQuestBody) tutQuestBody.style.display = 'none';
       if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
@@ -1261,9 +1498,9 @@ export function initGame() {
 
         npcs.push({
           id: 'npc_archon',
-          name: 'Sunspire Archon',
-          role: 'War Commander [Click / T]',
-          spriteKey: 'heraldNpc',
+          name: 'Commander Valerius',
+          role: 'Sunspire Warlord [Click / T]',
+          spriteKey: 'warzoneArchonNpc',
           x: -36,
           y: 1420, // Waystation in South Sanctuary Vale
           dialogue: WARZONE_DIALOGUE,
@@ -1277,9 +1514,9 @@ export function initGame() {
       if (resolvedRoomType === ROOM_TYPES.SOLARI_CITADEL) {
         npcs.push({
           id: 'npc_vael',
-          name: 'Commander Vael',
-          role: 'Solari High Captain [Click / T]',
-          spriteKey: 'heraldNpc',
+          name: 'Captain Vaelen',
+          role: 'Lantern District Templar [Click / T]',
+          spriteKey: 'solariCaptainNpc',
           x: -45,
           y: 125,
           dialogue: SOLARI_CITADEL_DIALOGUE,
@@ -1289,7 +1526,7 @@ export function initGame() {
           id: 'npc_nyx',
           name: 'Shadow Broker Nyx',
           role: 'Duskveil Smuggler [Click / T]',
-          spriteKey: 'shadowNpc',
+          spriteKey: 'shadowBrokerNpc',
           x: 45,
           y: 125,
           dialogue: UMBRI_UNDERCITY_DIALOGUE,
@@ -1298,8 +1535,8 @@ export function initGame() {
         npcs.push({
           id: 'npc_rowan',
           name: 'Grove Tender Rowan',
-          role: 'Terra Herbalist [Click / T]',
-          spriteKey: 'druidNpc',
+          role: 'Rootdeep Herbalist [Click / T]',
+          spriteKey: 'terraHerbalistNpc',
           x: -45,
           y: 125,
           dialogue: TERRA_ORCHARD_DIALOGUE,
@@ -1309,7 +1546,7 @@ export function initGame() {
           id: 'npc_kaelen',
           name: 'Astromancer Kaelen',
           role: 'Mirrorgate Stargazer [Click / T]',
-          spriteKey: 'chronoNpc',
+          spriteKey: 'aetherAstromancerNpc',
           x: 45,
           y: 125,
           dialogue: AETHER_SPIRE_DIALOGUE,
@@ -1332,14 +1569,11 @@ export function initGame() {
       player.y = 96;
       entities.push(
         { id: 'dummy_1', name: 'Sanctuary Dummy', sub: 'Lv.1 Awakening Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: 12, origX: 0, origY: 12, hp: 30, maxHp: 30, xpReward: 30, radius: 14, hitFlash: 0 },
+        { id: 'dummy_2', name: 'Armored Training Post', sub: 'Lv.5 Resilient Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: -45, origX: 0, origY: -45, hp: 120, maxHp: 120, xpReward: 65, radius: 15, hitFlash: 0 },
         { id: 'tut_font', name: 'Awakening Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
         { id: 'tut_font_2', name: 'East Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'portal_main', name: 'Nexus Warzone Rift', sub: 'Step In -> Nexus Warzone', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_WARZONE, spriteKey: 'portal', x: 0, y: -158, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 },
-        { id: 'portal_solari', name: 'Lantern District Gate', sub: '☀️ Solari Dungeon', type: 'portal', targetRoom: ROOM_TYPES.SOLARI_CITADEL, spriteKey: 'portal', x: -128, y: -136, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
-        { id: 'portal_umbri', name: 'Sepulcher Undercity Rift', sub: '🌑 Umbri Dungeon', type: 'portal', targetRoom: ROOM_TYPES.UMBRI_UNDERCITY, spriteKey: 'portal', x: 128, y: -136, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
-        { id: 'portal_terra', name: 'Glimmer Orchard Waygate', sub: '🌿 Terra Dungeon', type: 'portal', targetRoom: ROOM_TYPES.TERRA_ORCHARD, spriteKey: 'portal', x: -145, y: 112, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
-        { id: 'portal_aether', name: 'Mirrorgate Spire Rift', sub: '🔮 Aether Dungeon', type: 'portal', targetRoom: ROOM_TYPES.AETHER_SPIRE, spriteKey: 'portal', x: 145, y: 112, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 },
-        { id: 'portal_ruins', name: 'First Nexus Ruins Gate', sub: '🏛️ Forgotten Ruins', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS, spriteKey: 'portal', x: 0, y: 195, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
+        { id: 'portal_main', name: 'Nexus Warzone Rift', sub: 'Step In -> Nexus Warzone (PvPvE)', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_WARZONE, spriteKey: 'portal', x: 0, y: -158, hp: 1, maxHp: 1, radius: 20, hitFlash: 0 },
+        { id: 'portal_ruins', name: 'Forgotten Crypt Entrance', sub: '🏛️ Trial of Champions Dungeon', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS, spriteKey: 'portal', x: 0, y: 195, hp: 1, maxHp: 1, radius: 18, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.ARENA_3V3) {
       player.x = 0;
@@ -1520,10 +1754,14 @@ export function initGame() {
     }
     camera.x = player.x;
     camera.y = player.y;
+    inputs.up = inputs.down = inputs.left = inputs.right = false;
+    player.isMoving = false;
+    portalCooldown = 2.0;
+    triggerPortalMist(0.5);
   }
 
   // ==========================================
-  // Authoritative 20Hz Server Packet Handling
+  // Real-Time Authoritative Server Packet Handling
   // ==========================================
   function updateNetStatusPill() {
     const pill = document.getElementById('net-status-pill');
@@ -1537,7 +1775,7 @@ export function initGame() {
     const ping = net.pingMs || 1;
     const pingColor = ping < 55 ? '#4ade80' : ping < 130 ? '#facc15' : '#f87171';
     pill.style.color = pingColor;
-    pill.innerText = `● 20Hz • ${ping}ms • ${roomPop}/${currentRoomMax} IN ROOM (${onlineTotal} ON)`;
+    pill.innerText = `● ONLINE • ${ping}ms • ${roomPop}/${currentRoomMax} IN ZONE (${onlineTotal} ADVENTURERS)`;
   }
 
   function isRemoteHostile(rp) {
@@ -1649,10 +1887,18 @@ export function initGame() {
           hideDeathScreen();
         }
         const errDist = Math.hypot(sp.x - player.x, sp.y - player.y);
-        if (errDist > 180) {
+        if (portalCooldown > 1.2) {
+          // Clean authoritative alignment right after portal travel (prevents any screen vibration)
+          player.x = sp.x;
+          player.y = sp.y;
+          camera.x = player.x;
+          camera.y = player.y;
+        } else if (errDist > 180) {
           // Hard teleport / portal jump / respawn
           player.x = sp.x;
           player.y = sp.y;
+          camera.x = player.x;
+          camera.y = player.y;
         } else if (!player.isMoving && errDist > 4) {
           // Smooth settling when standing still (no jitter while walking)
           player.x += (sp.x - player.x) * 0.35;
@@ -1781,6 +2027,7 @@ export function initGame() {
         audio.playHit(fx.isCrit);
         const hitEnt = entities.find((e) => Math.hypot(e.x - fx.x, e.y - fx.y) < 22);
         if (hitEnt) hitEnt.hitFlash = 0.14;
+        recordTestModeDamage(fx.dmg);
         spawnSparkBurst(fx.x, fx.y - 8, fx.isCrit ? ['#fde047', '#ffffff', '#f97316'] : ['#ef4444', '#fca5a5', '#facc15'], fx.isCrit ? 12 : 7);
         spawnFCT(fx.x, fx.y, `-${fx.dmg}`, fx.isCrit ? '#facc15' : '#f87171', fx.isCrit);
         if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !quests.damaged) {
@@ -1828,7 +2075,7 @@ export function initGame() {
     onStatusChange(connected) {
       updateNetStatusPill();
       if (connected) {
-        logMessage('[Server] Connected to 20Hz Authoritative Server + Neon PostgreSQL!', 'log-heal', 'chat');
+        logMessage('[Server] Connected to GlimmerFall Online Realm!', 'log-gain', 'chat');
       } else {
         remotePlayers.clear();
         logMessage('[Server] Connection lost — running local fallback & reconnecting...', 'log-combat', 'chat');
@@ -1850,16 +2097,26 @@ export function initGame() {
         case 'room_joined': {
           const roomChanged = currentRoomId !== msg.roomId || currentRoomType !== msg.roomType;
           currentRoomId = msg.roomId;
+          currentRoomType = msg.roomType;
           currentRoomMax = msg.maxPlayers || 60;
+          currentEpoch = msg.epoch || (currentEpoch + 1);
+          if (msg.halfW && msg.halfH) {
+            mapBounds.halfW = msg.halfW;
+            mapBounds.halfH = msg.halfH;
+          }
           net.preferredRoom = msg.roomType;
           remotePlayers.clear();
-          if (roomChanged || Math.hypot(msg.x - player.x, msg.y - player.y) > 120) {
-            player.x = msg.x;
-            player.y = msg.y;
-          }
+          player.x = msg.x;
+          player.y = msg.y;
+          player.z = 0;
+          player.vz = 0;
+          player.isJumping = false;
+          player.isMoving = false;
+          inputs.up = inputs.down = inputs.left = inputs.right = false;
           player.dir = msg.dir || 'up';
           player.team = msg.team || null;
-          portalCooldown = 2.5;
+          portalCooldown = 2.0;
+          triggerPortalMist(0.5);
           if (player.isDead) player.isDead = false;
           hideDeathScreen();
           if (msg.roomType === ROOM_TYPES.ARENA_3V3) {
@@ -1869,6 +2126,14 @@ export function initGame() {
           }
           camera.x = player.x;
           camera.y = player.y;
+          lastSentMove = {
+            x: player.x,
+            y: player.y,
+            z: 0,
+            dir: player.dir,
+            isMoving: false,
+            time: performance.now(),
+          };
           setupZoneDecor(msg.roomType, msg.roomTitle);
           if (msg.roomType !== ROOM_TYPES.SANCTUARY_HUB && !quests.portalReady) {
             quests.portalReady = true;
@@ -1911,6 +2176,14 @@ export function initGame() {
           updateActionBarBadges();
           renderStatsModal();
           renderKeybindUI();
+          if (typeof renderSkillTreeUI === 'function') renderSkillTreeUI();
+          break;
+
+        case 'cast_cancel':
+          isCasting = false;
+          castProgress = 0;
+          document.getElementById('cast-bar-container').style.display = 'none';
+          currentSpell = null;
           break;
 
         case 'player_respawned':
@@ -2020,16 +2293,24 @@ export function initGame() {
   const frontpage = new FrontpageController({
     net,
     audio,
-    onEnterWorld({ profile, startingRealm }) {
+    onEnterWorld({ profile, startingRealm, isTestMode: testRequested }) {
       if (profile) applyProfile(profile);
+      if (testRequested) {
+        window.enableTestMode();
+      }
       audio.setBgmTheme(ROOM_CONFIGS[startingRealm]?.bgm || 'sanctuary');
       if (net.connected && startingRealm && !currentRoomId.startsWith(startingRealm)) {
-        net.send({ type: 'switch_room', roomType: startingRealm });
+        portalCooldown = 2.0;
+        triggerPortalMist(0.5);
+        inputs.up = inputs.down = inputs.left = inputs.right = false;
+        player.isMoving = false;
+        moveSyncAccum = 0;
+        net.send({ type: 'switch_room', roomType: startingRealm, epoch: currentEpoch });
       } else if (!net.connected && startingRealm && startingRealm !== currentRoomType) {
         buildOfflineZone(startingRealm);
       } else if (!introShown && currentRoomType === ROOM_TYPES.SANCTUARY_HUB) {
         introShown = true;
-        openDialogue(AWAKENING_DIALOGUE);
+        openDialogue(AWAKENING_DIALOGUE, 'heraldNpc');
       }
     },
   });
@@ -2339,6 +2620,7 @@ export function initGame() {
     if (!ent || ent.isDying || ent.type === 'node' || ent.type === 'portal') return;
     ent.hp = Math.max(0, ent.hp - dmg);
     ent.hitFlash = 0.14;
+    recordTestModeDamage(dmg);
     if (ent.type === 'mob') {
       if (!ent.inCombat) {
         spawnFCT(ent.x, ent.y - 12, 'AGGRO!', '#ef4444');
@@ -2455,8 +2737,30 @@ export function initGame() {
 
   window.castAbility = function (slot) {
     if (player.isDead || player.frozen) return;
+    if (!isSlotUnlocked(prog, slot, isTestMode)) {
+      const reqLvl = SLOT_UNLOCK_LEVELS[slot] || 1;
+      logMessage(`🔒 Slot locked! Reach Level ${reqLvl} to unlock this ${slot >= 9 ? 'Flash' : 'Rite'}.`, 'log-combat');
+      return;
+    }
     const spec = getSlotAbilitySpec(localProfile.loadout, slot);
     if (!spec) return;
+
+    // Diablo 2 Requirement: Abilities with 0 points allocated cannot be cast!
+    const abilityRank = getAbilityRank(prog, spec.id, isTestMode);
+    if (abilityRank < 1) {
+      logMessage(`🔒 ${spec.name} is not learned yet! Open Spellbook [P] to allocate your Skill Point!`, 'log-combat');
+      audio.playHurt();
+      return;
+    }
+
+    if (isCasting) {
+      logMessage('⏳ Already channeling a Rite!', 'log-combat');
+      return;
+    }
+
+    if (infiniteGlimmer) {
+      player.solarCharge = player.maxSolarCharge;
+    }
 
     if (cooldowns[slot] > 0) {
       logMessage(`[Cooldown] ${spec.name} ready in ${cooldowns[slot].toFixed(1)}s`, 'log-combat');
@@ -2468,6 +2772,8 @@ export function initGame() {
       return;
     }
 
+    const isRite = spec.tcgType.includes('Rite');
+    const isFlash = spec.tcgType.includes('Flash');
     const cdMult = calcCdMult(prog, localProfile.equipment, localProfile.classId, localProfile.faction);
     const rangePx = (spec.rangeYards || 8) * YARD_PX;
     const needsTarget = [
@@ -2502,6 +2808,16 @@ export function initGame() {
     }
 
     cooldowns[slot] = spec.baseCd * cdMult;
+
+    // Rites channel for castTime; Flashes fire instantly!
+    if (isRite && (spec.castTime || 0) > 0) {
+      isCasting = true;
+      castDuration = spec.castTime;
+      castProgress = 0;
+      document.getElementById('cast-bar-container').style.display = 'block';
+      document.getElementById('cast-name').innerText = `RITE: ${spec.name.toUpperCase()}`;
+      document.getElementById('cast-time').innerText = `${castDuration.toFixed(1)}s`;
+    }
 
     if (spec.kind === 'melee_cleave') {
       audio.playSlash();
@@ -2550,8 +2866,6 @@ export function initGame() {
     const rank = prog.ranks[slot] || 1;
     const eff = getEffectiveStats(prog, localProfile.equipment, localProfile.classId);
     const critChance = calcCritChance(prog, localProfile.equipment, localProfile.classId);
-    const isRite = spec.tcgType.includes('Rite');
-    const isFlash = spec.tcgType.includes('Flash');
 
     if (spec.cost > 0) {
       player.solarCharge = Math.max(0, player.solarCharge - spec.cost);
@@ -2826,14 +3140,19 @@ export function initGame() {
       }
     }
     audio.playDialogue();
-    openDialogue(best.dialogue);
+    openDialogue(best.dialogue, best.spriteKey);
   };
 
   window.teleportWorld = function () {
     audio.playPortal();
+    portalCooldown = 2.0;
+    triggerPortalMist(0.5);
+    inputs.up = inputs.down = inputs.left = inputs.right = false;
+    player.isMoving = false;
+    moveSyncAccum = 0;
     const nextType = currentRoomType === ROOM_TYPES.SANCTUARY_HUB ? ROOM_TYPES.NEXUS_WARZONE : ROOM_TYPES.SANCTUARY_HUB;
     if (net.connected) {
-      net.send({ type: 'switch_room', roomType: nextType });
+      net.send({ type: 'switch_room', roomType: nextType, epoch: currentEpoch });
     } else {
       buildOfflineZone(nextType);
     }
@@ -3024,19 +3343,58 @@ export function initGame() {
   function updateActionBarBadges() {
     for (const slot of ACTION_SLOTS) {
       const spec = getSlotAbilitySpec(localProfile.loadout, slot);
+      const unlocked = isSlotUnlocked(prog, slot, isTestMode);
+      const reqLvl = SLOT_UNLOCK_LEVELS[slot] || 1;
+      const abilityRank = getAbilityRank(prog, spec?.id, isTestMode);
+      const isLearned = abilityRank >= 1;
+
       const badge = document.getElementById(`badge-${slot}`);
       if (badge && keybinds[slot]) badge.innerText = formatKeyLabel(keybinds[slot]);
       const rk = document.getElementById(`rank-${slot}`);
-      if (rk) rk.innerText = `R${prog.ranks[slot] || 1}`;
+      if (rk) {
+        if (!unlocked) {
+          rk.innerText = `Lv.${reqLvl}`;
+          rk.style.color = '#94a3b8';
+        } else if (!isLearned) {
+          rk.innerText = `LOCK`;
+          rk.style.color = '#ef4444';
+        } else {
+          rk.innerText = abilityRank >= 5 ? 'MAX' : `R${abilityRank}`;
+          rk.style.color = abilityRank >= 5 ? '#facc15' : '#38bdf8';
+        }
+      }
       const iconEl = document.getElementById(`icon-${slot}`);
-      if (iconEl && spec) iconEl.innerText = spec.icon;
+      if (iconEl) iconEl.innerText = (!unlocked || !isLearned) ? '🔒' : (spec?.icon || '⚔️');
       const nameEl = document.getElementById(`name-${slot}`);
-      if (nameEl && spec) nameEl.innerText = spec.short;
+      if (nameEl) {
+        if (!unlocked) {
+          nameEl.innerText = `Lv.${reqLvl}`;
+          nameEl.style.color = '#94a3b8';
+        } else if (!isLearned) {
+          nameEl.innerText = spec?.short || 'Rite';
+          nameEl.style.color = '#ef4444';
+        } else {
+          nameEl.innerText = spec?.short || 'Rite';
+          nameEl.style.color = spec?.color || '#ffffff';
+        }
+      }
       const btnEl = document.getElementById(`btn-slot-${slot}`);
-      if (btnEl && spec) {
-        btnEl.title = `${spec.name} (${spec.tcgType}) — ${spec.desc}`;
-        btnEl.classList.toggle('flash-card', spec.tcgType.includes('Flash'));
-        btnEl.classList.toggle('rite-card', spec.tcgType.includes('Rite'));
+      if (btnEl) {
+        if (!unlocked) {
+          btnEl.title = `Locked: Reach Level ${reqLvl} to unlock this ${slot >= 9 ? 'Flash' : 'Rite'}!`;
+          btnEl.classList.add('slot-locked');
+          btnEl.classList.remove('flash-card', 'rite-card');
+        } else if (!isLearned) {
+          btnEl.title = `🔒 [Unlearned] ${spec.name} — Allocate skill points in Spellbook [P] to unlock!`;
+          btnEl.classList.add('slot-locked');
+          btnEl.classList.remove('flash-card', 'rite-card');
+        } else if (spec) {
+          const castTxt = spec.castTime > 0 ? `${spec.castTime.toFixed(1)}s Cast` : 'Instant Flash';
+          btnEl.title = `${spec.name} (${spec.tcgType} • Rank ${abilityRank}/5 • ${castTxt}) — ${spec.desc}`;
+          btnEl.classList.remove('slot-locked');
+          btnEl.classList.toggle('flash-card', spec.tcgType.includes('Flash'));
+          btnEl.classList.toggle('rite-card', spec.tcgType.includes('Rite'));
+        }
       }
     }
     const hb = document.getElementById('badge-harvest');
@@ -3044,6 +3402,244 @@ export function initGame() {
   }
 
   let rebindFeedbackMsg = '';
+  let currentSkillTreeTab = 'flashes';
+
+  window.switchSkillTreeTab = function (tab) {
+    currentSkillTreeTab = tab;
+    document.querySelectorAll('.st-tab-btn').forEach((btn) => btn.classList.remove('active'));
+    const activeBtn = document.getElementById(`st-tab-${tab}`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    const treeContent = document.getElementById('skill-tree-content');
+    const kbContainer = document.getElementById('keybind-list-container');
+    const d2MaxBtn = document.getElementById('d2-max-skills-btn');
+    if (d2MaxBtn) d2MaxBtn.style.display = isTestMode ? 'inline-block' : 'none';
+
+    if (tab === 'keybinds') {
+      if (treeContent) treeContent.style.display = 'none';
+      if (kbContainer) kbContainer.style.display = 'block';
+      renderKeybindUI();
+    } else {
+      if (treeContent) treeContent.style.display = 'block';
+      if (kbContainer) kbContainer.style.display = 'none';
+      renderSkillTreeUI();
+    }
+  };
+
+  window.upgradeAbilityInTree = function (abilityId) {
+    const spec = ABILITIES_CATALOG[abilityId];
+    if (!spec) return;
+    if (!canUpgradeAbility(prog, abilityId, isTestMode)) {
+      audio.playHurt();
+      return;
+    }
+
+    prog.skillPoints = Math.max(0, (prog.skillPoints || 0) - 1);
+    if (!prog.skills) prog.skills = {};
+    const newRank = Math.min(spec.maxRank || 5, (prog.skills[abilityId] || 0) + 1);
+    prog.skills[abilityId] = newRank;
+
+    for (const [slotStr, abId] of Object.entries(localProfile.loadout || {})) {
+      if (abId === abilityId) {
+        prog.ranks[slotStr] = newRank;
+      }
+    }
+
+    // Audio chime fanfare for dopamine hit!
+    audio.playChime();
+    spawnFCT(player.x, player.y - 14, `★ ${spec.name.toUpperCase()} (RANK ${newRank})!`, spec.color || '#facc15', true);
+    logMessage(`🌟 Upgraded ${spec.name} to Rank ${newRank}/5!`, 'log-gain', 'combat');
+
+    updateActionBarBadges();
+    renderSkillTreeUI();
+    renderKeybindUI();
+
+    if (net.connected) {
+      net.send({ type: 'upgrade_skill', abilityId });
+    }
+  };
+
+  window.testModeMaxAllSkills = function () {
+    if (!isTestMode) return;
+    if (!prog.skills) prog.skills = {};
+    for (const spec of Object.values(ABILITIES_CATALOG)) {
+      if (spec.id === 'harvest') continue;
+      prog.skills[spec.id] = 5;
+    }
+    for (const slot of ACTION_SLOTS) {
+      prog.ranks[slot] = 5;
+    }
+    prog.skillPoints = 0;
+    audio.playZenith();
+    logMessage('🧪 [Sandbox] Maxed all abilities across all trees to Rank 5!', 'log-gain');
+    updateActionBarBadges();
+    renderSkillTreeUI();
+    renderKeybindUI();
+  };
+
+  function renderSkillTreeUI() {
+    const container = document.getElementById('skill-tree-content');
+    if (!container) return;
+
+    const spBadge = document.getElementById('sp-count-txt');
+    if (spBadge) spBadge.innerText = String(prog.skillPoints || 0);
+
+    const banner = document.getElementById('skill-points-banner');
+    if (banner) {
+      banner.innerHTML = `⚡ UNSPENT SKILL POINTS: <span id="sp-count-txt" class="skill-pts-badge">${prog.skillPoints || 0}</span>` +
+        ((prog.skillPoints || 0) > 0 ? ' <span style="color:#4ade80; margin-left:8px;">★ POINTS READY TO ALLOCATE!</span>' : '');
+    }
+
+    const isFlashesTab = currentSkillTreeTab === 'flashes';
+    const targetTree = isFlashesTab ? 'flashes' : 'rites';
+    const myFaction = localProfile.faction || 'Solari';
+
+    // Filter skills for this tree and faction
+    const treeSkills = Object.values(ABILITIES_CATALOG).filter(
+      (ab) => ab.tree === targetTree && (ab.faction === myFaction || ab.faction === 'All')
+    );
+
+    // Group by Tier (1 to 6)
+    const tiers = [
+      { tier: 1, reqLevel: 1 },
+      { tier: 2, reqLevel: 3 },
+      { tier: 3, reqLevel: 6 },
+      { tier: 4, reqLevel: 12 },
+      { tier: 5, reqLevel: 18 },
+      { tier: 6, reqLevel: 24 },
+    ];
+
+    let html = '';
+
+    for (const t of tiers) {
+      const skillsInTier = treeSkills.filter((s) => (s.tier || 1) === t.tier);
+      if (skillsInTier.length === 0) continue;
+
+      const tierUnlocked = (prog.level || 1) >= t.reqLevel;
+
+      html += `
+        <div class="d2-tier-row">
+          <div class="d2-tier-header">
+            <div>
+              <span style="color:#fde047; font-weight:800;">TIER ${t.tier}</span>
+              <span style="color:#94a3b8; margin-left:8px;">(Requires Champion Level ${t.reqLevel})</span>
+            </div>
+            <div>
+              ${tierUnlocked
+                ? `<span style="color:#4ade80; font-size:10px;">✓ UNLOCKED</span>`
+                : `<span style="color:#ef4444; font-size:10px;">🔒 LOCKED (Level ${t.reqLevel})</span>`}
+            </div>
+          </div>
+          <div class="d2-skills-grid">
+      `;
+
+      for (const ab of skillsInTier) {
+        const curRank = getAbilityRank(prog, ab.id, isTestMode);
+        const canUp = canUpgradeAbility(prog, ab.id, isTestMode);
+        const isMax = curRank >= (ab.maxRank || 5);
+        const isLearned = curRank >= 1;
+
+        let cardClass = 'd2-skill-card';
+        if (isMax) cardClass += ' maxed';
+        else if (isLearned) cardClass += ' learned';
+        else if (!tierUnlocked) cardClass += ' locked';
+
+        const castTimeTxt = ab.castTime > 0 ? `☀️ ${ab.castTime.toFixed(1)}s Cast Rite` : `⚡ Instant Flash`;
+
+        let prereqName = '';
+        let prereqMet = true;
+        if (ab.prereq) {
+          const pSpec = ABILITIES_CATALOG[ab.prereq];
+          prereqName = pSpec?.name || ab.prereq;
+          prereqMet = getAbilityRank(prog, ab.prereq, isTestMode) >= 1;
+        }
+
+        // Check if currently equipped in loadout
+        let equippedSlot = null;
+        for (const [s, id] of Object.entries(localProfile.loadout || {})) {
+          if (id === ab.id) {
+            equippedSlot = s;
+            break;
+          }
+        }
+
+        // Available slots for quick equipping
+        const equipSlots = isFlashesTab ? [9, 10, 11, 12] : [1, 2, 3, 4];
+
+        html += `
+          <div class="${cardClass}">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:18px;">${ab.icon}</span>
+                <div>
+                  <div style="font-weight:700; font-size:11.5px; color:${ab.color || '#facc15'};">${ab.name}</div>
+                  <div style="font-size:9.5px; color:#38bdf8;">${castTimeTxt}</div>
+                </div>
+              </div>
+              <div class="d2-rank-badge ${isMax ? 'is-max' : curRank > 0 ? 'has-points' : ''}">
+                ${isMax ? 'MAX RANK (5/5)' : `RANK ${curRank}/5`}
+              </div>
+            </div>
+
+            <div style="font-size:10px; color:#cbd5e1; line-height:1.4; margin-top:2px;">
+              ${ab.desc}
+            </div>
+
+            ${prereqName ? `
+              <div style="font-size:9.5px; color:${prereqMet ? '#4ade80' : '#f87171'};">
+                ${prereqMet ? '✓' : '🔒'} Requires: ${prereqName} (Rank 1+)
+              </div>
+            ` : ''}
+
+            ${curRank < 5 ? `
+              <div style="font-size:9.5px; color:#facc15; background:rgba(15,23,42,0.6); padding:3px 6px; border-radius:3px; border-left:2px solid #facc15;">
+                Next Rank: +3 Base DMG / Effect scaling, -0.35s Cooldown
+              </div>
+            ` : ''}
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; gap:6px; flex-wrap:wrap;">
+              <div>
+                ${canUp
+                  ? `<button type="button" class="d2-alloc-btn can-alloc" onclick="upgradeAbilityInTree('${ab.id}')">+ INVEST 1 POINT</button>`
+                  : isMax
+                    ? `<button type="button" class="d2-alloc-btn" disabled>★ MAXED</button>`
+                    : !tierUnlocked
+                      ? `<button type="button" class="d2-alloc-btn" disabled>REQ LV. ${t.reqLevel}</button>`
+                      : !prereqMet
+                        ? `<button type="button" class="d2-alloc-btn" disabled>REQ PREREQ</button>`
+                        : `<button type="button" class="d2-alloc-btn" disabled>0 POINTS</button>`}
+              </div>
+
+              ${isLearned ? `
+                <div style="display:flex; align-items:center; gap:4px;">
+                  <span style="font-size:9.5px; color:#94a3b8;">EQUIP:</span>
+                  ${equipSlots.map((s) => {
+                    const isCur = equippedSlot == s;
+                    const keyLabel = formatKeyLabel(keybinds[s]);
+                    return `
+                      <button type="button" class="util-btn" style="padding:2px 5px; font-size:9px; ${isCur ? 'border-color:#4ade80; color:#4ade80; background:#14532d;' : 'border-color:#334155; color:#cbd5e1;'}"
+                        onclick="assignSlotAbilityInGame(${s}, '${ab.id}')" title="Equip to Slot ${s} [${keyLabel}]">
+                        ${isCur ? `✓ [${keyLabel}]` : `[${keyLabel}]`}
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+              ` : `
+                <div style="font-size:9px; color:#ef4444; font-weight:600;">🔒 UNLEARNED</div>
+              `}
+            </div>
+          </div>
+        `;
+      }
+
+      html += `
+          </div>
+        </div>
+      `;
+    }
+
+    container.innerHTML = html;
+  }
 
   function renderKeybindUI() {
     const container = document.getElementById('keybind-list-container');
@@ -3058,13 +3654,13 @@ export function initGame() {
         ptsHeader.innerText = rebindFeedbackMsg;
         ptsHeader.style.color = '#4ade80';
       } else {
-        ptsHeader.innerText = `SKILL POINTS AVAILABLE: ${prog.skillPoints}  •  CLICK ANY [KEY] BUTTON TO REBIND`;
-        ptsHeader.style.color = prog.skillPoints > 0 ? '#fde047' : '#94a3b8';
+        ptsHeader.innerText = `SKILL POINTS AVAILABLE: ${prog.skillPoints || 0}  •  CLICK ANY [KEY] BUTTON TO REBIND`;
+        ptsHeader.style.color = (prog.skillPoints || 0) > 0 ? '#fde047' : '#94a3b8';
       }
     }
     container.innerHTML = '';
     const cdMult = calcCdMult(prog, localProfile.equipment, localProfile.classId, localProfile.faction);
-    const allChoices = Object.values(ABILITIES_CATALOG).filter((a) => a.faction !== 'All');
+    const myFaction = localProfile.faction || 'Solari';
 
     for (const slot of [1, 2, 3, 4, 'harvest', 9, 10, 11, 12]) {
       const spec = getSlotAbilitySpec(localProfile.loadout, slot);
@@ -3072,32 +3668,45 @@ export function initGame() {
       const bound = formatKeyLabel(keybinds[slot]);
       const isListening = listeningSlot === slot;
       const isRankable = typeof slot === 'number';
-      const curRank = isRankable ? (prog.ranks[slot] || 1) : null;
-      const canUpgrade = isRankable && prog.skillPoints > 0 && curRank < 5;
+      const curRank = isRankable ? getAbilityRank(prog, spec.id, isTestMode) : null;
+      const isLearned = isRankable ? curRank >= 1 : true;
+      const canUpgrade = isRankable && canUpgradeAbility(prog, spec.id, isTestMode);
+
+      // Available choices for this slot: only learned spells matching tree type!
+      const isFlashSlot = typeof slot === 'number' && slot >= 9;
+      const allowedChoices = Object.values(ABILITIES_CATALOG).filter(
+        (ab) => ab.faction !== 'All' &&
+          (isFlashSlot ? ab.tree === 'flashes' : ab.tree === 'rites') &&
+          getAbilityRank(prog, ab.id, isTestMode) >= 1
+      );
+
+      const castTimeTxt = spec.castTime > 0 ? `${spec.castTime.toFixed(1)}s Cast` : 'Instant';
 
       const row = document.createElement('div');
       row.className = 'keybind-row';
       row.innerHTML = `
         <div style="flex:1; padding-right:10px;">
           <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-            <span style="font-size:14px;">${spec.icon}</span>
-            <b style="color:${spec.color}; font-size:11px;">${spec.name}</b>
+            <span style="font-size:16px;">${isLearned ? spec.icon : '🔒'}</span>
+            <b style="color:${spec.color}; font-size:12px;">${spec.name}</b>
             <span class="spec-pill">${spec.tcgType}</span>
-            ${isRankable ? `<span class="rank-pill">RANK ${curRank}/5</span>` : ''}
-            <span style="font-size:9px; color:#94a3b8;">CD:${spec.baseCd > 0 ? (spec.baseCd * cdMult).toFixed(1) + 's' : '0s'} | ${spec.range}</span>
+            ${isRankable ? `<span class="rank-pill">${isLearned ? `RANK ${curRank}/5` : '🔒 UNLEARNED'}</span>` : ''}
+            <span style="font-size:10px; color:#94a3b8;">${castTimeTxt} • CD: ${spec.baseCd > 0 ? (spec.baseCd * cdMult).toFixed(1) + 's' : '0s'} • ${spec.range}</span>
           </div>
-          <div style="font-size:10px; color:#e2e8f0; margin-top:3px; line-height:1.35;">${spec.desc}</div>
+          <div style="font-size:10.5px; color:#e2e8f0; margin-top:3px; line-height:1.4;">${spec.desc}</div>
           ${isRankable ? `
-            <div style="margin-top:4px;">
-              <select class="pixel-input" style="width:auto; padding:2px 6px; font-size:8.5px;" onchange="assignSlotAbilityInGame(${slot}, this.value); this.blur();">
-                ${allChoices.map((ab) => `<option value="${ab.id}" ${spec.id === ab.id ? 'selected' : ''}>${ab.icon} ${ab.name} (${ab.faction})</option>`).join('')}
+            <div style="margin-top:5px;">
+              <select class="pixel-input" style="width:auto; padding:3px 8px; font-size:10.5px;" onchange="assignSlotAbilityInGame(${slot}, this.value); this.blur();">
+                ${allowedChoices.length > 0
+                  ? allowedChoices.map((ab) => `<option value="${ab.id}" ${spec.id === ab.id ? 'selected' : ''}>${ab.icon} ${ab.name} (Rank ${getAbilityRank(prog, ab.id, isTestMode)}/5)</option>`).join('')
+                  : `<option disabled selected>🔒 No ${isFlashSlot ? 'Flashes' : 'Rites'} learned yet — allocate points in Spellbook [P]!</option>`}
               </select>
             </div>
           ` : ''}
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
-          ${isRankable ? `
-            <button type="button" class="upgrade-btn ${canUpgrade ? 'ready' : ''}" ${canUpgrade ? '' : 'disabled'} onclick="upgradeSkillRank(${slot})">
+          ${isRankable && isLearned ? `
+            <button type="button" class="upgrade-btn ${canUpgrade ? 'ready' : ''}" ${canUpgrade ? '' : 'disabled'} onclick="upgradeAbilityInTree('${spec.id}')">
               ${curRank >= 5 ? 'MAX' : '+RANK'}
             </button>
           ` : ''}
@@ -3212,6 +3821,14 @@ export function initGame() {
     renderKeybindUI();
   };
 
+  window.toggleTouchControls = toggleTouchControls;
+  window.toggleScanlines = function (enabled) {
+    const crt = document.getElementById('crt-overlay');
+    if (crt) crt.style.display = enabled ? 'block' : 'none';
+    const cb = document.getElementById('settings-crt-checkbox');
+    if (cb) cb.checked = enabled;
+  };
+
   window.toggleModal = function (id) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -3221,7 +3838,7 @@ export function initGame() {
     document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
     if (opening) {
       if (id === 'char-modal') renderStatsModal();
-      if (id === 'spellbook-modal') renderKeybindUI();
+      if (id === 'spellbook-modal') switchSkillTreeTab(currentSkillTreeTab || 'flashes');
       if (id === 'arena-modal') renderArenaModal();
       if (id === 'paperdoll-modal') renderInGamePaperdollModal({ profile: localProfile });
       if (id === 'account-modal') {
@@ -3230,6 +3847,14 @@ export function initGame() {
       if (id === 'social-modal') {
         if (net.connected) net.send({ type: 'list_rooms' });
         refreshSocialModalView();
+      }
+      if (id === 'settings-modal') {
+        const touchCb = document.getElementById('settings-touch-checkbox');
+        if (touchCb) touchCb.checked = document.body.classList.contains('touch-mode');
+        const crtCb = document.getElementById('settings-crt-checkbox');
+        if (crtCb) crtCb.checked = document.getElementById('crt-overlay')?.style.display === 'block';
+        const zLbl = document.getElementById('zoom-label');
+        if (zLbl) zLbl.innerText = `${zoom}x`;
       }
       el.style.display = 'block';
     }
@@ -3240,10 +3865,14 @@ export function initGame() {
   // ==========================================
   function enterPortalEntity(ent) {
     const dest = ent.targetRoom || PORTAL_ID_TO_ROOM[ent.id] || ROOM_TYPES.NEXUS_WARZONE;
-    portalCooldown = 1.6;
+    portalCooldown = 2.0;
+    triggerPortalMist(0.5);
+    inputs.up = inputs.down = inputs.left = inputs.right = false;
+    player.isMoving = false;
+    moveSyncAccum = 0;
     audio.playPortal();
     if (net.connected) {
-      net.send({ type: 'switch_room', roomType: dest });
+      net.send({ type: 'switch_room', roomType: dest, epoch: currentEpoch });
     } else {
       buildOfflineZone(dest);
     }
@@ -3257,7 +3886,7 @@ export function initGame() {
     for (const npc of npcs) {
       if (Math.hypot(npc.x - wx, npc.y - 12 - wy) < 22) {
         audio.playDialogue();
-        openDialogue(npc.dialogue);
+        openDialogue(npc.dialogue, npc.spriteKey);
         return;
       }
     }
@@ -3402,9 +4031,14 @@ export function initGame() {
     const normKey = normalizeKeyEvent(e);
 
     if (key === 'escape') {
-      setTarget(null);
-      window.closeDialogue();
-      document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
+      const openModal = Array.from(document.querySelectorAll('.modal')).find((m) => m.style.display === 'block');
+      if (openModal || currentTarget || dialogueOpen) {
+        setTarget(null);
+        window.closeDialogue();
+        document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
+      } else {
+        window.toggleModal('settings-modal');
+      }
       return;
     }
 
@@ -3460,6 +4094,7 @@ export function initGame() {
     if (key === 'c') window.toggleModal('char-modal');
     if (key === 'g') window.toggleModal('account-modal');
     if (key === 'o') window.toggleModal('social-modal');
+    if (key === 'h') window.openFrontpage();
     if (key === 'k') window.toggleModal('cards-modal');
     if (key === 'l') window.toggleModal('lore-modal');
   }, true);
@@ -3483,6 +4118,7 @@ export function initGame() {
   function update(dt) {
     globalTime += dt;
     if (portalCooldown > 0) portalCooldown = Math.max(0, portalCooldown - dt);
+    if (portalMistTimer > 0) portalMistTimer = Math.max(0, portalMistTimer - dt);
 
     for (const slot in cooldowns) {
       if (cooldowns[slot] > 0) {
@@ -3540,6 +4176,16 @@ export function initGame() {
       }
 
       if (mx !== 0 || my !== 0) {
+        if (isCasting) {
+          isCasting = false;
+          castProgress = 0;
+          document.getElementById('cast-bar-container').style.display = 'none';
+          currentSpell = null;
+          logMessage('🚫 Rite channeling interrupted by movement!', 'log-combat');
+          if (net.connected) {
+            net.send({ type: 'cancel_cast' });
+          }
+        }
         const len = Math.hypot(mx, my);
         mx /= len;
         my /= len;
@@ -3549,8 +4195,14 @@ export function initGame() {
         const spd = tempoSpeed * (inputs.shift ? player.sprintMult : 1);
         const stepDist = spd * dt;
 
-        const targetX = Math.max(-mapBounds.halfW + 14, Math.min(mapBounds.halfW - 14, player.x + mx * stepDist));
-        const targetY = Math.max(-mapBounds.halfH + 14, Math.min(mapBounds.halfH - 14, player.y + my * stepDist));
+        const GATE_HALF_WIDTH = 48;
+        const edgeTransitions = ROOM_CONFIGS[currentRoomType]?.edgeTransitions;
+        const canPassEastWest = (edgeTransitions?.east || edgeTransitions?.west) && Math.abs(player.y) <= GATE_HALF_WIDTH;
+        const canPassNorthSouth = (edgeTransitions?.north || edgeTransitions?.south) && Math.abs(player.x) <= GATE_HALF_WIDTH;
+        const padX = canPassEastWest ? 4 : 14;
+        const padY = canPassNorthSouth ? 4 : 14;
+        const targetX = Math.max(-mapBounds.halfW + padX, Math.min(mapBounds.halfW - padX, player.x + mx * stepDist));
+        const targetY = Math.max(-mapBounds.halfH + padY, Math.min(mapBounds.halfH - padY, player.y + my * stepDist));
 
         // Water & Chasm Collision: Cannot walk on water unless crossing a bridge!
         const currentlyInWater = isWaterTile(player.x, player.y, currentRoomType);
@@ -3620,6 +4272,56 @@ export function initGame() {
 
         // Step-into-portal seamless travel!
         if (portalCooldown <= 0) {
+          // Seamless Boundary Walking Transitions across 48x48 perimeter
+          const cfg = ROOM_CONFIGS[currentRoomType];
+          if (cfg && cfg.edgeTransitions) {
+            const edgePad = 12;
+            let dest = null;
+            let nextX = player.x;
+            let nextY = player.y;
+
+            const GATE_HALF_WIDTH = 48; // Center boundary road opening
+            if (player.x >= mapBounds.halfW - edgePad && cfg.edgeTransitions.east && Math.abs(player.y) <= GATE_HALF_WIDTH) {
+              dest = cfg.edgeTransitions.east;
+              const nextCfg = ROOM_CONFIGS[dest];
+              nextX = nextCfg ? -nextCfg.halfW + 28 : 28;
+              nextY = Math.max(-36, Math.min(36, player.y));
+            } else if (player.x <= -mapBounds.halfW + edgePad && cfg.edgeTransitions.west && Math.abs(player.y) <= GATE_HALF_WIDTH) {
+              dest = cfg.edgeTransitions.west;
+              const nextCfg = ROOM_CONFIGS[dest];
+              nextX = nextCfg ? nextCfg.halfW - 28 : -28;
+              nextY = Math.max(-36, Math.min(36, player.y));
+            } else if (player.y <= -mapBounds.halfH + edgePad && cfg.edgeTransitions.north && Math.abs(player.x) <= GATE_HALF_WIDTH) {
+              dest = cfg.edgeTransitions.north;
+              const nextCfg = ROOM_CONFIGS[dest];
+              nextX = Math.max(-36, Math.min(36, player.x));
+              nextY = nextCfg ? nextCfg.halfH - 28 : -28;
+            } else if (player.y >= mapBounds.halfH - edgePad && cfg.edgeTransitions.south && Math.abs(player.x) <= GATE_HALF_WIDTH) {
+              dest = cfg.edgeTransitions.south;
+              const nextCfg = ROOM_CONFIGS[dest];
+              nextX = Math.max(-36, Math.min(36, player.x));
+              nextY = nextCfg ? -nextCfg.halfH + 28 : 28;
+            }
+
+            if (dest) {
+              portalCooldown = 2.0;
+              triggerPortalMist(0.5);
+              inputs.up = inputs.down = inputs.left = inputs.right = false;
+              player.isMoving = false;
+              moveSyncAccum = 0;
+              audio.playPortal();
+              if (net.connected) {
+                net.send({ type: 'switch_room', roomType: dest, x: nextX, y: nextY, epoch: currentEpoch });
+              } else {
+                buildOfflineZone(dest);
+                player.x = nextX;
+                player.y = nextY;
+                camera.x = player.x;
+                camera.y = player.y;
+              }
+            }
+          }
+
           const hitPortal = entities.find((e) => e.type === 'portal' && Math.hypot(e.x - player.x, e.y - player.y) <= 18);
           if (hitPortal) {
             enterPortalEntity(hitPortal);
@@ -3653,6 +4355,7 @@ export function initGame() {
             z: curZ,
             dir: player.dir,
             isMoving: player.isMoving,
+            epoch: currentEpoch,
           });
         }
       }
@@ -3666,6 +4369,8 @@ export function initGame() {
 
     camera.x += (player.x - camera.x) * Math.min(1, 10 * dt);
     camera.y += (player.y - camera.y) * Math.min(1, 10 * dt);
+    if (Math.abs(player.x - camera.x) < 0.2) camera.x = player.x;
+    if (Math.abs(player.y - camera.y) < 0.2) camera.y = player.y;
 
     for (let i = entities.length - 1; i >= 0; i--) {
       const e = entities[i];
@@ -3725,6 +4430,69 @@ export function initGame() {
           }
 
           if (e.inCombat) {
+            if (e.isBoss && !e.isDying) {
+              const hpPercent = (e.hp / e.maxHp) * 100;
+              e.phase = e.phase || 1;
+
+              // Phase 2: Frenzy & Minions at 65% HP
+              if (hpPercent <= 65 && e.phase === 1) {
+                e.phase = 2;
+                e.baseDamage = e.baseDamage || e.damage || 7;
+                e.damage = Math.floor(e.baseDamage * 1.35);
+                logMessage(`⚡ ${e.name} roars into Phase 2, summoning guardians!`, 'log-combat');
+                spawnSparkBurst(e.x, e.y, ['#ef4444', '#f59e0b', '#facc15'], 28);
+                for (let m = 0; m < 3; m++) {
+                  entities.push({
+                    id: `${e.id}_m_${Date.now()}_${m}`,
+                    name: `${e.name} Guardian`,
+                    sub: 'Boss Minion',
+                    type: 'mob',
+                    isMinion: true,
+                    spriteKey: e.spriteKey === 'solariBoss' ? 'solariSentinel' : e.spriteKey === 'umbriBoss' ? 'duskFiend' : 'voidStalker',
+                    x: e.x + (Math.random() * 40 - 20),
+                    y: e.y + (Math.random() * 40 - 20),
+                    origX: e.x,
+                    origY: e.y,
+                    hp: Math.max(15, Math.round(e.maxHp * 0.18)),
+                    maxHp: Math.max(15, Math.round(e.maxHp * 0.18)),
+                    damage: Math.max(2, Math.round((e.damage || 6) * 0.5)),
+                    xpReward: 35,
+                    speed: 52,
+                    aggroRange: 150,
+                    attackRange: 28,
+                    radius: 14,
+                    hitFlash: 0,
+                  });
+                }
+              }
+
+              // Phase 3: Enrage & Area Shockwaves at 25% HP
+              if (hpPercent <= 25 && e.phase === 2) {
+                e.phase = 3;
+                e.enraged = true;
+                e.baseDamage = e.baseDamage || e.damage || 7;
+                e.damage = Math.floor(e.baseDamage * 1.6);
+                logMessage(`🔥 BEWARE: ${e.name} has ENRAGED! Ground shockwaves inbound!`, 'log-combat');
+                spawnSparkBurst(e.x, e.y, ['#dc2626', '#b91c1c', '#7f1d1d'], 36);
+              }
+
+              // Boss Shockwave AoE Ability
+              e.abilityCooldown = (e.abilityCooldown ?? (e.enraged ? 3.5 : 6.0)) - dt;
+              if (e.abilityCooldown <= 0) {
+                e.abilityCooldown = e.enraged ? 3.5 : 6.0;
+                const shockRadius = e.enraged ? 96 : 64;
+                const shockDmg = Math.round((e.damage || 7) * (e.enraged ? 1.8 : 1.3));
+                spawnFCT(e.x, e.y - 18, e.enraged ? '💥 ENRAGED SHOCKWAVE!' : '⚡ GROUND SLAM!', e.enraged ? '#ef4444' : '#f59e0b');
+                spawnSparkBurst(e.x, e.y, [e.enraged ? '#ef4444' : '#f59e0b', '#fde047'], 22);
+                if (!player.isDead && !player.stealthed && dist <= shockRadius) {
+                  damageOfflinePlayer(shockDmg, `${e.name} Shockwave`, e);
+                  const ang = Math.atan2(player.y - e.y, player.x - e.x);
+                  player.x = Math.max(-mapBounds.halfW + 14, Math.min(mapBounds.halfW - 14, player.x + Math.cos(ang) * 20));
+                  player.y = Math.max(-mapBounds.halfH + 14, Math.min(mapBounds.halfH - 14, player.y + Math.sin(ang) * 20));
+                }
+              }
+            }
+
             const speedMult = e.snareTimer > 0 ? 0.35 : e.slowTimer > 0 ? 0.55 : 1.0;
             e.facingDir = player.x < e.x ? -1 : 1;
 
@@ -3854,13 +4622,21 @@ export function initGame() {
       return sprites.tiles[`void_sea_${seaIdx}`];
     }
 
+    const isAtCenterGate = (Math.abs(tx) <= 2 && (wy === -mapBounds.halfH || wy === mapBounds.halfH - TILE_SIZE)) ||
+                           (Math.abs(ty) <= 2 && (wx === -mapBounds.halfW || wx === mapBounds.halfW - TILE_SIZE));
+
     const onRim =
       wx === -mapBounds.halfW || wx === mapBounds.halfW - TILE_SIZE ||
       wy === -mapBounds.halfH || wy === mapBounds.halfH - TILE_SIZE;
-    if (onRim) return sprites.tiles.flagstone_0;
+
+    if (onRim) {
+      if (isAtCenterGate) return sprites.tiles.flagstone_1 || sprites.tiles.flagstone_0;
+      return sprites.tiles.mountain_rock_0 || sprites.tiles.flagstone_0;
+    }
 
     if (currentBiomeTheme === 'sanctuary') {
-      if (Math.abs(tx) <= 1 || (ty >= -1 && ty <= 2 && Math.abs(tx) <= 6)) {
+      // Grand 4-way crossroads leading to the North, South, East & West border gates!
+      if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) {
         return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
       }
       return sprites.tiles[`sanctuary_grass_${Math.abs(tx * 7 + ty * 13) % 4}`];
@@ -4032,6 +4808,35 @@ export function initGame() {
     ctx.fillRect(Math.round(cx - rx + 2), Math.round(cy - ry), Math.round(rx * 2 - 4), Math.round(ry * 2));
   }
 
+  function drawPortalMist() {
+    if (portalMistTimer <= 0) return;
+    const progress = Math.min(1, portalMistTimer / 0.5);
+    const alpha = progress * 0.75;
+    const cx = viewW / 2;
+    const cy = viewH / 2;
+    const maxR = Math.hypot(cx, cy);
+
+    ctx.save();
+    const grad = ctx.createRadialGradient(cx, cy, maxR * 0.28, cx, cy, maxR);
+    grad.addColorStop(0, 'rgba(14, 165, 233, 0)');
+    grad.addColorStop(0.65, `rgba(56, 189, 248, ${0.35 * alpha})`);
+    grad.addColorStop(1, `rgba(2, 132, 199, ${0.75 * alpha})`);
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, viewW, viewH);
+
+    // Drifting edge vapor particles
+    ctx.fillStyle = `rgba(186, 230, 253, ${0.45 * alpha})`;
+    for (let i = 0; i < 16; i++) {
+      const angle = (i / 16) * Math.PI * 2 + (globalTime * 0.8);
+      const r = maxR * 0.78 + Math.sin(globalTime * 3 + i) * 16;
+      const vx = cx + Math.cos(angle) * r;
+      const vy = cy + Math.sin(angle) * r;
+      ctx.fillRect(Math.round(vx - 2), Math.round(vy - 2), 4, 4);
+    }
+    ctx.restore();
+  }
+
   function drawWorld() {
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#070b19';
@@ -4189,22 +4994,22 @@ export function initGame() {
           ctx.drawImage(img, Math.round(sx - img.width / 2), sy - img.height + 2);
 
           // Clear, High-Contrast Order Banner Plaque
-          ctx.font = '700 9px "Pixelify Sans", "Silkscreen", sans-serif';
+          ctx.font = '700 11.5px "Outfit", system-ui, sans-serif';
           ctx.textAlign = 'center';
           const bannerTag = `<${b.orderTag || 'STANDARD'}>`;
           const bw = Math.ceil(ctx.measureText(bannerTag).width);
-          const bpx = Math.round(sx - (bw + 6) / 2);
-          const bpy = sy - img.height - 8;
+          const bpx = Math.round(sx - (bw + 8) / 2);
+          const bpy = sy - img.height - 10;
           ctx.fillStyle = 'rgba(5, 7, 15, 0.88)';
-          ctx.fillRect(bpx, bpy, bw + 6, 11);
+          ctx.fillRect(bpx, bpy, bw + 8, 14);
           ctx.fillStyle = b.color || '#fde047';
-          ctx.fillRect(bpx, bpy + 10, bw + 6, 1);
-          ctx.fillStyle = '#000000';
-          for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-            ctx.fillText(bannerTag, sx + ox, bpy + 8 + oy);
-          }
+          ctx.fillRect(bpx, bpy + 13, bw + 8, 1.5);
+          ctx.strokeStyle = '#05070f';
+          ctx.lineWidth = 2.5;
+          ctx.lineJoin = 'round';
+          ctx.strokeText(bannerTag, sx, bpy + 11);
           ctx.fillStyle = b.color || '#fde047';
-          ctx.fillText(bannerTag, sx, bpy + 8);
+          ctx.fillText(bannerTag, sx, bpy + 11);
         },
       });
     }
@@ -4230,22 +5035,22 @@ export function initGame() {
           ctx.fillRect(sx - 1.5, qy + 7, 3, 2.5);
 
           // Overhead High-Contrast NPC Badge
-          ctx.font = '700 9.5px "Pixelify Sans", "Silkscreen", sans-serif';
+          ctx.font = '700 12px "Outfit", system-ui, sans-serif';
           ctx.textAlign = 'center';
           const npcName = npc.name || 'Herald Lyra';
           const nw = Math.ceil(ctx.measureText(npcName).width);
-          const npx = Math.round(sx - (nw + 8) / 2);
-          const npy = sy - img.height - 9;
-          ctx.fillStyle = 'rgba(5, 7, 18, 0.90)';
-          ctx.fillRect(npx, npy - 1, nw + 8, 12);
+          const npx = Math.round(sx - (nw + 10) / 2);
+          const npy = sy - img.height - 11;
+          ctx.fillStyle = 'rgba(5, 7, 18, 0.92)';
+          ctx.fillRect(npx, npy - 1, nw + 10, 15);
           ctx.fillStyle = '#fde047';
-          ctx.fillRect(npx, npy + 10, nw + 8, 1);
-          ctx.fillStyle = '#000000';
-          for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-            ctx.fillText(npcName, sx + ox, npy + 8 + oy);
-          }
+          ctx.fillRect(npx, npy + 13, nw + 10, 1.5);
+          ctx.strokeStyle = '#05070f';
+          ctx.lineWidth = 2.5;
+          ctx.lineJoin = 'round';
+          ctx.strokeText(npcName, sx, npy + 11);
           ctx.fillStyle = '#fde047';
-          ctx.fillText(npcName, sx, npy + 8);
+          ctx.fillText(npcName, sx, npy + 11);
         },
       });
     }
@@ -4331,15 +5136,15 @@ export function initGame() {
 
           // Portal destination badge & interact prompt
           if (ent.type === 'portal') {
-            ctx.font = '700 9.5px "Pixelify Sans", "Silkscreen", sans-serif';
+            ctx.font = '700 12px "Outfit", system-ui, sans-serif';
             ctx.textAlign = 'center';
             const nameStr = ent.name;
             const subStr = ent.sub || 'Step In [W]';
             const nw = Math.ceil(ctx.measureText(nameStr).width);
-            const badgeW = Math.max(nw + 12, 64);
-            const badgeH = 17;
+            const badgeW = Math.max(nw + 14, 70);
+            const badgeH = 19;
             const bx = Math.round(sx - badgeW / 2);
-            const by = Math.round(sy - img.height - 17);
+            const by = Math.round(sy - img.height - 19);
 
             // Dark plaque with cyan cybernetic border
             ctx.fillStyle = 'rgba(5, 9, 24, 0.92)';
@@ -4350,20 +5155,22 @@ export function initGame() {
             ctx.fillRect(bx, by, 1, badgeH);
             ctx.fillRect(bx + badgeW - 1, by, 1, badgeH);
 
-            // Nameplate text with 4-way stroke
-            ctx.fillStyle = '#000000';
-            for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-              ctx.fillText(nameStr, sx + ox, by + 8.5 + oy);
-            }
+            // Nameplate text with clean crisp stroke
+            ctx.strokeStyle = '#05070f';
+            ctx.lineWidth = 2.5;
+            ctx.lineJoin = 'round';
+            ctx.strokeText(nameStr, sx, by + 10);
             ctx.fillStyle = '#7dd3fc';
-            ctx.fillText(nameStr, sx, by + 8.5);
+            ctx.fillText(nameStr, sx, by + 10);
 
             // Subtitle prompt
-            ctx.font = '600 7.5px "Pixelify Sans", sans-serif';
-            ctx.fillStyle = '#000000';
-            ctx.fillText(subStr, sx + 0.5, by + 15.5);
+            ctx.font = '600 10.5px "Outfit", system-ui, sans-serif';
+            ctx.strokeStyle = '#05070f';
+            ctx.lineWidth = 2.5;
+            ctx.lineJoin = 'round';
+            ctx.strokeText(subStr, sx, by + 17);
             ctx.fillStyle = '#fde047';
-            ctx.fillText(subStr, sx, by + 15);
+            ctx.fillText(subStr, sx, by + 17);
           } else if (!ent.isDying) {
             const val = ent.hp ?? ent.charges ?? 0;
             const max = ent.maxHp ?? ent.maxCharges ?? 1;
@@ -4391,7 +5198,7 @@ export function initGame() {
             const showName = isBossOrCore || isTargeted || dPlayer < 95 || ent.type === 'dummy' || (ent.type === 'node' && dPlayer < 120);
 
             if (showName) {
-              ctx.font = isBossOrCore ? '700 9px "Pixelify Sans", sans-serif' : '600 8px "Pixelify Sans", sans-serif';
+              ctx.font = isBossOrCore ? '700 12px "Outfit", system-ui, sans-serif' : '600 10.5px "Outfit", system-ui, sans-serif';
               ctx.textAlign = 'center';
               const label = ent.type === 'dummy'
                 ? 'Training Dummy'
@@ -4402,23 +5209,24 @@ export function initGame() {
                     : ent.name;
 
               const lw = Math.ceil(ctx.measureText(label).width);
-              const lpx = Math.round(sx - (lw + 6) / 2);
-              const lpy = Math.round(by - (isBossOrCore ? 12 : 10));
+              const lpx = Math.round(sx - (lw + 8) / 2);
+              const lpy = Math.round(by - (isBossOrCore ? 14 : 12));
               const badgeColor = isBossOrCore ? '#facc15' : isTargeted ? '#38bdf8' : ent.type === 'node' ? '#c084fc' : '#ffffff';
 
               ctx.fillStyle = 'rgba(5, 7, 16, 0.88)';
-              ctx.fillRect(lpx, lpy, lw + 6, isBossOrCore ? 11 : 9.5);
+              ctx.fillRect(lpx, lpy, lw + 8, isBossOrCore ? 14 : 12);
               if (isBossOrCore || isTargeted) {
                 ctx.fillStyle = badgeColor;
-                ctx.fillRect(lpx, lpy + (isBossOrCore ? 10 : 8.5), lw + 6, 1);
+                ctx.fillRect(lpx, lpy + (isBossOrCore ? 13 : 11), lw + 8, 1.5);
               }
 
-              ctx.fillStyle = '#000000';
-              for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-                ctx.fillText(label, sx + ox, lpy + (isBossOrCore ? 8 : 7) + oy);
-              }
+              ctx.strokeStyle = '#05070f';
+              ctx.lineWidth = 2.5;
+              ctx.lineJoin = 'round';
+              const textY = lpy + (isBossOrCore ? 10.5 : 9);
+              ctx.strokeText(label, sx, textY);
               ctx.fillStyle = badgeColor;
-              ctx.fillText(label, sx, lpy + (isBossOrCore ? 8 : 7));
+              ctx.fillText(label, sx, textY);
             }
           }
         },
@@ -4633,6 +5441,10 @@ export function initGame() {
       ctx.fillStyle = pt.color;
       ctx.fillRect(sx, sy, pt.size, pt.size);
     }
+
+    if (portalMistTimer > 0) {
+      drawPortalMist();
+    }
   }
 
   function getOpenWorldSubRegion(px, py) {
@@ -4659,7 +5471,7 @@ export function initGame() {
     const isContinent = mapBounds.halfW >= 1000;
     const cx = 64;
     const cy = 64;
-    const scale = isContinent ? 0.024 : 0.16;
+    const scale = isContinent ? 0.024 : Math.min(0.16, 112 / (mapBounds.halfW * 2));
 
     // Real-Time Continental Sub-Region Banner Update
     if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
@@ -4775,8 +5587,12 @@ export function initGame() {
   renderStatsModal();
   renderPartyHud(null, localProfile.id);
 
-  // Open Character Select / Loadout Frontpage and connect to 20Hz Server + PostgreSQL!
-  frontpage.open();
+  // Open Character Select / Loadout Frontpage and connect to Realm Server!
+  try {
+    frontpage.open();
+  } catch (err) {
+    console.error('[Frontpage] Failed to open on startup:', err);
+  }
   net.bootstrapAndConnect(prog);
 
   let lastTs = performance.now();

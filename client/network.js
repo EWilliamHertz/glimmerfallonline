@@ -1,6 +1,6 @@
 // ==========================================
-// GlimmerFall Online 2D — WebSocket & Unified GlimmerFall ID Client
-// Connects to /ws (20Hz Authoritative Server) and /api/* (Neon PostgreSQL Roster & SSO)
+// GlimmerFall Online 2D — Real-Time & Unified GlimmerFall ID Client
+// Connects to /ws (Authoritative Real-Time Server) and /api/* (Cloud Realm Roster & SSO)
 // ==========================================
 
 const TOKEN_STORAGE_KEY = 'glimmerfall_auth_token';
@@ -286,7 +286,7 @@ export class MultiplayerClient {
     try {
       res = await doFetch(base ? `${base}${path}` : path);
     } catch (_networkErr) {
-      // Game server asleep/unreachable: same-origin serverless /api (Vercel) shares the same Neon DB
+      // Game server asleep/unreachable: same-origin cloud /api fallback shares the persistent realm
       if (base) {
         try {
           res = await doFetch(path);
@@ -301,7 +301,7 @@ export class MultiplayerClient {
           if (!data.ok) throw new Error(data.error || 'Server request failed');
           return data;
         }
-        throw new Error('Cannot reach the GlimmerFall server. If it was idle it may be waking up — wait ~30s and try again.');
+        throw new Error('Cannot reach the GlimmerFall realm. If the realm was idle it may be waking up — wait ~30s and try again.');
       }
     }
 
@@ -319,7 +319,7 @@ export class MultiplayerClient {
       data = await res.json();
     } catch (_) {
       if (res.status === 404) {
-        throw new Error('API returned 404. Ensure Vercel deployment has /api serverless functions enabled and DATABASE_URL set in Vercel settings.');
+        throw new Error('Realm API service unreachable. Please ensure the server realm is active.');
       }
       throw new Error(`Server returned an unexpected response (HTTP ${res.status}). Please try again.`);
     }

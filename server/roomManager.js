@@ -14,6 +14,8 @@ import {
   TICK_MS,
   YARD_PX,
   ACTION_SLOTS,
+  SLOT_UNLOCK_LEVELS,
+  isSlotUnlocked,
   ROOM_TYPES,
   ROOM_CONFIGS,
   FACTIONS_META,
@@ -22,6 +24,9 @@ import {
   ABILITIES_CATALOG,
   EMOTES_CATALOG,
   getSlotAbilitySpec,
+  getAbilityRank,
+  canUpgradeAbility,
+  getRankStats,
   getEffectiveStats,
   createDefaultProgression,
   xpForNextLevel,
@@ -101,6 +106,7 @@ export class RoomManager {
       halfW: cfg.halfW,
       halfH: cfg.halfH,
       pvp: cfg.pvp,
+      edgeTransitions: cfg.edgeTransitions || null,
       players: new Map(),
       entities: [],
       allies: [],
@@ -239,88 +245,21 @@ export class RoomManager {
           hitFlash: 0,
         },
         {
-          id: 'portal_main',
-          name: 'Nexus Warzone Rift',
-          sub: 'Step In -> Nexus Warzone (PvPvE)',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.NEXUS_WARZONE,
-          spriteKey: 'portal',
+          id: 'dummy_2',
+          name: 'Armored Training Post',
+          sub: 'Lv.5 Resilient Training Post',
+          type: 'dummy',
+          spriteKey: 'dummy',
           x: 0,
-          y: -158,
-          hp: 1,
-          maxHp: 1,
-          radius: 20,
+          y: -45,
+          origX: 0,
+          origY: -45,
+          hp: 120,
+          maxHp: 120,
+          xpReward: 65,
+          radius: 15,
           hitFlash: 0,
-        },
-        {
-          id: 'portal_solari',
-          name: 'Golden Citadel Waygate',
-          sub: '☀️ Solari Biome Dungeon',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.SOLARI_CITADEL,
-          spriteKey: 'portal',
-          x: -185,
-          y: -95,
-          hp: 1,
-          maxHp: 1,
-          radius: 18,
-          hitFlash: 0,
-        },
-        {
-          id: 'portal_umbri',
-          name: 'Duskveil Bog Waygate',
-          sub: '🌑 Umbri Biome Dungeon',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.UMBRI_UNDERCITY,
-          spriteKey: 'portal',
-          x: 185,
-          y: -95,
-          hp: 1,
-          maxHp: 1,
-          radius: 18,
-          hitFlash: 0,
-        },
-        {
-          id: 'portal_terra',
-          name: 'Glimmer Orchard Waygate',
-          sub: '🌿 Terra Biome Dungeon',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.TERRA_ORCHARD,
-          spriteKey: 'portal',
-          x: -185,
-          y: 95,
-          hp: 1,
-          maxHp: 1,
-          radius: 18,
-          hitFlash: 0,
-        },
-        {
-          id: 'portal_aether',
-          name: 'Mirrorgate Spire Waygate',
-          sub: '🔮 Aether Biome Dungeon',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.AETHER_SPIRE,
-          spriteKey: 'portal',
-          x: 185,
-          y: 95,
-          hp: 1,
-          maxHp: 1,
-          radius: 18,
-          hitFlash: 0,
-        },
-        {
-          id: 'portal_ruins',
-          name: 'First Nexus Ruins Gate',
-          sub: '🏛️ Forgotten Ruins',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
-          spriteKey: 'portal',
-          x: 0,
-          y: 195,
-          hp: 1,
-          maxHp: 1,
-          radius: 19,
-          hitFlash: 0,
+          dammers: new Set(),
         }
       );
     } else if (room.type === ROOM_TYPES.NEXUS_WARZONE) {
@@ -372,95 +311,9 @@ export class RoomManager {
         dammers: new Set(),
       });
 
-      // Continental Portals: South Sanctuary Return, North Ruins, and 4 Corner Dungeon Waygates
-      room.entities.push(
-        {
-          id: 'portal_hub',
-          name: 'Sanctuary Return Gate',
-          sub: 'Step In -> Sanctuary Hub',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.SANCTUARY_HUB,
-          spriteKey: 'portal',
-          x: 0,
-          y: 1580,
-          hp: 1,
-          maxHp: 1,
-          radius: 20,
-          hitFlash: 0,
-        },
-        {
-          id: 'portal_ruins',
-          name: 'First Nexus Ruins Gate',
-          sub: '🏛️ Forgotten Ruins',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
-          spriteKey: 'portal',
-          x: 0,
-          y: -1500,
-          hp: 1,
-          maxHp: 1,
-          radius: 20,
-          hitFlash: 0,
-        },
-        {
-          id: 'portal_terra',
-          name: 'Glimmer Orchard Waygate',
-          sub: '🌿 Terra Dungeon Waygate',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.TERRA_ORCHARD,
-          spriteKey: 'portal',
-          x: -1400,
-          y: -900,
-          hp: 1,
-          maxHp: 1,
-          radius: 19,
-          hitFlash: 0,
-        },
-        {
-          id: 'portal_umbri',
-          name: 'Sepulcher Undercity Waygate',
-          sub: '🌑 Umbri Dungeon Waygate',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.UMBRI_UNDERCITY,
-          spriteKey: 'portal',
-          x: 1400,
-          y: -900,
-          hp: 1,
-          maxHp: 1,
-          radius: 19,
-          hitFlash: 0,
-        },
-        {
-          id: 'portal_solari',
-          name: 'Golden Citadel Waygate',
-          sub: '☀️ Solari Dungeon Waygate',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.SOLARI_CITADEL,
-          spriteKey: 'portal',
-          x: -1400,
-          y: 900,
-          hp: 1,
-          maxHp: 1,
-          radius: 19,
-          hitFlash: 0,
-        },
-        {
-          id: 'portal_aether',
-          name: 'Mirrorgate Spire Waygate',
-          sub: '🔮 Aether Dungeon Waygate',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.AETHER_SPIRE,
-          spriteKey: 'portal',
-          x: 1400,
-          y: 900,
-          hp: 1,
-          maxHp: 1,
-          radius: 19,
-          hitFlash: 0,
-        },
-        // Peaceful South Sanctuary Vale Target Dummy
-        {
-          id: 'val_dummy',
+      // Peaceful South Sanctuary Vale Target Dummy
+      room.entities.push({
+        id: 'val_dummy',
           name: 'Vale Training Dummy',
           sub: 'Lv.1 Target Post',
           type: 'dummy',
@@ -750,22 +603,7 @@ export class RoomManager {
 
     const s = specs[room.type] || specs[ROOM_TYPES.SOLARI_CITADEL];
 
-    // Return Portal to Sanctuary + North Portal to Warzone
     room.entities.push(
-      {
-        id: 'portal_sanctuary',
-        name: 'Sanctuary Return Gate',
-        sub: 'Step In -> Sanctuary Hub',
-        type: 'portal',
-        targetRoom: ROOM_TYPES.SANCTUARY_HUB,
-        spriteKey: 'portal',
-        x: 0,
-        y: 222,
-        hp: 1,
-        maxHp: 1,
-        radius: 19,
-        hitFlash: 0,
-      },
       {
         id: 'biome_node_1',
         name: 'Biome Glimmer Node',
@@ -881,83 +719,11 @@ export class RoomManager {
         dammers: new Set(),
       }
     );
-
-    const subZonePortals = {
-      [ROOM_TYPES.SOLARI_CITADEL]: {
-        id: 'portal_solari_vault',
-        name: 'Sunken Vault Waygate',
-        sub: '☀️ Solari Secret Crypt',
-        targetRoom: ROOM_TYPES.SOLARI_SUNKEN_VAULT,
-      },
-      [ROOM_TYPES.UMBRI_UNDERCITY]: {
-        id: 'portal_umbri_lab',
-        name: 'Shadow Labyrinth Gloomgate',
-        sub: '🌑 Twisted Umbri Crypt',
-        targetRoom: ROOM_TYPES.UMBRI_SHADOW_LABYRINTH,
-      },
-      [ROOM_TYPES.TERRA_ORCHARD]: {
-        id: 'portal_terra_sanctuary',
-        name: 'Primordial Hollow Rootgate',
-        sub: '🌿 Sacred Ironwood Grove',
-        targetRoom: ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY,
-      },
-      [ROOM_TYPES.AETHER_SPIRE]: {
-        id: 'portal_aether_archive',
-        name: 'Chrono-Archive Rift',
-        sub: '🔮 Astral Archive',
-        targetRoom: ROOM_TYPES.AETHER_FRACTURED_ARCHIVE,
-      },
-    };
-    const subPortal = subZonePortals[room.type];
-    if (subPortal) {
-      room.entities.push({
-        id: subPortal.id,
-        name: subPortal.name,
-        sub: subPortal.sub,
-        type: 'portal',
-        targetRoom: subPortal.targetRoom,
-        spriteKey: 'portal',
-        x: 0,
-        y: -215,
-        hp: 1,
-        maxHp: 1,
-        radius: 19,
-        hitFlash: 0,
-      });
-    }
   }
 
   populateSubZoneDungeon(room) {
     if (room.type === ROOM_TYPES.NEXUS_FORGOTTEN_RUINS) {
       room.entities.push(
-        {
-          id: 'portal_hub',
-          name: 'Sanctuary Hub Gate',
-          sub: 'Step In -> Sanctuary Hub',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.SANCTUARY_HUB,
-          spriteKey: 'portal',
-          x: 0,
-          y: 240,
-          hp: 1,
-          maxHp: 1,
-          radius: 19,
-          hitFlash: 0,
-        },
-        {
-          id: 'portal_warzone',
-          name: 'Warzone North Rift',
-          sub: 'Step In -> Nexus Warzone',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.NEXUS_WARZONE,
-          spriteKey: 'portal',
-          x: 0,
-          y: -240,
-          hp: 1,
-          maxHp: 1,
-          radius: 19,
-          hitFlash: 0,
-        },
         {
           id: 'tut_font_ruins_c',
           name: 'Prismatic Keystone Spire',
@@ -1111,34 +877,6 @@ export class RoomManager {
     } else if (room.type === ROOM_TYPES.SOLARI_SUNKEN_VAULT) {
       room.entities.push(
         {
-          id: 'portal_citadel',
-          name: 'Return to Golden Citadel',
-          sub: 'Step In -> Golden Citadel',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.SOLARI_CITADEL,
-          spriteKey: 'portal',
-          x: 0,
-          y: 220,
-          hp: 1,
-          maxHp: 1,
-          radius: 18,
-          hitFlash: 0,
-        },
-        {
-          id: 'portal_hub',
-          name: 'Sanctuary Return Gate',
-          sub: 'Step In -> Sanctuary Hub',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.SANCTUARY_HUB,
-          spriteKey: 'portal',
-          x: -180,
-          y: 180,
-          hp: 1,
-          maxHp: 1,
-          radius: 18,
-          hitFlash: 0,
-        },
-        {
           id: 'vault_node_1',
           name: 'Dawnstone Glimmer Well',
           sub: 'Glimmer Leyline Spire [E]',
@@ -1255,34 +993,6 @@ export class RoomManager {
       );
     } else if (room.type === ROOM_TYPES.UMBRI_SHADOW_LABYRINTH) {
       room.entities.push(
-        {
-          id: 'portal_undercity',
-          name: 'Return to Sepulcher Undercity',
-          sub: 'Step In -> Undercity',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.UMBRI_UNDERCITY,
-          spriteKey: 'portal',
-          x: 0,
-          y: 220,
-          hp: 1,
-          maxHp: 1,
-          radius: 18,
-          hitFlash: 0,
-        },
-        {
-          id: 'portal_hub',
-          name: 'Sanctuary Return Gate',
-          sub: 'Step In -> Sanctuary Hub',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.SANCTUARY_HUB,
-          spriteKey: 'portal',
-          x: 180,
-          y: 180,
-          hp: 1,
-          maxHp: 1,
-          radius: 18,
-          hitFlash: 0,
-        },
         {
           id: 'lab_node_1',
           name: 'Graveglass Leyline Shroud',
@@ -1401,34 +1111,6 @@ export class RoomManager {
     } else if (room.type === ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY) {
       room.entities.push(
         {
-          id: 'portal_orchard',
-          name: 'Return to Glimmer Orchard',
-          sub: 'Step In -> Orchard',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.TERRA_ORCHARD,
-          spriteKey: 'portal',
-          x: 0,
-          y: 220,
-          hp: 1,
-          maxHp: 1,
-          radius: 18,
-          hitFlash: 0,
-        },
-        {
-          id: 'portal_hub',
-          name: 'Sanctuary Return Gate',
-          sub: 'Step In -> Sanctuary Hub',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.SANCTUARY_HUB,
-          spriteKey: 'portal',
-          x: -180,
-          y: 180,
-          hp: 1,
-          maxHp: 1,
-          radius: 18,
-          hitFlash: 0,
-        },
-        {
           id: 'hollow_node_1',
           name: 'Ironwood Blossom Node',
           sub: 'Glimmer Leyline Spire [E]',
@@ -1545,34 +1227,6 @@ export class RoomManager {
       );
     } else if (room.type === ROOM_TYPES.AETHER_FRACTURED_ARCHIVE) {
       room.entities.push(
-        {
-          id: 'portal_spire',
-          name: 'Return to Mirrorgate Spire',
-          sub: 'Step In -> Spire',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.AETHER_SPIRE,
-          spriteKey: 'portal',
-          x: 0,
-          y: 220,
-          hp: 1,
-          maxHp: 1,
-          radius: 18,
-          hitFlash: 0,
-        },
-        {
-          id: 'portal_hub',
-          name: 'Sanctuary Return Gate',
-          sub: 'Step In -> Sanctuary Hub',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.SANCTUARY_HUB,
-          spriteKey: 'portal',
-          x: 180,
-          y: 180,
-          hp: 1,
-          maxHp: 1,
-          radius: 18,
-          hitFlash: 0,
-        },
         {
           id: 'archive_node_1',
           name: 'Continuum Time Spire',
@@ -1851,6 +1505,11 @@ export class RoomManager {
   }
 
   joinRoom(client, targetRoomOrType, teamOverride = null, reqX = null, reqY = null) {
+    if (typeof teamOverride === 'number') {
+      reqY = reqX;
+      reqX = teamOverride;
+      teamOverride = null;
+    }
     if (client.roomId && this.rooms.has(client.roomId)) {
       const prev = this.rooms.get(client.roomId);
       prev.players.delete(client.id);
@@ -1875,9 +1534,9 @@ export class RoomManager {
     client.roomType = room.type;
     client.team = teamOverride;
     client.castState = null;
-    client.portalCooldown = 2.5;
+    client.portalCooldown = 2.0;
+    client.roomEpoch = (client.roomEpoch || 0) + 1;
 
-    const jitterX = Math.round((Math.random() - 0.5) * 28);
     const hasReqCoords = reqX !== null && reqY !== null && Number.isFinite(Number(reqX)) && Number.isFinite(Number(reqY));
     if (hasReqCoords) {
       // Seamless reconnect position preservation
@@ -1885,11 +1544,11 @@ export class RoomManager {
       client.y = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, Number(reqY)));
       client.dir = 'up';
     } else if (room.type === ROOM_TYPES.ARENA_3V3 && teamOverride === 'red') {
-      client.x = jitterX;
+      client.x = 0;
       client.y = -170;
       client.dir = 'down';
     } else {
-      client.x = cfg.spawnX + jitterX;
+      client.x = cfg.spawnX;
       client.y = cfg.spawnY;
       client.dir = 'up';
     }
@@ -1900,6 +1559,7 @@ export class RoomManager {
       type: 'room_joined',
       roomId: room.id,
       roomType: room.type,
+      epoch: client.roomEpoch,
       roomTitle: room.title,
       biomeTheme: room.biomeTheme,
       bgm: room.bgm,
@@ -2234,12 +1894,19 @@ export class RoomManager {
 
       case 'move': {
         if (!room || client.isDead || client.freezeTimer > 0) return;
+        if (msg.epoch && Number(msg.epoch) !== client.roomEpoch) return;
+        if (client.portalCooldown > 1.2) return;
         const nx = Number(msg.x);
         const ny = Number(msg.y);
         if (!Number.isFinite(nx) || !Number.isFinite(ny)) return;
 
-        let targetX = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, nx));
-        let targetY = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, ny));
+        const GATE_HALF_WIDTH = 48;
+        const canPassEastWest = (room.edgeTransitions?.east || room.edgeTransitions?.west) && Math.abs(ny) <= GATE_HALF_WIDTH;
+        const canPassNorthSouth = (room.edgeTransitions?.north || room.edgeTransitions?.south) && Math.abs(nx) <= GATE_HALF_WIDTH;
+        const padX = canPassEastWest ? 4 : 14;
+        const padY = canPassNorthSouth ? 4 : 14;
+        let targetX = Math.max(-room.halfW + padX, Math.min(room.halfW - padX, nx));
+        let targetY = Math.max(-room.halfH + padY, Math.min(room.halfH - padY, ny));
 
         const dist = Math.hypot(targetX - client.x, targetY - client.y);
         const MAX_STEP = 240;
@@ -2274,7 +1941,10 @@ export class RoomManager {
 
       case 'switch_room': {
         const target = msg.roomId || msg.roomType || ROOM_TYPES.NEXUS_WARZONE;
-        this.joinRoom(client, target);
+        if (client.portalCooldown > 1.2 && (client.roomType === target || client.roomId === target)) {
+          break;
+        }
+        this.joinRoom(client, target, null, msg.x ?? null, msg.y ?? null);
         break;
       }
 
@@ -2297,6 +1967,10 @@ export class RoomManager {
 
       case 'cast_ability':
         if (room) this.handleCastAbility(room, client, Number(msg.slot), msg.targetId, msg.dir);
+        break;
+
+      case 'cancel_cast':
+        client.castState = null;
         break;
 
       case 'harvest_node':
@@ -2335,6 +2009,10 @@ export class RoomManager {
 
       case 'allocate_stat':
         this.handleAllocateStat(client, msg.statKey);
+        break;
+
+      case 'upgrade_skill':
+        this.handleUpgradeSkill(client, msg.abilityId);
         break;
 
       case 'upgrade_rank':
@@ -2602,16 +2280,20 @@ export class RoomManager {
   handleCastAbility(room, player, slot, targetId, facingDir) {
     if (player.isDead || player.freezeTimer > 0) return;
     if (!ACTION_SLOTS.includes(slot)) return;
+    if (!isSlotUnlocked(player.prog, slot, player.isTestMode)) return;
     const spec = getSlotAbilitySpec(player.loadout, slot);
     if (!spec) return;
     if ((player.cooldowns[slot] || 0) > 0.05) return;
+
+    // Diablo 2 requirement: Unlearned spells (rank 0) cannot be cast!
+    const rank = getAbilityRank(player.prog, spec.id, player.isTestMode);
+    if (rank < 1) return;
 
     if (['up', 'down', 'left', 'right'].includes(facingDir)) {
       player.dir = facingDir;
     }
 
     const effStats = getEffectiveStats(player.prog, player.equipment, player.classId);
-    const rank = player.prog.ranks[slot] || 1;
     const zenithMult = player.zenithTimer > 0 ? 1.25 : 1.0;
     const effPower = Math.max(1, Math.round((effStats.power + this.getBonusPower(room, player) - (player.weakenTimer > 0 ? 2 : 0)) * zenithMult));
     const cdMult = calcCdMult(player.prog, player.equipment, player.classId, player.faction);
@@ -2626,12 +2308,60 @@ export class RoomManager {
       return { dx: 1, dy: 0, angle: 0 };
     };
 
-    const wasStealthed = player.stealthedTimer > 0;
-    if (spec.kind !== 'stealth') {
-      player.stealthedTimer = 0; // Attacking breaks stealth (with Ambush bonus!)
+    if (spec.cost > 0 && player.solarCharge < spec.cost) return;
+
+    // RITES REQUIRE CASTING TIME WHILE FLASHES ARE INSTANT!
+    if (isRite && (spec.castTime || 0) > 0) {
+      if (player.castState) return; // Already channeling a Rite
+
+      const needsTarget = ['cast_beam', 'projectile', 'drain_beam', 'execute_beam'].includes(spec.kind);
+      let tgt = null;
+      if (needsTarget) {
+        const rangePx = (spec.rangeYards || 21) * YARD_PX;
+        tgt = this.findHostileTargetById(room, player, targetId) || this.findNearestHostile(room, player, rangePx);
+        if (!tgt || Math.hypot(tgt.ref.x - player.x, tgt.ref.y - player.y) > rangePx + 16) return;
+        if (Math.abs(tgt.ref.x - player.x) > Math.abs(tgt.ref.y - player.y)) {
+          player.dir = tgt.ref.x >= player.x ? 'right' : 'left';
+        } else {
+          player.dir = tgt.ref.y >= player.y ? 'down' : 'up';
+        }
+      }
+
+      player.solarCharge -= spec.cost;
+      player.cooldowns[slot] = spec.baseCd * cdMult;
+      player.castState = {
+        slot,
+        specId: spec.id,
+        spellName: spec.name,
+        color: spec.color,
+        targetId: tgt ? (tgt.kind === 'player' ? `p_${tgt.ref.id}` : tgt.ref.id) : targetId,
+        remaining: spec.castTime,
+        totalDuration: spec.castTime,
+        effPower,
+        effBastion: effStats.bastion,
+        effResonance: effStats.resonance,
+        critChance,
+        rank,
+        castX: player.x,
+        castY: player.y,
+        facingDir: player.dir,
+      };
+
+      room.fxQueue.push({
+        kind: 'cast_start',
+        actorId: player.id,
+        spellName: spec.name,
+        duration: spec.castTime,
+        color: spec.color,
+      });
+      return;
     }
 
-    if (spec.cost > 0 && player.solarCharge < spec.cost) return;
+    // FLASHES EXECUTE INSTANTLY (castTime === 0)
+    const wasStealthed = player.stealthedTimer > 0;
+    if (spec.kind !== 'stealth') {
+      player.stealthedTimer = 0; // Attacking breaks stealth
+    }
 
     // 1. MELEE CLEAVE (Flare Strike, Whisper of the Void, Tectonic Slam, Reality Fracture)
     if (spec.kind === 'melee_cleave') {
@@ -2643,7 +2373,7 @@ export class RoomManager {
       }
 
       player.cooldowns[slot] = spec.baseCd * cdMult;
-      if (isFlash) this.addPlayerGlimmer(room, player, 6);
+      this.addPlayerGlimmer(room, player, 6);
       room.fxQueue.push({ kind: 'slash', x: player.x, y: player.y - 6, angle, color: spec.color, actorId: player.id });
 
       let hitAny = false;
@@ -2655,11 +2385,10 @@ export class RoomManager {
           if (wasStealthed) base = Math.round(base * 1.45);
           const isCrit = wasStealthed || Math.random() < critChance;
           const finalDmg = isCrit ? Math.round(base * 1.75) : base;
-          this.applyAuthoritativeDamage(room, player, h, finalDmg, isCrit, spec.name, isRite);
+          this.applyAuthoritativeDamage(room, player, h, finalDmg, isCrit, spec.name, false);
           if (wasStealthed) {
             room.fxQueue.push({ kind: 'fct', x: h.ref.x, y: h.ref.y - 12, text: 'AMBUSH!', color: '#c084fc', isCrit: true });
           }
-          // Terra Overwhelm splash
           if (player.faction === 'Terra') {
             for (const near of this.getAllHostilesInRadius(room, player, h.ref.x, h.ref.y, 44)) {
               if (near.ref !== h.ref) {
@@ -2676,87 +2405,10 @@ export class RoomManager {
       return;
     }
 
-    // 2. CAST BEAM (Solar Flare, Astral Convergence)
-    if (spec.kind === 'cast_beam') {
-      const rangePx = (spec.rangeYards || 25) * YARD_PX;
-      const tgt = this.findHostileTargetById(room, player, targetId) || this.findNearestHostile(room, player, rangePx);
-      if (!tgt || Math.hypot(tgt.ref.x - player.x, tgt.ref.y - player.y) > rangePx + 14) return;
-      if (player.castState) return;
-
-      player.solarCharge -= spec.cost;
-      player.cooldowns[slot] = spec.baseCd * cdMult;
-      player.castState = {
-        slot,
-        specId: spec.id,
-        spellName: spec.name,
-        color: spec.color,
-        targetId: tgt.kind === 'player' ? `p_${tgt.ref.id}` : tgt.ref.id,
-        remaining: spec.castTime || 0.95,
-        effPower,
-        rank,
-      };
-      room.fxQueue.push({ kind: 'cast_start', actorId: player.id, spellName: spec.name, duration: spec.castTime || 0.95 });
-      return;
-    }
-
-    // 3. PROJECTILE (Judgement of the Sun, Soul Tithe, Stonekin Boulder, Temporal Lance)
-    if (spec.kind === 'projectile') {
-      const rangePx = (spec.rangeYards || 21) * YARD_PX;
-      const tgt = this.findHostileTargetById(room, player, targetId) || this.findNearestHostile(room, player, rangePx);
-      if (!tgt || Math.hypot(tgt.ref.x - player.x, tgt.ref.y - player.y) > rangePx + 14) return;
-
-      player.solarCharge -= spec.cost;
-      player.cooldowns[slot] = spec.baseCd * cdMult;
-      this.addPlayerGlimmer(room, player, (spec.id === 'soul_tithe' ? 24 : 18) + effStats.resonance * 2);
-      room.fxQueue.push({ kind: 'sfx', sfx: 'hammer', x: player.x, y: player.y, actorId: player.id });
-
-      room.projectiles.push({
-        id: `prj_${crypto.randomUUID().slice(0, 6)}`,
-        type: spec.projType || 'orb',
-        spellName: spec.name,
-        isRite,
-        color: spec.color,
-        ownerId: player.id,
-        x: player.x,
-        y: player.y - 8,
-        targetKey: tgt.kind === 'player' ? `p_${tgt.ref.id}` : tgt.ref.id,
-        speed: spec.projType === 'aether_orb' ? 265 : 225,
-        rot: 0,
-        dmg: Math.max(3, Math.floor(Math.random() * 4) + 6 + effPower + rank * 2),
-      });
-      return;
-    }
-
-    // 4. GROUND ZONE (Consecrated Ground, Nightfall Plague, Briar Snare, Gravity Well)
-    if (spec.kind === 'ground_zone') {
-      player.solarCharge -= spec.cost;
-      player.cooldowns[slot] = spec.baseCd * cdMult;
-      const tgt = this.findHostileTargetById(room, player, targetId);
-      const zx = tgt && Math.hypot(tgt.ref.x - player.x, tgt.ref.y - player.y) <= 180 ? tgt.ref.x : player.x;
-      const zy = tgt && Math.hypot(tgt.ref.x - player.x, tgt.ref.y - player.y) <= 180 ? tgt.ref.y : player.y;
-
-      room.groundZones.push({
-        id: `gz_${crypto.randomUUID().slice(0, 6)}`,
-        type: spec.zoneType || 'consecration',
-        color: spec.color,
-        spellName: spec.name,
-        ownerId: player.id,
-        x: zx,
-        y: zy,
-        radius: (spec.rangeYards || 8) * YARD_PX,
-        tickDmg: Math.max(2, 2 + rank + Math.floor(effPower * 0.5)),
-        age: 0,
-        maxAge: 6.2,
-        tickTimer: 0.25,
-      });
-      room.fxQueue.push({ kind: 'fct', x: zx, y: zy - 6, text: spec.name.toUpperCase(), color: spec.color });
-      return;
-    }
-
-    // 5. SHIELD & THORNBARK (Radiant Bulwark, Graveglass Ward, Mirror Barrier, Barkskin Infusion)
+    // 2. SHIELD & THORNBARK (Radiant Bulwark, Graveglass Ward, Mirror Barrier, Barkskin Infusion)
     if (spec.kind === 'shield' || spec.kind === 'thornbark') {
       player.cooldowns[slot] = spec.baseCd * cdMult;
-      if (isFlash) this.addPlayerGlimmer(room, player, 6);
+      this.addPlayerGlimmer(room, player, 6);
       const absorb = 13 + effStats.bastion * 3 + rank * 4;
       player.shield = absorb;
       player.shieldTimer = 10;
@@ -2781,43 +2433,13 @@ export class RoomManager {
       return;
     }
 
-    // 6. HEAL & DAYBREAK (Blessing of Dawn, Verdant Renewal, Daybreak)
-    if (spec.kind === 'heal' || spec.kind === 'heal_glimmer') {
+    // 3. FROST NOVA (Aether Instant Frost Ring Freeze)
+    if (spec.kind === 'frost_nova') {
       player.cooldowns[slot] = spec.baseCd * cdMult;
-      const healAmt = 7 + effStats.bastion * 2 + rank * 3;
-      player.hp = Math.min(player.maxHp, player.hp + healAmt);
-      if (spec.kind === 'heal_glimmer') {
-        player.weakenTimer = 0;
-        player.slowTimer = 0;
-        player.snareTimer = 0;
-        this.addPlayerGlimmer(room, player, 25);
-      }
-      room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 6, colors: ['#4ade80', '#fde047', '#ffffff'] });
-      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y, text: `+${healAmt} HP`, color: '#4ade80' });
-
-      for (const other of room.players.values()) {
-        if (other.id !== player.id && !other.isDead && this.parties.areInSameParty(player.id, other.id)) {
-          if (Math.hypot(other.x - player.x, other.y - player.y) <= 13 * YARD_PX) {
-            const squadHeal = Math.round(healAmt * 0.75);
-            other.hp = Math.min(other.maxHp, other.hp + squadHeal);
-            room.fxQueue.push({ kind: 'fct', x: other.x, y: other.y, text: `+${squadHeal} HP`, color: '#4ade80' });
-            this.parties.syncPlayerVitals(other.id);
-          }
-        }
-      }
-      this.parties.syncPlayerVitals(player.id);
-      return;
-    }
-
-    // 7. NOVA & FROST NOVA (Wrath of the Daystar, Decree of the Sun, Earthshatter, Primal Overwhelm, Frost Nova)
-    if (spec.kind === 'nova' || spec.kind === 'frost_nova') {
-      player.solarCharge -= spec.cost;
-      player.cooldowns[slot] = spec.baseCd * cdMult;
-      const novaRad = (spec.rangeYards || 12) * YARD_PX;
-
+      const novaRad = (spec.rangeYards || 8) * YARD_PX;
       room.groundZones.push({
         id: `gz_${crypto.randomUUID().slice(0, 6)}`,
-        type: spec.kind === 'frost_nova' ? 'frost_ring' : 'shockwave',
+        type: 'frost_ring',
         color: spec.color,
         ownerId: player.id,
         x: player.x,
@@ -2828,34 +2450,20 @@ export class RoomManager {
       });
       room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 8, text: `${spec.name.toUpperCase()}!`, color: spec.color, isCrit: true });
 
-      if (spec.healNexus) {
-        this.healAlliedNexus(room, player, 3);
-      }
-
       for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, novaRad)) {
-        const dmg = Math.max(5, Math.floor(Math.random() * 5) + 11 + Math.round(effPower * 1.7) + rank * 3);
-        this.applyAuthoritativeDamage(room, player, h, dmg, true, spec.name, isRite);
+        const dmg = Math.max(3, Math.floor(Math.random() * 4) + 6 + Math.round(effPower * 1.2) + rank * 2);
+        this.applyAuthoritativeDamage(room, player, h, dmg, true, spec.name, false);
         if ((h.kind === 'entity' && h.ref.isDying) || (h.kind === 'player' && h.ref.isDead)) continue;
-        if (spec.kind === 'frost_nova') {
-          h.ref.freezeTimer = 3.2;
-          room.fxQueue.push({ kind: 'fct', x: h.ref.x, y: h.ref.y - 10, text: '❄️ FROZEN!', color: '#bae6fd' });
-        } else if (spec.id === 'overwhelm_roar') {
-          h.ref.weakenTimer = 5.0;
-        } else {
-          const d = Math.hypot(h.ref.x - player.x, h.ref.y - player.y);
-          if (h.kind === 'entity' && h.ref.type === 'mob' && d > 1) {
-            h.ref.x += ((h.ref.x - player.x) / d) * 26;
-            h.ref.y += ((h.ref.y - player.y) / d) * 26;
-          }
-        }
+        h.ref.freezeTimer = 3.2;
+        room.fxQueue.push({ kind: 'fct', x: h.ref.x, y: h.ref.y - 10, text: '❄️ FROZEN!', color: '#bae6fd' });
       }
       return;
     }
 
-    // 8. DASH / BLINK / WILDSHAPE SURGE
+    // 4. DASH / BLINK / WILDSHAPE SURGE
     if (spec.kind === 'dash') {
       player.cooldowns[slot] = spec.baseCd * cdMult;
-      if (isFlash) this.addPlayerGlimmer(room, player, spec.id === 'wildshape_surge' ? 15 : 12);
+      this.addPlayerGlimmer(room, player, spec.id === 'wildshape_surge' ? 15 : 12);
       const { dx, dy } = getDirAngle(player.dir);
       const dashDist = ((spec.rangeYards || 8.5) + rank * 0.35) * YARD_PX;
       const startX = player.x;
@@ -2887,7 +2495,7 @@ export class RoomManager {
       return;
     }
 
-    // 9. SHADOW STEP (Umbri Signature Teleport Behind Target!)
+    // 5. SHADOW STEP (Umbri Signature Instant Teleport Behind Target!)
     if (spec.kind === 'shadow_step') {
       const rangePx = (spec.rangeYards || 16) * YARD_PX;
       const tgt = this.findHostileTargetById(room, player, targetId) || this.findNearestHostile(room, player, rangePx);
@@ -2916,35 +2524,7 @@ export class RoomManager {
       return;
     }
 
-    // 10. SIPHON SOUL / UNMAKE (Umbri Drain & Execute Beams)
-    if (spec.kind === 'drain_beam' || spec.kind === 'execute_beam') {
-      const rangePx = (spec.rangeYards || 21) * YARD_PX;
-      const tgt = this.findHostileTargetById(room, player, targetId) || this.findNearestHostile(room, player, rangePx);
-      if (!tgt || Math.hypot(tgt.ref.x - player.x, tgt.ref.y - player.y) > rangePx + 14) return;
-
-      player.solarCharge -= spec.cost;
-      player.cooldowns[slot] = spec.baseCd * cdMult;
-
-      let dmg = Math.max(4, 8 + Math.round(effPower * 1.5) + rank * 3);
-      let isExec = false;
-      if (spec.kind === 'execute_beam' && tgt.ref.hp <= tgt.ref.maxHp * 0.5) {
-        dmg = Math.round(dmg * 1.5);
-        isExec = true;
-      }
-
-      room.fxQueue.push({ kind: 'skyBeam', x: tgt.ref.x, y: tgt.ref.y, color: spec.color });
-      this.applyAuthoritativeDamage(room, player, tgt, dmg, isExec || spec.kind === 'execute_beam', spec.name, true);
-
-      if (spec.kind === 'drain_beam') {
-        const drainHeal = Math.max(2, Math.round(dmg * 0.6));
-        player.hp = Math.min(player.maxHp, player.hp + drainHeal);
-        room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 8, text: `+${drainHeal} SIPHON`, color: '#4ade80' });
-        this.parties.syncPlayerVitals(player.id);
-      }
-      return;
-    }
-
-    // 11. VEIL OF DUSK (Umbri Stealth Vanish!)
+    // 6. VEIL OF DUSK (Umbri Instant Stealth Vanish!)
     if (spec.kind === 'stealth') {
       player.cooldowns[slot] = spec.baseCd * cdMult;
       player.stealthedTimer = 3.6;
@@ -2953,14 +2533,177 @@ export class RoomManager {
       room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 10, text: '🌑 STEALTH (3.5s)', color: '#c084fc' });
       return;
     }
+  }
 
-    // 12. TIME LOOP PARADOX (Aether Rewind + Cooldown Shave + Echo Prime!)
+  executeAuthoritativeRite(room, player, cs) {
+    if (!cs || player.isDead) return;
+    const spec = ABILITIES_CATALOG[cs.specId];
+    if (!spec) return;
+
+    const rank = cs.rank || 1;
+    const effPower = cs.effPower || 2;
+    const effBastion = cs.effBastion || 2;
+    const effResonance = cs.effResonance || 1;
+    const critChance = cs.critChance || 0.05;
+
+    // 1. BEAM RITE (Solar Flare, Astral Convergence)
+    if (spec.kind === 'cast_beam') {
+      const tgt = this.findHostileTargetById(room, player, cs.targetId);
+      if (tgt) {
+        room.fxQueue.push({ kind: 'skyBeam', x: tgt.ref.x, y: tgt.ref.y, color: cs.color });
+        const isCrit = Math.random() < critChance || player.stealthedTimer > 0;
+        const baseDmg = Math.max(5, Math.floor(Math.random() * 5) + 10 + effPower * 2 + rank * 3);
+        const dmg = isCrit ? Math.round(baseDmg * 1.7) : baseDmg;
+        this.applyAuthoritativeDamage(room, player, tgt, dmg, isCrit, cs.spellName, true);
+        for (const splash of this.getAllHostilesInRadius(room, player, tgt.ref.x, tgt.ref.y, 56)) {
+          if (splash.ref !== tgt.ref) {
+            this.applyAuthoritativeDamage(room, player, splash, Math.round(dmg * 0.55), false, cs.spellName, false);
+          }
+        }
+      }
+      return;
+    }
+
+    // 2. PROJECTILE RITE (Judgement of the Sun, Soul Tithe, Ancient Boulder, Temporal Lance)
+    if (spec.kind === 'projectile') {
+      const tgt = this.findHostileTargetById(room, player, cs.targetId);
+      if (tgt) {
+        this.addPlayerGlimmer(room, player, (spec.id === 'soul_tithe' ? 24 : 18) + effResonance * 2);
+        room.fxQueue.push({ kind: 'sfx', sfx: 'hammer', x: player.x, y: player.y, actorId: player.id });
+        room.projectiles.push({
+          id: `prj_${crypto.randomUUID().slice(0, 6)}`,
+          type: spec.projType || 'orb',
+          spellName: spec.name,
+          isRite: true,
+          color: spec.color,
+          ownerId: player.id,
+          x: player.x,
+          y: player.y - 8,
+          targetKey: tgt.kind === 'player' ? `p_${tgt.ref.id}` : tgt.ref.id,
+          speed: spec.projType === 'aether_orb' ? 265 : 225,
+          rot: 0,
+          dmg: Math.max(3, Math.floor(Math.random() * 4) + 6 + effPower + rank * 2),
+        });
+      }
+      return;
+    }
+
+    // 3. GROUND ZONE RITE (Consecrated Ground, Nightfall Plague, Briar Snare, Gravity Well)
+    if (spec.kind === 'ground_zone') {
+      const tgt = cs.targetId ? this.findHostileTargetById(room, player, cs.targetId) : null;
+      const zx = tgt && Math.hypot(tgt.ref.x - player.x, tgt.ref.y - player.y) <= 180 ? tgt.ref.x : player.x;
+      const zy = tgt && Math.hypot(tgt.ref.x - player.x, tgt.ref.y - player.y) <= 180 ? tgt.ref.y : player.y;
+
+      room.groundZones.push({
+        id: `gz_${crypto.randomUUID().slice(0, 6)}`,
+        type: spec.zoneType || 'consecration',
+        color: spec.color,
+        spellName: spec.name,
+        ownerId: player.id,
+        x: zx,
+        y: zy,
+        radius: (spec.rangeYards || 8) * YARD_PX,
+        tickDmg: Math.max(2, 2 + rank + Math.floor(effPower * 0.5)),
+        age: 0,
+        maxAge: 6.2,
+        tickTimer: 0.25,
+      });
+      room.fxQueue.push({ kind: 'fct', x: zx, y: zy - 6, text: spec.name.toUpperCase(), color: spec.color });
+      return;
+    }
+
+    // 4. HEAL RITE (Blessing of Dawn, Verdant Renewal, Daybreak)
+    if (spec.kind === 'heal' || spec.kind === 'heal_glimmer') {
+      const healAmt = 7 + effBastion * 2 + rank * 3;
+      player.hp = Math.min(player.maxHp, player.hp + healAmt);
+      if (spec.kind === 'heal_glimmer') {
+        player.weakenTimer = 0;
+        player.slowTimer = 0;
+        player.snareTimer = 0;
+        this.addPlayerGlimmer(room, player, 25);
+      }
+      room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 6, colors: ['#4ade80', '#fde047', '#ffffff'] });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y, text: `+${healAmt} HP`, color: '#4ade80' });
+
+      for (const other of room.players.values()) {
+        if (other.id !== player.id && !other.isDead && this.parties.areInSameParty(player.id, other.id)) {
+          if (Math.hypot(other.x - player.x, other.y - player.y) <= 13 * YARD_PX) {
+            const squadHeal = Math.round(healAmt * 0.75);
+            other.hp = Math.min(other.maxHp, other.hp + squadHeal);
+            room.fxQueue.push({ kind: 'fct', x: other.x, y: other.y, text: `+${squadHeal} HP`, color: '#4ade80' });
+            this.parties.syncPlayerVitals(other.id);
+          }
+        }
+      }
+      this.parties.syncPlayerVitals(player.id);
+      return;
+    }
+
+    // 5. NOVA RITE (Wrath of the Daystar, Decree of the Sun, Earthshatter, Overwhelm Roar)
+    if (spec.kind === 'nova') {
+      const novaRad = (spec.rangeYards || 12) * YARD_PX;
+      room.groundZones.push({
+        id: `gz_${crypto.randomUUID().slice(0, 6)}`,
+        type: 'shockwave',
+        color: spec.color,
+        ownerId: player.id,
+        x: player.x,
+        y: player.y,
+        radius: novaRad,
+        age: 0,
+        maxAge: 0.45,
+      });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 8, text: `${spec.name.toUpperCase()}!`, color: spec.color, isCrit: true });
+
+      if (spec.healNexus) {
+        this.healAlliedNexus(room, player, 3);
+      }
+
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, novaRad)) {
+        const dmg = Math.max(5, Math.floor(Math.random() * 5) + 11 + Math.round(effPower * 1.7) + rank * 3);
+        this.applyAuthoritativeDamage(room, player, h, dmg, true, spec.name, true);
+        if ((h.kind === 'entity' && h.ref.isDying) || (h.kind === 'player' && h.ref.isDead)) continue;
+        if (spec.id === 'overwhelm_roar') {
+          h.ref.weakenTimer = 5.0;
+        } else {
+          const d = Math.hypot(h.ref.x - player.x, h.ref.y - player.y);
+          if (h.kind === 'entity' && h.ref.type === 'mob' && d > 1) {
+            h.ref.x += ((h.ref.x - player.x) / d) * 26;
+            h.ref.y += ((h.ref.y - player.y) / d) * 26;
+          }
+        }
+      }
+      return;
+    }
+
+    // 6. DRAIN / EXECUTE BEAM RITE (Siphon Soul, Unmake)
+    if (spec.kind === 'drain_beam' || spec.kind === 'execute_beam') {
+      const tgt = this.findHostileTargetById(room, player, cs.targetId);
+      if (tgt) {
+        let dmg = Math.max(4, 8 + Math.round(effPower * 1.5) + rank * 3);
+        let isExec = false;
+        if (spec.kind === 'execute_beam' && tgt.ref.hp <= tgt.ref.maxHp * 0.5) {
+          dmg = Math.round(dmg * 1.5);
+          isExec = true;
+        }
+        room.fxQueue.push({ kind: 'skyBeam', x: tgt.ref.x, y: tgt.ref.y, color: spec.color });
+        this.applyAuthoritativeDamage(room, player, tgt, dmg, isExec || spec.kind === 'execute_beam', spec.name, true);
+        if (spec.kind === 'drain_beam') {
+          const drainHeal = Math.max(2, Math.round(dmg * 0.6));
+          player.hp = Math.min(player.maxHp, player.hp + drainHeal);
+          room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 8, text: `+${drainHeal} SIPHON`, color: '#4ade80' });
+          this.parties.syncPlayerVitals(player.id);
+        }
+      }
+      return;
+    }
+
+    // 7. TIMELOOP PARADOX RITE (Aether Chrono Rewind)
     if (spec.kind === 'timeloop') {
-      player.cooldowns[slot] = spec.baseCd * cdMult;
       const rewindHp = Math.max(5, Math.round(player.maxHp * 0.25) + rank * 2);
       player.hp = Math.min(player.maxHp, player.hp + rewindHp);
       for (const s of ACTION_SLOTS) {
-        if (s !== slot && player.cooldowns[s] > 0) {
+        if (s !== cs.slot && player.cooldowns[s] > 0) {
           player.cooldowns[s] = Math.max(0, player.cooldowns[s] - (2.2 + rank * 0.3));
         }
       }
@@ -2969,6 +2712,7 @@ export class RoomManager {
       room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 8, colors: ['#38bdf8', '#e0f2fe', '#c084fc'] });
       room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 10, text: `⏳ REWIND +${rewindHp} HP & ECHO!`, color: '#7dd3fc', isCrit: true });
       this.parties.syncPlayerVitals(player.id);
+      return;
     }
   }
 
@@ -3391,7 +3135,37 @@ export class RoomManager {
     this.parties.syncPlayerVitals(player.id);
   }
 
+  handleUpgradeSkill(player, abilityId) {
+    if (!abilityId) return;
+    const spec = ABILITIES_CATALOG[abilityId];
+    if (!spec) return;
+    if (!canUpgradeAbility(player.prog, abilityId, player.isTestMode)) return;
+
+    player.prog.skillPoints = Math.max(0, (player.prog.skillPoints || 0) - 1);
+    if (!player.prog.skills) player.prog.skills = {};
+    player.prog.skills[abilityId] = Math.min(spec.maxRank || 5, (player.prog.skills[abilityId] || 0) + 1);
+
+    for (const [slotStr, abId] of Object.entries(player.loadout || {})) {
+      if (abId === abilityId) {
+        player.prog.ranks[slotStr] = player.prog.skills[abilityId];
+      }
+    }
+
+    this.accounts.saveProgression(player.id, player.prog);
+    player.send({
+      type: 'progression_sync',
+      progression: player.prog,
+      hp: player.hp,
+      maxHp: player.maxHp,
+      maxSolarCharge: player.maxSolarCharge,
+    });
+  }
+
   handleUpgradeRank(player, slot) {
+    const spec = getSlotAbilitySpec(player.loadout, slot);
+    if (spec && spec.id) {
+      return this.handleUpgradeSkill(player, spec.id);
+    }
     if (player.prog.skillPoints <= 0 || !(slot in player.prog.ranks)) return;
     if (player.prog.ranks[slot] >= 5) return;
     player.prog.skillPoints--;
@@ -3585,35 +3359,80 @@ export class RoomManager {
       }
 
       if (p.castState) {
-        p.castState.remaining -= dt;
-        if (p.castState.remaining <= 0) {
-          const cs = p.castState;
+        if (p.isDead || p.freezeTimer > 0) {
           p.castState = null;
-          const tgt = this.findHostileTargetById(room, p, cs.targetId);
-          if (tgt) {
-            room.fxQueue.push({ kind: 'skyBeam', x: tgt.ref.x, y: tgt.ref.y, color: cs.color });
-            const dmg = Math.max(5, Math.floor(Math.random() * 5) + 10 + cs.effPower * 2 + cs.rank * 3);
-            this.applyAuthoritativeDamage(room, p, tgt, dmg, true, cs.spellName, true);
-            for (const splash of this.getAllHostilesInRadius(room, p, tgt.ref.x, tgt.ref.y, 56)) {
-              if (splash.ref !== tgt.ref) {
-                this.applyAuthoritativeDamage(room, p, splash, Math.round(dmg * 0.55), false, cs.spellName, false);
-              }
-            }
+          p.send({ type: 'cast_cancel' });
+        } else if (Math.hypot(p.x - p.castState.castX, p.y - p.castState.castY) > 16) {
+          p.castState = null;
+          p.send({ type: 'cast_cancel' });
+          room.fxQueue.push({ kind: 'fct', x: p.x, y: p.y - 12, text: 'INTERRUPTED!', color: '#f87171' });
+        } else {
+          p.castState.remaining -= dt;
+          if (p.castState.remaining <= 0) {
+            const cs = p.castState;
+            p.castState = null;
+            this.executeAuthoritativeRite(room, p, cs);
           }
         }
       }
 
-      // Check Waygate / Rift Portals in Room
+      // Check Waygate / Rift Portals & Seamless Boundary Transitions in Room
       if (p.portalCooldown <= 0) {
-        for (const ent of room.entities) {
-          if (ent.type === 'portal' && ent.targetRoom && Math.hypot(p.x - ent.x, p.y - ent.y) < 22) {
-            p.portalCooldown = 2.5;
-            if (!p.portalQuestDone && ent.targetRoom === ROOM_TYPES.NEXUS_WARZONE) {
+        // Seamless Boundary Transitions across the expanded 48x48 perimeter (Center Border Crossing)
+        if (room.edgeTransitions) {
+          const pad = 14;
+          const GATE_HALF_WIDTH = 48; // Center road opening
+          if (p.x >= room.halfW - pad && room.edgeTransitions.east && Math.abs(p.y) <= GATE_HALF_WIDTH) {
+            p.portalCooldown = 2.0;
+            const dest = room.edgeTransitions.east;
+            if (!p.portalQuestDone && dest === ROOM_TYPES.NEXUS_WARZONE) {
               p.portalQuestDone = true;
               this.awardPlayerXP(p, 40, 'Entered Nexus Warzone');
             }
-            this.joinRoom(p, ent.targetRoom);
-            break;
+            const targetCfg = ROOM_CONFIGS[dest];
+            const newX = targetCfg ? -targetCfg.halfW + 28 : 28;
+            const newY = Math.max(-36, Math.min(36, p.y));
+            this.joinRoom(p, dest, null, newX, newY);
+            continue;
+          }
+          if (p.x <= -room.halfW + pad && room.edgeTransitions.west && Math.abs(p.y) <= GATE_HALF_WIDTH) {
+            p.portalCooldown = 2.0;
+            const dest = room.edgeTransitions.west;
+            if (!p.portalQuestDone && dest === ROOM_TYPES.NEXUS_WARZONE) {
+              p.portalQuestDone = true;
+              this.awardPlayerXP(p, 40, 'Entered Nexus Warzone');
+            }
+            const targetCfg = ROOM_CONFIGS[dest];
+            const newX = targetCfg ? targetCfg.halfW - 28 : -28;
+            const newY = Math.max(-36, Math.min(36, p.y));
+            this.joinRoom(p, dest, null, newX, newY);
+            continue;
+          }
+          if (p.y <= -room.halfH + pad && room.edgeTransitions.north && Math.abs(p.x) <= GATE_HALF_WIDTH) {
+            p.portalCooldown = 2.0;
+            const dest = room.edgeTransitions.north;
+            if (!p.portalQuestDone && dest === ROOM_TYPES.NEXUS_WARZONE) {
+              p.portalQuestDone = true;
+              this.awardPlayerXP(p, 40, 'Entered Nexus Warzone');
+            }
+            const targetCfg = ROOM_CONFIGS[dest];
+            const newX = Math.max(-36, Math.min(36, p.x));
+            const newY = targetCfg ? targetCfg.halfH - 28 : -28;
+            this.joinRoom(p, dest, null, newX, newY);
+            continue;
+          }
+          if (p.y >= room.halfH - pad && room.edgeTransitions.south && Math.abs(p.x) <= GATE_HALF_WIDTH) {
+            p.portalCooldown = 2.0;
+            const dest = room.edgeTransitions.south;
+            if (!p.portalQuestDone && dest === ROOM_TYPES.NEXUS_WARZONE) {
+              p.portalQuestDone = true;
+              this.awardPlayerXP(p, 40, 'Entered Nexus Warzone');
+            }
+            const targetCfg = ROOM_CONFIGS[dest];
+            const newX = Math.max(-36, Math.min(36, p.x));
+            const newY = targetCfg ? -targetCfg.halfH + 28 : 28;
+            this.joinRoom(p, dest, null, newX, newY);
+            continue;
           }
         }
       }
@@ -3703,6 +3522,94 @@ export class RoomManager {
         const speedMult = e.snareTimer > 0 ? 0.35 : e.slowTimer > 0 ? 0.55 : 1.0;
 
         if (e.inCombat && nearestPlayer) {
+          if (e.isBoss && !e.isDying) {
+            const hpPercent = (e.hp / e.maxHp) * 100;
+            e.phase = e.phase || 1;
+
+            // Phase 2: Frenzy & Minions at 65% HP
+            if (hpPercent <= 65 && e.phase === 1) {
+              e.phase = 2;
+              e.baseDamage = e.baseDamage || e.damage || 7;
+              e.damage = Math.floor(e.baseDamage * 1.35);
+              e.speed = Math.floor((e.speed || 38) * 1.15);
+              this.broadcastToRoom(room, {
+                type: 'chat',
+                channel: 'world',
+                sender: 'WORLD EVENT',
+                text: `⚡ ${e.name} roars into Phase 2, summoning guardians!`,
+              });
+              room.fxQueue.push({ kind: 'smoke', x: e.x, y: e.y, count: 32 });
+              for (let m = 0; m < 3; m++) {
+                const minion = {
+                  id: `${e.id}_m_${Date.now()}_${m}`,
+                  name: `${e.name} Guardian`,
+                  sub: 'Boss Minion',
+                  type: 'mob',
+                  isMinion: true,
+                  spriteKey: e.spriteKey === 'solariBoss' ? 'solariSentinel' : e.spriteKey === 'umbriBoss' ? 'duskFiend' : 'voidStalker',
+                  x: e.x + (Math.random() * 40 - 20),
+                  y: e.y + (Math.random() * 40 - 20),
+                  origX: e.x,
+                  origY: e.y,
+                  hp: Math.max(15, Math.round(e.maxHp * 0.18)),
+                  maxHp: Math.max(15, Math.round(e.maxHp * 0.18)),
+                  damage: Math.max(2, Math.round((e.damage || 6) * 0.5)),
+                  xpReward: 35,
+                  speed: 52,
+                  aggroRange: 150,
+                  attackRange: 28,
+                  radius: 14,
+                  hitFlash: 0,
+                  dammers: new Set(),
+                };
+                room.entities.push(minion);
+                room.fxQueue.push({ kind: 'smoke', x: minion.x, y: minion.y, count: 16 });
+              }
+            }
+
+            // Phase 3: Enrage & Area Shockwaves at 25% HP
+            if (hpPercent <= 25 && e.phase === 2) {
+              e.phase = 3;
+              e.enraged = true;
+              e.baseDamage = e.baseDamage || e.damage || 7;
+              e.damage = Math.floor(e.baseDamage * 1.6);
+              e.speed = Math.floor((e.speed || 38) * 1.25);
+              this.broadcastToRoom(room, {
+                type: 'chat',
+                channel: 'world',
+                sender: 'WORLD EVENT',
+                text: `🔥 BEWARE: ${e.name} has ENRAGED! Ground shockwaves inbound!`,
+              });
+              room.fxQueue.push({ kind: 'smoke', x: e.x, y: e.y, count: 48 });
+            }
+
+            // Boss Shockwave AoE Ability
+            e.abilityCooldown = (e.abilityCooldown ?? (e.enraged ? 3.5 : 6.0)) - dt;
+            if (e.abilityCooldown <= 0) {
+              e.abilityCooldown = e.enraged ? 3.5 : 6.0;
+              const shockRadius = e.enraged ? 96 : 64;
+              const shockDmg = Math.round((e.damage || 7) * (e.enraged ? 1.8 : 1.3));
+              room.fxQueue.push({
+                kind: 'fct',
+                x: e.x,
+                y: e.y - 18,
+                text: e.enraged ? '💥 ENRAGED SHOCKWAVE!' : '⚡ GROUND SLAM!',
+                color: e.enraged ? '#ef4444' : '#f59e0b',
+              });
+              room.fxQueue.push({ kind: 'smoke', x: e.x, y: e.y, count: 24 });
+              for (const p of room.players.values()) {
+                if (p.isDead || p.stealthed) continue;
+                const distP = Math.hypot(e.x - p.x, e.y - p.y);
+                if (distP <= shockRadius) {
+                  this.damagePlayerSession(room, p, shockDmg, `${e.name} Shockwave`, false, e);
+                  const ang = Math.atan2(p.y - e.y, p.x - e.x);
+                  p.x = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, p.x + Math.cos(ang) * 20));
+                  p.y = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, p.y + Math.sin(ang) * 20));
+                }
+              }
+            }
+          }
+
           const origX = e.origX ?? e.x;
           const origY = e.origY ?? e.y;
           const distHome = Math.hypot(origX - e.x, origY - e.y);

@@ -43,7 +43,7 @@ export function drawPixelNameplateAndBubbles(ctx, {
   }
 
   // 2. Bold, High-Contrast Pixel Nameplate + <ORDER> Tag (dark plaque + thick outline)
-  ctx.font = '700 10px "Pixelify Sans", "Silkscreen", -apple-system, sans-serif';
+  ctx.font = '700 12px "Outfit", system-ui, -apple-system, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   const tagPrefix = orderTag && orderTag !== 'NONE' ? `<${orderTag}> ` : '';
@@ -59,15 +59,16 @@ export function drawPixelNameplateAndBubbles(ctx, {
   const plateW = labelW + 10;
   const plateX = Math.round(sx - plateW / 2);
   ctx.fillStyle = 'rgba(5, 7, 15, 0.88)';
-  ctx.fillRect(plateX - 1, ny - 10, plateW + 2, 14);
+  ctx.fillRect(plateX - 1, ny - 12, plateW + 2, 16);
   ctx.fillStyle = accentColor;
   ctx.fillRect(plateX, ny + 3, plateW, 1);
 
-  // Thick 8-direction black outline for razor-sharp contrast
-  ctx.fillStyle = '#000000';
-  for (const [ox, oy] of [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]) {
-    ctx.fillText(label, sx + ox, ny + oy);
-  }
+  // Crisp high-contrast outline without multi-pass overdraw blurring
+  ctx.strokeStyle = '#05070f';
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.miterLimit = 2;
+  ctx.strokeText(label, sx, ny);
   // Bright fill (white by default, tinted when hostile/party) so name never washes out
   ctx.fillStyle = textColor;
   ctx.fillText(label, sx, ny);
@@ -92,13 +93,13 @@ export function drawPixelNameplateAndBubbles(ctx, {
     ctx.fillRect(sx - 7, ey - 6, 14, 10);
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(sx - 6, ey - 5, 12, 8);
-    ctx.font = '8px sans-serif';
+    ctx.font = '10px sans-serif';
     ctx.fillText(em.icon, sx, ey + 2);
   }
 
   // 4. 16-Bit Pixel Speech Bubble (above character's head!)
   if (bubble) {
-    ctx.font = '600 9px "Pixelify Sans", "Silkscreen", sans-serif';
+    ctx.font = '600 11px "Outfit", system-ui, sans-serif';
     const cleanText = String(bubble).slice(0, 64);
     // Wrap up to 2 lines of ~22 chars
     const lines = [];
@@ -316,7 +317,7 @@ export function renderSocialModal({ rooms = [], currentRoomId = '', roomPlayers 
       <!-- Room Instances Browser -->
       <div style="background:#080c18; border:2px solid #1e293b; padding:9px;">
         <div style="font-family:var(--font-header); font-size:7.5px; color:#facc15; margin-bottom:6px;">
-          🌐 LIVE 20Hz REALM INSTANCES
+          🌐 LIVE REALM INSTANCES
         </div>
         <div style="display:flex; flex-direction:column; gap:5px;">
           ${(rooms.length ? rooms : [
@@ -408,11 +409,11 @@ export function renderSocialModal({ rooms = [], currentRoomId = '', roomPlayers 
       </div>
     </div>
 
-    <!-- Multiplayer Server (Optional for Vercel Deployments) -->
+    <!-- Multiplayer Realm Server Route (Optional) -->
     <div style="background:#080c18; border:2px solid #1e293b; padding:8px 10px; font-size:8.5px; margin-top:8px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-        <b style="color:#38bdf8;">🌐 MULTIPLAYER SERVER (OPTIONAL):</b>
-        <span style="color:#94a3b8;">Default: Vercel / Same Origin</span>
+        <b style="color:#38bdf8;">🌐 MULTIPLAYER REALM ROUTER:</b>
+        <span style="color:#94a3b8;">Default: Cloud Realm</span>
       </div>
       <div style="display:flex; gap:6px;">
         <input id="custom-server-inp" class="pixel-input" placeholder="e.g. https://your-server.ngrok-free.dev" value="${(typeof localStorage !== 'undefined' && localStorage.getItem('glimmerfall_server_url')) || ''}" style="flex:1;" />

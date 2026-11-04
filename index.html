@@ -6,7 +6,7 @@
   <title>GlimmerFall Online — 2D Pixel MMORPG</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;600;700&family=Press+Start+2P&family=Silkscreen:wght@400;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after {
       margin: 0;
@@ -15,6 +15,15 @@
       -webkit-user-select: none;
       user-select: none;
       -webkit-user-drag: none;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* Pixelated image-rendering strictly scoped to game canvas, pixel sprites, and portraits */
+    canvas#game-canvas, #npc-portrait-canvas, #minimap-canvas, img.pixel-render, .pixel-art {
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-crisp-edges;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
     }
@@ -22,14 +31,16 @@
     input, textarea, select {
       -webkit-user-select: text !important;
       user-select: text !important;
-      font-family: var(--font-pixel);
+      font-family: var(--font-clean);
+      font-size: 12px;
     }
 
     :root {
-      --font-pixel: 'Pixelify Sans', 'Silkscreen', 'Press Start 2P', monospace;
-      --font-header: 'Press Start 2P', 'Pixelify Sans', monospace;
-      --font-clean: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      --bg-panel: rgba(11, 16, 30, 0.94);
+      --font-ui: 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-pixel: 'Outfit', system-ui, -apple-system, sans-serif;
+      --font-header: 'Outfit', system-ui, -apple-system, sans-serif;
+      --font-clean: 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --bg-panel: rgba(11, 16, 30, 0.95);
       --border-hi: #38bdf8;
       --border-gold: #facc15;
       --border-dark: #05070f;
@@ -38,7 +49,11 @@
     body {
       overflow: hidden;
       background: #070b19;
-      font-family: var(--font-pixel);
+      font-family: var(--font-clean);
+      font-size: 12px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
       color: #f8fafc;
       width: 100vw;
       height: 100vh;
@@ -127,8 +142,9 @@
       background: #0284c7;
       border: 2px solid #fde047;
       font-family: var(--font-header);
-      font-size: 8px;
-      padding: 2px 4px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 5px;
       color: #fff;
     }
 
@@ -142,7 +158,8 @@
     .unit-name {
       font-family: var(--font-header);
       color: #facc15;
-      font-size: 8px;
+      font-size: 11.5px;
+      font-weight: 700;
       text-shadow: 2px 2px 0 #000;
       white-space: nowrap;
       overflow: hidden;
@@ -150,11 +167,12 @@
     }
     .id-mini-btn {
       font-family: var(--font-pixel);
-      font-size: 8px;
+      font-size: 10px;
+      font-weight: 700;
       background: #172554;
       border: 1px solid #38bdf8;
       color: #bae6fd;
-      padding: 1px 4px;
+      padding: 2px 5px;
       cursor: pointer;
       flex-shrink: 0;
     }
@@ -164,7 +182,7 @@
       border-color: #fde047;
     }
     .unit-sub {
-      font-size: 8.5px;
+      font-size: 10px;
       color: #94a3b8;
       margin-bottom: 3px;
       white-space: nowrap;
@@ -174,7 +192,7 @@
     .stat-row {
       display: flex;
       justify-content: space-between;
-      font-size: 8.5px;
+      font-size: 10px;
       font-weight: 700;
       margin-top: 2px;
       text-shadow: 1px 1px 0 #000;
@@ -182,7 +200,7 @@
 
     .bar-bg {
       width: 100%;
-      height: 9px;
+      height: 10px;
       background: #050811;
       border: 2px solid #334155;
       position: relative;
@@ -236,7 +254,8 @@
     .quest-title {
       font-family: var(--font-header);
       color: #facc15;
-      font-size: 7.5px;
+      font-size: 11px;
+      font-weight: 700;
       margin-bottom: 5px;
       display: flex;
       justify-content: space-between;
@@ -250,14 +269,14 @@
       margin-bottom: 2px;
     }
     .quest-check {
-      width: 12px;
-      height: 12px;
+      width: 14px;
+      height: 14px;
       border: 2px solid #38bdf8;
       background: #050811;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 8px;
+      font-size: 10px;
       flex-shrink: 0;
     }
     .quest-check.done {
@@ -273,7 +292,7 @@
       left: 12px;
       width: 262px;
       padding: 6px 9px;
-      font-size: 8.5px;
+      font-size: 10.5px;
       border-color: #4ade80;
     }
     .party-member-row {
@@ -430,7 +449,8 @@
       border-top: 2px solid #38bdf8;
       text-align: center;
       font-family: var(--font-header);
-      font-size: 6px;
+      font-size: 10px;
+      font-weight: 700;
       padding: 4px 2px;
       color: #facc15;
     }
@@ -438,7 +458,8 @@
       background: #080d1a;
       border-top: 1px solid #1e293b;
       text-align: center;
-      font-size: 8px;
+      font-size: 10px;
+      font-weight: 600;
       padding: 3px 4px;
       color: #4ade80;
       cursor: pointer;
@@ -579,13 +600,14 @@
     }
     #chat-chan-btn {
       font-family: var(--font-header);
-      font-size: 6.5px;
-      padding: 4px 5px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 6px;
       background: #172554;
       border: 1px solid #38bdf8;
       color: #fde047;
       cursor: pointer;
-      min-width: 40px;
+      min-width: 44px;
     }
     #chat-input {
       flex: 1;
@@ -593,8 +615,8 @@
       background: #050811;
       border: 1px solid #475569;
       color: #f8fafc;
-      font-size: 9px;
-      padding: 3px 6px;
+      font-size: 11px;
+      padding: 4px 7px;
       outline: none;
     }
     #chat-input:focus {
@@ -602,8 +624,9 @@
     }
     #chat-send-btn {
       font-family: var(--font-header);
-      font-size: 7px;
-      padding: 4px 6px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 7px;
       background: #0284c7;
       border: 1px solid #bae6fd;
       color: #fff;
@@ -740,6 +763,22 @@
     }
     .action-button.flash-card { border-bottom-color: #38bdf8; }
     .action-button.rite-card { border-bottom-color: #f59e0b; }
+    .action-button.slot-locked {
+      background: #050811 !important;
+      border-color: #1e293b !important;
+      border-bottom-color: #1e293b !important;
+      opacity: 0.65;
+      cursor: not-allowed !important;
+      box-shadow: none !important;
+    }
+    .action-button.slot-locked:hover {
+      background: #080d1a !important;
+      border-color: #334155 !important;
+    }
+    .action-button.slot-locked .action-icon {
+      filter: grayscale(1);
+      opacity: 0.7;
+    }
     .action-button:hover {
       border-color: #facc15;
       background: #172036;
@@ -751,25 +790,30 @@
       top: 1px;
       right: 1px;
       font-family: var(--font-header);
-      font-size: 6.5px;
+      font-size: 9.5px;
+      font-weight: 700;
       color: #facc15;
       background: #05070f;
-      padding: 1px 2px;
+      padding: 1px 3px;
+      border-radius: 2px;
     }
     .rank-badge {
       position: absolute;
       top: 1px;
       left: 1px;
-      font-size: 7px;
+      font-size: 9.5px;
+      font-weight: 700;
       color: #94a3b8;
-      background: rgba(5, 7, 15, 0.8);
-      padding: 0 2px;
+      background: rgba(5, 7, 15, 0.85);
+      padding: 0 3px;
+      border-radius: 2px;
     }
     .action-name {
-      font-size: 7px;
+      font-size: 9.5px;
+      font-weight: 600;
       color: #cbd5e1;
       text-transform: uppercase;
-      max-width: 41px;
+      max-width: 44px;
       overflow: hidden;
       white-space: nowrap;
     }
@@ -781,7 +825,8 @@
       align-items: center;
       justify-content: center;
       font-family: var(--font-header);
-      font-size: 8.5px;
+      font-size: 11px;
+      font-weight: 700;
       color: #facc15;
       opacity: 0;
       pointer-events: none;
@@ -805,9 +850,11 @@
       border: 1px solid #fef08a;
       color: #fff;
       font-family: var(--font-header);
-      font-size: 6.5px;
-      padding: 1px 3px;
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 1px 4px;
       margin-left: 2px;
+      border-radius: 3px;
     }
 
     /* Floating Combat Text */
@@ -819,19 +866,19 @@
     }
     .fct-text {
       position: absolute;
-      font-family: 'Pixelify Sans', 'Outfit', sans-serif;
-      font-size: 11.5px;
+      font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+      font-size: 13px;
       font-weight: 700;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
       text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 2px 4px rgba(0, 0, 0, 0.9);
       pointer-events: none;
       transform: translate(-50%, -50%);
       animation: pixelFloat 0.95s steps(12) forwards;
     }
     .fct-crit {
-      font-size: 14.5px;
+      font-size: 16px;
       font-weight: 800;
-      letter-spacing: 0.8px;
+      letter-spacing: 0.5px;
       text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 2px 6px rgba(250, 204, 21, 0.75);
     }
     @keyframes pixelFloat {
@@ -848,6 +895,19 @@
       border: 10px solid rgba(239, 68, 68, 0.75);
       opacity: 0;
       display: none;
+    }
+    #portal-mist-fx {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 46;
+      opacity: 0;
+      box-shadow: inset 0 0 95px 40px rgba(56, 189, 248, 0.55), inset 0 0 180px 80px rgba(14, 165, 233, 0.35);
+      background: radial-gradient(ellipse at center, transparent 35%, rgba(56, 189, 248, 0.12) 65%, rgba(2, 132, 199, 0.42) 100%);
+      transition: opacity 0.15s ease-out;
+    }
+    #portal-mist-fx.active {
+      opacity: 1;
     }
     #death-screen {
       position: absolute;
@@ -927,8 +987,10 @@
       background: #1e293b;
       border: 2px solid #475569;
       color: #64748b;
-      font-size: 7.5px;
-      padding: 5px 6px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 5px 8px;
+      border-radius: 4px;
       cursor: not-allowed;
     }
     .upgrade-btn.ready {
@@ -946,15 +1008,149 @@
       background: #0d1324;
       border: 2px solid #38bdf8;
       color: #facc15;
-      font-size: 8px;
-      padding: 5px 7px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 8px;
+      border-radius: 4px;
       cursor: pointer;
-      min-width: 54px;
+      min-width: 58px;
     }
     .keybind-btn.listening {
       background: #9a3412;
       border-color: #facc15;
       color: #fff;
+    }
+
+    /* Diablo 2 Skill Tree Styles */
+    .skilltree-nav-tabs {
+      display: flex;
+      gap: 6px;
+      margin: 6px 0 12px 0;
+      border-bottom: 2px solid #1e293b;
+      padding-bottom: 6px;
+    }
+    .st-tab-btn {
+      background: #080d1a;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      font-family: var(--font-header);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 12px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+    }
+    .st-tab-btn:hover {
+      color: #f8fafc;
+      border-color: #38bdf8;
+    }
+    .st-tab-btn.active {
+      background: linear-gradient(180deg, #1e3a8a, #0f172a);
+      color: #fde047;
+      border-color: #facc15;
+      box-shadow: 0 0 10px rgba(250, 204, 21, 0.25);
+    }
+    .d2-tier-row {
+      margin-bottom: 12px;
+      background: rgba(8, 13, 26, 0.75);
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+    .d2-tier-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #1e293b;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .d2-skills-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 8px;
+    }
+    .d2-skill-card {
+      background: #090e1d;
+      border: 2px solid #1e293b;
+      border-radius: 6px;
+      padding: 8px 10px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .d2-skill-card:hover {
+      border-color: #38bdf8;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+    }
+    .d2-skill-card.learned {
+      border-color: #2563eb;
+    }
+    .d2-skill-card.maxed {
+      border-color: #facc15;
+      box-shadow: 0 0 10px rgba(250, 204, 21, 0.2);
+    }
+    .d2-skill-card.locked {
+      opacity: 0.6;
+    }
+    .d2-rank-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #94a3b8;
+    }
+    .d2-rank-badge.has-points {
+      background: #1e3a8a;
+      border-color: #38bdf8;
+      color: #bae6fd;
+    }
+    .d2-rank-badge.is-max {
+      background: #854d0e;
+      border-color: #facc15;
+      color: #fef08a;
+    }
+    .d2-alloc-btn {
+      font-family: var(--font-header);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 5px 10px;
+      border-radius: 4px;
+      border: 2px solid #334155;
+      background: #0f172a;
+      color: #64748b;
+      cursor: not-allowed;
+      transition: all 0.15s ease;
+    }
+    .d2-alloc-btn.can-alloc {
+      background: linear-gradient(180deg, #ca8a04, #a16207);
+      border-color: #fef08a;
+      color: #ffffff;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(250, 204, 21, 0.4);
+      animation: pulseAlloc 1.4s infinite alternate;
+    }
+    @keyframes pulseAlloc {
+      0% { transform: scale(1); box-shadow: 0 0 6px rgba(250, 204, 21, 0.3); }
+      100% { transform: scale(1.02); box-shadow: 0 0 14px rgba(250, 204, 21, 0.7); }
+    }
+    .skill-pts-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: #1e1b4b;
+      border: 1px solid #fbbf24;
+      color: #fde047;
+      font-weight: 700;
+      font-size: 11px;
     }
 
     /* Form Controls inside GlimmerFall ID Modal */
@@ -1157,7 +1353,7 @@
       <div class="fp-header">
         <div>
           <div class="fp-logo">⚔️ GLIMMERFALL ONLINE — 2D PIXEL MMORPG</div>
-          <div class="fp-sub">4 Canonical Factions • 8 Archetypes • Custom TCG Rite Loadouts • Neon PostgreSQL Persistence</div>
+          <div class="fp-sub">4 Canonical Factions • 8 Archetypes • Custom TCG Rite Loadouts • Persistent Cloud Realm</div>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
           <a href="https://www.glimmerfalltcg.com" target="_blank" rel="noreferrer" class="util-btn" style="text-decoration:none; border-color:#facc15; color:#fde047;">
@@ -1165,12 +1361,17 @@
           </a>
         </div>
       </div>
-      <div id="frontpage-body"></div>
+      <div id="frontpage-body">
+        <div style="text-align:center; padding:40px 20px; font-family:var(--font-header); font-size:11px; color:#facc15;">
+          ⚔️ INITIALIZING REALM CHAMPION SELECTION...
+        </div>
+      </div>
     </div>
   </div>
 
   <div id="hud">
     <div id="damage-vignette"></div>
+    <div id="portal-mist-fx"></div>
     <div id="death-screen">
       <div style="font-family: var(--font-header); font-size: 16px; color: #ef4444; text-shadow: 3px 3px 0 #000; margin-bottom: 10px;">
         💀 CAST INTO THE FALL
@@ -1283,19 +1484,39 @@
       </div>
     </div>
 
-    <!-- 3. TOP-RIGHT: Square Pixel Minimap + Live 20Hz Server Pill + Zone/Banner Controls -->
+    <!-- 3. TOP-RIGHT: Square Pixel Minimap + Live Realm Status Pill + Zone/Banner Controls -->
     <div id="minimap-panel">
       <canvas id="minimap-canvas" width="128" height="128"></canvas>
       <div class="minimap-title" id="minimap-zone-title">SANCTUARY HUB #1</div>
+      <div class="minimap-sub" id="zone-label" style="display:none;"></div>
       <div id="net-status-pill" onclick="toggleModal('social-modal')" title="Open Room Browser &amp; Online Players [O]">
-        ● CONNECTING 20Hz...
+        ● CONNECTING TO REALM...
       </div>
     </div>
 
     <div id="zone-controls">
       <button class="util-btn queue-btn" id="btn-queue" onclick="toggleMatchmaking()">⚔️ 3v3 ARENA</button>
-      <button class="util-btn" onclick="teleportWorld()">🌀 <span id="zone-label">To Warzone</span></button>
       <button class="util-btn" style="border-color:#facc15; color:#fde047;" onclick="plantOrderBanner()" title="Plant your Guild/Order Standard (+1 Power Aura)">⚑ BANNER [B]</button>
+    </div>
+
+    <!-- TEST SANDBOX HUD OVERLAY (Only visible in 1-Player Test Mode) -->
+    <div id="testmode-bar" class="panel" style="display:none; position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:40; border-color:#a855f7; padding:6px 12px; display:none; align-items:center; gap:8px;">
+      <span style="font-weight:bold; color:#e879f9; font-size:10px;">🧪 TEST SANDBOX (LV.10 ALL ABILITIES)</span>
+      <select id="testmode-class-select" class="pixel-input" style="padding:2px 6px; font-size:9px; background:#080d1a; color:#facc15; border:1px solid #334155;" onchange="testModeSwitchClass(this.value)">
+        <option value="solari_vanguard">Solari Vanguard</option>
+        <option value="aurora_marshal">Aurora Marshal</option>
+        <option value="umbral_assassin">Umbral Assassin</option>
+        <option value="graveglass_oracle">Graveglass Oracle</option>
+        <option value="forest_warden">Forest Warden</option>
+        <option value="stonekin_elder">Stonekin Elder</option>
+        <option value="chronomancer_sage">Chronomancer Sage</option>
+        <option value="nexus_weaver">Nexus Weaver</option>
+      </select>
+      <button class="util-btn" style="padding:2px 6px; font-size:9px; border-color:#38bdf8; color:#38bdf8;" onclick="testModeResetCooldowns()">⚡ RESET CDS</button>
+      <button class="util-btn" id="testmode-inf-glimmer-btn" style="padding:2px 6px; font-size:9px; border-color:#c084fc; color:#c084fc;" onclick="testModeToggleInfiniteGlimmer()">🔮 INF GLIMMER: OFF</button>
+      <button class="util-btn" style="padding:2px 6px; font-size:9px; border-color:#fde047; color:#fde047;" onclick="testModeSpawnBossDummy()">🎯 SPAWN BOSS DUMMY</button>
+      <span id="testmode-dps-meter" style="color:#4ade80; font-weight:bold; font-size:10px; margin-left:4px;">DPS: 0.0</span>
+      <button class="util-btn" style="padding:2px 6px; font-size:9px; border-color:#ef4444; color:#ef4444;" onclick="disableTestMode()">✕ EXIT TEST</button>
     </div>
 
     <!-- 4. BOTTOM-LEFT: Social MMO Chat, Speech Bubbles, Faction (/f) & Emotes -->
@@ -1335,7 +1556,7 @@
         <canvas id="npc-portrait-canvas" width="32" height="32"></canvas>
       </div>
       <div style="flex: 1;">
-        <div id="dlg-speaker">AURORA MARSHAL • SOLARI HERALD</div>
+        <div id="dlg-speaker">HERALD LYRA • SOLARI SUNSPIRE HERALD</div>
         <div id="dlg-text"></div>
       </div>
       <div style="display:flex; flex-direction:column; gap:4px;">
@@ -1435,7 +1656,7 @@
     <!-- 6. BOTTOM-RIGHT: Clean Micro-Menu Dock -->
     <div id="micro-menu">
       <button class="util-btn" onclick="toggleModal('spellbook-modal')">
-        📖 RITES [P] <span id="skill-pt-pip" class="pt-pip">+1</span>
+        📖 SPELLS [P] <span id="skill-pt-pip" class="pt-pip">+1</span>
       </button>
       <button class="util-btn" onclick="toggleModal('char-modal')">
         📊 STATS [C] <span id="stat-pt-pip" class="pt-pip">+2</span>
@@ -1445,25 +1666,89 @@
       <button class="util-btn" style="border-color:#4ade80;" onclick="toggleModal('social-modal')">👥 SOCIAL [O]</button>
       <button class="util-btn" onclick="toggleModal('cards-modal')">🃏 RELICS [K]</button>
       <button class="util-btn" onclick="toggleModal('lore-modal')">📜 LORE [L]</button>
-      <button class="util-btn" id="btn-bgm-toggle" onclick="toggleBgmMute()" title="16-Bit Chiptune BGM [M]">🎵 BGM</button>
-      <button class="util-btn" onclick="cyclePixelZoom()">🔍 <span id="zoom-label" style="color:#facc15;">3x</span></button>
-      <button class="util-btn" onclick="toggleScanlines()">📺 CRT</button>
-      <button class="util-btn" id="btn-touch-toggle" onclick="toggleTouchControls()" title="Toggle Virtual Touchpad &amp; Joystick">📱 TOUCH</button>
+      <button class="util-btn" style="border-color:#38bdf8; color:#7dd3fc;" onclick="toggleModal('settings-modal')">⚙️ SETTINGS [ESC]</button>
     </div>
 
     <!-- MODAL 1: GlimmerFall TCG Rites & Flashes Skill Tree [P] -->
-    <div id="spellbook-modal" class="modal panel" style="width: 630px;">
+    <div id="spellbook-modal" class="modal panel" style="width: 740px; max-width: 95vw; max-height: 88vh; display: none; flex-direction: column;">
       <div class="modal-header">
         <div>
-          <div class="modal-title">📖 GLIMMERFALL RITES &amp; FLASHES [P]</div>
-          <div id="skill-points-banner" style="font-size: 9px; margin-top: 3px; color: #fde047;">SKILL POINTS AVAILABLE: 1</div>
+          <div class="modal-title" style="font-size: 13px; color: #facc15;">📖 GLIMMERFALL SKILL TREE &amp; KEYBINDS [P]</div>
+          <div id="skill-points-banner" style="font-size: 11px; margin-top: 3px; color: #fde047; font-weight: bold;">
+            ⚡ UNSPENT SKILL POINTS: <span id="sp-count-txt">1</span>
+          </div>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
-          <button class="util-btn" style="font-size:8.5px; padding:4px 7px;" onclick="resetDefaultKeybinds()">↺ KEYS</button>
+          <button class="util-btn" id="d2-max-skills-btn" style="display:none; font-size:9.5px; border-color:#a855f7; color:#e9d5ff;" onclick="testModeMaxAllSkills()">🧪 MAX ALL SKILLS</button>
           <div class="modal-close" onclick="toggleModal('spellbook-modal')">✕</div>
         </div>
       </div>
-      <div id="keybind-list-container"></div>
+
+      <div class="skilltree-nav-tabs">
+        <button type="button" class="st-tab-btn active" id="st-tab-flashes" onclick="switchSkillTreeTab('flashes')">⚡ FLASHES TREE (INSTANT)</button>
+        <button type="button" class="st-tab-btn" id="st-tab-rites" onclick="switchSkillTreeTab('rites')">☀️ RITES TREE (CAST-TIME)</button>
+        <button type="button" class="st-tab-btn" id="st-tab-keybinds" onclick="switchSkillTreeTab('keybinds')">⌨️ ACTION BAR &amp; HOTKEYS</button>
+      </div>
+
+      <!-- Skill Tree Tier View -->
+      <div id="skill-tree-content" style="flex: 1; overflow-y: auto; padding: 6px 2px;"></div>
+
+      <!-- Action Bar & Keybinds View -->
+      <div id="keybind-list-container" style="display: none; flex: 1; overflow-y: auto; padding: 6px 2px;"></div>
+    </div>
+
+    <!-- MODAL 9: Game Settings & Configuration [ESC] -->
+    <div id="settings-modal" class="modal panel" style="width: 520px; max-width: 95vw; display: none;">
+      <div class="modal-header">
+        <div class="modal-title" style="font-size: 13px; color: #38bdf8;">⚙️ GAME SETTINGS &amp; CONFIGURATION [ESC]</div>
+        <div class="modal-close" onclick="toggleModal('settings-modal')">✕</div>
+      </div>
+      <div id="settings-modal-body" style="display: flex; flex-direction: column; gap: 12px; font-size: 11px;">
+        <!-- Controls & Input -->
+        <div style="background: #080c18; border: 1px solid #1e293b; padding: 10px; border-radius: 4px;">
+          <div style="font-weight: 700; color: #facc15; margin-bottom: 6px;">🎮 CONTROLS &amp; INPUT</div>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 8px;">
+            <input type="checkbox" id="settings-touch-checkbox" onchange="toggleTouchControls(this.checked)" />
+            <span>Enable Mobile / iPad Virtual Joystick &amp; Touchpad Controls</span>
+          </label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="util-btn" style="font-size: 10px; border-color: #38bdf8; color: #38bdf8;" onclick="resetDefaultKeybinds()">↺ Reset Action Bar Keybindings to Defaults</button>
+          </div>
+        </div>
+
+        <!-- Audio -->
+        <div style="background: #080c18; border: 1px solid #1e293b; padding: 10px; border-radius: 4px;">
+          <div style="font-weight: 700; color: #facc15; margin-bottom: 6px;">🎵 AUDIO</div>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="settings-bgm-checkbox" onchange="toggleBgmMute(this.checked)" checked />
+            <span>Enable 16-Bit Chiptune Background Music (BGM) [M]</span>
+          </label>
+        </div>
+
+        <!-- Video & Graphics -->
+        <div style="background: #080c18; border: 1px solid #1e293b; padding: 10px; border-radius: 4px;">
+          <div style="font-weight: 700; color: #facc15; margin-bottom: 6px;">📺 GRAPHICS &amp; VIEWPORT</div>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 8px;">
+            <input type="checkbox" id="settings-crt-checkbox" onchange="toggleScanlines(this.checked)" />
+            <span>Retro CRT Scanlines Overlay</span>
+          </label>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span>Pixel Zoom Scale:</span>
+            <button class="util-btn" onclick="cyclePixelZoom()"><span id="zoom-label" style="color:#facc15;">3x</span></button>
+          </div>
+        </div>
+
+        <!-- Practice Sandbox -->
+        <div style="background: #080c18; border: 1px solid #1e293b; padding: 10px; border-radius: 4px;">
+          <div style="font-weight: 700; color: #a855f7; margin-bottom: 6px;">🧪 1-PLAYER PRACTICE SANDBOX</div>
+          <div style="font-size: 10px; color: #94a3b8; margin-bottom: 8px;">
+            Test characters with all abilities unlocked, instant cooldowns, and infinite Glimmer.
+          </div>
+          <button class="util-btn" style="border-color: #a855f7; color: #e9d5ff;" onclick="toggleTestMode(); toggleModal('settings-modal');">
+            🧪 ENTER PRACTICE ARENA
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- MODAL 2: Character Level & Allocatable Stats [C] -->

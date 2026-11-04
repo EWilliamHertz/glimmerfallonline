@@ -33,11 +33,19 @@ export const ROOM_CONFIGS = {
     biomeTheme: 'sanctuary',
     bgm: 'sanctuary',
     maxPlayers: 60,
-    halfW: 288,
-    halfH: 240,
+    width: 48,
+    height: 48,
+    halfW: 384,
+    halfH: 384,
     pvp: false,
     spawnX: 0,
     spawnY: 96,
+    edgeTransitions: {
+      north: ROOM_TYPES.NEXUS_WARZONE,
+      south: ROOM_TYPES.TERRA_ORCHARD,
+      east: ROOM_TYPES.UMBRI_UNDERCITY,
+      west: ROOM_TYPES.SOLARI_CITADEL,
+    },
   },
   [ROOM_TYPES.NEXUS_WARZONE]: {
     type: ROOM_TYPES.NEXUS_WARZONE,
@@ -46,11 +54,19 @@ export const ROOM_CONFIGS = {
     biomeTheme: 'warzone',
     bgm: 'warzone',
     maxPlayers: 60,
+    width: 300,
+    height: 225,
     halfW: 2400,
     halfH: 1800,
     pvp: true,
     spawnX: 0,
     spawnY: 1450,
+    edgeTransitions: {
+      south: ROOM_TYPES.SANCTUARY_HUB,
+      north: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
+      east: ROOM_TYPES.AETHER_SPIRE,
+      west: ROOM_TYPES.ARENA_3V3,
+    },
   },
   [ROOM_TYPES.SOLARI_CITADEL]: {
     type: ROOM_TYPES.SOLARI_CITADEL,
@@ -59,11 +75,17 @@ export const ROOM_CONFIGS = {
     biomeTheme: 'solari',
     bgm: 'warzone',
     maxPlayers: 30,
-    halfW: 320,
-    halfH: 272,
+    width: 48,
+    height: 48,
+    halfW: 384,
+    halfH: 384,
     pvp: false,
     spawnX: 0,
     spawnY: 110,
+    edgeTransitions: {
+      east: ROOM_TYPES.SANCTUARY_HUB,
+      north: ROOM_TYPES.SOLARI_SUNKEN_VAULT,
+    },
   },
   [ROOM_TYPES.UMBRI_UNDERCITY]: {
     type: ROOM_TYPES.UMBRI_UNDERCITY,
@@ -72,11 +94,17 @@ export const ROOM_CONFIGS = {
     biomeTheme: 'umbri',
     bgm: 'warzone',
     maxPlayers: 30,
-    halfW: 320,
-    halfH: 272,
+    width: 48,
+    height: 48,
+    halfW: 384,
+    halfH: 384,
     pvp: false,
     spawnX: 0,
     spawnY: 110,
+    edgeTransitions: {
+      west: ROOM_TYPES.SANCTUARY_HUB,
+      north: ROOM_TYPES.UMBRI_SHADOW_LABYRINTH,
+    },
   },
   [ROOM_TYPES.TERRA_ORCHARD]: {
     type: ROOM_TYPES.TERRA_ORCHARD,
@@ -85,11 +113,17 @@ export const ROOM_CONFIGS = {
     biomeTheme: 'terra',
     bgm: 'warzone',
     maxPlayers: 30,
-    halfW: 320,
-    halfH: 272,
+    width: 48,
+    height: 48,
+    halfW: 384,
+    halfH: 384,
     pvp: false,
     spawnX: 0,
     spawnY: 110,
+    edgeTransitions: {
+      north: ROOM_TYPES.SANCTUARY_HUB,
+      west: ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY,
+    },
   },
   [ROOM_TYPES.AETHER_SPIRE]: {
     type: ROOM_TYPES.AETHER_SPIRE,
@@ -98,11 +132,17 @@ export const ROOM_CONFIGS = {
     biomeTheme: 'aether',
     bgm: 'warzone',
     maxPlayers: 30,
-    halfW: 320,
-    halfH: 272,
+    width: 48,
+    height: 48,
+    halfW: 384,
+    halfH: 384,
     pvp: false,
     spawnX: 0,
     spawnY: 110,
+    edgeTransitions: {
+      west: ROOM_TYPES.NEXUS_WARZONE,
+      north: ROOM_TYPES.AETHER_FRACTURED_ARCHIVE,
+    },
   },
   [ROOM_TYPES.ARENA_3V3]: {
     type: ROOM_TYPES.ARENA_3V3,
@@ -111,11 +151,16 @@ export const ROOM_CONFIGS = {
     biomeTheme: 'arena',
     bgm: 'boss',
     maxPlayers: 6,
-    halfW: 240,
-    halfH: 272,
+    width: 32,
+    height: 36,
+    halfW: 256,
+    halfH: 288,
     pvp: true,
     spawnX: 0,
     spawnY: 175,
+    edgeTransitions: {
+      east: ROOM_TYPES.NEXUS_WARZONE,
+    },
   },
   [ROOM_TYPES.NEXUS_FORGOTTEN_RUINS]: {
     type: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
@@ -124,11 +169,16 @@ export const ROOM_CONFIGS = {
     biomeTheme: 'ruins',
     bgm: 'sanctuary',
     maxPlayers: 35,
-    halfW: 360,
-    halfH: 300,
+    width: 54,
+    height: 54,
+    halfW: 432,
+    halfH: 432,
     pvp: false,
     spawnX: 0,
     spawnY: 110,
+    edgeTransitions: {
+      south: ROOM_TYPES.NEXUS_WARZONE,
+    },
   },
   [ROOM_TYPES.SOLARI_SUNKEN_VAULT]: {
     type: ROOM_TYPES.SOLARI_SUNKEN_VAULT,
@@ -137,11 +187,16 @@ export const ROOM_CONFIGS = {
     biomeTheme: 'solari_vault',
     bgm: 'boss',
     maxPlayers: 25,
-    halfW: 320,
-    halfH: 272,
+    width: 48,
+    height: 48,
+    halfW: 384,
+    halfH: 384,
     pvp: false,
     spawnX: 0,
     spawnY: 110,
+    edgeTransitions: {
+      south: ROOM_TYPES.SOLARI_CITADEL,
+    },
   },
   [ROOM_TYPES.UMBRI_SHADOW_LABYRINTH]: {
     type: ROOM_TYPES.UMBRI_SHADOW_LABYRINTH,
@@ -150,11 +205,16 @@ export const ROOM_CONFIGS = {
     biomeTheme: 'umbri_labyrinth',
     bgm: 'boss',
     maxPlayers: 25,
-    halfW: 340,
-    halfH: 290,
+    width: 48,
+    height: 48,
+    halfW: 384,
+    halfH: 384,
     pvp: false,
     spawnX: 0,
     spawnY: 110,
+    edgeTransitions: {
+      south: ROOM_TYPES.UMBRI_UNDERCITY,
+    },
   },
   [ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY]: {
     type: ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY,
@@ -163,11 +223,16 @@ export const ROOM_CONFIGS = {
     biomeTheme: 'terra_grove',
     bgm: 'warzone',
     maxPlayers: 25,
-    halfW: 320,
-    halfH: 272,
+    width: 48,
+    height: 48,
+    halfW: 384,
+    halfH: 384,
     pvp: false,
     spawnX: 0,
     spawnY: 110,
+    edgeTransitions: {
+      east: ROOM_TYPES.TERRA_ORCHARD,
+    },
   },
   [ROOM_TYPES.AETHER_FRACTURED_ARCHIVE]: {
     type: ROOM_TYPES.AETHER_FRACTURED_ARCHIVE,
@@ -176,11 +241,16 @@ export const ROOM_CONFIGS = {
     biomeTheme: 'aether_archive',
     bgm: 'boss',
     maxPlayers: 25,
-    halfW: 340,
-    halfH: 280,
+    width: 48,
+    height: 48,
+    halfW: 384,
+    halfH: 384,
     pvp: false,
     spawnX: 0,
     spawnY: 110,
+    edgeTransitions: {
+      south: ROOM_TYPES.AETHER_SPIRE,
+    },
   },
 };
 
@@ -575,254 +645,289 @@ export const ABILITIES_CATALOG = {
   // === SOLARI ===
   flare_strike: {
     id: 'flare_strike', faction: 'Solari', name: 'Flare Strike', short: 'Flare',
-    tcgType: 'Solari Flash', icon: '⚔️', kind: 'melee_cleave', range: '6.5y', rangeYards: 6.5,
-    cost: 0, baseCd: 0.85, color: '#facc15',
+    tcgType: 'Solari Flash', tree: 'flashes', tier: 1, reqLevel: 1, maxRank: 5, prereq: null,
+    icon: '⚔️', kind: 'melee_cleave', range: '6.5y', rangeYards: 6.5,
+    cost: 0, baseCd: 0.85, castTime: 0, color: '#facc15',
     desc: 'Radiant cleave dealing (4-7 + Power + 2×Rank) DMG & generating Glimmer.',
     lore: 'AWK #11: "A beacon of unwavering light against the encroaching shadow."',
   },
+  radiant_bulwark: {
+    id: 'radiant_bulwark', faction: 'Solari', name: 'Radiant Bulwark', short: 'Bulwark',
+    tcgType: 'Solari Flash', tree: 'flashes', tier: 2, reqLevel: 3, maxRank: 5, prereq: 'flare_strike',
+    icon: '🛡️', kind: 'shield', range: 'Self/Squad', rangeYards: 12,
+    cost: 0, baseCd: 9.5, castTime: 0, color: '#38bdf8',
+    desc: 'Summons starlight Guard shields absorbing (14 + 3×Bastion + 4×Rank) DMG.',
+    lore: 'AWK: "Prevent incoming damage to your Guardian and friendly units."',
+  },
+  blinding_radiance: {
+    id: 'blinding_radiance', faction: 'Solari', name: 'Blinding Radiance', short: 'Blind',
+    tcgType: 'Solari Flash', tree: 'flashes', tier: 4, reqLevel: 12, maxRank: 5, prereq: 'radiant_bulwark',
+    icon: '💨', kind: 'dash', range: '8.5y Dash', rangeYards: 8.5,
+    cost: 0, baseCd: 4.0, castTime: 0, color: '#bae6fd',
+    desc: 'Flash-dashes 8.5y in starlight & blinds nearby foes (-2 ATK for 5s).',
+    lore: 'AWK #2: "Blinding Radiance brings order to chaos."',
+  },
   solar_flare: {
     id: 'solar_flare', faction: 'Solari', name: 'Solar Flare', short: 'Solar',
-    tcgType: 'Solari Rite', icon: '☀️', kind: 'cast_beam', range: '25y', rangeYards: 25,
+    tcgType: 'Solari Rite', tree: 'rites', tier: 2, reqLevel: 3, maxRank: 5, prereq: null,
+    icon: '☀️', kind: 'cast_beam', range: '25y', rangeYards: 25,
     cost: 25, baseCd: 3.5, castTime: 1.0, color: '#fbbf24',
     desc: '1.0s sun-pillar Rite dealing (11-15 + 2×Power + 3×Rank) CRIT DMG + splash.',
     lore: 'AWK #12: "The unbridled fury of the sun, reduced to a single blinding flash."',
   },
   judgement_of_the_sun: {
     id: 'judgement_of_the_sun', faction: 'Solari', name: 'Judgement of the Sun', short: 'Judge',
-    tcgType: 'Solari Rite', icon: '🔨', kind: 'projectile', projType: 'hammer', range: '20y', rangeYards: 20,
-    cost: 0, baseCd: 4.5, color: '#facc15',
+    tcgType: 'Solari Rite', tree: 'rites', tier: 3, reqLevel: 6, maxRank: 5, prereq: 'solar_flare',
+    icon: '🔨', kind: 'projectile', projType: 'hammer', range: '20y', rangeYards: 20,
+    cost: 0, baseCd: 4.5, castTime: 0.85, color: '#facc15',
     desc: 'Hurls a solar hammer for (7-10 + Power + 2×Rank) DMG (+25 bonus Glimmer on kill!).',
     lore: 'AWK: "Deal damage to target enemy. If it dies, gain bonus Solar Energy."',
   },
-  consecrated_ground: {
-    id: 'consecrated_ground', faction: 'Solari', name: 'Consecrated Ground', short: 'Ground',
-    tcgType: 'Solari Rite', icon: '🔥', kind: 'ground_zone', zoneType: 'consecration', range: '7.5y AoE', rangeYards: 7.5,
-    cost: 0, baseCd: 8.0, color: '#fb923c',
-    desc: 'Sanctifies ground for 6s: burns foes & grants +2 Power to allies inside.',
-    lore: 'AWK: "Friendly entities gain Power; enemies take damage each turn."',
-  },
-  radiant_bulwark: {
-    id: 'radiant_bulwark', faction: 'Solari', name: 'Radiant Bulwark', short: 'Bulwark',
-    tcgType: 'Solari Flash', icon: '🛡️', kind: 'shield', range: 'Self/Squad', rangeYards: 12,
-    cost: 0, baseCd: 9.5, color: '#38bdf8',
-    desc: 'Summons starlight Guard shields absorbing (14 + 3×Bastion + 4×Rank) DMG.',
-    lore: 'AWK: "Prevent incoming damage to your Guardian and friendly units."',
-  },
   blessing_of_dawn: {
     id: 'blessing_of_dawn', faction: 'Solari', name: 'Blessing of Dawn', short: 'Bless',
-    tcgType: 'Solari Rite', icon: '✨', kind: 'heal', range: 'Self/Squad', rangeYards: 12,
-    cost: 0, baseCd: 6.0, color: '#4ade80',
+    tcgType: 'Solari Rite', tree: 'rites', tier: 3, reqLevel: 6, maxRank: 5, prereq: null,
+    icon: '✨', kind: 'heal', range: 'Self/Squad', rangeYards: 12,
+    cost: 0, baseCd: 6.0, castTime: 0.9, color: '#4ade80',
     desc: 'Restores (8 + 2×Bastion + 3×Rank) HP to you and nearby squadmates.',
     lore: 'AWK: "Give target friendly entity vitality and restore Health."',
   },
+  consecrated_ground: {
+    id: 'consecrated_ground', faction: 'Solari', name: 'Consecrated Ground', short: 'Ground',
+    tcgType: 'Solari Rite', tree: 'rites', tier: 4, reqLevel: 12, maxRank: 5, prereq: 'judgement_of_the_sun',
+    icon: '🔥', kind: 'ground_zone', zoneType: 'consecration', range: '7.5y AoE', rangeYards: 7.5,
+    cost: 0, baseCd: 8.0, castTime: 1.0, color: '#fb923c',
+    desc: 'Sanctifies ground for 6s: burns foes & grants +2 Power to allies inside.',
+    lore: 'AWK: "Friendly entities gain Power; enemies take damage each turn."',
+  },
   decree_of_the_sun: {
     id: 'decree_of_the_sun', faction: 'Solari', name: 'Decree of the Sun', short: 'Decree',
-    tcgType: 'Solari Rite', icon: '👑', kind: 'nova', range: '12y Edict', rangeYards: 12,
-    cost: 20, baseCd: 9.0, color: '#fde047', healNexus: true,
+    tcgType: 'Solari Rite', tree: 'rites', tier: 5, reqLevel: 18, maxRank: 5, prereq: 'consecrated_ground',
+    icon: '👑', kind: 'nova', range: '12y Edict', rangeYards: 12,
+    cost: 20, baseCd: 9.0, castTime: 1.2, color: '#fde047', healNexus: true,
     desc: 'Solar edict scorching foes in 12y & restoring +3 HP to allied Outpost/Sanctuary Nexus!',
     lore: 'AWK: "By sovereign Decree of the Sun, the Citadel stands unbroken."',
   },
   daybreak: {
     id: 'daybreak', faction: 'Solari', name: 'Daybreak', short: 'Dawn',
-    tcgType: 'Solari Rite', icon: '🌅', kind: 'heal_glimmer', range: 'Self/Squad', rangeYards: 14,
-    cost: 0, baseCd: 8.5, color: '#fef08a',
+    tcgType: 'Solari Rite', tree: 'rites', tier: 5, reqLevel: 18, maxRank: 5, prereq: 'blessing_of_dawn',
+    icon: '🌅', kind: 'heal_glimmer', range: 'Self/Squad', rangeYards: 14,
+    cost: 0, baseCd: 8.5, castTime: 1.1, color: '#fef08a',
     desc: 'Restores HP, grants +25 Glimmer, and cleanses all slows/weakness.',
     lore: 'AWK: "When Daybreak crests the spire, every shadow retreats."',
   },
   wrath_of_the_daystar: {
     id: 'wrath_of_the_daystar', faction: 'Solari', name: 'Wrath of the Daystar', short: 'Daystar',
-    tcgType: 'Solari Rite', icon: '⚡', kind: 'nova', range: '14y Nova', rangeYards: 14,
-    cost: 30, baseCd: 11.0, color: '#fde047',
+    tcgType: 'Solari Rite', tree: 'rites', tier: 6, reqLevel: 24, maxRank: 5, prereq: 'decree_of_the_sun',
+    icon: '⚡', kind: 'nova', range: '14y Nova', rangeYards: 14,
+    cost: 30, baseCd: 11.0, castTime: 1.4, color: '#fde047',
     desc: 'Spends 30 Glimmer for a 14y solar nova dealing heavy CRIT DMG & knockback.',
     lore: 'AWK: "Wrath of the Daystar commands sovereign radiance against all foes."',
-  },
-  blinding_radiance: {
-    id: 'blinding_radiance', faction: 'Solari', name: 'Blinding Radiance', short: 'Blind',
-    tcgType: 'Solari Flash', icon: '💨', kind: 'dash', range: '8.5y Dash', rangeYards: 8.5,
-    cost: 0, baseCd: 4.0, color: '#bae6fd',
-    desc: 'Flash-dashes 8.5y in starlight & blinds nearby foes (-2 ATK for 5s).',
-    lore: 'AWK #2: "Blinding Radiance brings order to chaos."',
   },
 
   // === UMBRI ===
   whisper_of_the_void: {
     id: 'whisper_of_the_void', faction: 'Umbri', name: 'Whisper of the Void', short: 'Whisper',
-    tcgType: 'Umbri Flash', icon: '🗡️', kind: 'melee_cleave', range: '6.5y', rangeYards: 6.5,
-    cost: 0, baseCd: 0.8, color: '#c084fc',
+    tcgType: 'Umbri Flash', tree: 'flashes', tier: 1, reqLevel: 1, maxRank: 5, prereq: null,
+    icon: '🗡️', kind: 'melee_cleave', range: '6.5y', rangeYards: 6.5,
+    cost: 0, baseCd: 0.8, castTime: 0, color: '#c084fc',
     desc: 'Twin shadow-scythe slash generating Glimmer (+45% CRIT from Stealth!).',
     lore: 'AWK: "A silent cut from the Duskveil dark."',
   },
+  graveglass_ward: {
+    id: 'graveglass_ward', faction: 'Umbri', name: 'Graveglass Ward', short: 'Ward',
+    tcgType: 'Umbri Flash', tree: 'flashes', tier: 2, reqLevel: 3, maxRank: 5, prereq: 'whisper_of_the_void',
+    icon: '🔮', kind: 'shield', range: 'Self/Squad', rangeYards: 10,
+    cost: 0, baseCd: 9.5, castTime: 0, color: '#c084fc',
+    desc: 'Shrouds you in spectral Graveglass absorbing incoming damage.',
+    lore: 'AWK: "Forged from shattered sepulcher crystal."',
+  },
+  veil_of_dusk: {
+    id: 'veil_of_dusk', faction: 'Umbri', name: 'Veil of Dusk', short: 'Stealth',
+    tcgType: 'Umbri Flash', tree: 'flashes', tier: 3, reqLevel: 6, maxRank: 5, prereq: 'graveglass_ward',
+    icon: '👤', kind: 'stealth', range: 'Self', rangeYards: 0,
+    cost: 0, baseCd: 9.0, castTime: 0, color: '#7e22ce',
+    desc: 'Vanish into Stealth for 3.5s: mobs drop aggro, +35% speed & Ambush CRIT!',
+    lore: 'AWK: "Unseen by sun or star."',
+  },
   shadow_step: {
     id: 'shadow_step', faction: 'Umbri', name: 'Shadow Step', short: 'Step',
-    tcgType: 'Umbri Flash', icon: '🌑', kind: 'shadow_step', range: '16y Blink', rangeYards: 16,
-    cost: 0, baseCd: 4.5, color: '#a855f7',
+    tcgType: 'Umbri Flash', tree: 'flashes', tier: 4, reqLevel: 12, maxRank: 5, prereq: 'veil_of_dusk',
+    icon: '🌑', kind: 'shadow_step', range: '16y Blink', rangeYards: 16,
+    cost: 0, baseCd: 4.5, castTime: 0, color: '#a855f7',
     desc: 'Teleports through shadow directly behind your target & empowers next strike!',
     lore: 'AWK: "Step into the gloom; emerge behind their heart."',
   },
   soul_tithe: {
     id: 'soul_tithe', faction: 'Umbri', name: 'Soul Tithe', short: 'Tithe',
-    tcgType: 'Umbri Rite', icon: '💀', kind: 'projectile', projType: 'void_orb', range: '22y', rangeYards: 22,
-    cost: 0, baseCd: 4.2, color: '#e879f9',
+    tcgType: 'Umbri Rite', tree: 'rites', tier: 2, reqLevel: 3, maxRank: 5, prereq: null,
+    icon: '💀', kind: 'projectile', projType: 'void_orb', range: '22y', rangeYards: 22,
+    cost: 0, baseCd: 4.2, castTime: 0.85, color: '#e879f9',
     desc: 'Fires a Void bolt dealing shadow DMG, draining HP & granting +24 Glimmer.',
     lore: 'AWK: "Every soul owes its tithe to the Undercity."',
   },
   siphon_soul: {
     id: 'siphon_soul', faction: 'Umbri', name: 'Siphon Soul', short: 'Siphon',
-    tcgType: 'Umbri Rite', icon: '🩸', kind: 'drain_beam', range: '20y', rangeYards: 20,
-    cost: 15, baseCd: 5.5, color: '#f43f5e',
+    tcgType: 'Umbri Rite', tree: 'rites', tier: 3, reqLevel: 6, maxRank: 5, prereq: 'soul_tithe',
+    icon: '🩸', kind: 'drain_beam', range: '20y', rangeYards: 20,
+    cost: 15, baseCd: 5.5, castTime: 1.0, color: '#f43f5e',
     desc: 'Rips vitality from target enemy, healing you for 60% of all DMG dealt!',
     lore: 'AWK: "Drink deep of fading Glimmer."',
   },
   nightfall_plague: {
     id: 'nightfall_plague', faction: 'Umbri', name: 'Nightfall Plague', short: 'Plague',
-    tcgType: 'Umbri Rite', icon: '☠️', kind: 'ground_zone', zoneType: 'plague', range: '8y AoE', rangeYards: 8,
-    cost: 0, baseCd: 8.5, color: '#9333ea',
+    tcgType: 'Umbri Rite', tree: 'rites', tier: 4, reqLevel: 12, maxRank: 5, prereq: 'siphon_soul',
+    icon: '☠️', kind: 'ground_zone', zoneType: 'plague', range: '8y AoE', rangeYards: 8,
+    cost: 0, baseCd: 8.5, castTime: 1.1, color: '#9333ea',
     desc: 'Spreads Duskveil miasma for 6s: deals Void DMG/tick & slows enemies by 45%.',
     lore: 'AWK: "Where Nightfall settles, light withers."',
   },
   unmake: {
     id: 'unmake', faction: 'Umbri', name: 'Unmake', short: 'Unmake',
-    tcgType: 'Umbri Rite', icon: '💥', kind: 'execute_beam', range: '22y', rangeYards: 22,
-    cost: 25, baseCd: 7.5, color: '#e11d48',
+    tcgType: 'Umbri Rite', tree: 'rites', tier: 5, reqLevel: 18, maxRank: 5, prereq: 'nightfall_plague',
+    icon: '💥', kind: 'execute_beam', range: '22y', rangeYards: 22,
+    cost: 25, baseCd: 7.5, castTime: 1.3, color: '#e11d48',
     desc: 'Obliterates target with Void collapse (+50% Execution DMG if target < 50% HP!).',
     lore: 'AWK: "Erase them from the tapestry of reality."',
-  },
-  veil_of_dusk: {
-    id: 'veil_of_dusk', faction: 'Umbri', name: 'Veil of Dusk', short: 'Stealth',
-    tcgType: 'Umbri Flash', icon: '👤', kind: 'stealth', range: 'Self', rangeYards: 0,
-    cost: 0, baseCd: 9.0, color: '#7e22ce',
-    desc: 'Vanish into Stealth for 3.5s: mobs drop aggro, +35% speed & Ambush CRIT!',
-    lore: 'AWK: "Unseen by sun or star."',
-  },
-  graveglass_ward: {
-    id: 'graveglass_ward', faction: 'Umbri', name: 'Graveglass Ward', short: 'Ward',
-    tcgType: 'Umbri Flash', icon: '🔮', kind: 'shield', range: 'Self/Squad', rangeYards: 10,
-    cost: 0, baseCd: 9.5, color: '#c084fc',
-    desc: 'Shrouds you in spectral Graveglass absorbing incoming damage.',
-    lore: 'AWK: "Forged from shattered sepulcher crystal."',
   },
 
   // === TERRA ===
   tectonic_slam: {
     id: 'tectonic_slam', faction: 'Terra', name: 'Tectonic Slam', short: 'Slam',
-    tcgType: 'Terra Flash', icon: '🪨', kind: 'melee_cleave', range: '7y', rangeYards: 7,
-    cost: 0, baseCd: 0.9, color: '#4ade80',
+    tcgType: 'Terra Flash', tree: 'flashes', tier: 1, reqLevel: 1, maxRank: 5, prereq: null,
+    icon: '🪨', kind: 'melee_cleave', range: '7y', rangeYards: 7,
+    cost: 0, baseCd: 0.9, castTime: 0, color: '#4ade80',
     desc: 'Crushing earth cleave triggering Overwhelm splash & generating Glimmer.',
     lore: 'AWK: "The mountain answers when Rootdeep strikes."',
   },
-  earthshatter: {
-    id: 'earthshatter', faction: 'Terra', name: 'Earthshatter', short: 'Shatter',
-    tcgType: 'Terra Rite', icon: '🌋', kind: 'nova', range: '13y Quake', rangeYards: 13,
-    cost: 25, baseCd: 8.5, color: '#84cc16',
-    desc: 'Ruptures the earth in 13y for massive Overwhelm CRIT DMG & knockback!',
-    lore: 'AWK: "Split stone and scatter their ranks."',
-  },
   barkskin_infusion: {
     id: 'barkskin_infusion', faction: 'Terra', name: 'Barkskin Infusion', short: 'Barkskin',
-    tcgType: 'Terra Flash', icon: '🛡️', kind: 'thornbark', range: 'Self/Squad', rangeYards: 12,
-    cost: 0, baseCd: 9.5, color: '#22c55e',
+    tcgType: 'Terra Flash', tree: 'flashes', tier: 2, reqLevel: 3, maxRank: 5, prereq: 'tectonic_slam',
+    icon: '🛡️', kind: 'thornbark', range: 'Self/Squad', rangeYards: 12,
+    cost: 0, baseCd: 9.5, castTime: 0, color: '#22c55e',
     desc: 'Grants Ironwood Shield + Thornbark (reflects 35% melee DMG back at attackers!).',
     lore: 'AWK: "Ironwood bark turns blade and claw alike."',
   },
-  briar_snare: {
-    id: 'briar_snare', faction: 'Terra', name: 'Briar Snare', short: 'Snare',
-    tcgType: 'Terra Rite', icon: '🌿', kind: 'ground_zone', zoneType: 'briar', range: '8y Roots', rangeYards: 8,
-    cost: 0, baseCd: 8.0, color: '#16a34a',
-    desc: 'Entangling roots for 6s: snares enemy movement by 65% & deals thorn DMG!',
-    lore: 'AWK: "The Orchard claims trespassers."',
-  },
   wildshape_surge: {
     id: 'wildshape_surge', faction: 'Terra', name: 'Wildshape Surge', short: 'Surge',
-    tcgType: 'Terra Flash', icon: '🐾', kind: 'dash', range: '9y Charge', rangeYards: 9,
-    cost: 0, baseCd: 4.5, color: '#86efac',
+    tcgType: 'Terra Flash', tree: 'flashes', tier: 4, reqLevel: 12, maxRank: 5, prereq: 'barkskin_infusion',
+    icon: '🐾', kind: 'dash', range: '9y Charge', rangeYards: 9,
+    cost: 0, baseCd: 4.5, castTime: 0, color: '#86efac',
     desc: 'Primal beast-charge 9y forward, trampling foes & granting +15 Glimmer!',
     lore: 'AWK: "Channel the untamed apex of Rootdeep."',
   },
   ancient_boulder: {
     id: 'ancient_boulder', faction: 'Terra', name: 'Stonekin Boulder', short: 'Boulder',
-    tcgType: 'Terra Rite', icon: '☄️', kind: 'projectile', projType: 'boulder', range: '20y', rangeYards: 20,
-    cost: 0, baseCd: 4.6, color: '#a3e635',
+    tcgType: 'Terra Rite', tree: 'rites', tier: 2, reqLevel: 3, maxRank: 5, prereq: null,
+    icon: '☄️', kind: 'projectile', projType: 'boulder', range: '20y', rangeYards: 20,
+    cost: 0, baseCd: 4.6, castTime: 0.9, color: '#a3e635',
     desc: 'Hurls a mossy monolith boulder dealing heavy Overwhelm DMG.',
     lore: 'AWK: "Carved from the elder peaks."',
   },
+  briar_snare: {
+    id: 'briar_snare', faction: 'Terra', name: 'Briar Snare', short: 'Snare',
+    tcgType: 'Terra Rite', tree: 'rites', tier: 3, reqLevel: 6, maxRank: 5, prereq: 'ancient_boulder',
+    icon: '🌿', kind: 'ground_zone', zoneType: 'briar', range: '8y Roots', rangeYards: 8,
+    cost: 0, baseCd: 8.0, castTime: 1.0, color: '#16a34a',
+    desc: 'Entangling roots for 6s: snares enemy movement by 65% & deals thorn DMG!',
+    lore: 'AWK: "The Orchard claims trespassers."',
+  },
   verdant_renewal: {
     id: 'verdant_renewal', faction: 'Terra', name: 'Verdant Renewal', short: 'Renew',
-    tcgType: 'Terra Rite', icon: '🌸', kind: 'heal', range: 'Self/Squad', rangeYards: 12,
-    cost: 0, baseCd: 6.2, color: '#4ade80',
+    tcgType: 'Terra Rite', tree: 'rites', tier: 3, reqLevel: 6, maxRank: 5, prereq: null,
+    icon: '🌸', kind: 'heal', range: 'Self/Squad', rangeYards: 12,
+    cost: 0, baseCd: 6.2, castTime: 0.95, color: '#4ade80',
     desc: 'Blooms Glimmer flora restoring (9 + 2×Bastion + 3×Rank) HP to self & squad.',
     lore: 'AWK: "Life springs eternal from ancient roots."',
   },
   overwhelm_roar: {
     id: 'overwhelm_roar', faction: 'Terra', name: 'Primal Overwhelm', short: 'Roar',
-    tcgType: 'Terra Rite', icon: '🦁', kind: 'nova', range: '11y Roar', rangeYards: 11,
-    cost: 20, baseCd: 9.0, color: '#bef264',
+    tcgType: 'Terra Rite', tree: 'rites', tier: 4, reqLevel: 12, maxRank: 5, prereq: 'briar_snare',
+    icon: '🦁', kind: 'nova', range: '11y Roar', rangeYards: 11,
+    cost: 20, baseCd: 9.0, castTime: 1.1, color: '#bef264',
     desc: 'Thunderous roar damaging & weakening nearby enemies (-2 ATK for 5s).',
     lore: 'AWK: "None stand before the stampede."',
+  },
+  earthshatter: {
+    id: 'earthshatter', faction: 'Terra', name: 'Earthshatter', short: 'Shatter',
+    tcgType: 'Terra Rite', tree: 'rites', tier: 5, reqLevel: 18, maxRank: 5, prereq: 'overwhelm_roar',
+    icon: '🌋', kind: 'nova', range: '13y Quake', rangeYards: 13,
+    cost: 25, baseCd: 8.5, castTime: 1.3, color: '#84cc16',
+    desc: 'Ruptures the earth in 13y for massive Overwhelm CRIT DMG & knockback!',
+    lore: 'AWK: "Split stone and scatter their ranks."',
   },
 
   // === AETHER ===
   reality_fracture: {
     id: 'reality_fracture', faction: 'Aether', name: 'Reality Fracture', short: 'Fracture',
-    tcgType: 'Aether Flash', icon: '💠', kind: 'melee_cleave', range: '7.5y', rangeYards: 7.5,
-    cost: 0, baseCd: 0.8, color: '#38bdf8',
+    tcgType: 'Aether Flash', tree: 'flashes', tier: 1, reqLevel: 1, maxRank: 5, prereq: null,
+    icon: '💠', kind: 'melee_cleave', range: '7.5y', rangeYards: 7.5,
+    cost: 0, baseCd: 0.8, castTime: 0, color: '#38bdf8',
     desc: 'Slices spacetime in a 7.5y arc, generating Astral Glimmer.',
     lore: 'AWK: "Even steel bends when space itself cracks."',
   },
-  chrono_shift: {
-    id: 'chrono_shift', faction: 'Aether', name: 'Chrono Shift', short: 'Blink',
-    tcgType: 'Aether Flash', icon: '⏩', kind: 'dash', range: '9.5y Blink', rangeYards: 9.5,
-    cost: 0, baseCd: 3.6, color: '#7dd3fc',
-    desc: 'Instant temporal blink 9.5y leaving time-afterimages & +12 Glimmer.',
-    lore: 'AWK: "Step between ticks of the cosmic clock."',
-  },
-  gravity_well: {
-    id: 'gravity_well', faction: 'Aether', name: 'Gravity Well', short: 'Gravity',
-    tcgType: 'Aether Rite', icon: '🌀', kind: 'ground_zone', zoneType: 'gravity', range: '8.5y Vortex', rangeYards: 8.5,
-    cost: 0, baseCd: 8.5, color: '#0ea5e9',
-    desc: 'Spawns a cosmic vortex for 6s that pulls enemies inward & ticks arcane DMG!',
-    lore: 'AWK: "No light—nor shadow—escapes the singularity."',
-  },
-  frost_nova: {
-    id: 'frost_nova', faction: 'Aether', name: 'Frost Nova', short: 'Frost',
-    tcgType: 'Aether Flash', icon: '❄️', kind: 'frost_nova', range: '11y Freeze', rangeYards: 11,
-    cost: 15, baseCd: 7.5, color: '#bae6fd',
-    desc: 'Shatters star-ice in 11y, dealing CRIT DMG & freezing/chilling foes for 3.5s!',
-    lore: 'AWK: "Absolute zero between the stars."',
-  },
-  astral_convergence: {
-    id: 'astral_convergence', faction: 'Aether', name: 'Astral Convergence', short: 'Starfall',
-    tcgType: 'Aether Rite', icon: '🌠', kind: 'cast_beam', range: '26y', rangeYards: 26,
-    cost: 25, baseCd: 3.8, castTime: 0.9, color: '#38bdf8',
-    desc: '0.9s Rite calling down cosmic starfall beams (+35% chance to Echo twice!).',
-    lore: 'AWK: "When the constellations align, empires fall."',
-  },
-  time_loop_paradox: {
-    id: 'time_loop_paradox', faction: 'Aether', name: 'Time Loop Paradox', short: 'TimeLoop',
-    tcgType: 'Aether Rite', icon: '⏳', kind: 'timeloop', range: 'Self', rangeYards: 0,
-    cost: 0, baseCd: 9.0, color: '#e0f2fe',
-    desc: 'Rewinds wounds (+HP), shaves 2.5s off active cooldowns & primes Spell Echo!',
-    lore: 'AWK: "Why suffer a wound that hasn\'t happened yet?"',
-  },
   arcane_bolt: {
     id: 'arcane_bolt', faction: 'Aether', name: 'Temporal Lance', short: 'Lance',
-    tcgType: 'Aether Flash', icon: '🔹', kind: 'projectile', projType: 'aether_orb', range: '24y', rangeYards: 24,
-    cost: 0, baseCd: 3.2, color: '#38bdf8',
+    tcgType: 'Aether Flash', tree: 'flashes', tier: 2, reqLevel: 3, maxRank: 5, prereq: 'reality_fracture',
+    icon: '🔹', kind: 'projectile', projType: 'aether_orb', range: '24y', rangeYards: 24,
+    cost: 0, baseCd: 3.2, castTime: 0, color: '#38bdf8',
     desc: 'Fires an accelerating orb of distorted time dealing Arcane DMG +20 Glimmer.',
     lore: 'AWK: "Strike from three seconds in the future."',
   },
   mirror_barrier: {
     id: 'mirror_barrier', faction: 'Aether', name: 'Mirror Barrier', short: 'Mirror',
-    tcgType: 'Aether Flash', icon: '🪞', kind: 'shield', range: 'Self/Squad', rangeYards: 12,
-    cost: 0, baseCd: 9.0, color: '#7dd3fc',
+    tcgType: 'Aether Flash', tree: 'flashes', tier: 2, reqLevel: 3, maxRank: 5, prereq: 'reality_fracture',
+    icon: '🪞', kind: 'shield', range: 'Self/Squad', rangeYards: 12,
+    cost: 0, baseCd: 9.0, castTime: 0, color: '#7dd3fc',
     desc: 'Refractive prism shield absorbing damage for you & nearby squadmates.',
     lore: 'AWK: "Mirrorgate glass bends fury into starlight."',
+  },
+  chrono_shift: {
+    id: 'chrono_shift', faction: 'Aether', name: 'Chrono Shift', short: 'Blink',
+    tcgType: 'Aether Flash', tree: 'flashes', tier: 3, reqLevel: 6, maxRank: 5, prereq: 'mirror_barrier',
+    icon: '⏩', kind: 'dash', range: '9.5y Blink', rangeYards: 9.5,
+    cost: 0, baseCd: 3.6, castTime: 0, color: '#7dd3fc',
+    desc: 'Instant temporal blink 9.5y leaving time-afterimages & +12 Glimmer.',
+    lore: 'AWK: "Step between ticks of the cosmic clock."',
+  },
+  frost_nova: {
+    id: 'frost_nova', faction: 'Aether', name: 'Frost Nova', short: 'Frost',
+    tcgType: 'Aether Flash', tree: 'flashes', tier: 4, reqLevel: 12, maxRank: 5, prereq: 'chrono_shift',
+    icon: '❄️', kind: 'frost_nova', range: '11y Freeze', rangeYards: 11,
+    cost: 15, baseCd: 7.5, castTime: 0, color: '#bae6fd',
+    desc: 'Shatters star-ice in 11y, dealing CRIT DMG & freezing/chilling foes for 3.5s!',
+    lore: 'AWK: "Absolute zero between the stars."',
+  },
+  astral_convergence: {
+    id: 'astral_convergence', faction: 'Aether', name: 'Astral Convergence', short: 'Starfall',
+    tcgType: 'Aether Rite', tree: 'rites', tier: 3, reqLevel: 6, maxRank: 5, prereq: null,
+    icon: '🌠', kind: 'cast_beam', range: '26y', rangeYards: 26,
+    cost: 25, baseCd: 3.8, castTime: 1.0, color: '#38bdf8',
+    desc: '1.0s Rite calling down cosmic starfall beams (+35% chance to Echo twice!).',
+    lore: 'AWK: "When the constellations align, empires fall."',
+  },
+  gravity_well: {
+    id: 'gravity_well', faction: 'Aether', name: 'Gravity Well', short: 'Gravity',
+    tcgType: 'Aether Rite', tree: 'rites', tier: 4, reqLevel: 12, maxRank: 5, prereq: 'astral_convergence',
+    icon: '🌀', kind: 'ground_zone', zoneType: 'gravity', range: '8.5y Vortex', rangeYards: 8.5,
+    cost: 0, baseCd: 8.5, castTime: 1.1, color: '#0ea5e9',
+    desc: 'Spawns a cosmic vortex for 6s that pulls enemies inward & ticks arcane DMG!',
+    lore: 'AWK: "No light—nor shadow—escapes the singularity."',
+  },
+  time_loop_paradox: {
+    id: 'time_loop_paradox', faction: 'Aether', name: 'Time Loop Paradox', short: 'TimeLoop',
+    tcgType: 'Aether Rite', tree: 'rites', tier: 5, reqLevel: 18, maxRank: 5, prereq: 'gravity_well',
+    icon: '⏳', kind: 'timeloop', range: 'Self', rangeYards: 0,
+    cost: 0, baseCd: 9.0, castTime: 1.2, color: '#e0f2fe',
+    desc: 'Rewinds wounds (+HP), shaves 2.5s off active cooldowns & primes Spell Echo!',
+    lore: 'AWK: "Why suffer a wound that hasn\'t happened yet?"',
   },
 
   // === CORE RULE ===
   harvest: {
     id: 'harvest', faction: 'All', name: 'Ready Glimmer Node', short: 'Glimmer',
-    tcgType: 'TCG Core Rule', icon: '🔮', kind: 'harvest', range: '6.5y', rangeYards: 6.5,
-    cost: 0, baseCd: 0, color: '#c084fc',
+    tcgType: 'TCG Core Rule', tree: 'core', tier: 1, reqLevel: 1, maxRank: 1, prereq: null,
+    icon: '🔮', kind: 'harvest', range: '6.5y', rangeYards: 6.5,
+    cost: 0, baseCd: 0, castTime: 0.6, color: '#c084fc',
     desc: 'Draws raw leyline energy from a Glimmer Node (+35 Glimmer & +25 XP).',
     lore: 'Summoners channel Glimmer Nodes to fuel Rites and Flashes.',
   },
@@ -853,14 +958,77 @@ export const EMOTES_CATALOG = {
   heart: { id: 'heart', icon: '❤️', label: 'THANKS', text: 'shares radiant gratitude!', color: '#fb7185' },
 };
 
+export const SLOT_UNLOCK_LEVELS = {
+  1: 1,  // Primary Basic Strike (Lv. 1)
+  9: 2,  // Primary Flash / Mobility (Lv. 2)
+  2: 3,  // Secondary Rite / Cast (Lv. 3)
+  10: 4, // Secondary Flash / Utility (Lv. 4)
+  3: 5,  // Signature Rite / Heavy AoE (Lv. 5)
+  11: 6, // Signature Flash / Control (Lv. 6)
+  4: 7,  // Ultimate Rite / Finisher (Lv. 7)
+  12: 8, // Ultimate Flash / Apex (Lv. 8)
+};
+
+export function isSlotUnlocked(prog, slot, isTestMode = false) {
+  if (isTestMode) return true;
+  const req = SLOT_UNLOCK_LEVELS[slot] || 1;
+  return (prog?.level || 1) >= req;
+}
+
 export function createDefaultProgression() {
   return {
     level: 1,
     xp: 0,
     statPoints: 2,
-    skillPoints: 1,
+    skillPoints: 1, // Starts with 1 unallocated Skill Point for the level 1 dopamine hit!
     stats: { power: 2, bastion: 2, resonance: 1, tempo: 1 },
-    ranks: { 1: 1, 2: 1, 3: 1, 4: 1, 9: 1, 10: 1, 11: 1, 12: 1 },
+    ranks: { 1: 0, 2: 0, 3: 0, 4: 0, 9: 0, 10: 0, 11: 0, 12: 0 },
+    skills: {}, // abilityId -> rank (0 to 5)
+  };
+}
+
+export function getAbilityRank(prog, abilityId, isTestMode = false) {
+  if (isTestMode) return 5;
+  if (!abilityId) return 0;
+  if (abilityId === 'harvest') return 1;
+  const spec = ABILITIES_CATALOG[abilityId];
+  if (!spec) return 0;
+  const r = prog?.skills?.[abilityId];
+  if (r !== undefined && r !== null) {
+    return Math.max(0, Math.min(spec.maxRank || 5, Math.floor(Number(r) || 0)));
+  }
+  // Fallback for legacy slots where skill wasn't explicitly saved yet
+  return 0;
+}
+
+export function canUpgradeAbility(prog, abilityId, isTestMode = false) {
+  if (isTestMode) return false;
+  const spec = ABILITIES_CATALOG[abilityId];
+  if (!spec) return false;
+  const curRank = getAbilityRank(prog, abilityId, isTestMode);
+  if (curRank >= (spec.maxRank || 5)) return false;
+  if ((prog?.skillPoints || 0) <= 0) return false;
+  if ((prog?.level || 1) < (spec.reqLevel || 1)) return false;
+  if (spec.prereq) {
+    const prereqRank = getAbilityRank(prog, spec.prereq, isTestMode);
+    if (prereqRank < 1) return false;
+  }
+  return true;
+}
+
+export function getRankStats(ability, rank = 1) {
+  const r = Math.max(1, Math.min(5, rank || 1));
+  const rankBonusDmg = (r - 1) * 3;
+  const rankCdReduction = (r - 1) * 0.35;
+  const effectiveBaseCd = Math.max(0.4, (ability?.baseCd || 1) - rankCdReduction);
+  const rankShield = (r - 1) * 5;
+  const rankHeal = (r - 1) * 4;
+  return {
+    rank: r,
+    bonusDmg: rankBonusDmg,
+    effectiveBaseCd,
+    bonusShield: rankShield,
+    bonusHeal: rankHeal,
   };
 }
 

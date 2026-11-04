@@ -10,13 +10,8 @@ export function shouldEnableTouch() {
     if (stored === '1') return true;
     if (stored === '0') return false;
     const q = new URLSearchParams(window.location.search);
-    if (q.get('touch') === '0') return false;
     if (q.get('touch') === '1') return true;
-    return (
-      window.matchMedia?.('(pointer: coarse)').matches ||
-      'ontouchstart' in window ||
-      (navigator.maxTouchPoints || 0) > 0
-    );
+    return false; // Disabled by default; user can enable in Settings [ESC]
   } catch (_) {
     return false;
   }

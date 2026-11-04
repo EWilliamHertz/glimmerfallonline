@@ -142,7 +142,11 @@ export class FrontpageController {
     this.isOpen = true;
     const el = document.getElementById('frontpage-overlay');
     if (el) el.style.display = 'flex';
-    this.render();
+    try {
+      this.render();
+    } catch (err) {
+      console.error('[Frontpage] Error during render:', err);
+    }
     this.startPreviewLoop();
   }
 
@@ -168,25 +172,63 @@ export class FrontpageController {
   }
 
   drawPaperdollPreviewCanvas(canvasId, dir = 'down', frameIdx = 0) {
-    const cv = document.getElementById(canvasId);
-    if (!cv) return;
-    const ctx = cv.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = '#090f20';
-    ctx.fillRect(0, 0, cv.width, cv.height);
+    try {
+      const cv = document.getElementById(canvasId);
+      if (!cv || typeof cv.getContext !== 'function') return;
+      const ctx = cv.getContext('2d');
+      if (!ctx) return;
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = '#090f20';
+      ctx.fillRect(0, 0, cv.width, cv.height);
 
-    // Subtle faction floor sigil
-    const fm = FACTIONS_META[this.faction] || FACTIONS_META.Solari;
-    ctx.strokeStyle = fm.color;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(4, 4, cv.width - 8, cv.height - 8);
+      // Subtle faction floor sigil
+      const fm = FACTIONS_META[this.faction] || FACTIONS_META.Solari;
+      ctx.strokeStyle = fm.color;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(4, 4, cv.width - 8, cv.height - 8);
 
-    const set = getCharacterSprites(this.faction, this.classId, this.equipment);
-    const img = (set[dir] || set.down)[frameIdx % 3];
-    const scale = 3;
-    const dw = img.width * scale;
-    const dh = img.height * scale;
-    ctx.drawImage(img, Math.round((cv.width - dw) / 2), Math.round((cv.height - dh) / 2) + 2, dw, dh);
+      const set = getCharacterSprites(this.faction, this.classId, this.equipment);
+      if (!set) return;
+      const dirFrames = set[dir] || set.down;
+      if (!dirFrames || !dirFrames.length) return;
+      const img = dirFrames[frameIdx % dirFrames.length];
+      if (!img) return;
+      const scale = 3;
+      const dw = (img.width || 24) * scale;
+      const dh = (img.height || 26) * scale;
+      ctx.drawImage(img, Math.round((cv.width - dw) / 2), Math.round((cv.height - dh) / 2) + 2, dw, dh);
+    } catch (err) {
+      console.warn('[Frontpage] Paperdoll preview draw warning:', err);
+    }
+  }
+
+  async enterTestMode() {
+    this.audio.init();
+    if (this.audio.playLevelUp) this.audio.playLevelUp();
+    else this.audio.playPortal();
+
+    const nameInput = document.getElementById('fp-char-name');
+    const tagInput = document.getElementById('fp-order-tag');
+    if (nameInput && nameInput.value.trim()) this.name = nameInput.value.trim();
+    if (tagInput && tagInput.value.trim()) this.orderTag = tagInput.value.trim().toUpperCase();
+
+    const testProfile = {
+      displayName: this.name,
+      faction: this.faction,
+      classId: this.classId,
+      orderTag: this.orderTag,
+      loadout: this.loadout,
+      equipment: this.equipment,
+    };
+
+    this.close();
+    if (this.onEnterWorld) {
+      this.onEnterWorld({
+        profile: testProfile,
+        startingRealm: ROOM_TYPES.SANCTUARY_HUB,
+        isTestMode: true,
+      });
+    }
   }
 
   async enterWorld() {
@@ -295,11 +337,11 @@ export class FrontpageController {
 
     root.innerHTML = `
       <div class="fp-grid">
-        <!-- LEFT COLUMN: Character Roster & Neon PostgreSQL Account -->
+        <!-- LEFT COLUMN: Character Roster & Cloud Realm Account -->
         <div class="fp-col">
-          <div class="fp-section-title">1. CHAMPION ROSTER (POSTGRESQL)</div>
+          <div class="fp-section-title">1. CHAMPION ROSTER</div>
           <div style="font-size:8px; color:${dbOk ? '#4ade80' : '#fbbf24'}; margin-bottom:6px;">
-            ${dbOk ? '● NEON POSTGRESQL SYNCED' : '● LOCAL SESSION CACHE'}
+            ${dbOk ? '● CLOUD REALM SYNCED' : '● LOCAL ADVENTURE'}
             ${prof && !prof.isGuest ? ` • @${prof.username}` : ' • Guest ID'}
           </div>
 
@@ -469,6 +511,9 @@ export class FrontpageController {
 
             <button class="fp-enter-btn" onclick="window._fp.enterWorld()">
               ⚔️ ENTER GLIMMERFALL ONLINE ▸
+            </button>
+            <button class="fp-enter-btn" style="background:linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%); border-color:#818cf8; color:#e0e7ff; margin-top:6px;" onclick="window._fp.enterTestMode()">
+              🧪 1-PLAYER TEST MODE (TRY ALL CHARACTERS &amp; ABILITIES) ▸
             </button>
           </div>
         </div>
