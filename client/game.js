@@ -1219,7 +1219,9 @@ export function initGame() {
         east: 'UMBRI_UNDERCITY'
       },
       landmarks: [
-        { x: 50, y: 44, icon: '🏛️', name: 'AetherVault Depository', sub: 'Sanctuary Depository [V]', desc: 'Synchronized Leyline Storage Network. Store weapons, armor, sets, and currencies across realms.' },
+        { x: 63, y: 41, icon: '🏛️', name: 'The Grand AetherVault Bank', sub: 'AetherVault Depository (City Bank)', desc: 'Neoclassical stone bank building. Speak to Banker Trove-Master Orin at the teller booth to manage your cross-realm item vault.' },
+        { x: 50, y: 49, icon: '⛲', name: 'Grand Sanctuary Fountain', sub: 'Central Plaza', desc: 'Tiered stone water fountain at the heart of the metropolis.' },
+        { x: 37, y: 41, icon: '⚖️', name: 'Continental Market Square', sub: 'Merchant Quarter', desc: 'Canopied stalls offering potions, provisions, and curios.' },
         { x: 55, y: 65, icon: '🛡️', name: 'Herald Lyra', sub: 'Sunspire Mentor', desc: 'Awakening guide and primary quest mentor.' },
         { x: 44, y: 36, icon: '⚔️', name: 'Commander Valerius', sub: 'Sunspire Warlord', desc: 'Frontline commander directing border defense.' },
         { x: 50, y: 52, icon: '🎯', name: 'Training Grounds', sub: 'Sanctuary Dummy', desc: 'Training post for honing Rites and Flashes.' },
@@ -1257,6 +1259,7 @@ export function initGame() {
         east: 'SANCTUARY_HUB'
       },
       landmarks: [
+        { x: 62, y: 40, icon: '🏛️', name: 'Solari Citadel Depository', sub: 'Citadel Bank', desc: 'Neoclassical depository bank. Speak to the Solari Vault-Master to access your vault.' },
         { x: 50, y: 38, icon: '☀️', name: 'Pyremaster Lucian', sub: 'Solari Emissary', desc: 'Master of Sun Aegis and Daystar rites.' },
         { x: 34, y: 60, icon: '🛡️', name: 'Solari Sentinels', sub: 'Lv.6 Radiant Guards', desc: 'Golden armored paladins with Daystar strikes.' },
         { x: 66, y: 60, icon: '💎', name: 'Dawnforged Monolith', sub: 'Sunspire Font [E]', desc: 'Power font channeling holy radiance.' },
@@ -3548,22 +3551,99 @@ export function initGame() {
     }
 
     if (resolvedRoomType === ROOM_TYPES.SANCTUARY_HUB) {
-      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'SANCTUARY HUB #1';
+      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'SANCTUARY METROPOLIS #1';
       if (zoneLabel) zoneLabel.innerText = 'Sanctuary Haven';
       arenaBanner.style.display = 'none';
       if (tutQuestBody) tutQuestBody.style.display = 'block';
       if (warzoneQuestBody) warzoneQuestBody.style.display = 'none';
 
+      // ==========================================
+      // SPRAWLING SANCTUARY METROPOLIS PROPS
+      // ==========================================
       props.push(
-        { type: 'brazier', x: -48, y: 74 },
-        { type: 'brazier', x: 48, y: 74 },
-        { type: 'brazier', x: -48, y: -74 },
-        { type: 'brazier', x: 48, y: -74 },
-        { type: 'pillar', x: -120, y: -48 },
-        { type: 'pillar', x: 120, y: -48 },
-        { type: 'pillar', x: -120, y: 56 },
-        { type: 'pillar', x: 120, y: 56 }
+        // 1. Grand Central Plaza
+        { type: 'grandFountain', x: 0, y: -10, label: '⛲ Grand Sanctuary Fountain' },
+        { type: 'stoneBench', x: -48, y: -35 },
+        { type: 'stoneBench', x: 48, y: -35 },
+        { type: 'stoneBench', x: -48, y: 20 },
+        { type: 'stoneBench', x: 48, y: 20 },
+        { type: 'streetLantern', x: -72, y: -60 },
+        { type: 'streetLantern', x: 72, y: -60 },
+        { type: 'streetLantern', x: -72, y: 60 },
+        { type: 'streetLantern', x: 72, y: 60 },
+        { type: 'brazier', x: -36, y: -65 },
+        { type: 'brazier', x: 36, y: -65 },
+        { type: 'blossomTree', x: -95, y: -30 },
+        { type: 'blossomTree', x: 95, y: -30 },
+
+        // 2. The Grand AetherVault Bank District (North-East)
+        { type: 'bankBuilding', x: 280, y: -220, label: '🏛️ The Grand AetherVault Bank' },
+        { type: 'bankCounter', x: 280, y: -165 },
+        { type: 'streetLantern', x: 205, y: -165 },
+        { type: 'streetLantern', x: 355, y: -165 },
+        { type: 'streetLantern', x: 280, y: -115 },
+        { type: 'stoneBench', x: 235, y: -115 },
+        { type: 'stoneBench', x: 325, y: -115 },
+        { type: 'blossomTree', x: 360, y: -220 },
+
+        // 3. Grand Continental Market Square (North-West)
+        { type: 'marketStall', x: -230, y: -210, label: '⚖️ Apothecary & Potions' },
+        { type: 'marketStall', x: -310, y: -210, label: '🍎 Provisions & Rations' },
+        { type: 'marketStall', x: -230, y: -150, label: '✨ Aether Curios & Relics' },
+        { type: 'marketStall', x: -310, y: -150, label: '⚒️ Smithing & Ore Wares' },
+        { type: 'streetLantern', x: -270, y: -180 },
+        { type: 'streetLantern', x: -350, y: -180 },
+        { type: 'streetLantern', x: -190, y: -180 },
+        { type: 'stoneBench', x: -270, y: -115 },
+        { type: 'ancientOak', x: -370, y: -120 },
+
+        // 4. Northern Residential & Guild Avenues
+        { type: 'cityHouseA', x: -160, y: -320 },
+        { type: 'cityHouseB', x: -320, y: -320 },
+        { type: 'cityHouseA', x: 160, y: -320 },
+        { type: 'cityHouseB', x: 320, y: -320 },
+        { type: 'cityHouseA', x: -480, y: -320 },
+        { type: 'cityHouseB', x: 480, y: -320 },
+        { type: 'streetLantern', x: -240, y: -280 },
+        { type: 'streetLantern', x: -80, y: -280 },
+        { type: 'streetLantern', x: 80, y: -280 },
+        { type: 'streetLantern', x: 240, y: -280 },
+        { type: 'blossomTree', x: -400, y: -300 },
+        { type: 'blossomTree', x: 400, y: -300 },
+        { type: 'stoneBench', x: 0, y: -280 },
+
+        // 5. Southern Botanical Park & Memorial Gardens
+        { type: 'monument', x: 0, y: 320, label: '✨ Monument to the Fallen Knights' },
+        { type: 'blossomTree', x: -80, y: 260 },
+        { type: 'blossomTree', x: 80, y: 260 },
+        { type: 'blossomTree', x: -160, y: 320 },
+        { type: 'blossomTree', x: 160, y: 320 },
+        { type: 'blossomTree', x: -90, y: 390 },
+        { type: 'blossomTree', x: 90, y: 390 },
+        { type: 'blossomTree', x: 0, y: 440 },
+        { type: 'ancientOak', x: -240, y: 340 },
+        { type: 'ancientOak', x: 240, y: 340 },
+        { type: 'stoneBench', x: -50, y: 320 },
+        { type: 'stoneBench', x: 50, y: 320 },
+        { type: 'streetLantern', x: -40, y: 220 },
+        { type: 'streetLantern', x: 40, y: 220 },
+        { type: 'streetLantern', x: -120, y: 340 },
+        { type: 'streetLantern', x: 120, y: 340 },
+
+        // 6. Training Grounds (South-East)
+        { type: 'pillar', x: 270, y: 160 },
+        { type: 'pillar', x: 370, y: 160 },
+        { type: 'brazier', x: 270, y: 240 },
+        { type: 'brazier', x: 370, y: 240 },
+        { type: 'stoneBench', x: 320, y: 260 },
+
+        // 7. Leyline Spire District (South-West)
+        { type: 'crystalPillar', x: -270, y: 160 },
+        { type: 'crystalPillar', x: -370, y: 160 },
+        { type: 'crystalPillar', x: -270, y: 240 },
+        { type: 'crystalPillar', x: -370, y: 240 }
       );
+
       npcs.push(
         {
           id: 'npc_aurora',
@@ -3575,12 +3655,21 @@ export function initGame() {
           dialogue: AWAKENING_DIALOGUE,
         },
         {
-          id: 'npc_bank_vault',
-          name: 'AetherVault Depository',
-          role: 'Sanctuary Vault Keeper [Click / V]',
-          spriteKey: 'heraldNpc',
-          x: 52,
-          y: -42,
+          id: 'npc_bank_orin',
+          name: 'Trove-Master Orin',
+          role: 'AetherVault Chief Banker [Click / T]',
+          spriteKey: 'bankerNpc',
+          x: 280,
+          y: -165,
+          isBank: true,
+        },
+        {
+          id: 'npc_bank_vael',
+          name: 'Archivist Vael',
+          role: 'Vault Clerk [Click / T]',
+          spriteKey: 'bankerNpc',
+          x: 240,
+          y: -165,
           isBank: true,
         },
         {
@@ -3588,8 +3677,8 @@ export function initGame() {
           name: 'Commander Valerius',
           role: 'Sunspire Warlord [Click / T]',
           spriteKey: 'warzoneArchonNpc',
-          x: -42,
-          y: -74,
+          x: -180,
+          y: -60,
           dialogue: WARZONE_DIALOGUE,
         }
       );
@@ -3948,6 +4037,31 @@ export function initGame() {
       }
 
       if (resolvedRoomType === ROOM_TYPES.SOLARI_CITADEL) {
+        props.push(
+          { type: 'bankBuilding', x: 220, y: -160, label: '🏛️ Solari Citadel Depository' },
+          { type: 'bankCounter', x: 220, y: -110 },
+          { type: 'grandFountain', x: 0, y: 0, label: '☀️ Solari Sun Fountain' },
+          { type: 'cityHouseB', x: -160, y: -180 },
+          { type: 'cityHouseB', x: -280, y: -180 },
+          { type: 'marketStall', x: -140, y: 40, label: '🏮 Solari Lantern Exchange' },
+          { type: 'streetLantern', x: -60, y: 80 },
+          { type: 'streetLantern', x: 60, y: 80 },
+          { type: 'streetLantern', x: -60, y: -60 },
+          { type: 'streetLantern', x: 60, y: -60 },
+          { type: 'stoneBench', x: -35, y: -15 },
+          { type: 'stoneBench', x: 35, y: -15 },
+          { type: 'blossomTree', x: -120, y: -80 },
+          { type: 'blossomTree', x: 120, y: -80 }
+        );
+        npcs.push({
+          id: 'npc_solari_bank',
+          name: 'Solari Vault-Master',
+          role: 'Citadel Banker [Click / T]',
+          spriteKey: 'bankerNpc',
+          x: 220,
+          y: -110,
+          isBank: true,
+        });
         npcs.push({
           id: 'npc_vael',
           name: 'Captain Vaelen',
@@ -4012,8 +4126,8 @@ export function initGame() {
         player.y = 96;
       }
       entities.push(
-        { id: 'dummy_1', name: 'Sanctuary Dummy', sub: 'Lv.1 Awakening Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: 12, origX: 0, origY: 12, hp: 30, maxHp: 30, xpReward: 30, radius: 14, hitFlash: 0 },
-        { id: 'dummy_2', name: 'Armored Training Post', sub: 'Lv.5 Resilient Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: -45, origX: 0, origY: -45, hp: 120, maxHp: 120, xpReward: 65, radius: 15, hitFlash: 0 },
+        { id: 'dummy_1', name: 'Sanctuary Dummy', sub: 'Lv.1 Awakening Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: 52, origX: 0, origY: 52, hp: 30, maxHp: 30, xpReward: 30, radius: 14, hitFlash: 0 },
+        { id: 'dummy_2', name: 'Armored Training Post', sub: 'Lv.5 Resilient Training Post', type: 'dummy', spriteKey: 'dummy', x: 320, y: 200, origX: 320, origY: 200, hp: 120, maxHp: 120, xpReward: 65, radius: 15, hitFlash: 0 },
         { id: 'tut_font', name: 'Awakening Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
         { id: 'tut_font_2', name: 'East Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
       );
@@ -6416,23 +6530,14 @@ export function initGame() {
       if (badge && keybinds[slot]) badge.innerText = formatKeyLabel(keybinds[slot]);
       const rk = document.getElementById(`rank-${slot}`);
       if (rk) {
-        if (!unlocked) {
-          rk.innerText = `Lv.${reqLvl}`;
-          rk.style.color = '#94a3b8';
-        } else if (!isLearned) {
-          rk.innerText = `LOCK`;
-          rk.style.color = '#ef4444';
-        } else {
-          rk.innerText = abilityRank >= 5 ? 'MAX' : `R${abilityRank}`;
-          rk.style.color = abilityRank >= 5 ? '#facc15' : '#38bdf8';
-        }
+        rk.style.display = 'none';
       }
       const iconEl = document.getElementById(`icon-${slot}`);
       if (iconEl) iconEl.innerText = (!unlocked || !isLearned) ? '🔒' : (spec?.icon || '⚔️');
       const nameEl = document.getElementById(`name-${slot}`);
       if (nameEl) {
         if (!unlocked) {
-          nameEl.innerText = `Lv.${reqLvl}`;
+          nameEl.innerText = 'Locked';
           nameEl.style.color = '#94a3b8';
         } else if (!isLearned) {
           nameEl.innerText = spec?.short || 'Rite';
@@ -7240,7 +7345,9 @@ export function initGame() {
     if (e.repeat) return;
 
     if (key === 't') window.interactNearestNpc();
-    if (key === 'v') window.toggleModal('bank-modal');
+    if (key === 'v') {
+      spawnFCT(player.x, player.y - 18, '🏛️ Visit an AetherVault Bank in the city!', '#fde047', true);
+    }
     if (key === 'u') window.toggleUiEditMode();
     if (key === 'y') window.plantOrderBanner();
     if (key === 'b') window.toggleModal('inventory-modal');
@@ -7929,8 +8036,28 @@ export function initGame() {
     }
 
     if (currentBiomeTheme === 'sanctuary') {
-      // Grand 4-way crossroads leading to the North, South, East & West border gates!
-      if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) {
+      // Grand Central Plaza paved in flagstone (around fountain)
+      if (Math.abs(tx) <= 7 && Math.abs(ty) <= 7) {
+        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
+      }
+      // Bank District Courtyard paved in flagstone
+      if (tx >= 11 && tx <= 25 && ty >= -18 && ty <= -7) {
+        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
+      }
+      // Market Square paved in flagstone
+      if (tx >= -26 && tx <= -11 && ty >= -18 && ty <= -7) {
+        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
+      }
+      // Grand North-South and East-West Crossroads connecting gates to center
+      if (Math.abs(tx) <= 3 || Math.abs(ty) <= 3) {
+        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
+      }
+      // Northern Residential Avenue
+      if (ty >= -22 && ty <= -19 && Math.abs(tx) <= 35) {
+        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
+      }
+      // Training District flagstones
+      if (tx >= 14 && tx <= 28 && ty >= 10 && ty <= 18) {
         return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
       }
       return sprites.tiles[`sanctuary_grass_${Math.abs(tx * 7 + ty * 13) % 4}`];
@@ -8368,6 +8495,34 @@ export function initGame() {
           } else if (pr.type === 'woodenSign') {
             img = sprites.props.woodenSign || sprites.props.pillar;
             shadowRx = 5; shadowRy = 2;
+          } else if (pr.type === 'bankBuilding') {
+            img = sprites.props.bankBuilding || sprites.props.pillar;
+            shadowRx = 28; shadowRy = 8;
+          } else if (pr.type === 'bankCounter') {
+            img = sprites.props.bankCounter || sprites.props.pillar;
+            shadowRx = 15; shadowRy = 5;
+          } else if (pr.type === 'grandFountain') {
+            const list = sprites.props.grandFountain;
+            img = (list && list[Math.floor(globalTime * 3.0) % list.length]) || sprites.props.pillar;
+            shadowRx = 16; shadowRy = 6;
+          } else if (pr.type === 'cityHouseA') {
+            img = sprites.props.cityHouseA || sprites.props.pillar;
+            shadowRx = 20; shadowRy = 6;
+          } else if (pr.type === 'cityHouseB') {
+            img = sprites.props.cityHouseB || sprites.props.pillar;
+            shadowRx = 22; shadowRy = 6;
+          } else if (pr.type === 'marketStall') {
+            img = sprites.props.marketStall || sprites.props.pillar;
+            shadowRx = 14; shadowRy = 5;
+          } else if (pr.type === 'streetLantern') {
+            img = sprites.props.streetLantern || sprites.props.pillar;
+            shadowRx = 5; shadowRy = 2;
+          } else if (pr.type === 'stoneBench') {
+            img = sprites.props.stoneBench || sprites.props.pillar;
+            shadowRx = 10; shadowRy = 3;
+          } else if (pr.type === 'blossomTree') {
+            img = sprites.props.blossomTree || sprites.props.ancientOak || sprites.props.pillar;
+            shadowRx = 15; shadowRy = 5;
           }
 
           if (img) {

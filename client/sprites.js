@@ -277,6 +277,7 @@ export function buildSpriteSheet() {
     hero: null,
     heroByFaction: {},
     heraldNpc: [],
+    bankerNpc: [],
     cartographerNpc: [],
     warzoneArchonNpc: [],
     solariCaptainNpc: [],
@@ -825,6 +826,401 @@ export function buildSpriteSheet() {
     sprites.props.woodenSign = addPixelOutline(c);
   }
 
+  // Grand Neoclassical AetherVault Bank (64x58 px)
+  {
+    const { c, ctx } = makeCanvas(64, 58);
+    // Triangular pediment cornice
+    rect(ctx, 30, 2, 4, 3, '#facc15'); // Golden finial spire
+    rect(ctx, 28, 5, 8, 2, '#eab308');
+    for (let r = 0; r < 7; r++) {
+      rect(ctx, 28 - r * 4, 7 + r * 2, 8 + r * 8, 2, '#475569');
+    }
+    // Raking cornice highlight & trim
+    rect(ctx, 4, 19, 56, 3, '#64748b');
+    rect(ctx, 3, 21, 58, 2, '#334155');
+    // Tympanum golden vault crest
+    rect(ctx, 26, 12, 12, 6, '#1e293b');
+    rect(ctx, 28, 13, 8, 4, '#ca8a04');
+    px(ctx, 31, 14, '#fde047');
+    px(ctx, 32, 14, '#fde047');
+    px(ctx, 31, 15, '#ffffff');
+
+    // Entablature frieze banner ("AETHERVAULT")
+    rect(ctx, 4, 23, 56, 4, '#1e293b');
+    rect(ctx, 6, 24, 52, 2, '#0f172a');
+    rect(ctx, 16, 24, 32, 2, '#ca8a04'); // Gold inscription strip
+
+    // Background wall
+    rect(ctx, 6, 27, 52, 23, '#334155');
+
+    // Left Wing Arched Stained Glass Window
+    rect(ctx, 11, 30, 7, 12, '#1e293b');
+    rect(ctx, 12, 31, 5, 10, '#0284c7');
+    rect(ctx, 13, 33, 3, 6, '#38bdf8');
+    px(ctx, 14, 34, '#ffffff');
+
+    // Right Wing Arched Stained Glass Window
+    rect(ctx, 46, 30, 7, 12, '#1e293b');
+    rect(ctx, 47, 31, 5, 10, '#0284c7');
+    rect(ctx, 48, 33, 3, 6, '#38bdf8');
+    px(ctx, 49, 34, '#ffffff');
+
+    // Central Grand Vault Entrance Portal
+    rect(ctx, 24, 28, 16, 22, '#0f172a'); // Arch portal frame
+    rect(ctx, 26, 29, 12, 4, '#ca8a04'); // Golden fanlight transom
+    px(ctx, 31, 30, '#fde047');
+    px(ctx, 32, 30, '#fde047');
+    // Heavy Double Vault Doors
+    rect(ctx, 26, 33, 12, 17, '#1e293b');
+    rect(ctx, 27, 34, 5, 15, '#334155'); // Left door
+    rect(ctx, 32, 34, 5, 15, '#334155'); // Right door
+    // Vault Bronze Rings & Lock Wheel
+    rect(ctx, 29, 39, 6, 6, '#ca8a04');
+    rect(ctx, 30, 40, 4, 4, '#facc15');
+    px(ctx, 31, 41, '#78350f');
+    px(ctx, 32, 41, '#78350f');
+    // Vertical iron banding
+    rect(ctx, 28, 35, 1, 14, '#475569');
+    rect(ctx, 35, 35, 1, 14, '#475569');
+
+    // 4 Classical Fluted Marble Columns
+    const colX = [6, 18, 40, 52];
+    for (const cx of colX) {
+      // Capital
+      rect(ctx, cx - 1, 26, 8, 3, '#cbd5e1');
+      rect(ctx, cx, 27, 6, 2, '#94a3b8');
+      // Shaft
+      rect(ctx, cx, 29, 6, 19, '#64748b');
+      rect(ctx, cx + 1, 29, 2, 19, '#cbd5e1'); // Marble highlight
+      rect(ctx, cx + 4, 29, 2, 19, '#475569'); // Marble shade
+      // Base Plinth
+      rect(ctx, cx - 1, 48, 8, 3, '#94a3b8');
+      rect(ctx, cx - 1, 49, 8, 2, '#475569');
+    }
+
+    // 3-Tiered Stone Entry Steps
+    rect(ctx, 2, 50, 60, 3, '#475569');
+    rect(ctx, 3, 50, 58, 1, '#94a3b8');
+    rect(ctx, 1, 53, 62, 3, '#334155');
+    rect(ctx, 2, 53, 60, 1, '#64748b');
+    rect(ctx, 0, 56, 64, 2, '#1e293b');
+    rect(ctx, 1, 56, 62, 1, '#475569');
+
+    sprites.props.bankBuilding = addPixelOutline(c);
+  }
+
+  // Bank Teller Desk / Counter Booth (32x22 px)
+  {
+    const { c, ctx } = makeCanvas(32, 22);
+    // Lower mahogany counter cabinetry
+    rect(ctx, 2, 11, 28, 11, '#451a03');
+    rect(ctx, 3, 13, 26, 8, '#271b12');
+    rect(ctx, 5, 14, 6, 6, '#78350f'); // Cabinet panel left
+    rect(ctx, 13, 14, 6, 6, '#78350f'); // Cabinet panel mid
+    rect(ctx, 21, 14, 6, 6, '#78350f'); // Cabinet panel right
+    // Polished Countertop Surface
+    rect(ctx, 1, 9, 30, 3, '#78350f');
+    rect(ctx, 2, 9, 28, 1, '#d97706'); // Highlight line
+    rect(ctx, 1, 11, 30, 1, '#451a03');
+
+    // Brass Teller Security Grille / Bars
+    rect(ctx, 3, 1, 26, 9, '#78350f');
+    rect(ctx, 4, 1, 24, 8, '#0f172a');
+    // Top brass railing
+    rect(ctx, 3, 0, 26, 2, '#ca8a04');
+    rect(ctx, 4, 0, 24, 1, '#fde047');
+    // Vertical brass bars
+    for (let b = 5; b <= 27; b += 2) {
+      if (b >= 13 && b <= 19) continue; // Teller window opening
+      rect(ctx, b, 2, 1, 7, '#facc15');
+    }
+    // Teller arch opening
+    rect(ctx, 13, 3, 7, 1, '#ca8a04');
+    px(ctx, 13, 4, '#ca8a04');
+    px(ctx, 19, 4, '#ca8a04');
+
+    // Items on counter:
+    // Gold Coins Stack
+    rect(ctx, 6, 7, 4, 3, '#eab308');
+    px(ctx, 7, 7, '#fde047');
+    px(ctx, 8, 8, '#fde047');
+    // Open Ledger Book & Quill
+    rect(ctx, 21, 7, 6, 3, '#475569');
+    rect(ctx, 22, 6, 4, 3, '#f8fafc');
+    px(ctx, 23, 7, '#94a3b8');
+    px(ctx, 27, 4, '#38bdf8'); // Quill feather tip
+    px(ctx, 26, 5, '#0284c7');
+
+    sprites.props.bankCounter = addPixelOutline(c);
+  }
+
+  // Grand City Plaza Water Fountain (36x36 px, 2-frame animation)
+  sprites.props.grandFountain = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(36, 36);
+    // Outer stone octagonal basin
+    rect(ctx, 8, 4, 20, 28, '#334155');
+    rect(ctx, 4, 8, 28, 20, '#334155');
+    rect(ctx, 6, 6, 24, 24, '#475569');
+    rect(ctx, 7, 7, 22, 22, '#64748b'); // Rim coping
+    rect(ctx, 8, 8, 20, 20, '#1e293b'); // Basin shadow
+
+    // Water pool interior
+    rect(ctx, 9, 9, 18, 18, '#0284c7');
+    rect(ctx, 10, 10, 16, 16, '#0ea5e9');
+
+    // Water ripple waves (animates between f=0 and f=1)
+    if (f === 0) {
+      rect(ctx, 11, 11, 14, 14, '#38bdf8');
+      rect(ctx, 12, 12, 12, 12, '#0ea5e9');
+      px(ctx, 10, 14, '#7dd3fc');
+      px(ctx, 25, 20, '#7dd3fc');
+    } else {
+      rect(ctx, 10, 10, 16, 16, '#38bdf8');
+      rect(ctx, 12, 12, 12, 12, '#0ea5e9');
+      px(ctx, 14, 10, '#7dd3fc');
+      px(ctx, 21, 25, '#7dd3fc');
+    }
+
+    // Central 2-Tier Stone Pedestal
+    rect(ctx, 14, 14, 8, 8, '#334155');
+    rect(ctx, 15, 13, 6, 8, '#475569');
+    rect(ctx, 16, 12, 4, 6, '#64748b');
+    rect(ctx, 17, 10, 2, 4, '#94a3b8');
+
+    // Bubbling Water Jet & Sprays
+    const sprayY = f === 0 ? 5 : 4;
+    rect(ctx, 17, sprayY, 2, 6, '#ffffff');
+    px(ctx, 16, sprayY + 1, '#7dd3fc');
+    px(ctx, 19, sprayY + 1, '#7dd3fc');
+    px(ctx, 15, sprayY + 3, '#38bdf8');
+    px(ctx, 20, sprayY + 3, '#38bdf8');
+
+    sprites.props.grandFountain.push(addPixelOutline(c));
+  }
+
+  // Tudor Half-Timbered Townhouse (44x46 px)
+  {
+    const { c, ctx } = makeCanvas(44, 46);
+    // Stone Chimney with Smoke
+    rect(ctx, 33, 3, 5, 15, '#475569');
+    rect(ctx, 32, 2, 7, 2, '#334155');
+    px(ctx, 35, 0, '#94a3b8'); // Smoke puff
+    px(ctx, 36, 1, '#cbd5e1');
+
+    // Steep Pitched Red Terracotta Roof
+    for (let r = 0; r < 10; r++) {
+      rect(ctx, 22 - r * 2, 6 + r * 2, r * 4 + 2, 2, '#dc2626');
+      rect(ctx, 22 - r * 2, 7 + r * 2, r * 4 + 2, 1, '#991b1b');
+    }
+    rect(ctx, 2, 24, 40, 2, '#7f1d1d'); // Roof fascia
+
+    // Cream Sandstone Wall Body
+    rect(ctx, 4, 26, 36, 17, '#fef3c7');
+    rect(ctx, 3, 43, 38, 3, '#334155'); // Stone foundation
+
+    // Dark Timber Cross Beams
+    rect(ctx, 4, 26, 2, 17, '#451a03'); // Left post
+    rect(ctx, 38, 26, 2, 17, '#451a03'); // Right post
+    rect(ctx, 4, 34, 36, 2, '#451a03'); // Middle beam
+    rect(ctx, 20, 26, 2, 17, '#451a03'); // Center post
+    // Diagonal braces
+    px(ctx, 6, 27, '#451a03'); px(ctx, 7, 28, '#451a03'); px(ctx, 8, 29, '#451a03');
+    px(ctx, 18, 27, '#451a03'); px(ctx, 17, 28, '#451a03'); px(ctx, 16, 29, '#451a03');
+
+    // Upper Floor Leaded Window (amber glowing)
+    rect(ctx, 8, 27, 8, 6, '#1e293b');
+    rect(ctx, 9, 28, 6, 4, '#fbbf24');
+    px(ctx, 11, 29, '#fef08a');
+    // Window Flower Box
+    rect(ctx, 7, 33, 10, 2, '#15803d');
+    px(ctx, 8, 32, '#ec4899'); px(ctx, 11, 32, '#fde047'); px(ctx, 14, 32, '#ec4899');
+
+    // Arched Oak Door
+    rect(ctx, 25, 30, 10, 14, '#1e293b');
+    rect(ctx, 26, 31, 8, 13, '#78350f');
+    rect(ctx, 27, 32, 6, 12, '#92400e');
+    px(ctx, 32, 38, '#facc15'); // Brass handle
+    rect(ctx, 27, 35, 6, 1, '#1e293b'); // Iron hinge strap
+    rect(ctx, 27, 41, 6, 1, '#1e293b');
+
+    sprites.props.cityHouseA = addPixelOutline(c);
+  }
+
+  // Slate-Roofed Stone Townhouse (48x44 px)
+  {
+    const { c, ctx } = makeCanvas(48, 44);
+    // Slate Blue Mansard Roof
+    rect(ctx, 6, 4, 36, 16, '#1e293b');
+    rect(ctx, 4, 18, 40, 3, '#334155');
+    // Slate tile pattern
+    for (let y = 6; y <= 16; y += 3) {
+      rect(ctx, 7, y, 34, 1, '#475569');
+    }
+    // Dormer Window on roof
+    rect(ctx, 20, 6, 8, 10, '#334155');
+    rect(ctx, 21, 7, 6, 8, '#475569');
+    rect(ctx, 22, 9, 4, 5, '#38bdf8');
+    px(ctx, 23, 10, '#ffffff');
+
+    // Grey Ashlar Stone Walls
+    rect(ctx, 4, 21, 40, 20, '#475569');
+    rect(ctx, 3, 41, 42, 3, '#1e293b');
+    // Stone block lines
+    for (let y = 25; y <= 39; y += 4) {
+      rect(ctx, 4, y, 40, 1, '#334155');
+      const offset = (y % 8 === 1) ? 10 : 20;
+      rect(ctx, offset, y - 4, 1, 4, '#334155');
+      rect(ctx, offset + 18, y - 4, 1, 4, '#334155');
+    }
+
+    // Left Window with shutters
+    rect(ctx, 7, 26, 8, 8, '#1e293b');
+    rect(ctx, 8, 27, 6, 6, '#fbbf24');
+    rect(ctx, 5, 26, 2, 8, '#15803d'); // Left shutter
+    rect(ctx, 15, 26, 2, 8, '#15803d'); // Right shutter
+    rect(ctx, 7, 34, 8, 2, '#166534'); // Flower box
+    px(ctx, 8, 33, '#ef4444'); px(ctx, 11, 33, '#fde047'); px(ctx, 13, 33, '#38bdf8');
+
+    // Right Window with shutters
+    rect(ctx, 33, 26, 8, 8, '#1e293b');
+    rect(ctx, 34, 27, 6, 6, '#fbbf24');
+    rect(ctx, 31, 26, 2, 8, '#15803d');
+    rect(ctx, 41, 26, 2, 8, '#15803d');
+    rect(ctx, 33, 34, 8, 2, '#166534');
+    px(ctx, 34, 33, '#ef4444'); px(ctx, 37, 33, '#fde047'); px(ctx, 39, 33, '#ec4899');
+
+    // Center Arched Stone Doorway
+    rect(ctx, 20, 26, 8, 16, '#1e293b');
+    rect(ctx, 21, 27, 6, 15, '#78350f');
+    px(ctx, 25, 34, '#fde047'); // Brass knob
+    // Side Lantern
+    px(ctx, 29, 29, '#fde047');
+    px(ctx, 29, 30, '#f59e0b');
+
+    sprites.props.cityHouseB = addPixelOutline(c);
+  }
+
+  // Continental Market Stall (32x28 px)
+  {
+    const { c, ctx } = makeCanvas(32, 28);
+    // Timber frame posts
+    rect(ctx, 3, 10, 2, 17, '#451a03');
+    rect(ctx, 27, 10, 2, 17, '#451a03');
+
+    // Striped Fabric Canopy (Red & Cream)
+    for (let s = 0; s < 6; s++) {
+      const col = s % 2 === 0 ? '#dc2626' : '#fef3c7';
+      rect(ctx, 2 + s * 5, 2, 5, 11, col);
+    }
+    // Awning valence scallops
+    for (let v = 0; v < 6; v++) {
+      const col = v % 2 === 0 ? '#b91c1c' : '#fde68a';
+      rect(ctx, 2 + v * 5, 12, 5, 2, col);
+    }
+
+    // Wooden Merchant Table
+    rect(ctx, 2, 15, 28, 4, '#78350f');
+    rect(ctx, 3, 15, 26, 1, '#b45309');
+    rect(ctx, 4, 19, 24, 7, '#451a03'); // Table drape/cloth
+
+    // Wares on Table:
+    // Potion Flasks
+    rect(ctx, 5, 12, 3, 4, '#38bdf8');
+    px(ctx, 6, 11, '#cbd5e1'); // Cork
+    rect(ctx, 9, 13, 3, 3, '#a855f7');
+    px(ctx, 10, 12, '#cbd5e1');
+    // Golden Apple Basket
+    rect(ctx, 14, 13, 6, 3, '#ca8a04');
+    px(ctx, 15, 12, '#ef4444');
+    px(ctx, 17, 12, '#fde047');
+    px(ctx, 18, 12, '#22c55e');
+    // Glowing Gemstones / Relic Box
+    rect(ctx, 22, 13, 5, 3, '#1e293b');
+    px(ctx, 23, 13, '#38bdf8');
+    px(ctx, 25, 13, '#facc15');
+
+    sprites.props.marketStall = addPixelOutline(c);
+  }
+
+  // Ornate Iron Street Lantern (12x30 px)
+  {
+    const { c, ctx } = makeCanvas(12, 30);
+    // Stone plinth base
+    rect(ctx, 2, 26, 8, 4, '#334155');
+    rect(ctx, 3, 27, 6, 2, '#475569');
+    // Wrought Iron Pole
+    rect(ctx, 5, 8, 2, 18, '#0f172a');
+    rect(ctx, 4, 24, 4, 2, '#1e293b');
+    // Lantern hanger arm
+    rect(ctx, 3, 7, 6, 2, '#1e293b');
+    // Lantern Glass Housing
+    rect(ctx, 3, 8, 6, 7, '#0f172a');
+    rect(ctx, 4, 9, 4, 5, '#fde047');
+    rect(ctx, 5, 10, 2, 3, '#ffffff'); // Center bright core
+    px(ctx, 4, 11, '#f59e0b');
+    px(ctx, 7, 11, '#f59e0b');
+    // Lantern Hood Cap
+    rect(ctx, 2, 6, 8, 2, '#1e293b');
+    px(ctx, 5, 5, '#ca8a04');
+    px(ctx, 6, 5, '#ca8a04');
+
+    sprites.props.streetLantern = addPixelOutline(c);
+  }
+
+  // Carved Granite City Bench (22x14 px)
+  {
+    const { c, ctx } = makeCanvas(22, 14);
+    // Granite Backrest
+    rect(ctx, 2, 2, 18, 5, '#475569');
+    rect(ctx, 3, 2, 16, 1, '#94a3b8');
+    rect(ctx, 2, 5, 18, 1, '#334155');
+    // Bench Seat Slab
+    rect(ctx, 1, 7, 20, 3, '#64748b');
+    rect(ctx, 2, 7, 18, 1, '#cbd5e1'); // Highlight line
+    rect(ctx, 1, 9, 20, 1, '#334155');
+    // Sturdy Carved Legs
+    rect(ctx, 3, 10, 4, 4, '#334155');
+    rect(ctx, 15, 10, 4, 4, '#334155');
+
+    sprites.props.stoneBench = addPixelOutline(c);
+  }
+
+  // Starlight Cherry Blossom Tree (36x44 px)
+  {
+    const { c, ctx } = makeCanvas(36, 44);
+    // Gnarled Tree Trunk & Roots
+    rect(ctx, 15, 28, 6, 15, '#271b12');
+    rect(ctx, 13, 39, 4, 4, '#271b12');
+    rect(ctx, 19, 39, 4, 4, '#271b12');
+    rect(ctx, 16, 28, 4, 13, '#451a03');
+    rect(ctx, 17, 30, 2, 10, '#78350f');
+    // Branching limbs
+    rect(ctx, 12, 22, 4, 8, '#271b12');
+    rect(ctx, 20, 22, 4, 8, '#271b12');
+
+    // Lush Cherry Blossom Canopy
+    // Base shadow tier
+    rect(ctx, 6, 12, 24, 16, '#831843');
+    rect(ctx, 3, 15, 30, 11, '#831843');
+    // Mid pink foliage clumps
+    rect(ctx, 5, 10, 26, 14, '#be185d');
+    rect(ctx, 8, 7, 20, 14, '#db2777');
+    rect(ctx, 10, 5, 16, 12, '#ec4899');
+    // Bright blossom petal highlights
+    rect(ctx, 11, 4, 14, 8, '#f472b6');
+    rect(ctx, 13, 3, 10, 6, '#fbcfe8');
+    px(ctx, 16, 4, '#ffffff');
+    px(ctx, 18, 5, '#ffffff');
+    // Scattered falling blossom petals
+    px(ctx, 7, 29, '#f472b6');
+    px(ctx, 28, 28, '#fbcfe8');
+    px(ctx, 29, 33, '#ec4899');
+    px(ctx, 6, 34, '#fbcfe8');
+
+    sprites.props.blossomTree = addPixelOutline(c);
+  }
+
   // ==========================================
   // 3. DEFAULT FACTION HERO SPRITES (Via Paperdoll Composer)
   // ==========================================
@@ -863,6 +1259,36 @@ export function buildSpriteSheet() {
     rect(ctx, 20, 3 + bob, 6, 4, '#38bdf8');
     rect(ctx, 22, 4 + bob, 2, 2, '#ffffff');
     sprites.heraldNpc.push(addPixelOutline(c));
+  }
+
+  // Distinguished AetherVault Banker NPC (22x26 px, 2-frame animation)
+  sprites.bankerNpc = [];
+  for (let f = 0; f < 2; f++) {
+    const bob = f === 1 ? -1 : 0;
+    const { c, ctx } = makeCanvas(22, 26);
+    // Silver Hair & Head
+    rect(ctx, 7, 2 + bob, 8, 4, '#cbd5e1');
+    rect(ctx, 6, 4 + bob, 10, 6, '#fed7aa');
+    // Gold Spectacles / Monocle
+    rect(ctx, 8, 6 + bob, 3, 2, '#ca8a04');
+    px(ctx, 9, 6 + bob, '#38bdf8');
+    px(ctx, 12, 6 + bob, '#0f172a'); // Eye
+    // Burgundy & Imperial Navy Velvet Coat
+    rect(ctx, 5, 10 + bob, 12, 11, '#831843');
+    rect(ctx, 7, 10 + bob, 8, 11, '#1e1b4b');
+    // Gold braided frogging & buttons
+    rect(ctx, 10, 11 + bob, 2, 9, '#facc15');
+    px(ctx, 10, 12 + bob, '#ffffff');
+    px(ctx, 10, 15 + bob, '#ffffff');
+    // Hands & Ledger
+    rect(ctx, 12, 13 + bob, 6, 6, '#451a03'); // Leather ledger
+    rect(ctx, 13, 14 + bob, 4, 4, '#f8fafc'); // White parchment pages
+    px(ctx, 15, 12 + bob, '#fed7aa'); // Hand
+    // Dark Trousers & Boots
+    rect(ctx, 7, 21 + bob, 4, 5, '#0f172a');
+    rect(ctx, 11, 21 + bob, 4, 5, '#0f172a');
+
+    sprites.bankerNpc.push(addPixelOutline(c));
   }
 
   for (let f = 0; f < 2; f++) {
@@ -1187,6 +1613,28 @@ export function buildSpriteSheet() {
       rect(ctx, 25, 9, 3, 18, '#b45309');
       rect(ctx, 24, 7, 5, 4, '#38bdf8');
       px(ctx, 26, 8, '#ffffff');
+    },
+  });
+
+  // Banker Trove-Master Orin Portrait
+  sprites.npcPortraits.bankerNpc = createBustPortrait({
+    border: '#fde047',
+    bg: '#1a1025',
+    bustDraw(ctx) {
+      // Golden Banker Crest
+      rect(ctx, 10, 3, 12, 2, '#facc15');
+      // Silver Dignified Hair
+      rect(ctx, 9, 5, 14, 6, '#cbd5e1');
+      // Face
+      rect(ctx, 11, 9, 10, 9, '#fed7aa');
+      // Gold Monocle
+      rect(ctx, 12, 11, 3, 3, '#ca8a04');
+      px(ctx, 13, 12, '#7dd3fc');
+      px(ctx, 17, 12, '#0f172a');
+      // Burgundy & Gold Robe
+      rect(ctx, 7, 18, 18, 10, '#831843');
+      rect(ctx, 13, 18, 6, 10, '#facc15');
+      rect(ctx, 15, 18, 2, 10, '#ffffff');
     },
   });
 

@@ -46,12 +46,13 @@ export function formatItemStatsHtml(item, showSet = true) {
     `;
   }
 
-  return `
+  const statsPart = lines.length > 0 ? `
     <div style="display:flex; flex-wrap:wrap; gap:6px; font-size:8.5px; margin:4px 0;">
-      ${lines.length > 0 ? lines.join(' • ') : '<span style="color:#94a3b8; font-size:8px;">No direct combat stat bonuses</span>'}
+      ${lines.join(' • ')}
     </div>
-    ${setHtml}
-  `;
+  ` : '';
+
+  return `${statsPart}${setHtml}`.trim();
 }
 
 export function getHoveredCardHtml(itemId, source = 'equipped') {
@@ -73,6 +74,13 @@ export function getHoveredCardHtml(itemId, source = 'equipped') {
     ? '👉 Left-click to Withdraw 1 • Right-click to Withdraw All'
     : '👉 AetherSwap Catalog Entry';
 
+  const statsHtml = formatItemStatsHtml(item, true);
+  const statsSection = statsHtml ? `
+    <div style="margin-top:6px; border-top:1px solid #1e293b; padding-top:4px;">
+      ${statsHtml}
+    </div>
+  ` : '';
+
   return `
     <div style="background:#090d1c; border:1.5px solid ${borderCol}; border-radius:4px; padding:8px 10px;">
       <div style="display:flex; align-items:center; gap:8px;">
@@ -82,9 +90,7 @@ export function getHoveredCardHtml(itemId, source = 'equipped') {
           <div style="font-size:8px; color:${borderCol}; font-weight:bold;">${item.rarity} • ${item.slot.toUpperCase()}</div>
         </div>
       </div>
-      <div style="margin-top:6px; border-top:1px solid #1e293b; padding-top:4px;">
-        ${formatItemStatsHtml(item, true)}
-      </div>
+      ${statsSection}
       <div style="font-size:7.5px; color:#94a3b8; font-style:italic; margin-top:4px; line-height:1.3;">
         ${item.desc || ''}
       </div>
@@ -434,23 +440,9 @@ export function renderInventoryModal({ profile }) {
       }).join('')}
     </div>
 
-    <!-- Backpack Hovered Item Inspection & Combat Bonuses -->
-    <div style="background:#141210; border:2px solid #57534e; border-radius:4px; padding:8px 10px; margin-top:10px;">
-      <div style="font-family:var(--font-header); font-size:9.5px; color:#fbbf24; margin-bottom:4px; border-bottom:1px solid #292524; padding-bottom:3px; display:flex; justify-content:space-between; align-items:center;">
-        <span>🔍 BACKPACK ITEM INSPECTION</span>
-        <span style="font-size:7.5px; color:#94a3b8;">COMBAT BONUSES</span>
-      </div>
-      <div id="bag-hovered-gear-card">
-        ${getHoveredCardHtml(currentHoveredItemId, currentHoveredSource)}
-      </div>
-    </div>
-
     <div style="display:flex; justify-content:space-between; gap:8px; margin-top:12px;">
       <button class="util-btn" style="flex:1; border-color:#fb923c; color:#fed7aa;" onclick="toggleModal('equipment-modal')">
         ⚔️ GEAR [K]
-      </button>
-      <button class="util-btn" style="flex:1; border-color:#fde047; color:#fef08a;" onclick="toggleModal('bank-modal')">
-        🏛️ VAULT [V]
       </button>
       <button class="util-btn" style="flex:1; border-color:#38bdf8; color:#7dd3fc;" onclick="toggleModal('exchange-modal')">
         🌀 SWAP [X]
