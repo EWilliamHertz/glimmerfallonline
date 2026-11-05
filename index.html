@@ -252,10 +252,13 @@
       overflow-y: auto;
       font-size: 9.5px;
       line-height: 1.38;
-      padding: 8px 10px;
+      padding: 2px 4px;
       pointer-events: all;
       scrollbar-width: thin;
-      scrollbar-color: #38bdf8 #080c18;
+      scrollbar-color: #38bdf8 transparent;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
     }
     .quest-title {
       font-family: var(--font-header);
@@ -265,19 +268,29 @@
       margin-bottom: 5px;
       display: flex;
       justify-content: space-between;
-      text-shadow: 2px 2px 0 #000;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.95), 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
     }
     .quest-task {
       display: flex;
       align-items: center;
       gap: 6px;
-      color: #cbd5e1;
-      margin-bottom: 2px;
+      color: #f1f5f9;
+      margin-bottom: 3px;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.95), 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
     }
     .quest-check {
       width: 14px;
       height: 14px;
-      border: 2px solid #38bdf8;
+      border: 1.5px solid #38bdf8;
+      background: rgba(5, 7, 18, 0.7);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.8);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      color: #4ade80;
+      flex-shrink: 0;
+    }
       background: #050811;
       display: flex;
       align-items: center;
@@ -307,23 +320,6 @@
       align-items: center;
       gap: 5px;
       animation: questPulse 1.8s infinite ease-in-out;
-    }
-
-    /* 3-Player Party / Squad HUD */
-    #party-panel {
-      position: absolute;
-      top: 204px;
-      left: 12px;
-      width: 262px;
-      padding: 6px 9px;
-      font-size: 10.5px;
-      border-color: #4ade80;
-    }
-    .party-member-row {
-      background: #080c18;
-      border: 1px solid #1e293b;
-      padding: 4px 6px;
-      margin-top: 4px;
     }
 
     #arena-invite-toast {
@@ -1606,7 +1602,7 @@
       </div>
     </div>
 
-    <div id="quest-tracker" class="panel">
+    <div id="quest-tracker">
       <div id="quest-tasks-tutorial">
         <div class="quest-title">
           <span>📜 STASIS AWAKENING</span>
@@ -1625,19 +1621,6 @@
         <div class="quest-task"><span>• Banish Void foes &amp; rival factions</span></div>
         <div class="quest-task"><span>• Form 3-Player Squad [O] (+25% XP)</span></div>
         <div class="quest-task"><span>• Queue 3v3 &amp; Shatter Enemy Nexus!</span></div>
-      </div>
-    </div>
-
-    <div id="party-panel" class="panel">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-family:var(--font-header); font-size:7px; color:#4ade80;" id="party-header-txt">🛡️ SQUAD (SOLO • MAX 3)</span>
-        <div style="display:flex; gap:3px;">
-          <button class="id-mini-btn" onclick="toggleModal('social-modal')">+INVITE</button>
-          <button class="id-mini-btn" id="btn-party-leave" style="display:none; border-color:#ef4444; color:#fca5a5;" onclick="leaveSquad()">LEAVE</button>
-        </div>
-      </div>
-      <div id="party-members-list" style="color:#94a3b8; margin-top:3px;">
-        Click a player or open Social [O] to form a 3-player squad!
       </div>
     </div>
 

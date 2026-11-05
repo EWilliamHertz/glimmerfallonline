@@ -17,6 +17,21 @@ import {
   renderEquipmentModal,
   renderInventoryModal,
   renderExchangeModal,
+  setExchangeTab,
+  setExchangeFilterQuery,
+  setExchangeCategoryFilter,
+  setExchangeOrderDialog,
+  getActiveOrderDialog,
+  getExchangeOffers,
+  saveExchangeOffers,
+  tickExchangeOffers,
+  getPlayerGold,
+  deductPlayerGold,
+  addPlayerGold,
+  addItemToBackpack,
+  removeItemFromBackpack,
+  getItemGuidePrice,
+  countItemInBackpack,
 } from './equipmentUi.js';
 import {
   drawPixelNameplateAndBubbles,
@@ -1188,10 +1203,11 @@ export function initGame() {
         east: 'UMBRI_UNDERCITY'
       },
       landmarks: [
-        { x: 50, y: 34, icon: '🛡️', name: 'Herald Lyra', sub: 'Sunspire Mentor', desc: 'Awakening guide and primary quest mentor.' },
-        { x: 50, y: 58, icon: '🎯', name: 'Training Grounds', sub: 'Sanctuary Dummies', desc: 'Training posts for honing Rites and Flashes.' },
-        { x: 28, y: 46, icon: '💎', name: 'Awakening Glimmer Font', sub: 'Leyline Font [E]', desc: 'Channel with [E] to replenish energy.' },
-        { x: 72, y: 46, icon: '💎', name: 'East Glimmer Font', sub: 'Leyline Font [E]', desc: 'Channel with [E] to replenish energy.' },
+        { x: 55, y: 65, icon: '🛡️', name: 'Herald Lyra', sub: 'Sunspire Mentor', desc: 'Awakening guide and primary quest mentor.' },
+        { x: 44, y: 36, icon: '⚔️', name: 'Commander Valerius', sub: 'Sunspire Warlord', desc: 'Frontline commander directing border defense.' },
+        { x: 50, y: 52, icon: '🎯', name: 'Training Grounds', sub: 'Sanctuary Dummy', desc: 'Training post for honing Rites and Flashes.' },
+        { x: 36, y: 53, icon: '💎', name: 'Awakening Glimmer Font', sub: 'Leyline Font [E]', desc: 'Channel with [E] to replenish energy.' },
+        { x: 64, y: 53, icon: '💎', name: 'East Glimmer Font', sub: 'Leyline Font [E]', desc: 'Channel with [E] to replenish energy.' },
         { x: 50, y: 8, icon: '▲', name: 'Astral Waygate', sub: 'To Aether Spire [North]', desc: 'Walk North across the Astral threshold.' },
         { x: 50, y: 92, icon: '▼', name: 'Ironwood Arch', sub: 'To Terra Wilds [South]', desc: 'Walk South into the Ironwood Wilds.' },
         { x: 8, y: 50, icon: '◀', name: 'Sunspire Arch', sub: 'To Solari Citadel [West]', desc: 'Walk West into the Golden Citadel.' },
@@ -2225,20 +2241,20 @@ export function initGame() {
     if (trackedList.length === 0) {
       container.innerHTML = `
         <div class="quest-title" style="margin-bottom:2px;">
-          <span>📜 QUEST TRACKER</span>
+          <span style="text-shadow:0 1px 3px rgba(0,0,0,0.95), 1px 1px 0 #000;">📜 QUEST TRACKER</span>
           <button class="id-mini-btn" onclick="openQuestLog()" style="font-size:9.5px; padding:1px 6px;">LOG [L]</button>
         </div>
-        <div style="color:#94a3b8; font-size:9.5px; padding:4px 0;">
+        <div style="color:#e2e8f0; font-size:9.5px; padding:4px 0; text-shadow:0 1px 3px rgba(0,0,0,0.95), 1px 1px 0 #000, -1px -1px 0 #000;">
           ${activeList.length > 0 ? `${activeList.length} quest(s) active, but unpinned from HUD.` : 'No active quests.'}<br/>
-          <a href="javascript:void(0)" onclick="openQuestLog()" style="color:#38bdf8; font-weight:bold;">Open Quest Log [L]</a> to select quests to display.
+          <a href="javascript:void(0)" onclick="openQuestLog()" style="color:#38bdf8; font-weight:bold; text-shadow:1px 1px 0 #000;">Open Quest Log [L]</a> to select quests to display.
         </div>
       `;
       return;
     }
 
     container.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e293b; padding-bottom:4px; margin-bottom:5px;">
-        <span style="font-family:var(--font-header); font-size:10.5px; color:#facc15; font-weight:bold;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.18); padding-bottom:3px; margin-bottom:5px;">
+        <span style="font-family:var(--font-header); font-size:10.5px; color:#facc15; font-weight:bold; text-shadow:0 1px 3px rgba(0,0,0,0.95), 1px 1px 0 #000, -1px -1px 0 #000;">
           📜 TRACKED QUESTS (${trackedList.length}/${activeList.length})
         </span>
         <button class="id-mini-btn" onclick="openQuestLog()" title="Open Quest Log &amp; Atlas [L]" style="font-size:9.5px; padding:2px 6px;">
@@ -2254,13 +2270,13 @@ export function initGame() {
             return `
               <div class="quest-task" style="margin-bottom:2px;">
                 <div class="quest-check ${isDone ? 'done' : ''}" style="width:13px; height:13px; font-size:9px;">${isDone ? '✓' : ''}</div>
-                <span style="${isDone ? 'color:#94a3b8; text-decoration:line-through;' : 'color:#f1f5f9; font-size:9.5px;'}">${t.text}${countStr}</span>
+                <span style="${isDone ? 'color:#94a3b8; text-decoration:line-through;' : 'color:#f8fafc; font-size:9.5px; font-weight:600;'} text-shadow:0 1px 2px #000, 1px 1px 0 #000, -1px -1px 0 #000;">${t.text}${countStr}</span>
               </div>
             `;
           }).join('');
 
           const turnInPrompt = isReady ? `
-            <div class="quest-turnin-banner" style="margin-top:3px; padding:3px 6px; font-size:9.5px;">
+            <div class="quest-turnin-banner" style="margin-top:3px; padding:2px 6px; font-size:9.5px; background:rgba(234,179,8,0.25); border:1px solid #fde047; text-shadow:1px 1px 0 #000;">
               <span>✨</span><span>Ready! Return to ${getNpcName(q.turnInId)}</span>
             </div>
           ` : '';
@@ -2268,10 +2284,10 @@ export function initGame() {
           const completedCount = q.tasks.filter((t) => t.done()).length;
 
           return `
-            <div class="quest-block" style="padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.08);">
+            <div class="quest-block" style="padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.12);">
               <div class="quest-title" style="font-size:10.5px; margin-bottom:3px;">
-                <span style="color:#fde047;">${q.title.toUpperCase()}</span>
-                <span style="color:${isReady ? '#facc15' : '#38bdf8'}; font-size:9.5px; font-weight:800;">
+                <span style="color:#fde047; text-shadow:0 1px 2px #000, 1px 1px 0 #000;">${q.title.toUpperCase()}</span>
+                <span style="color:${isReady ? '#facc15' : '#38bdf8'}; font-size:9.5px; font-weight:800; text-shadow:0 1px 2px #000, 1px 1px 0 #000;">
                   ${isReady ? 'READY ✓' : `${completedCount} / ${q.tasks.length}`}
                 </span>
               </div>
@@ -2657,29 +2673,252 @@ export function initGame() {
     renderInventoryModal({ profile: localProfile });
   };
 
-  window.setExchangeFilter = function (query) {
+  // ==========================================
+  // Functional AetherSwap Continental Exchange Handlers
+  // ==========================================
+  window.switchExchangeTab = function (tab) {
+    setExchangeTab(tab);
     renderExchangeModal({ profile: localProfile });
   };
 
-  window.placeExchangeBuy = function (itemId, price) {
-    const def = EQUIPMENT_CATALOG[itemId];
-    logMessage(`🌀 [AetherSwap] Placed Buy Offer: 1x ${def?.name || itemId} @ ${price} Glimmer Shards.`, 'log-solari', 'chat');
-    spawnFCT(player.x, player.y - 14, `BUY OFFER PLACED: ${def?.name || itemId}`, '#38bdf8');
-    audio.playShield();
+  window.setExchangeFilter = function (query) {
+    setExchangeFilterQuery(query);
+    renderExchangeModal({ profile: localProfile });
   };
 
-  window.placeExchangeSell = function (itemId, price) {
-    const def = EQUIPMENT_CATALOG[itemId];
-    logMessage(`🌀 [AetherSwap] Placed Sell Offer: 1x ${def?.name || itemId} @ ${price} Glimmer Shards.`, 'log-solari', 'chat');
-    spawnFCT(player.x, player.y - 14, `SELL OFFER PLACED: ${def?.name || itemId}`, '#fb923c');
-    audio.playShield();
+  window.setExchangeCategory = function (cat) {
+    setExchangeCategoryFilter(cat);
+    renderExchangeModal({ profile: localProfile });
+  };
+
+  window.closeExchangeOrderDialog = function () {
+    setExchangeOrderDialog(null);
+    renderExchangeModal({ profile: localProfile });
+  };
+
+  window.adjustOrderQty = function (delta) {
+    const d = getActiveOrderDialog();
+    if (!d) return;
+    d.qty = Math.max(1, (d.qty || 1) + delta);
+    renderExchangeModal({ profile: localProfile });
+  };
+
+  window.setOrderQty = function (val) {
+    const d = getActiveOrderDialog();
+    if (!d) return;
+    d.qty = Math.max(1, parseInt(val, 10) || 1);
+    renderExchangeModal({ profile: localProfile });
+  };
+
+  window.adjustOrderPrice = function (delta) {
+    const d = getActiveOrderDialog();
+    if (!d) return;
+    d.unitPrice = Math.max(1, (d.unitPrice || 1) + delta);
+    renderExchangeModal({ profile: localProfile });
+  };
+
+  window.setOrderPrice = function (val) {
+    const d = getActiveOrderDialog();
+    if (!d) return;
+    d.unitPrice = Math.max(1, parseInt(val, 10) || 1);
+    renderExchangeModal({ profile: localProfile });
+  };
+
+  window.resetOrderToGuidePrice = function () {
+    const d = getActiveOrderDialog();
+    if (!d) return;
+    d.unitPrice = getItemGuidePrice(d.itemId);
+    renderExchangeModal({ profile: localProfile });
+  };
+
+  window.startExchangeBuy = function (slot) {
+    setExchangeTab('search');
+    renderExchangeModal({ profile: localProfile });
+  };
+
+  window.startExchangeBuyWithItem = function (itemId) {
+    const offers = getExchangeOffers();
+    const emptySlotObj = offers.find((o) => !o.type);
+    const targetSlot = emptySlotObj ? emptySlotObj.slot : 1;
+    setExchangeOrderDialog({
+      mode: 'BUY',
+      slot: targetSlot,
+      itemId,
+      qty: 1,
+      unitPrice: getItemGuidePrice(itemId),
+    });
+    setExchangeTab('listings');
+    renderExchangeModal({ profile: localProfile });
+  };
+
+  window.startExchangeSell = function (slot) {
+    const tradable = (localProfile?.inventory || []).find((it) => {
+      const id = typeof it === 'string' ? it : it?.id;
+      return id && id !== 'solar_gold';
+    });
+    if (!tradable) {
+      logMessage('🎒 [AetherSwap] No tradable items in your 28-slot backpack to sell!', 'log-combat');
+      spawnFCT(player.x, player.y - 14, 'NO TRADABLE ITEMS', '#ef4444');
+      return;
+    }
+    const id = typeof tradable === 'string' ? tradable : tradable.id;
+    window.startExchangeSellWithItem(id, slot);
+  };
+
+  window.startExchangeSellWithItem = function (itemId, slot = null) {
+    const offers = getExchangeOffers();
+    const targetSlot = slot || (offers.find((o) => !o.type)?.slot || 1);
+    const inBag = countItemInBackpack(localProfile, itemId);
+    if (inBag <= 0) {
+      logMessage(`🎒 [AetherSwap] You do not have any ${EQUIPMENT_CATALOG[itemId]?.name || itemId} in your backpack!`, 'log-combat');
+      return;
+    }
+    setExchangeOrderDialog({
+      mode: 'SELL',
+      slot: targetSlot,
+      itemId,
+      qty: Math.min(inBag, 1),
+      unitPrice: getItemGuidePrice(itemId),
+    });
+    setExchangeTab('listings');
+    renderExchangeModal({ profile: localProfile });
+  };
+
+  window.confirmExchangeOrder = function () {
+    const d = getActiveOrderDialog();
+    if (!d) return;
+    const offers = getExchangeOffers();
+    const targetSlot = d.slot || (offers.find((o) => !o.type)?.slot || 1);
+    const slotIdx = offers.findIndex((o) => o.slot === targetSlot);
+    if (slotIdx === -1) return;
+
+    const itemDef = EQUIPMENT_CATALOG[d.itemId];
+    const totalCost = d.qty * d.unitPrice;
+
+    if (d.mode === 'BUY') {
+      const currentGold = getPlayerGold(localProfile);
+      if (currentGold < totalCost) {
+        logMessage(`❌ [AetherSwap] Insufficient Solar Gold Sovereigns (Need ${totalCost} 🪙, Have ${currentGold} 🪙)!`, 'log-combat');
+        return;
+      }
+      deductPlayerGold(localProfile, totalCost);
+      offers[slotIdx] = {
+        slot: targetSlot,
+        type: 'BUY',
+        itemId: d.itemId,
+        qty: d.qty,
+        filledQty: 0,
+        unitPrice: d.unitPrice,
+        totalPrice: totalCost,
+        progress: 10,
+        completed: false,
+        createdAt: Date.now(),
+      };
+      saveExchangeOffers(offers);
+      setExchangeOrderDialog(null);
+      audio.playShield();
+      spawnFCT(player.x, player.y - 14, `BUY ORDER PLACED (${totalCost} 🪙)`, '#38bdf8');
+      logMessage(`🌀 [AetherSwap] Placed Buy Offer in Box #${targetSlot}: ${d.qty}x ${itemDef?.name || d.itemId} @ ${d.unitPrice} 🪙 each.`, 'log-solari', 'chat');
+    } else {
+      const inBag = countItemInBackpack(localProfile, d.itemId);
+      if (inBag < d.qty) {
+        logMessage(`❌ [AetherSwap] Insufficient items in backpack (Need ${d.qty}, Have ${inBag})!`, 'log-combat');
+        return;
+      }
+      removeItemFromBackpack(localProfile, d.itemId, d.qty);
+      offers[slotIdx] = {
+        slot: targetSlot,
+        type: 'SELL',
+        itemId: d.itemId,
+        qty: d.qty,
+        filledQty: 0,
+        unitPrice: d.unitPrice,
+        totalPrice: totalCost,
+        progress: 15,
+        completed: false,
+        createdAt: Date.now(),
+      };
+      saveExchangeOffers(offers);
+      setExchangeOrderDialog(null);
+      audio.playShield();
+      spawnFCT(player.x, player.y - 14, `SELL ORDER PLACED (${d.qty}x)`, '#f59e0b');
+      logMessage(`🌀 [AetherSwap] Placed Sell Offer in Box #${targetSlot}: ${d.qty}x ${itemDef?.name || d.itemId} @ ${d.unitPrice} 🪙 each.`, 'log-solari', 'chat');
+    }
+
+    renderInventoryModal({ profile: localProfile });
+    renderExchangeModal({ profile: localProfile });
   };
 
   window.collectExchangeOffer = function (slot) {
-    logMessage(`🌀 [AetherSwap] Collected items & coins from Offer Box #${slot}!`, 'log-solari', 'chat');
-    spawnFCT(player.x, player.y - 14, `COLLECTED BOX #${slot}`, '#4ade80', true);
+    const offers = getExchangeOffers();
+    const o = offers.find((offer) => offer.slot === slot);
+    if (!o || !o.completed || !o.type) return;
+
+    const itemDef = EQUIPMENT_CATALOG[o.itemId];
+    if (o.type === 'BUY') {
+      const success = addItemToBackpack(localProfile, o.itemId, o.qty);
+      if (!success) {
+        logMessage('🎒 [AetherSwap] Backpack full! Clear space before collecting items.', 'log-combat');
+        spawnFCT(player.x, player.y - 14, 'BACKPACK FULL (28/28)', '#ef4444');
+        return;
+      }
+      logMessage(`🌀 [AetherSwap] Collected ${o.qty}x ${itemDef?.name || o.itemId} from Offer Box #${slot}!`, 'log-solari', 'chat');
+      spawnFCT(player.x, player.y - 14, `+${o.qty}x ${itemDef?.name || 'ITEM'}`, '#4ade80', true);
+    } else {
+      addPlayerGold(localProfile, o.totalPrice);
+      logMessage(`🌀 [AetherSwap] Collected ${o.totalPrice} Solar Gold Sovereigns from completed sale in Box #${slot}!`, 'log-solari', 'chat');
+      spawnFCT(player.x, player.y - 14, `+${o.totalPrice} 🪙 SOVEREIGNS`, '#facc15', true);
+    }
+
+    o.type = null;
+    o.itemId = null;
+    o.qty = 0;
+    o.filledQty = 0;
+    o.unitPrice = 0;
+    o.totalPrice = 0;
+    o.progress = 0;
+    o.completed = false;
+    saveExchangeOffers(offers);
+
     audio.playPickup();
+    renderInventoryModal({ profile: localProfile });
+    renderExchangeModal({ profile: localProfile });
   };
+
+  window.abortExchangeOffer = function (slot) {
+    const offers = getExchangeOffers();
+    const o = offers.find((offer) => offer.slot === slot);
+    if (!o || !o.type) return;
+
+    const itemDef = EQUIPMENT_CATALOG[o.itemId];
+    if (o.type === 'BUY') {
+      addPlayerGold(localProfile, o.totalPrice);
+      logMessage(`🌀 [AetherSwap] Aborted Buy Offer #${slot}. Refunded ${o.totalPrice} Solar Gold Sovereigns.`, 'log-solari', 'chat');
+      spawnFCT(player.x, player.y - 14, `REFUNDED ${o.totalPrice} 🪙`, '#38bdf8');
+    } else {
+      addItemToBackpack(localProfile, o.itemId, o.qty);
+      logMessage(`🌀 [AetherSwap] Aborted Sell Offer #${slot}. Returned ${o.qty}x ${itemDef?.name || o.itemId} to backpack.`, 'log-solari', 'chat');
+      spawnFCT(player.x, player.y - 14, `RETURNED ${itemDef?.name || 'ITEMS'}`, '#fed7aa');
+    }
+
+    o.type = null;
+    o.itemId = null;
+    o.qty = 0;
+    o.filledQty = 0;
+    o.unitPrice = 0;
+    o.totalPrice = 0;
+    o.progress = 0;
+    o.completed = false;
+    saveExchangeOffers(offers);
+
+    audio.playHurt();
+    renderInventoryModal({ profile: localProfile });
+    renderExchangeModal({ profile: localProfile });
+  };
+
+  setInterval(() => {
+    tickExchangeOffers(localProfile);
+  }, 3000);
 
   window.assignSlotAbilityInGame = function (slot, abilityId) {
     const ab = ABILITIES_CATALOG[abilityId];
@@ -8783,6 +9022,19 @@ export function initGame() {
         '#ef4444';
       const sz = e.isBoss || e.type === 'nexus' || e.type === 'outpost_nexus' || e.type === 'siege_shard' ? (isContinent ? 5 : 6) : (isContinent ? 3 : 4);
       mmCtx.fillRect(ex - (sz >> 1), ey - (sz >> 1), sz, sz);
+    }
+
+    for (const n of npcs) {
+      const nx = Math.round(cx + (n.x - player.x) * scale);
+      const ny = Math.round(cy + (n.y - player.y) * scale);
+      if (nx < 2 || nx > mw - 4 || ny < 2 || ny > mh - 4) continue;
+      mmCtx.fillStyle = '#fde047';
+      mmCtx.beginPath();
+      mmCtx.arc(nx, ny, 3, 0, Math.PI * 2);
+      mmCtx.fill();
+      mmCtx.strokeStyle = '#05070f';
+      mmCtx.lineWidth = 1;
+      mmCtx.stroke();
     }
 
     for (const rp of remotePlayers.values()) {
