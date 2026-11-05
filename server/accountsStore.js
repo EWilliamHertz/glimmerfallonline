@@ -893,8 +893,21 @@ export class AccountsStore {
     if (!acc) return false;
     this.ensureDefaultCharacter(acc);
     if (!acc.inventory) acc.inventory = [];
-    if (acc.inventory.length >= 28) return false;
-    acc.inventory.push({ id: itemId, qty: qty || 1 });
+
+    const itemDef = EQUIPMENT_CATALOG[itemId];
+    const existing = itemDef?.stackable ? acc.inventory.find((i) => (typeof i === 'string' ? i : i.id) === itemId) : null;
+    if (existing) {
+      if (typeof existing === 'string') {
+        const idx = acc.inventory.indexOf(existing);
+        acc.inventory[idx] = { id: itemId, qty: 1 + (qty || 1) };
+      } else {
+        existing.qty = (existing.qty || 1) + (qty || 1);
+      }
+    } else {
+      if (acc.inventory.length >= 28) return false;
+      acc.inventory.push({ id: itemId, qty: qty || 1 });
+    }
+
     const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
     if (ch) ch.inventory = acc.inventory;
     this.schedulePersist(acc.id, ch?.id);

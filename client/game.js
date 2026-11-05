@@ -1900,7 +1900,7 @@ export function initGame() {
     return `
       <div style="display:flex; flex-direction:column; gap:8px;">
         <div style="font-size:10px; color:#94a3b8; margin-bottom:2px;">
-          Click any continental realm below to zoom directly into its RuneScape Square Map:
+          Click any continental realm below to inspect its Square Map:
         </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; max-height:380px; overflow-y:auto; padding-right:4px;">
           ${realmOrder.map((regId) => {
@@ -1944,7 +1944,7 @@ export function initGame() {
       <div style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e293b; padding-bottom:6px;">
         <div style="display:flex; align-items:center; gap:8px;">
           <span style="font-family:var(--font-header); font-size:12.5px; color:#facc15; font-weight:bold; letter-spacing:0.5px;">
-            🗺️ RUNESCAPE STYLE WORLD ATLAS
+            🗺️ CONTINENTAL REALMS ATLAS
           </span>
           <div style="display:inline-flex; background:#070c18; border:1px solid #334155; border-radius:4px; overflow:hidden;">
             <button type="button" onclick="setAtlasViewMode('square')" style="background:${currentAtlasView === 'square' ? '#1e293b' : 'transparent'}; border:none; color:${currentAtlasView === 'square' ? '#facc15' : '#94a3b8'}; padding:3px 8px; font-size:9.5px; font-weight:bold; cursor:pointer;">
@@ -1963,7 +1963,7 @@ export function initGame() {
       </div>
 
       <div style="display:grid; grid-template-columns: 1fr 340px; gap:12px; align-items:start;">
-        <!-- Left: RuneScape Square Map Viewport with 4 Edge-Hover Scroll Bars OR Grid Overview -->
+        <!-- Left: Square Map Viewport with 4 Edge-Hover Scroll Bars OR Grid Overview -->
         <div>
           ${currentAtlasView === 'square' ? renderSquareZoneView(currentReg) : renderContinentalGridView()}
         </div>
@@ -2519,6 +2519,46 @@ export function initGame() {
     const item = EQUIPMENT_CATALOG[itemId];
     if (!item) return;
 
+    // Handle consumables!
+    if (item.slot === 'consumable') {
+      if (item.healHp) {
+        if (player.hp >= player.maxHp) {
+          spawnFCT(player.x, player.y - 14, 'HEALTH ALREADY FULL!', '#94a3b8');
+          return;
+        }
+        player.hp = Math.min(player.maxHp, player.hp + item.healHp);
+        spawnFCT(player.x, player.y - 14, `+${item.healHp} HEALTH!`, '#4ade80', true);
+        logMessage(`🧪 Consumed ${item.name} (+${item.healHp} Health)!`, 'log-gain', 'combat');
+      } else if (item.restoreGlimmer) {
+        if (player.solarCharge >= player.maxSolarCharge) {
+          spawnFCT(player.x, player.y - 14, 'GLIMMER ALREADY FULL!', '#94a3b8');
+          return;
+        }
+        player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + item.restoreGlimmer);
+        spawnFCT(player.x, player.y - 14, `+${item.restoreGlimmer} GLIMMER!`, '#38bdf8', true);
+        logMessage(`⚗️ Consumed ${item.name} (+${item.restoreGlimmer} Glimmer)!`, 'log-gain', 'combat');
+      }
+      audio.playPickup();
+      if (typeof itemObj === 'object' && itemObj.qty > 1) {
+        itemObj.qty--;
+      } else {
+        inv.splice(idx, 1);
+      }
+      localProfile.inventory = inv;
+      saveProgressionLocal();
+      updatePlayerUI();
+      renderInventoryModal({ profile: localProfile });
+      return;
+    }
+
+    // Handle currency click: display info & current stack
+    if (item.slot === 'currency') {
+      const count = typeof itemObj === 'object' && itemObj.qty ? itemObj.qty : 1;
+      logMessage(`🪙 ${item.name} (Count: ${count}): ${item.desc}`, 'log-solari', 'chat');
+      spawnFCT(player.x, player.y - 14, `${count}x ${item.name}`, '#fde047');
+      return;
+    }
+
     if (net.connected) {
       net.send({ type: 'equip_item', slotIndex: idx });
     }
@@ -2623,20 +2663,20 @@ export function initGame() {
 
   window.placeExchangeBuy = function (itemId, price) {
     const def = EQUIPMENT_CATALOG[itemId];
-    logMessage(`🏛️ [Grand Exchange] Placed Buy Offer: 1x ${def?.name || itemId} @ ${price} Glimmer Shards.`, 'log-solari', 'chat');
+    logMessage(`🌀 [AetherSwap] Placed Buy Offer: 1x ${def?.name || itemId} @ ${price} Glimmer Shards.`, 'log-solari', 'chat');
     spawnFCT(player.x, player.y - 14, `BUY OFFER PLACED: ${def?.name || itemId}`, '#38bdf8');
     audio.playShield();
   };
 
   window.placeExchangeSell = function (itemId, price) {
     const def = EQUIPMENT_CATALOG[itemId];
-    logMessage(`🏛️ [Grand Exchange] Placed Sell Offer: 1x ${def?.name || itemId} @ ${price} Glimmer Shards.`, 'log-solari', 'chat');
+    logMessage(`🌀 [AetherSwap] Placed Sell Offer: 1x ${def?.name || itemId} @ ${price} Glimmer Shards.`, 'log-solari', 'chat');
     spawnFCT(player.x, player.y - 14, `SELL OFFER PLACED: ${def?.name || itemId}`, '#fb923c');
     audio.playShield();
   };
 
   window.collectExchangeOffer = function (slot) {
-    logMessage(`🏛️ [Grand Exchange] Collected items & coins from Offer Box #${slot}!`, 'log-solari', 'chat');
+    logMessage(`🌀 [AetherSwap] Collected items & coins from Offer Box #${slot}!`, 'log-solari', 'chat');
     spawnFCT(player.x, player.y - 14, `COLLECTED BOX #${slot}`, '#4ade80', true);
     audio.playPickup();
   };
@@ -4675,27 +4715,56 @@ export function initGame() {
   // Loot Shards (Vital / Glimmer / Relic) — offline simulation mirror of server loot
   // ==========================================
   let lootSeq = 0;
-  function getOfflineEquipmentDrop(ent) {
-    const rType = String(currentRoomType || '').toLowerCase();
-    let pool = [];
-    if (rType.includes('solari')) {
-      pool = ['sunforged_greathelm', 'sunforged_hauberk', 'sunforged_greaves', 'sunforged_warhammer', 'radiant_shield_relic', 'crown_of_noon', 'ring_of_the_sun'];
-    } else if (rType.includes('terra')) {
-      pool = ['ironwood_horned_helm', 'ironwood_bark_chest', 'ironwood_thighguards', 'ironwood_spear', 'ring_of_stone', 'granite_boots'];
-    } else if (rType.includes('aether')) {
-      pool = ['chrono_astral_hood', 'chrono_astral_robes', 'chrono_astral_skirt', 'chrono_warp_staff', 'chronocore_prism', 'celestial_talisman'];
-    } else if (rType.includes('umbri')) {
-      pool = ['duskveil_shadow_mask', 'duskveil_assassin_garb', 'duskveil_void_chaps', 'duskveil_twin_daggers', 'abyssal_cloak', 'ring_of_void_leech'];
-    } else if (rType.includes('celestial') || rType.includes('warzone')) {
-      pool = ['crown_of_dawn', 'aurelius_sovereign_plate', 'aurelius_starforged_greaves', 'aurelius_morningstar_blade', 'amulet_of_fury', 'barrows_gloves', 'fire_cape', 'amulet_of_glory'];
-    } else {
-      pool = ['boots_of_haste', 'amulet_of_glory', 'vanguard_gauntlets', 'ring_of_the_sun', 'granite_boots'];
+  function getFactionBossSetDrop(ent, roomType) {
+    const rType = String(roomType || '').toLowerCase();
+    const spKey = ent?.spriteKey || '';
+    if (spKey === 'solariBoss' || rType.includes('solari')) {
+      return ['sunforged_greathelm', 'sunforged_hauberk', 'sunforged_greaves', 'sunforged_warhammer'][Math.floor(Math.random() * 4)];
     }
-    return pool[Math.floor(Math.random() * pool.length)];
+    if (spKey === 'graniteBoss' || rType.includes('terra')) {
+      return ['ironwood_horned_helm', 'ironwood_bark_chest', 'ironwood_thighguards', 'ironwood_spear'][Math.floor(Math.random() * 4)];
+    }
+    if (spKey === 'aetherBoss' || rType.includes('aether')) {
+      return ['chrono_astral_hood', 'chrono_astral_robes', 'chrono_astral_skirt', 'chrono_warp_staff'][Math.floor(Math.random() * 4)];
+    }
+    if (spKey === 'umbriBoss' || rType.includes('umbri')) {
+      return ['duskveil_shadow_mask', 'duskveil_assassin_garb', 'duskveil_void_chaps', 'duskveil_twin_daggers'][Math.floor(Math.random() * 4)];
+    }
+    if (rType.includes('celestial') || ent?.name?.includes('Aurelius')) {
+      return ['crown_of_dawn', 'aurelius_sovereign_plate', 'aurelius_starforged_greaves', 'aurelius_morningstar_blade'][Math.floor(Math.random() * 4)];
+    }
+    const allSets = [
+      'sunforged_greathelm', 'sunforged_hauberk', 'sunforged_greaves', 'sunforged_warhammer',
+      'ironwood_horned_helm', 'ironwood_bark_chest', 'ironwood_thighguards', 'ironwood_spear',
+      'chrono_astral_hood', 'chrono_astral_robes', 'chrono_astral_skirt', 'chrono_warp_staff',
+      'duskveil_shadow_mask', 'duskveil_assassin_garb', 'duskveil_void_chaps', 'duskveil_twin_daggers',
+      'crown_of_dawn', 'aurelius_sovereign_plate', 'aurelius_starforged_greaves', 'aurelius_morningstar_blade',
+    ];
+    return allSets[Math.floor(Math.random() * allSets.length)];
+  }
+
+  function getBossAccessoryDrop(ent, roomType) {
+    const accs = [
+      'amulet_of_fury', 'amulet_of_glory', 'fire_cape', 'barrows_gloves',
+      'crown_of_noon', 'chronocore_prism', 'radiant_shield_relic',
+      'celestial_talisman', 'granite_boots', 'ring_of_the_sun',
+      'ring_of_void_leech', 'ring_of_stone',
+    ];
+    return accs[Math.floor(Math.random() * accs.length)];
+  }
+
+  function getBeginnerMobDrop(roomType) {
+    const beginnerPool = [
+      'iron_broadsword', 'novice_oak_staff', 'scout_leather_tunic',
+      'scout_leather_leggings', 'iron_heater_shield', 'apprentice_focus_orb',
+      'linen_traveller_cloak', 'copper_ring', 'radiant_cape',
+      'vanguard_gauntlets', 'boots_of_haste',
+    ];
+    return beginnerPool[Math.floor(Math.random() * beginnerPool.length)];
   }
 
   function spawnOfflineLoot(ent) {
-    const count = ent.isBoss ? 4 : Math.random() < 0.55 ? 1 : 0;
+    const count = ent.isBoss ? 4 : Math.random() < 0.45 ? 1 : 0;
     for (let i = 0; i < count; i++) {
       let kind = Math.random() < 0.5 ? 'vital' : 'glimmer';
       if (ent.isBoss && i === 0) kind = 'relic';
@@ -4706,26 +4775,97 @@ export function initGame() {
         id: `loot_off_${lootSeq}`,
         kind,
         itemId: null,
+        qty: 1,
         x: ent.x + Math.cos(ang) * dist,
         y: ent.y + Math.sin(ang) * dist * 0.6,
         ttl: 28,
         age: 0,
       });
     }
-    // Equipment item drop roll
-    if (ent.isBoss || Math.random() < 0.28) {
-      const dropId = getOfflineEquipmentDrop(ent);
+
+    // 1. Stackable Currency: Solar Gold Sovereigns (all mobs drop gold!)
+    const goldQty = ent.isBoss ? (150 + Math.floor(Math.random() * 200)) : (8 + Math.floor(Math.random() * 25));
+    lootSeq++;
+    lootDrops.push({
+      id: `loot_off_${lootSeq}`,
+      kind: 'item',
+      itemId: 'solar_gold',
+      qty: goldQty,
+      x: ent.x + (Math.random() - 0.5) * 16,
+      y: ent.y + (Math.random() - 0.5) * 12,
+      ttl: 45,
+      age: 0,
+    });
+
+    // 2. Faction elemental currency
+    const rType = String(currentRoomType || '').toLowerCase();
+    let factionCurr = 'glimmer_shard';
+    let factionCurrQty = ent.isBoss ? 15 + Math.floor(Math.random() * 20) : 1 + Math.floor(Math.random() * 3);
+    if (rType.includes('aether')) factionCurr = 'chrono_gem';
+    else if (rType.includes('terra')) factionCurr = 'verdant_amber';
+    else if (rType.includes('umbri')) factionCurr = 'void_essence';
+    lootSeq++;
+    lootDrops.push({
+      id: `loot_off_${lootSeq}`,
+      kind: 'item',
+      itemId: factionCurr,
+      qty: factionCurrQty,
+      x: ent.x + (Math.random() - 0.5) * 18,
+      y: ent.y + (Math.random() - 0.5) * 14,
+      ttl: 45,
+      age: 0,
+    });
+
+    // 3. Consumables (healing salves / glimmer draughts)
+    if (ent.isBoss || Math.random() < 0.25) {
+      const potId = Math.random() < 0.5 ? 'minor_healing_salve' : 'glimmer_draught';
+      lootSeq++;
+      lootDrops.push({
+        id: `loot_off_${lootSeq}`,
+        kind: 'item',
+        itemId: potId,
+        qty: ent.isBoss ? 2 : 1,
+        x: ent.x + (Math.random() - 0.5) * 16,
+        y: ent.y + (Math.random() - 0.5) * 12,
+        ttl: 45,
+        age: 0,
+      });
+    }
+
+    // 4. Equipment Drops:
+    // User rule: set pieces drop ONLY on faction bosses (rare 15%), non-bosses get beginner gear (10%)
+    if (ent.isBoss) {
+      const isRareSet = Math.random() < 0.15;
+      const dropId = isRareSet ? getFactionBossSetDrop(ent, currentRoomType) : getBossAccessoryDrop(ent, currentRoomType);
       if (dropId) {
         lootSeq++;
         lootDrops.push({
           id: `loot_off_${lootSeq}`,
           kind: 'item',
           itemId: dropId,
-          x: ent.x + (Math.random() - 0.5) * 16,
-          y: ent.y + (Math.random() - 0.5) * 12,
-          ttl: 45,
+          qty: 1,
+          x: ent.x,
+          y: ent.y,
+          ttl: 60,
           age: 0,
         });
+      }
+    } else {
+      if (Math.random() < 0.10) {
+        const dropId = getBeginnerMobDrop(currentRoomType);
+        if (dropId) {
+          lootSeq++;
+          lootDrops.push({
+            id: `loot_off_${lootSeq}`,
+            kind: 'item',
+            itemId: dropId,
+            qty: 1,
+            x: ent.x + (Math.random() - 0.5) * 14,
+            y: ent.y + (Math.random() - 0.5) * 10,
+            ttl: 35,
+            age: 0,
+          });
+        }
       }
     }
   }
@@ -4746,15 +4886,45 @@ export function initGame() {
         const itemDef = EQUIPMENT_CATALOG[l.itemId];
         if (itemDef) {
           const inv = localProfile.inventory || [];
-          if (inv.length < 28) {
+          const existing = itemDef.stackable ? inv.find((it) => (typeof it === 'string' ? it : it.id) === l.itemId) : null;
+
+          if (existing) {
             lootDrops.splice(i, 1);
-            inv.push({ id: l.itemId, qty: 1 });
+            if (typeof existing === 'string') {
+              const idx = inv.indexOf(existing);
+              inv[idx] = { id: l.itemId, qty: 1 + (l.qty || 1) };
+            } else {
+              existing.qty = (existing.qty || 1) + (l.qty || 1);
+            }
             localProfile.inventory = inv;
             saveProgressionLocal();
             audio.playPickup();
-            const isBarrows = itemDef.rarity.includes('Barrows') || itemDef.rarity.includes('Apex') || itemDef.rarity.includes('Mythic');
-            spawnFCT(player.x, player.y - 14, `✦ ${itemDef.name.toUpperCase()} (GEAR)`, isBarrows ? '#facc15' : '#38bdf8', isBarrows);
-            spawnSparkBurst(l.x, l.y, isBarrows ? ['#facc15', '#fef08a', '#ffffff'] : ['#38bdf8', '#bae6fd', '#ffffff'], 12);
+
+            let fctText = `✦ ${itemDef.name.toUpperCase()}`;
+            if (itemDef.slot === 'currency') fctText = `+${l.qty || 1} ${itemDef.name.toUpperCase()}`;
+            else if (itemDef.slot === 'consumable') fctText = `+${l.qty || 1} ${itemDef.name.toUpperCase()}`;
+
+            spawnFCT(player.x, player.y - 14, fctText, itemDef.slot === 'currency' ? '#fde047' : '#4ade80');
+            spawnSparkBurst(l.x, l.y, ['#fde047', '#ffffff'], 8);
+            updatePlayerUI();
+            if (document.getElementById('inventory-modal')?.style.display === 'block') {
+              renderInventoryModal({ profile: localProfile });
+            }
+          } else if (inv.length < 28) {
+            lootDrops.splice(i, 1);
+            inv.push({ id: l.itemId, qty: l.qty || 1 });
+            localProfile.inventory = inv;
+            saveProgressionLocal();
+            audio.playPickup();
+
+            const isSet = itemDef.rarity.includes('Set') || itemDef.rarity.includes('Apex');
+            let fctText = `✦ ${itemDef.name.toUpperCase()}`;
+            if (itemDef.slot === 'currency') fctText = `+${l.qty || 1} ${itemDef.name.toUpperCase()}`;
+            else if (itemDef.slot === 'consumable') fctText = `+${l.qty || 1} ${itemDef.name.toUpperCase()}`;
+            else if (isSet) fctText = `✦ ${itemDef.name.toUpperCase()} (SET PIECE)`;
+
+            spawnFCT(player.x, player.y - 14, fctText, isSet ? '#facc15' : itemDef.slot === 'currency' ? '#fde047' : itemDef.slot === 'consumable' ? '#4ade80' : '#38bdf8', isSet);
+            spawnSparkBurst(l.x, l.y, isSet ? ['#facc15', '#fef08a', '#ffffff'] : ['#38bdf8', '#bae6fd', '#ffffff'], 12);
             updatePlayerUI();
             if (document.getElementById('inventory-modal')?.style.display === 'block') {
               renderInventoryModal({ profile: localProfile });
@@ -4839,6 +5009,17 @@ export function initGame() {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(def.icon, sx, cy - 8);
+      }
+      if (l.qty && l.qty > 1) {
+        ctx.save();
+        ctx.font = 'bold 9px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#05070f';
+        ctx.fillText(`x${l.qty}`, sx + 1, cy - 16);
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillText(`x${l.qty}`, sx, cy - 17);
+        ctx.restore();
       }
     }
   }
@@ -6779,7 +6960,6 @@ export function initGame() {
     if (key === 'c') window.toggleModal('char-modal');
     if (key === 'g') window.toggleModal('account-modal');
     if (key === 'o') window.toggleModal('social-modal');
-    if (key === 'h') window.openFrontpage();
     if (key === 'l') window.openQuestLog();
   }, true);
 

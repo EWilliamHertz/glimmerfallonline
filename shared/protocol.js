@@ -661,199 +661,199 @@ export const EQUIPMENT_CATALOG = {
   },
 
   // ==========================================
-  // RUNESCAPE-INSPIRED BARROWS SETS & EQUIPMENT SLOTS
+  // CANONICAL CONTINENTAL SETS & EQUIPMENT SLOTS
   // ==========================================
 
-  // --- 1. DHAROK-INSPIRED: SUNFORGED DAYSTAR BULWARK (SOLARI) ---
+  // --- 1. SUNFORGED DAYSTAR BULWARK (SOLARI ANCIENT SET) ---
   sunforged_greathelm: {
     id: 'sunforged_greathelm',
     slot: 'head',
     name: 'Sunforged Greathelm',
     icon: '🪖',
-    rarity: 'Barrows Set',
+    rarity: 'Continental Set',
     set: 'sunforged_daystar',
     stats: { bastion: 3, power: 1 },
-    desc: 'Heavy fluted golden helm. Part of Dharok\'s Daystar Bulwark set (+3 Bastion, +1 Power).',
+    desc: 'Heavy fluted golden helm. Part of Sunforged Daystar Bulwark set (+3 Bastion, +1 Power).',
   },
   sunforged_hauberk: {
     id: 'sunforged_hauberk',
     slot: 'body',
     name: 'Sunforged Hauberk',
     icon: '🥋',
-    rarity: 'Barrows Set',
+    rarity: 'Continental Set',
     set: 'sunforged_daystar',
     armorDark: '#d97706',
     armorHi: '#facc15',
     capeColor: '#dc2626',
     stats: { bastion: 4, power: 1 },
-    desc: 'Reinforced solar cuirass. Part of Dharok\'s Daystar Bulwark set (+4 Bastion, +1 Power).',
+    desc: 'Reinforced solar cuirass. Part of Sunforged Daystar Bulwark set (+4 Bastion, +1 Power).',
   },
   sunforged_greaves: {
     id: 'sunforged_greaves',
     slot: 'legs',
     name: 'Sunforged Greaves',
     icon: '🦿',
-    rarity: 'Barrows Set',
+    rarity: 'Continental Set',
     set: 'sunforged_daystar',
     stats: { bastion: 3, power: 1 },
-    desc: 'Heavy platelegs forged under noon sun. Part of Dharok\'s Daystar Bulwark set (+3 Bastion, +1 Power).',
+    desc: 'Heavy platelegs forged under noon sun. Part of Sunforged Daystar Bulwark set (+3 Bastion, +1 Power).',
   },
   sunforged_warhammer: {
     id: 'sunforged_warhammer',
     slot: 'weapon',
     name: 'Sunforged War-Greathammer',
     icon: '🔨',
-    rarity: 'Barrows Set',
+    rarity: 'Continental Set',
     set: 'sunforged_daystar',
     style: 'maul',
     bladeColor: '#fde047',
     hiltColor: '#92400e',
     stats: { power: 5, bastion: 2 },
-    desc: 'Crushing daystar greathammer. Part of Dharok\'s Daystar Bulwark set (+5 Power, +2 Bastion).',
+    desc: 'Crushing daystar greathammer. Part of Sunforged Daystar Bulwark set (+5 Power, +2 Bastion).',
   },
 
-  // --- 2. GUTHAN-INSPIRED: IRONWOOD PRIMORDIAL BASTION (TERRA) ---
+  // --- 2. PRIMORDIAL IRONWOOD BASTION (TERRA ANCIENT SET) ---
   ironwood_horned_helm: {
     id: 'ironwood_horned_helm',
     slot: 'head',
     name: 'Ironwood Horned Greathelm',
     icon: '🦌',
-    rarity: 'Barrows Set',
+    rarity: 'Continental Set',
     set: 'ironwood_primordial',
     stats: { bastion: 3, power: 1 },
-    desc: 'Living thornwood horned helm. Part of Guthan\'s Ironwood Bastion set (+3 Bastion, +1 Power).',
+    desc: 'Living thornwood horned helm. Part of Primordial Ironwood Bastion set (+3 Bastion, +1 Power).',
   },
   ironwood_bark_chest: {
     id: 'ironwood_bark_chest',
     slot: 'body',
     name: 'Ironwood Primordial Barkplate',
     icon: '🌿',
-    rarity: 'Barrows Set',
+    rarity: 'Continental Set',
     set: 'ironwood_primordial',
     armorDark: '#14532d',
     armorHi: '#4ade80',
     capeColor: '#15803d',
     stats: { bastion: 5, power: 1 },
-    desc: 'Thorned living bark cuirass. Part of Guthan\'s Ironwood Bastion set (+5 Bastion, +1 Power).',
+    desc: 'Thorned living bark cuirass. Part of Primordial Ironwood Bastion set (+5 Bastion, +1 Power).',
   },
   ironwood_thighguards: {
     id: 'ironwood_thighguards',
     slot: 'legs',
     name: 'Ironwood Root Cuisses',
     icon: '🪵',
-    rarity: 'Barrows Set',
+    rarity: 'Continental Set',
     set: 'ironwood_primordial',
     stats: { bastion: 3, power: 1 },
-    desc: 'Flexible petrified root legplates. Part of Guthan\'s Ironwood Bastion set (+3 Bastion, +1 Power).',
+    desc: 'Flexible petrified root legplates. Part of Primordial Ironwood Bastion set (+3 Bastion, +1 Power).',
   },
   ironwood_spear: {
     id: 'ironwood_spear',
     slot: 'weapon',
     name: 'Ironwood Leeching Spear',
     icon: '🔱',
-    rarity: 'Barrows Set',
+    rarity: 'Continental Set',
     set: 'ironwood_primordial',
     style: 'spear',
     bladeColor: '#4ade80',
     hiltColor: '#78350f',
     stats: { power: 4, bastion: 3 },
-    desc: 'Vampiric thornwood war-spear. Part of Guthan\'s Ironwood Bastion set (+4 Power, +3 Bastion).',
+    desc: 'Vampiric thornwood war-spear. Part of Primordial Ironwood Bastion set (+4 Power, +3 Bastion).',
   },
 
-  // --- 3. AHRIM-INSPIRED: CHRONO-WEAVER ASTRAL VESTMENTS (AETHER) ---
+  // --- 3. CHRONO-WEAVER ASTRAL VESTMENTS (AETHER ANCIENT SET) ---
   chrono_astral_hood: {
     id: 'chrono_astral_hood',
     slot: 'head',
     name: 'Chrono-Weaver Starlight Cowl',
     icon: '🧙',
-    rarity: 'Barrows Set',
+    rarity: 'Continental Set',
     set: 'chrono_astral',
     stats: { resonance: 3, tempo: 2 },
-    desc: 'Star-stitched continuum cowl. Part of Ahrim\'s Chrono-Vestments set (+3 Resonance, +2 Tempo).',
+    desc: 'Star-stitched continuum cowl. Part of Chrono-Weaver Astral Vestments set (+3 Resonance, +2 Tempo).',
   },
   chrono_astral_robes: {
     id: 'chrono_astral_robes',
     slot: 'body',
     name: 'Chrono-Weaver Robe Top',
     icon: '🌌',
-    rarity: 'Barrows Set',
+    rarity: 'Continental Set',
     set: 'chrono_astral',
     armorDark: '#0369a1',
     armorHi: '#38bdf8',
     capeColor: '#1d4ed8',
     stats: { resonance: 4, tempo: 2 },
-    desc: 'Flowing astral continuum robes. Part of Ahrim\'s Chrono-Vestments set (+4 Resonance, +2 Tempo).',
+    desc: 'Flowing astral continuum robes. Part of Chrono-Weaver Astral Vestments set (+4 Resonance, +2 Tempo).',
   },
   chrono_astral_skirt: {
     id: 'chrono_astral_skirt',
     slot: 'legs',
     name: 'Chrono-Weaver Robe Skirt',
     icon: '🥻',
-    rarity: 'Barrows Set',
+    rarity: 'Continental Set',
     set: 'chrono_astral',
     stats: { resonance: 3, tempo: 1 },
-    desc: 'Pleated starlight robe skirt. Part of Ahrim\'s Chrono-Vestments set (+3 Resonance, +1 Tempo).',
+    desc: 'Pleated starlight robe skirt. Part of Chrono-Weaver Astral Vestments set (+3 Resonance, +1 Tempo).',
   },
   chrono_warp_staff: {
     id: 'chrono_warp_staff',
     slot: 'weapon',
     name: 'Chrono-Warp Archon Staff',
     icon: '🪄',
-    rarity: 'Barrows Set',
+    rarity: 'Continental Set',
     set: 'chrono_astral',
     style: 'staff',
     bladeColor: '#38bdf8',
     hiltColor: '#1e3a8a',
     stats: { resonance: 5, tempo: 3 },
-    desc: 'Temporal continuum catalyst staff. Part of Ahrim\'s Chrono-Vestments set (+5 Resonance, +3 Tempo).',
+    desc: 'Temporal continuum catalyst staff. Part of Chrono-Weaver Astral Vestments set (+5 Resonance, +3 Tempo).',
   },
 
-  // --- 4. KARIL-INSPIRED: DUSKVEIL SHADOW REAVER (UMBRI) ---
+  // --- 4. DUSKVEIL SHADOW REAVER (UMBRI ANCIENT SET) ---
   duskveil_shadow_mask: {
     id: 'duskveil_shadow_mask',
     slot: 'head',
     name: 'Duskveil Shadow Visage',
     icon: '🎭',
-    rarity: 'Barrows Set',
+    rarity: 'Continental Set',
     set: 'duskveil_reaver',
     stats: { power: 3, tempo: 2 },
-    desc: 'Abyssal cowl masking mortal features. Part of Karil\'s Duskveil Reaver set (+3 Power, +2 Tempo).',
+    desc: 'Abyssal cowl masking mortal features. Part of Duskveil Shadow Reaver set (+3 Power, +2 Tempo).',
   },
   duskveil_assassin_garb: {
     id: 'duskveil_assassin_garb',
     slot: 'body',
     name: 'Duskveil Shadowmail Garb',
     icon: '🧥',
-    rarity: 'Barrows Set',
+    rarity: 'Continental Set',
     set: 'duskveil_reaver',
     armorDark: '#312e81',
     armorHi: '#7c3aed',
     capeColor: '#581c87',
     stats: { power: 4, tempo: 2 },
-    desc: 'Sound-dampening dusk mailcoat. Part of Karil\'s Duskveil Reaver set (+4 Power, +2 Tempo).',
+    desc: 'Sound-dampening dusk mailcoat. Part of Duskveil Shadow Reaver set (+4 Power, +2 Tempo).',
   },
   duskveil_void_chaps: {
     id: 'duskveil_void_chaps',
     slot: 'legs',
     name: 'Duskveil Void-Stalker Chaps',
     icon: '👖',
-    rarity: 'Barrows Set',
+    rarity: 'Continental Set',
     set: 'duskveil_reaver',
     stats: { power: 3, tempo: 1 },
-    desc: 'Shadow-woven stealth chaps. Part of Karil\'s Duskveil Reaver set (+3 Power, +1 Tempo).',
+    desc: 'Shadow-woven stealth chaps. Part of Duskveil Shadow Reaver set (+3 Power, +1 Tempo).',
   },
   duskveil_twin_daggers: {
     id: 'duskveil_twin_daggers',
     slot: 'weapon',
     name: 'Duskveil Twin Soul Daggers',
     icon: '🗡️',
-    rarity: 'Barrows Set',
+    rarity: 'Continental Set',
     set: 'duskveil_reaver',
     style: 'scythe',
     bladeColor: '#e879f9',
     hiltColor: '#3b0764',
     stats: { power: 5, tempo: 3 },
-    desc: 'Paired serrated void daggers. Part of Karil\'s Duskveil Reaver set (+5 Power, +3 Tempo).',
+    desc: 'Paired serrated void daggers. Part of Duskveil Shadow Reaver set (+5 Power, +3 Tempo).',
   },
 
   // --- 5. AURELIUS THE SOVEREIGN: APEX TITAN SOVEREIGN SET ---
@@ -904,15 +904,15 @@ export const EQUIPMENT_CATALOG = {
     desc: 'The legendary greatsword of the Empyrean Sovereign (+7 Power, +3 Bastion, +3 Resonance).',
   },
 
-  // --- RUNESCAPE COMPLEMENTARY ACCESSORIES (CAPES, AMULETS, RINGS, GLOVES, BOOTS, AMMO) ---
+  // --- CANONICAL ACCESSORIES (CAPES, AMULETS, RINGS, GLOVES, BOOTS, AMMO) ---
   fire_cape: {
     id: 'fire_cape',
     slot: 'cape',
-    name: 'Molten Fire Cape',
+    name: 'Caldera Inferno Mantle',
     icon: '🌋',
-    rarity: 'Tzkal Relic',
+    rarity: 'Caldera Relic',
     stats: { power: 3, bastion: 2, tempo: 1 },
-    desc: 'Flowing animated lava cloak awarded for surviving the magma inferno (+3 Power, +2 Bastion, +1 Tempo).',
+    desc: 'Flowing animated magma mantle awarded for braving the Continental Caldera (+3 Power, +2 Bastion, +1 Tempo).',
   },
   radiant_cape: {
     id: 'radiant_cape',
@@ -935,20 +935,20 @@ export const EQUIPMENT_CATALOG = {
   amulet_of_fury: {
     id: 'amulet_of_fury',
     slot: 'neck',
-    name: 'Amulet of Fury',
+    name: 'Amulet of Solar Fury',
     icon: '📿',
     rarity: 'Legendary Onyx',
     stats: { power: 3, bastion: 3, resonance: 3, tempo: 2 },
-    desc: 'Dark onyx talisman imbued with supreme combat fury (+3 All Stats, +2 Tempo).',
+    desc: 'Dark solar talisman imbued with supreme combat fury (+3 All Stats, +2 Tempo).',
   },
   amulet_of_glory: {
     id: 'amulet_of_glory',
     slot: 'neck',
-    name: 'Amulet of Glory',
+    name: 'Amulet of Radiant Glory',
     icon: '🏅',
     rarity: 'Rare Dragonstone',
     stats: { power: 2, bastion: 1, tempo: 1 },
-    desc: 'Dragonstone pendant radiating heroic confidence (+2 Power, +1 Bastion, +1 Tempo).',
+    desc: 'Radiant sunstone pendant radiating heroic confidence (+2 Power, +1 Bastion, +1 Tempo).',
   },
   celestial_talisman: {
     id: 'celestial_talisman',
@@ -962,11 +962,11 @@ export const EQUIPMENT_CATALOG = {
   barrows_gloves: {
     id: 'barrows_gloves',
     slot: 'hands',
-    name: 'Barrows Culinaromancer Vambraces',
+    name: 'Continental Paragon Vambraces',
     icon: '🧤',
-    rarity: 'Masterpiece',
+    rarity: 'Continental Relic',
     stats: { power: 3, bastion: 3, resonance: 2 },
-    desc: 'Legendary reinforced gauntlets worn by champion slayers (+3 Power, +3 Bastion, +2 Resonance).',
+    desc: 'Masterwork battle gauntlets forged by the Continental High Council for paragon slayers (+3 Power, +3 Bastion, +2 Resonance).',
   },
   vanguard_gauntlets: {
     id: 'vanguard_gauntlets',
@@ -1049,47 +1049,198 @@ export const EQUIPMENT_CATALOG = {
     stats: { power: 3, resonance: 1 },
     desc: 'Equipped in Ammo/Relic slot. Increases critical strike damage (+3 Power, +1 Resonance).',
   },
+
+  // --- STACKABLE CONTINENTAL CURRENCIES ---
+  solar_gold: {
+    id: 'solar_gold',
+    slot: 'currency',
+    name: 'Solar Gold Sovereign',
+    icon: '🪙',
+    rarity: 'Common Currency',
+    stackable: true,
+    desc: 'Standard minted gold sovereign of the Continental Realm, accepted across all four factions and the AetherSwap Market.',
+  },
+  glimmer_shard: {
+    id: 'glimmer_shard',
+    slot: 'currency',
+    name: 'Crystalline Glimmer Shard',
+    icon: '💎',
+    rarity: 'Elemental Currency',
+    stackable: true,
+    desc: 'Pulsing crystal facet of raw continental glimmer, valued by spellcasters and AetherSwap traders.',
+  },
+  chrono_gem: {
+    id: 'chrono_gem',
+    slot: 'currency',
+    name: 'Astral Chrono-Gem',
+    icon: '🔮',
+    rarity: 'Aether Currency',
+    stackable: true,
+    desc: 'Pulsing violet temporal gem prized by the Aether Astral Enclave for temporal tuning and AetherSwap deals.',
+  },
+  verdant_amber: {
+    id: 'verdant_amber',
+    slot: 'currency',
+    name: 'Verdant Ironwood Amber',
+    icon: '🌿',
+    rarity: 'Terra Currency',
+    stackable: true,
+    desc: 'Fragrant resin fossilized from ancient ironwood boughs, used for herbal alchemy and nature barter.',
+  },
+  void_essence: {
+    id: 'void_essence',
+    slot: 'currency',
+    name: 'Abyssal Void Essence',
+    icon: '🌑',
+    rarity: 'Umbri Currency',
+    stackable: true,
+    desc: 'Condensed shadow matter harvested from banished void stalkers, highly sought after in the Umbri Undercity.',
+  },
+
+  // --- STACKABLE CONSUMABLES ---
+  minor_healing_salve: {
+    id: 'minor_healing_salve',
+    slot: 'consumable',
+    name: 'Minor Vitality Salve',
+    icon: '🧪',
+    rarity: 'Common',
+    stackable: true,
+    healHp: 35,
+    desc: 'A soothing herbal balm brewed from dawn petals. Restores +35 Health when consumed.',
+  },
+  glimmer_draught: {
+    id: 'glimmer_draught',
+    slot: 'consumable',
+    name: 'Leyline Glimmer Draught',
+    icon: '⚗️',
+    rarity: 'Common',
+    stackable: true,
+    restoreGlimmer: 40,
+    desc: 'An effervescent distilled glimmer tonic. Restores +40 Glimmer charge when consumed.',
+  },
+
+  // --- BEGINNER & INTERMEDIATE PIXELATED GEAR ---
+  iron_broadsword: {
+    id: 'iron_broadsword',
+    slot: 'weapon',
+    name: 'Iron Broadsword',
+    icon: '🗡️',
+    rarity: 'Common',
+    stats: { power: 2 },
+    style: 'sword',
+    bladeColor: '#94a3b8',
+    hiltColor: '#475569',
+    desc: 'Standard forged iron blade carried by Sanctuary recruits (+2 Power).',
+  },
+  novice_oak_staff: {
+    id: 'novice_oak_staff',
+    slot: 'weapon',
+    name: 'Novice Oak Staff',
+    icon: '🪄',
+    rarity: 'Common',
+    stats: { resonance: 2 },
+    style: 'staff',
+    bladeColor: '#38bdf8',
+    hiltColor: '#78350f',
+    desc: 'Carved oak staff channeling basic leylines (+2 Resonance).',
+  },
+  scout_leather_tunic: {
+    id: 'scout_leather_tunic',
+    slot: 'body',
+    name: 'Scout Leather Tunic',
+    icon: '🥋',
+    rarity: 'Common',
+    stats: { bastion: 2 },
+    armorDark: '#451a03',
+    armorHi: '#92400e',
+    desc: 'Supple boiled leather jerkin (+2 Bastion).',
+  },
+  scout_leather_leggings: {
+    id: 'scout_leather_leggings',
+    slot: 'legs',
+    name: 'Scout Leather Leggings',
+    icon: '👖',
+    rarity: 'Common',
+    stats: { bastion: 1, tempo: 1 },
+    desc: 'Fitted leather trousers with reinforced kneepads (+1 Bastion, +1 Tempo).',
+  },
+  iron_heater_shield: {
+    id: 'iron_heater_shield',
+    slot: 'shield',
+    name: 'Iron Heater Shield',
+    icon: '🛡️',
+    rarity: 'Common',
+    stats: { bastion: 2 },
+    desc: 'Traditional triangular shield with iron rim (+2 Bastion).',
+  },
+  apprentice_focus_orb: {
+    id: 'apprentice_focus_orb',
+    slot: 'shield',
+    name: 'Apprentice Focus Orb',
+    icon: '🔮',
+    rarity: 'Common',
+    stats: { resonance: 2 },
+    desc: 'Pulsing arcane orb held in the off-hand (+2 Resonance).',
+  },
+  linen_traveller_cloak: {
+    id: 'linen_traveller_cloak',
+    slot: 'cape',
+    name: 'Linen Traveller Cloak',
+    icon: '🧣',
+    rarity: 'Common',
+    stats: { tempo: 1 },
+    desc: 'Simple weathered wool cape shielding from wind (+1 Tempo).',
+  },
+  copper_ring: {
+    id: 'copper_ring',
+    slot: 'ring',
+    name: 'Carved Copper Ring',
+    icon: '💍',
+    rarity: 'Common',
+    stats: { power: 1 },
+    desc: 'Simple copper band etched with beginner runes (+1 Power).',
+  },
 };
 
-export const BARROWS_SETS = {
+export const CANONICAL_SETS = {
   sunforged_daystar: {
     id: 'sunforged_daystar',
-    name: "Dharok's Daystar Bulwark",
+    name: 'Sunforged Daystar Bulwark',
     color: '#facc15',
     faction: 'Solari',
     pieces: ['sunforged_greathelm', 'sunforged_hauberk', 'sunforged_greaves', 'sunforged_warhammer'],
     bonusStats: { power: 4, bastion: 4 },
-    perkTitle: "Dharok's Daystar Wrath (4/4)",
+    perkTitle: 'Sunforged Daystar Wrath (4/4)',
     perkDesc: 'Deal up to +75% increased damage as your health drops. Below 25% HP, triggers an absorption shield equal to 40% Max HP.'
   },
   ironwood_primordial: {
     id: 'ironwood_primordial',
-    name: "Guthan's Ironwood Bastion",
+    name: 'Primordial Ironwood Bastion',
     color: '#4ade80',
     faction: 'Terra',
     pieces: ['ironwood_horned_helm', 'ironwood_bark_chest', 'ironwood_thighguards', 'ironwood_spear'],
     bonusStats: { bastion: 6, power: 2 },
-    perkTitle: "Guthan's Thorn Leech (4/4)",
+    perkTitle: 'Primordial Thorn Leech (4/4)',
     perkDesc: 'Attacks have a 25% chance to leech 100% damage back as instant Health, and permanently reflects 25% melee damage to attackers.'
   },
   chrono_astral: {
     id: 'chrono_astral',
-    name: "Ahrim's Chrono-Vestments",
+    name: 'Chrono-Weaver Astral Vestments',
     color: '#38bdf8',
     faction: 'Aether',
     pieces: ['chrono_astral_hood', 'chrono_astral_robes', 'chrono_astral_skirt', 'chrono_warp_staff'],
     bonusStats: { resonance: 5, tempo: 4 },
-    perkTitle: "Ahrim's Temporal Cascade (4/4)",
+    perkTitle: 'Chrono-Weaver Temporal Cascade (4/4)',
     perkDesc: 'Cast speed +25%, ability cooldowns reduced by 25%, and Rites have a 25% chance to cast an instant duplicate echo.'
   },
   duskveil_reaver: {
     id: 'duskveil_reaver',
-    name: "Karil's Duskveil Reaver",
+    name: 'Duskveil Shadow Reaver',
     color: '#c084fc',
     faction: 'Umbri',
     pieces: ['duskveil_shadow_mask', 'duskveil_assassin_garb', 'duskveil_void_chaps', 'duskveil_twin_daggers'],
     bonusStats: { power: 5, tempo: 3 },
-    perkTitle: "Karil's Void Wraith (4/4)",
+    perkTitle: 'Duskveil Void Wraith (4/4)',
     perkDesc: 'Critical strike chance +18%, movement speed +15%, and slaying an enemy summons a Shadow Wraith minion for 15 seconds.'
   },
   aurelius_titan: {
@@ -1103,6 +1254,8 @@ export const BARROWS_SETS = {
     perkDesc: 'Permanent radiating Archon Aura dealing 25 Holy damage/sec to nearby enemies, +150 Max Health, and +30% Glimmer generation.'
   }
 };
+
+export const BARROWS_SETS = CANONICAL_SETS;
 
 export function getActiveSetBonuses(equipment = {}) {
   const active = [];
@@ -1817,7 +1970,7 @@ export function getEquipmentStatBonuses(equipment = {}, classId = 'solari_vangua
       }
     }
   }
-  // Add Barrows-style full set bonus stats!
+  // Add Canonical Faction full set bonus stats!
   const { active } = getActiveSetBonuses(equipment);
   for (const s of active) {
     if (s.bonusStats) {
@@ -1863,8 +2016,8 @@ export function calcCritChance(prog, equipment = {}, classId = 'solari_vanguard'
   const eff = getEffectiveStats(prog, equipment, classId);
   const paragonCrit = (prog?.paragon?.solari_radiance || 0) * 0.005;
   const { active } = getActiveSetBonuses(equipment);
-  const karilCrit = active.some((s) => s.id === 'duskveil_reaver') ? 0.18 : 0;
-  return Math.min(0.85, 0.2 + eff.tempo * 0.025 + paragonCrit + karilCrit);
+  const duskveilCrit = active.some((s) => s.id === 'duskveil_reaver') ? 0.18 : 0;
+  return Math.min(0.85, 0.2 + eff.tempo * 0.025 + paragonCrit + duskveilCrit);
 }
 
 export function calcCdMult(prog, equipment = {}, classId = 'solari_vanguard', faction = 'Solari') {
@@ -1872,8 +2025,8 @@ export function calcCdMult(prog, equipment = {}, classId = 'solari_vanguard', fa
   const aetherBonus = faction === 'Aether' ? 0.12 : 0;
   const paragonCd = (prog?.paragon?.aether_chronoflux || 0) * 0.008;
   const { active } = getActiveSetBonuses(equipment);
-  const ahrimCd = active.some((s) => s.id === 'chrono_astral') ? 0.25 : 0;
-  return Math.max(0.35, 1 - eff.tempo * 0.02 - aetherBonus - paragonCd - ahrimCd);
+  const chronoCd = active.some((s) => s.id === 'chrono_astral') ? 0.25 : 0;
+  return Math.max(0.35, 1 - eff.tempo * 0.02 - aetherBonus - paragonCd - chronoCd);
 }
 
 // Deep Water & Abyss Collision Detection

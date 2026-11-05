@@ -1,10 +1,10 @@
 // ==========================================
-// GlimmerFall Online 2D — RuneScape-Inspired Equipment, 28-Slot Inventory & Grand Exchange UI
+// GlimmerFall Online 2D — Canonical Equipment, 28-Slot Inventory & AetherSwap Continental Exchange UI
 // Supports:
 //   - 11 Classic Paperdoll Slots (Head, Cape, Neck, Ammo, Weapon, Body, Shield, Legs, Hands, Feet, Ring)
-//   - 5 Authentic Barrows Sets (Dharok, Guthan, Ahrim, Karil, Aurelius Titan) with active set perks
-//   - 28-Slot RuneScape Backpack with click-to-equip, item swapping & ground drops
-//   - Grand Exchange Central Trading Market Replica with 8 order slots and guide prices
+//   - 5 Canonical Faction Sets (Sunforged, Primordial, Chrono-Weaver, Duskveil, Aurelius Titan) with active set perks
+//   - 28-Slot Classic Backpack with click-to-equip, item swapping & ground drops
+//   - AetherSwap Continental Trading Market Replica with 8 order slots and guide prices
 // ==========================================
 
 import {
@@ -40,7 +40,7 @@ export const RS_SLOTS_LAYOUT = [
 ];
 
 export function getRarityColor(rarity = '') {
-  if (rarity.includes('Barrows')) return '#facc15';
+  if (rarity.includes('Continental Set') || rarity.includes('Barrows') || rarity.includes('Ancient Set')) return '#facc15';
   if (rarity.includes('Mythic') || rarity.includes('Apex')) return '#f59e0b';
   if (rarity.includes('Epic')) return '#c084fc';
   if (rarity.includes('Rare')) return '#38bdf8';
@@ -116,7 +116,7 @@ export function renderEquipmentModal({ profile }) {
         </button>
       </div>
 
-      <!-- RIGHT: Combat Bonuses & Barrows Set Perks -->
+      <!-- RIGHT: Combat Bonuses & Canonical Faction Set Perks -->
       <div style="display:flex; flex-direction:column; gap:12px;">
         <!-- Combat Stat Bonuses Breakdown -->
         <div style="background:#141210; border:2px solid #57534e; border-radius:4px; padding:10px 12px;">
@@ -143,10 +143,10 @@ export function renderEquipmentModal({ profile }) {
           </div>
         </div>
 
-        <!-- Barrows-Style Set Bonuses -->
+        <!-- Canonical Ancient Faction Set Bonuses -->
         <div style="background:#141210; border:2px solid #57534e; border-radius:4px; padding:10px 12px; flex:1;">
           <div style="font-family:var(--font-header); font-size:10px; color:#facc15; margin-bottom:8px; border-bottom:1px solid #292524; padding-bottom:4px; display:flex; justify-content:space-between;">
-            <span>🛡️ ANCIENT BARROWS SET BONUSES</span>
+            <span>🛡️ ANCIENT FACTION SET BONUSES</span>
             <span style="color:${activeSets.length > 0 ? '#4ade80' : '#78716c'}; font-size:8.5px;">
               ${activeSets.length > 0 ? `✨ ${activeSets.length} ACTIVE` : 'NONE ACTIVE'}
             </span>
@@ -167,29 +167,44 @@ export function renderEquipmentModal({ profile }) {
             </div>
           ` : ''}
 
-          <!-- All Sets Catalog & Current Progress -->
+          <!-- Equipped In-Progress Sets (Only show if at least 1 piece is worn!) -->
           <div style="display:flex; flex-direction:column; gap:6px;">
-            ${Object.values(BARROWS_SETS).map((s) => {
+            ${(() => {
               const equippedIds = new Set(Object.values(equip));
-              const matchCount = s.pieces.filter((p) => equippedIds.has(p)).length;
-              if (matchCount === s.pieces.length) return ''; // Already rendered active above
+              const inProgressSets = Object.values(BARROWS_SETS).filter((s) => {
+                const count = s.pieces.filter((p) => equippedIds.has(p)).length;
+                return count > 0 && count < s.pieces.length;
+              });
 
-              return `
-                <div style="background:#181512; border:1px solid ${matchCount > 0 ? '#78350f' : '#292524'}; border-radius:3px; padding:6px 8px; font-size:8.5px;">
-                  <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="color:${s.color}; font-weight:700;">${s.name}</span>
-                    <span style="color:${matchCount >= 2 ? '#fde047' : '#78716c'}; font-weight:700;">${matchCount} / ${s.pieces.length} Pieces</span>
+              if (inProgressSets.length === 0 && activeSets.length === 0) {
+                return `
+                  <div style="color:#78716c; font-size:9px; text-align:center; padding:16px 8px; font-style:italic; line-height:1.5;">
+                    No ancient faction set pieces currently equipped.<br/>
+                    <span style="color:#a8a29e; font-size:8px;">Defeat Continental World Bosses to forge 4-piece set synergies!</span>
                   </div>
-                  <div style="color:#94a3b8; font-size:7.5px; margin-top:2px;">
-                    ${s.pieces.map((pid) => {
-                      const hasPiece = equippedIds.has(pid);
-                      const def = EQUIPMENT_CATALOG[pid];
-                      return `<span style="color:${hasPiece ? '#4ade80' : '#57534e'}; margin-right:6px;">${hasPiece ? '✓' : '✗'} ${def?.name?.replace(/^(Sunforged|Ironwood|Chrono|Duskveil|Aurelius)\s*/i, '') || pid}</span>`;
-                    }).join('')}
+                `;
+              }
+
+              return inProgressSets.map((s) => {
+                const matchCount = s.pieces.filter((p) => equippedIds.has(p)).length;
+                return `
+                  <div style="background:#181512; border:1px solid #78350f; border-radius:3px; padding:6px 8px; font-size:8.5px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <span style="color:${s.color}; font-weight:700;">${s.name}</span>
+                      <span style="color:#fde047; font-weight:700;">${matchCount} / ${s.pieces.length} Pieces Equipped</span>
+                    </div>
+                    <div style="color:#94a3b8; font-size:7.5px; margin-top:3px; display:flex; flex-wrap:wrap; gap:4px;">
+                      ${s.pieces.map((pid) => {
+                        const hasPiece = equippedIds.has(pid);
+                        const def = EQUIPMENT_CATALOG[pid];
+                        const pieceName = def?.name?.replace(/^(Sunforged|Ironwood|Chrono|Duskveil|Aurelius|Morning Star|Starforged)\s*/i, '') || pid;
+                        return `<span style="color:${hasPiece ? '#4ade80' : '#57534e'}; font-weight:${hasPiece ? '700' : '400'}; background:#0c0a09; padding:1px 4px; border-radius:2px; border:1px solid ${hasPiece ? '#15803d' : '#292524'};">${hasPiece ? '✓' : '○'} ${pieceName}</span>`;
+                      }).join('')}
+                    </div>
                   </div>
-                </div>
-              `;
-            }).join('')}
+                `;
+              }).join('');
+            })()}
           </div>
         </div>
       </div>
@@ -271,15 +286,15 @@ export function renderInventoryModal({ profile }) {
       <button class="util-btn" style="flex:1; border-color:#fb923c; color:#fed7aa;" onclick="toggleModal('equipment-modal')">
         ⚔️ WORN GEAR [K]
       </button>
-      <button class="util-btn" style="flex:1; border-color:#eab308; color:#fde047;" onclick="toggleModal('exchange-modal')">
-        🏛️ GRAND EXCHANGE [X]
+      <button class="util-btn" style="flex:1; border-color:#38bdf8; color:#7dd3fc;" onclick="toggleModal('exchange-modal')">
+        🌀 AETHERSWAP [X]
       </button>
     </div>
   `;
 }
 
 // ==========================================
-// 3. RUNESCAPE GRAND EXCHANGE REPLICA [X]
+// 3. AETHERSWAP CONTINENTAL EXCHANGE [X]
 // ==========================================
 let currentExchangeFilter = '';
 
@@ -290,9 +305,9 @@ export function renderExchangeModal({ profile }) {
   const allItems = Object.values(EQUIPMENT_CATALOG);
   const filtered = currentExchangeFilter
     ? allItems.filter((it) => it.name.toLowerCase().includes(currentExchangeFilter.toLowerCase()) || it.slot.toLowerCase().includes(currentExchangeFilter.toLowerCase()))
-    : allItems.slice(0, 16);
+    : allItems.slice(0, 20);
 
-  // Simulated player active GE offers (8 slots)
+  // Simulated player active AetherSwap offers (8 slots)
   const offers = [
     { slot: 1, type: 'BUY', item: EQUIPMENT_CATALOG.sunforged_greathelm, qty: 1, totalQty: 1, price: 350, completed: true },
     { slot: 2, type: 'SELL', item: EQUIPMENT_CATALOG.boots_of_haste, qty: 1, totalQty: 1, price: 120, completed: false },
@@ -305,18 +320,18 @@ export function renderExchangeModal({ profile }) {
   ];
 
   container.innerHTML = `
-    <!-- GE Clerk Dialogue & Market Banner -->
-    <div style="display:flex; justify-content:space-between; align-items:center; background:#141210; border:2px solid #78350f; border-radius:4px; padding:10px 14px; margin-bottom:12px;">
+    <!-- AetherSwap Enclave Dialogue & Market Banner -->
+    <div style="display:flex; justify-content:space-between; align-items:center; background:#0b1329; border:2px solid #0284c7; border-radius:4px; padding:10px 14px; margin-bottom:12px;">
       <div style="display:flex; align-items:center; gap:10px;">
-        <div style="font-size:28px;">🏛️</div>
+        <div style="font-size:28px;">🌀</div>
         <div style="font-size:10px; line-height:1.45;">
-          <b style="color:#fde047; font-family:var(--font-header);">Grand Exchange Central Market (Varrock Replica)</b>
-          <div style="color:#cbd5e1; font-size:8.5px;">Trade equipment, Barrows pieces, and relics with all champions across realms. 2% Glimmer sales tax applied.</div>
+          <b style="color:#7dd3fc; font-family:var(--font-header);">AetherSwap Continental Exchange (All Factions Alliance)</b>
+          <div style="color:#cbd5e1; font-size:8.5px;">An invention of the Aether Astral Enclave to broker seamless trading and alliance commerce across all factions in the Shattered Nexus. Trade faction armor, weapons, currencies, and rare relics with champions from all realms. (2% Glimmer sales tax applied)</div>
         </div>
       </div>
       <div style="text-align:right;">
-        <span style="font-size:8.5px; color:#94a3b8;">Realm Economy:</span>
-        <div style="color:#4ade80; font-weight:700; font-size:10px;">🟢 ACTIVE (50+ ITEMS)</div>
+        <span style="font-size:8.5px; color:#94a3b8;">Continental Economy:</span>
+        <div style="color:#4ade80; font-weight:700; font-size:10px;">🟢 ACTIVE (ALL FACTIONS)</div>
       </div>
     </div>
 
@@ -375,7 +390,7 @@ export function renderExchangeModal({ profile }) {
         </span>
         <input id="rs-ge-search-input"
                type="text"
-               placeholder="Search weapon, barrows, ring, armor..."
+               placeholder="Search weapon, set, currency, armor, potion..."
                value="${currentExchangeFilter}"
                oninput="window.setExchangeFilter(this.value)"
                style="background:#090f20; border:1px solid #57534e; color:#f8fafc; padding:3px 8px; font-size:9px; border-radius:3px; width:220px;" />
@@ -384,7 +399,7 @@ export function renderExchangeModal({ profile }) {
       <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:6px; max-height:220px; overflow-y:auto; padding-right:4px;">
         ${filtered.map((it) => {
           const borderCol = getRarityColor(it.rarity);
-          const guidePrice = it.rarity.includes('Barrows') ? 480 : it.rarity.includes('Apex') ? 1200 : it.rarity.includes('Relic') ? 320 : 95;
+          const guidePrice = it.rarity.includes('Set') ? 480 : it.rarity.includes('Apex') ? 1200 : it.rarity.includes('Relic') ? 320 : it.slot === 'currency' ? 10 : 95;
 
           return `
             <div style="background:#1c1917; border:1px solid ${borderCol}; border-radius:3px; padding:6px 8px; display:flex; justify-content:space-between; align-items:center;">

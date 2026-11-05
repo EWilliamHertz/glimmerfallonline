@@ -3571,38 +3571,96 @@ export class RoomManager {
     }
   }
 
-  getEquipmentDropForEntity(room, ent) {
+  getFactionBossSetDrop(room, ent) {
     const rType = String(room?.type || '').toLowerCase();
-    let pool = [];
-    if (rType.includes('solari')) {
-      pool = ['sunforged_greathelm', 'sunforged_hauberk', 'sunforged_greaves', 'sunforged_warhammer', 'radiant_shield_relic', 'crown_of_noon', 'ring_of_the_sun'];
-    } else if (rType.includes('terra')) {
-      pool = ['ironwood_horned_helm', 'ironwood_bark_chest', 'ironwood_thighguards', 'ironwood_spear', 'ring_of_stone', 'granite_boots'];
-    } else if (rType.includes('aether')) {
-      pool = ['chrono_astral_hood', 'chrono_astral_robes', 'chrono_astral_skirt', 'chrono_warp_staff', 'chronocore_prism', 'celestial_talisman'];
-    } else if (rType.includes('umbri')) {
-      pool = ['duskveil_shadow_mask', 'duskveil_assassin_garb', 'duskveil_void_chaps', 'duskveil_twin_daggers', 'abyssal_cloak', 'ring_of_void_leech'];
-    } else if (rType.includes('celestial') || rType.includes('warzone')) {
-      pool = ['crown_of_dawn', 'aurelius_sovereign_plate', 'aurelius_starforged_greaves', 'aurelius_morningstar_blade', 'amulet_of_fury', 'barrows_gloves', 'fire_cape', 'amulet_of_glory'];
-    } else {
-      pool = ['boots_of_haste', 'amulet_of_glory', 'vanguard_gauntlets', 'ring_of_the_sun', 'granite_boots'];
+    const spKey = ent?.spriteKey || '';
+    if (spKey === 'solariBoss' || rType.includes('solari')) {
+      return ['sunforged_greathelm', 'sunforged_hauberk', 'sunforged_greaves', 'sunforged_warhammer'][Math.floor(Math.random() * 4)];
     }
-    return pool[Math.floor(Math.random() * pool.length)];
+    if (spKey === 'graniteBoss' || rType.includes('terra')) {
+      return ['ironwood_horned_helm', 'ironwood_bark_chest', 'ironwood_thighguards', 'ironwood_spear'][Math.floor(Math.random() * 4)];
+    }
+    if (spKey === 'aetherBoss' || rType.includes('aether')) {
+      return ['chrono_astral_hood', 'chrono_astral_robes', 'chrono_astral_skirt', 'chrono_warp_staff'][Math.floor(Math.random() * 4)];
+    }
+    if (spKey === 'umbriBoss' || rType.includes('umbri')) {
+      return ['duskveil_shadow_mask', 'duskveil_assassin_garb', 'duskveil_void_chaps', 'duskveil_twin_daggers'][Math.floor(Math.random() * 4)];
+    }
+    if (rType.includes('celestial') || ent?.name?.includes('Aurelius')) {
+      return ['crown_of_dawn', 'aurelius_sovereign_plate', 'aurelius_starforged_greaves', 'aurelius_morningstar_blade'][Math.floor(Math.random() * 4)];
+    }
+    const allSets = [
+      'sunforged_greathelm', 'sunforged_hauberk', 'sunforged_greaves', 'sunforged_warhammer',
+      'ironwood_horned_helm', 'ironwood_bark_chest', 'ironwood_thighguards', 'ironwood_spear',
+      'chrono_astral_hood', 'chrono_astral_robes', 'chrono_astral_skirt', 'chrono_warp_staff',
+      'duskveil_shadow_mask', 'duskveil_assassin_garb', 'duskveil_void_chaps', 'duskveil_twin_daggers',
+      'crown_of_dawn', 'aurelius_sovereign_plate', 'aurelius_starforged_greaves', 'aurelius_morningstar_blade',
+    ];
+    return allSets[Math.floor(Math.random() * allSets.length)];
+  }
+
+  getBossAccessoryDrop(room, ent) {
+    const accs = [
+      'amulet_of_fury', 'amulet_of_glory', 'fire_cape', 'barrows_gloves',
+      'crown_of_noon', 'chronocore_prism', 'radiant_shield_relic',
+      'celestial_talisman', 'granite_boots', 'ring_of_the_sun',
+      'ring_of_void_leech', 'ring_of_stone',
+    ];
+    return accs[Math.floor(Math.random() * accs.length)];
+  }
+
+  getBeginnerMobDrop(room) {
+    const beginnerPool = [
+      'iron_broadsword', 'novice_oak_staff', 'scout_leather_tunic',
+      'scout_leather_leggings', 'iron_heater_shield', 'apprentice_focus_orb',
+      'linen_traveller_cloak', 'copper_ring', 'radiant_cape',
+      'vanguard_gauntlets', 'boots_of_haste',
+    ];
+    return beginnerPool[Math.floor(Math.random() * beginnerPool.length)];
   }
 
   spawnLootDrops(room, ent) {
-    const count = ent.isBoss ? 4 : Math.random() < 0.55 ? 1 : 0;
     if (!room.loot) room.loot = [];
     const drops = [];
+
+    // Vital / Glimmer recovery orbs
+    const count = ent.isBoss ? 4 : Math.random() < 0.45 ? 1 : 0;
     for (let i = 0; i < count; i++) {
       let kind = Math.random() < 0.5 ? 'vital' : 'glimmer';
       if (ent.isBoss && i === 0) kind = 'relic';
-      drops.push({ kind, itemId: null });
+      drops.push({ kind, itemId: null, qty: 1 });
     }
-    const dropItem = ent.isBoss || Math.random() < 0.28;
-    if (dropItem) {
-      const dropId = this.getEquipmentDropForEntity(room, ent);
-      if (dropId) drops.push({ kind: 'item', itemId: dropId });
+
+    // 1. Stackable Currency: Solar Gold Sovereigns (all mobs drop gold!)
+    const goldQty = ent.isBoss ? (150 + Math.floor(Math.random() * 200)) : (8 + Math.floor(Math.random() * 25));
+    drops.push({ kind: 'item', itemId: 'solar_gold', qty: goldQty });
+
+    // 2. Faction elemental currency
+    const rType = String(room?.type || '').toLowerCase();
+    let factionCurr = 'glimmer_shard';
+    let factionCurrQty = ent.isBoss ? 15 + Math.floor(Math.random() * 20) : 1 + Math.floor(Math.random() * 3);
+    if (rType.includes('aether')) factionCurr = 'chrono_gem';
+    else if (rType.includes('terra')) factionCurr = 'verdant_amber';
+    else if (rType.includes('umbri')) factionCurr = 'void_essence';
+    drops.push({ kind: 'item', itemId: factionCurr, qty: factionCurrQty });
+
+    // 3. Consumables (healing salves / glimmer draughts)
+    if (ent.isBoss || Math.random() < 0.25) {
+      const potId = Math.random() < 0.5 ? 'minor_healing_salve' : 'glimmer_draught';
+      drops.push({ kind: 'item', itemId: potId, qty: ent.isBoss ? 2 : 1 });
+    }
+
+    // 4. Equipment Drops:
+    // User rule: set pieces drop ONLY on faction bosses (rare 15%), non-bosses get beginner gear (10%)
+    if (ent.isBoss) {
+      const isRareSet = Math.random() < 0.15;
+      const dropId = isRareSet ? this.getFactionBossSetDrop(room, ent) : this.getBossAccessoryDrop(room, ent);
+      if (dropId) drops.push({ kind: 'item', itemId: dropId, qty: 1 });
+    } else {
+      if (Math.random() < 0.10) {
+        const dropId = this.getBeginnerMobDrop(room);
+        if (dropId) drops.push({ kind: 'item', itemId: dropId, qty: 1 });
+      }
     }
 
     drops.forEach((d, i) => {
@@ -3613,6 +3671,7 @@ export class RoomManager {
         id: `loot_${room.lootSeq}`,
         kind: d.kind,
         itemId: d.itemId || null,
+        qty: d.qty || 1,
         x: Math.round((ent.x + Math.cos(ang) * dist) * 10) / 10,
         y: Math.round((ent.y + Math.sin(ang) * dist * 0.6) * 10) / 10,
         ttl: d.kind === 'item' ? 45 : 28,
@@ -3646,24 +3705,29 @@ export class RoomManager {
       if (l.kind === 'item') {
         const itemDef = EQUIPMENT_CATALOG[l.itemId];
         if (itemDef) {
-          const added = this.accounts.addItemToInventory(taker.id, l.itemId, 1);
+          const added = this.accounts.addItemToInventory(taker.id, l.itemId, l.qty || 1);
           if (added) {
             room.loot.splice(i, 1);
             this.refreshClientFromAccount(taker.id);
-            const isBarrows = itemDef.rarity.includes('Barrows') || itemDef.rarity.includes('Apex') || itemDef.rarity.includes('Mythic');
+            const isSet = itemDef.rarity.includes('Set') || itemDef.rarity.includes('Apex');
+            let fctText = `✦ ${itemDef.name.toUpperCase()}`;
+            if (itemDef.slot === 'currency') fctText = `+${l.qty || 1} ${itemDef.name.toUpperCase()}`;
+            else if (itemDef.slot === 'consumable') fctText = `+${l.qty || 1} ${itemDef.name.toUpperCase()}`;
+            else if (isSet) fctText = `✦ ${itemDef.name.toUpperCase()} (SET PIECE)`;
+
             room.fxQueue.push({
               kind: 'fct',
               x: taker.x,
               y: taker.y - 14,
-              text: `✦ ${itemDef.name.toUpperCase()} (GEAR)`,
-              color: isBarrows ? '#facc15' : '#38bdf8',
-              isCrit: isBarrows,
+              text: fctText,
+              color: isSet ? '#facc15' : itemDef.slot === 'currency' ? '#fde047' : itemDef.slot === 'consumable' ? '#4ade80' : '#38bdf8',
+              isCrit: isSet,
             });
             room.fxQueue.push({
               kind: 'spark',
               x: l.x,
               y: l.y,
-              colors: isBarrows ? ['#facc15', '#fef08a', '#ffffff'] : ['#38bdf8', '#bae6fd', '#ffffff'],
+              colors: isSet ? ['#facc15', '#fef08a', '#ffffff'] : ['#38bdf8', '#bae6fd', '#ffffff'],
               count: 12,
             });
           } else {

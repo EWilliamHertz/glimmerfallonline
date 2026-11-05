@@ -60,24 +60,29 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
 - [x] Synchronize Paragon stats authoritatively across both Single Player and Multiplayer realms.
 - [x] Remove room transition lag & rubberbanding (client prediction preserved, movement packets unlocked during transitions).
 
-#### Day 1B — RuneScape Worn Equipment System & Barrows Sets *(COMPLETED)*
-- [x] Replaced legacy Relic modal with authentic RuneScape Worn Equipment screen on key `[K]`.
-- [x] Implemented all 11 paperdoll slots (`head`, `cape`, `neck`, `ammo`, `weapon`, `body`, `shield`, `legs`, `hands`, `feet`, `ring`) with authentic silhouette placeholders.
-- [x] Authored 5 authentic Barrows-style sets with 4-piece set perks and bonus combat stats:
-  * **Dharok's Daystar Bulwark (Solari)**: `sunforged_greathelm`, `sunforged_hauberk`, `sunforged_greaves`, `sunforged_warhammer` (Perk: +75% damage as HP drops; below 25% HP triggers 40% Max HP absorption shield).
-  * **Guthan's Ironwood Bastion (Terra)**: `ironwood_horned_helm`, `ironwood_bark_chest`, `ironwood_thighguards`, `ironwood_spear` (Perk: 25% chance to leech 100% damage as instant HP + 25% melee damage reflection).
-  * **Ahrim's Chrono-Vestments (Aether)**: `chrono_astral_hood`, `chrono_astral_robes`, `chrono_astral_skirt`, `chrono_warp_staff` (Perk: -25% cooldowns, -25% cast time, 25% chance for spell duplicate echo).
-  * **Karil's Duskveil Reaver (Umbri)**: `duskveil_shadow_mask`, `duskveil_assassin_garb`, `duskveil_void_chaps`, `duskveil_twin_daggers` (Perk: +18% crit, +15% move speed, slaying enemies summons a Shadow Wraith minion).
+#### Day 1B — Canonical Equipment Paperdoll & Continental Faction Sets *(COMPLETED)*
+- [x] Replaced legacy Relic modal with authentic Canonical Worn Equipment screen on key `[K]`.
+- [x] Implemented all 11 paperdoll slots (`head`, `cape`, `neck`, `ammo`, `weapon`, `body`, `shield`, `legs`, `hands`, `feet`, `ring`) with silhouette placeholders.
+- [x] Authored 5 canonical GlimmerFall faction sets with 4-piece set perks and bonus combat stats:
+  * **Sunforged Daystar Bulwark (Solari)**: `sunforged_greathelm`, `sunforged_hauberk`, `sunforged_greaves`, `sunforged_warhammer` (Perk: +75% damage as HP drops; below 25% HP triggers 40% Max HP absorption shield).
+  * **Primordial Ironwood Bastion (Terra)**: `ironwood_horned_helm`, `ironwood_bark_chest`, `ironwood_thighguards`, `ironwood_spear` (Perk: 25% chance to leech 100% damage as instant HP + 25% melee damage reflection).
+  * **Chrono-Weaver Astral Vestments (Aether)**: `chrono_astral_hood`, `chrono_astral_robes`, `chrono_astral_skirt`, `chrono_warp_staff` (Perk: -25% cooldowns, -25% cast time, 25% chance for spell duplicate echo).
+  * **Duskveil Shadow Reaver (Umbri)**: `duskveil_shadow_mask`, `duskveil_assassin_garb`, `duskveil_void_chaps`, `duskveil_twin_daggers` (Perk: +18% crit, +15% move speed, slaying enemies summons a Shadow Wraith minion).
   * **Aurelius Sovereign Titan (Apex)**: `crown_of_dawn`, `aurelius_sovereign_plate`, `aurelius_starforged_greaves`, `aurelius_morningstar_blade` (Perk: Radiating Archon Holy Aura 25 DMG/s, +150 Max HP, +30% Glimmer generation).
+- [x] Equipment screen dynamically hides unequipped sets: only equipped sets (1-4 pieces) appear with progress, keeping the UI clean.
+- [x] Late-game boss drop rates: set pieces drop ONLY on faction bosses (rare 15%), while regular mobs drop beginner pixelated equipment (10%) and stackable currencies.
 - [x] Real-time 24x26 pixel paperdoll animation reflecting equipped weapons and armors.
 - [x] Combat Stat Bonuses window calculating Attack/Power, Defense/Bastion, Magic/Resonance, Speed/Tempo, Crit %, HP, and Damage Reduction.
 
-#### Day 1C — RuneScape 28-Slot Inventory System & Gear Grinding *(COMPLETED)*
+#### Day 1C — 28-Slot Inventory System, Stackable Currencies & Consumables *(COMPLETED)*
 - [x] 10th Micro-Menu Dock Slot: `🎒 BAG [B]` positioned in the bottom-right corner of the 2x5 micro-menu.
-- [x] 28-Slot RuneScape backpack grid (4 columns x 7 rows) with capacity counter.
+- [x] 28-Slot backpack grid (4 columns x 7 rows) with capacity counter and quantity stack badges.
+- [x] Multi-Currency Economy: Invented canon `Solar Gold Sovereign` (`solar_gold` 🪙) alongside faction currencies (`glimmer_shard`, `chrono_gem`, `verdant_amber`, `void_essence`).
+- [x] Stackable Consumables: Added `minor_healing_salve` (🧪 heals +35 HP) and `glimmer_draught` (⚗️ restores +40 Glimmer).
+- [x] Beginner Gear Grinding: Pixelated iron weapons, scout leathers, novice staves, and focus orbs for starter progression.
 - [x] Item tooltips with rarity borders, slot types, set membership, stat breakdowns, and lore descriptions.
-- [x] Left-click to equip or atomic swap with currently equipped piece.
-- [x] Right-click / context action to drop items onto the ground.
+- [x] Left-click to equip or atomic swap with currently equipped piece; click consumables to use.
+- [x] Right-click / context action to drop items onto the ground with quantity counter indicators.
 - [x] Biome-specific monster and world boss equipment drops (Solari, Terra, Aether, Umbri, Warzone).
 - [x] Authoritative server & offline single-player drop roll, ground loot rendering, pickup detection, and full inventory guardrails.
 
@@ -189,15 +194,16 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
 - [ ] Dual-confirmation trade accept button to prevent trade scams.
 - [ ] Authoritative server-side inventory atomic swap.
 
-#### Day 18 — Grand Exchange Replica (RuneScape Central Market) *(IN PROGRESS / REPLICA UI COMPLETE)*
-- [x] Dedicated Grand Exchange interface modal (`[X]`) with 8 Trading Offer Slots.
-- [x] Market Guide Price catalog with live item search across all 50+ weapons, armors, and Barrows sets.
-- [x] Instant Buy Limit & Sell Limit order placement actions with Glimmer pricing.
-- [x] Grand Exchange Clerk dialog explaining cross-realm order matching and economy health.
+#### Day 18 — AetherSwap Continental Exchange (Cross-Faction Trading Alliance) *(IN PROGRESS / REPLICA UI COMPLETE)*
+- [x] Canonical Lore: An invention of the Aether Astral Enclave to broker peace and exchange across the Shattered Nexus.
+- [x] Dedicated AetherSwap interface modal (`[X]`) with 8 Trading Offer Slots.
+- [x] Market Guide Price catalog with live item search across all 50+ weapons, armors, currencies, and Canonical Faction sets.
+- [x] Instant Buy Limit & Sell Limit order placement actions with Solar Gold Sovereign and Glimmer pricing.
+- [x] AetherSwap Continental Arbiter dialog explaining cross-realm order matching and alliance trade health.
 - [ ] Multi-realm asynchronous order book matching engine across online and offline champions.
-- [ ] Grand Exchange Clerk NPCs stationed in Sanctuary Hub and Grand Bazaar.
-- [ ] Collection Box with automated Glimmer Shards and Item retrieval.
-- [ ] 2% Glimmer sales tax sink to maintain healthy realm anti-inflation.
+- [ ] AetherSwap Continental Arbiter NPCs stationed in Sanctuary Hub and Grand Bazaar.
+- [ ] Alliance Depot Box with automated currency and item retrieval.
+- [ ] 2% Solar Gold trade tariff sink to maintain healthy realm anti-inflation.
 
 #### Day 19 — Expanded Chat Channels, Player Inspect & Dueling
 - [ ] Chat channel tabs: `[All]`, `[Party]`, `[Guild]`, `[Combat]`, `[Trade]`.
