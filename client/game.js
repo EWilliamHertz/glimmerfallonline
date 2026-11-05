@@ -43,6 +43,8 @@ import {
   PARAGON_AFFINITIES,
   paragonXpForLevel,
   canUpgradeParagon,
+  TORMENT_LEVELS,
+  getTormentConfig,
   calcMaxHp,
   calcMaxGlimmer,
   calcCritChance,
@@ -891,6 +893,10 @@ export function initGame() {
   // ==========================================
   function awardXP(amount, reason = '') {
     if (amount <= 0) return;
+    const tCfg = getTormentConfig(prog.tormentLevel || 0);
+    if (tCfg.xpMult && tCfg.xpMult > 1) {
+      amount = Math.round(amount * tCfg.xpMult);
+    }
     let leveled = false;
     let paragonLeveled = false;
 
@@ -977,6 +983,28 @@ export function initGame() {
     saveProgressionLocal();
     updatePlayerUI();
     renderStatsModal();
+  };
+
+  window.setTormentLevel = function (level) {
+    const tLevel = Math.max(0, Math.min(TORMENT_LEVELS.length - 1, Math.floor(Number(level) || 0)));
+    if (tLevel > 0 && (prog.level || 1) < 30) {
+      logMessage('⚠️ Leyline Torment difficulty requires Level 30 Champion status!', 'log-combat');
+      audio.playWarning?.() || audio.playHit(false);
+      return;
+    }
+    prog.tormentLevel = tLevel;
+    const tCfg = getTormentConfig(tLevel);
+    saveProgressionLocal();
+    updateNetStatusPill();
+    renderStatsModal();
+    audio.playChime();
+    spawnSparkBurst(player.x, player.y - 10, [tCfg.color, '#facc15', '#ffffff'], 20);
+    spawnFCT(player.x, player.y - 14, `🔥 TORMENT: ${tCfg.name.toUpperCase()}`, tCfg.color, true);
+    logMessage(`[Torment] Realm difficulty set to ${tCfg.name}! ${tCfg.desc}`, 'log-solari');
+
+    if (net.connected) {
+      net.send({ type: 'set_torment', tormentLevel: tLevel });
+    }
   };
 
   window.upgradeSkillRank = function (slot) {
@@ -1638,6 +1666,11 @@ export function initGame() {
         { id: 'outpost_Aether', faction: 'Aether', name: 'Aether Astral Outpost Nexus', sub: '30 HP Aether Outpost Nexus', type: 'outpost_nexus', spriteKey: 'nexusCyan', x: 850, y: 650, origX: 850, origY: 650, hp: 30, maxHp: 30, xpReward: 200, radius: 24, hitFlash: 0 },
         // Shattered Nexus Shard
         { id: 'siege_shard', name: 'Shattered Nexus Shard', sub: '⚡ Continental Nexus Core (PvPvE)', type: 'siege_shard', isBoss: true, spriteKey: 'siegeShard', x: 0, y: 0, origX: 0, origY: 0, hp: 85, maxHp: 85, xpReward: 250, radius: 24, hitFlash: 0 },
+        // 4 Ancient Leyline Shrines [E]
+        { id: 'shrine_solari', name: 'Solari Radiant Shrine', sub: 'Ancient Leyline [E] • Radiant Wrath', type: 'shrine', affinity: 'solari', buffName: 'Solar Wrath', x: -550, y: 550, origX: -550, origY: 550, charges: 5, maxCharges: 5, radius: 20, hitFlash: 0 },
+        { id: 'shrine_umbri', name: 'Umbri Void Obelisk', sub: 'Ancient Leyline [E] • Void Leech', type: 'shrine', affinity: 'umbri', buffName: 'Void Step', x: 550, y: -550, origX: 550, origY: -550, charges: 5, maxCharges: 5, radius: 20, hitFlash: 0 },
+        { id: 'shrine_terra', name: 'Terra Bastion Monolith', sub: 'Ancient Leyline [E] • Primal Bastion', type: 'shrine', affinity: 'terra', buffName: 'Stone Ward', x: -550, y: -550, origX: -550, origY: -550, charges: 5, maxCharges: 5, radius: 20, hitFlash: 0 },
+        { id: 'shrine_aether', name: 'Aether Chrono Spire', sub: 'Ancient Leyline [E] • Chrono Surge', type: 'shrine', affinity: 'aether', buffName: 'Chrono Surge', x: 550, y: 550, origX: 550, origY: 550, charges: 5, maxCharges: 5, radius: 20, hitFlash: 0 },
         // 4 Grand World Bosses
         { id: 'terra_world_boss', name: 'Elder Ironwood Colossus', sub: '★ Lv.9 Terra Continent World Boss', type: 'mob', isBoss: true, dropGear: 'ironwood_armor', spriteKey: 'graniteBoss', x: -950, y: -850, origX: -950, origY: -850, hp: 125, maxHp: 125, damage: 7, xpReward: 260, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         { id: 'umbri_world_boss', name: 'Malakor the Soulreaper', sub: '★ Lv.9 Umbri Continent World Boss', type: 'mob', isBoss: true, dropGear: 'scythe_soulreaper', spriteKey: 'umbriBoss', x: 950, y: -850, origX: 950, origY: -850, hp: 115, maxHp: 115, damage: 8, xpReward: 260, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
@@ -1684,21 +1717,32 @@ export function initGame() {
   function updateNetStatusPill() {
     const pill = document.getElementById('net-status-pill');
     if (!pill) return;
+    const tCfg = getTormentConfig(prog.tormentLevel || 0);
+    const tormentTag = (prog.tormentLevel && prog.tormentLevel > 0)
+      ? ` • <span style="color:${tCfg.color}; font-weight:800;">[T-${prog.tormentLevel}]</span>`
+      : '';
+
     if (isSinglePlayer) {
-      pill.style.color = '#38bdf8';
-      pill.innerText = '● SINGLE PLAYER • 0ms • LOCAL REALM';
+      pill.innerHTML = `
+        <div class="net-pill-line1" style="color:#38bdf8;">● SINGLE PLAYER • 0ms${tormentTag}</div>
+        <div class="net-pill-line2">OFFLINE REALM • LOCAL INSTANT</div>
+      `;
       return;
     }
     if (!net.connected) {
-      pill.style.color = '#fbbf24';
-      pill.innerText = '● CONNECTING TO REALM...';
+      pill.innerHTML = `
+        <div class="net-pill-line1" style="color:#fbbf24;">● CONNECTING...</div>
+        <div class="net-pill-line2">ENTERING CONTINENTAL REALM</div>
+      `;
       return;
     }
     const roomPop = remotePlayers.size + 1;
     const ping = net.pingMs || 1;
     const pingColor = ping < 55 ? '#4ade80' : ping < 130 ? '#facc15' : '#f87171';
-    pill.style.color = pingColor;
-    pill.innerText = `● ONLINE • ${ping}ms • ${roomPop}/${currentRoomMax} IN ZONE (${onlineTotal} ADVENTURERS)`;
+    pill.innerHTML = `
+      <div class="net-pill-line1" style="color:${pingColor};">● ONLINE • ${ping}ms${tormentTag}</div>
+      <div class="net-pill-line2">${roomPop}/${currentRoomMax} IN ZONE • ${onlineTotal} ONLINE</div>
+    `;
   }
 
   function isRemoteHostile(rp) {
@@ -2532,6 +2576,12 @@ export function initGame() {
     spawnSmokeBurst(ent.x, ent.y, ent.isBoss ? 44 : 28);
     logMessage(`[Void Banish] ${ent.name} was cast into the Void!`, 'log-gain', 'combat');
     awardXP(ent.xpReward || 30, ent.name);
+    if (ent.isBoss) {
+      logMessage(`🏆 CONTINENTAL VICTORY: ${ent.name} has been vanquished! The Leylines surge with an Ancient Paragon Cache!`, 'log-solari', 'combat');
+      if ((prog.level || 1) >= 30) {
+        awardXP(450, 'Ancient Paragon Cache');
+      }
+    }
     if (ent.type === 'mob') spawnOfflineLoot(ent);
 
     const deathRoom = currentRoomType;
@@ -3340,13 +3390,38 @@ export function initGame() {
   };
 
   window.harvestTarget = function () {
+    // 1. Check for interactive Ancient Leyline Shrines first
+    let shrine = currentTarget && currentTarget.type === 'shrine' ? currentTarget : null;
+    if (!shrine) {
+      shrine = entities.find((e) => e.type === 'shrine' && Math.hypot(e.x - player.x, e.y - player.y) <= 7.0 * YARD_PX);
+      if (shrine) setTarget(shrine);
+    }
+    if (shrine && Math.hypot(shrine.x - player.x, shrine.y - player.y) <= 7.2 * YARD_PX) {
+      if (shrine.charges <= 0) {
+        logMessage(`[Shrine] ${shrine.name} is currently depleted. Wait for it to resonate.`, 'log-combat');
+        return;
+      }
+      audio.playChime();
+      audio.playZenith?.();
+      shrine.charges--;
+      player.shrineBuff = { affinity: shrine.affinity, name: shrine.buffName, timer: 60 };
+      spawnSparkBurst(shrine.x, shrine.y - 12, ['#facc15', '#ffffff', '#38bdf8', '#c084fc'], 32);
+      spawnFCT(player.x, player.y - 14, `✨ ${shrine.buffName.toUpperCase()} BLESSING!`, '#facc15', true);
+      logMessage(`✨ [LEYLINE BLESSING] ${shrine.name} granted ${shrine.buffName} (+Stats for 60s)!`, 'log-solari');
+      if (net.connected) {
+        net.send({ type: 'harvest_node', nodeId: shrine.id });
+      }
+      return;
+    }
+
+    // 2. Otherwise harvest Glimmer Node
     let node = currentTarget && currentTarget.type === 'node' ? currentTarget : null;
     if (!node) {
       node = entities.find((e) => e.type === 'node' && Math.hypot(e.x - player.x, e.y - player.y) <= 6.8 * YARD_PX);
       if (node) setTarget(node);
     }
     if (!node || Math.hypot(node.x - player.x, node.y - player.y) > 7.0 * YARD_PX) {
-      logMessage('[Glimmer Node] Step near a purple Glimmer Node spire first!', 'log-combat');
+      logMessage('[Glimmer Node] Step near a purple Glimmer Node or Ancient Shrine first!', 'log-combat');
       return;
     }
     audio.playChime();
@@ -4044,6 +4119,36 @@ export function initGame() {
                   ${curRank >= aff.maxRank ? 'MAX' : '+INVEST'}
                 </button>
               </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- Leyline Torment Difficulty Selection -->
+      <div style="background:#130b1c; border:2px solid #854d0e; padding:10px 12px; margin-top:8px; font-size:11px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <div>
+            <span style="color:#fbbf24; font-weight:bold; font-size:12px; font-family:var(--font-header);">🔥 LEYLINE TORMENT:</span>
+            <b style="color:${getTormentConfig(prog.tormentLevel || 0).color}; font-size:12px;">${getTormentConfig(prog.tormentLevel || 0).name}</b>
+          </div>
+          <div style="font-size:10.5px; font-weight:700;">
+            ${(prog.level || 1) >= 30 ? '<span style="color:#4ade80;">UNLOCKED</span>' : '<span style="color:#94a3b8;">REQUIRES LV. 30</span>'}
+          </div>
+        </div>
+        <div style="font-size:10px; color:#cbd5e1; margin-bottom:8px; line-height:1.4;">
+          ${getTormentConfig(prog.tormentLevel || 0).desc}
+        </div>
+        <div style="display:flex; gap:5px; flex-wrap:wrap;">
+          ${TORMENT_LEVELS.map((t) => {
+            const isCur = t.level === (prog.tormentLevel || 0);
+            const isUnlocked = t.level === 0 || (prog.level || 1) >= 30;
+            return `
+              <button class="upgrade-btn ${isCur ? 'ready' : ''}"
+                style="padding:5px 9px; font-size:10.5px; border-color:${t.color}; color:${isCur ? '#05070f' : t.color}; background:${isCur ? t.color : '#0f172a'};"
+                ${isUnlocked ? '' : 'disabled'}
+                onclick="setTormentLevel(${t.level})">
+                ${t.name}
+              </button>
             `;
           }).join('')}
         </div>
@@ -4793,20 +4898,57 @@ export function initGame() {
                 spawnSparkBurst(e.x, e.y, ['#dc2626', '#b91c1c', '#7f1d1d'], 36);
               }
 
-              // Boss Shockwave AoE Ability
-              e.abilityCooldown = (e.abilityCooldown ?? (e.enraged ? 3.5 : 6.0)) - dt;
+              // Boss Telegraphed AoE Ability (1.4-1.7s warning circle to dodge out of)
+              e.abilityCooldown = (e.abilityCooldown ?? (e.enraged ? 3.5 : 5.8)) - dt;
               if (e.abilityCooldown <= 0) {
-                e.abilityCooldown = e.enraged ? 3.5 : 6.0;
-                const shockRadius = e.enraged ? 96 : 64;
-                const shockDmg = Math.round((e.damage || 7) * (e.enraged ? 1.8 : 1.3));
-                spawnFCT(e.x, e.y - 18, e.enraged ? '💥 ENRAGED SHOCKWAVE!' : '⚡ GROUND SLAM!', e.enraged ? '#ef4444' : '#f59e0b');
-                spawnSparkBurst(e.x, e.y, [e.enraged ? '#ef4444' : '#f59e0b', '#fde047'], 22);
-                if (!player.isDead && !player.stealthed && dist <= shockRadius) {
-                  damageOfflinePlayer(shockDmg, `${e.name} Shockwave`, e);
-                  const ang = Math.atan2(player.y - e.y, player.x - e.x);
-                  player.x = Math.max(-mapBounds.halfW + 14, Math.min(mapBounds.halfW - 14, player.x + Math.cos(ang) * 20));
-                  player.y = Math.max(-mapBounds.halfH + 14, Math.min(mapBounds.halfH - 14, player.y + Math.sin(ang) * 20));
+                e.abilityCooldown = e.enraged ? 3.5 : 5.8;
+                let telLabel = e.enraged ? '💥 ENRAGED CATACLYSM' : '⚡ TITAN SLAM';
+                let telColor = e.enraged ? '#ef4444' : '#f59e0b';
+                let shockRad = e.enraged ? 98 : 70;
+                let warnDuration = 1.6;
+
+                if (e.spriteKey === 'solariBoss') {
+                  telLabel = e.enraged ? '🔥 CORONA CATACLYSM' : '☀️ SOLAR FLARE BURST';
+                  telColor = '#facc15';
+                  shockRad = e.enraged ? 102 : 74;
+                } else if (e.spriteKey === 'umbriBoss') {
+                  telLabel = e.enraged ? '💀 VOID SINGULARITY' : '🌑 SHADOW RIFT';
+                  telColor = '#a855f7';
+                  shockRad = e.enraged ? 94 : 68;
+                  warnDuration = 1.5;
+                } else if (e.spriteKey === 'graniteBoss') {
+                  telLabel = e.enraged ? '🪨 TECTONIC COLLAPSE' : '🌿 IRONWOOD SLAM';
+                  telColor = '#4ade80';
+                  shockRad = e.enraged ? 106 : 78;
+                  warnDuration = 1.7;
+                } else if (e.spriteKey === 'aetherBoss') {
+                  telLabel = e.enraged ? '🌀 CHRONO SINGULARITY' : '⚡ TEMPORAL DISRUPTION';
+                  telColor = '#38bdf8';
+                  shockRad = e.enraged ? 96 : 70;
+                  warnDuration = 1.4;
                 }
+
+                const shockDmg = Math.round((e.damage || 7) * (e.enraged ? 1.9 : 1.35));
+                const tgtX = Math.random() < 0.65 ? player.x : e.x;
+                const tgtY = Math.random() < 0.65 ? player.y : e.y;
+
+                spawnFCT(tgtX, tgtY - 14, `⚠️ ${telLabel}!`, telColor, true);
+
+                groundZones.push({
+                  id: `off_tel_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                  type: 'telegraph',
+                  color: telColor,
+                  label: telLabel,
+                  x: tgtX,
+                  y: tgtY,
+                  radius: shockRad,
+                  age: 0,
+                  maxAge: warnDuration,
+                  damage: shockDmg,
+                  bossName: e.name,
+                  bossRef: e,
+                  snare: e.spriteKey === 'graniteBoss' ? 2.0 : 0,
+                });
               }
             }
 
@@ -4899,8 +5041,38 @@ export function initGame() {
           }
         }
         if (gz.age >= (gz.maxAge || 0.45)) {
+          if (gz.type === 'telegraph') {
+            // Detonate boss telegraph
+            groundZones.push({
+              id: `off_shock_${Date.now()}`,
+              type: 'shockwave',
+              color: gz.color || '#ef4444',
+              x: gz.x,
+              y: gz.y,
+              radius: gz.radius,
+              age: 0,
+              maxAge: 0.35,
+            });
+            spawnSparkBurst(gz.x, gz.y, [gz.color || '#ef4444', '#fde047', '#ffffff'], 24);
+            audio.playHit(true);
+            if (!player.isDead && !player.stealthed && Math.hypot(player.x - gz.x, player.y - gz.y) <= gz.radius) {
+              damageOfflinePlayer(gz.damage || 14, `${gz.bossName || 'Boss'} ${gz.label || 'Cataclysm'}`, gz.bossRef);
+              const ang = Math.atan2(player.y - gz.y, player.x - gz.x);
+              player.x = Math.max(-mapBounds.halfW + 14, Math.min(mapBounds.halfW - 14, player.x + Math.cos(ang) * 24));
+              player.y = Math.max(-mapBounds.halfH + 14, Math.min(mapBounds.halfH - 14, player.y + Math.sin(ang) * 24));
+              if (gz.snare) player.snareTimer = Math.max(player.snareTimer || 0, gz.snare);
+            }
+          }
           groundZones.splice(i, 1);
         }
+      }
+    }
+
+    if (player.shrineBuff) {
+      player.shrineBuff.timer -= dt;
+      if (player.shrineBuff.timer <= 0) {
+        logMessage(`[Blessing] Your ${player.shrineBuff.name} Leyline blessing has faded.`, 'log-combat');
+        player.shrineBuff = null;
       }
     }
 
@@ -5230,6 +5402,47 @@ export function initGame() {
         ctx.beginPath();
         ctx.ellipse(gx, gy, Math.max(4, r), Math.max(3, Math.round(r * 0.68)), 0, 0, Math.PI * 2);
         ctx.stroke();
+      } else if (gz.type === 'telegraph') {
+        const r = Math.round(gz.radius || 70);
+        const ry = Math.round(r * 0.65);
+        const fillProg = Math.min(1, (gz.age || 0) / Math.max(0.1, gz.maxAge || 1.5));
+        const color = gz.color || '#ef4444';
+
+        // 1. Hazard floor aura
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.12)';
+        ctx.beginPath();
+        ctx.ellipse(gx, gy, r, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 2. Filling charge disk
+        const cr = Math.max(2, Math.round(r * fillProg));
+        const cry = Math.max(2, Math.round(ry * fillProg));
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.28)';
+        ctx.beginPath();
+        ctx.ellipse(gx, gy, cr, cry, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 3. Dashed boundary ring
+        ctx.save();
+        ctx.setLineDash([5, 4]);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(gx, gy, r, ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // 4. Countdown warning label
+        const remain = Math.max(0, (gz.maxAge || 1.5) - (gz.age || 0));
+        ctx.font = '700 10.5px Outfit, system-ui, sans-serif';
+        ctx.fillStyle = '#fde047';
+        ctx.textAlign = 'center';
+        ctx.fillText(`⚠️ ${(remain).toFixed(1)}s`, gx, gy - ry - 4);
+        if (gz.label) {
+          ctx.font = '800 9.5px Cinzel, serif';
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(gz.label, gx, gy + 3);
+        }
       }
     }
 
@@ -5416,6 +5629,9 @@ export function initGame() {
           let img = null;
           if (ent.type === 'node') {
             img = ent.charges > 0 ? sprites.node[Math.floor(globalTime * 2.5) % sprites.node.length] : sprites.nodeEmpty;
+          } else if (ent.type === 'shrine') {
+            const list = sprites.props.crystalPillar || sprites.node;
+            img = list[Math.floor(globalTime * 3.0) % list.length];
           } else if (ent.type === 'dummy') {
             img = sprites.dummy[ent.hitFlash > 0 ? 1 : 0];
           } else {
@@ -5424,6 +5640,17 @@ export function initGame() {
           }
           if (!img) return;
           drawPixelEllipseShadow(sx, sy, Math.round(img.width * 0.36), 4);
+
+          const isEnraged = Boolean(ent.enraged || ((ent.hp / (ent.maxHp || 1)) <= 0.35));
+          if (ent.isBoss && isEnraged && !ent.isDying) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.75)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(sx, sy, Math.round(img.width * 0.46), 5, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
 
           const shakeX = ent.hitFlash > 0 && ent.type !== 'dummy' ? 1 : 0;
 
@@ -5519,16 +5746,18 @@ export function initGame() {
               ctx.textAlign = 'center';
               const label = ent.type === 'dummy'
                 ? 'Training Dummy'
-                : ent.type === 'node'
-                  ? (ent.charges > 0 ? `${ent.name} [E]` : 'Depleted Node')
-                  : ent.isBoss
-                    ? `★ ${ent.name}`
-                    : ent.name;
+                : ent.type === 'shrine'
+                  ? (ent.charges > 0 ? `${ent.name} [E]` : `${ent.name} (Depleted)`)
+                  : ent.type === 'node'
+                    ? (ent.charges > 0 ? `${ent.name} [E]` : 'Depleted Node')
+                    : ent.isBoss
+                      ? (isEnraged ? `★ ${ent.name} 🔥 ENRAGED` : `★ ${ent.name}`)
+                      : ent.name;
 
               const lw = Math.ceil(ctx.measureText(label).width);
               const lpx = Math.round(sx - (lw + 8) / 2);
               const lpy = Math.round(by - (isBossOrCore ? 14 : 12));
-              const badgeColor = isBossOrCore ? '#facc15' : isTargeted ? '#38bdf8' : ent.type === 'node' ? '#c084fc' : '#ffffff';
+              const badgeColor = isBossOrCore ? (isEnraged ? '#ef4444' : '#facc15') : isTargeted ? '#38bdf8' : ent.type === 'shrine' ? '#facc15' : ent.type === 'node' ? '#c084fc' : '#ffffff';
 
               ctx.fillStyle = 'rgba(5, 7, 16, 0.88)';
               ctx.fillRect(lpx, lpy, lw + 8, isBossOrCore ? 14 : 12);
@@ -5782,13 +6011,15 @@ export function initGame() {
 
   function renderMinimap() {
     mmCtx.imageSmoothingEnabled = false;
+    const mw = minimapCanvas.width || 168;
+    const mh = minimapCanvas.height || 130;
     mmCtx.fillStyle = '#070b18';
-    mmCtx.fillRect(0, 0, 128, 128);
+    mmCtx.fillRect(0, 0, mw, mh);
 
     const isContinent = mapBounds.halfW >= 1000;
-    const cx = 64;
-    const cy = 64;
-    const scale = isContinent ? 0.024 : Math.min(0.16, 112 / (mapBounds.halfW * 2));
+    const cx = mw / 2;
+    const cy = mh / 2;
+    const scale = isContinent ? 0.026 : Math.min(0.18, (mw - 16) / (mapBounds.halfW * 2));
 
     // Real-Time Continental Sub-Region Banner Update
     if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
@@ -5839,13 +6070,15 @@ export function initGame() {
 
       // Imperial Highway Roads on Minimap
       mmCtx.fillStyle = 'rgba(226, 232, 240, 0.35)';
-      mmCtx.fillRect(Math.round(cx + (0 - player.x) * scale) - 1, 0, 3, 128);
-      mmCtx.fillRect(0, Math.round(cy + (0 - player.y) * scale) - 1, 128, 3);
+      mmCtx.fillRect(Math.round(cx + (0 - player.x) * scale) - 1, 0, 3, mh);
+      mmCtx.fillRect(0, Math.round(cy + (0 - player.y) * scale) - 1, mw, 3);
     } else {
       mmCtx.fillStyle = '#111c33';
-      for (let g = 16; g < 128; g += 16) {
-        mmCtx.fillRect(g, 0, 1, 128);
-        mmCtx.fillRect(0, g, 128, 1);
+      for (let gx = 16; gx < mw; gx += 16) {
+        mmCtx.fillRect(gx, 0, 1, mh);
+      }
+      for (let gy = 16; gy < mh; gy += 16) {
+        mmCtx.fillRect(0, gy, mw, 1);
       }
     }
 
@@ -5866,7 +6099,18 @@ export function initGame() {
       if (e.isDying) continue;
       const ex = Math.round(cx + (e.x - player.x) * scale);
       const ey = Math.round(cy + (e.y - player.y) * scale);
-      if (ex < 2 || ex > 124 || ey < 2 || ey > 124) continue;
+      if (ex < 2 || ex > mw - 4 || ey < 2 || ey > mh - 4) continue;
+      if (e.type === 'shrine') {
+        mmCtx.fillStyle = e.affinity === 'solari' ? '#facc15' : e.affinity === 'umbri' ? '#c084fc' : e.affinity === 'terra' ? '#4ade80' : '#38bdf8';
+        mmCtx.beginPath();
+        mmCtx.moveTo(ex, ey - 4);
+        mmCtx.lineTo(ex + 4, ey);
+        mmCtx.lineTo(ex, ey + 4);
+        mmCtx.lineTo(ex - 4, ey);
+        mmCtx.closePath();
+        mmCtx.fill();
+        continue;
+      }
       mmCtx.fillStyle =
         e.type === 'siege_shard' ? '#fde047' :
         e.type === 'outpost_nexus' ? (FACTIONS_META[e.faction]?.color || '#38bdf8') :
@@ -5883,7 +6127,7 @@ export function initGame() {
       if (rp.isDead || (rp.stealthed && isRemoteHostile(rp))) continue;
       const rx = Math.round(cx + (rp.renderX - player.x) * scale);
       const ry = Math.round(cy + (rp.renderY - player.y) * scale);
-      if (rx < 2 || rx > 124 || ry < 2 || ry > 124) continue;
+      if (rx < 2 || rx > mw - 4 || ry < 2 || ry > mh - 4) continue;
       const inSquad = Boolean(currentParty && currentParty.members?.some((m) => m.id === rp.id));
       mmCtx.fillStyle = inSquad ? '#4ade80' : isRemoteHostile(rp) ? '#fb923c' : '#38bdf8';
       mmCtx.fillRect(rx - 2, ry - 2, 4, 4);

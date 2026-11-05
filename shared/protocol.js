@@ -1222,7 +1222,32 @@ export function calcMoveSpeedMult(prog) {
 }
 
 export function paragonXpForLevel(paragonLvl = 0) {
-  return 300 + (Math.max(0, paragonLvl)) * 120;
+  const p = Math.max(0, Math.floor(paragonLvl));
+  // Authentic ARPG late-game scaling:
+  // Paragon 0 -> 1: 2,500 XP (~25 elite mobs / 8 World Bosses)
+  // Paragon 5: 6,625 XP
+  // Paragon 10: 12,500 XP
+  // Paragon 25: 35,000 XP
+  // Paragon 50: 122,500 XP
+  // Paragon 100: 417,500 XP
+  return 2500 + p * 650 + Math.floor(p * p * 35);
+}
+
+// ==========================================
+// Late-Game Leyline Torment Difficulty Scaling
+// ==========================================
+export const TORMENT_LEVELS = [
+  { level: 0, name: 'Normal', hpMult: 1.0, dmgMult: 1.0, xpMult: 1.0, dropChance: 1.0, color: '#38bdf8', desc: 'Standard Continental Difficulty' },
+  { level: 1, name: 'Torment I', hpMult: 1.5, dmgMult: 1.3, xpMult: 1.8, dropChance: 1.35, color: '#facc15', desc: '+50% Mob HP, +30% Mob DMG • +80% Paragon XP • +35% Relic Drops' },
+  { level: 2, name: 'Torment II', hpMult: 2.2, dmgMult: 1.6, xpMult: 2.8, dropChance: 1.65, color: '#fb923c', desc: '+120% Mob HP, +60% Mob DMG • +180% Paragon XP • +65% Relic Drops' },
+  { level: 3, name: 'Torment III', hpMult: 3.2, dmgMult: 2.0, xpMult: 4.2, dropChance: 2.0, color: '#ef4444', desc: '+220% Mob HP, +100% Mob DMG • +320% Paragon XP • 2x Relic Drops' },
+  { level: 4, name: 'Torment IV', hpMult: 4.5, dmgMult: 2.5, xpMult: 6.0, dropChance: 2.5, color: '#c084fc', desc: '+350% Mob HP, +150% Mob DMG • +500% Paragon XP • 2.5x Relic Drops' },
+  { level: 5, name: 'Torment V (Mythic)', hpMult: 6.5, dmgMult: 3.2, xpMult: 9.0, dropChance: 3.5, color: '#f43f5e', desc: '+550% Mob HP, +220% Mob DMG • +800% Paragon XP • 3.5x Relic Drops' },
+];
+
+export function getTormentConfig(tormentLevel = 0) {
+  const idx = Math.max(0, Math.min(TORMENT_LEVELS.length - 1, Math.floor(tormentLevel || 0)));
+  return TORMENT_LEVELS[idx];
 }
 
 export function canUpgradeParagon(prog, affinityId) {
@@ -1246,6 +1271,7 @@ export function createDefaultProgression() {
     paragonLevel: 0,
     paragonXp: 0,
     paragonPoints: 0,
+    tormentLevel: 0, // Leyline Torment Rank (0 = Normal, 1-5 = Torment I to V)
     paragon: {
       solari_radiance: 0,
       umbri_shadowcraft: 0,

@@ -34,6 +34,8 @@ import {
   PARAGON_AFFINITIES,
   paragonXpForLevel,
   canUpgradeParagon,
+  TORMENT_LEVELS,
+  getTormentConfig,
   calcMaxHp,
   calcMaxGlimmer,
   calcCritChance,
@@ -463,6 +465,32 @@ export class RoomManager {
           maxCharges: 3,
           rechargeTimer: 0,
           radius: 15,
+          hitFlash: 0,
+        });
+      }
+
+      // 4 Ancient Leyline Shrines [E]
+      const continentalShrines = [
+        { id: 'shrine_solari', name: 'Solari Radiant Shrine', sub: 'Ancient Leyline [E] • Radiant Wrath', affinity: 'solari', buffName: 'Solar Wrath', x: -550, y: 550 },
+        { id: 'shrine_umbri', name: 'Umbri Void Obelisk', sub: 'Ancient Leyline [E] • Void Leech', affinity: 'umbri', buffName: 'Void Step', x: 550, y: -550 },
+        { id: 'shrine_terra', name: 'Terra Bastion Monolith', sub: 'Ancient Leyline [E] • Primal Bastion', affinity: 'terra', buffName: 'Stone Ward', x: -550, y: -550 },
+        { id: 'shrine_aether', name: 'Aether Chrono Spire', sub: 'Ancient Leyline [E] • Chrono Surge', affinity: 'aether', buffName: 'Chrono Surge', x: 550, y: 550 },
+      ];
+      for (const sh of continentalShrines) {
+        room.entities.push({
+          id: sh.id,
+          name: sh.name,
+          sub: sh.sub,
+          type: 'shrine',
+          affinity: sh.affinity,
+          buffName: sh.buffName,
+          spriteKey: 'crystalPillar',
+          x: sh.x,
+          y: sh.y,
+          charges: 5,
+          maxCharges: 5,
+          rechargeTimer: 0,
+          radius: 20,
           hitFlash: 0,
         });
       }
@@ -2029,6 +2057,10 @@ export class RoomManager {
         this.handleUpgradeParagon(client, msg.affinityId);
         break;
 
+      case 'set_torment':
+        this.handleSetTorment(client, Number(msg.tormentLevel));
+        break;
+
       case 'upgrade_skill':
         this.handleUpgradeSkill(client, msg.abilityId);
         break;
@@ -3073,6 +3105,27 @@ export class RoomManager {
 
   handleHarvestNode(room, player, nodeId) {
     if (player.isDead) return;
+    // 1. Check for interactive Ancient Leyline Shrines
+    let shrine = nodeId ? room.entities.find((e) => e.id === nodeId && e.type === 'shrine') : null;
+    if (!shrine) {
+      shrine = room.entities.find((e) => e.type === 'shrine' && Math.hypot(e.x - player.x, e.y - player.y) <= 7.2 * YARD_PX);
+    }
+    if (shrine && Math.hypot(shrine.x - player.x, shrine.y - player.y) <= 7.5 * YARD_PX) {
+      if (shrine.charges <= 0) return;
+      shrine.charges--;
+      if (shrine.charges === 0) shrine.rechargeTimer = 45.0;
+      player.shrineBuff = { affinity: shrine.affinity, name: shrine.buffName, timer: 60 };
+      room.fxQueue.push({ kind: 'spark', x: shrine.x, y: shrine.y - 12, colors: ['#facc15', '#ffffff', '#38bdf8'] });
+      room.fxQueue.push({ kind: 'fct', x: shrine.x, y: shrine.y - 10, text: `✨ ${shrine.buffName.toUpperCase()}!`, color: '#facc15' });
+      player.send({
+        type: 'sys_msg',
+        category: 'combat',
+        text: `✨ [SHRINE] Received ${shrine.buffName} Blessing (+Stats for 60s)!`,
+      });
+      return;
+    }
+
+    // 2. Otherwise harvest Glimmer Node
     let node = nodeId ? room.entities.find((e) => e.id === nodeId && e.type === 'node') : null;
     if (!node) {
       node = room.entities.find((e) => e.type === 'node' && Math.hypot(e.x - player.x, e.y - player.y) <= 7.2 * YARD_PX);
@@ -3409,6 +3462,21 @@ export class RoomManager {
           }
         }
       }
+
+      if (ent.isBoss) {
+        this.broadcastToRoom(room, {
+          type: 'chat',
+          channel: 'world',
+          sender: 'WORLD EVENT',
+          text: `🏆 CONTINENTAL VICTORY: ${ent.name} has been vanquished! The Leylines surge with an Ancient Paragon Cache!`,
+        });
+        for (const pid of recipients) {
+          const p = room.players.get(pid);
+          if (p && p.prog && (p.prog.level || 1) >= 30) {
+            this.awardPlayerXP(p, 450, 'Ancient Paragon Cache');
+          }
+        }
+      }
     }
 
     // 3v3 Arena Victory Condition
@@ -3485,6 +3553,10 @@ export class RoomManager {
   // ==========================================
   awardPlayerXP(player, amount, reason = '', statsMetaPatch = null) {
     if (amount <= 0) return;
+    const tCfg = getTormentConfig(player.prog?.tormentLevel || 0);
+    if (tCfg.xpMult && tCfg.xpMult > 1) {
+      amount = Math.round(amount * tCfg.xpMult);
+    }
     let leveled = false;
     let paragonLeveled = false;
 
@@ -3559,6 +3631,37 @@ export class RoomManager {
       maxSolarCharge: player.maxSolarCharge,
     });
     this.parties.syncPlayerVitals(player.id);
+  }
+
+  handleSetTorment(player, tormentLevel) {
+    if (!player.prog) return;
+    const tLevel = Math.max(0, Math.min(TORMENT_LEVELS.length - 1, Math.floor(tormentLevel || 0)));
+    if (tLevel > 0 && (player.prog.level || 1) < 30) {
+      player.send({
+        type: 'sys_msg',
+        category: 'combat',
+        text: '⚠️ Leyline Torment requires Level 30 Champion status!',
+      });
+      return;
+    }
+    player.prog.tormentLevel = tLevel;
+    const tCfg = getTormentConfig(tLevel);
+    this.accounts.saveProgression(player.id, player.prog);
+    player.send({
+      type: 'progression_sync',
+      progression: player.prog,
+      hp: player.hp,
+      maxHp: player.maxHp,
+      maxSolarCharge: player.maxSolarCharge,
+      xpGained: 0,
+      reason: `Torment: ${tCfg.name}`,
+      leveled: false,
+    });
+    player.send({
+      type: 'sys_msg',
+      category: 'combat',
+      text: `🔥 [TORMENT] Difficulty set to ${tCfg.name}! ${tCfg.desc}`,
+    });
   }
 
   handleAllocateStat(player, statKey) {
@@ -4053,30 +4156,64 @@ export class RoomManager {
               room.fxQueue.push({ kind: 'smoke', x: e.x, y: e.y, count: 48 });
             }
 
-            // Boss Shockwave AoE Ability
-            e.abilityCooldown = (e.abilityCooldown ?? (e.enraged ? 3.5 : 6.0)) - dt;
+            // Boss Telegraphed AoE Ability (1.4-1.7s warning circle)
+            e.abilityCooldown = (e.abilityCooldown ?? (e.enraged ? 3.5 : 5.8)) - dt;
             if (e.abilityCooldown <= 0) {
-              e.abilityCooldown = e.enraged ? 3.5 : 6.0;
-              const shockRadius = e.enraged ? 96 : 64;
-              const shockDmg = Math.round((e.damage || 7) * (e.enraged ? 1.8 : 1.3));
+              e.abilityCooldown = e.enraged ? 3.5 : 5.8;
+              let telLabel = e.enraged ? '💥 ENRAGED CATACLYSM' : '⚡ TITAN SLAM';
+              let telColor = e.enraged ? '#ef4444' : '#f59e0b';
+              let shockRadius = e.enraged ? 98 : 70;
+              let warnDuration = 1.6;
+
+              if (e.spriteKey === 'solariBoss') {
+                telLabel = e.enraged ? '🔥 CORONA CATACLYSM' : '☀️ SOLAR FLARE BURST';
+                telColor = '#facc15';
+                shockRadius = e.enraged ? 102 : 74;
+              } else if (e.spriteKey === 'umbriBoss') {
+                telLabel = e.enraged ? '💀 VOID SINGULARITY' : '🌑 SHADOW RIFT';
+                telColor = '#a855f7';
+                shockRadius = e.enraged ? 94 : 68;
+                warnDuration = 1.5;
+              } else if (e.spriteKey === 'graniteBoss') {
+                telLabel = e.enraged ? '🪨 TECTONIC COLLAPSE' : '🌿 IRONWOOD SLAM';
+                telColor = '#4ade80';
+                shockRadius = e.enraged ? 106 : 78;
+                warnDuration = 1.7;
+              } else if (e.spriteKey === 'aetherBoss') {
+                telLabel = e.enraged ? '🌀 CHRONO SINGULARITY' : '⚡ TEMPORAL DISRUPTION';
+                telColor = '#38bdf8';
+                shockRadius = e.enraged ? 96 : 70;
+                warnDuration = 1.4;
+              }
+
+              const shockDmg = Math.round((e.damage || 7) * (e.enraged ? 1.9 : 1.35));
+              const tgtX = nearestPlayer && Math.random() < 0.65 ? nearestPlayer.x : e.x;
+              const tgtY = nearestPlayer && Math.random() < 0.65 ? nearestPlayer.y : e.y;
+
               room.fxQueue.push({
                 kind: 'fct',
-                x: e.x,
-                y: e.y - 18,
-                text: e.enraged ? '💥 ENRAGED SHOCKWAVE!' : '⚡ GROUND SLAM!',
-                color: e.enraged ? '#ef4444' : '#f59e0b',
+                x: tgtX,
+                y: tgtY - 14,
+                text: `⚠️ ${telLabel}!`,
+                color: telColor,
+                isCrit: true,
               });
-              room.fxQueue.push({ kind: 'smoke', x: e.x, y: e.y, count: 24 });
-              for (const p of room.players.values()) {
-                if (p.isDead || p.stealthed) continue;
-                const distP = Math.hypot(e.x - p.x, e.y - p.y);
-                if (distP <= shockRadius) {
-                  this.damagePlayerSession(room, p, shockDmg, `${e.name} Shockwave`, false, e);
-                  const ang = Math.atan2(p.y - e.y, p.x - e.x);
-                  p.x = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, p.x + Math.cos(ang) * 20));
-                  p.y = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, p.y + Math.sin(ang) * 20));
-                }
-              }
+
+              room.groundZones.push({
+                id: `tel_${crypto.randomUUID().slice(0, 6)}`,
+                type: 'telegraph',
+                color: telColor,
+                label: telLabel,
+                x: tgtX,
+                y: tgtY,
+                radius: shockRadius,
+                age: 0,
+                maxAge: warnDuration,
+                damage: shockDmg,
+                bossName: e.name,
+                bossRef: e,
+                snare: e.spriteKey === 'graniteBoss' ? 2.0 : 0,
+              });
             }
           }
 
@@ -4206,7 +4343,34 @@ export class RoomManager {
           }
         }
       }
-      if (gz.age >= gz.maxAge) room.groundZones.splice(i, 1);
+      if (gz.age >= gz.maxAge) {
+        if (gz.type === 'telegraph') {
+          // Detonation shockwave
+          room.groundZones.push({
+            id: `shock_${crypto.randomUUID().slice(0, 6)}`,
+            type: 'shockwave',
+            color: gz.color || '#ef4444',
+            x: gz.x,
+            y: gz.y,
+            radius: gz.radius,
+            age: 0,
+            maxAge: 0.35,
+          });
+          room.fxQueue.push({ kind: 'smoke', x: gz.x, y: gz.y, count: 28 });
+          for (const p of room.players.values()) {
+            if (p.isDead || p.stealthed) continue;
+            const distP = Math.hypot(gz.x - p.x, gz.y - p.y);
+            if (distP <= gz.radius) {
+              this.damagePlayerSession(room, p, gz.damage || 14, `${gz.bossName || 'Boss'} ${gz.label || 'Cataclysm'}`, false, gz.bossRef);
+              const ang = Math.atan2(p.y - gz.y, p.x - gz.x);
+              p.x = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, p.x + Math.cos(ang) * 24));
+              p.y = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, p.y + Math.sin(ang) * 24));
+              if (gz.snare) p.snareTimer = Math.max(p.snareTimer || 0, gz.snare);
+            }
+          }
+        }
+        room.groundZones.splice(i, 1);
+      }
     }
 
     // 6. Planted Order Banners
@@ -4276,6 +4440,8 @@ export class RoomManager {
       faction: e.faction,
       team: e.team,
       isBoss: e.isBoss || false,
+      affinity: e.affinity,
+      buffName: e.buffName,
       spriteKey: e.spriteKey,
       x: Math.round(e.x * 10) / 10,
       y: Math.round(e.y * 10) / 10,
@@ -4311,6 +4477,7 @@ export class RoomManager {
       id: gz.id,
       type: gz.type,
       color: gz.color,
+      label: gz.label || '',
       x: Math.round(gz.x),
       y: Math.round(gz.y),
       radius: Math.round(gz.radius),

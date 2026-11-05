@@ -428,53 +428,73 @@
     }
 
     /* ==========================================
-       3. TOP-RIGHT: MINIMAP RADAR + SERVER STATUS + ZONE / 3v3 STACK
+       3. TOP-RIGHT: MINIMAP RADAR + REALM STATUS + ZONE STACK
        ========================================== */
-    #minimap-panel {
+    #top-right-hud {
       position: absolute;
       top: 12px;
       right: 12px;
-      width: 140px;
+      width: 172px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: none;
+      z-index: 20;
+    }
+    #minimap-panel {
+      width: 100%;
       background: #050811;
       border: 2px solid #38bdf8;
       box-shadow: 0 0 0 2px #05070f, 4px 4px 0 rgba(0,0,0,0.85);
       pointer-events: auto;
+      display: flex;
+      flex-direction: column;
     }
     #minimap-canvas {
-      width: 136px;
-      height: 136px;
+      width: 168px;
+      height: 130px;
       display: block;
+      background: #030712;
     }
     .minimap-title {
       background: #0d1324;
       border-top: 2px solid #38bdf8;
       text-align: center;
       font-family: var(--font-header);
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 700;
-      padding: 4px 2px;
+      letter-spacing: 0.5px;
+      padding: 5px 4px;
       color: #facc15;
     }
     #net-status-pill {
       background: #080d1a;
       border-top: 1px solid #1e293b;
-      text-align: center;
-      font-size: 10px;
-      font-weight: 600;
-      padding: 3px 4px;
-      color: #4ade80;
+      padding: 5px 6px;
       cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      text-align: center;
+      line-height: 1.35;
+      transition: background 0.15s ease;
     }
     #net-status-pill:hover {
       background: #172554;
-      color: #fde047;
     }
-
+    .net-pill-line1 {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .net-pill-line2 {
+      font-size: 9.5px;
+      color: #94a3b8;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
     #zone-controls {
-      position: absolute;
-      top: 192px;
-      right: 12px;
-      width: 140px;
+      width: 100%;
       display: flex;
       flex-direction: column;
       gap: 5px;
@@ -1523,19 +1543,22 @@
       </div>
     </div>
 
-    <!-- 3. TOP-RIGHT: Square Pixel Minimap + Live Realm Status Pill + Zone/Banner Controls -->
-    <div id="minimap-panel">
-      <canvas id="minimap-canvas" width="128" height="128"></canvas>
-      <div class="minimap-title" id="minimap-zone-title">SANCTUARY HUB #1</div>
-      <div class="minimap-sub" id="zone-label" style="display:none;"></div>
-      <div id="net-status-pill" onclick="toggleModal('social-modal')" title="Open Room Browser &amp; Online Players [O]">
-        ● CONNECTING TO REALM...
+    <!-- 3. TOP-RIGHT: Minimap Radar + Live Realm Status Pill + Zone Controls -->
+    <div id="top-right-hud">
+      <div id="minimap-panel">
+        <canvas id="minimap-canvas" width="168" height="130"></canvas>
+        <div class="minimap-title" id="minimap-zone-title">SANCTUARY HUB #1</div>
+        <div class="minimap-sub" id="zone-label" style="display:none;"></div>
+        <div id="net-status-pill" onclick="toggleModal('social-modal')" title="Open Room Browser &amp; Online Players [O]">
+          <div class="net-pill-line1" style="color:#fbbf24;">● CONNECTING...</div>
+          <div class="net-pill-line2">ENTERING ONLINE REALM</div>
+        </div>
       </div>
-    </div>
 
-    <div id="zone-controls">
-      <button class="util-btn queue-btn" id="btn-queue" onclick="toggleMatchmaking()">⚔️ 3v3 ARENA</button>
-      <button class="util-btn" style="border-color:#facc15; color:#fde047;" onclick="plantOrderBanner()" title="Plant your Guild/Order Standard (+1 Power Aura)">⚑ BANNER [B]</button>
+      <div id="zone-controls">
+        <button class="util-btn queue-btn" id="btn-queue" onclick="toggleMatchmaking()">⚔️ 3v3 ARENA</button>
+        <button class="util-btn" style="border-color:#facc15; color:#fde047;" onclick="plantOrderBanner()" title="Plant your Guild/Order Standard (+1 Power Aura)">⚑ BANNER [B]</button>
+      </div>
     </div>
 
     <!-- 4. BOTTOM-LEFT: Social MMO Chat, Speech Bubbles, Faction (/f) & Emotes -->
