@@ -1,5 +1,6 @@
 import { initGame } from './game.js';
 import { buildSpriteSheet } from './sprites.js';
+import { initUiLayout } from './uiLayout.js';
 
 window.addEventListener('selectstart', (e) => e.preventDefault());
 window.addEventListener('dragstart', (e) => e.preventDefault());
@@ -33,4 +34,5 @@ if (npcCanvas) {
   }
 }
 
+initUiLayout();
 initGame();

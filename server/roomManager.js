@@ -3664,8 +3664,8 @@ export class RoomManager {
     }
 
     drops.forEach((d, i) => {
-      const ang = (Math.PI * 2 * i) / Math.max(1, drops.length) + Math.random() * 0.8;
-      const dist = drops.length > 1 ? 14 + Math.random() * 8 : 0;
+      const ang = (Math.PI * 2 * i) / Math.max(1, drops.length) - Math.PI / 2;
+      const dist = drops.length > 1 ? 28 + (i % 2) * 8 : 0;
       room.lootSeq = (room.lootSeq || 0) + 1;
       room.loot.push({
         id: `loot_${room.lootSeq}`,
@@ -3673,9 +3673,9 @@ export class RoomManager {
         itemId: d.itemId || null,
         qty: d.qty || 1,
         x: Math.round((ent.x + Math.cos(ang) * dist) * 10) / 10,
-        y: Math.round((ent.y + Math.sin(ang) * dist * 0.6) * 10) / 10,
-        ttl: d.kind === 'item' ? 45 : 28,
-        maxTtl: d.kind === 'item' ? 45 : 28,
+        y: Math.round((ent.y + Math.sin(ang) * dist * 0.65) * 10) / 10,
+        ttl: d.kind === 'item' ? 55 : 28,
+        maxTtl: d.kind === 'item' ? 55 : 28,
       });
     });
   }

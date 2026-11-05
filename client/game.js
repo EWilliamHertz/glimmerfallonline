@@ -38,6 +38,8 @@ import {
   hideFloatingGearTooltip,
 } from './equipmentUi.js';
 import { getItemCanvas, getItemIconDataUrl } from './itemSprites.js';
+import { renderBankModal } from './bankUi.js';
+import { initUiLayout, toggleUiEditMode, saveAndLockUiLayout, resetDefaultUiLayout } from './uiLayout.js';
 import {
   drawPixelNameplateAndBubbles,
   renderPartyHud,
@@ -370,7 +372,9 @@ export function initGame() {
     orderName: 'Order of Dawn',
     orderColor: '#facc15',
     statsMeta: { kills: 0, arenaWins: 0 },
+    bank: [],
   };
+  window.localProfile = localProfile;
 
   function saveProgressionLocal() {
     try {
@@ -384,11 +388,13 @@ export function initGame() {
           roster[idx].equipment = localProfile.equipment;
           roster[idx].loadout = localProfile.loadout;
           roster[idx].inventory = localProfile.inventory;
+          roster[idx].bank = localProfile.bank || [];
           localStorage.setItem('glimmerfall_sp_roster_v2', JSON.stringify(roster));
         }
       }
     } catch (_) {}
   }
+  window.saveProgressionLocal = saveProgressionLocal;
 
   // Single Player (Offline Local Realm) vs Multiplayer (Online Authoritative Realm)
   let isSinglePlayer = false;
@@ -421,6 +427,7 @@ export function initGame() {
     emote: null,
     emoteTimer: 0,
   };
+  window.player = player;
 
   const remotePlayers = new Map();
   let currentParty = null;
@@ -1152,6 +1159,10 @@ export function initGame() {
 
   function interactWithNpc(npc) {
     if (!npc) return;
+    if (npc.isBank) {
+      window.toggleModal('bank-modal');
+      return;
+    }
     audio.playDialogue();
     const status = getNpcQuestStatus(npc);
 
@@ -1208,6 +1219,7 @@ export function initGame() {
         east: 'UMBRI_UNDERCITY'
       },
       landmarks: [
+        { x: 50, y: 44, icon: '🏛️', name: 'AetherVault Depository', sub: 'Sanctuary Depository [V]', desc: 'Synchronized Leyline Storage Network. Store weapons, armor, sets, and currencies across realms.' },
         { x: 55, y: 65, icon: '🛡️', name: 'Herald Lyra', sub: 'Sunspire Mentor', desc: 'Awakening guide and primary quest mentor.' },
         { x: 44, y: 36, icon: '⚔️', name: 'Commander Valerius', sub: 'Sunspire Warlord', desc: 'Frontline commander directing border defense.' },
         { x: 50, y: 52, icon: '🎯', name: 'Training Grounds', sub: 'Sanctuary Dummy', desc: 'Training post for honing Rites and Flashes.' },
@@ -2363,7 +2375,9 @@ export function initGame() {
       loadout: { ...cls.defaultLoadout, ...(prof.loadout || localProfile.loadout || {}) },
       equipment: { ...cls.defaultEquipment, ...(prof.equipment || localProfile.equipment || {}) },
       inventory: Array.isArray(prof.inventory) ? prof.inventory : (localProfile.inventory || []),
+      bank: Array.isArray(prof.bank) ? prof.bank : (localProfile.bank || []),
     };
+    window.localProfile = localProfile;
     if (prof.progression) {
       prog = {
         ...prog,
@@ -2388,6 +2402,9 @@ export function initGame() {
     if (document.getElementById('exchange-modal')?.style.display === 'block') {
       renderExchangeModal({ profile: localProfile });
     }
+    if (document.getElementById('bank-modal')?.style.display === 'block') {
+      renderBankModal({ profile: localProfile });
+    }
   }
 
   // ==========================================
@@ -2410,18 +2427,31 @@ export function initGame() {
     };
   }
 
+  let fctLastTime = 0;
+  let fctStackCount = 0;
+
   function spawnFCT(wx, wy, text, color = '#facc15', isCrit = false) {
     if (!fctContainer) return;
+    const now = performance.now();
+    if (now - fctLastTime < 450) {
+      fctStackCount++;
+    } else {
+      fctStackCount = 0;
+    }
+    fctLastTime = now;
+    const stackY = Math.min(80, fctStackCount * 18);
+
     const { sx, sy } = worldToScreen(wx, wy - 14);
     const el = document.createElement('div');
     el.className = isCrit ? 'fct-text fct-crit' : 'fct-text';
     el.style.left = `${sx}px`;
-    el.style.top = `${sy}px`;
+    el.style.top = `${sy - stackY}px`;
     el.style.color = color;
     el.innerText = isCrit ? `★${text}!` : text;
     fctContainer.appendChild(el);
     setTimeout(() => el.remove(), 1100);
   }
+  window.spawnFCT = spawnFCT;
 
   function logMessage(msg, className = '', category = 'combat') {
     const log = document.getElementById('combat-log');
@@ -3543,6 +3573,15 @@ export function initGame() {
           x: 38,
           y: 82,
           dialogue: AWAKENING_DIALOGUE,
+        },
+        {
+          id: 'npc_bank_vault',
+          name: 'AetherVault Depository',
+          role: 'Sanctuary Vault Keeper [Click / V]',
+          spriteKey: 'heraldNpc',
+          x: 52,
+          y: -42,
+          isBank: true,
         },
         {
           id: 'npc_archon',
@@ -5013,38 +5052,17 @@ export function initGame() {
   }
 
   function spawnOfflineLoot(ent) {
+    const pendingDrops = [];
     const count = ent.isBoss ? 4 : Math.random() < 0.45 ? 1 : 0;
     for (let i = 0; i < count; i++) {
       let kind = Math.random() < 0.5 ? 'vital' : 'glimmer';
       if (ent.isBoss && i === 0) kind = 'relic';
-      const ang = (Math.PI * 2 * i) / Math.max(1, count) + Math.random() * 0.8;
-      const dist = count > 1 ? 14 + Math.random() * 8 : 0;
-      lootSeq++;
-      lootDrops.push({
-        id: `loot_off_${lootSeq}`,
-        kind,
-        itemId: null,
-        qty: 1,
-        x: ent.x + Math.cos(ang) * dist,
-        y: ent.y + Math.sin(ang) * dist * 0.6,
-        ttl: 28,
-        age: 0,
-      });
+      pendingDrops.push({ kind, itemId: null, qty: 1 });
     }
 
     // 1. Stackable Currency: Solar Gold Sovereigns (all mobs drop gold!)
     const goldQty = ent.isBoss ? (150 + Math.floor(Math.random() * 200)) : (8 + Math.floor(Math.random() * 25));
-    lootSeq++;
-    lootDrops.push({
-      id: `loot_off_${lootSeq}`,
-      kind: 'item',
-      itemId: 'solar_gold',
-      qty: goldQty,
-      x: ent.x + (Math.random() - 0.5) * 16,
-      y: ent.y + (Math.random() - 0.5) * 12,
-      ttl: 45,
-      age: 0,
-    });
+    pendingDrops.push({ kind: 'item', itemId: 'solar_gold', qty: goldQty });
 
     // 2. Faction elemental currency
     const rType = String(currentRoomType || '').toLowerCase();
@@ -5053,32 +5071,12 @@ export function initGame() {
     if (rType.includes('aether')) factionCurr = 'chrono_gem';
     else if (rType.includes('terra')) factionCurr = 'verdant_amber';
     else if (rType.includes('umbri')) factionCurr = 'void_essence';
-    lootSeq++;
-    lootDrops.push({
-      id: `loot_off_${lootSeq}`,
-      kind: 'item',
-      itemId: factionCurr,
-      qty: factionCurrQty,
-      x: ent.x + (Math.random() - 0.5) * 18,
-      y: ent.y + (Math.random() - 0.5) * 14,
-      ttl: 45,
-      age: 0,
-    });
+    pendingDrops.push({ kind: 'item', itemId: factionCurr, qty: factionCurrQty });
 
     // 3. Consumables (healing salves / glimmer draughts)
     if (ent.isBoss || Math.random() < 0.25) {
       const potId = Math.random() < 0.5 ? 'minor_healing_salve' : 'glimmer_draught';
-      lootSeq++;
-      lootDrops.push({
-        id: `loot_off_${lootSeq}`,
-        kind: 'item',
-        itemId: potId,
-        qty: ent.isBoss ? 2 : 1,
-        x: ent.x + (Math.random() - 0.5) * 16,
-        y: ent.y + (Math.random() - 0.5) * 12,
-        ttl: 45,
-        age: 0,
-      });
+      pendingDrops.push({ kind: 'item', itemId: potId, qty: ent.isBoss ? 2 : 1 });
     }
 
     // 4. Equipment Drops:
@@ -5087,36 +5085,37 @@ export function initGame() {
       const isRareSet = Math.random() < 0.15;
       const dropId = isRareSet ? getFactionBossSetDrop(ent, currentRoomType) : getBossAccessoryDrop(ent, currentRoomType);
       if (dropId) {
-        lootSeq++;
-        lootDrops.push({
-          id: `loot_off_${lootSeq}`,
-          kind: 'item',
-          itemId: dropId,
-          qty: 1,
-          x: ent.x,
-          y: ent.y,
-          ttl: 60,
-          age: 0,
-        });
+        pendingDrops.push({ kind: 'item', itemId: dropId, qty: 1, ttl: 60 });
       }
     } else {
       if (Math.random() < 0.10) {
         const dropId = getBeginnerMobDrop(currentRoomType);
         if (dropId) {
-          lootSeq++;
-          lootDrops.push({
-            id: `loot_off_${lootSeq}`,
-            kind: 'item',
-            itemId: dropId,
-            qty: 1,
-            x: ent.x + (Math.random() - 0.5) * 14,
-            y: ent.y + (Math.random() - 0.5) * 10,
-            ttl: 35,
-            age: 0,
-          });
+          pendingDrops.push({ kind: 'item', itemId: dropId, qty: 1, ttl: 35 });
         }
       }
     }
+
+    // Radial spaced distribution so drops never overlap on the ground
+    const n = pendingDrops.length;
+    pendingDrops.forEach((d, i) => {
+      const ang = (Math.PI * 2 * i) / Math.max(1, n) - Math.PI / 2;
+      const dist = n > 1 ? 28 + (i % 2) * 8 : 0;
+      const dropX = Math.round(ent.x + Math.cos(ang) * dist);
+      const dropY = Math.round(ent.y + Math.sin(ang) * dist * 0.65);
+
+      lootSeq++;
+      lootDrops.push({
+        id: `loot_off_${lootSeq}`,
+        kind: d.kind,
+        itemId: d.itemId,
+        qty: d.qty || 1,
+        x: dropX,
+        y: dropY,
+        ttl: d.ttl || (d.kind === 'item' ? 55 : 28),
+        age: 0,
+      });
+    });
   }
 
   function updateOfflineLoot(dt) {
@@ -5262,17 +5261,54 @@ export function initGame() {
         ctx.textBaseline = 'middle';
         ctx.fillText(def.icon, sx, cy - 8);
       }
-      if (l.qty && l.qty > 1) {
-        ctx.save();
-        ctx.font = 'bold 9px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#05070f';
-        ctx.fillText(`x${l.qty}`, sx + 1, cy - 16);
-        ctx.fillStyle = '#fbbf24';
-        ctx.fillText(`x${l.qty}`, sx, cy - 17);
-        ctx.restore();
-      }
+    }
+
+    // OSRS-Style Stacked Ground Items Label
+    const def = l.itemId ? EQUIPMENT_CATALOG[l.itemId] : null;
+    let labelText = '';
+    let labelColor = '#f8fafc';
+
+    if (l.kind === 'item') {
+      const isSet = def?.rarity?.includes('Set') || def?.rarity?.includes('Apex');
+      labelText = `${def?.name || l.itemId}${l.qty > 1 ? ` x${l.qty}` : ''}`;
+      labelColor = isSet ? '#fde047' : def?.slot === 'currency' ? '#facc15' : def?.slot === 'consumable' ? '#4ade80' : (def ? (def.rarity === 'Epic' ? '#c084fc' : def.rarity === 'Rare' ? '#38bdf8' : def.rarity === 'Uncommon' ? '#4ade80' : '#f8fafc') : '#f8fafc');
+    } else if (l.kind === 'relic') {
+      labelText = 'Ancient Relic Cache';
+      labelColor = '#fde047';
+    } else if (l.kind === 'vital') {
+      labelText = 'Vital Shard';
+      labelColor = '#f87171';
+    } else if (l.kind === 'glimmer') {
+      labelText = 'Glimmer Shard';
+      labelColor = '#38bdf8';
+    }
+
+    if (labelText) {
+      // Find all loot items within 34px cluster
+      const cluster = lootDrops.filter((o) => Math.hypot(l.x - o.x, l.y - o.y) < 34);
+      cluster.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+      const stackRank = Math.max(0, cluster.findIndex((o) => o.id === l.id));
+      const labelY = cy - 20 - (stackRank * 13);
+
+      ctx.save();
+      ctx.font = 'bold 8.5px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const tw = ctx.measureText(labelText).width;
+      const boxW = Math.round(tw + 8);
+      const boxH = 11;
+      const boxX = Math.round(sx - boxW / 2);
+      const boxY = Math.round(labelY - boxH / 2);
+
+      ctx.fillStyle = 'rgba(5, 8, 18, 0.85)';
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.strokeStyle = labelColor;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+      ctx.fillStyle = labelColor;
+      ctx.fillText(labelText, sx, labelY + 1);
+      ctx.restore();
     }
   }
 
@@ -6951,6 +6987,9 @@ export function initGame() {
       if (id === 'exchange-modal') {
         renderExchangeModal({ profile: localProfile });
       }
+      if (id === 'bank-modal') {
+        renderBankModal({ profile: localProfile });
+      }
       if (id === 'account-modal') {
         renderAccountModal({ profile: localProfile, authTab: accountAuthTab, statusMsg: accountStatusMsg });
       }
@@ -7201,7 +7240,8 @@ export function initGame() {
     if (e.repeat) return;
 
     if (key === 't') window.interactNearestNpc();
-    if (key === 'v') window.triggerEmote('cheer');
+    if (key === 'v') window.toggleModal('bank-modal');
+    if (key === 'u') window.toggleUiEditMode();
     if (key === 'y') window.plantOrderBanner();
     if (key === 'b') window.toggleModal('inventory-modal');
     if (key === 'i') window.toggleModal('inventory-modal');

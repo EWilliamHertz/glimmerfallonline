@@ -69,6 +69,8 @@ export function getHoveredCardHtml(itemId, source = 'equipped') {
     ? '👉 Click slot to Unequip to Backpack'
     : source === 'inventory'
     ? '👉 Left-click to Equip • Right-click to Drop'
+    : source === 'bank'
+    ? '👉 Left-click to Withdraw 1 • Right-click to Withdraw All'
     : '👉 AetherSwap Catalog Entry';
 
   return `
@@ -443,12 +445,15 @@ export function renderInventoryModal({ profile }) {
       </div>
     </div>
 
-    <div style="display:flex; justify-content:space-between; gap:10px; margin-top:12px;">
+    <div style="display:flex; justify-content:space-between; gap:8px; margin-top:12px;">
       <button class="util-btn" style="flex:1; border-color:#fb923c; color:#fed7aa;" onclick="toggleModal('equipment-modal')">
-        ⚔️ WORN GEAR [K]
+        ⚔️ GEAR [K]
+      </button>
+      <button class="util-btn" style="flex:1; border-color:#fde047; color:#fef08a;" onclick="toggleModal('bank-modal')">
+        🏛️ VAULT [V]
       </button>
       <button class="util-btn" style="flex:1; border-color:#38bdf8; color:#7dd3fc;" onclick="toggleModal('exchange-modal')">
-        🌀 AETHERSWAP [X]
+        🌀 SWAP [X]
       </button>
     </div>
   `;
