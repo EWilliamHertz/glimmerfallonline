@@ -3532,7 +3532,11 @@ export function initGame() {
           logMessage(`[Combat] ${fx.attackerName} struck you for ${fx.dmg}!`, 'log-combat', 'combat');
         }
       } else if (fx.kind === 'smoke') {
-        triggerEntityDeathEffect(fx.x, fx.y, (fx.count || 26) > 35);
+        if (fx.isDeath) {
+          triggerEntityDeathEffect(fx.x, fx.y, Boolean(fx.isBoss || (fx.count && fx.count > 35)));
+        } else {
+          spawnSmokeBurst(fx.x, fx.y, fx.count || 24, Boolean(fx.isBoss || (fx.count && fx.count > 35)));
+        }
       } else if (fx.kind === 'spark') {
         spawnSparkBurst(fx.x, fx.y, fx.colors || ['#facc15', '#ffffff'], 14);
       } else if (fx.kind === 'fct') {
@@ -4037,14 +4041,16 @@ export function initGame() {
         const heal = Math.max(3, Math.round(player.maxHp * 0.25));
         player.hp = Math.min(player.maxHp, player.hp + heal);
         spawnFCT(player.x, player.y - 14, `+${heal} VITAL SHARD`, '#f87171');
+        spawnSparkBurst(l.x, l.y, ['#f87171', '#fecaca', '#ffffff'], 8);
       } else if (l.kind === 'glimmer') {
         player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 30);
         spawnFCT(player.x, player.y - 14, '+30 GLIMMER SHARD', '#38bdf8');
+        spawnSparkBurst(l.x, l.y, ['#38bdf8', '#bae6fd', '#ffffff'], 8);
       } else {
         awardXP(60, 'Relic Shard');
         spawnFCT(player.x, player.y - 14, '✦ RELIC SHARD +60 XP', '#fde047', true);
+        spawnSparkBurst(l.x, l.y, ['#fde047', '#fef08a', '#ffffff'], 12);
       }
-      spawnSmokeBurst(l.x, l.y, 6);
       updatePlayerUI();
     }
   }

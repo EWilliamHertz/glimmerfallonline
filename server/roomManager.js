@@ -3495,7 +3495,7 @@ export class RoomManager {
     if (targetPlayer.hp <= 0) {
       targetPlayer.isDead = true;
       targetPlayer.respawnTimer = 3.0;
-      room.fxQueue.push({ kind: 'smoke', x: targetPlayer.x, y: targetPlayer.y, count: 32 });
+      room.fxQueue.push({ kind: 'smoke', x: targetPlayer.x, y: targetPlayer.y, count: 32, isDeath: true });
       room.fxQueue.push({ kind: 'fct', x: targetPlayer.x, y: targetPlayer.y, text: 'FALLEN', color: '#ef4444', isCrit: true });
       this.broadcastToRoom(room, {
         type: 'sys_msg',
@@ -3556,14 +3556,16 @@ export class RoomManager {
         taker.hp = Math.min(taker.maxHp, taker.hp + heal);
         this.parties.syncPlayerVitals(taker.id);
         room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 14, text: `+${heal} VITAL SHARD`, color: '#f87171' });
+        room.fxQueue.push({ kind: 'spark', x: l.x, y: l.y, colors: ['#f87171', '#fecaca', '#ffffff'], count: 8 });
       } else if (l.kind === 'glimmer') {
         this.addPlayerGlimmer(room, taker, 30);
         room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 14, text: '+30 GLIMMER SHARD', color: '#38bdf8' });
+        room.fxQueue.push({ kind: 'spark', x: l.x, y: l.y, colors: ['#38bdf8', '#bae6fd', '#ffffff'], count: 8 });
       } else {
         this.awardPlayerXP(taker, 60, 'Relic Shard');
         room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 14, text: '✦ RELIC SHARD +60 XP', color: '#fde047', isCrit: true });
+        room.fxQueue.push({ kind: 'spark', x: l.x, y: l.y, colors: ['#fde047', '#fef08a', '#ffffff'], count: 12 });
       }
-      room.fxQueue.push({ kind: 'smoke', x: l.x, y: l.y, count: 6 });
     }
   }
 
@@ -3572,7 +3574,7 @@ export class RoomManager {
     ent.isDying = true;
     ent.deathAge = 0;
 
-    room.fxQueue.push({ kind: 'smoke', x: ent.x, y: ent.y, count: ent.isBoss ? 44 : 28 });
+    room.fxQueue.push({ kind: 'smoke', x: ent.x, y: ent.y, count: ent.isBoss ? 44 : 28, isDeath: true });
 
     if (killerPlayer && killerSpell === 'Judgement of the Sun') {
       this.addPlayerGlimmer(room, killerPlayer, 25);
