@@ -275,18 +275,6 @@ export class RoomManager {
           radius: 15,
           hitFlash: 0,
           dammers: new Set(),
-        },
-        {
-          id: 'sanctuary_keystone_portal',
-          name: 'First Nexus Keystone Waygate',
-          sub: 'To Forgotten Ruins [Click/Walk]',
-          type: 'portal',
-          targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
-          spriteKey: 'node',
-          x: 0,
-          y: -90,
-          radius: 20,
-          hitFlash: 0,
         }
       );
     } else if (room.type === ROOM_TYPES.NEXUS_WARZONE) {

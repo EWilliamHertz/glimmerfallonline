@@ -101,12 +101,12 @@ const AWAKENING_DIALOGUE = [
   {
     speaker: 'HERALD LYRA • SOLARI SUNSPIRE HERALD',
     spriteKey: 'heraldNpc',
-    text: 'Explore all 4 Faction Biome Waygates around this Sanctuary, visit the Forgotten First Nexus Ruins to the South, customize your Paperdoll Gear [I] & TCG Loadout [👤 HERO], or form a Squad [O]!',
+    text: 'Explore all 4 Faction Biomes around Sanctuary (North, South, East, West). Venture North through Aether Spire into the Forgotten Ruins, customize your Gear [I] & Loadout [👤 HERO], or form a Squad [O]!',
   },
   {
     speaker: 'HERALD LYRA • SOLARI SUNSPIRE HERALD',
     spriteKey: 'heraldNpc',
-    text: 'Strike the Dummy with [1], channel the Glimmer Node [E], then step into the North Rift to clash in the 4-Faction Nexus Warzone Siege!',
+    text: 'Strike the Dummy with [1] and channel Glimmer with [E]. When you grow stronger, journey North into the high-level Caldera and Celestial Ascent!',
   },
 ];
 
@@ -673,7 +673,7 @@ export function initGame() {
         {
           speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
           spriteKey: 'warzoneArchonNpc',
-          text: 'When you are ready for deeper mysteries, venture through the First Nexus Waygate into the Forgotten Ruins and seek Atlas the Cartographer!',
+          text: 'When you are ready for deeper mysteries, journey North through the Aether Astral Spire into the Forgotten Ruins and seek Atlas the Cartographer!',
         },
       ],
       nextQuestId: 'quest_first_nexus',
@@ -1062,21 +1062,38 @@ export function initGame() {
     SANCTUARY_HUB: {
       id: 'SANCTUARY_HUB',
       name: 'Sanctuary Haven',
-      sub: 'Awakening Sanctum & Keystone Gateway',
+      sub: 'Awakening Sanctum & Continental Axis',
       level: 'Lv. 1 – 5',
       dangerTag: 'SANCTUARY HAVEN',
       color: '#38bdf8',
       borderColor: '#7dd3fc',
       faction: 'Order of the Sunspire (Neutral Sanctuary)',
-      desc: 'The peaceful haven where Summoner-Knights awaken from stasis. Connects the four outer elemental domains and houses the ancient Keystone Waygate.',
+      desc: 'The peaceful haven where Summoner-Knights awaken from stasis. Connects the four outer elemental domains and leads North through the Aether Spire into the high-level continental frontier.',
+      gridPos: { col: 1, row: 4 },
+      neighbors: {
+        north: 'AETHER_SPIRE',
+        south: 'TERRA_ORCHARD',
+        west: 'SOLARI_CITADEL',
+        east: 'UMBRI_UNDERCITY'
+      },
+      landmarks: [
+        { x: 50, y: 34, icon: '🛡️', name: 'Herald Lyra', sub: 'Sunspire Mentor', desc: 'Awakening guide and primary quest mentor.' },
+        { x: 50, y: 58, icon: '🎯', name: 'Training Grounds', sub: 'Sanctuary Dummies', desc: 'Training posts for honing Rites and Flashes.' },
+        { x: 28, y: 46, icon: '💎', name: 'Awakening Glimmer Font', sub: 'Leyline Font [E]', desc: 'Channel with [E] to replenish energy.' },
+        { x: 72, y: 46, icon: '💎', name: 'East Glimmer Font', sub: 'Leyline Font [E]', desc: 'Channel with [E] to replenish energy.' },
+        { x: 50, y: 8, icon: '▲', name: 'Astral Waygate', sub: 'To Aether Spire [North]', desc: 'Walk North across the Astral threshold.' },
+        { x: 50, y: 92, icon: '▼', name: 'Ironwood Arch', sub: 'To Terra Wilds [South]', desc: 'Walk South into the Ironwood Wilds.' },
+        { x: 8, y: 50, icon: '◀', name: 'Sunspire Arch', sub: 'To Solari Citadel [West]', desc: 'Walk West into the Golden Citadel.' },
+        { x: 92, y: 50, icon: '▶', name: 'Sepulcher Gate', sub: 'To Umbri Undercity [East]', desc: 'Walk East into the Duskveil Bog.' }
+      ],
       entities: [
         { name: 'Training Dummy', type: 'Neutral Target', hp: '35 HP', desc: 'Safe target for honing Rites and Flashes.' },
         { name: 'Glimmer Leyline Node', type: 'Harvest Node', hp: '3 Charges', desc: 'Channel with [E] to restore Solar Charge.' },
         { name: 'Herald Lyra', type: 'Sunspire Herald', hp: 'Immortal', desc: 'Awakening mentor & primary quest giver.' },
         { name: 'Commander Valerius', type: 'Vanguard Warlord', hp: 'Immortal', desc: 'Frontline commander directing border defense.' }
       ],
-      objectives: 'Tutorial Rites, Glimmer Harvesting, Gear customization, Squad recruitment [O].',
-      travel: 'You awaken here! Gateways lead North to Aether Spire, West to Solari Citadel, East to Umbri Undercity, South to Terra Orchard, and Center to Forgotten Ruins.'
+      objectives: 'Tutorial Rites, Glimmer Harvesting, Gear customization [I], Squad recruitment [O].',
+      travel: 'You awaken here! Gateways lead North to Aether Spire, West to Solari Citadel, East to Umbri Undercity, and South to Terra Orchard.'
     },
     SOLARI_CITADEL: {
       id: 'SOLARI_CITADEL',
@@ -1088,6 +1105,19 @@ export function initGame() {
       borderColor: '#fde047',
       faction: '☀️ Solari (The Light)',
       desc: 'Towering golden parapets and solar obelisks basking in perpetual dawn. Daystar paladins channel burning solar wrath and unbreakable bulwark shields.',
+      gridPos: { col: 0, row: 4 },
+      neighbors: {
+        north: null,
+        south: null,
+        west: null,
+        east: 'SANCTUARY_HUB'
+      },
+      landmarks: [
+        { x: 50, y: 38, icon: '☀️', name: 'Pyremaster Lucian', sub: 'Solari Emissary', desc: 'Master of Sun Aegis and Daystar rites.' },
+        { x: 34, y: 60, icon: '🛡️', name: 'Solari Sentinels', sub: 'Lv.6 Radiant Guards', desc: 'Golden armored paladins with Daystar strikes.' },
+        { x: 66, y: 60, icon: '💎', name: 'Dawnforged Monolith', sub: 'Sunspire Font [E]', desc: 'Power font channeling holy radiance.' },
+        { x: 92, y: 50, icon: '▶', name: 'Eastern Gate', sub: 'To Sanctuary Haven [East]', desc: 'Walk East into Sanctuary Haven.' }
+      ],
       entities: [
         { name: 'Solari Sentinels', type: 'Hostile Mob', hp: '120 HP', desc: 'Golden armored guards with Daystar strikes.' },
         { name: 'Pyremaster Lucian', type: 'Solari Emissary', hp: 'Immortal', desc: 'Master of Sun Aegis and Daystar rites.' },
@@ -1106,6 +1136,19 @@ export function initGame() {
       borderColor: '#e879f9',
       faction: '🌑 Umbri (The Shadow)',
       desc: 'Sunken mausoleums shrouded in abyssal mist and void whispers. Duskveil assassins stalk the shadows, draining lifeforce from unsuspecting wanderers.',
+      gridPos: { col: 2, row: 4 },
+      neighbors: {
+        north: null,
+        south: null,
+        west: 'SANCTUARY_HUB',
+        east: null
+      },
+      landmarks: [
+        { x: 50, y: 38, icon: '🌑', name: 'Wraithmother Vespera', sub: 'Shadow Mystic', desc: 'Mistress of Abyssal Shroud and Soul Tithes.' },
+        { x: 34, y: 60, icon: '🌫️', name: 'Dusk Fiends', sub: 'Lv.6 Shadow Stalkers', desc: 'Stealthed ambushers with life drain strikes.' },
+        { x: 66, y: 60, icon: '💎', name: 'Abyssal Wellspring', sub: 'Void Font [E]', desc: 'Void font empowering shadow leach affinity.' },
+        { x: 8, y: 50, icon: '◀', name: 'Western Gate', sub: 'To Sanctuary Haven [West]', desc: 'Walk West into Sanctuary Haven.' }
+      ],
       entities: [
         { name: 'Dusk Fiends & Shadow Stalkers', type: 'Hostile Mob', hp: '110 HP', desc: 'Stealthed ambushers with life drain strikes.' },
         { name: 'Wraithmother Vespera', type: 'Shadow Mystic', hp: 'Immortal', desc: 'Mistress of Abyssal Shroud and Soul Tithes.' },
@@ -1124,6 +1167,19 @@ export function initGame() {
       borderColor: '#86efac',
       faction: '🌿 Terra (The Earth)',
       desc: 'Colossal ironwood groves tangled with thornbark and living moss. Stone behemoths and treants safeguard the wild roots from void corruption.',
+      gridPos: { col: 1, row: 5 },
+      neighbors: {
+        north: 'SANCTUARY_HUB',
+        south: null,
+        west: null,
+        east: null
+      },
+      landmarks: [
+        { x: 50, y: 40, icon: '🌿', name: 'Elder Druid Sylvanus', sub: 'Primal Shaman', desc: 'Teacher of Rooted Bastion and Bramble Reversals.' },
+        { x: 34, y: 60, icon: '🌲', name: 'Ironwood Treants', sub: 'Lv.6 Primal Guardians', desc: 'High armor beasts reflecting melee damage via Thorns.' },
+        { x: 66, y: 60, icon: '💎', name: 'Verdant Heartstone', sub: 'Primal Font [E]', desc: 'Primal nexus crystal boosting maximum health.' },
+        { x: 50, y: 8, icon: '▲', name: 'Northern Archway', sub: 'To Sanctuary Haven [North]', desc: 'Walk North into Sanctuary Haven.' }
+      ],
       entities: [
         { name: 'Ironwood Treants & Bramble Hounds', type: 'Hostile Mob', hp: '160 HP', desc: 'High armor beasts reflecting melee damage via Thorns.' },
         { name: 'Elder Druid Sylvanus', type: 'Primal Shaman', hp: 'Immortal', desc: 'Teacher of Rooted Bastion and Bramble Reversals.' },
@@ -1141,14 +1197,29 @@ export function initGame() {
       color: '#38bdf8',
       borderColor: '#7dd3fc',
       faction: '🔮 Aether (The Magic)',
-      desc: 'Glacial starlight terraces suspended over the astral void. Time-bending scholars harness chronomancy to fracture reality and slow enemy actions.',
+      desc: 'Glacial starlight terraces suspended over the astral void. Time-bending scholars harness chronomancy to fracture reality and slow enemy actions. The northern threshold leads to the Forgotten Ruins.',
+      gridPos: { col: 1, row: 3 },
+      neighbors: {
+        north: 'NEXUS_FORGOTTEN_RUINS',
+        south: 'SANCTUARY_HUB',
+        west: null,
+        east: null
+      },
+      landmarks: [
+        { x: 50, y: 35, icon: '🔮', name: 'Archon of the Continuum', sub: '★ Lv.6 Mirrorgate Boss', desc: 'Temporal master casting Frost Nova and slow pulses.' },
+        { x: 30, y: 55, icon: '✨', name: 'Chrono Anomalies', sub: 'Lv.3 Aether Construct', desc: 'Hostile astral wisps.' },
+        { x: 70, y: 55, icon: '💎', name: 'Mirrorgate Star Font', sub: 'Glimmer Font [E]', desc: 'High-yield astral glimmer node.' },
+        { x: 50, y: 72, icon: '👤', name: 'Astromancer Kaelen', sub: 'Stargazer NPC', desc: 'Scholar of ancient continuum leylines.' },
+        { x: 50, y: 8, icon: '▲', name: 'Northern Ruin Threshold', sub: 'To Forgotten Ruins [North]', desc: 'Walk North into the First Nexus Ruins.' },
+        { x: 50, y: 92, icon: '▼', name: 'Sanctuary Gate', sub: 'To Sanctuary Haven [South]', desc: 'Walk South back to Sanctuary.' }
+      ],
       entities: [
         { name: 'Astral Wisps & Starforged Golems', type: 'Hostile Mob', hp: '105 HP', desc: 'Casts Frost Nova chilling and slowing players.' },
         { name: 'Chronos Sage Zephyr', type: 'Time Weaver', hp: 'Immortal', desc: 'Master of Chrono Warp and Temporal Apotheosis.' },
         { name: 'Chrono Crystal Font', type: 'Faction Shard', hp: 'Leyline', desc: 'Astral prism accelerating cooldowns and cast speed.' }
       ],
-      objectives: 'Fractured Archive delve, Chronomancy training, Aether Spire trials.',
-      travel: 'From Sanctuary Haven, walk North through the Astral Gate into Mirrorgate Spire.'
+      objectives: 'Chronomancy training, Aether Spire trials, Northern gateway to the Forgotten Ruins.',
+      travel: 'From Sanctuary Haven, walk North through the Astral Gate into Mirrorgate Spire. Continue walking North to enter the Forgotten Ruins.'
     },
     NEXUS_FORGOTTEN_RUINS: {
       id: 'NEXUS_FORGOTTEN_RUINS',
@@ -1159,14 +1230,29 @@ export function initGame() {
       color: '#818cf8',
       borderColor: '#a5b4fc',
       faction: 'Ancient Leyline Keepers (Contested)',
-      desc: 'The sunken site where the First Nexus shattered centuries ago. Corrupted stalkers roam the pillars, guarding ancient quadrant runestones and the gateway to Caldera.',
+      desc: 'The sunken site where the First Nexus shattered centuries ago. Corrupted stalkers roam the pillars, guarding ancient quadrant runestones and the gateway to the Continental Caldera.',
+      gridPos: { col: 1, row: 2 },
+      neighbors: {
+        north: 'NEXUS_WARZONE',
+        south: 'AETHER_SPIRE',
+        west: null,
+        east: null
+      },
+      landmarks: [
+        { x: 50, y: 30, icon: '🗿', name: 'The Prismatic Golem', sub: '★ Lv.7 First Nexus Guardian', desc: 'Ancient megalith guarding quadrant runestones.' },
+        { x: 50, y: 68, icon: '📜', name: 'Atlas the Cartographer', sub: 'Keystone Seeker NPC', desc: 'Ancient surveyor mapping continental leylines.' },
+        { x: 30, y: 50, icon: '👾', name: 'Corrupted Stalkers', sub: 'Lv.4 Keystone Constructs', desc: 'Lingering void constructs around ruined pillars.' },
+        { x: 70, y: 50, icon: '💎', name: 'Prismatic Leyline Node', sub: 'Glimmer Font [E]', desc: 'Omni-resonance energy node.' },
+        { x: 50, y: 8, icon: '▲', name: 'Torment Boundary Gate', sub: 'To Continental Caldera [North]', desc: 'Walk North across the Torment threshold.' },
+        { x: 50, y: 92, icon: '▼', name: 'Aether Archway', sub: 'To Aether Spire [South]', desc: 'Walk South back into Aether Spire.' }
+      ],
       entities: [
         { name: 'Corrupted Ruin Stalkers', type: 'Hostile Mob', hp: '220 HP', desc: 'Void spikes & lingering ruin curse.' },
         { name: 'Atlas the Cartographer', type: 'Keystone Seeker', hp: 'Immortal', desc: 'Ancient surveyor with deep knowledge of the leylines.' },
-        { name: 'First Nexus Altar', type: 'Ancient Relic', hp: 'Indestructible', desc: 'Central keystone anchoring continental transitions.' }
+        { name: 'First Nexus Altar', type: 'Ancient Relic', hp: 'Indestructible', desc: 'Central altar anchoring continental transitions.' }
       ],
-      objectives: 'Ruin Horrors quest, Keystone navigation, Gateway to Torment Caldera.',
-      travel: 'Step onto the Center Keystone Waygate in Sanctuary Haven. To reach Caldera, walk North through the Torment Gate.'
+      objectives: 'Ruin Horrors quest, Cartographer research, Gateway North to Continental Caldera.',
+      travel: 'From Sanctuary Haven, walk North into Aether Spire, then continue North through the threshold into the Forgotten Ruins.'
     },
     NEXUS_WARZONE: {
       id: 'NEXUS_WARZONE',
@@ -1178,6 +1264,23 @@ export function initGame() {
       borderColor: '#fdba74',
       faction: '⚔️ Contested All-Faction Warzone',
       desc: 'A massive 4800×3600 continental warzone where rival factions fight for domination. All creatures possess 10× health and damage in this brutal Torment Realm!',
+      gridPos: { col: 1, row: 1 },
+      neighbors: {
+        north: 'CELESTIAL_ASCENT',
+        south: 'NEXUS_FORGOTTEN_RUINS',
+        west: null,
+        east: null
+      },
+      landmarks: [
+        { x: 50, y: 45, icon: '🌋', name: 'Shattered Nexus Shard', sub: 'Continental Siege Objective', desc: '30-minute continental siege shard granting +250 XP.' },
+        { x: 25, y: 30, icon: '⚔️', name: 'Terra Forest Outpost', sub: '300 HP Strategic Outpost', desc: 'Green faction capture point.' },
+        { x: 75, y: 30, icon: '⚔️', name: 'Umbri Shadow Outpost', sub: '300 HP Strategic Outpost', desc: 'Purple faction capture point.' },
+        { x: 25, y: 70, icon: '⚔️', name: 'Solari Radiant Outpost', sub: '300 HP Strategic Outpost', desc: 'Gold faction capture point.' },
+        { x: 75, y: 70, icon: '⚔️', name: 'Aether Astral Outpost', sub: '300 HP Strategic Outpost', desc: 'Cyan faction capture point.' },
+        { x: 50, y: 80, icon: '🛡️', name: 'Commander Valerius', sub: 'Vanguard Outpost Commander', desc: 'Directs frontline continental bounties.' },
+        { x: 50, y: 8, icon: '▲', name: 'Ascent Mountain Colonnade', sub: 'To Celestial Titan Summit [North]', desc: 'Walk North through the Ascent Gate.' },
+        { x: 50, y: 92, icon: '▼', name: 'Torment Boundary Gate', sub: 'To Forgotten Ruins [South]', desc: 'Walk South back to Forgotten Ruins.' }
+      ],
       entities: [
         { name: 'Torment Void Fiends', type: 'Torment Mob', hp: '340 – 420 HP', desc: 'Vicious stalkers dealing 24-28 damage.' },
         { name: 'Continental Faction Bosses', type: 'World Bosses', hp: '1150 – 1250 HP', desc: 'Elite warlords casting faction apex abilities.' },
@@ -1185,8 +1288,8 @@ export function initGame() {
         { name: 'Shattered Nexus Shard', type: 'Siege Objective', hp: '850 HP', desc: '30-minute continental siege shard granting +250 XP.' },
         { name: 'Commander Valerius', type: 'Sunspire Warlord', hp: 'Immortal', desc: 'Vanguard post commander offering frontline bounties.' }
       ],
-      objectives: 'Continental Faction Siege, Outpost control, Ancient Paragon Caches, Titan Ascent gateway.',
-      travel: 'From Forgotten First Nexus Ruins, walk North across the Torment threshold into South Sanctuary Vale. Walk North past Whispering Mountain Pass to reach the Caldera.'
+      objectives: 'Continental Faction Siege, Outpost control, Ancient Paragon Caches, Gateway North to Celestial Titan Summit.',
+      travel: 'Walk North from Sanctuary through Aether Spire and the Forgotten Ruins into the Caldera.'
     },
     CELESTIAL_ASCENT: {
       id: 'CELESTIAL_ASCENT',
@@ -1198,6 +1301,20 @@ export function initGame() {
       borderColor: '#ffffff',
       faction: 'Empyrean Titan Keepers',
       desc: 'Sacred starlight terraces towering above the continental clouds. The highest peak in Glimmerfall, where Grand Arbiter Aurelia guards the throne of the Empyrean Sovereign.',
+      gridPos: { col: 1, row: 0 },
+      neighbors: {
+        north: null,
+        south: 'NEXUS_WARZONE',
+        west: null,
+        east: null
+      },
+      landmarks: [
+        { x: 50, y: 35, icon: '👑', name: 'AURELIUS THE SOVEREIGN', sub: '★ Lv.35 World Raid Boss', desc: '3200 HP Apex Sovereign dealing 65 holy DMG. Drops Crown of Dawn!' },
+        { x: 50, y: 65, icon: '✨', name: 'Grand Arbiter Aurelia', sub: 'Empyrean Keeper NPC', desc: 'Guardian of the Morning Star Colonnade.' },
+        { x: 28, y: 50, icon: '🏛️', name: 'Morning Star Colonnade', sub: 'Ancient Starlight Terrace', desc: 'Towering colonnades above the clouds.' },
+        { x: 72, y: 50, icon: '💎', name: 'Apex Glimmer Font', sub: 'Titan Glimmer Core [E]', desc: 'High-density titan crystal node.' },
+        { x: 50, y: 92, icon: '▼', name: 'Ascent Descent Gate', sub: 'To Caldera Warzone [South]', desc: 'Walk South down the mountain stairs.' }
+      ],
       entities: [
         { name: 'AURELIUS THE EMPYREAN SOVEREIGN', type: 'World Raid Boss', hp: '3200 HP', desc: 'Lv. 35 Titan Sovereign dealing 65 holy starlight DMG. Drops Crown of Dawn!' },
         { name: 'Grand Arbiter Aurelia', type: 'Empyrean Keeper', hp: 'Immortal', desc: 'Guardian of the Morning Star Colonnade.' },
@@ -1209,7 +1326,9 @@ export function initGame() {
   };
 
   let currentLoreTab = 'quests';
+  let currentAtlasView = 'square'; // 'square' | 'grid'
   let selectedMapRegionId = 'SANCTUARY_HUB';
+  let edgeScrollTimer = null;
 
   window.switchLoreTab = function (tab) {
     currentLoreTab = tab;
@@ -1226,6 +1345,9 @@ export function initGame() {
 
   window.openWorldMap = function () {
     currentLoreTab = 'map';
+    if (WORLD_ATLAS_REGIONS[currentRoomType]) {
+      selectedMapRegionId = currentRoomType;
+    }
     if (document.getElementById('lore-modal')?.style.display !== 'block') {
       window.toggleModal('lore-modal');
     }
@@ -1241,26 +1363,51 @@ export function initGame() {
     }
   };
 
-  window.inspectMapRegion = function (regId) {
-    if (WORLD_ATLAS_REGIONS[regId]) {
-      selectedMapRegionId = regId;
-      const insp = document.getElementById('atlas-inspector-panel');
-      if (insp) {
-        insp.innerHTML = getRegionInspectorHtml(regId);
-      }
-      document.querySelectorAll('.atlas-realm-card').forEach((el) => {
-        if (el.dataset.regionId === regId) {
-          el.style.borderColor = '#ffffff';
-          el.style.transform = 'translateY(-2px)';
-          el.style.boxShadow = '0 0 16px rgba(255, 255, 255, 0.35)';
-        } else {
-          const origColor = el.dataset.origBorder || '#334155';
-          el.style.borderColor = origColor;
-          el.style.transform = 'none';
-          el.style.boxShadow = 'none';
-        }
-      });
+  window.setAtlasViewMode = function (mode) {
+    currentAtlasView = mode;
+    const body = document.getElementById('lore-modal-body');
+    if (body && currentLoreTab === 'map') {
+      renderWorldAtlasView(body);
     }
+  };
+
+  window.centerMapOnPlayer = function () {
+    if (WORLD_ATLAS_REGIONS[currentRoomType]) {
+      window.selectMapRegion(currentRoomType, true);
+    }
+  };
+
+  window.edgeHoverScroll = function (direction) {
+    if (edgeScrollTimer) clearTimeout(edgeScrollTimer);
+    const reg = WORLD_ATLAS_REGIONS[selectedMapRegionId];
+    if (!reg || !reg.neighbors || !reg.neighbors[direction]) return;
+    const targetId = reg.neighbors[direction];
+    edgeScrollTimer = setTimeout(() => {
+      window.selectMapRegion(targetId, true);
+    }, 200);
+  };
+
+  window.cancelEdgeHoverScroll = function () {
+    if (edgeScrollTimer) {
+      clearTimeout(edgeScrollTimer);
+      edgeScrollTimer = null;
+    }
+  };
+
+  window.selectMapRegion = function (regId, playSound = false) {
+    if (!WORLD_ATLAS_REGIONS[regId]) return;
+    selectedMapRegionId = regId;
+    if (playSound && audio && audio.playChime) {
+      audio.playChime();
+    }
+    const body = document.getElementById('lore-modal-body');
+    if (body && currentLoreTab === 'map') {
+      renderWorldAtlasView(body);
+    }
+  };
+
+  window.inspectMapRegion = function (regId) {
+    window.selectMapRegion(regId, false);
   };
 
   window.toggleQuestTracking = function (qId) {
@@ -1285,8 +1432,10 @@ export function initGame() {
   function getRegionInspectorHtml(regId) {
     const reg = WORLD_ATLAS_REGIONS[regId] || WORLD_ATLAS_REGIONS.SANCTUARY_HUB;
     const isPlayerHere = currentRoomType === reg.id;
+    const n = reg.neighbors || {};
+
     return `
-      <div style="background:#070b18; border:2px solid ${reg.borderColor}; border-radius:6px; padding:12px;">
+      <div style="background:#070b18; border:2px solid ${reg.borderColor}; border-radius:6px; padding:12px; height:100%; box-sizing:border-box;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; border-bottom:1px solid #1e293b; padding-bottom:6px;">
           <div>
             <div style="font-family:var(--font-header); font-size:14px; font-weight:800; color:${reg.color}; letter-spacing:0.5px;">
@@ -1295,7 +1444,7 @@ export function initGame() {
             <div style="font-size:10.5px; color:#94a3b8; margin-top:2px;">${reg.sub}</div>
           </div>
           <div style="text-align:right;">
-            <span style="display:inline-block; font-size:10px; font-weight:bold; background:#0f172a; border:1px solid ${reg.color}; color:${reg.color}; padding:2px 7px; border-radius:3px;">
+            <span style="display:inline-block; font-size:9.5px; font-weight:bold; background:#0f172a; border:1px solid ${reg.color}; color:${reg.color}; padding:2px 7px; border-radius:3px;">
               ${reg.dangerTag}
             </span>
             <div style="font-size:10px; color:#facc15; font-weight:bold; margin-top:3px;">${reg.level}</div>
@@ -1304,145 +1453,411 @@ export function initGame() {
 
         ${isPlayerHere ? `
           <div style="background:rgba(34, 197, 94, 0.15); border:1px solid #22c55e; color:#86efac; font-size:10px; font-weight:bold; padding:4px 8px; border-radius:4px; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-            <span>📍</span><span>YOU ARE CURRENTLY IN THIS REALM</span>
+            <span>📍</span><span>YOU ARE CURRENTLY IN THIS REALM (${Math.round(player.x)}, ${Math.round(player.y)})</span>
           </div>
         ` : ''}
 
-        <div style="margin-bottom:10px;">
-          <div style="font-size:10px; font-weight:bold; text-transform:uppercase; margin-bottom:3px; color:#38bdf8;">
-            🏛️ Faction &amp; Affiliation
+        <!-- Connected Edge Boundaries (Click to Navigate) -->
+        <div style="margin-bottom:8px; background:#0b1120; border:1px solid #1e293b; border-radius:4px; padding:6px 8px;">
+          <div style="font-size:9px; color:#64748b; font-weight:bold; text-transform:uppercase; margin-bottom:4px; letter-spacing:0.5px;">
+            🧭 Connected Territory Boundaries
           </div>
-          <div style="font-size:11px; color:#f8fafc; font-weight:600;">${reg.faction}</div>
-          <div style="font-size:10px; color:#94a3b8; margin-top:3px; line-height:1.45;">${reg.desc}</div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:4px; font-size:9.5px;">
+            ${n.north ? `
+              <button type="button" onclick="selectMapRegion('${n.north}', true)" style="background:#0f172a; border:1px solid #38bdf8; color:#7dd3fc; padding:3px 6px; border-radius:3px; cursor:pointer; text-align:left; font-size:9px;">
+                ▲ North: ${WORLD_ATLAS_REGIONS[n.north]?.name.split(' ')[0]}
+              </button>
+            ` : '<div style="color:#475569; font-size:9px; padding:3px 6px;">▲ North: None (Edge)</div>'}
+            ${n.south ? `
+              <button type="button" onclick="selectMapRegion('${n.south}', true)" style="background:#0f172a; border:1px solid #38bdf8; color:#7dd3fc; padding:3px 6px; border-radius:3px; cursor:pointer; text-align:left; font-size:9px;">
+                ▼ South: ${WORLD_ATLAS_REGIONS[n.south]?.name.split(' ')[0]}
+              </button>
+            ` : '<div style="color:#475569; font-size:9px; padding:3px 6px;">▼ South: None (Edge)</div>'}
+            ${n.west ? `
+              <button type="button" onclick="selectMapRegion('${n.west}', true)" style="background:#0f172a; border:1px solid #38bdf8; color:#7dd3fc; padding:3px 6px; border-radius:3px; cursor:pointer; text-align:left; font-size:9px;">
+                ◀ West: ${WORLD_ATLAS_REGIONS[n.west]?.name.split(' ')[0]}
+              </button>
+            ` : '<div style="color:#475569; font-size:9px; padding:3px 6px;">◀ West: None (Edge)</div>'}
+            ${n.east ? `
+              <button type="button" onclick="selectMapRegion('${n.east}', true)" style="background:#0f172a; border:1px solid #38bdf8; color:#7dd3fc; padding:3px 6px; border-radius:3px; cursor:pointer; text-align:left; font-size:9px;">
+                ▶ East: ${WORLD_ATLAS_REGIONS[n.east]?.name.split(' ')[0]}
+              </button>
+            ` : '<div style="color:#475569; font-size:9px; padding:3px 6px;">▶ East: None (Edge)</div>'}
+          </div>
         </div>
 
-        <div style="margin-bottom:10px;">
-          <div style="font-size:10px; font-weight:bold; text-transform:uppercase; margin-bottom:4px; color:#fde047;">
+        <div style="margin-bottom:8px;">
+          <div style="font-size:10px; font-weight:bold; text-transform:uppercase; margin-bottom:2px; color:#38bdf8;">
+            🏛️ Faction &amp; Affiliation
+          </div>
+          <div style="font-size:10.5px; color:#f8fafc; font-weight:600;">${reg.faction}</div>
+          <div style="font-size:9.5px; color:#94a3b8; margin-top:2px; line-height:1.4;">${reg.desc}</div>
+        </div>
+
+        <div style="margin-bottom:8px;">
+          <div style="font-size:10px; font-weight:bold; text-transform:uppercase; margin-bottom:3px; color:#fde047;">
             👾 Entities &amp; Inhabitants
           </div>
-          <div style="display:flex; flex-direction:column; gap:4px; max-height:140px; overflow-y:auto;">
+          <div style="display:flex; flex-direction:column; gap:3px; max-height:120px; overflow-y:auto; padding-right:2px;">
             ${reg.entities.map((e) => `
-              <div style="background:#0c1222; border-left:2px solid ${reg.color}; padding:4px 8px; font-size:10px;">
+              <div style="background:#0c1222; border-left:2px solid ${reg.color}; padding:3px 6px; font-size:9.5px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   <b style="color:#f1f5f9;">${e.name}</b>
-                  <span style="color:#facc15; font-size:9.5px; font-weight:bold;">${e.hp}</span>
+                  <span style="color:#facc15; font-size:9px; font-weight:bold;">${e.hp}</span>
                 </div>
-                <div style="color:#94a3b8; font-size:9px; margin-top:1px;">${e.type} • ${e.desc}</div>
+                <div style="color:#94a3b8; font-size:8.5px; margin-top:1px;">${e.type} • ${e.desc}</div>
               </div>
             `).join('')}
           </div>
         </div>
 
-        <div style="margin-bottom:10px;">
-          <div style="font-size:10px; font-weight:bold; text-transform:uppercase; margin-bottom:3px; color:#4ade80;">
-            ⭐ Key Objectives &amp; Lore
+        <div style="background:#090d1c; border:1px solid #1e293b; border-radius:4px; padding:5px 8px;">
+          <div style="font-size:9.5px; color:#facc15; font-weight:bold; text-transform:uppercase; margin-bottom:2px;">
+            🧭 Pathfinding Route (From Sanctuary)
           </div>
-          <div style="font-size:10px; color:#cbd5e1; line-height:1.4;">${reg.objectives}</div>
-        </div>
-
-        <div style="background:#090d1c; border:1px solid #1e293b; border-radius:4px; padding:6px 8px;">
-          <div style="font-size:10px; color:#facc15; font-weight:bold; text-transform:uppercase; margin-bottom:2px;">
-            🧭 How to Travel (From Sanctuary)
-          </div>
-          <div style="font-size:10px; color:#94a3b8; line-height:1.45;">${reg.travel}</div>
+          <div style="font-size:9.5px; color:#cbd5e1; line-height:1.4;">${reg.travel}</div>
         </div>
       </div>
     `;
   }
 
-  function renderAtlasNodeCard(regId) {
-    const reg = WORLD_ATLAS_REGIONS[regId];
-    if (!reg) return '';
-    const isSelected = selectedMapRegionId === regId;
-    const isHere = currentRoomType === regId;
+  function renderSquareZoneView(reg) {
+    const isPlayerHere = currentRoomType === reg.id;
+    const n = reg.neighbors || {};
+    const northReg = n.north ? WORLD_ATLAS_REGIONS[n.north] : null;
+    const southReg = n.south ? WORLD_ATLAS_REGIONS[n.south] : null;
+    const westReg = n.west ? WORLD_ATLAS_REGIONS[n.west] : null;
+    const eastReg = n.east ? WORLD_ATLAS_REGIONS[n.east] : null;
+
+    // Player position percentage on current map
+    let playerMarkerX = 50;
+    let playerMarkerY = 50;
+    if (isPlayerHere && mapBounds.halfW && mapBounds.halfH) {
+      playerMarkerX = Math.max(10, Math.min(90, 50 + (player.x / mapBounds.halfW) * 40));
+      playerMarkerY = Math.max(10, Math.min(90, 50 + (player.y / mapBounds.halfH) * 40));
+    }
+
     return `
-      <div class="atlas-realm-card"
-        data-region-id="${reg.id}"
-        data-orig-border="${reg.borderColor}"
-        onmouseenter="inspectMapRegion('${reg.id}')"
-        onclick="inspectMapRegion('${reg.id}')"
-        style="
-          background: #090e1d;
-          border: 2px solid ${isSelected ? '#ffffff' : reg.borderColor};
-          border-radius: 5px;
-          padding: 8px 10px;
-          cursor: pointer;
-          transition: all 0.15s ease;
-          position: relative;
-          ${isSelected ? 'box-shadow: 0 0 14px rgba(255, 255, 255, 0.25);' : ''}
-        ">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div>
-            <span style="font-family:var(--font-header); font-size:11.5px; font-weight:bold; color:${reg.color};">
-              ${reg.name}
-            </span>
-            <span style="font-size:9.5px; color:#cbd5e1; margin-left:6px;">[${reg.level}]</span>
+      <div style="display:flex; flex-direction:column; gap:0; background:#060a14; border:2px solid ${reg.borderColor}; border-radius:6px; overflow:hidden; box-shadow:0 0 20px rgba(0,0,0,0.8);">
+        <!-- TOP EDGE SCROLL BAR (NORTH) -->
+        <div class="map-edge-scroll north"
+          onmouseenter="edgeHoverScroll('north')"
+          onmouseleave="cancelEdgeHoverScroll()"
+          onclick="if ('${n.north || ''}') selectMapRegion('${n.north}', true)"
+          style="
+            height: 26px;
+            background: ${northReg ? '#0b162c' : '#05070f'};
+            border-bottom: 1px solid ${northReg ? '#38bdf8' : '#1e293b'};
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: ${northReg ? 'pointer' : 'default'};
+            font-size: 10px;
+            font-weight: bold;
+            color: ${northReg ? '#38bdf8' : '#475569'};
+            transition: all 0.15s ease;
+            user-select: none;
+            letter-spacing: 0.5px;
+          "
+          title="${northReg ? 'Hover or click to scroll North into ' + northReg.name : 'Northern Boundary'}">
+          ${northReg ? `▲ HOVER EDGE TO SCROLL NORTH: ${northReg.name.toUpperCase()} [${northReg.level}] ▲` : '— NORTHERN SEA BOUNDARY (THE FALL) —'}
+        </div>
+
+        <!-- MIDDLE ROW: WEST BAR + SQUARE MAP CANVAS + EAST BAR -->
+        <div style="display:flex; height: 340px; position:relative;">
+          <!-- LEFT EDGE SCROLL BAR (WEST) -->
+          <div class="map-edge-scroll west"
+            onmouseenter="edgeHoverScroll('west')"
+            onmouseleave="cancelEdgeHoverScroll()"
+            onclick="if ('${n.west || ''}') selectMapRegion('${n.west}', true)"
+            style="
+              width: 26px;
+              background: ${westReg ? '#0b162c' : '#05070f'};
+              border-right: 1px solid ${westReg ? '#38bdf8' : '#1e293b'};
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              cursor: ${westReg ? 'pointer' : 'default'};
+              font-size: 10px;
+              font-weight: bold;
+              color: ${westReg ? '#38bdf8' : '#475569'};
+              writing-mode: vertical-rl;
+              transform: rotate(180deg);
+              transition: all 0.15s ease;
+              user-select: none;
+              letter-spacing: 0.5px;
+            "
+            title="${westReg ? 'Hover or click to scroll West into ' + westReg.name : 'Western Boundary'}">
+            ${westReg ? `◀ WEST: ${westReg.name.toUpperCase()}` : '— WEST BOUNDARY —'}
           </div>
-          <div style="font-size:9px; font-weight:bold; color:${reg.color}; background:#070c18; border:1px solid ${reg.color}; padding:1px 5px; border-radius:3px;">
-            ${reg.dangerTag}
+
+          <!-- THE SQUARE MAP INTERIOR CANVAS -->
+          <div style="
+            flex: 1;
+            position: relative;
+            background:
+              radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.08) 0%, rgba(5, 8, 16, 0.95) 75%),
+              repeating-linear-gradient(0deg, transparent, transparent 31px, rgba(255,255,255,0.03) 31px, rgba(255,255,255,0.03) 32px),
+              repeating-linear-gradient(90deg, transparent, transparent 31px, rgba(255,255,255,0.03) 31px, rgba(255,255,255,0.03) 32px),
+              #080d1a;
+            border-radius: 0;
+            overflow: hidden;
+          ">
+            <!-- Compass Rose in Top-Right Corner -->
+            <div style="position:absolute; top:8px; right:8px; background:rgba(6,10,20,0.85); border:1px solid #334155; border-radius:50%; width:34px; height:34px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:8px; font-weight:800; color:#cbd5e1; user-select:none; z-index:10; box-shadow:0 2px 6px rgba(0,0,0,0.5);">
+              <span style="color:#facc15; font-size:9px; margin-top:-2px;">N</span>
+              <span style="font-size:7px; color:#64748b; margin-top:-1px;">W • E</span>
+              <span style="font-size:7px; color:#64748b; margin-top:-1px;">S</span>
+            </div>
+
+            <!-- Regional Banner in Top-Left -->
+            <div style="position:absolute; top:8px; left:8px; background:rgba(7,11,22,0.9); border:1px solid ${reg.color}; border-radius:4px; padding:3px 8px; z-index:10; box-shadow:0 2px 8px rgba(0,0,0,0.6);">
+              <div style="font-family:var(--font-header); font-size:11px; font-weight:800; color:${reg.color};">
+                ${reg.name}
+              </div>
+              <div style="font-size:8.5px; color:#cbd5e1;">${reg.sub} • <b style="color:#facc15;">${reg.level}</b></div>
+            </div>
+
+            <!-- Road/Pathway Leyline Overlays -->
+            <svg style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1;">
+              <!-- Central Leyline Convergence -->
+              <circle cx="50%" cy="50%" r="22" fill="none" stroke="${reg.color}" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.4" />
+              ${n.north ? `<line x1="50%" y1="50%" x2="50%" y2="0%" stroke="${reg.color}" stroke-width="2" opacity="0.35" stroke-dasharray="4,2" />` : ''}
+              ${n.south ? `<line x1="50%" y1="50%" x2="50%" y2="100%" stroke="${reg.color}" stroke-width="2" opacity="0.35" stroke-dasharray="4,2" />` : ''}
+              ${n.west ? `<line x1="50%" y1="50%" x2="0%" y2="50%" stroke="${reg.color}" stroke-width="2" opacity="0.35" stroke-dasharray="4,2" />` : ''}
+              ${n.east ? `<line x1="50%" y1="50%" x2="100%" y2="50%" stroke="${reg.color}" stroke-width="2" opacity="0.35" stroke-dasharray="4,2" />` : ''}
+            </svg>
+
+            <!-- Landmark Pins on Square Map -->
+            ${(reg.landmarks || []).map((lm, idx) => `
+              <div class="rs-map-pin"
+                style="
+                  position: absolute;
+                  left: ${lm.x}%;
+                  top: ${lm.y}%;
+                  transform: translate(-50%, -50%);
+                  cursor: pointer;
+                  z-index: 5;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  transition: transform 0.15s ease;
+                "
+                title="${lm.name} • ${lm.sub}&#10;${lm.desc}">
+                <div style="
+                  background: rgba(10, 15, 30, 0.95);
+                  border: 1.5px solid ${reg.color};
+                  border-radius: 4px;
+                  width: 22px;
+                  height: 22px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 11px;
+                  box-shadow: 0 0 8px rgba(0,0,0,0.8);
+                ">
+                  ${lm.icon}
+                </div>
+                <div style="
+                  font-size: 8px;
+                  font-weight: bold;
+                  color: #e2e8f0;
+                  background: rgba(4, 7, 15, 0.85);
+                  border: 1px solid #334155;
+                  border-radius: 2px;
+                  padding: 1px 4px;
+                  margin-top: 2px;
+                  white-space: nowrap;
+                  text-shadow: 0 1px 2px #000;
+                  pointer-events: none;
+                ">
+                  ${lm.name}
+                </div>
+              </div>
+            `).join('')}
+
+            <!-- Player Location Pulse Marker -->
+            ${isPlayerHere ? `
+              <div style="
+                position: absolute;
+                left: ${playerMarkerX}%;
+                top: ${playerMarkerY}%;
+                transform: translate(-50%, -50%);
+                z-index: 8;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                pointer-events: none;
+              ">
+                <div style="
+                  width: 14px;
+                  height: 14px;
+                  background: #ffffff;
+                  border: 2px solid #38bdf8;
+                  border-radius: 50%;
+                  box-shadow: 0 0 14px #ffffff, 0 0 24px #38bdf8;
+                  animation: pulse 1.4s infinite;
+                "></div>
+                <div style="
+                  font-size: 8px;
+                  font-weight: 800;
+                  color: #ffffff;
+                  background: rgba(2, 132, 199, 0.9);
+                  border: 1px solid #7dd3fc;
+                  border-radius: 3px;
+                  padding: 1px 5px;
+                  margin-top: 2px;
+                  white-space: nowrap;
+                  box-shadow: 0 2px 6px rgba(0,0,0,0.8);
+                ">
+                  📍 YOU ARE HERE
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- Map Scale indicator in bottom-left -->
+            <div style="position:absolute; bottom:6px; left:8px; font-size:8px; color:#64748b; font-family:monospace; user-select:none; z-index:10; background:rgba(6,10,20,0.7); padding:1px 5px; border-radius:2px; border:1px solid #1e293b;">
+              SCALE: 100px ≈ 20 YARDS
+            </div>
+          </div>
+
+          <!-- RIGHT EDGE SCROLL BAR (EAST) -->
+          <div class="map-edge-scroll east"
+            onmouseenter="edgeHoverScroll('east')"
+            onmouseleave="cancelEdgeHoverScroll()"
+            onclick="if ('${n.east || ''}') selectMapRegion('${n.east}', true)"
+            style="
+              width: 26px;
+              background: ${eastReg ? '#0b162c' : '#05070f'};
+              border-left: 1px solid ${eastReg ? '#38bdf8' : '#1e293b'};
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              cursor: ${eastReg ? 'pointer' : 'default'};
+              font-size: 10px;
+              font-weight: bold;
+              color: ${eastReg ? '#38bdf8' : '#475569'};
+              writing-mode: vertical-rl;
+              transition: all 0.15s ease;
+              user-select: none;
+              letter-spacing: 0.5px;
+            "
+            title="${eastReg ? 'Hover or click to scroll East into ' + eastReg.name : 'Eastern Boundary'}">
+            ${eastReg ? `▶ EAST: ${eastReg.name.toUpperCase()}` : '— EAST BOUNDARY —'}
           </div>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:3px; font-size:9.5px; color:#94a3b8;">
-          <span>${reg.faction}</span>
-          ${isHere ? '<b style="color:#4ade80; background:rgba(34,197,94,0.2); padding:1px 5px; border-radius:3px; border:1px solid #22c55e;">📍 HERE</b>' : ''}
+
+        <!-- BOTTOM EDGE SCROLL BAR (SOUTH) -->
+        <div class="map-edge-scroll south"
+          onmouseenter="edgeHoverScroll('south')"
+          onmouseleave="cancelEdgeHoverScroll()"
+          onclick="if ('${n.south || ''}') selectMapRegion('${n.south}', true)"
+          style="
+            height: 26px;
+            background: ${southReg ? '#0b162c' : '#05070f'};
+            border-top: 1px solid ${southReg ? '#38bdf8' : '#1e293b'};
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: ${southReg ? 'pointer' : 'default'};
+            font-size: 10px;
+            font-weight: bold;
+            color: ${southReg ? '#38bdf8' : '#475569'};
+            transition: all 0.15s ease;
+            user-select: none;
+            letter-spacing: 0.5px;
+          "
+          title="${southReg ? 'Hover or click to scroll South into ' + southReg.name : 'Southern Boundary'}">
+          ${southReg ? `▼ HOVER EDGE TO SCROLL SOUTH: ${southReg.name.toUpperCase()} [${southReg.level}] ▼` : '— SOUTHERN FRONTIER BOUNDARY —'}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderContinentalGridView() {
+    const realmOrder = [
+      'CELESTIAL_ASCENT',
+      'NEXUS_WARZONE',
+      'NEXUS_FORGOTTEN_RUINS',
+      'AETHER_SPIRE',
+      'SANCTUARY_HUB',
+      'SOLARI_CITADEL',
+      'UMBRI_UNDERCITY',
+      'TERRA_ORCHARD'
+    ];
+
+    return `
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="font-size:10px; color:#94a3b8; margin-bottom:2px;">
+          Click any continental realm below to zoom directly into its RuneScape Square Map:
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; max-height:380px; overflow-y:auto; padding-right:4px;">
+          ${realmOrder.map((regId) => {
+            const reg = WORLD_ATLAS_REGIONS[regId];
+            if (!reg) return '';
+            const isHere = currentRoomType === regId;
+            const isSelected = selectedMapRegionId === regId;
+            return `
+              <div onclick="selectMapRegion('${reg.id}', true); setAtlasViewMode('square');"
+                style="
+                  background: #090e1d;
+                  border: 2px solid ${isSelected ? '#ffffff' : reg.borderColor};
+                  border-radius: 5px;
+                  padding: 8px 10px;
+                  cursor: pointer;
+                  transition: all 0.15s ease;
+                  ${isSelected ? 'box-shadow:0 0 14px rgba(255,255,255,0.25);' : ''}
+                ">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <b style="font-family:var(--font-header); font-size:11.5px; color:${reg.color};">${reg.name}</b>
+                  <span style="font-size:9px; color:${reg.color}; background:#070c18; border:1px solid ${reg.color}; padding:1px 5px; border-radius:3px; font-weight:bold;">
+                    ${reg.dangerTag}
+                  </span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:9.5px; color:#94a3b8;">
+                  <span>${reg.level}</span>
+                  ${isHere ? '<b style="color:#4ade80; background:rgba(34,197,94,0.2); padding:1px 5px; border-radius:3px; border:1px solid #22c55e;">📍 HERE</b>' : ''}
+                </div>
+              </div>
+            `;
+          }).join('')}
         </div>
       </div>
     `;
   }
 
   function renderWorldAtlasView(body) {
+    const currentReg = WORLD_ATLAS_REGIONS[selectedMapRegionId] || WORLD_ATLAS_REGIONS.SANCTUARY_HUB;
+
     body.innerHTML = `
-      <div style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          <span style="font-family:var(--font-header); font-size:12px; color:#facc15; font-weight:bold;">
-            🗺️ CONTINENTAL ATLAS OF GLIMMERFALL
+      <div style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e293b; padding-bottom:6px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-family:var(--font-header); font-size:12.5px; color:#facc15; font-weight:bold; letter-spacing:0.5px;">
+            🗺️ RUNESCAPE STYLE WORLD ATLAS
           </span>
-          <span style="font-size:10px; color:#94a3b8; margin-left:8px;">
-            Hover over or click any realm to inspect creatures, danger level, and travel routes.
-          </span>
+          <div style="display:inline-flex; background:#070c18; border:1px solid #334155; border-radius:4px; overflow:hidden;">
+            <button type="button" onclick="setAtlasViewMode('square')" style="background:${currentAtlasView === 'square' ? '#1e293b' : 'transparent'}; border:none; color:${currentAtlasView === 'square' ? '#facc15' : '#94a3b8'}; padding:3px 8px; font-size:9.5px; font-weight:bold; cursor:pointer;">
+              🔲 SQUARE ZONE VIEW
+            </button>
+            <button type="button" onclick="setAtlasViewMode('grid')" style="background:${currentAtlasView === 'grid' ? '#1e293b' : 'transparent'}; border:none; color:${currentAtlasView === 'grid' ? '#facc15' : '#94a3b8'}; padding:3px 8px; font-size:9.5px; font-weight:bold; cursor:pointer;">
+              🌐 CONTINENTAL GRID
+            </button>
+          </div>
         </div>
-        <div style="font-size:10px; color:#38bdf8; font-weight:bold;">
-          CURRENT LOCATION: <b style="color:#86efac;">${WORLD_ATLAS_REGIONS[currentRoomType]?.name || currentRoomType}</b>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button type="button" onclick="centerMapOnPlayer()" style="background:#0f172a; border:1px solid #22c55e; color:#86efac; font-size:9.5px; font-weight:bold; padding:2px 8px; border-radius:3px; cursor:pointer;" title="Jump map directly to your character's active realm">
+            📍 YOU ARE HERE (${WORLD_ATLAS_REGIONS[currentRoomType]?.name || currentRoomType})
+          </button>
         </div>
       </div>
 
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:start;">
-        <!-- Left Column: Continental Territory Map -->
-        <div style="display:flex; flex-direction:column; gap:6px;">
-          <!-- 1. Summit Apex (Top) -->
-          ${renderAtlasNodeCard('CELESTIAL_ASCENT')}
-
-          <div style="text-align:center; color:#64748b; font-size:9.5px; margin:-2px 0;">
-            ▲ ⬆ North Ascent Gate (y: -1760) ▲
-          </div>
-
-          <!-- 2. Caldera Torment Realm (Upper Center) -->
-          ${renderAtlasNodeCard('NEXUS_WARZONE')}
-
-          <div style="text-align:center; color:#64748b; font-size:9.5px; margin:-2px 0;">
-            ▲ ⬇ Torment Gate (y: 1720) ▲
-          </div>
-
-          <!-- 3. Forgotten First Nexus Ruins (Lower Center) -->
-          ${renderAtlasNodeCard('NEXUS_FORGOTTEN_RUINS')}
-
-          <div style="text-align:center; color:#64748b; font-size:9.5px; margin:-2px 0;">
-            ⭐ Center Keystone Waygate ⭐
-          </div>
-
-          <!-- 4. Sanctuary Hub (Central Haven) -->
-          ${renderAtlasNodeCard('SANCTUARY_HUB')}
-
-          <!-- 5. Cardinal Elemental Realms Grid (Surrounding Hub) -->
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:4px;">
-            ${renderAtlasNodeCard('SOLARI_CITADEL')}
-            ${renderAtlasNodeCard('UMBRI_UNDERCITY')}
-            ${renderAtlasNodeCard('TERRA_ORCHARD')}
-            ${renderAtlasNodeCard('AETHER_SPIRE')}
-          </div>
+      <div style="display:grid; grid-template-columns: 1fr 340px; gap:12px; align-items:start;">
+        <!-- Left: RuneScape Square Map Viewport with 4 Edge-Hover Scroll Bars OR Grid Overview -->
+        <div>
+          ${currentAtlasView === 'square' ? renderSquareZoneView(currentReg) : renderContinentalGridView()}
         </div>
 
-        <!-- Right Column: Real-time Region Inspector -->
+        <!-- Right: Real-time Region Codex & Entity Inspector -->
         <div id="atlas-inspector-panel">
           ${getRegionInspectorHtml(selectedMapRegionId)}
         </div>
@@ -3019,8 +3434,7 @@ export function initGame() {
         { id: 'dummy_1', name: 'Sanctuary Dummy', sub: 'Lv.1 Awakening Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: 12, origX: 0, origY: 12, hp: 30, maxHp: 30, xpReward: 30, radius: 14, hitFlash: 0 },
         { id: 'dummy_2', name: 'Armored Training Post', sub: 'Lv.5 Resilient Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: -45, origX: 0, origY: -45, hp: 120, maxHp: 120, xpReward: 65, radius: 15, hitFlash: 0 },
         { id: 'tut_font', name: 'Awakening Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'tut_font_2', name: 'East Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'sanctuary_keystone_portal', name: 'First Nexus Keystone Waygate', sub: 'To Forgotten Ruins [Click/Walk]', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS, spriteKey: 'node', x: 0, y: -90, radius: 20, hitFlash: 0 }
+        { id: 'tut_font_2', name: 'East Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.ARENA_3V3) {
       if (!hasCustomSpawn) {

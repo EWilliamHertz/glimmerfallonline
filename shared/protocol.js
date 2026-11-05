@@ -141,7 +141,8 @@ export const ROOM_CONFIGS = {
     spawnY: 110,
     edgeTransitions: {
       south: ROOM_TYPES.SANCTUARY_HUB,
-      north: ROOM_TYPES.AETHER_FRACTURED_ARCHIVE,
+      north: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
+      east: ROOM_TYPES.AETHER_FRACTURED_ARCHIVE,
     },
   },
   [ROOM_TYPES.ARENA_3V3]: {
@@ -177,7 +178,7 @@ export const ROOM_CONFIGS = {
     spawnX: 0,
     spawnY: 110,
     edgeTransitions: {
-      south: ROOM_TYPES.SANCTUARY_HUB,
+      south: ROOM_TYPES.AETHER_SPIRE,
       north: ROOM_TYPES.NEXUS_WARZONE,
     },
   },
@@ -268,6 +269,7 @@ export const ROOM_CONFIGS = {
     spawnX: 0,
     spawnY: 110,
     edgeTransitions: {
+      west: ROOM_TYPES.AETHER_SPIRE,
       south: ROOM_TYPES.AETHER_SPIRE,
     },
   },
