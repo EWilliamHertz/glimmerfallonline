@@ -240,8 +240,22 @@ export function initGame() {
   const fctContainer = document.getElementById('fct-container');
 
   let zoom = 3;
+  try {
+    const savedZoom = parseInt(localStorage.getItem('glimmerfall_pixel_zoom'), 10);
+    if (savedZoom >= 2 && savedZoom <= 4) zoom = savedZoom;
+  } catch (_) {}
   let viewW = 320;
   let viewH = 180;
+
+  function setPixelZoom(val) {
+    zoom = Math.max(2, Math.min(4, Math.round(val)));
+    try {
+      localStorage.setItem('glimmerfall_pixel_zoom', String(zoom));
+    } catch (_) {}
+    resizeCanvas();
+    const zBtn = document.getElementById('zoom-label');
+    if (zBtn) zBtn.innerText = `${zoom}x`;
+  }
 
   function resizeCanvas() {
     viewW = Math.max(240, Math.ceil(window.innerWidth / zoom));
@@ -252,6 +266,8 @@ export function initGame() {
   }
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
+  const initialZoomBtn = document.getElementById('zoom-label');
+  if (initialZoomBtn) initialZoomBtn.innerText = `${zoom}x`;
 
   const camera = { x: 0, y: 0 };
   let currentZone = 'tutorial';
@@ -398,9 +414,512 @@ export function initGame() {
 
   let activeDialoguePages = [];
   let dialogueIdx = 0;
+  let activeDialogueSpriteKey = 'heraldNpc';
+  let activeDialogueNpcId = null;
   let introShown = false;
 
-  const quests = { moved: false, damaged: false, harvested: false, portalReady: false };
+  // ==========================================
+  // MMORPG Quest & State Persistence Engine
+  // ==========================================
+  let questState = {
+    stasisBroken: false,
+    dummyDamaged: false,
+    nodeHarvested: false,
+    portalTraveled: false,
+    warzoneKills: 0,
+    ruinsKills: 0,
+    activeQuests: {},
+    completedQuests: {},
+    talkedNpcs: {},
+    introShown: false,
+  };
+
+  function getQuestStorageKey() {
+    const id = localProfile?.id || (localProfile?.displayName ? `${localProfile.faction}_${localProfile.displayName}` : 'default');
+    return `glimmerfall_quest_state_${id}`;
+  }
+
+  function saveQuestState() {
+    try {
+      const key = getQuestStorageKey();
+      localStorage.setItem(key, JSON.stringify(questState));
+      if (isSinglePlayer && localProfile?.id) {
+        const raw = localStorage.getItem('glimmerfall_sp_roster_v2');
+        if (raw) {
+          const roster = JSON.parse(raw);
+          const idx = roster.findIndex((c) => c.id === localProfile.id);
+          if (idx >= 0) {
+            roster[idx].questState = questState;
+            localStorage.setItem('glimmerfall_sp_roster_v2', JSON.stringify(roster));
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  function loadQuestState() {
+    try {
+      const key = getQuestStorageKey();
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        questState = {
+          stasisBroken: Boolean(parsed.stasisBroken),
+          dummyDamaged: Boolean(parsed.dummyDamaged),
+          nodeHarvested: Boolean(parsed.nodeHarvested),
+          portalTraveled: Boolean(parsed.portalTraveled),
+          warzoneKills: Number(parsed.warzoneKills || 0),
+          ruinsKills: Number(parsed.ruinsKills || 0),
+          activeQuests: parsed.activeQuests || {},
+          completedQuests: parsed.completedQuests || {},
+          talkedNpcs: parsed.talkedNpcs || {},
+          introShown: Boolean(parsed.introShown),
+        };
+      } else {
+        const isExperienced = (prog.level || 1) >= 2 || (prog.xp || 0) > 0;
+        questState = {
+          stasisBroken: isExperienced,
+          dummyDamaged: isExperienced,
+          nodeHarvested: isExperienced,
+          portalTraveled: isExperienced,
+          warzoneKills: 0,
+          ruinsKills: 0,
+          activeQuests: isExperienced ? { quest_into_the_warzone: { accepted: true } } : {},
+          completedQuests: isExperienced ? { quest_awakening: true } : {},
+          talkedNpcs: isExperienced ? { npc_aurora: true } : {},
+          introShown: isExperienced,
+        };
+        saveQuestState();
+      }
+    } catch (_) {}
+    introShown = questState.introShown || Boolean(questState.talkedNpcs?.npc_aurora);
+    updateQuestTrackerHUD();
+  }
+
+  // Backward compatibility proxy for any direct references to 'quests'
+  const quests = {
+    get moved() { return questState.stasisBroken; },
+    set moved(val) { questState.stasisBroken = Boolean(val); },
+    get damaged() { return questState.dummyDamaged; },
+    set damaged(val) { questState.dummyDamaged = Boolean(val); },
+    get harvested() { return questState.nodeHarvested; },
+    set harvested(val) { questState.nodeHarvested = Boolean(val); },
+    get portalReady() { return questState.portalTraveled; },
+    set portalReady(val) { questState.portalTraveled = Boolean(val); },
+  };
+
+  const QUEST_CATALOG = {
+    quest_awakening: {
+      id: 'quest_awakening',
+      title: 'Awakening from Stasis',
+      giverId: 'npc_aurora',
+      turnInId: 'npc_aurora',
+      description: 'Break stasis by moving [WASD], strike the training dummy [1], and channel the Glimmer Node [E].',
+      isComplete: () => Boolean(questState.stasisBroken && questState.dummyDamaged && questState.nodeHarvested),
+      tasks: [
+        { text: 'Break stasis: Move [WASD]', done: () => Boolean(questState.stasisBroken) },
+        { text: 'Cast Flare Strike [1] on Dummy', done: () => Boolean(questState.dummyDamaged) },
+        { text: 'Channel Glimmer Node [E]', done: () => Boolean(questState.nodeHarvested) },
+      ],
+      rewards: { xp: 120, glimmer: 60 },
+      acceptDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'Awake at last, Summoner-Knight! The Great Nexus shattered long ago. Take your first steps [WASD], strike the Sanctuary Dummy with Flare Strike [1], and channel the Glimmer Node [E]!',
+        },
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'Return to me once your strength is restored to claim your rites and prepare for the Continental Warzone.',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'You are recovering well, Knight. Strike the training dummy and channel the Glimmer Node before speaking with me again.',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'Splendidly done! The Glimmer sings through your veins once more. Take these vital shards and experience!',
+        },
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'Now, venture through the North Waygate into the Continental Warzone and report to Commander Valerius at the Vale Waystation.',
+        },
+      ],
+      nextQuestId: 'quest_into_the_warzone',
+    },
+
+    quest_into_the_warzone: {
+      id: 'quest_into_the_warzone',
+      title: 'Into the Warzone',
+      giverId: 'npc_aurora',
+      turnInId: 'npc_archon',
+      prereqQuestId: 'quest_awakening',
+      description: 'Step into the North Rift to enter the Continental Warzone and report to Commander Valerius.',
+      isComplete: () => Boolean(questState.portalTraveled || currentRoomType === ROOM_TYPES.NEXUS_WARZONE),
+      tasks: [
+        { text: 'Enter North Rift -> Warzone', done: () => Boolean(questState.portalTraveled || currentRoomType === ROOM_TYPES.NEXUS_WARZONE) },
+        { text: 'Report to Commander Valerius', done: () => Boolean(questState.completedQuests.quest_into_the_warzone) },
+      ],
+      rewards: { xp: 160, glimmer: 80 },
+      acceptDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'Commander Valerius awaits you at the South Vale Waystation in the Continental Warzone. Step through the North Waygate to begin your journey!',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Welcome to the frontline, Summoner. Have you reported in with your awakening credentials?',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Welcome to the frontlines, Summoner! Herald Lyra sent word of your awakening. You carry yourself with true steel.',
+        },
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'We face dire threats out here. The Void corrupts the outer perimeters, and rival factions vie for the Shattered Nexus.',
+        },
+      ],
+      nextQuestId: 'quest_void_banish',
+    },
+
+    quest_void_banish: {
+      id: 'quest_void_banish',
+      title: 'Banish Void Invaders',
+      giverId: 'npc_archon',
+      turnInId: 'npc_archon',
+      prereqQuestId: 'quest_into_the_warzone',
+      description: 'Banish 3 Void foes roaming the Continental Warzone.',
+      isComplete: () => (questState.warzoneKills || 0) >= 3,
+      tasks: [
+        {
+          text: 'Banish Void Foes in Warzone',
+          done: () => (questState.warzoneKills || 0) >= 3,
+          counter: () => `${Math.min(3, questState.warzoneKills || 0)} / 3`,
+        },
+      ],
+      rewards: { xp: 320, glimmer: 150 },
+      acceptDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Void entities stalk the whispering passes and outer plateaus. Cut down 3 of them and report back to prove your steel!',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Keep hunting, soldier! The void creeps ever closer until all 3 threats are banished.',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Outstanding work! The perimeter holds thanks to your blade. Accept this vanguard cache and the gratitude of the Order.',
+        },
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'When you are ready for deeper mysteries, venture North into the Forgotten First Nexus Ruins and seek Atlas the Cartographer!',
+        },
+      ],
+      nextQuestId: 'quest_first_nexus',
+    },
+
+    quest_first_nexus: {
+      id: 'quest_first_nexus',
+      title: 'First Nexus Secrets',
+      giverId: 'npc_atlas',
+      turnInId: 'npc_atlas',
+      description: 'Banish 2 ruin horrors in the Forgotten First Nexus Ruins.',
+      isComplete: () => (questState.ruinsKills || 0) >= 2,
+      tasks: [
+        {
+          text: 'Banish Ancient Ruin Horrors',
+          done: () => (questState.ruinsKills || 0) >= 2,
+          counter: () => `${Math.min(2, questState.ruinsKills || 0)} / 2`,
+        },
+      ],
+      rewards: { xp: 450, glimmer: 200 },
+      acceptDialogue: [
+        {
+          speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
+          spriteKey: 'cartographerNpc',
+          text: 'The ancient runes pulse with latent energy, but void horrors taint the First Nexus. Cleanse 2 corrupted stalkers so I can safely read the quadrant stones!',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
+          spriteKey: 'cartographerNpc',
+          text: 'The readings are still muffled by dark resonance. Vanquish the remaining ruin stalkers!',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
+          spriteKey: 'cartographerNpc',
+          text: 'Marvelous! The leyline frequency cleared instantly! Look here—the quadrant stones reveal pathways to all four elemental sanctuaries. Take this antique relic!',
+        },
+      ],
+    },
+  };
+
+  function getNpcName(npcId) {
+    const map = {
+      npc_aurora: 'Herald Lyra',
+      npc_archon: 'Commander Valerius',
+      npc_atlas: 'Atlas the Cartographer',
+      npc_lucian: 'Pyremaster Lucian',
+      npc_vespera: 'Wraithmother Vespera',
+      npc_sylvanus: 'Elder Druid Sylvanus',
+      npc_zephyr: 'Chronos Sage Zephyr',
+      npc_vael: 'Captain Vaelen',
+      npc_nyx: 'Shadow Broker Nyx',
+      npc_rowan: 'Grove Tender Rowan',
+      npc_kaelen: 'Astromancer Kaelen',
+    };
+    return map[npcId] || 'Quest Giver';
+  }
+
+  function getNpcQuestStatus(npc) {
+    if (!npc) return 'none';
+    const npcId = npc.id;
+
+    // 1. Check for ANY finished quest ready to turn in to THIS npc
+    for (const qId of Object.keys(QUEST_CATALOG)) {
+      const q = QUEST_CATALOG[qId];
+      if (q.turnInId === npcId) {
+        const isCompleted = Boolean(questState.completedQuests[qId]);
+        const isActive = Boolean(questState.activeQuests[qId]);
+        if (!isCompleted) {
+          if (isActive && q.isComplete()) return 'finished';
+          if (qId === 'quest_awakening' && q.isComplete()) return 'finished';
+        }
+      }
+    }
+
+    // 2. Check for ongoing (in-progress) quests to turn in to THIS npc
+    for (const qId of Object.keys(questState.activeQuests)) {
+      const q = QUEST_CATALOG[qId];
+      if (q && q.turnInId === npcId) {
+        if (!q.isComplete()) return 'ongoing';
+      }
+    }
+
+    // 3. Check for available quests that THIS npc gives
+    for (const qId of Object.keys(QUEST_CATALOG)) {
+      const q = QUEST_CATALOG[qId];
+      if (q.giverId === npcId) {
+        const isCompleted = Boolean(questState.completedQuests[qId]);
+        const isActive = Boolean(questState.activeQuests[qId]);
+        const prereqMet = !q.prereqQuestId || Boolean(questState.completedQuests[q.prereqQuestId]);
+        if (!isCompleted && !isActive && prereqMet) return 'available';
+      }
+    }
+
+    // 4. Check if this is an NPC who hasn't been talked to yet
+    if (!questState.talkedNpcs[npcId]) {
+      return 'talk_available';
+    }
+
+    // 5. Otherwise, nothing above their head
+    return 'none';
+  }
+
+  function getFinishedQuestForNpc(npcId) {
+    for (const qId of Object.keys(QUEST_CATALOG)) {
+      const q = QUEST_CATALOG[qId];
+      if (q.turnInId === npcId) {
+        const isCompleted = Boolean(questState.completedQuests[qId]);
+        const isActive = Boolean(questState.activeQuests[qId]);
+        if (!isCompleted) {
+          if (isActive && q.isComplete()) return q;
+          if (qId === 'quest_awakening' && q.isComplete()) return q;
+        }
+      }
+    }
+    return null;
+  }
+
+  function getAvailableQuestForNpc(npcId) {
+    for (const qId of Object.keys(QUEST_CATALOG)) {
+      const q = QUEST_CATALOG[qId];
+      if (q.giverId === npcId) {
+        const isCompleted = Boolean(questState.completedQuests[qId]);
+        const isActive = Boolean(questState.activeQuests[qId]);
+        const prereqMet = !q.prereqQuestId || Boolean(questState.completedQuests[q.prereqQuestId]);
+        if (!isCompleted && !isActive && prereqMet) return q;
+      }
+    }
+    return null;
+  }
+
+  function getOngoingQuestForNpc(npcId) {
+    for (const qId of Object.keys(questState.activeQuests)) {
+      const q = QUEST_CATALOG[qId];
+      if (q && q.turnInId === npcId) {
+        if (!q.isComplete()) return q;
+      }
+    }
+    for (const qId of Object.keys(questState.activeQuests)) {
+      const q = QUEST_CATALOG[qId];
+      if (q && q.giverId === npcId && !q.isComplete()) return q;
+    }
+    return null;
+  }
+
+  function completeQuest(quest, npc) {
+    questState.completedQuests[quest.id] = true;
+    delete questState.activeQuests[quest.id];
+    questState.talkedNpcs[npc.id] = true;
+
+    if (quest.rewards?.xp) awardXP(quest.rewards.xp, quest.title);
+    if (quest.rewards?.glimmer) {
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + quest.rewards.glimmer);
+    }
+
+    spawnSparkBurst(player.x, player.y - 10, ['#fde047', '#ffffff', '#38bdf8', '#86efac'], 20);
+    spawnFCT(player.x, player.y - 16, `✨ QUEST COMPLETE: ${quest.title.toUpperCase()}!`, '#facc15', true);
+    logMessage(`[Quest Complete] ${quest.title} finished! Received +${quest.rewards.xp} XP and +${quest.rewards.glimmer || 0} Glimmer!`, 'log-quest');
+
+    if (quest.nextQuestId && QUEST_CATALOG[quest.nextQuestId]) {
+      const nextQ = QUEST_CATALOG[quest.nextQuestId];
+      questState.activeQuests[nextQ.id] = { accepted: true, acceptedAt: Date.now() };
+    }
+
+    saveQuestState();
+    updateQuestTrackerHUD();
+    openDialogue(quest.completeDialogue || npc.dialogue, npc.spriteKey, npc.id);
+  }
+
+  function acceptQuest(quest, npc) {
+    questState.activeQuests[quest.id] = { accepted: true, acceptedAt: Date.now() };
+    questState.talkedNpcs[npc.id] = true;
+
+    spawnFCT(player.x, player.y - 16, `📜 ACCEPTED: ${quest.title.toUpperCase()}`, '#38bdf8', true);
+    logMessage(`[Quest Accepted] ${quest.title}: ${quest.description}`, 'log-quest');
+
+    saveQuestState();
+    updateQuestTrackerHUD();
+    openDialogue(quest.acceptDialogue || npc.dialogue, npc.spriteKey, npc.id);
+  }
+
+  function interactWithNpc(npc) {
+    if (!npc) return;
+    audio.playDialogue();
+    const status = getNpcQuestStatus(npc);
+
+    if (status === 'finished') {
+      const q = getFinishedQuestForNpc(npc.id);
+      if (q) {
+        completeQuest(q, npc);
+        return;
+      }
+    }
+
+    if (status === 'available') {
+      const q = getAvailableQuestForNpc(npc.id);
+      if (q) {
+        acceptQuest(q, npc);
+        return;
+      }
+    }
+
+    if (status === 'ongoing') {
+      const q = getOngoingQuestForNpc(npc.id);
+      if (q && q.ongoingDialogue) {
+        openDialogue(q.ongoingDialogue, npc.spriteKey, npc.id);
+        return;
+      }
+    }
+
+    // Lore / Standard dialogue
+    questState.talkedNpcs[npc.id] = true;
+    saveQuestState();
+    openDialogue(npc.dialogue, npc.spriteKey, npc.id);
+    updateQuestTrackerHUD();
+  }
+
+  function updateQuestTrackerHUD() {
+    const container = document.getElementById('quest-tracker');
+    if (!container) return;
+
+    let activeQuest = null;
+    for (const qId of Object.keys(questState.activeQuests)) {
+      if (QUEST_CATALOG[qId]) {
+        activeQuest = QUEST_CATALOG[qId];
+        break;
+      }
+    }
+
+    if (!activeQuest && !questState.completedQuests.quest_awakening) {
+      activeQuest = QUEST_CATALOG.quest_awakening;
+    } else if (!activeQuest && !questState.completedQuests.quest_into_the_warzone && questState.completedQuests.quest_awakening) {
+      activeQuest = QUEST_CATALOG.quest_into_the_warzone;
+    } else if (!activeQuest && !questState.completedQuests.quest_void_banish && questState.completedQuests.quest_into_the_warzone) {
+      activeQuest = QUEST_CATALOG.quest_void_banish;
+    }
+
+    if (activeQuest) {
+      const isReady = activeQuest.isComplete();
+      const tasksHtml = activeQuest.tasks.map((t, idx) => {
+        const isDone = t.done();
+        const countStr = t.counter ? ` (${t.counter()})` : '';
+        return `
+          <div class="quest-task">
+            <div class="quest-check ${isDone ? 'done' : ''}" id="qc-${idx + 1}">${isDone ? '✓' : ''}</div>
+            <span style="${isDone ? 'color:#94a3b8; text-decoration:line-through;' : 'color:#f1f5f9;'}">${t.text}${countStr}</span>
+          </div>
+        `;
+      }).join('');
+
+      const turnInPrompt = isReady ? `
+        <div class="quest-turnin-banner">
+          <span>✨</span><span>Ready to turn in! Return to ${getNpcName(activeQuest.turnInId)}</span>
+        </div>
+      ` : '';
+
+      const completedCount = activeQuest.tasks.filter((t) => t.done()).length;
+      container.innerHTML = `
+        <div class="quest-title">
+          <span>📜 ${activeQuest.title.toUpperCase()}</span>
+          <span id="quest-stage-txt" style="color: ${isReady ? '#facc15' : '#38bdf8'}; font-weight:800;">
+            ${isReady ? 'READY ✓' : `${completedCount} / ${activeQuest.tasks.length}`}
+          </span>
+        </div>
+        ${tasksHtml}
+        ${turnInPrompt}
+      `;
+    } else {
+      container.innerHTML = `
+        <div class="quest-title">
+          <span>⚔️ CONTINENTAL CONQUEST</span>
+          <span style="color: #facc15;">${(localProfile?.faction || 'SOLARI').toUpperCase()}</span>
+        </div>
+        <div class="quest-task"><span style="color:#cbd5e1;">• Banish Void foes &amp; rival factions</span></div>
+        <div class="quest-task"><span style="color:#cbd5e1;">• Form 3-Player Squad [O] (+25% XP)</span></div>
+        <div class="quest-task"><span style="color:#cbd5e1;">• Slay World Bosses &amp; Shatter Nexus</span></div>
+      `;
+    }
+  }
   const inputs = { w: false, a: false, s: false, d: false, up: false, down: false, left: false, right: false, shift: false, axisX: 0, axisY: 0 };
 
   let keybinds = { ...DEFAULT_KEYBINDS };
@@ -470,6 +989,7 @@ export function initGame() {
       };
       saveProgressionLocal();
     }
+    loadQuestState();
     recalcVitalsFromProfile();
     refreshHeroPortrait();
     updatePlayerUI();
@@ -825,7 +1345,6 @@ export function initGame() {
   // ==========================================
   // Dialogue Helpers & Unique NPC Portrait Renderer
   // ==========================================
-  let activeDialogueSpriteKey = 'heraldNpc';
 
   function updateNpcPortrait(spriteKey) {
     const canvas = document.getElementById('npc-portrait-canvas');
@@ -843,15 +1362,22 @@ export function initGame() {
     }
   }
 
-  function openDialogue(pages, customSpriteKey = null) {
+  function openDialogue(pages, customSpriteKey = null, npcId = null) {
     activeDialoguePages = pages || [];
     dialogueIdx = 0;
+    activeDialogueNpcId = npcId || null;
     if (customSpriteKey) {
       activeDialogueSpriteKey = customSpriteKey;
     } else if (pages && pages[0] && pages[0].spriteKey) {
       activeDialogueSpriteKey = pages[0].spriteKey;
     } else {
       activeDialogueSpriteKey = 'heraldNpc';
+    }
+    if (npcId) {
+      questState.talkedNpcs[npcId] = true;
+      questState.introShown = true;
+      introShown = true;
+      saveQuestState();
     }
     renderDialogueBox();
   }
@@ -880,10 +1406,24 @@ export function initGame() {
   window.advanceDialogue = function () {
     audio.playDialogue();
     dialogueIdx++;
+    if (dialogueIdx >= activeDialoguePages.length) {
+      if (activeDialogueNpcId) {
+        questState.talkedNpcs[activeDialogueNpcId] = true;
+        questState.introShown = true;
+        introShown = true;
+        saveQuestState();
+      }
+    }
     renderDialogueBox();
   };
 
   window.closeDialogue = function () {
+    if (activeDialogueNpcId) {
+      questState.talkedNpcs[activeDialogueNpcId] = true;
+      questState.introShown = true;
+      introShown = true;
+      saveQuestState();
+    }
     activeDialoguePages = [];
     renderDialogueBox();
   };
@@ -1183,9 +1723,11 @@ export function initGame() {
         y: 82,
         dialogue: AWAKENING_DIALOGUE,
       });
-      if (!introShown && !frontpage.isOpen) {
+      if (!introShown && !questState.introShown && !questState.talkedNpcs?.npc_aurora && !frontpage.isOpen) {
         introShown = true;
-        openDialogue(AWAKENING_DIALOGUE, 'heraldNpc');
+        questState.introShown = true;
+        saveQuestState();
+        openDialogue(AWAKENING_DIALOGUE, 'heraldNpc', 'npc_aurora');
       }
     } else if (resolvedRoomType === ROOM_TYPES.ARENA_3V3) {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || '3v3 NEXUS ARENA';
@@ -1990,11 +2532,10 @@ export function initGame() {
         if (hitEnt) hitEnt.hitFlash = 0.14;
         spawnSparkBurst(fx.x, fx.y - 8, fx.isCrit ? ['#fde047', '#ffffff', '#f97316'] : ['#ef4444', '#fca5a5', '#facc15'], fx.isCrit ? 12 : 7);
         spawnFCT(fx.x, fx.y, `-${fx.dmg}`, fx.isCrit ? '#facc15' : '#f87171', fx.isCrit);
-        if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !quests.damaged) {
-          quests.damaged = true;
-          document.getElementById('qc-2').classList.add('done');
-          document.getElementById('qc-2').innerText = '✓';
-          document.getElementById('quest-stage-txt').innerText = '2 / 4';
+        if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !questState.dummyDamaged) {
+          questState.dummyDamaged = true;
+          saveQuestState();
+          updateQuestTrackerHUD();
         }
       } else if (fx.kind === 'player_hit') {
         audio.playHit(fx.isCrit);
@@ -2110,13 +2651,10 @@ export function initGame() {
           if (roomChanged) {
             setupZoneDecor(msg.roomType, msg.roomTitle);
           }
-          if (msg.roomType !== ROOM_TYPES.SANCTUARY_HUB && !quests.portalReady) {
-            quests.portalReady = true;
-            const qc4 = document.getElementById('qc-4');
-            if (qc4) {
-              qc4.classList.add('done');
-              qc4.innerText = '✓';
-            }
+          if (msg.roomType !== ROOM_TYPES.SANCTUARY_HUB && !questState.portalTraveled) {
+            questState.portalTraveled = true;
+            saveQuestState();
+            updateQuestTrackerHUD();
           }
           applyServerSnapshot(msg.snapshot);
           updateNetStatusPill();
@@ -2298,9 +2836,11 @@ export function initGame() {
         updateNetStatusPill();
       }
 
-      if (!introShown && currentRoomType === ROOM_TYPES.SANCTUARY_HUB) {
+      if (!introShown && !questState.introShown && !questState.talkedNpcs?.npc_aurora && currentRoomType === ROOM_TYPES.SANCTUARY_HUB) {
         introShown = true;
-        openDialogue(AWAKENING_DIALOGUE, 'heraldNpc');
+        questState.introShown = true;
+        saveQuestState();
+        openDialogue(AWAKENING_DIALOGUE, 'heraldNpc', 'npc_aurora');
       }
     },
   });
@@ -2582,7 +3122,26 @@ export function initGame() {
         awardXP(450, 'Ancient Paragon Cache');
       }
     }
-    if (ent.type === 'mob') spawnOfflineLoot(ent);
+    if (ent.type === 'mob') {
+      spawnOfflineLoot(ent);
+      if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
+        questState.warzoneKills = (questState.warzoneKills || 0) + 1;
+        saveQuestState();
+        updateQuestTrackerHUD();
+        if (questState.warzoneKills === 3) {
+          logMessage('📜 [Quest Objective] Void threats banished! Return to Commander Valerius!', 'log-quest');
+          spawnFCT(player.x, player.y - 14, '✨ OBJECTIVE COMPLETE!', '#facc15', true);
+        }
+      } else if (currentRoomType === ROOM_TYPES.NEXUS_FORGOTTEN_RUINS) {
+        questState.ruinsKills = (questState.ruinsKills || 0) + 1;
+        saveQuestState();
+        updateQuestTrackerHUD();
+        if (questState.ruinsKills === 2) {
+          logMessage('📜 [Quest Objective] Ruin horrors banished! Return to Atlas!', 'log-quest');
+          spawnFCT(player.x, player.y - 14, '✨ OBJECTIVE COMPLETE!', '#facc15', true);
+        }
+      }
+    }
 
     const deathRoom = currentRoomType;
     const respawnTemplate = {
@@ -2631,15 +3190,10 @@ export function initGame() {
     );
     spawnFCT(ent.x, ent.y, `-${dmg}`, isCrit ? '#facc15' : '#f87171', isCrit);
 
-    if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !quests.damaged) {
-      quests.damaged = true;
-      const qc2 = document.getElementById('qc-2');
-      if (qc2) {
-        qc2.classList.add('done');
-        qc2.innerText = '✓';
-      }
-      const qStage = document.getElementById('quest-stage-txt');
-      if (qStage) qStage.innerText = '2 / 4';
+    if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !questState.dummyDamaged) {
+      questState.dummyDamaged = true;
+      saveQuestState();
+      updateQuestTrackerHUD();
     }
 
     if (currentTarget && currentTarget.id === ent.id) {
@@ -3425,11 +3979,10 @@ export function initGame() {
       return;
     }
     audio.playChime();
-    if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !quests.harvested) {
-      quests.harvested = true;
-      document.getElementById('qc-3').classList.add('done');
-      document.getElementById('qc-3').innerText = '✓';
-      document.getElementById('quest-stage-txt').innerText = '3 / 4';
+    if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !questState.nodeHarvested) {
+      questState.nodeHarvested = true;
+      saveQuestState();
+      updateQuestTrackerHUD();
     }
     if (net.connected) {
       net.send({ type: 'harvest_node', nodeId: node.id });
@@ -3451,8 +4004,7 @@ export function initGame() {
         best = n;
       }
     }
-    audio.playDialogue();
-    openDialogue(best.dialogue, best.spriteKey);
+    interactWithNpc(best);
   };
 
   window.teleportWorld = function () {
@@ -3621,10 +4173,8 @@ export function initGame() {
   };
 
   window.cyclePixelZoom = function () {
-    zoom = zoom === 3 ? 4 : zoom === 4 ? 2 : 3;
-    resizeCanvas();
-    const zBtn = document.getElementById('zoom-label');
-    if (zBtn) zBtn.innerText = `${zoom}x`;
+    const nextZoom = zoom === 3 ? 4 : zoom === 4 ? 2 : 3;
+    setPixelZoom(nextZoom);
   };
 
   // ==========================================
@@ -4248,6 +4798,11 @@ export function initGame() {
   // ==========================================
   function enterPortalEntity(ent) {
     const dest = ent.targetRoom || PORTAL_ID_TO_ROOM[ent.id] || ROOM_TYPES.NEXUS_WARZONE;
+    if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && dest !== ROOM_TYPES.SANCTUARY_HUB) {
+      questState.portalTraveled = true;
+      saveQuestState();
+      updateQuestTrackerHUD();
+    }
     portalCooldown = 0.9;
     triggerPortalMist(0.25);
     audio.playPortal();
@@ -4269,8 +4824,7 @@ export function initGame() {
 
     for (const npc of npcs) {
       if (Math.hypot(npc.x - wx, npc.y - 12 - wy) < 22) {
-        audio.playDialogue();
-        openDialogue(npc.dialogue, npc.spriteKey);
+        interactWithNpc(npc);
         return;
       }
     }
@@ -4335,11 +4889,8 @@ export function initGame() {
   canvas.addEventListener('wheel', (e) => {
     if (frontpage.isOpen) return;
     e.preventDefault();
-    if (e.deltaY < 0 && zoom < 4) zoom++;
-    else if (e.deltaY > 0 && zoom > 2) zoom--;
-    resizeCanvas();
-    const zBtn = document.getElementById('zoom-label');
-    if (zBtn) zBtn.innerText = `${zoom}x`;
+    if (e.deltaY < 0 && zoom < 4) setPixelZoom(zoom + 1);
+    else if (e.deltaY > 0 && zoom > 2) setPixelZoom(zoom - 1);
   }, { passive: false });
 
   function resetInputs() {
@@ -4684,10 +5235,10 @@ export function initGame() {
           spawnFootstepDust(player.x, player.y);
         }
 
-        if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !quests.moved) {
-          quests.moved = true;
-          document.getElementById('qc-1').classList.add('done');
-          document.getElementById('qc-1').innerText = '✓';
+        if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !questState.stasisBroken) {
+          questState.stasisBroken = true;
+          saveQuestState();
+          updateQuestTrackerHUD();
           if (net.connected) net.send({ type: 'award_quest_xp' });
           else awardXP(20, 'Stasis Broken');
           logMessage('[Quest] Limbs restored! Strike the Sanctuary Dummy with [1]!', 'log-quest');
@@ -4736,6 +5287,11 @@ export function initGame() {
               camera.x = player.x;
               camera.y = player.y;
               lastSentMove = { x: Math.round(nextX * 10) / 10, y: Math.round(nextY * 10) / 10, z: 0, dir: player.dir, isMoving: player.isMoving, time: performance.now() };
+              if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && dest !== ROOM_TYPES.SANCTUARY_HUB) {
+                questState.portalTraveled = true;
+                saveQuestState();
+                updateQuestTrackerHUD();
+              }
               setupZoneDecor(dest);
               if (net.connected) {
                 // Optimistic client switch: zero waiting, zero screen freezes across ngrok
@@ -5555,14 +6111,46 @@ export function initGame() {
           drawPixelEllipseShadow(sx, sy, 9, 3);
           ctx.drawImage(img, Math.round(sx - img.width / 2), sy - img.height + 3);
 
-          // Animated quest marker above head
-          const bounce = Math.floor(Math.sin(globalTime * 3.5) * 1.5);
-          const qy = sy - img.height - 21 + bounce;
-          ctx.fillStyle = '#070a12';
-          ctx.fillRect(sx - 3, qy - 1, 6, 11);
-          ctx.fillStyle = '#fde047';
-          ctx.fillRect(sx - 1.5, qy, 3, 5);
-          ctx.fillRect(sx - 1.5, qy + 7, 3, 2.5);
+          // Animated MMORPG quest marker above head (Golden !, Silver ?, Golden ?, or none)
+          const qStatus = getNpcQuestStatus(npc);
+          if (qStatus !== 'none') {
+            const isFinished = qStatus === 'finished';
+            const isOngoing = qStatus === 'ongoing';
+            const bounce = Math.floor(Math.sin(globalTime * (isFinished ? 5.2 : 3.2)) * (isFinished ? 2.5 : 1.8));
+            const qy = sy - img.height - 24 + bounce;
+
+            if (isFinished) {
+              // Radiant pulsing golden halo for finished quest ready to turn in
+              const pulse = Math.sin(globalTime * 6) * 2;
+              const rad = 8 + pulse;
+              const grad = ctx.createRadialGradient(sx, qy, 2, sx, qy, rad);
+              grad.addColorStop(0, 'rgba(254, 240, 138, 0.75)');
+              grad.addColorStop(0.5, 'rgba(234, 179, 8, 0.4)');
+              grad.addColorStop(1, 'rgba(234, 179, 8, 0)');
+              ctx.fillStyle = grad;
+              ctx.beginPath();
+              ctx.arc(sx, qy, rad, 0, Math.PI * 2);
+              ctx.fill();
+            }
+
+            // High-contrast, sharp typography for overhead quest glyph
+            ctx.save();
+            ctx.font = '900 15px "Cinzel", "Outfit", system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.lineJoin = 'round';
+
+            const symbol = (isFinished || isOngoing) ? '?' : '!';
+            const fillColor = isFinished ? '#fef08a' : (isOngoing ? '#cbd5e1' : '#fde047');
+            const strokeColor = isFinished ? '#78350f' : (isOngoing ? '#0f172a' : '#05070f');
+
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = 4;
+            ctx.strokeText(symbol, sx, qy);
+            ctx.fillStyle = fillColor;
+            ctx.fillText(symbol, sx, qy);
+            ctx.restore();
+          }
 
           // Overhead High-Contrast NPC Badge
           ctx.font = '700 12px "Outfit", system-ui, sans-serif';
@@ -6140,6 +6728,7 @@ export function initGame() {
     mmCtx.fillRect(cx - 1, cy - 1, 3, 3);
   }
 
+  loadQuestState();
   buildOfflineZone(ROOM_TYPES.SANCTUARY_HUB);
   refreshHeroPortrait();
   updatePlayerUI();
@@ -6147,6 +6736,7 @@ export function initGame() {
   renderKeybindUI();
   renderStatsModal();
   renderPartyHud(null, localProfile.id);
+  updateQuestTrackerHUD();
 
   // Open Character Select / Loadout Frontpage
   try {

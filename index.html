@@ -285,6 +285,24 @@
       border-color: #86efac;
       color: #fff;
     }
+    @keyframes questPulse {
+      0%, 100% { opacity: 0.88; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.02); filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.65)); }
+    }
+    .quest-turnin-banner {
+      margin-top: 5px;
+      padding: 4px 6px;
+      background: rgba(250, 204, 21, 0.12);
+      border: 1px solid rgba(250, 204, 21, 0.5);
+      border-radius: 2px;
+      color: #fde047;
+      font-size: 8.5px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      animation: questPulse 1.8s infinite ease-in-out;
+    }
 
     /* 3-Player Party / Squad HUD */
     #party-panel {
