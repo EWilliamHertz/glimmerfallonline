@@ -442,10 +442,7 @@ export function renderInventoryModal({ profile }) {
 
     <div style="display:flex; justify-content:space-between; gap:8px; margin-top:12px;">
       <button class="util-btn" style="flex:1; border-color:#fb923c; color:#fed7aa;" onclick="toggleModal('equipment-modal')">
-        ⚔️ GEAR [K]
-      </button>
-      <button class="util-btn" style="flex:1; border-color:#38bdf8; color:#7dd3fc;" onclick="toggleModal('exchange-modal')">
-        🌀 SWAP [X]
+        ⚔️ WORN GEAR [K]
       </button>
     </div>
   `;

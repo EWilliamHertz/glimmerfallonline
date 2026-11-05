@@ -551,14 +551,21 @@ export function initGame() {
   let questState = createDefaultQuestState();
 
   function getQuestStorageKey() {
-    const id = localProfile?.id || (localProfile?.displayName ? `${localProfile.faction}_${localProfile.displayName}` : 'default');
-    return `glimmerfall_quest_state_${id}`;
+    const charId = localProfile?.activeCharacterId || (localProfile?.id && localProfile.id !== 'default' ? localProfile.id : null);
+    const nameFallback = localProfile?.displayName ? `${localProfile.faction}_${localProfile.displayName}` : 'default';
+    return `glimmerfall_quest_state_${charId || nameFallback}`;
   }
 
   function saveQuestState() {
     try {
       const key = getQuestStorageKey();
       localStorage.setItem(key, JSON.stringify(questState));
+      if (localProfile?.activeCharacterId) {
+        localStorage.setItem(`glimmerfall_quest_state_${localProfile.activeCharacterId}`, JSON.stringify(questState));
+      }
+      if (localProfile?.id && localProfile.id !== 'default') {
+        localStorage.setItem(`glimmerfall_quest_state_${localProfile.id}`, JSON.stringify(questState));
+      }
       if (isSinglePlayer && localProfile?.id) {
         const raw = localStorage.getItem('glimmerfall_sp_roster_v2');
         if (raw) {
@@ -570,19 +577,48 @@ export function initGame() {
           }
         }
       }
+      if (window.net?.connected) {
+        window.net.send({ type: 'sync_quest_state', questState });
+      }
     } catch (_) {}
   }
 
   function loadQuestState() {
     try {
       const key = getQuestStorageKey();
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const parsed = JSON.parse(raw);
+      const charKey = localProfile?.activeCharacterId ? `glimmerfall_quest_state_${localProfile.activeCharacterId}` : null;
+      let raw = (charKey ? localStorage.getItem(charKey) : null) || localStorage.getItem(key);
+      let parsed = raw ? JSON.parse(raw) : null;
+
+      // Merge server-authoritative questState if present on profile
+      const srvQuest = localProfile?.questState;
+      if (srvQuest && typeof srvQuest === 'object' && (Object.keys(srvQuest.completedQuests || {}).length > 0 || Object.keys(srvQuest.activeQuests || {}).length > 0)) {
+        parsed = {
+          ...(parsed || {}),
+          ...srvQuest,
+          completedQuests: {
+            ...(parsed?.completedQuests || {}),
+            ...(srvQuest.completedQuests || {}),
+          },
+          activeQuests: {
+            ...(parsed?.activeQuests || {}),
+            ...(srvQuest.activeQuests || {}),
+          },
+        };
+      }
+
+      if (parsed) {
+        // Ensure any completed quest is completely removed from active quests
+        const active = { ...(parsed.activeQuests || {}) };
+        const completed = { ...(parsed.completedQuests || {}) };
+        for (const doneId of Object.keys(completed)) {
+          delete active[doneId];
+        }
+
         questState = {
-          stasisBroken: Boolean(parsed.stasisBroken),
-          dummyDamaged: Boolean(parsed.dummyDamaged),
-          nodeHarvested: Boolean(parsed.nodeHarvested),
+          stasisBroken: Boolean(parsed.stasisBroken || completed.quest_awakening),
+          dummyDamaged: Boolean(parsed.dummyDamaged || completed.quest_awakening),
+          nodeHarvested: Boolean(parsed.nodeHarvested || completed.quest_awakening),
           portalTraveled: Boolean(parsed.portalTraveled),
           warzoneKills: Number(parsed.warzoneKills || 0),
           ruinsKills: Number(parsed.ruinsKills || 0),
@@ -590,9 +626,9 @@ export function initGame() {
           titanChallenged: Boolean(parsed.titanChallenged),
           ascentReached: Boolean(parsed.ascentReached),
           visitedBiomes: parsed.visitedBiomes || {},
-          activeQuests: parsed.activeQuests && Object.keys(parsed.activeQuests).length > 0 ? parsed.activeQuests : { quest_awakening: { accepted: true } },
+          activeQuests: Object.keys(active).length > 0 ? active : (completed.quest_awakening ? {} : { quest_awakening: { accepted: true } }),
           trackedQuests: parsed.trackedQuests || {},
-          completedQuests: parsed.completedQuests || {},
+          completedQuests: completed,
           talkedNpcs: parsed.talkedNpcs || {},
           introShown: Boolean(parsed.introShown),
         };
@@ -1082,8 +1118,8 @@ export function initGame() {
 
   function getNpcQuestStatus(npc) {
     if (!npc) return 'none';
-    // Bankers and market stall merchants do not display quest exclamation marks
-    if (npc.isBank || npc.isMerchant || MERCHANT_CATALOGS[npc.id]) {
+    // Bankers, exchange brokers, and market stall merchants do not display quest exclamation marks
+    if (npc.isBank || npc.isExchange || npc.isMerchant || MERCHANT_CATALOGS[npc.id]) {
       return 'none';
     }
     const npcId = npc.id;
@@ -1214,6 +1250,12 @@ export function initGame() {
       questState.bankVisited = true;
       saveQuestState();
       window.toggleModal('bank-modal');
+      return;
+    }
+    if (npc.isExchange) {
+      questState.talkedNpcs[npc.id] = true;
+      saveQuestState();
+      window.toggleModal('exchange-modal');
       return;
     }
     audio.playDialogue();
@@ -3754,18 +3796,24 @@ export function initGame() {
         { type: 'stoneBench', x: 325, y: -115 },
         { type: 'blossomTree', x: 360, y: -220 },
 
-        // 3. Grand Continental Market Square (North-West) - Unlabeled Visual Wares
-        { type: 'marketStallPotions', id: 'stall_potions', x: -230, y: -210 },
-        { type: 'marketStallProvisions', id: 'stall_provisions', x: -310, y: -210 },
-        { type: 'marketStallRelics', id: 'stall_relics', x: -230, y: -150 },
-        { type: 'marketStallSmith', id: 'stall_smith', x: -310, y: -150 },
-        { type: 'streetLantern', x: -270, y: -180 },
-        { type: 'streetLantern', x: -350, y: -180 },
-        { type: 'streetLantern', x: -190, y: -180 },
-        { type: 'stoneBench', x: -270, y: -115 },
-        { type: 'ancientOak', x: -370, y: -120 },
+        // 3. The Grand AetherSwap Exchange Pavilion (North-Center Physical Grand Exchange)
+        { type: 'bankBuilding', x: 60, y: -220, label: '🏛️ The Grand AetherSwap Exchange' },
+        { type: 'bankCounter', x: 60, y: -165 },
+        { type: 'streetLantern', x: 10, y: -165 },
+        { type: 'streetLantern', x: 110, y: -165 },
 
-        // 4. Northern Residential & Guild Avenues
+        // 4. Grand Continental Market Square (North-West) - Generously Spaced Out Wares
+        { type: 'marketStallProvisions', id: 'stall_provisions', x: -360, y: -210 },
+        { type: 'marketStallPotions', id: 'stall_potions', x: -180, y: -210 },
+        { type: 'marketStallSmith', id: 'stall_smith', x: -360, y: -90 },
+        { type: 'marketStallRelics', id: 'stall_relics', x: -180, y: -90 },
+        { type: 'streetLantern', x: -270, y: -150 },
+        { type: 'streetLantern', x: -410, y: -150 },
+        { type: 'streetLantern', x: -130, y: -150 },
+        { type: 'stoneBench', x: -270, y: -90 },
+        { type: 'ancientOak', x: -420, y: -120 },
+
+        // 5. Northern Residential & Guild Avenues
         { type: 'cityHouseA', x: -160, y: -320 },
         { type: 'cityHouseB', x: -320, y: -320 },
         { type: 'cityHouseA', x: 160, y: -320 },
@@ -3780,7 +3828,7 @@ export function initGame() {
         { type: 'blossomTree', x: 400, y: -300 },
         { type: 'stoneBench', x: 0, y: -280 },
 
-        // 5. Southern Botanical Park & Memorial Gardens
+        // 6. Southern Botanical Park & Memorial Gardens
         { type: 'monument', x: 0, y: 320, label: '✨ Monument to the Fallen Knights' },
         { type: 'blossomTree', x: -80, y: 260 },
         { type: 'blossomTree', x: 80, y: 260 },
@@ -3798,14 +3846,14 @@ export function initGame() {
         { type: 'streetLantern', x: -120, y: 340 },
         { type: 'streetLantern', x: 120, y: 340 },
 
-        // 6. Training Grounds (South-East)
+        // 7. Training Grounds (South-East)
         { type: 'pillar', x: 270, y: 160 },
         { type: 'pillar', x: 370, y: 160 },
         { type: 'brazier', x: 270, y: 240 },
         { type: 'brazier', x: 370, y: 240 },
         { type: 'stoneBench', x: 320, y: 260 },
 
-        // 7. Leyline Spire District (South-West)
+        // 8. Leyline Spire District (South-West)
         { type: 'crystalPillar', x: -270, y: 160 },
         { type: 'crystalPillar', x: -370, y: 160 },
         { type: 'crystalPillar', x: -270, y: 240 },
@@ -3823,6 +3871,15 @@ export function initGame() {
           dialogue: AWAKENING_DIALOGUE,
         },
         {
+          id: 'npc_exchange_caelum',
+          name: 'Broker Caelum',
+          role: 'Grand Exchange Broker [Click / T]',
+          spriteKey: 'bankerNpc',
+          x: 60,
+          y: -165,
+          isExchange: true,
+        },
+        {
           id: 'npc_bank_orin',
           name: 'Trove-Master Orin',
           role: 'AetherVault Chief Banker [Click / T]',
@@ -3832,17 +3889,6 @@ export function initGame() {
           isBank: true,
         },
         {
-          id: 'merchant_apothecary',
-          name: 'Alchemist Faye',
-          role: 'Apothecary & Potions [Click / T]',
-          spriteKey: 'merchantApothecaryNpc',
-          stallId: 'stall_potions',
-          merchantType: 'merchant_apothecary',
-          isMerchant: true,
-          x: -230,
-          y: -188,
-        },
-        {
           id: 'merchant_provisions',
           name: 'Farmer Bran',
           role: 'Provisions & Rations [Click / T]',
@@ -3850,19 +3896,19 @@ export function initGame() {
           stallId: 'stall_provisions',
           merchantType: 'merchant_provisions',
           isMerchant: true,
-          x: -310,
-          y: -188,
+          x: -360,
+          y: -175,
         },
         {
-          id: 'merchant_relics',
-          name: 'Relic-Seeker Moira',
-          role: 'Aether Curios & Relics [Click / T]',
-          spriteKey: 'merchantRelicsNpc',
-          stallId: 'stall_relics',
-          merchantType: 'merchant_relics',
+          id: 'merchant_apothecary',
+          name: 'Alchemist Faye',
+          role: 'Apothecary & Potions [Click / T]',
+          spriteKey: 'merchantApothecaryNpc',
+          stallId: 'stall_potions',
+          merchantType: 'merchant_apothecary',
           isMerchant: true,
-          x: -230,
-          y: -128,
+          x: -180,
+          y: -175,
         },
         {
           id: 'merchant_smith',
@@ -3872,16 +3918,27 @@ export function initGame() {
           stallId: 'stall_smith',
           merchantType: 'merchant_smith',
           isMerchant: true,
-          x: -310,
-          y: -128,
+          x: -360,
+          y: -55,
+        },
+        {
+          id: 'merchant_relics',
+          name: 'Relic-Seeker Moira',
+          role: 'Aether Curios & Relics [Click / T]',
+          spriteKey: 'merchantRelicsNpc',
+          stallId: 'stall_relics',
+          merchantType: 'merchant_relics',
+          isMerchant: true,
+          x: -180,
+          y: -55,
         },
         {
           id: 'npc_archon',
           name: 'Commander Valerius',
           role: 'Sunspire Warlord [Click / T]',
           spriteKey: 'warzoneArchonNpc',
-          x: -180,
-          y: -60,
+          x: 0,
+          y: -75,
           dialogue: WARZONE_DIALOGUE,
         }
       );
@@ -7582,7 +7639,16 @@ export function initGame() {
     if (key === 'b') window.toggleModal('inventory-modal');
     if (key === 'i') window.toggleModal('inventory-modal');
     if (key === 'k') window.toggleModal('equipment-modal');
-    if (key === 'x') window.toggleModal('exchange-modal');
+    if (key === 'x') {
+      const broker = npcs.find((n) => n.isExchange);
+      const dist = broker ? Math.hypot(player.x - broker.x, player.y - broker.y) : Infinity;
+      if (dist < 80) {
+        window.toggleModal('exchange-modal');
+      } else {
+        logMessage('🏛️ [Grand Exchange] Please visit the Grand AetherSwap Exchange Pavilion in Sanctuary Haven and speak with Broker Caelum!', 'log-solari', 'chat');
+        spawnFCT(player.x, player.y - 18, '🏛️ Visit the Grand Exchange in Sanctuary Haven!', '#38bdf8', true);
+      }
+    }
     if (key === 'm') window.toggleWorldAtlas();
     if (key === 'p') window.toggleModal('spellbook-modal');
     if (key === 'c') window.toggleModal('char-modal');

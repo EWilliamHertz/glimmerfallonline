@@ -227,6 +227,7 @@ export class AccountsStore {
         equipment: normalizeEquipment(row.equipment, row.class_id),
         inventory: normalizeInventory(row.inventory || getDefaultStarterInventory(row.class_id)),
         bank: normalizeBank(row.bank || []),
+        questState: row.quest_state || {},
         progression: this.mergeValidProgression(createDefaultProgression(), row.progression),
         statsMeta: row.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
         activeCharacterId: row.active_character_id || null,
@@ -254,6 +255,7 @@ export class AccountsStore {
         equipment: normalizeEquipment(row.equipment, row.class_id),
         inventory: normalizeInventory(row.inventory || getDefaultStarterInventory(row.class_id)),
         bank: normalizeBank(row.bank || []),
+        questState: row.quest_state || {},
         unlockedGear: Array.isArray(row.unlocked_gear) ? row.unlocked_gear : Object.keys(EQUIPMENT_CATALOG),
         progression: this.mergeValidProgression(createDefaultProgression(), row.progression),
         statsMeta: row.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
@@ -288,6 +290,7 @@ export class AccountsStore {
       equipment: normalizeEquipment(row.equipment, row.class_id),
       inventory: normalizeInventory(row.inventory || getDefaultStarterInventory(row.class_id)),
       bank: normalizeBank(row.bank || []),
+      questState: row.quest_state || {},
       progression: this.mergeValidProgression(createDefaultProgression(), row.progression),
       statsMeta: row.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
       activeCharacterId: row.active_character_id || null,
@@ -335,6 +338,7 @@ export class AccountsStore {
             equipment: normalizeEquipment(r.equipment, r.class_id),
             inventory: normalizeInventory(r.inventory || getDefaultStarterInventory(r.class_id)),
             bank: normalizeBank(r.bank || []),
+            questState: r.quest_state || {},
             unlockedGear: Array.isArray(r.unlocked_gear) ? r.unlocked_gear : Object.keys(EQUIPMENT_CATALOG),
             progression: this.mergeValidProgression(createDefaultProgression(), r.progression),
             statsMeta: r.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
@@ -387,9 +391,9 @@ export class AccountsStore {
           id, username, username_lower, display_name, password_hash, is_guest, sso_subject,
           tcg_linked, tcg_handle, tcg_email, tcg_synced_at, faction, class_id,
           order_tag, order_name, order_color, loadout, equipment, progression, stats_meta,
-          active_character_id, created_at, last_login_at, inventory, bank
+          active_character_id, created_at, last_login_at, inventory, bank, quest_state
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26
         )
         ON CONFLICT (id) DO UPDATE SET
           username = EXCLUDED.username,
@@ -414,7 +418,8 @@ export class AccountsStore {
           active_character_id = EXCLUDED.active_character_id,
           last_login_at = EXCLUDED.last_login_at,
           inventory = EXCLUDED.inventory,
-          bank = EXCLUDED.bank`,
+          bank = EXCLUDED.bank,
+          quest_state = EXCLUDED.quest_state`,
         [
           a.id, a.username, a.usernameLower, a.displayName, a.passwordHash, a.isGuest, a.ssoSubject,
           a.tcgLinked, a.tcgHandle, a.tcgEmail, a.tcgSyncedAt, a.faction, a.classId,
@@ -428,6 +433,7 @@ export class AccountsStore {
           a.lastLoginAt,
           JSON.stringify(a.inventory || []),
           JSON.stringify(a.bank || []),
+          JSON.stringify(a.questState || {}),
         ]
       );
     }
@@ -444,8 +450,8 @@ export class AccountsStore {
       await this.db.query(
         `INSERT INTO glimmerfall_characters (
           id, account_id, name, faction, class_id, order_tag, order_name, order_color,
-          home_biome, loadout, equipment, unlocked_gear, progression, stats_meta, updated_at, inventory, bank
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW(),$15,$16)
+          home_biome, loadout, equipment, unlocked_gear, progression, stats_meta, updated_at, inventory, bank, quest_state
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW(),$15,$16,$17)
         ON CONFLICT (id) DO UPDATE SET
           name = EXCLUDED.name,
           faction = EXCLUDED.faction,
@@ -461,6 +467,7 @@ export class AccountsStore {
           stats_meta = EXCLUDED.stats_meta,
           inventory = EXCLUDED.inventory,
           bank = EXCLUDED.bank,
+          quest_state = EXCLUDED.quest_state,
           updated_at = NOW()`,
         [
           found.id, found.accountId, found.name, found.faction, found.classId,
@@ -472,6 +479,7 @@ export class AccountsStore {
           JSON.stringify(found.statsMeta || {}),
           JSON.stringify(found.inventory || []),
           JSON.stringify(found.bank || []),
+          JSON.stringify(found.questState || {}),
         ]
       );
     }
@@ -550,6 +558,7 @@ export class AccountsStore {
         inventory: normalizeInventory(acc.inventory || getDefaultStarterInventory(acc.classId)),
         unlockedGear: Object.keys(EQUIPMENT_CATALOG),
         progression: acc.progression,
+        questState: acc.questState || {},
         statsMeta: acc.statsMeta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
       };
       cmap.set(chId, ch);
@@ -577,6 +586,7 @@ export class AccountsStore {
     acc.bank = ch.bank;
     acc.progression = ch.progression;
     acc.statsMeta = ch.statsMeta;
+    acc.questState = ch.questState || {};
   }
 
   listCharacters(accountId) {
@@ -1203,9 +1213,24 @@ export class AccountsStore {
     this.schedulePersist(acc.id, ch?.id);
   }
 
+  saveQuestState(accountId, questState) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc) return;
+    this.ensureDefaultCharacter(acc);
+    if (questState && typeof questState === 'object') {
+      acc.questState = questState;
+      const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+      if (ch) {
+        ch.questState = questState;
+      }
+      this.schedulePersist(acc.id, ch?.id);
+    }
+  }
+
   toPublicProfile(acc) {
     if (!acc) return null;
     this.ensureDefaultCharacter(acc);
+    const activeChar = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
     return {
       id: acc.id,
       username: acc.username,
@@ -1223,6 +1248,7 @@ export class AccountsStore {
       equipment: acc.equipment,
       inventory: acc.inventory || [],
       bank: acc.bank || [],
+      questState: activeChar?.questState || acc.questState || {},
       progression: acc.progression,
       statsMeta: acc.statsMeta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
       activeCharacterId: acc.activeCharacterId,

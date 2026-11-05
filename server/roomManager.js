@@ -2331,6 +2331,13 @@ export class RoomManager {
         break;
       }
 
+      case 'sync_quest_state': {
+        if (msg.questState && typeof msg.questState === 'object') {
+          this.accounts.saveQuestState(client.id, msg.questState);
+        }
+        break;
+      }
+
       case 'update_loadout': {
         if (msg.loadout && typeof msg.loadout === 'object') {
           this.accounts.updateProfile(client.id, { loadout: msg.loadout });
