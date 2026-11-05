@@ -584,6 +584,25 @@ export function initGame() {
       questState = createDefaultQuestState();
     }
 
+    // High-level or experienced characters should never be stuck on the Awakening tutorial:
+    const charName = String(localProfile?.displayName || localProfile?.name || '').toUpperCase();
+    const isExperienced = (prog && (prog.level || 1) >= 2) || charName === 'EWACH';
+    if (isExperienced && !questState.completedQuests?.quest_awakening) {
+      questState.stasisBroken = true;
+      questState.dummyDamaged = true;
+      questState.nodeHarvested = true;
+      questState.completedQuests.quest_awakening = true;
+      if (questState.activeQuests) delete questState.activeQuests.quest_awakening;
+      if (questState.trackedQuests) delete questState.trackedQuests.quest_awakening;
+      if (!questState.activeQuests?.quest_into_the_warzone && !questState.completedQuests?.quest_into_the_warzone) {
+        if (!questState.activeQuests) questState.activeQuests = {};
+        if (!questState.trackedQuests) questState.trackedQuests = {};
+        questState.activeQuests.quest_into_the_warzone = { accepted: true, acceptedAt: Date.now() };
+        questState.trackedQuests.quest_into_the_warzone = true;
+      }
+      saveQuestState();
+    }
+
     // By default, any active quest without explicit false is tracked
     if (!questState.trackedQuests || Object.keys(questState.trackedQuests).length === 0) {
       questState.trackedQuests = {};
@@ -609,6 +628,13 @@ export function initGame() {
     logMessage('📜 [Quest Reset] All quests have been reset to Awakening! Speak with Herald Lyra in Sanctuary Haven.', 'log-quest', 'chat');
     spawnFCT(player.x, player.y - 14, '↺ ALL QUESTS RESET!', '#facc15', true);
     if (audio && audio.playChime) audio.playChime();
+  };
+
+  window.turnInQuestRemote = function (questId) {
+    const q = QUEST_CATALOG[questId];
+    if (!q || !q.isComplete()) return;
+    const fakeNpc = { id: q.turnInId, name: getNpcName(q.turnInId), spriteKey: 'heraldNpc' };
+    completeQuest(q, fakeNpc);
   };
 
   const recentKillKeys = new Set();
@@ -2018,7 +2044,11 @@ export function initGame() {
       if (QUEST_CATALOG[qId]) activeList.push(QUEST_CATALOG[qId]);
     }
     if (activeList.length === 0 && !questState.completedQuests?.quest_awakening) {
-      activeList.push(QUEST_CATALOG.quest_awakening);
+      const charName = String(localProfile?.displayName || localProfile?.name || '').toUpperCase();
+      const isExperienced = (prog && (prog.level || 1) >= 2) || charName === 'EWACH';
+      if (!isExperienced) {
+        activeList.push(QUEST_CATALOG.quest_awakening);
+      }
     }
 
     const completedList = [];
@@ -2253,7 +2283,11 @@ export function initGame() {
     }
 
     if (activeList.length === 0 && !questState.completedQuests?.quest_awakening) {
-      activeList.push(QUEST_CATALOG.quest_awakening);
+      const charName = String(localProfile?.displayName || localProfile?.name || '').toUpperCase();
+      const isExperienced = (prog && (prog.level || 1) >= 2) || charName === 'EWACH';
+      if (!isExperienced) {
+        activeList.push(QUEST_CATALOG.quest_awakening);
+      }
     }
 
     const trackedList = activeList.filter((q) => questState.trackedQuests?.[q.id] !== false);
@@ -2296,8 +2330,9 @@ export function initGame() {
           }).join('');
 
           const turnInPrompt = isReady ? `
-            <div class="quest-turnin-banner" style="margin-top:3px; padding:2px 6px; font-size:9.5px; background:rgba(234,179,8,0.25); border:1px solid #fde047; text-shadow:1px 1px 0 #000;">
-              <span>✨</span><span>Ready! Return to ${getNpcName(q.turnInId)}</span>
+            <div class="quest-turnin-banner" style="margin-top:3px; padding:3px 6px; font-size:9.5px; background:rgba(234,179,8,0.25); border:1px solid #fde047; text-shadow:1px 1px 0 #000; display:flex; justify-content:space-between; align-items:center; gap:4px;">
+              <span>✨ Ready! Return to ${getNpcName(q.turnInId)}</span>
+              <button class="id-mini-btn" style="background:#ca8a04; color:#fff; border-color:#fde047; font-size:9px; padding:1px 5px; cursor:pointer;" onclick="window.turnInQuestRemote('${q.id}')">TURN IN ✓</button>
             </div>
           ` : '';
 
