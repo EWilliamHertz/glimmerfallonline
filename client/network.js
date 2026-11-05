@@ -413,4 +413,10 @@ export class MultiplayerClient {
     if (data.profile) this.profile = data.profile;
     return data.profile;
   }
+
+  logout() {
+    this.saveStoredToken(null);
+    this.profile = null;
+    this.disconnect();
+  }
 }

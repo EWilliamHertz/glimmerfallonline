@@ -1595,10 +1595,15 @@ export class RoomManager {
       this.removeClient(existing);
     }
 
-    const prog = account.progression || createDefaultProgression();
-    const classId = account.classId || 'solari_vanguard';
-    const equipment = account.equipment || CLASSES_CATALOG[classId]?.defaultEquipment || {};
-    const loadout = account.loadout || CLASSES_CATALOG[classId]?.defaultLoadout || {};
+    this.accounts.ensureDefaultCharacter(account);
+    this.accounts.syncAccountFromActiveChar(account);
+    const ch = this.accounts.charactersByAccount.get(account.id)?.get(account.activeCharacterId);
+
+    const prog = ch?.progression || account.progression || createDefaultProgression();
+    const classId = ch?.classId || account.classId || 'solari_vanguard';
+    const faction = ch?.faction || account.faction || 'Solari';
+    const equipment = ch?.equipment || account.equipment || CLASSES_CATALOG[classId]?.defaultEquipment || {};
+    const loadout = ch?.loadout || account.loadout || CLASSES_CATALOG[classId]?.defaultLoadout || {};
     const maxHp = calcMaxHp(prog, equipment, classId);
     const maxGlimmer = calcMaxGlimmer(prog, equipment, classId);
 
@@ -1606,20 +1611,21 @@ export class RoomManager {
       id: account.id,
       ws,
       username: account.username,
-      displayName: account.displayName,
+      displayName: ch?.name || account.displayName,
       isGuest: account.isGuest,
       tcgLinked: account.tcgLinked,
       tcgHandle: account.tcgHandle,
-      faction: account.faction || 'Solari',
+      faction,
       classId,
       loadout,
       equipment,
-      inventory: account.inventory || [],
-      bank: account.bank || [],
-      orderTag: account.orderTag || 'SUN',
-      orderName: account.orderName || 'Order of Dawn',
-      orderColor: account.orderColor || '#facc15',
+      inventory: ch?.inventory || account.inventory || [],
+      bank: ch?.bank || account.bank || [],
+      orderTag: ch?.orderTag || account.orderTag || 'SUN',
+      orderName: ch?.orderName || account.orderName || 'Order of Dawn',
+      orderColor: ch?.orderColor || account.orderColor || '#facc15',
       prog,
+      questState: ch?.questState || account.questState || {},
       x: 0,
       y: 96,
       z: 0,
@@ -1675,21 +1681,25 @@ export class RoomManager {
     const client = this.clients.get(accountId);
     const acc = this.accounts.accountsById.get(accountId);
     if (!client || !acc) return;
+    this.accounts.ensureDefaultCharacter(acc);
+    this.accounts.syncAccountFromActiveChar(acc);
+    const ch = this.accounts.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
     client.username = acc.username;
-    client.displayName = acc.displayName;
+    client.displayName = ch?.name || acc.displayName;
     client.isGuest = acc.isGuest;
     client.tcgLinked = acc.tcgLinked;
     client.tcgHandle = acc.tcgHandle;
-    client.faction = acc.faction;
-    client.classId = acc.classId || 'solari_vanguard';
-    client.loadout = acc.loadout || CLASSES_CATALOG[client.classId]?.defaultLoadout || {};
-    client.equipment = acc.equipment || CLASSES_CATALOG[client.classId]?.defaultEquipment || {};
-    client.inventory = acc.inventory || [];
-    client.bank = acc.bank || [];
-    client.orderTag = acc.orderTag;
-    client.orderName = acc.orderName;
-    client.orderColor = acc.orderColor;
-    client.prog = acc.progression;
+    client.faction = ch?.faction || acc.faction || 'Solari';
+    client.classId = ch?.classId || acc.classId || 'solari_vanguard';
+    client.loadout = ch?.loadout || acc.loadout || CLASSES_CATALOG[client.classId]?.defaultLoadout || {};
+    client.equipment = ch?.equipment || acc.equipment || CLASSES_CATALOG[client.classId]?.defaultEquipment || {};
+    client.inventory = ch?.inventory || acc.inventory || [];
+    client.bank = ch?.bank || acc.bank || [];
+    client.orderTag = ch?.orderTag || acc.orderTag || 'SUN';
+    client.orderName = ch?.orderName || acc.orderName || 'Order of Dawn';
+    client.orderColor = ch?.orderColor || acc.orderColor || '#facc15';
+    client.prog = ch?.progression || acc.progression;
+    client.questState = ch?.questState || acc.questState || {};
     client.maxHp = calcMaxHp(client.prog, client.equipment, client.classId);
     client.hp = Math.min(client.maxHp, client.hp);
     client.maxSolarCharge = calcMaxGlimmer(client.prog, client.equipment, client.classId);

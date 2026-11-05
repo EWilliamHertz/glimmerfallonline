@@ -265,6 +265,10 @@ export class AccountsStore {
       }
       this.charactersByAccount.get(ch.accountId).set(ch.id, ch);
     }
+    for (const acc of this.accountsById.values()) {
+      this.ensureDefaultCharacter(acc);
+      this.syncAccountFromActiveChar(acc);
+    }
     console.log(`[PostgreSQL] Loaded ${this.accountsById.size} accounts & ${charRes.rows.length} characters from Neon DB.`);
   }
 
@@ -305,7 +309,7 @@ export class AccountsStore {
     return acc;
   }
 
-  async ensureFreshFromPostgres({ id = null, username = null, force = false } = {}) {
+  async ensureFreshFromPostgres({ id = null, username = null, force = true } = {}) {
     if (!this.db) return;
     try {
       let accRow = null;
@@ -314,7 +318,7 @@ export class AccountsStore {
         accRow = res.rows[0] || null;
       } else if (username) {
         const lower = String(username).trim().toLowerCase();
-        if (lower && !this.idByUsername.has(lower)) {
+        if (lower && (!this.idByUsername.has(lower) || force)) {
           const res = await this.db.query('SELECT * FROM glimmerfall_accounts WHERE username_lower = $1 LIMIT 1', [lower]);
           accRow = res.rows[0] || null;
         }
@@ -344,6 +348,8 @@ export class AccountsStore {
             statsMeta: r.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
           });
         }
+        this.ensureDefaultCharacter(acc);
+        this.syncAccountFromActiveChar(acc);
       }
     } catch (_) {}
   }
@@ -599,57 +605,42 @@ export class AccountsStore {
   createOrSelectCharacter(accountId, {
     characterId,
     name,
-    faction = 'Solari',
-    classId = 'solari_vanguard',
-    orderTag,
-    orderName,
-    orderColor,
-    loadout,
-    equipment,
-    inventory,
-    bank,
+    faction = null,
+    classId = null,
+    orderTag = null,
+    orderName = null,
+    orderColor = null,
+    loadout = null,
+    equipment = null,
+    inventory = null,
+    bank = null,
     homeBiome = ROOM_TYPES.SANCTUARY_HUB,
-  }) {
+  } = {}) {
     const acc = this.accountsById.get(accountId);
     if (!acc) throw new Error('Account not found.');
     this.ensureDefaultCharacter(acc);
     const cmap = this.charactersByAccount.get(acc.id);
 
-    const norm = normalizeClassAndFaction(classId, faction);
-    const preset = ORDER_PRESETS.find((o) =>
-      (norm.faction === 'Solari' && o.tag === 'SUN') ||
-      (norm.faction === 'Umbri' && o.tag === 'VOID') ||
-      (norm.faction === 'Terra' && o.tag === 'ROOT') ||
-      (norm.faction === 'Aether' && o.tag === 'AETH')
-    ) || ORDER_PRESETS[0];
-
-    // Update existing character if characterId passed
+    // Update existing character if characterId passed (pure selection: do NOT mutate faction/classId unless explicitly provided)
     if (characterId && cmap.has(characterId)) {
       const ch = cmap.get(characterId);
-      // When selecting an existing character without editing, preserve character immutability
-      if (!name && !classId && !faction && !loadout && !equipment) {
-        acc.activeCharacterId = ch.id;
-        if (homeBiome) ch.homeBiome = homeBiome;
-        this.syncAccountFromActiveChar(acc);
-        this.schedulePersist(acc.id, ch.id);
-        return ch;
-      }
+      acc.activeCharacterId = ch.id;
+      if (homeBiome) ch.homeBiome = homeBiome;
 
       if (name) ch.name = sanitizeName(name, ch.name);
-      if (faction && classId) {
+      if (faction || classId) {
+        const norm = normalizeClassAndFaction(classId || ch.classId, faction || ch.faction);
         ch.faction = norm.faction;
         ch.classId = norm.classId;
       }
-      if (orderTag !== undefined && orderTag !== null) ch.orderTag = sanitizeOrderTag(orderTag) || preset.tag;
-      if (orderName !== undefined && orderName !== null) ch.orderName = sanitizeName(orderName, preset.name);
+      if (orderTag) ch.orderTag = sanitizeOrderTag(orderTag);
+      if (orderName) ch.orderName = sanitizeName(orderName, ch.orderName);
       if (orderColor) ch.orderColor = orderColor;
-      if (loadout) ch.loadout = normalizeLoadout(loadout, norm.classId);
-      if (equipment) ch.equipment = normalizeEquipment(equipment, norm.classId);
+      if (loadout) ch.loadout = normalizeLoadout(loadout, ch.classId);
+      if (equipment) ch.equipment = normalizeEquipment(equipment, ch.classId);
       if (inventory) ch.inventory = normalizeInventory(inventory);
       if (bank) ch.bank = normalizeBank(bank);
-      if (homeBiome) ch.homeBiome = homeBiome;
 
-      acc.activeCharacterId = ch.id;
       this.syncAccountFromActiveChar(acc);
       this.schedulePersist(acc.id, ch.id);
       return ch;
@@ -658,6 +649,14 @@ export class AccountsStore {
     if (cmap.size >= 8) {
       throw new Error('Maximum of 8 characters per GlimmerFall ID reached.');
     }
+
+    const norm = normalizeClassAndFaction(classId || 'solari_vanguard', faction || 'Solari');
+    const preset = ORDER_PRESETS.find((o) =>
+      (norm.faction === 'Solari' && o.tag === 'SUN') ||
+      (norm.faction === 'Umbri' && o.tag === 'VOID') ||
+      (norm.faction === 'Terra' && o.tag === 'ROOT') ||
+      (norm.faction === 'Aether' && o.tag === 'AETH')
+    ) || ORDER_PRESETS[0];
 
     const chId = `chr_${crypto.randomUUID().slice(0, 10)}`;
     const ch = {
@@ -674,6 +673,7 @@ export class AccountsStore {
       equipment: normalizeEquipment(equipment, norm.classId),
       inventory: normalizeInventory(inventory || getDefaultStarterInventory(norm.classId)),
       bank: normalizeBank(bank || acc.bank || []),
+      questState: {},
       unlockedGear: Object.keys(EQUIPMENT_CATALOG),
       progression: createDefaultProgression(),
       statsMeta: { kills: 0, arenaWins: 0, siegeClaims: 0 },
@@ -788,17 +788,24 @@ export class AccountsStore {
 
     let acc = upgradeAccountId ? this.accountsById.get(upgradeAccountId) : null;
     if (acc && acc.isGuest) {
+      this.ensureDefaultCharacter(acc);
+      const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
       acc.username = cleanUser;
       acc.usernameLower = lower;
       acc.displayName = sanitizeName(displayName || cleanUser, cleanUser);
       acc.passwordHash = this.hashPassword(password);
       acc.isGuest = false;
-      acc.faction = norm.faction;
-      acc.classId = norm.classId;
+      if (ch && ch.faction && ch.classId && (!faction || faction === 'Solari')) {
+        acc.faction = ch.faction;
+        acc.classId = ch.classId;
+      } else {
+        acc.faction = norm.faction;
+        acc.classId = norm.classId;
+      }
       acc.orderTag = cleanTag;
       acc.orderName = cleanOrderName;
-      if (loadout) acc.loadout = normalizeLoadout(loadout, norm.classId);
-      if (equipment) acc.equipment = normalizeEquipment(equipment, norm.classId);
+      if (loadout) acc.loadout = normalizeLoadout(loadout, acc.classId);
+      if (equipment) acc.equipment = normalizeEquipment(equipment, acc.classId);
       if (inventory) acc.inventory = normalizeInventory(inventory);
       if (bank) acc.bank = normalizeBank(bank);
       if (tcgHandle) {
@@ -811,8 +818,6 @@ export class AccountsStore {
       }
       acc.lastLoginAt = new Date().toISOString();
       this.idByUsername.set(lower, acc.id);
-      this.ensureDefaultCharacter(acc);
-      const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
       if (ch) {
         ch.name = acc.displayName;
         ch.faction = acc.faction;
@@ -1230,27 +1235,28 @@ export class AccountsStore {
   toPublicProfile(acc) {
     if (!acc) return null;
     this.ensureDefaultCharacter(acc);
+    this.syncAccountFromActiveChar(acc);
     const activeChar = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
     return {
       id: acc.id,
       username: acc.username,
-      displayName: acc.displayName,
+      displayName: activeChar?.name || acc.displayName,
       isGuest: acc.isGuest,
       tcgLinked: acc.tcgLinked,
       tcgHandle: acc.tcgHandle,
       tcgEmail: acc.tcgEmail,
-      faction: acc.faction,
-      classId: acc.classId || 'solari_vanguard',
-      orderTag: acc.orderTag,
-      orderName: acc.orderName,
-      orderColor: acc.orderColor,
-      loadout: acc.loadout,
-      equipment: acc.equipment,
-      inventory: acc.inventory || [],
-      bank: acc.bank || [],
+      faction: activeChar?.faction || acc.faction || 'Solari',
+      classId: activeChar?.classId || acc.classId || 'solari_vanguard',
+      orderTag: activeChar?.orderTag || acc.orderTag || 'SUN',
+      orderName: activeChar?.orderName || acc.orderName || 'Order of Dawn',
+      orderColor: activeChar?.orderColor || acc.orderColor || '#facc15',
+      loadout: activeChar?.loadout || acc.loadout || {},
+      equipment: activeChar?.equipment || acc.equipment || {},
+      inventory: activeChar?.inventory || acc.inventory || [],
+      bank: activeChar?.bank || acc.bank || [],
       questState: activeChar?.questState || acc.questState || {},
-      progression: acc.progression,
-      statsMeta: acc.statsMeta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
+      progression: activeChar?.progression || acc.progression || {},
+      statsMeta: activeChar?.statsMeta || acc.statsMeta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
       activeCharacterId: acc.activeCharacterId,
       characters: this.listCharacters(acc.id),
       dbConnected: this.dbConnected,

@@ -345,18 +345,6 @@ export function initGame() {
   // Progression, Class, Loadout & Equipment State
   // ==========================================
   let prog = createDefaultProgression();
-  try {
-    const savedProg = localStorage.getItem('glimmerfall_prog_v2');
-    if (savedProg) {
-      const parsed = JSON.parse(savedProg);
-      prog = {
-        ...createDefaultProgression(),
-        ...parsed,
-        stats: { ...createDefaultProgression().stats, ...(parsed.stats || {}) },
-        ranks: { ...createDefaultProgression().ranks, ...(parsed.ranks || {}) },
-      };
-    }
-  } catch (_) {}
 
   let localProfile = {
     id: 'local_hero',
@@ -551,20 +539,16 @@ export function initGame() {
   let questState = createDefaultQuestState();
 
   function getQuestStorageKey() {
-    const charId = localProfile?.activeCharacterId || (localProfile?.id && localProfile.id !== 'default' ? localProfile.id : null);
-    const nameFallback = localProfile?.displayName ? `${localProfile.faction}_${localProfile.displayName}` : 'default';
-    return `glimmerfall_quest_state_${charId || nameFallback}`;
+    const charId = localProfile?.activeCharacterId || (localProfile?.id && localProfile.id !== 'default' && localProfile.id !== 'local_hero' ? localProfile.id : null);
+    if (charId) return `glimmerfall_quest_state_${charId}`;
+    return null;
   }
 
   function saveQuestState() {
     try {
-      const key = getQuestStorageKey();
-      localStorage.setItem(key, JSON.stringify(questState));
-      if (localProfile?.activeCharacterId) {
-        localStorage.setItem(`glimmerfall_quest_state_${localProfile.activeCharacterId}`, JSON.stringify(questState));
-      }
-      if (localProfile?.id && localProfile.id !== 'default') {
-        localStorage.setItem(`glimmerfall_quest_state_${localProfile.id}`, JSON.stringify(questState));
+      const charId = localProfile?.activeCharacterId || (localProfile?.id && localProfile.id !== 'default' && localProfile.id !== 'local_hero' ? localProfile.id : null);
+      if (charId) {
+        localStorage.setItem(`glimmerfall_quest_state_${charId}`, JSON.stringify(questState));
       }
       if (isSinglePlayer && localProfile?.id) {
         const raw = localStorage.getItem('glimmerfall_sp_roster_v2');
@@ -585,9 +569,9 @@ export function initGame() {
 
   function loadQuestState() {
     try {
-      const key = getQuestStorageKey();
-      const charKey = localProfile?.activeCharacterId ? `glimmerfall_quest_state_${localProfile.activeCharacterId}` : null;
-      let raw = (charKey ? localStorage.getItem(charKey) : null) || localStorage.getItem(key);
+      const charId = localProfile?.activeCharacterId || (localProfile?.id && localProfile.id !== 'default' && localProfile.id !== 'local_hero' ? localProfile.id : null);
+      const charKey = charId ? `glimmerfall_quest_state_${charId}` : null;
+      let raw = charKey ? localStorage.getItem(charKey) : null;
       let parsed = raw ? JSON.parse(raw) : null;
 
       // Merge server-authoritative questState if present on profile
@@ -640,10 +624,9 @@ export function initGame() {
       questState = createDefaultQuestState();
     }
 
-    // High-level or experienced characters should never be stuck on the Awakening tutorial:
+    // High-level or experienced characters (like EWACH) should never be stuck on the Awakening tutorial:
     const charName = String(localProfile?.displayName || localProfile?.name || '').toUpperCase();
-    const isExperienced = (prog && (prog.level || 1) >= 2) || charName === 'EWACH';
-    if (isExperienced && !questState.completedQuests?.quest_awakening) {
+    if (charName === 'EWACH' && !questState.completedQuests?.quest_awakening) {
       questState.stasisBroken = true;
       questState.dummyDamaged = true;
       questState.nodeHarvested = true;
@@ -670,6 +653,41 @@ export function initGame() {
     introShown = questState.introShown || Boolean(questState.talkedNpcs?.npc_aurora);
     updateQuestTrackerHUD();
   }
+
+  window.resetSessionState = function () {
+    questState = createDefaultQuestState();
+    prog = createDefaultProgression();
+    localProfile = {
+      id: 'local_hero',
+      username: null,
+      displayName: 'Solari Vanguard',
+      isGuest: true,
+      tcgLinked: false,
+      tcgHandle: null,
+      faction: 'Solari',
+      classId: 'solari_vanguard',
+      loadout: { ...CLASSES_CATALOG.solari_vanguard.defaultLoadout },
+      equipment: { ...CLASSES_CATALOG.solari_vanguard.defaultEquipment },
+      inventory: [
+        { id: 'ring_of_the_sun', qty: 1 },
+        { id: 'boots_of_haste', qty: 1 },
+        { id: 'vanguard_gauntlets', qty: 1 },
+        { id: 'amulet_of_glory', qty: 1 },
+      ],
+      bank: [],
+      orderTag: 'SUN',
+      orderName: 'Order of Dawn',
+      orderColor: '#facc15',
+      statsMeta: { kills: 0, arenaWins: 0 },
+    };
+    try {
+      localStorage.removeItem('glimmerfall_auth_token');
+      localStorage.removeItem('glimmerfall_prog_v2');
+      localStorage.removeItem('glimmerfall_quest_state_default');
+      localStorage.removeItem('glimmerfall_quest_state_local_hero');
+    } catch (_) {}
+    updateQuestTrackerHUD();
+  };
 
   window.resetAllQuests = function (askConfirm = false) {
     if (askConfirm && typeof confirm === 'function' && !confirm('Restart all quests from Awakening? Your character stats, level, and items will be preserved.')) {
@@ -820,9 +838,9 @@ export function initGame() {
       turnInId: 'npc_archon',
       prereqQuestId: 'quest_awakening',
       description: 'Report to Commander Valerius at the North Vanguard Post.',
-      isComplete: () => true,
+      isComplete: () => Boolean(questState.talkedNpcs?.npc_archon || questState.completedQuests?.quest_into_the_warzone),
       tasks: [
-        { text: 'Report to Commander Valerius', done: () => Boolean(questState.completedQuests.quest_into_the_warzone) },
+        { text: 'Report to Commander Valerius', done: () => Boolean(questState.talkedNpcs?.npc_archon || questState.completedQuests?.quest_into_the_warzone) },
       ],
       rewards: { xp: 160, glimmer: 80 },
       acceptDialogue: [
@@ -2484,8 +2502,10 @@ export function initGame() {
 
   function applyProfile(prof) {
     if (!prof) return;
-    const cls = CLASSES_CATALOG[prof.classId || localProfile.classId] || CLASSES_CATALOG.solari_vanguard;
-    const pId = prof.id || localProfile.id || 'default';
+    const faction = prof.faction || localProfile.faction || 'Solari';
+    const targetClassId = prof.classId || (faction === 'Umbri' ? 'umbral_assassin' : faction === 'Terra' ? 'forest_warden' : faction === 'Aether' ? 'chronomancer_sage' : 'solari_vanguard');
+    const cls = CLASSES_CATALOG[targetClassId] || (Object.values(CLASSES_CATALOG).find((c) => c.faction === faction) || CLASSES_CATALOG.solari_vanguard);
+    const pId = prof.activeCharacterId || prof.id || 'default';
     let resolvedBank = Array.isArray(prof.bank) ? [...prof.bank] : (localProfile.bank || []);
     if ((!resolvedBank || resolvedBank.length === 0) && typeof localStorage !== 'undefined') {
       try {
@@ -2515,23 +2535,25 @@ export function initGame() {
     localProfile = {
       ...localProfile,
       ...prof,
+      faction: prof.faction || cls.faction || faction,
       classId: cls.id,
-      loadout: { ...cls.defaultLoadout, ...(prof.loadout || localProfile.loadout || {}) },
-      equipment: { ...cls.defaultEquipment, ...(prof.equipment || localProfile.equipment || {}) },
+      loadout: { ...cls.defaultLoadout, ...(prof.loadout || {}) },
+      equipment: { ...cls.defaultEquipment, ...(prof.equipment || {}) },
       inventory: Array.isArray(prof.inventory) ? prof.inventory : (localProfile.inventory || []),
       bank: resolvedBank,
     };
     window.localProfile = localProfile;
-    if (prof.progression) {
-      prog = {
-        ...prog,
-        ...prof.progression,
-        stats: { ...prog.stats, ...(prof.progression.stats || {}) },
-        ranks: { ...prog.ranks, ...(prof.progression.ranks || {}) },
-        paragon: { ...(prog.paragon || {}), ...(prof.progression.paragon || {}) },
-      };
-      saveProgressionLocal();
-    }
+
+    // Reset progression cleanly to default and apply the active character's progression
+    prog = {
+      ...createDefaultProgression(),
+      ...(prof.progression || {}),
+      stats: { ...createDefaultProgression().stats, ...(prof.progression?.stats || {}) },
+      ranks: { ...createDefaultProgression().ranks, ...(prof.progression?.ranks || {}) },
+      paragon: { ...(prof.progression?.paragon || {}) },
+    };
+    saveProgressionLocal();
+
     loadQuestState();
     recalcVitalsFromProfile();
     refreshHeroPortrait();

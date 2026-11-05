@@ -448,15 +448,18 @@ export class FrontpageController {
       return;
     }
     try {
+      const targetFaction = this.creationDraft?.faction || 'Solari';
+      const targetClassId = this.creationDraft?.classId || (targetFaction === 'Umbri' ? 'umbral_assassin' : targetFaction === 'Terra' ? 'forest_warden' : targetFaction === 'Aether' ? 'chronomancer_sage' : 'solari_vanguard');
+      const targetTag = this.creationDraft?.orderTag || (targetFaction === 'Umbri' ? 'VOID' : targetFaction === 'Terra' ? 'ROOT' : targetFaction === 'Aether' ? 'AETH' : 'SUN');
       const prof = mode === 'login'
         ? await this.net.login({ username: u, password: p })
         : await this.net.register({
             username: u,
             password: p,
             displayName: u,
-            faction: 'Solari',
-            classId: 'solari_vanguard',
-            orderTag: 'SUN',
+            faction: targetFaction,
+            classId: targetClassId,
+            orderTag: targetTag,
           });
       this.authMessage = `✓ Signed in as @${prof.username}!`;
       this.syncFromProfile(prof);
@@ -468,6 +471,9 @@ export class FrontpageController {
 
   handleLogout() {
     if (this.net?.logout) this.net.logout();
+    if (typeof window !== 'undefined' && window.resetSessionState) {
+      window.resetSessionState();
+    }
     this.authMessage = 'Logged out. Guest session active.';
     this.selectedCharacterId = null;
     this.render();
