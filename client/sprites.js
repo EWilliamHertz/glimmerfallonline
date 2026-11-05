@@ -278,6 +278,10 @@ export function buildSpriteSheet() {
     heroByFaction: {},
     heraldNpc: [],
     bankerNpc: [],
+    merchantApothecaryNpc: [],
+    merchantProvisionsNpc: [],
+    merchantSmithNpc: [],
+    merchantRelicsNpc: [],
     cartographerNpc: [],
     warzoneArchonNpc: [],
     solariCaptainNpc: [],
@@ -1101,47 +1105,125 @@ export function buildSpriteSheet() {
     sprites.props.cityHouseB = addPixelOutline(c);
   }
 
-  // Continental Market Stall (32x28 px)
-  {
+  // Helper function to create market stall base with canopy
+  function createStallCanvas(primaryColor, secondaryColor, scallopDark, scallopLight, drapeColor) {
     const { c, ctx } = makeCanvas(32, 28);
     // Timber frame posts
     rect(ctx, 3, 10, 2, 17, '#451a03');
     rect(ctx, 27, 10, 2, 17, '#451a03');
 
-    // Striped Fabric Canopy (Red & Cream)
+    // Striped Fabric Canopy
     for (let s = 0; s < 6; s++) {
-      const col = s % 2 === 0 ? '#dc2626' : '#fef3c7';
+      const col = s % 2 === 0 ? primaryColor : secondaryColor;
       rect(ctx, 2 + s * 5, 2, 5, 11, col);
     }
     // Awning valence scallops
     for (let v = 0; v < 6; v++) {
-      const col = v % 2 === 0 ? '#b91c1c' : '#fde68a';
+      const col = v % 2 === 0 ? scallopDark : scallopLight;
       rect(ctx, 2 + v * 5, 12, 5, 2, col);
     }
 
-    // Wooden Merchant Table
+    // Wooden Merchant Table Counter
     rect(ctx, 2, 15, 28, 4, '#78350f');
     rect(ctx, 3, 15, 26, 1, '#b45309');
-    rect(ctx, 4, 19, 24, 7, '#451a03'); // Table drape/cloth
-
-    // Wares on Table:
-    // Potion Flasks
-    rect(ctx, 5, 12, 3, 4, '#38bdf8');
-    px(ctx, 6, 11, '#cbd5e1'); // Cork
-    rect(ctx, 9, 13, 3, 3, '#a855f7');
-    px(ctx, 10, 12, '#cbd5e1');
-    // Golden Apple Basket
-    rect(ctx, 14, 13, 6, 3, '#ca8a04');
-    px(ctx, 15, 12, '#ef4444');
-    px(ctx, 17, 12, '#fde047');
-    px(ctx, 18, 12, '#22c55e');
-    // Glowing Gemstones / Relic Box
-    rect(ctx, 22, 13, 5, 3, '#1e293b');
-    px(ctx, 23, 13, '#38bdf8');
-    px(ctx, 25, 13, '#facc15');
-
-    sprites.props.marketStall = addPixelOutline(c);
+    rect(ctx, 4, 19, 24, 7, drapeColor); // Table drape/cloth
+    return { c, ctx };
   }
+
+  // 1. Apothecary & Potion Stall (Teal / Indigo Awning, Potions, Mortar & Pestle, Hanging Herbs)
+  {
+    const { c, ctx } = createStallCanvas('#0284c7', '#a7f3d0', '#0369a1', '#6ee7b7', '#0c4a6e');
+    // Hanging dried herbs from left pole
+    rect(ctx, 1, 9, 2, 4, '#15803d');
+    px(ctx, 2, 13, '#166534');
+    // Potion Flasks on table
+    // Red Health Salve
+    rect(ctx, 5, 11, 3, 5, '#ef4444');
+    px(ctx, 6, 10, '#cbd5e1'); // Cork
+    px(ctx, 5, 12, '#ffffff'); // Glint
+    // Cyan Glimmer Draught
+    rect(ctx, 10, 12, 3, 4, '#0ea5e9');
+    px(ctx, 11, 11, '#cbd5e1');
+    px(ctx, 11, 13, '#e0f2fe');
+    // Purple Greater Vitality Elixir
+    rect(ctx, 15, 11, 3, 5, '#9333ea');
+    px(ctx, 16, 10, '#fde047'); // Gold stopper
+    // Stone Mortar & Pestle
+    rect(ctx, 21, 13, 5, 3, '#475569');
+    px(ctx, 23, 11, '#94a3b8'); // Pestle handle
+    px(ctx, 22, 12, '#cbd5e1');
+    sprites.props.marketStallPotions = addPixelOutline(c);
+  }
+
+  // 2. Provisions & Rations Stall (Forest Green / Wheat Awning, Fruit Basket, Bread Loaf, Jerky)
+  {
+    const { c, ctx } = createStallCanvas('#15803d', '#fef08a', '#166534', '#fde047', '#9a3412');
+    // Fruit Basket with Apples
+    rect(ctx, 4, 13, 7, 3, '#ca8a04'); // wicker basket
+    px(ctx, 5, 12, '#ef4444'); // red apple
+    px(ctx, 7, 12, '#22c55e'); // green apple
+    px(ctx, 9, 12, '#dc2626'); // red apple
+    px(ctx, 6, 11, '#ef4444');
+    // Crusty Baked Bread Loaf
+    rect(ctx, 13, 12, 6, 4, '#b45309');
+    rect(ctx, 14, 11, 4, 2, '#d97706');
+    px(ctx, 14, 12, '#fef3c7'); // slashed crust
+    px(ctx, 16, 12, '#fef3c7');
+    // Cheese Wedge & Smoked Jerky Rations
+    rect(ctx, 21, 13, 4, 3, '#facc15'); // cheese
+    px(ctx, 23, 12, '#fde047');
+    rect(ctx, 26, 12, 3, 4, '#78350f'); // dried trail meat
+    px(ctx, 27, 11, '#ca8a04');
+    sprites.props.marketStallProvisions = addPixelOutline(c);
+  }
+
+  // 3. Smithing & Ore Wares Stall (Charcoal / Forge Orange Awning, Bronze Bars, Iron Ore, Blades)
+  {
+    const { c, ctx } = createStallCanvas('#1e293b', '#ea580c', '#0f172a', '#c2410c', '#334155');
+    // Stack of Refined Bronze Bars
+    rect(ctx, 5, 13, 6, 3, '#b45309');
+    rect(ctx, 6, 11, 4, 2, '#d97706');
+    px(ctx, 7, 11, '#fde047'); // metallic sheen
+    // Raw Iron Ore Rock
+    rect(ctx, 13, 12, 4, 4, '#475569');
+    px(ctx, 14, 11, '#64748b');
+    px(ctx, 15, 12, '#cbd5e1'); // silver ore fleck
+    // Blacksmith's Heavy Hammer
+    rect(ctx, 19, 14, 4, 2, '#64748b'); // hammer head
+    rect(ctx, 20, 11, 1, 4, '#78350f'); // wood handle
+    // Forged Steel Shortsword Blade Blank
+    rect(ctx, 24, 11, 2, 5, '#e2e8f0');
+    px(ctx, 24, 10, '#ffffff'); // tip
+    rect(ctx, 23, 15, 4, 1, '#b45309'); // bronze crossguard
+    sprites.props.marketStallSmith = addPixelOutline(c);
+  }
+
+  // 4. Aether Curios & Relics Stall (Royal Amethyst / Radiant Gold Awning, Glowing Crystals & Runes)
+  {
+    const { c, ctx } = createStallCanvas('#6b21a8', '#facc15', '#4c1d95', '#ca8a04', '#3b0764');
+    // Table fringe trim
+    rect(ctx, 4, 19, 24, 1, '#fde047');
+    // Pulsing Crystalline Aether Shards
+    rect(ctx, 5, 11, 3, 5, '#0284c7');
+    px(ctx, 6, 10, '#38bdf8');
+    px(ctx, 6, 12, '#ffffff'); // central star glint
+    // Astral Chrono-Gem (Violet)
+    rect(ctx, 10, 12, 3, 4, '#a855f7');
+    px(ctx, 11, 11, '#c084fc');
+    px(ctx, 11, 13, '#f5d0fe');
+    // Carved Ancient Keystone Fragment
+    rect(ctx, 15, 11, 5, 5, '#334155');
+    px(ctx, 17, 12, '#38bdf8'); // glowing rune glyph
+    px(ctx, 17, 14, '#7dd3fc');
+    // Gilded Curio Jewelry Coffer
+    rect(ctx, 22, 12, 6, 4, '#ca8a04');
+    px(ctx, 24, 11, '#fde047'); // gold latch
+    px(ctx, 23, 12, '#38bdf8'); // gem inside
+    sprites.props.marketStallRelics = addPixelOutline(c);
+  }
+
+  // Fallback market stall
+  sprites.props.marketStall = sprites.props.marketStallPotions;
 
   // Ornate Iron Street Lantern (12x30 px)
   {
@@ -1885,6 +1967,184 @@ export function buildSpriteSheet() {
       px(ctx, 25, 15, '#ffffff');
     },
   });
+
+  // 12. Alchemist Faye (Apothecary & Potions Merchant)
+  sprites.npcPortraits.merchantApothecaryNpc = createBustPortrait({
+    border: '#38bdf8',
+    bg: '#082f49',
+    bustDraw(ctx) {
+      // Alchemist Cowl & Hood
+      rect(ctx, 8, 4, 16, 9, '#0369a1');
+      rect(ctx, 10, 5, 12, 7, '#0284c7');
+      // Face
+      rect(ctx, 11, 10, 10, 8, '#fed7aa');
+      px(ctx, 13, 13, '#0369a1');
+      px(ctx, 18, 13, '#0369a1');
+      // Robes & Herb Satchel Strap
+      rect(ctx, 8, 18, 16, 12, '#0c4a6e');
+      rect(ctx, 10, 19, 12, 11, '#0284c7');
+      rect(ctx, 9, 18, 3, 12, '#78350f'); // Leather strap
+      // Glowing Potion Alembic
+      rect(ctx, 23, 11, 6, 8, '#cbd5e1');
+      rect(ctx, 24, 13, 4, 5, '#ef4444'); // Crimson potion core
+      px(ctx, 25, 14, '#fde047');
+      px(ctx, 25, 10, '#facc15'); // Cork
+    },
+  });
+
+  for (let f = 0; f < 2; f++) {
+    const bob = f === 1 ? -1 : 0;
+    const { c, ctx } = makeCanvas(22, 26);
+    // Teal/Navy Alchemist Robes
+    rect(ctx, 6, 9 + bob, 10, 12, '#0369a1');
+    rect(ctx, 7, 10 + bob, 8, 10, '#0ea5e9');
+    rect(ctx, 7, 3 + bob, 8, 7, '#0284c7');
+    rect(ctx, 8, 5 + bob, 6, 5, '#fed7aa');
+    px(ctx, 9, 7 + bob, '#0f172a');
+    px(ctx, 12, 7 + bob, '#0f172a');
+    // Leather Satchel
+    rect(ctx, 6, 13 + bob, 3, 5, '#78350f');
+    // Holding Glowing Flask
+    rect(ctx, 15, 12 + bob, 4, 5, '#ef4444');
+    px(ctx, 16, 11 + bob, '#cbd5e1');
+    // Boots
+    rect(ctx, 7, 21 + bob, 3, 5, '#0f172a');
+    rect(ctx, 12, 21 + bob, 3, 5, '#0f172a');
+    sprites.merchantApothecaryNpc.push(addPixelOutline(c));
+  }
+
+  // 13. Farmer Bran (Provisions & Rations Merchant)
+  sprites.npcPortraits.merchantProvisionsNpc = createBustPortrait({
+    border: '#4ade80',
+    bg: '#14532d',
+    bustDraw(ctx) {
+      // Wide Brim Straw Hat
+      rect(ctx, 4, 5, 24, 3, '#ca8a04');
+      rect(ctx, 8, 2, 16, 4, '#eab308');
+      rect(ctx, 9, 5, 14, 1, '#78350f'); // Ribbon band
+      // Cheerful Face & Straw
+      rect(ctx, 10, 8, 12, 9, '#fed7aa');
+      px(ctx, 13, 11, '#15803d');
+      px(ctx, 18, 11, '#15803d');
+      rect(ctx, 12, 15, 5, 1, '#ca8a04'); // Straw stalk
+      // Linen Tunic & Apron
+      rect(ctx, 7, 17, 18, 13, '#15803d');
+      rect(ctx, 10, 18, 12, 12, '#fef08a');
+      // Red Apple in Hand
+      rect(ctx, 23, 13, 6, 6, '#ef4444');
+      px(ctx, 25, 12, '#22c55e'); // Leaf
+    },
+  });
+
+  for (let f = 0; f < 2; f++) {
+    const bob = f === 1 ? -1 : 0;
+    const { c, ctx } = makeCanvas(22, 26);
+    // Green Tunic & Leather Breeches
+    rect(ctx, 6, 9 + bob, 10, 11, '#15803d');
+    rect(ctx, 8, 10 + bob, 6, 9, '#fef08a');
+    rect(ctx, 6, 2 + bob, 10, 3, '#ca8a04'); // Straw hat
+    rect(ctx, 4, 4 + bob, 14, 2, '#eab308');
+    rect(ctx, 7, 6 + bob, 8, 4, '#fed7aa');
+    px(ctx, 9, 7 + bob, '#15803d');
+    px(ctx, 12, 7 + bob, '#15803d');
+    // Basket of Apples
+    rect(ctx, 14, 12 + bob, 6, 5, '#ca8a04');
+    px(ctx, 16, 11 + bob, '#ef4444');
+    px(ctx, 18, 11 + bob, '#22c55e');
+    // Boots
+    rect(ctx, 7, 20 + bob, 3, 6, '#78350f');
+    rect(ctx, 12, 20 + bob, 3, 6, '#78350f');
+    sprites.merchantProvisionsNpc.push(addPixelOutline(c));
+  }
+
+  // 14. Blacksmith Torvin (Smithing & Ore Wares Merchant)
+  sprites.npcPortraits.merchantSmithNpc = createBustPortrait({
+    border: '#fb923c',
+    bg: '#271206',
+    bustDraw(ctx) {
+      // Rugged Hair & Headband
+      rect(ctx, 9, 3, 14, 5, '#451a03');
+      rect(ctx, 9, 7, 14, 2, '#ea580c'); // Red smithing bandana
+      // Weathered Face & Thick Beard
+      rect(ctx, 10, 9, 12, 6, '#fed7aa');
+      px(ctx, 13, 11, '#ea580c');
+      px(ctx, 18, 11, '#ea580c');
+      px(ctx, 12, 10, '#334155'); // Soot smudge
+      rect(ctx, 9, 14, 14, 5, '#291305'); // Full dark beard
+      // Leather Smithing Apron over Muscular Shoulders
+      rect(ctx, 6, 18, 20, 12, '#78350f');
+      rect(ctx, 10, 18, 12, 12, '#451a03');
+      // Heavy Forge Hammer Over Shoulder
+      rect(ctx, 24, 6, 4, 6, '#475569');
+      rect(ctx, 25, 11, 2, 17, '#92400e');
+      px(ctx, 25, 7, '#cbd5e1'); // Highlight
+    },
+  });
+
+  for (let f = 0; f < 2; f++) {
+    const bob = f === 1 ? -1 : 0;
+    const { c, ctx } = makeCanvas(24, 26);
+    // Dark Brown Apron
+    rect(ctx, 6, 9 + bob, 12, 12, '#78350f');
+    rect(ctx, 8, 10 + bob, 8, 10, '#451a03');
+    rect(ctx, 8, 3 + bob, 8, 4, '#451a03');
+    rect(ctx, 8, 6 + bob, 8, 2, '#ea580c'); // Red bandana
+    rect(ctx, 9, 7 + bob, 6, 4, '#fed7aa');
+    px(ctx, 10, 8 + bob, '#0f172a');
+    px(ctx, 13, 8 + bob, '#0f172a');
+    rect(ctx, 9, 10 + bob, 6, 3, '#291305'); // Beard
+    // Hammer resting over shoulder
+    rect(ctx, 18, 5 + bob, 4, 3, '#64748b');
+    rect(ctx, 19, 8 + bob, 2, 10, '#92400e');
+    // Boots
+    rect(ctx, 8, 21 + bob, 3, 5, '#1e293b');
+    rect(ctx, 13, 21 + bob, 3, 5, '#1e293b');
+    sprites.merchantSmithNpc.push(addPixelOutline(c));
+  }
+
+  // 15. Relic-Seeker Moira (Aether Curios & Relics Merchant)
+  sprites.npcPortraits.merchantRelicsNpc = createBustPortrait({
+    border: '#c084fc',
+    bg: '#1e082b',
+    bustDraw(ctx) {
+      // Velvet Cowl with Golden Circlet
+      rect(ctx, 8, 4, 16, 9, '#581c87');
+      rect(ctx, 10, 6, 12, 2, '#facc15'); // Gold brow circlet
+      px(ctx, 15, 6, '#38bdf8'); // Cyan gem
+      // Mystical Face & Glowing Violet Eyes
+      rect(ctx, 11, 9, 10, 8, '#fed7aa');
+      px(ctx, 13, 12, '#a855f7');
+      px(ctx, 18, 12, '#a855f7');
+      // Purple Velvet Robe with Gold Trim
+      rect(ctx, 8, 18, 16, 12, '#4c1d95');
+      rect(ctx, 11, 18, 10, 12, '#7e22ce');
+      rect(ctx, 14, 18, 4, 12, '#facc15'); // Gold central stole
+      // Glowing Aether Keyston Crystal
+      rect(ctx, 23, 11, 6, 8, '#38bdf8');
+      rect(ctx, 24, 12, 4, 6, '#7dd3fc');
+      px(ctx, 25, 14, '#ffffff'); // Star glint
+    },
+  });
+
+  for (let f = 0; f < 2; f++) {
+    const bob = f === 1 ? -1 : 0;
+    const { c, ctx } = makeCanvas(22, 26);
+    // Purple Velvet Robe
+    rect(ctx, 6, 9 + bob, 10, 12, '#581c87');
+    rect(ctx, 8, 10 + bob, 6, 10, '#7e22ce');
+    rect(ctx, 7, 3 + bob, 8, 6, '#4c1d95'); // Hood
+    rect(ctx, 8, 5 + bob, 6, 2, '#facc15'); // Circlet
+    rect(ctx, 8, 6 + bob, 6, 4, '#fed7aa');
+    px(ctx, 9, 7 + bob, '#a855f7');
+    px(ctx, 12, 7 + bob, '#a855f7');
+    // Glowing floating aether crystal
+    rect(ctx, 15, 11 + bob, 4, 5, '#38bdf8');
+    px(ctx, 16, 12 + bob, '#ffffff');
+    // Boots
+    rect(ctx, 7, 21 + bob, 3, 5, '#1e1b4b');
+    rect(ctx, 12, 21 + bob, 3, 5, '#1e1b4b');
+    sprites.merchantRelicsNpc.push(addPixelOutline(c));
+  }
 
   // Portrait Aliases
   sprites.npcPortraits.shadowNpc = sprites.npcPortraits.shadowBrokerNpc;

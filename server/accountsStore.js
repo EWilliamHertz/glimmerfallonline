@@ -925,6 +925,84 @@ export class AccountsStore {
     return true;
   }
 
+  buyMerchantItem(accountId, itemId, unitPrice, qty = 1) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc) return { success: false, reason: 'Account missing' };
+    this.ensureDefaultCharacter(acc);
+    if (!acc.inventory) acc.inventory = [];
+
+    const totalCost = (unitPrice || 0) * (qty || 1);
+    let availableGold = acc.gold || 0;
+    for (const it of acc.inventory) {
+      if (!it) continue;
+      const id = typeof it === 'string' ? it : it.id;
+      if (id === 'solar_gold') {
+        availableGold += (typeof it === 'object' && it.qty ? it.qty : 1);
+      }
+    }
+
+    if (availableGold < totalCost) {
+      return { success: false, reason: 'Not enough Solar Gold' };
+    }
+
+    const itemDef = EQUIPMENT_CATALOG[itemId];
+    const isStackable = Boolean(itemDef?.stackable);
+    const existingSlot = isStackable ? acc.inventory.find(i => (typeof i === 'string' ? i : i.id) === itemId) : null;
+    if (!existingSlot && acc.inventory.length >= 28) {
+      return { success: false, reason: 'Inventory full (28/28)' };
+    }
+
+    // Deduct gold
+    let needed = totalCost;
+    for (let i = 0; i < acc.inventory.length; i++) {
+      const it = acc.inventory[i];
+      if (!it) continue;
+      const id = typeof it === 'string' ? it : it.id;
+      if (id === 'solar_gold') {
+        const currentQty = typeof it === 'object' && it.qty ? it.qty : 1;
+        if (currentQty <= needed) {
+          needed -= currentQty;
+          acc.inventory.splice(i, 1);
+          i--;
+        } else {
+          it.qty -= needed;
+          needed = 0;
+          break;
+        }
+      }
+    }
+    if (needed > 0 && acc.gold) {
+      acc.gold = Math.max(0, acc.gold - needed);
+    }
+
+    // Add item
+    if (isStackable) {
+      const existing = acc.inventory.find(i => (typeof i === 'string' ? i : i.id) === itemId);
+      if (existing) {
+        if (typeof existing === 'string') {
+          const idx = acc.inventory.indexOf(existing);
+          acc.inventory[idx] = { id: itemId, qty: 1 + qty };
+        } else {
+          existing.qty = (existing.qty || 1) + qty;
+        }
+      } else {
+        acc.inventory.push({ id: itemId, qty });
+      }
+    } else {
+      for (let i = 0; i < qty && acc.inventory.length < 28; i++) {
+        acc.inventory.push({ id: itemId, qty: 1 });
+      }
+    }
+
+    const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+    if (ch) {
+      ch.inventory = acc.inventory;
+      ch.gold = acc.gold;
+    }
+    this.schedulePersist(acc.id, ch?.id);
+    return { success: true, item: itemDef, remainingGold: availableGold - totalCost };
+  }
+
   equipFromInventory(accountId, slotIndex) {
     const acc = this.accountsById.get(accountId);
     if (!acc || !acc.inventory) return { success: false, reason: 'Account or inventory missing' };

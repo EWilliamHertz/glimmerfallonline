@@ -1747,6 +1747,7 @@
       <div style="flex: 1;">
         <div id="dlg-speaker">HERALD LYRA • SOLARI SUNSPIRE HERALD</div>
         <div id="dlg-text"></div>
+        <div id="dlg-actions" style="margin-top:6px; display:none; gap:6px; flex-wrap:wrap;"></div>
       </div>
       <div style="display:flex; flex-direction:column; gap:4px;">
         <button class="util-btn" id="dlg-next-btn" style="border-color:#facc15; color:#facc15; font-size:8.5px;" onclick="advanceDialogue()">NEXT ▸</button>
@@ -2040,6 +2041,15 @@
         <div class="modal-close" onclick="toggleModal('bank-modal')">✕</div>
       </div>
       <div id="bank-modal-body"></div>
+    </div>
+
+    <!-- MODAL 5C: Continental Market Merchant Store -->
+    <div id="merchant-modal" class="modal panel" style="width: 760px; max-width: 96vw; max-height: 88vh; overflow-y: auto; display: none;">
+      <div class="modal-header">
+        <div id="merchant-modal-title" class="modal-title" style="color:#fde047; font-size:12px;">⚖️ SANCTUARY MARKET MERCHANT</div>
+        <div class="modal-close" onclick="toggleModal('merchant-modal')">✕</div>
+      </div>
+      <div id="merchant-modal-body"></div>
     </div>
 
     <!-- MODAL 6: GlimmerFall Universe Chronicle, Quests & World Atlas [L] / [M] -->

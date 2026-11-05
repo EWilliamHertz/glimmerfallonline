@@ -39,6 +39,13 @@ import {
 } from './equipmentUi.js';
 import { getItemCanvas, getItemIconDataUrl } from './itemSprites.js';
 import { renderBankModal } from './bankUi.js';
+import {
+  renderMerchantModal,
+  MERCHANT_CATALOGS,
+  getMerchantDialoguePages,
+  openMerchantShop,
+  buyMerchantItem,
+} from './merchantUi.js';
 import { initUiLayout, toggleUiEditMode, saveAndLockUiLayout, resetDefaultUiLayout } from './uiLayout.js';
 import {
   drawPixelNameplateAndBubbles,
@@ -1062,6 +1069,10 @@ export function initGame() {
 
   function getNpcQuestStatus(npc) {
     if (!npc) return 'none';
+    // Bankers and market stall merchants do not display quest exclamation marks
+    if (npc.isBank || npc.isMerchant || MERCHANT_CATALOGS[npc.id]) {
+      return 'none';
+    }
     const npcId = npc.id;
 
     // 1. Check for ANY finished quest ready to turn in to THIS npc
@@ -1186,10 +1197,23 @@ export function initGame() {
   function interactWithNpc(npc) {
     if (!npc) return;
     if (npc.isBank) {
+      questState.talkedNpcs[npc.id] = true;
+      questState.bankVisited = true;
+      saveQuestState();
       window.toggleModal('bank-modal');
       return;
     }
     audio.playDialogue();
+
+    // Market Stall Merchant interaction
+    if (npc.isMerchant || npc.merchantType || MERCHANT_CATALOGS[npc.id]) {
+      questState.talkedNpcs[npc.id] = true;
+      saveQuestState();
+      const mId = npc.merchantType || npc.id;
+      const pages = getMerchantDialoguePages(mId);
+      openDialogue(pages, npc.spriteKey, npc.id);
+      return;
+    }
     const status = getNpcQuestStatus(npc);
 
     if (status === 'finished') {
@@ -2617,7 +2641,9 @@ export function initGame() {
         }
         player.hp = Math.min(player.maxHp, player.hp + item.healHp);
         spawnFCT(player.x, player.y - 14, `+${item.healHp} HEALTH!`, '#4ade80', true);
-        logMessage(`🧪 Consumed ${item.name} (+${item.healHp} Health)!`, 'log-gain', 'combat');
+        const actionVerb = item.id.includes('bread') || item.id.includes('apple') || item.id.includes('ration') ? 'Ate' : 'Consumed';
+        const actionIcon = item.id.includes('bread') ? '🍞' : item.id.includes('apple') ? '🍎' : item.id.includes('ration') ? '🥩' : '🧪';
+        logMessage(`${actionIcon} ${actionVerb} ${item.name} (+${item.healHp} Health)!`, 'log-gain', 'combat');
       } else if (item.restoreGlimmer) {
         if (player.solarCharge >= player.maxSolarCharge) {
           spawnFCT(player.x, player.y - 14, 'GLIMMER ALREADY FULL!', '#94a3b8');
@@ -3258,9 +3284,46 @@ export function initGame() {
         ? `NEXT (${dialogueIdx + 1}/${activeDialoguePages.length}) ▸`
         : 'BEGIN TRAINING ✓';
     }
+
+    const actionsEl = document.getElementById('dlg-actions');
+    if (actionsEl) {
+      if (page.actions && page.actions.length > 0) {
+        actionsEl.style.display = 'flex';
+        actionsEl.innerHTML = page.actions.map((act, i) => `
+          <button class="util-btn" style="${act.style || 'font-size:8.5px; padding:3px 7px;'}" onclick="window.handleDialogueAction(${i})">
+            ${act.label}
+          </button>
+        `).join('');
+      } else {
+        actionsEl.style.display = 'none';
+        actionsEl.innerHTML = '';
+      }
+    }
+
     const key = page.spriteKey || activeDialogueSpriteKey || 'heraldNpc';
     updateNpcPortrait(key);
   }
+
+  window.handleDialogueAction = function (actIdx) {
+    const page = activeDialoguePages[dialogueIdx];
+    if (!page || !page.actions || !page.actions[actIdx]) return;
+    const act = page.actions[actIdx];
+    audio.playDialogue();
+    if (act.action === 'openShop') {
+      const merchantId = page.merchantId || activeDialogueNpcId || 'merchant_apothecary';
+      window.closeDialogue();
+      openMerchantShop(merchantId);
+    } else if (act.action === 'advance') {
+      window.advanceDialogue();
+    } else if (act.action === 'prev') {
+      if (dialogueIdx > 0) {
+        dialogueIdx--;
+        renderDialogueBox();
+      }
+    } else if (act.action === 'close') {
+      window.closeDialogue();
+    }
+  };
 
   window.advanceDialogue = function () {
     audio.playDialogue();
@@ -3597,7 +3660,7 @@ export function initGame() {
       // ==========================================
       props.push(
         // 1. Grand Central Plaza
-        { type: 'grandFountain', x: 0, y: -10, label: '⛲ Grand Sanctuary Fountain' },
+        { type: 'grandFountain', x: 0, y: -10 },
         { type: 'stoneBench', x: -48, y: -35 },
         { type: 'stoneBench', x: 48, y: -35 },
         { type: 'stoneBench', x: -48, y: 20 },
@@ -3621,11 +3684,11 @@ export function initGame() {
         { type: 'stoneBench', x: 325, y: -115 },
         { type: 'blossomTree', x: 360, y: -220 },
 
-        // 3. Grand Continental Market Square (North-West)
-        { type: 'marketStall', x: -230, y: -210, label: '⚖️ Apothecary & Potions' },
-        { type: 'marketStall', x: -310, y: -210, label: '🍎 Provisions & Rations' },
-        { type: 'marketStall', x: -230, y: -150, label: '✨ Aether Curios & Relics' },
-        { type: 'marketStall', x: -310, y: -150, label: '⚒️ Smithing & Ore Wares' },
+        // 3. Grand Continental Market Square (North-West) - Unlabeled Visual Wares
+        { type: 'marketStallPotions', id: 'stall_potions', x: -230, y: -210 },
+        { type: 'marketStallProvisions', id: 'stall_provisions', x: -310, y: -210 },
+        { type: 'marketStallRelics', id: 'stall_relics', x: -230, y: -150 },
+        { type: 'marketStallSmith', id: 'stall_smith', x: -310, y: -150 },
         { type: 'streetLantern', x: -270, y: -180 },
         { type: 'streetLantern', x: -350, y: -180 },
         { type: 'streetLantern', x: -190, y: -180 },
@@ -3699,13 +3762,48 @@ export function initGame() {
           isBank: true,
         },
         {
-          id: 'npc_bank_vael',
-          name: 'Archivist Vael',
-          role: 'Vault Clerk [Click / T]',
-          spriteKey: 'bankerNpc',
-          x: 240,
-          y: -165,
-          isBank: true,
+          id: 'merchant_apothecary',
+          name: 'Alchemist Faye',
+          role: 'Apothecary & Potions [Click / T]',
+          spriteKey: 'merchantApothecaryNpc',
+          stallId: 'stall_potions',
+          merchantType: 'merchant_apothecary',
+          isMerchant: true,
+          x: -230,
+          y: -188,
+        },
+        {
+          id: 'merchant_provisions',
+          name: 'Farmer Bran',
+          role: 'Provisions & Rations [Click / T]',
+          spriteKey: 'merchantProvisionsNpc',
+          stallId: 'stall_provisions',
+          merchantType: 'merchant_provisions',
+          isMerchant: true,
+          x: -310,
+          y: -188,
+        },
+        {
+          id: 'merchant_relics',
+          name: 'Relic-Seeker Moira',
+          role: 'Aether Curios & Relics [Click / T]',
+          spriteKey: 'merchantRelicsNpc',
+          stallId: 'stall_relics',
+          merchantType: 'merchant_relics',
+          isMerchant: true,
+          x: -230,
+          y: -128,
+        },
+        {
+          id: 'merchant_smith',
+          name: 'Blacksmith Torvin',
+          role: 'Smithing & Ore Wares [Click / T]',
+          spriteKey: 'merchantSmithNpc',
+          stallId: 'stall_smith',
+          merchantType: 'merchant_smith',
+          isMerchant: true,
+          x: -310,
+          y: -128,
         },
         {
           id: 'npc_archon',
@@ -7130,6 +7228,9 @@ export function initGame() {
       if (id === 'bank-modal') {
         renderBankModal({ profile: localProfile });
       }
+      if (id === 'merchant-modal') {
+        renderMerchantModal();
+      }
       if (id === 'account-modal') {
         renderAccountModal({ profile: localProfile, authTab: accountAuthTab, statusMsg: accountStatusMsg });
       }
@@ -7185,6 +7286,19 @@ export function initGame() {
       if (Math.hypot(npc.x - wx, npc.y - 12 - wy) < 22) {
         interactWithNpc(npc);
         return;
+      }
+    }
+
+    // Direct click on any Market Stall prop starts conversation with its merchant
+    for (const pr of props) {
+      if (pr.type.startsWith('marketStall')) {
+        if (Math.hypot(pr.x - wx, pr.y - 10 - wy) < 24) {
+          const merchant = npcs.find((n) => n.stallId === pr.id || Math.hypot(n.x - pr.x, n.y - pr.y) < 36);
+          if (merchant) {
+            interactWithNpc(merchant);
+            return;
+          }
+        }
       }
     }
 
@@ -8546,8 +8660,8 @@ export function initGame() {
           } else if (pr.type === 'cityHouseB') {
             img = sprites.props.cityHouseB || sprites.props.pillar;
             shadowRx = 22; shadowRy = 6;
-          } else if (pr.type === 'marketStall') {
-            img = sprites.props.marketStall || sprites.props.pillar;
+          } else if (pr.type === 'marketStall' || pr.type.startsWith('marketStall')) {
+            img = sprites.props[pr.type] || sprites.props.marketStall || sprites.props.pillar;
             shadowRx = 14; shadowRy = 5;
           } else if (pr.type === 'streetLantern') {
             img = sprites.props.streetLantern || sprites.props.pillar;

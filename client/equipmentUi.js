@@ -491,9 +491,19 @@ export function getItemGuidePrice(itemId) {
     return 10;
   }
   if (it.slot === 'consumable') {
-    if (itemId === 'minor_healing_salve') return 15;
-    if (itemId === 'glimmer_draught') return 20;
+    if (itemId === 'minor_healing_salve') return 10;
+    if (itemId === 'glimmer_draught') return 12;
+    if (itemId === 'major_vitality_elixir') return 25;
+    if (itemId === 'sweet_apple') return 3;
+    if (itemId === 'fresh_crusty_bread') return 6;
+    if (itemId === 'field_rations') return 10;
     return 15;
+  }
+  if (it.slot === 'material') {
+    if (itemId === 'iron_ore') return 6;
+    if (itemId === 'bronze_bar') return 14;
+    if (itemId === 'ancient_relic_fragment') return 18;
+    return 10;
   }
   if (it.id?.startsWith('iron_') || it.id?.startsWith('scout_') || it.id?.startsWith('novice_')) return 45;
   if (it.slot === 'ring' || it.slot === 'cape' || it.slot === 'neck') return 110;

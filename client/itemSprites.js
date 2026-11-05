@@ -728,6 +728,111 @@ function drawItemPixels(ctx, id) {
       break;
     }
 
+    case 'major_vitality_elixir': {
+      // Ornate flask with golden filigree and glowing ruby liquid
+      rect(ctx, 10, 3, 4, 3, '#ca8a04'); // gold stopper
+      rect(ctx, 9, 6, 6, 2, '#fde047'); // gold rim
+      rect(ctx, 5, 8, 14, 13, '#cbd5e1'); // glass body
+      rect(ctx, 6, 9, 12, 11, '#991b1b'); // deep red fluid
+      rect(ctx, 7, 10, 10, 9, '#ef4444');
+      rect(ctx, 8, 11, 8, 7, '#f87171');
+      px(ctx, 7, 11, '#ffffff');
+      px(ctx, 7, 12, '#ffffff');
+      px(ctx, 13, 14, '#fecaca');
+      break;
+    }
+
+    case 'sweet_apple': {
+      // Crisp orchard apple with brown stem and green leaf
+      rect(ctx, 11, 4, 2, 4, '#78350f'); // stem
+      px(ctx, 13, 4, '#22c55e'); // leaf
+      px(ctx, 14, 3, '#16a34a');
+      rect(ctx, 6, 8, 12, 11, '#991b1b'); // apple body
+      rect(ctx, 7, 7, 10, 13, '#dc2626');
+      rect(ctx, 8, 8, 8, 11, '#ef4444');
+      px(ctx, 8, 9, '#fca5a5'); // shine
+      px(ctx, 9, 9, '#fca5a5');
+      px(ctx, 8, 10, '#fca5a5');
+      break;
+    }
+
+    case 'fresh_crusty_bread': {
+      // Golden baked bread loaf with crust scoring
+      rect(ctx, 5, 9, 14, 9, '#78350f'); // base crust
+      rect(ctx, 4, 10, 16, 7, '#92400e');
+      rect(ctx, 5, 8, 14, 8, '#b45309');
+      rect(ctx, 6, 7, 12, 6, '#d97706');
+      rect(ctx, 7, 8, 10, 4, '#f59e0b');
+      // Slits in crust
+      px(ctx, 8, 9, '#fef3c7');
+      px(ctx, 9, 8, '#fef3c7');
+      px(ctx, 11, 9, '#fef3c7');
+      px(ctx, 12, 8, '#fef3c7');
+      px(ctx, 14, 9, '#fef3c7');
+      break;
+    }
+
+    case 'field_rations': {
+      // Leather traveler pouch with dried jerky and trail bread
+      rect(ctx, 7, 8, 10, 12, '#78350f'); // leather pouch
+      rect(ctx, 6, 10, 12, 9, '#92400e');
+      rect(ctx, 8, 7, 8, 3, '#ca8a04'); // twine tie
+      // Smoked jerky strip sticking out
+      rect(ctx, 8, 4, 3, 5, '#451a03');
+      rect(ctx, 9, 4, 2, 4, '#7f1d1d');
+      // Dried golden apricots
+      px(ctx, 13, 5, '#f59e0b');
+      px(ctx, 14, 6, '#d97706');
+      break;
+    }
+
+    case 'iron_ore': {
+      // Rough iron ore rock with metallic flecks
+      rect(ctx, 6, 8, 12, 10, '#334155'); // stone core
+      rect(ctx, 8, 6, 8, 13, '#475569');
+      rect(ctx, 5, 10, 14, 7, '#1e293b');
+      // Raw iron shiny veins
+      px(ctx, 8, 8, '#94a3b8');
+      px(ctx, 9, 8, '#cbd5e1');
+      px(ctx, 13, 10, '#94a3b8');
+      px(ctx, 14, 10, '#e2e8f0');
+      px(ctx, 10, 14, '#cbd5e1');
+      px(ctx, 11, 13, '#94a3b8');
+      break;
+    }
+
+    case 'bronze_bar': {
+      // Stackable bronze metal ingot with beveled gleam
+      rect(ctx, 4, 9, 16, 8, '#78350f'); // shadow
+      rect(ctx, 5, 8, 14, 8, '#92400e');
+      rect(ctx, 6, 7, 12, 7, '#b45309');
+      rect(ctx, 6, 7, 12, 2, '#d97706'); // top edge
+      rect(ctx, 7, 8, 10, 2, '#f59e0b'); // gleam
+      px(ctx, 8, 8, '#fef08a');
+      px(ctx, 9, 8, '#fef08a');
+      break;
+    }
+
+    case 'ancient_relic_fragment': {
+      // Ancient stone tablet shard with glowing cyan runes
+      rect(ctx, 6, 5, 12, 14, '#1e293b');
+      rect(ctx, 7, 6, 10, 12, '#334155');
+      rect(ctx, 8, 7, 8, 10, '#475569');
+      // Chipped corners
+      px(ctx, 6, 5, 'rgba(0,0,0,0)');
+      px(ctx, 17, 18, 'rgba(0,0,0,0)');
+      // Glowing aether runes
+      px(ctx, 10, 8, '#38bdf8');
+      px(ctx, 11, 9, '#7dd3fc');
+      px(ctx, 11, 10, '#38bdf8');
+      px(ctx, 12, 10, '#0284c7');
+      px(ctx, 9, 12, '#38bdf8');
+      px(ctx, 10, 13, '#7dd3fc');
+      px(ctx, 11, 13, '#38bdf8');
+      px(ctx, 11, 14, '#ffffff');
+      break;
+    }
+
     // --- 10. ACCESSORIES & RELICS ---
     case 'celestial_talisman': {
       // Astral jewel choker with cyan star gem and silver chain

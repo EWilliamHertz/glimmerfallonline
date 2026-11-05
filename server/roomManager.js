@@ -2293,6 +2293,36 @@ export class RoomManager {
         break;
       }
 
+      case 'buy_merchant_item': {
+        const itemId = String(msg.itemId || '').trim();
+        const qty = Math.max(1, Math.min(50, Number(msg.qty) || 1));
+        const price = Number(msg.unitPrice) || 0;
+        if (itemId && price > 0) {
+          const res = this.accounts.buyMerchantItem(client.id, itemId, price, qty);
+          if (res.success) {
+            this.refreshClientFromAccount(client.id);
+            if (room) {
+              room.fxQueue.push({
+                kind: 'fct',
+                x: client.x,
+                y: client.y - 12,
+                text: `+${qty}x ${res.item?.name?.toUpperCase() || itemId} (-${price * qty}g)`,
+                color: '#4ade80',
+              });
+            }
+          } else if (res.reason && room) {
+            room.fxQueue.push({
+              kind: 'fct',
+              x: client.x,
+              y: client.y - 12,
+              text: `❌ ${res.reason.toUpperCase()}`,
+              color: '#ef4444',
+            });
+          }
+        }
+        break;
+      }
+
       case 'update_loadout': {
         if (msg.loadout && typeof msg.loadout === 'object') {
           this.accounts.updateProfile(client.id, { loadout: msg.loadout });
