@@ -14,6 +14,11 @@ import { MultiplayerClient } from './network.js';
 import { initTouchControls, updateTouchUiButtons, toggleTouchControls } from './touch.js';
 import { FrontpageController, renderInGamePaperdollModal } from './frontpage.js';
 import {
+  renderEquipmentModal,
+  renderInventoryModal,
+  renderExchangeModal,
+} from './equipmentUi.js';
+import {
   drawPixelNameplateAndBubbles,
   renderPartyHud,
   renderAccountModal,
@@ -335,6 +340,12 @@ export function initGame() {
     classId: 'solari_vanguard',
     loadout: { ...CLASSES_CATALOG.solari_vanguard.defaultLoadout },
     equipment: { ...CLASSES_CATALOG.solari_vanguard.defaultEquipment },
+    inventory: [
+      { id: 'ring_of_the_sun', qty: 1 },
+      { id: 'boots_of_haste', qty: 1 },
+      { id: 'vanguard_gauntlets', qty: 1 },
+      { id: 'amulet_of_glory', qty: 1 },
+    ],
     orderTag: 'SUN',
     orderName: 'Order of Dawn',
     orderColor: '#facc15',
@@ -352,6 +363,7 @@ export function initGame() {
           roster[idx].progression = prog;
           roster[idx].equipment = localProfile.equipment;
           roster[idx].loadout = localProfile.loadout;
+          roster[idx].inventory = localProfile.inventory;
           localStorage.setItem('glimmerfall_sp_roster_v2', JSON.stringify(roster));
         }
       }
@@ -2227,6 +2239,7 @@ export function initGame() {
       classId: cls.id,
       loadout: { ...cls.defaultLoadout, ...(prof.loadout || localProfile.loadout || {}) },
       equipment: { ...cls.defaultEquipment, ...(prof.equipment || localProfile.equipment || {}) },
+      inventory: Array.isArray(prof.inventory) ? prof.inventory : (localProfile.inventory || []),
     };
     if (prof.progression) {
       prog = {
@@ -2243,8 +2256,14 @@ export function initGame() {
     refreshHeroPortrait();
     updatePlayerUI();
     updateActionBarBadges();
-    if (document.getElementById('paperdoll-modal')?.style.display === 'block') {
-      renderInGamePaperdollModal({ profile: localProfile });
+    if (document.getElementById('equipment-modal')?.style.display === 'block' || document.getElementById('paperdoll-modal')?.style.display === 'block') {
+      renderEquipmentModal({ profile: localProfile });
+    }
+    if (document.getElementById('inventory-modal')?.style.display === 'block') {
+      renderInventoryModal({ profile: localProfile });
+    }
+    if (document.getElementById('exchange-modal')?.style.display === 'block') {
+      renderExchangeModal({ profile: localProfile });
     }
   }
 
@@ -2375,17 +2394,149 @@ export function initGame() {
   window.equipPaperdollItem = function (itemId) {
     const item = EQUIPMENT_CATALOG[itemId];
     if (!item) return;
-    localProfile.equipment = { ...(localProfile.equipment || {}), [item.slot]: item.id };
+    const targetSlot = item.slot === 'armor' ? 'body' : item.slot === 'offhand' ? 'shield' : item.slot;
+    localProfile.equipment = { ...(localProfile.equipment || {}), [targetSlot]: item.id };
     audio.playShield();
     recalcVitalsFromProfile();
     refreshHeroPortrait();
     updatePlayerUI();
-    renderInGamePaperdollModal({ profile: localProfile });
+    renderEquipmentModal({ profile: localProfile });
     renderStatsModal();
     if (net.connected) {
       net.send({ type: 'equip_item', itemId: item.id });
     }
     logMessage(`🛡️ Equipped ${item.name} (${item.desc})!`, 'log-solari', 'combat');
+  };
+
+  window.equipInventorySlot = function (slotIndex) {
+    const inv = localProfile.inventory || [];
+    const idx = Number(slotIndex);
+    if (idx < 0 || idx >= inv.length) return;
+    const itemObj = inv[idx];
+    const itemId = typeof itemObj === 'string' ? itemObj : itemObj?.id;
+    const item = EQUIPMENT_CATALOG[itemId];
+    if (!item) return;
+
+    if (net.connected) {
+      net.send({ type: 'equip_item', slotIndex: idx });
+    }
+
+    const targetSlot = item.slot === 'armor' ? 'body' : item.slot === 'offhand' ? 'shield' : item.slot;
+    const currentEquip = { ...(localProfile.equipment || {}) };
+    const oldId = currentEquip[targetSlot] || (targetSlot === 'body' ? currentEquip.armor : targetSlot === 'shield' ? currentEquip.offhand : null);
+
+    currentEquip[targetSlot] = item.id;
+    if (targetSlot === 'body') currentEquip.armor = item.id;
+    if (targetSlot === 'shield') currentEquip.offhand = item.id;
+
+    if (oldId && oldId !== item.id) {
+      inv[idx] = { id: oldId, qty: 1 };
+    } else {
+      inv.splice(idx, 1);
+    }
+    localProfile.equipment = currentEquip;
+    localProfile.inventory = inv;
+    saveProgressionLocal();
+    audio.playShield();
+    recalcVitalsFromProfile();
+    refreshHeroPortrait();
+    updatePlayerUI();
+    spawnFCT(player.x, player.y - 14, `EQUIPPED ${item.name.toUpperCase()}`, '#fde047');
+    renderInventoryModal({ profile: localProfile });
+    if (document.getElementById('equipment-modal')?.style.display === 'block') {
+      renderEquipmentModal({ profile: localProfile });
+    }
+  };
+
+  window.unequipSlot = function (slotKey) {
+    const inv = localProfile.inventory || [];
+    if (inv.length >= 28) {
+      spawnFCT(player.x, player.y - 14, '🎒 BACKPACK IS FULL (28/28)!', '#ef4444');
+      audio.playHurt();
+      return;
+    }
+    const currentEquip = { ...(localProfile.equipment || {}) };
+    const itemId = currentEquip[slotKey] || (slotKey === 'body' ? currentEquip.armor : slotKey === 'shield' ? currentEquip.offhand : null);
+    if (!itemId) return;
+
+    if (net.connected) {
+      net.send({ type: 'unequip_item', slotKey });
+    }
+
+    delete currentEquip[slotKey];
+    if (slotKey === 'body') delete currentEquip.armor;
+    if (slotKey === 'armor') delete currentEquip.body;
+    if (slotKey === 'shield') delete currentEquip.offhand;
+    if (slotKey === 'offhand') delete currentEquip.shield;
+
+    inv.push({ id: itemId, qty: 1 });
+    localProfile.equipment = currentEquip;
+    localProfile.inventory = inv;
+    saveProgressionLocal();
+    audio.playHurt();
+    recalcVitalsFromProfile();
+    refreshHeroPortrait();
+    updatePlayerUI();
+    const itemDef = EQUIPMENT_CATALOG[itemId];
+    spawnFCT(player.x, player.y - 14, `UNEQUIPPED ${itemDef?.name?.toUpperCase() || slotKey.toUpperCase()}`, '#94a3b8');
+    renderEquipmentModal({ profile: localProfile });
+    if (document.getElementById('inventory-modal')?.style.display === 'block') {
+      renderInventoryModal({ profile: localProfile });
+    }
+  };
+
+  window.dropInventorySlot = function (slotIndex) {
+    const inv = localProfile.inventory || [];
+    const idx = Number(slotIndex);
+    if (idx < 0 || idx >= inv.length) return;
+    const it = inv[idx];
+    const itId = typeof it === 'string' ? it : it?.id;
+    const def = EQUIPMENT_CATALOG[itId];
+
+    if (net.connected) {
+      net.send({ type: 'drop_inventory_item', slotIndex: idx });
+    }
+
+    inv.splice(idx, 1);
+    localProfile.inventory = inv;
+    saveProgressionLocal();
+    lootSeq++;
+    lootDrops.push({
+      id: `loot_off_${lootSeq}`,
+      kind: 'item',
+      itemId: itId,
+      x: player.x,
+      y: player.y,
+      ttl: 60,
+      age: 0,
+    });
+    audio.playPickup();
+    spawnFCT(player.x, player.y - 14, `DROPPED ${def?.name?.toUpperCase() || 'ITEM'}`, '#94a3b8');
+    renderInventoryModal({ profile: localProfile });
+  };
+
+  window.setExchangeFilter = function (query) {
+    renderExchangeModal({ profile: localProfile });
+  };
+
+  window.placeExchangeBuy = function (itemId, price) {
+    const def = EQUIPMENT_CATALOG[itemId];
+    logMessage(`🏛️ [Grand Exchange] Placed Buy Offer: 1x ${def?.name || itemId} @ ${price} Glimmer Shards.`, 'log-solari', 'chat');
+    spawnFCT(player.x, player.y - 14, `BUY OFFER PLACED: ${def?.name || itemId}`, '#38bdf8');
+    audio.playShield();
+  };
+
+  window.placeExchangeSell = function (itemId, price) {
+    const def = EQUIPMENT_CATALOG[itemId];
+    logMessage(`🏛️ [Grand Exchange] Placed Sell Offer: 1x ${def?.name || itemId} @ ${price} Glimmer Shards.`, 'log-solari', 'chat');
+    spawnFCT(player.x, player.y - 14, `SELL OFFER PLACED: ${def?.name || itemId}`, '#fb923c');
+    audio.playShield();
+  };
+
+  window.collectExchangeOffer = function (slot) {
+    logMessage(`🏛️ [Grand Exchange] Collected items & coins from Offer Box #${slot}!`, 'log-solari', 'chat');
+    spawnFCT(player.x, player.y - 14, `COLLECTED BOX #${slot}`, '#4ade80', true);
+    audio.playPickup();
   };
 
   window.assignSlotAbilityInGame = function (slot, abilityId) {
@@ -4371,6 +4522,12 @@ export function initGame() {
       stBadge.style.display = prog.statPoints > 0 ? 'inline-block' : 'none';
       stBadge.innerText = `+${prog.statPoints}`;
     }
+    const invBadge = document.getElementById('inv-count-pip');
+    if (invBadge) {
+      const invLen = (localProfile.inventory || []).length;
+      invBadge.style.display = invLen > 0 ? 'inline-block' : 'none';
+      invBadge.innerText = `${invLen}`;
+    }
   }
 
   // ==========================================
@@ -4419,6 +4576,25 @@ export function initGame() {
   // Loot Shards (Vital / Glimmer / Relic) — offline simulation mirror of server loot
   // ==========================================
   let lootSeq = 0;
+  function getOfflineEquipmentDrop(ent) {
+    const rType = String(currentRoomType || '').toLowerCase();
+    let pool = [];
+    if (rType.includes('solari')) {
+      pool = ['sunforged_greathelm', 'sunforged_hauberk', 'sunforged_greaves', 'sunforged_warhammer', 'radiant_shield_relic', 'crown_of_noon', 'ring_of_the_sun'];
+    } else if (rType.includes('terra')) {
+      pool = ['ironwood_horned_helm', 'ironwood_bark_chest', 'ironwood_thighguards', 'ironwood_spear', 'ring_of_stone', 'granite_boots'];
+    } else if (rType.includes('aether')) {
+      pool = ['chrono_astral_hood', 'chrono_astral_robes', 'chrono_astral_skirt', 'chrono_warp_staff', 'chronocore_prism', 'celestial_talisman'];
+    } else if (rType.includes('umbri')) {
+      pool = ['duskveil_shadow_mask', 'duskveil_assassin_garb', 'duskveil_void_chaps', 'duskveil_twin_daggers', 'abyssal_cloak', 'ring_of_void_leech'];
+    } else if (rType.includes('celestial') || rType.includes('warzone')) {
+      pool = ['crown_of_dawn', 'aurelius_sovereign_plate', 'aurelius_starforged_greaves', 'aurelius_morningstar_blade', 'amulet_of_fury', 'barrows_gloves', 'fire_cape', 'amulet_of_glory'];
+    } else {
+      pool = ['boots_of_haste', 'amulet_of_glory', 'vanguard_gauntlets', 'ring_of_the_sun', 'granite_boots'];
+    }
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
   function spawnOfflineLoot(ent) {
     const count = ent.isBoss ? 4 : Math.random() < 0.55 ? 1 : 0;
     for (let i = 0; i < count; i++) {
@@ -4430,11 +4606,28 @@ export function initGame() {
       lootDrops.push({
         id: `loot_off_${lootSeq}`,
         kind,
+        itemId: null,
         x: ent.x + Math.cos(ang) * dist,
         y: ent.y + Math.sin(ang) * dist * 0.6,
         ttl: 28,
         age: 0,
       });
+    }
+    // Equipment item drop roll
+    if (ent.isBoss || Math.random() < 0.28) {
+      const dropId = getOfflineEquipmentDrop(ent);
+      if (dropId) {
+        lootSeq++;
+        lootDrops.push({
+          id: `loot_off_${lootSeq}`,
+          kind: 'item',
+          itemId: dropId,
+          x: ent.x + (Math.random() - 0.5) * 16,
+          y: ent.y + (Math.random() - 0.5) * 12,
+          ttl: 45,
+          age: 0,
+        });
+      }
     }
   }
 
@@ -4449,23 +4642,49 @@ export function initGame() {
       }
       if (player.isDead || l.age < 0.6) continue;
       if (Math.hypot(player.x - l.x, player.y - l.y) > 18) continue;
-      lootDrops.splice(i, 1);
-      audio.playPickup();
-      if (l.kind === 'vital') {
-        const heal = Math.max(3, Math.round(player.maxHp * 0.25));
-        player.hp = Math.min(player.maxHp, player.hp + heal);
-        spawnFCT(player.x, player.y - 14, `+${heal} VITAL SHARD`, '#f87171');
-        spawnSparkBurst(l.x, l.y, ['#f87171', '#fecaca', '#ffffff'], 8);
-      } else if (l.kind === 'glimmer') {
-        player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 30);
-        spawnFCT(player.x, player.y - 14, '+30 GLIMMER SHARD', '#38bdf8');
-        spawnSparkBurst(l.x, l.y, ['#38bdf8', '#bae6fd', '#ffffff'], 8);
+
+      if (l.kind === 'item') {
+        const itemDef = EQUIPMENT_CATALOG[l.itemId];
+        if (itemDef) {
+          const inv = localProfile.inventory || [];
+          if (inv.length < 28) {
+            lootDrops.splice(i, 1);
+            inv.push({ id: l.itemId, qty: 1 });
+            localProfile.inventory = inv;
+            saveProgressionLocal();
+            audio.playPickup();
+            const isBarrows = itemDef.rarity.includes('Barrows') || itemDef.rarity.includes('Apex') || itemDef.rarity.includes('Mythic');
+            spawnFCT(player.x, player.y - 14, `✦ ${itemDef.name.toUpperCase()} (GEAR)`, isBarrows ? '#facc15' : '#38bdf8', isBarrows);
+            spawnSparkBurst(l.x, l.y, isBarrows ? ['#facc15', '#fef08a', '#ffffff'] : ['#38bdf8', '#bae6fd', '#ffffff'], 12);
+            updatePlayerUI();
+            if (document.getElementById('inventory-modal')?.style.display === 'block') {
+              renderInventoryModal({ profile: localProfile });
+            }
+          } else {
+            spawnFCT(player.x, player.y - 14, `🎒 BAG FULL: ${itemDef.name.toUpperCase()}`, '#ef4444');
+          }
+        } else {
+          lootDrops.splice(i, 1);
+        }
       } else {
-        awardXP(60, 'Relic Shard');
-        spawnFCT(player.x, player.y - 14, '✦ RELIC SHARD +60 XP', '#fde047', true);
-        spawnSparkBurst(l.x, l.y, ['#fde047', '#fef08a', '#ffffff'], 12);
+        lootDrops.splice(i, 1);
+        audio.playPickup();
+        if (l.kind === 'vital') {
+          const heal = Math.max(3, Math.round(player.maxHp * 0.25));
+          player.hp = Math.min(player.maxHp, player.hp + heal);
+          spawnFCT(player.x, player.y - 14, `+${heal} VITAL SHARD`, '#f87171');
+          spawnSparkBurst(l.x, l.y, ['#f87171', '#fecaca', '#ffffff'], 8);
+        } else if (l.kind === 'glimmer') {
+          player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 30);
+          spawnFCT(player.x, player.y - 14, '+30 GLIMMER SHARD', '#38bdf8');
+          spawnSparkBurst(l.x, l.y, ['#38bdf8', '#bae6fd', '#ffffff'], 8);
+        } else {
+          awardXP(60, 'Relic Shard');
+          spawnFCT(player.x, player.y - 14, '✦ RELIC SHARD +60 XP', '#fde047', true);
+          spawnSparkBurst(l.x, l.y, ['#fde047', '#fef08a', '#ffffff'], 12);
+        }
+        updatePlayerUI();
       }
-      updatePlayerUI();
     }
   }
 
@@ -4473,6 +4692,7 @@ export function initGame() {
     vital: { core: '#ef4444', light: '#fecaca', dark: '#7f1d1d' },
     glimmer: { core: '#38bdf8', light: '#e0f2fe', dark: '#0c4a6e' },
     relic: { core: '#facc15', light: '#fffbeb', dark: '#854d0e' },
+    item: { core: '#f59e0b', light: '#fef3c7', dark: '#78350f' },
   };
 
   function drawLootShard(l, sx, sy) {
@@ -4510,6 +4730,17 @@ export function initGame() {
     if (l.kind === 'relic') {
       ctx.fillStyle = 'rgba(250,204,21,0.35)';
       ctx.fillRect(sx - 6, cy - 1, 13, 1);
+    }
+    if (l.kind === 'item') {
+      const def = l.itemId ? EQUIPMENT_CATALOG[l.itemId] : null;
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.4)';
+      ctx.fillRect(sx - 8, cy - 2, 17, 1);
+      if (def?.icon) {
+        ctx.font = '13px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(def.icon, sx, cy - 8);
+      }
     }
   }
 
@@ -6192,7 +6423,18 @@ export function initGame() {
       if (id === 'char-modal') renderStatsModal();
       if (id === 'spellbook-modal') switchSkillTreeTab(currentSkillTreeTab || 'flashes');
       if (id === 'arena-modal') renderArenaModal();
-      if (id === 'paperdoll-modal') renderInGamePaperdollModal({ profile: localProfile });
+      if (id === 'equipment-modal' || id === 'paperdoll-modal' || id === 'cards-modal') {
+        renderEquipmentModal({ profile: localProfile });
+        const targetEl = document.getElementById('equipment-modal') || el;
+        targetEl.style.display = 'block';
+        return;
+      }
+      if (id === 'inventory-modal') {
+        renderInventoryModal({ profile: localProfile });
+      }
+      if (id === 'exchange-modal') {
+        renderExchangeModal({ profile: localProfile });
+      }
       if (id === 'account-modal') {
         renderAccountModal({ profile: localProfile, authTab: accountAuthTab, statusMsg: accountStatusMsg });
       }
@@ -6444,15 +6686,17 @@ export function initGame() {
 
     if (key === 't') window.interactNearestNpc();
     if (key === 'v') window.triggerEmote('cheer');
-    if (key === 'b') window.plantOrderBanner();
-    if (key === 'i') window.toggleModal('paperdoll-modal');
+    if (key === 'y') window.plantOrderBanner();
+    if (key === 'b') window.toggleModal('inventory-modal');
+    if (key === 'i') window.toggleModal('inventory-modal');
+    if (key === 'k') window.toggleModal('equipment-modal');
+    if (key === 'x') window.toggleModal('exchange-modal');
     if (key === 'm') window.toggleWorldAtlas();
     if (key === 'p') window.toggleModal('spellbook-modal');
     if (key === 'c') window.toggleModal('char-modal');
     if (key === 'g') window.toggleModal('account-modal');
     if (key === 'o') window.toggleModal('social-modal');
     if (key === 'h') window.openFrontpage();
-    if (key === 'k') window.toggleModal('cards-modal');
     if (key === 'l') window.openQuestLog();
   }, true);
 

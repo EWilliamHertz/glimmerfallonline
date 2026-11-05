@@ -645,63 +645,8 @@ export class FrontpageController {
   }
 }
 
+import { renderEquipmentModal } from './equipmentUi.js';
+
 export function renderInGamePaperdollModal({ profile, onEquip }) {
-  const container = document.getElementById('paperdoll-modal-body');
-  if (!container) return;
-
-  const faction = profile?.faction || 'Solari';
-  const classId = profile?.classId || 'solari_vanguard';
-  const cls = CLASSES_CATALOG[classId] || CLASSES_CATALOG.solari_vanguard;
-  const equip = { ...cls.defaultEquipment, ...(profile?.equipment || {}) };
-  const bonuses = getEquipmentStatBonuses(equip, classId);
-
-  const slots = [
-    { key: 'weapon', title: '🗡️ WEAPON SLOT', items: Object.values(EQUIPMENT_CATALOG).filter((i) => i.slot === 'weapon') },
-    { key: 'armor', title: '🥋 ARMOR SLOT', items: Object.values(EQUIPMENT_CATALOG).filter((i) => i.slot === 'armor') },
-    { key: 'offhand', title: '🛡️ RELIC / SHIELD SLOT', items: Object.values(EQUIPMENT_CATALOG).filter((i) => i.slot === 'offhand') },
-  ];
-
-  container.innerHTML = `
-    <div style="display:flex; gap:12px; align-items:center; background:#080c18; border:2px solid #1e293b; padding:10px; margin-bottom:10px;">
-      <canvas id="ingame-paperdoll-canvas" width="84" height="88" style="border:2px solid #facc15; background:#090f20;"></canvas>
-      <div style="font-size:9px; line-height:1.5;">
-        <div style="color:#facc15; font-family:var(--font-header); font-size:8.5px;">${profile?.displayName || 'Champion'} — ${cls.name}</div>
-        <div style="color:#cbd5e1;">Equipping any weapon, armor, or relic immediately updates your 24×26 character sprite for all players in the realm!</div>
-        <div style="color:#4ade80; margin-top:4px;">
-          TOTAL BONUS: <b>+${bonuses.power} Power</b> • <b>+${bonuses.bastion} Bastion</b> • <b>+${bonuses.resonance} Resonance</b> • <b>+${bonuses.tempo} Tempo</b>
-        </div>
-      </div>
-    </div>
-
-    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
-      ${slots.map((s) => `
-        <div style="background:#080c18; border:2px solid #1e293b; padding:8px;">
-          <div style="font-family:var(--font-header); font-size:7px; color:#38bdf8; margin-bottom:6px;">${s.title}</div>
-          <div style="display:flex; flex-direction:column; gap:5px;">
-            ${s.items.map((it) => {
-              const active = equip[s.key] === it.id;
-              return `
-                <div style="background:${active ? '#172554' : '#0d1324'}; border:1px solid ${active ? '#facc15' : '#334155'}; padding:5px 6px; cursor:pointer; font-size:8.5px;" onclick="equipPaperdollItem('${it.id}')">
-                  <div style="color:${active ? '#fde047' : '#f8fafc'}; font-weight:bold;">${it.icon} ${it.name}</div>
-                  <div style="color:#94a3b8; font-size:7.5px;">${it.desc}</div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-        </div>
-      `).join('')}
-    </div>
-  `;
-
-  const cv = document.getElementById('ingame-paperdoll-canvas');
-  if (cv && typeof cv.getContext === 'function') {
-    const ctx = cv.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = '#090f20';
-    ctx.fillRect(0, 0, cv.width, cv.height);
-    const set = getCharacterSprites(faction, classId, equip);
-    if (set && set.down && set.down[0]) {
-      ctx.drawImage(set.down[0], 6, 5, 72, 78);
-    }
-  }
+  renderEquipmentModal({ profile });
 }

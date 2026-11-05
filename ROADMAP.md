@@ -60,6 +60,27 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
 - [x] Synchronize Paragon stats authoritatively across both Single Player and Multiplayer realms.
 - [x] Remove room transition lag & rubberbanding (client prediction preserved, movement packets unlocked during transitions).
 
+#### Day 1B — RuneScape Worn Equipment System & Barrows Sets *(COMPLETED)*
+- [x] Replaced legacy Relic modal with authentic RuneScape Worn Equipment screen on key `[K]`.
+- [x] Implemented all 11 paperdoll slots (`head`, `cape`, `neck`, `ammo`, `weapon`, `body`, `shield`, `legs`, `hands`, `feet`, `ring`) with authentic silhouette placeholders.
+- [x] Authored 5 authentic Barrows-style sets with 4-piece set perks and bonus combat stats:
+  * **Dharok's Daystar Bulwark (Solari)**: `sunforged_greathelm`, `sunforged_hauberk`, `sunforged_greaves`, `sunforged_warhammer` (Perk: +75% damage as HP drops; below 25% HP triggers 40% Max HP absorption shield).
+  * **Guthan's Ironwood Bastion (Terra)**: `ironwood_horned_helm`, `ironwood_bark_chest`, `ironwood_thighguards`, `ironwood_spear` (Perk: 25% chance to leech 100% damage as instant HP + 25% melee damage reflection).
+  * **Ahrim's Chrono-Vestments (Aether)**: `chrono_astral_hood`, `chrono_astral_robes`, `chrono_astral_skirt`, `chrono_warp_staff` (Perk: -25% cooldowns, -25% cast time, 25% chance for spell duplicate echo).
+  * **Karil's Duskveil Reaver (Umbri)**: `duskveil_shadow_mask`, `duskveil_assassin_garb`, `duskveil_void_chaps`, `duskveil_twin_daggers` (Perk: +18% crit, +15% move speed, slaying enemies summons a Shadow Wraith minion).
+  * **Aurelius Sovereign Titan (Apex)**: `crown_of_dawn`, `aurelius_sovereign_plate`, `aurelius_starforged_greaves`, `aurelius_morningstar_blade` (Perk: Radiating Archon Holy Aura 25 DMG/s, +150 Max HP, +30% Glimmer generation).
+- [x] Real-time 24x26 pixel paperdoll animation reflecting equipped weapons and armors.
+- [x] Combat Stat Bonuses window calculating Attack/Power, Defense/Bastion, Magic/Resonance, Speed/Tempo, Crit %, HP, and Damage Reduction.
+
+#### Day 1C — RuneScape 28-Slot Inventory System & Gear Grinding *(COMPLETED)*
+- [x] 10th Micro-Menu Dock Slot: `🎒 BAG [B]` positioned in the bottom-right corner of the 2x5 micro-menu.
+- [x] 28-Slot RuneScape backpack grid (4 columns x 7 rows) with capacity counter.
+- [x] Item tooltips with rarity borders, slot types, set membership, stat breakdowns, and lore descriptions.
+- [x] Left-click to equip or atomic swap with currently equipped piece.
+- [x] Right-click / context action to drop items onto the ground.
+- [x] Biome-specific monster and world boss equipment drops (Solari, Terra, Aether, Umbri, Warzone).
+- [x] Authoritative server & offline single-player drop roll, ground loot rendering, pickup detection, and full inventory guardrails.
+
 #### Day 2 — Multi-Phase Continental World Bosses
 - [ ] Add dynamic AoE telegraph rings (solar bursts, void pools, earth tremors) to the 4 Continental World Bosses.
 - [ ] Implement Phase 2 Enrage mechanics (<40% HP: +35% attack speed, summoning faction minions).
@@ -168,11 +189,15 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
 - [ ] Dual-confirmation trade accept button to prevent trade scams.
 - [ ] Authoritative server-side inventory atomic swap.
 
-#### Day 18 — Continental Auction Stalls & Player Market
-- [ ] Merchant Pavilion in Sanctuary Hub with persistent Auctioneer NPC.
-- [ ] Search items by faction, slot, rarity, and level requirement.
-- [ ] 24-hour buyouts and bidding system.
-- [ ] Mailbox tab to claim sold auction earnings and purchased gear.
+#### Day 18 — Grand Exchange Replica (RuneScape Central Market) *(IN PROGRESS / REPLICA UI COMPLETE)*
+- [x] Dedicated Grand Exchange interface modal (`[X]`) with 8 Trading Offer Slots.
+- [x] Market Guide Price catalog with live item search across all 50+ weapons, armors, and Barrows sets.
+- [x] Instant Buy Limit & Sell Limit order placement actions with Glimmer pricing.
+- [x] Grand Exchange Clerk dialog explaining cross-realm order matching and economy health.
+- [ ] Multi-realm asynchronous order book matching engine across online and offline champions.
+- [ ] Grand Exchange Clerk NPCs stationed in Sanctuary Hub and Grand Bazaar.
+- [ ] Collection Box with automated Glimmer Shards and Item retrieval.
+- [ ] 2% Glimmer sales tax sink to maintain healthy realm anti-inflation.
 
 #### Day 19 — Expanded Chat Channels, Player Inspect & Dueling
 - [ ] Chat channel tabs: `[All]`, `[Party]`, `[Guild]`, `[Combat]`, `[Trade]`.

@@ -1614,6 +1614,7 @@ export class RoomManager {
       classId,
       loadout,
       equipment,
+      inventory: account.inventory || [],
       orderTag: account.orderTag || 'SUN',
       orderName: account.orderName || 'Order of Dawn',
       orderColor: account.orderColor || '#facc15',
@@ -1682,6 +1683,7 @@ export class RoomManager {
     client.classId = acc.classId || 'solari_vanguard';
     client.loadout = acc.loadout || CLASSES_CATALOG[client.classId]?.defaultLoadout || {};
     client.equipment = acc.equipment || CLASSES_CATALOG[client.classId]?.defaultEquipment || {};
+    client.inventory = acc.inventory || [];
     client.orderTag = acc.orderTag;
     client.orderName = acc.orderName;
     client.orderColor = acc.orderColor;
@@ -2198,12 +2200,29 @@ export class RoomManager {
         break;
 
       case 'equip_item': {
-        const item = EQUIPMENT_CATALOG[msg.itemId];
-        if (!item) return;
-        const nextEquip = { ...(client.equipment || {}), [item.slot]: item.id };
-        this.accounts.updateProfile(client.id, { equipment: nextEquip });
-        this.refreshClientFromAccount(client.id);
-        if (room) {
+        let item = null;
+        if (msg.slotIndex !== undefined) {
+          const res = this.accounts.equipFromInventory(client.id, Number(msg.slotIndex));
+          if (res.success) {
+            item = res.item;
+            this.refreshClientFromAccount(client.id);
+          }
+        } else if (msg.itemId) {
+          item = EQUIPMENT_CATALOG[msg.itemId];
+          if (item) {
+            const inv = client.inventory || [];
+            const idx = inv.findIndex((it) => (typeof it === 'string' ? it : it?.id) === item.id);
+            if (idx !== -1) {
+              this.accounts.equipFromInventory(client.id, idx);
+            } else {
+              const targetSlot = item.slot === 'armor' ? 'body' : item.slot === 'offhand' ? 'shield' : item.slot;
+              const nextEquip = { ...(client.equipment || {}), [targetSlot]: item.id };
+              this.accounts.updateProfile(client.id, { equipment: nextEquip });
+            }
+            this.refreshClientFromAccount(client.id);
+          }
+        }
+        if (item && room) {
           room.fxQueue.push({
             kind: 'fct',
             x: client.x,
@@ -2211,6 +2230,65 @@ export class RoomManager {
             text: `EQUIPPED ${item.name.toUpperCase()}`,
             color: '#fde047',
           });
+        }
+        break;
+      }
+
+      case 'unequip_item': {
+        const slotKey = String(msg.slotKey || '').trim().toLowerCase();
+        if (slotKey) {
+          const res = this.accounts.unequipToInventory(client.id, slotKey);
+          if (res.success) {
+            this.refreshClientFromAccount(client.id);
+            if (room) {
+              room.fxQueue.push({
+                kind: 'fct',
+                x: client.x,
+                y: client.y - 10,
+                text: `UNEQUIPPED ${res.item?.name?.toUpperCase() || slotKey.toUpperCase()}`,
+                color: '#94a3b8',
+              });
+            }
+          } else if (res.reason && room) {
+            room.fxQueue.push({
+              kind: 'fct',
+              x: client.x,
+              y: client.y - 10,
+              text: `🎒 ${res.reason.toUpperCase()}`,
+              color: '#ef4444',
+            });
+          }
+        }
+        break;
+      }
+
+      case 'drop_inventory_item': {
+        const slotIdx = Number(msg.slotIndex);
+        const inv = client.inventory || [];
+        if (slotIdx >= 0 && slotIdx < inv.length) {
+          const it = inv[slotIdx];
+          const itId = typeof it === 'string' ? it : it?.id;
+          this.accounts.removeItemFromInventory(client.id, slotIdx);
+          this.refreshClientFromAccount(client.id);
+          if (room && itId) {
+            room.lootSeq = (room.lootSeq || 0) + 1;
+            room.loot.push({
+              id: `loot_${room.lootSeq}`,
+              kind: 'item',
+              itemId: itId,
+              x: Math.round(client.x * 10) / 10,
+              y: Math.round(client.y * 10) / 10,
+              ttl: 60,
+              maxTtl: 60,
+            });
+            room.fxQueue.push({
+              kind: 'fct',
+              x: client.x,
+              y: client.y - 10,
+              text: `DROPPED ${EQUIPMENT_CATALOG[itId]?.name?.toUpperCase() || 'ITEM'}`,
+              color: '#94a3b8',
+            });
+          }
         }
         break;
       }
@@ -3493,6 +3571,25 @@ export class RoomManager {
     }
   }
 
+  getEquipmentDropForEntity(room, ent) {
+    const rType = String(room?.type || '').toLowerCase();
+    let pool = [];
+    if (rType.includes('solari')) {
+      pool = ['sunforged_greathelm', 'sunforged_hauberk', 'sunforged_greaves', 'sunforged_warhammer', 'radiant_shield_relic', 'crown_of_noon', 'ring_of_the_sun'];
+    } else if (rType.includes('terra')) {
+      pool = ['ironwood_horned_helm', 'ironwood_bark_chest', 'ironwood_thighguards', 'ironwood_spear', 'ring_of_stone', 'granite_boots'];
+    } else if (rType.includes('aether')) {
+      pool = ['chrono_astral_hood', 'chrono_astral_robes', 'chrono_astral_skirt', 'chrono_warp_staff', 'chronocore_prism', 'celestial_talisman'];
+    } else if (rType.includes('umbri')) {
+      pool = ['duskveil_shadow_mask', 'duskveil_assassin_garb', 'duskveil_void_chaps', 'duskveil_twin_daggers', 'abyssal_cloak', 'ring_of_void_leech'];
+    } else if (rType.includes('celestial') || rType.includes('warzone')) {
+      pool = ['crown_of_dawn', 'aurelius_sovereign_plate', 'aurelius_starforged_greaves', 'aurelius_morningstar_blade', 'amulet_of_fury', 'barrows_gloves', 'fire_cape', 'amulet_of_glory'];
+    } else {
+      pool = ['boots_of_haste', 'amulet_of_glory', 'vanguard_gauntlets', 'ring_of_the_sun', 'granite_boots'];
+    }
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
   spawnLootDrops(room, ent) {
     const count = ent.isBoss ? 4 : Math.random() < 0.55 ? 1 : 0;
     if (!room.loot) room.loot = [];
@@ -3500,19 +3597,26 @@ export class RoomManager {
     for (let i = 0; i < count; i++) {
       let kind = Math.random() < 0.5 ? 'vital' : 'glimmer';
       if (ent.isBoss && i === 0) kind = 'relic';
-      drops.push(kind);
+      drops.push({ kind, itemId: null });
     }
-    drops.forEach((kind, i) => {
+    const dropItem = ent.isBoss || Math.random() < 0.28;
+    if (dropItem) {
+      const dropId = this.getEquipmentDropForEntity(room, ent);
+      if (dropId) drops.push({ kind: 'item', itemId: dropId });
+    }
+
+    drops.forEach((d, i) => {
       const ang = (Math.PI * 2 * i) / Math.max(1, drops.length) + Math.random() * 0.8;
       const dist = drops.length > 1 ? 14 + Math.random() * 8 : 0;
       room.lootSeq = (room.lootSeq || 0) + 1;
       room.loot.push({
         id: `loot_${room.lootSeq}`,
-        kind,
+        kind: d.kind,
+        itemId: d.itemId || null,
         x: Math.round((ent.x + Math.cos(ang) * dist) * 10) / 10,
         y: Math.round((ent.y + Math.sin(ang) * dist * 0.6) * 10) / 10,
-        ttl: 28,
-        maxTtl: 28,
+        ttl: d.kind === 'item' ? 45 : 28,
+        maxTtl: d.kind === 'item' ? 45 : 28,
       });
     });
   }
@@ -3538,21 +3642,60 @@ export class RoomManager {
         }
       }
       if (!taker) continue;
-      room.loot.splice(i, 1);
-      if (l.kind === 'vital') {
-        const heal = Math.max(3, Math.round(taker.maxHp * 0.25));
-        taker.hp = Math.min(taker.maxHp, taker.hp + heal);
-        this.parties.syncPlayerVitals(taker.id);
-        room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 14, text: `+${heal} VITAL SHARD`, color: '#f87171' });
-        room.fxQueue.push({ kind: 'spark', x: l.x, y: l.y, colors: ['#f87171', '#fecaca', '#ffffff'], count: 8 });
-      } else if (l.kind === 'glimmer') {
-        this.addPlayerGlimmer(room, taker, 30);
-        room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 14, text: '+30 GLIMMER SHARD', color: '#38bdf8' });
-        room.fxQueue.push({ kind: 'spark', x: l.x, y: l.y, colors: ['#38bdf8', '#bae6fd', '#ffffff'], count: 8 });
+
+      if (l.kind === 'item') {
+        const itemDef = EQUIPMENT_CATALOG[l.itemId];
+        if (itemDef) {
+          const added = this.accounts.addItemToInventory(taker.id, l.itemId, 1);
+          if (added) {
+            room.loot.splice(i, 1);
+            this.refreshClientFromAccount(taker.id);
+            const isBarrows = itemDef.rarity.includes('Barrows') || itemDef.rarity.includes('Apex') || itemDef.rarity.includes('Mythic');
+            room.fxQueue.push({
+              kind: 'fct',
+              x: taker.x,
+              y: taker.y - 14,
+              text: `✦ ${itemDef.name.toUpperCase()} (GEAR)`,
+              color: isBarrows ? '#facc15' : '#38bdf8',
+              isCrit: isBarrows,
+            });
+            room.fxQueue.push({
+              kind: 'spark',
+              x: l.x,
+              y: l.y,
+              colors: isBarrows ? ['#facc15', '#fef08a', '#ffffff'] : ['#38bdf8', '#bae6fd', '#ffffff'],
+              count: 12,
+            });
+          } else {
+            // Inventory is full! Do not splice, let player know
+            room.fxQueue.push({
+              kind: 'fct',
+              x: taker.x,
+              y: taker.y - 14,
+              text: `🎒 BAG FULL: ${itemDef.name.toUpperCase()}`,
+              color: '#ef4444',
+            });
+          }
+        } else {
+          room.loot.splice(i, 1);
+        }
       } else {
-        this.awardPlayerXP(taker, 60, 'Relic Shard');
-        room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 14, text: '✦ RELIC SHARD +60 XP', color: '#fde047', isCrit: true });
-        room.fxQueue.push({ kind: 'spark', x: l.x, y: l.y, colors: ['#fde047', '#fef08a', '#ffffff'], count: 12 });
+        room.loot.splice(i, 1);
+        if (l.kind === 'vital') {
+          const heal = Math.max(3, Math.round(taker.maxHp * 0.25));
+          taker.hp = Math.min(taker.maxHp, taker.hp + heal);
+          this.parties.syncPlayerVitals(taker.id);
+          room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 14, text: `+${heal} VITAL SHARD`, color: '#f87171' });
+          room.fxQueue.push({ kind: 'spark', x: l.x, y: l.y, colors: ['#f87171', '#fecaca', '#ffffff'], count: 8 });
+        } else if (l.kind === 'glimmer') {
+          this.addPlayerGlimmer(room, taker, 30);
+          room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 14, text: '+30 GLIMMER SHARD', color: '#38bdf8' });
+          room.fxQueue.push({ kind: 'spark', x: l.x, y: l.y, colors: ['#38bdf8', '#bae6fd', '#ffffff'], count: 8 });
+        } else {
+          this.awardPlayerXP(taker, 60, 'Relic Shard');
+          room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 14, text: '✦ RELIC SHARD +60 XP', color: '#fde047', isCrit: true });
+          room.fxQueue.push({ kind: 'spark', x: l.x, y: l.y, colors: ['#fde047', '#fef08a', '#ffffff'], count: 12 });
+        }
       }
     }
   }
@@ -4698,7 +4841,7 @@ export class RoomManager {
       projectiles,
       groundZones,
       banners,
-      loot: (room.loot || []).map((l) => ({ id: l.id, kind: l.kind, x: l.x, y: l.y, ttl: Math.round(l.ttl * 10) / 10 })),
+      loot: (room.loot || []).map((l) => ({ id: l.id, kind: l.kind, itemId: l.itemId || null, x: l.x, y: l.y, ttl: Math.round(l.ttl * 10) / 10 })),
       siegeState,
     };
   }

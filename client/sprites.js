@@ -102,8 +102,8 @@ const BASE_FACTION_PALETTES = {
 
 export function getCharacterSprites(faction = 'Solari', classId = 'solari_vanguard', equipment = {}) {
   const wepId = equipment?.weapon || 'solari_spellblade';
-  const armId = equipment?.armor || 'sunforged_plate';
-  const offId = equipment?.offhand || 'radiant_shield';
+  const armId = equipment?.body || equipment?.armor || 'sunforged_plate';
+  const offId = equipment?.shield || equipment?.offhand || 'radiant_shield';
   const cacheKey = `${faction}|${classId}|${wepId}|${armId}|${offId}`;
   if (paperdollCache.has(cacheKey)) return paperdollCache.get(cacheKey);
 

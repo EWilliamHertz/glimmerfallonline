@@ -901,6 +901,128 @@
       border-radius: 3px;
     }
 
+    /* RuneScape Equipment Paperdoll Grid */
+    .rs-paperdoll-wrapper {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    .rs-paperdoll-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 56px);
+      grid-template-rows: repeat(5, 56px);
+      gap: 8px;
+      justify-content: center;
+      background: radial-gradient(circle, #292524 0%, #141210 100%);
+      border: 3px double #78350f;
+      padding: 12px;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 4px 12px rgba(0,0,0,0.6);
+      position: relative;
+    }
+    .rs-equip-slot {
+      width: 56px;
+      height: 56px;
+      background: #171513;
+      border: 2px solid #57534e;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.7);
+    }
+    .rs-equip-slot:hover {
+      border-color: #facc15;
+      background: #23201b;
+      transform: translateY(-1px);
+    }
+    .rs-equip-slot.filled {
+      border-color: #d97706;
+      background: #1c1917;
+    }
+    .rs-equip-slot .rs-slot-placeholder {
+      font-size: 20px;
+      opacity: 0.28;
+      filter: grayscale(1);
+    }
+    .rs-equip-slot .rs-slot-label {
+      font-size: 7.5px;
+      font-family: var(--font-header);
+      color: #78716c;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+      text-transform: uppercase;
+    }
+
+    /* RuneScape 28-Slot Inventory Grid (4 cols x 7 rows) */
+    .rs-inv-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 54px);
+      grid-template-rows: repeat(7, 54px);
+      gap: 6px;
+      justify-content: center;
+      background: radial-gradient(circle, #292524 0%, #141210 100%);
+      border: 3px double #92400e;
+      padding: 10px;
+      box-shadow: inset 0 0 16px rgba(0,0,0,0.9);
+    }
+    .rs-inv-slot {
+      width: 54px;
+      height: 54px;
+      background: #1c1917;
+      border: 1.5px solid #44403c;
+      border-radius: 3px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.12s ease;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+    }
+    .rs-inv-slot:hover {
+      border-color: #facc15;
+      background: #292524;
+      transform: scale(1.04);
+      z-index: 2;
+    }
+    .rs-inv-slot.empty {
+      cursor: default;
+    }
+    .rs-inv-slot.empty:hover {
+      border-color: #44403c;
+      background: #1c1917;
+      transform: none;
+    }
+
+    /* Grand Exchange Replica Grid */
+    .rs-ge-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .rs-ge-box {
+      background: #141210;
+      border: 2px solid #57534e;
+      border-radius: 4px;
+      padding: 8px;
+      min-height: 110px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+    .rs-ge-box:hover {
+      border-color: #d97706;
+    }
+
     /* Floating Combat Text */
     #fct-container {
       position: absolute;
@@ -1721,7 +1843,7 @@
       </div>
     </div>
 
-    <!-- 6. BOTTOM-RIGHT: Clean Micro-Menu Dock -->
+    <!-- 6. BOTTOM-RIGHT: Clean Micro-Menu Dock (2x5 Grid = 10 Slots) -->
     <div id="micro-menu">
       <button class="util-btn" onclick="toggleModal('spellbook-modal')">
         📖 SPELLS [P] <span id="skill-pt-pip" class="pt-pip">+1</span>
@@ -1729,13 +1851,30 @@
       <button class="util-btn" onclick="toggleModal('char-modal')">
         📊 STATS [C] <span id="stat-pt-pip" class="pt-pip">+2</span>
       </button>
-      <button class="util-btn" style="border-color:#fb923c; color:#fed7aa;" onclick="toggleModal('paperdoll-modal')">🛡️ GEAR [I]</button>
-      <button class="util-btn" style="border-color:#fde047;" onclick="toggleModal('account-modal')">🆔 ID [G]</button>
-      <button class="util-btn" style="border-color:#4ade80;" onclick="toggleModal('social-modal')">👥 SOCIAL [O]</button>
-      <button class="util-btn" onclick="toggleModal('cards-modal')">🃏 RELICS [K]</button>
-      <button class="util-btn" style="border-color:#38bdf8; color:#7dd3fc;" onclick="openWorldMap()">🗺️ MAP [M]</button>
-      <button class="util-btn" onclick="openQuestLog()">📜 QUESTS [L]</button>
-      <button class="util-btn" style="border-color:#38bdf8; color:#7dd3fc;" onclick="toggleModal('settings-modal')">⚙️ SETTINGS [ESC]</button>
+      <button class="util-btn" style="border-color:#fb923c; color:#fed7aa;" onclick="toggleModal('equipment-modal')">
+        ⚔️ GEAR [K]
+      </button>
+      <button class="util-btn" style="border-color:#fde047;" onclick="toggleModal('account-modal')">
+        🆔 ID [G]
+      </button>
+      <button class="util-btn" style="border-color:#4ade80;" onclick="toggleModal('social-modal')">
+        👥 SOCIAL [O]
+      </button>
+      <button class="util-btn" style="border-color:#38bdf8; color:#7dd3fc;" onclick="openWorldMap()">
+        🗺️ MAP [M]
+      </button>
+      <button class="util-btn" onclick="openQuestLog()">
+        📜 QUESTS [L]
+      </button>
+      <button class="util-btn" style="border-color:#eab308; color:#fde047;" onclick="toggleModal('exchange-modal')">
+        🏛️ TRADE [X]
+      </button>
+      <button class="util-btn" style="border-color:#94a3b8; color:#cbd5e1;" onclick="toggleModal('settings-modal')">
+        ⚙️ MENU [ESC]
+      </button>
+      <button class="util-btn" style="border-color:#f59e0b; color:#fef3c7;" onclick="toggleModal('inventory-modal')">
+        🎒 BAG [B] <span id="inv-count-pip" class="pt-pip" style="background:#b45309; display:none;">0</span>
+      </button>
     </div>
 
     <!-- MODAL 1: GlimmerFall TCG Rites & Flashes Skill Tree [P] (Sticky Top Header) -->
@@ -1857,45 +1996,34 @@
       <div id="social-modal-body"></div>
     </div>
 
-    <!-- MODAL 4B: Live Equipment & 24x26 Pixel Paperdoll [I] -->
-    <div id="paperdoll-modal" class="modal panel" style="width: 650px;">
+    <!-- MODAL 4B: Authentic RuneScape Worn Equipment Paperdoll & Barrows Sets [K] -->
+    <div id="equipment-modal" class="modal panel" style="width: 780px; max-width: 96vw; max-height: 88vh; display: none;">
       <div class="modal-header">
-        <div class="modal-title">🛡️ EQUIPMENT &amp; PIXEL PAPERDOLL [I]</div>
-        <div class="modal-close" onclick="toggleModal('paperdoll-modal')">✕</div>
+        <div class="modal-title" style="color:#facc15; font-size:12px;">⚔️ WORN EQUIPMENT &amp; COMBAT BONUSES [K]</div>
+        <div class="modal-close" onclick="toggleModal('equipment-modal')">✕</div>
       </div>
-      <div id="paperdoll-modal-body"></div>
+      <div id="equipment-modal-body"></div>
+    </div>
+    <!-- Backwards compatible IDs -->
+    <div id="paperdoll-modal" style="display:none;"><div id="paperdoll-modal-body"></div></div>
+    <div id="cards-modal" style="display:none;"></div>
+
+    <!-- MODAL 4C: RuneScape 28-Slot Inventory Backpack [B] -->
+    <div id="inventory-modal" class="modal panel" style="width: 480px; max-width: 96vw; max-height: 88vh; display: none;">
+      <div class="modal-header">
+        <div class="modal-title" style="color:#fbbf24; font-size:12px;">🎒 INVENTORY &amp; BACKPACK (28 SLOTS) [B]</div>
+        <div class="modal-close" onclick="toggleModal('inventory-modal')">✕</div>
+      </div>
+      <div id="inventory-modal-body"></div>
     </div>
 
-    <!-- MODAL 5: Authentic GlimmerFall TCG Relic Sockets [K] -->
-    <div id="cards-modal" class="modal panel" style="width: 560px;">
+    <!-- MODAL 5: RuneScape Grand Exchange Central Trading Market [X] -->
+    <div id="exchange-modal" class="modal panel" style="width: 820px; max-width: 96vw; max-height: 88vh; display: none;">
       <div class="modal-header">
-        <div class="modal-title">🃏 EQUIPPED GLIMMERFALL TCG RELICS [K]</div>
-        <div class="modal-close" onclick="toggleModal('cards-modal')">✕</div>
+        <div class="modal-title" style="color:#fde047; font-size:12px;">🏛️ GRAND EXCHANGE (CENTRAL REALM MARKET) [X]</div>
+        <div class="modal-close" onclick="toggleModal('exchange-modal')">✕</div>
       </div>
-      <p style="font-size:10px; color:#cbd5e1; margin-bottom:10px; line-height:1.45;">
-        Authentic Relic cards from <b>GlimmerFall TCG: The Awakening (AWK)</b> rendered in 16-bit pixel art. Collect &amp; build decks at
-        <a href="https://www.glimmerfalltcg.com" target="_blank" rel="noreferrer" style="color:#facc15; text-decoration:underline;">glimmerfalltcg.com ↗</a>
-      </p>
-      <div style="display:flex; gap:10px;">
-        <div style="flex:1; background:#080c18; border:2px solid #facc15; padding:8px; text-align:center;">
-          <canvas width="96" height="128" style="width:100%; border:2px solid #05070f;" data-card-url="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/radiant_shield-wETHC0O74M2ZbsWnZ4R41DfI9CyoPw.webp"></canvas>
-          <b style="font-size:9.5px; color:#facc15; display:block; margin-top:6px;">Radiant Shield</b>
-          <span style="font-size:8.5px; color:#94a3b8; display:block;">Solari Relic • AWK</span>
-          <span style="font-size:8.5px; color:#4ade80;">+Guard &amp; Bastion Scaling</span>
-        </div>
-        <div style="flex:1; background:#080c18; border:2px solid #38bdf8; padding:8px; text-align:center;">
-          <canvas width="96" height="128" style="width:100%; border:2px solid #05070f;" data-card-url="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/chronocore_prism_6eca2de9-tghtsdxz1Tl6oMafBny57jAs96P1Ki.webp"></canvas>
-          <b style="font-size:9.5px; color:#38bdf8; display:block; margin-top:6px;">Chronocore Prism</b>
-          <span style="font-size:8.5px; color:#94a3b8; display:block;">Aether Relic • AWK</span>
-          <span style="font-size:8.5px; color:#7dd3fc;">Flashes grant +6 Glimmer</span>
-        </div>
-        <div style="flex:1; background:#080c18; border:2px solid #eab308; padding:8px; text-align:center;">
-          <canvas width="96" height="128" style="width:100%; border:2px solid #05070f;" data-card-url="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/crown_of_noon-q3YqbCyS74SsbsLQsyZBqrkWCz2TNh.webp"></canvas>
-          <b style="font-size:9.5px; color:#fde047; display:block; margin-top:6px;">Crown of Noon</b>
-          <span style="font-size:9.5px; color:#94a3b8; display:block;">Solari Relic • AWK</span>
-          <span style="font-size:8.5px; color:#fde047;">+20% Base Crit &amp; Overwhelm</span>
-        </div>
-      </div>
+      <div id="exchange-modal-body"></div>
     </div>
 
     <!-- MODAL 6: GlimmerFall Universe Chronicle, Quests & World Atlas [L] / [M] -->
