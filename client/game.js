@@ -225,6 +225,19 @@ const AETHER_SPIRE_DIALOGUE = [
   },
 ];
 
+const CELESTIAL_ASCENT_DIALOGUE = [
+  {
+    speaker: 'GRAND ARBITER AURELIA • EMPYREAN TITAN KEEPER',
+    spriteKey: 'celestialArbiterNpc',
+    text: 'Halt, mortal Summoner! You tread upon the Celestial Ascent—the sacred mountain terrace forged by the Ancient Titans before the Shattering.',
+  },
+  {
+    speaker: 'GRAND ARBITER AURELIA • EMPYREAN TITAN KEEPER',
+    spriteKey: 'celestialArbiterNpc',
+    text: 'At the northern summit slumbers Aurelius the Empyrean Sovereign, corrupted by encroaching void rifts. Ascend the starlight terraces, attune the Morning Star fonts, and cleanse the Titan’s throne!',
+  },
+];
+
 export function initGame() {
   const audio = new PixelSoundEngine();
   const sprites = buildSpriteSheet();
@@ -550,7 +563,7 @@ export function initGame() {
         {
           speaker: 'HERALD LYRA • SUNSPIRE HERALD',
           spriteKey: 'heraldNpc',
-          text: 'Now, venture through the North Waygate into the Continental Warzone and report to Commander Valerius at the Vale Waystation.',
+          text: 'Now, report to Commander Valerius at the North Vanguard Post to receive your frontline combat rites.',
         },
       ],
       nextQuestId: 'quest_into_the_warzone',
@@ -558,14 +571,13 @@ export function initGame() {
 
     quest_into_the_warzone: {
       id: 'quest_into_the_warzone',
-      title: 'Into the Warzone',
+      title: 'Vanguard Orders',
       giverId: 'npc_aurora',
       turnInId: 'npc_archon',
       prereqQuestId: 'quest_awakening',
-      description: 'Step into the North Rift to enter the Continental Warzone and report to Commander Valerius.',
-      isComplete: () => Boolean(questState.portalTraveled || currentRoomType === ROOM_TYPES.NEXUS_WARZONE),
+      description: 'Report to Commander Valerius at the North Vanguard Post.',
+      isComplete: () => true,
       tasks: [
-        { text: 'Enter North Rift -> Warzone', done: () => Boolean(questState.portalTraveled || currentRoomType === ROOM_TYPES.NEXUS_WARZONE) },
         { text: 'Report to Commander Valerius', done: () => Boolean(questState.completedQuests.quest_into_the_warzone) },
       ],
       rewards: { xp: 160, glimmer: 80 },
@@ -573,7 +585,7 @@ export function initGame() {
         {
           speaker: 'HERALD LYRA • SUNSPIRE HERALD',
           spriteKey: 'heraldNpc',
-          text: 'Commander Valerius awaits you at the South Vale Waystation in the Continental Warzone. Step through the North Waygate to begin your journey!',
+          text: 'Commander Valerius awaits you at the Vanguard Command Post to your north. Speak with him to begin your trial!',
         },
       ],
       ongoingDialogue: [
@@ -587,12 +599,12 @@ export function initGame() {
         {
           speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
           spriteKey: 'warzoneArchonNpc',
-          text: 'Welcome to the frontlines, Summoner! Herald Lyra sent word of your awakening. You carry yourself with true steel.',
+          text: 'Welcome, Summoner! Herald Lyra sent word of your awakening. You carry yourself with true steel.',
         },
         {
           speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
           spriteKey: 'warzoneArchonNpc',
-          text: 'We face dire threats out here. The Void corrupts the outer perimeters, and rival factions vie for the Shattered Nexus.',
+          text: 'We face dire threats beyond the sanctuary borders. The Void corrupts the outer gates, and monsters roam the wild perimeter.',
         },
       ],
       nextQuestId: 'quest_void_banish',
@@ -604,11 +616,11 @@ export function initGame() {
       giverId: 'npc_archon',
       turnInId: 'npc_archon',
       prereqQuestId: 'quest_into_the_warzone',
-      description: 'Banish 3 Void foes roaming the Continental Warzone.',
+      description: 'Banish 3 Void foes roaming outside the Sanctuary.',
       isComplete: () => (questState.warzoneKills || 0) >= 3,
       tasks: [
         {
-          text: 'Banish Void Foes in Warzone',
+          text: 'Banish Hostile Foes',
           done: () => (questState.warzoneKills || 0) >= 3,
           counter: () => `${Math.min(3, questState.warzoneKills || 0)} / 3`,
         },
@@ -618,7 +630,7 @@ export function initGame() {
         {
           speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
           spriteKey: 'warzoneArchonNpc',
-          text: 'Void entities stalk the whispering passes and outer plateaus. Cut down 3 of them and report back to prove your steel!',
+          text: 'Void entities stalk outside our gates. Step into any outer domain, cut down 3 foes, and report back to prove your steel!',
         },
       ],
       ongoingDialogue: [
@@ -637,7 +649,7 @@ export function initGame() {
         {
           speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
           spriteKey: 'warzoneArchonNpc',
-          text: 'When you are ready for deeper mysteries, venture North into the Forgotten First Nexus Ruins and seek Atlas the Cartographer!',
+          text: 'When you are ready for deeper mysteries, venture through the First Nexus Waygate into the Forgotten Ruins and seek Atlas the Cartographer!',
         },
       ],
       nextQuestId: 'quest_first_nexus',
@@ -1699,7 +1711,7 @@ export function initGame() {
 
     if (resolvedRoomType === ROOM_TYPES.SANCTUARY_HUB) {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'SANCTUARY HUB #1';
-      if (zoneLabel) zoneLabel.innerText = 'To Warzone';
+      if (zoneLabel) zoneLabel.innerText = 'Sanctuary Haven';
       arenaBanner.style.display = 'none';
       if (tutQuestBody) tutQuestBody.style.display = 'block';
       if (warzoneQuestBody) warzoneQuestBody.style.display = 'none';
@@ -1712,17 +1724,34 @@ export function initGame() {
         { type: 'pillar', x: -120, y: -48 },
         { type: 'pillar', x: 120, y: -48 },
         { type: 'pillar', x: -120, y: 56 },
-        { type: 'pillar', x: 120, y: 56 }
+        { type: 'pillar', x: 120, y: 56 },
+        // Directional Guide Signs to all 4 elemental domains & waygates
+        { type: 'woodenSign', x: 0, y: -160, label: '⬆ NORTH GATE • TO MIRRORGATE SPIRE [WALK NORTH ⬆]' },
+        { type: 'woodenSign', x: -160, y: 0, label: '⬅ WEST GATE • TO GOLDEN CITADEL [WALK WEST ⬅]' },
+        { type: 'woodenSign', x: 160, y: 0, label: '➡ EAST GATE • TO SEPULCHER UNDERCITY [WALK EAST ➡]' },
+        { type: 'woodenSign', x: 0, y: 160, label: '⬇ SOUTH GATE • TO GLIMMER ORCHARD [WALK SOUTH ⬇]' },
+        { type: 'woodenSign', x: 40, y: -90, label: '⭐ FIRST NEXUS KEYSTONE WAYGATE [TO FORGOTTEN RUINS]' }
       );
-      npcs.push({
-        id: 'npc_aurora',
-        name: 'Herald Lyra',
-        role: 'Sunspire Herald [Click / T]',
-        spriteKey: 'heraldNpc',
-        x: 38,
-        y: 82,
-        dialogue: AWAKENING_DIALOGUE,
-      });
+      npcs.push(
+        {
+          id: 'npc_aurora',
+          name: 'Herald Lyra',
+          role: 'Sunspire Herald [Click / T]',
+          spriteKey: 'heraldNpc',
+          x: 38,
+          y: 82,
+          dialogue: AWAKENING_DIALOGUE,
+        },
+        {
+          id: 'npc_archon',
+          name: 'Commander Valerius',
+          role: 'Sunspire Warlord [Click / T]',
+          spriteKey: 'warzoneArchonNpc',
+          x: -42,
+          y: -74,
+          dialogue: WARZONE_DIALOGUE,
+        }
+      );
       if (!introShown && !questState.introShown && !questState.talkedNpcs?.npc_aurora && !frontpage.isOpen) {
         introShown = true;
         questState.introShown = true;
@@ -1746,7 +1775,7 @@ export function initGame() {
       );
     } else if (resolvedRoomType === ROOM_TYPES.NEXUS_FORGOTTEN_RUINS) {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'FORGOTTEN FIRST NEXUS RUINS';
-      if (zoneLabel) zoneLabel.innerText = 'To Sanctuary';
+      if (zoneLabel) zoneLabel.innerText = 'To Caldera';
       arenaBanner.style.display = 'none';
       if (tutQuestBody) tutQuestBody.style.display = 'none';
       if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
@@ -1760,7 +1789,15 @@ export function initGame() {
         { type: 'brazier', x: -70, y: -140 },
         { type: 'brazier', x: 70, y: -140 },
         { type: 'pillar', x: -160, y: -90 },
-        { type: 'pillar', x: 160, y: -90 }
+        { type: 'pillar', x: 160, y: -90 },
+        // Grand North Waygate to Continental Caldera Torment Realm
+        { type: 'ruinedArch', x: 0, y: -380 },
+        { type: 'crystalPillar', x: -80, y: -380 },
+        { type: 'crystalPillar', x: 80, y: -380 },
+        { type: 'brazier', x: -48, y: -390 },
+        { type: 'brazier', x: 48, y: -390 },
+        { type: 'woodenSign', x: 42, y: -360, label: '⭐ TORMENT GATE • TO CONTINENTAL NEXUS CALDERA [WALK NORTH ⬆]' },
+        { type: 'woodenSign', x: -42, y: 160, label: '⬇ SANCTUARY GATE • TO AWAKENING HUB [WALK SOUTH ⬇]' }
       );
       npcs.push({
         id: 'npc_atlas',
@@ -1770,6 +1807,62 @@ export function initGame() {
         x: 42,
         y: 135,
         dialogue: RUINS_DIALOGUE,
+      });
+    } else if (resolvedRoomType === ROOM_TYPES.CELESTIAL_ASCENT) {
+      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'CELESTIAL ASCENT & EMPYREAN TITAN SUMMIT';
+      if (zoneLabel) zoneLabel.innerText = 'To Caldera';
+      arenaBanner.style.display = 'none';
+      if (tutQuestBody) tutQuestBody.style.display = 'none';
+      if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
+
+      // Grand Summit Props (Stairway colonnade, terrace monuments, throne braziers)
+      props.push(
+        // South Entrance Threshold & Greeting Colonnade
+        { type: 'ruinedArch', x: 0, y: 1040 },
+        { type: 'woodenSign', x: -40, y: 1040, label: '⬇ DESCENT • TO CONTINENTAL NEXUS CALDERA [WALK SOUTH ⬇]' },
+        { type: 'brazier', x: -50, y: 1020 },
+        { type: 'brazier', x: 50, y: 1020 },
+        { type: 'crystalPillar', x: -90, y: 980 },
+        { type: 'crystalPillar', x: 90, y: 980 },
+        { type: 'crystalPillar', x: -90, y: 780 },
+        { type: 'crystalPillar', x: 90, y: 780 },
+        { type: 'crystalPillar', x: -90, y: 580 },
+        { type: 'crystalPillar', x: 90, y: 580 },
+        { type: 'brazier', x: -50, y: 580 },
+        { type: 'brazier', x: 50, y: 580 },
+
+        // Mid-Ascent Grand Stargate Terrace (y: 200 to -200)
+        { type: 'monument', x: 0, y: 0 },
+        { type: 'ruinedArch', x: 0, y: 220 },
+        { type: 'ruinedArch', x: 0, y: -220 },
+        { type: 'crystalPillar', x: -180, y: 0 },
+        { type: 'crystalPillar', x: 180, y: 0 },
+        { type: 'brazier', x: -120, y: -120 },
+        { type: 'brazier', x: 120, y: -120 },
+        { type: 'brazier', x: -120, y: 120 },
+        { type: 'brazier', x: 120, y: 120 },
+
+        // Northern Titan Colosseum Throne Platform (y: -500 to -950)
+        { type: 'ruinedArch', x: 0, y: -580 },
+        { type: 'crystalPillar', x: -220, y: -750 },
+        { type: 'crystalPillar', x: 220, y: -750 },
+        { type: 'crystalPillar', x: -220, y: -920 },
+        { type: 'crystalPillar', x: 220, y: -920 },
+        { type: 'brazier', x: -100, y: -650 },
+        { type: 'brazier', x: 100, y: -650 },
+        { type: 'brazier', x: -100, y: -880 },
+        { type: 'brazier', x: 100, y: -880 },
+        { type: 'monument', x: 0, y: -940 }
+      );
+
+      npcs.push({
+        id: 'npc_aurelia',
+        name: 'Grand Arbiter Aurelia',
+        role: 'Empyrean Titan Keeper [Click / T]',
+        spriteKey: 'celestialArbiterNpc',
+        x: 42,
+        y: 980,
+        dialogue: CELESTIAL_ASCENT_DIALOGUE,
       });
     } else if (resolvedRoomType === ROOM_TYPES.SOLARI_SUNKEN_VAULT) {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'SUNKEN VAULT OF THE DAWN';
@@ -1948,11 +2041,13 @@ export function initGame() {
           { type: 'pillar', x: 140, y: 0 }
         );
 
-        // 4. North Forgotten Ruins Plateau (Ruined Arches, Ancient Monuments, Stone Pillars)
+        // 4. North Forgotten Ruins Plateau (Ruined Arches, Ancient Monuments, Stone Pillars & Ascension Gateway)
         props.push(
           { type: 'ruinedArch', x: 0, y: -520 },
           { type: 'ruinedArch', x: 0, y: -960 },
           { type: 'ruinedArch', x: 0, y: -1380 },
+          { type: 'ruinedArch', x: 0, y: -1580 },
+          { type: 'ruinedArch', x: 0, y: -1760 },
           { type: 'monument', x: 0, y: -740 },
           { type: 'monument', x: -110, y: -1150 },
           { type: 'monument', x: 110, y: -1150 },
@@ -1961,7 +2056,17 @@ export function initGame() {
           { type: 'pillar', x: -75, y: -860 },
           { type: 'pillar', x: 75, y: -860 },
           { type: 'pillar', x: -75, y: -1250 },
-          { type: 'pillar', x: 75, y: -1250 }
+          { type: 'pillar', x: 75, y: -1250 },
+          { type: 'crystalPillar', x: -80, y: -1580 },
+          { type: 'crystalPillar', x: 80, y: -1580 },
+          { type: 'crystalPillar', x: -80, y: -1750 },
+          { type: 'crystalPillar', x: 80, y: -1750 },
+          { type: 'brazier', x: -48, y: -1680 },
+          { type: 'brazier', x: 48, y: -1680 },
+          { type: 'brazier', x: -48, y: -1760 },
+          { type: 'brazier', x: 48, y: -1760 },
+          { type: 'woodenSign', x: 38, y: -1720, label: '⭐ ASCENT GATE • TO CELESTIAL TITAN SUMMIT [WALK NORTH ⬆]' },
+          { type: 'woodenSign', x: 34, y: 1720, label: '⬇ RUINS GATE • TO FORGOTTEN FIRST NEXUS RUINS [WALK SOUTH ⬇]' }
         );
 
         // 5. Regional Wilderness Features
@@ -2078,7 +2183,8 @@ export function initGame() {
         { id: 'dummy_1', name: 'Sanctuary Dummy', sub: 'Lv.1 Awakening Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: 12, origX: 0, origY: 12, hp: 30, maxHp: 30, xpReward: 30, radius: 14, hitFlash: 0 },
         { id: 'dummy_2', name: 'Armored Training Post', sub: 'Lv.5 Resilient Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: -45, origX: 0, origY: -45, hp: 120, maxHp: 120, xpReward: 65, radius: 15, hitFlash: 0 },
         { id: 'tut_font', name: 'Awakening Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'tut_font_2', name: 'East Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
+        { id: 'tut_font_2', name: 'East Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
+        { id: 'sanctuary_keystone_portal', name: 'First Nexus Keystone Waygate', sub: 'To Forgotten Ruins [Click/Walk]', type: 'portal', targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS, spriteKey: 'node', x: 0, y: -90, radius: 20, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.ARENA_3V3) {
       if (!hasCustomSpawn) {
@@ -2195,58 +2301,74 @@ export function initGame() {
         { id: 'archive_node_1', name: 'Continuum Time Spire', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
         { id: 'archive_node_2', name: 'Astral Mirrorgate Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
       );
+    } else if (currentRoomType === ROOM_TYPES.CELESTIAL_ASCENT) {
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 1040;
+      }
+      entities.push(
+        { id: 'cel_node_1', name: 'Font of the Morning Star', sub: 'Empyrean Glimmer Spire [E]', type: 'node', spriteKey: 'node', x: -120, y: 600, charges: 6, maxCharges: 6, radius: 18, hitFlash: 0 },
+        { id: 'cel_node_2', name: 'Shrine of Empyrean Resonance', sub: 'Ancient Leyline Shrine [E]', type: 'node', spriteKey: 'node', x: 120, y: 600, charges: 6, maxCharges: 6, radius: 18, hitFlash: 0 },
+        { id: 'cel_node_summit', name: 'Apex Keystone Font', sub: 'Titan Glimmer Core [E]', type: 'node', spriteKey: 'node', x: 0, y: -450, charges: 8, maxCharges: 8, radius: 18, hitFlash: 0 },
+        { id: 'cel_mob_1', name: 'Empyrean Star-Knight', sub: 'Lv.28 Celestial Construct', type: 'mob', spriteKey: 'solariSentinel', x: -90, y: 450, origX: -90, origY: 450, hp: 280, maxHp: 280, damage: 16, xpReward: 320, speed: 48, aggroRange: 120, attackRange: 30, radius: 16, hitFlash: 0 },
+        { id: 'cel_mob_2', name: 'Empyrean Star-Knight', sub: 'Lv.28 Celestial Construct', type: 'mob', spriteKey: 'solariSentinel', x: 90, y: 450, origX: 90, origY: 450, hp: 280, maxHp: 280, damage: 16, xpReward: 320, speed: 48, aggroRange: 120, attackRange: 30, radius: 16, hitFlash: 0 },
+        { id: 'cel_mob_3', name: 'Astral Chrono-Seraph', sub: 'Lv.30 Celestial Seraph', type: 'mob', spriteKey: 'aetherWeaver', x: -120, y: 100, origX: -120, origY: 100, hp: 260, maxHp: 260, damage: 18, xpReward: 360, speed: 54, aggroRange: 130, attackRange: 36, radius: 16, hitFlash: 0 },
+        { id: 'cel_mob_4', name: 'Astral Chrono-Seraph', sub: 'Lv.30 Celestial Seraph', type: 'mob', spriteKey: 'aetherWeaver', x: 120, y: 100, origX: 120, origY: 100, hp: 260, maxHp: 260, damage: 18, xpReward: 360, speed: 54, aggroRange: 130, attackRange: 36, radius: 16, hitFlash: 0 },
+        { id: 'cel_mob_5', name: 'Void Annihilator', sub: 'Lv.32 Apex Infiltrator', type: 'mob', spriteKey: 'mobUmbri', x: 0, y: -250, origX: 0, origY: -250, hp: 420, maxHp: 420, damage: 22, xpReward: 480, speed: 50, aggroRange: 140, attackRange: 32, radius: 18, hitFlash: 0 },
+        { id: 'cel_titan_boss', name: 'Aurelius the Empyrean Sovereign', sub: '★ Lv.35 Ancient Titan of the Nexus', type: 'mob', isBoss: true, dropGear: 'crown_of_dawn', spriteKey: 'celestialTitanBoss', x: 0, y: -750, origX: 0, origY: -750, hp: 3200, maxHp: 3200, damage: 32, xpReward: 1600, speed: 46, aggroRange: 180, attackRange: 42, radius: 28, hitFlash: 0 }
+      );
     } else {
       player.x = 0;
-      player.y = 1450;
+      player.y = 1740;
       entities.push(
-        // Peaceful South Sanctuary Vale Target Dummy
-        { id: 'val_dummy', name: 'Vale Training Dummy', sub: 'Lv.1 Target Post', type: 'dummy', spriteKey: 'dummy', x: 60, y: 1440, origX: 60, origY: 1440, hp: 40, maxHp: 40, xpReward: 30, radius: 14, hitFlash: 0 },
-        // 4 Continental Faction Outposts
-        { id: 'outpost_Terra', faction: 'Terra', name: 'Terra Forest Outpost Nexus', sub: '30 HP Terra Outpost Nexus', type: 'outpost_nexus', spriteKey: 'nexusGreen', x: -850, y: -650, origX: -850, origY: -650, hp: 30, maxHp: 30, xpReward: 200, radius: 24, hitFlash: 0 },
-        { id: 'outpost_Umbri', faction: 'Umbri', name: 'Umbri Shadow Outpost Nexus', sub: '30 HP Umbri Outpost Nexus', type: 'outpost_nexus', spriteKey: 'nexusPurple', x: 850, y: -650, origX: 850, origY: -650, hp: 30, maxHp: 30, xpReward: 200, radius: 24, hitFlash: 0 },
-        { id: 'outpost_Solari', faction: 'Solari', name: 'Solari Radiant Outpost Nexus', sub: '30 HP Solari Outpost Nexus', type: 'outpost_nexus', spriteKey: 'nexusGold', x: -850, y: 650, origX: -850, origY: 650, hp: 30, maxHp: 30, xpReward: 200, radius: 24, hitFlash: 0 },
-        { id: 'outpost_Aether', faction: 'Aether', name: 'Aether Astral Outpost Nexus', sub: '30 HP Aether Outpost Nexus', type: 'outpost_nexus', spriteKey: 'nexusCyan', x: 850, y: 650, origX: 850, origY: 650, hp: 30, maxHp: 30, xpReward: 200, radius: 24, hitFlash: 0 },
-        // Shattered Nexus Shard
-        { id: 'siege_shard', name: 'Shattered Nexus Shard', sub: '⚡ Continental Nexus Core (PvPvE)', type: 'siege_shard', isBoss: true, spriteKey: 'siegeShard', x: 0, y: 0, origX: 0, origY: 0, hp: 85, maxHp: 85, xpReward: 250, radius: 24, hitFlash: 0 },
+        // Vanguard Colossus Training Post
+        { id: 'val_dummy', name: 'Vanguard Colossus Post', sub: 'Lv.30 Torment Target Post', type: 'dummy', spriteKey: 'dummy', x: 60, y: 1440, origX: 60, origY: 1440, hp: 600, maxHp: 600, xpReward: 200, radius: 16, hitFlash: 0 },
+        // 4 Continental Faction Outposts (Late-Game Torment: 300 HP)
+        { id: 'outpost_Terra', faction: 'Terra', name: 'Terra Forest Outpost Nexus', sub: '300 HP Terra Outpost Nexus [Torment]', type: 'outpost_nexus', spriteKey: 'nexusGreen', x: -850, y: -650, origX: -850, origY: -650, hp: 300, maxHp: 300, xpReward: 1200, radius: 24, hitFlash: 0 },
+        { id: 'outpost_Umbri', faction: 'Umbri', name: 'Umbri Shadow Outpost Nexus', sub: '300 HP Umbri Outpost Nexus [Torment]', type: 'outpost_nexus', spriteKey: 'nexusPurple', x: 850, y: -650, origX: 850, origY: -650, hp: 300, maxHp: 300, xpReward: 1200, radius: 24, hitFlash: 0 },
+        { id: 'outpost_Solari', faction: 'Solari', name: 'Solari Radiant Outpost Nexus', sub: '300 HP Solari Outpost Nexus [Torment]', type: 'outpost_nexus', spriteKey: 'nexusGold', x: -850, y: 650, origX: -850, origY: 650, hp: 300, maxHp: 300, xpReward: 1200, radius: 24, hitFlash: 0 },
+        { id: 'outpost_Aether', faction: 'Aether', name: 'Aether Astral Outpost Nexus', sub: '300 HP Aether Outpost Nexus [Torment]', type: 'outpost_nexus', spriteKey: 'nexusCyan', x: 850, y: 650, origX: 850, origY: 650, hp: 300, maxHp: 300, xpReward: 1200, radius: 24, hitFlash: 0 },
+        // Shattered Nexus Shard (Torment Core)
+        { id: 'siege_shard', name: 'Shattered Nexus Shard', sub: '⚡ Continental Nexus Core (Torment PvPvE)', type: 'siege_shard', isBoss: true, spriteKey: 'siegeShard', x: 0, y: 0, origX: 0, origY: 0, hp: 850, maxHp: 850, xpReward: 2500, radius: 24, hitFlash: 0 },
         // 4 Ancient Leyline Shrines [E]
         { id: 'shrine_solari', name: 'Solari Radiant Shrine', sub: 'Ancient Leyline [E] • Radiant Wrath', type: 'shrine', affinity: 'solari', buffName: 'Solar Wrath', x: -550, y: 550, origX: -550, origY: 550, charges: 5, maxCharges: 5, radius: 20, hitFlash: 0 },
         { id: 'shrine_umbri', name: 'Umbri Void Obelisk', sub: 'Ancient Leyline [E] • Void Leech', type: 'shrine', affinity: 'umbri', buffName: 'Void Step', x: 550, y: -550, origX: 550, origY: -550, charges: 5, maxCharges: 5, radius: 20, hitFlash: 0 },
         { id: 'shrine_terra', name: 'Terra Bastion Monolith', sub: 'Ancient Leyline [E] • Primal Bastion', type: 'shrine', affinity: 'terra', buffName: 'Stone Ward', x: -550, y: -550, origX: -550, origY: -550, charges: 5, maxCharges: 5, radius: 20, hitFlash: 0 },
         { id: 'shrine_aether', name: 'Aether Chrono Spire', sub: 'Ancient Leyline [E] • Chrono Surge', type: 'shrine', affinity: 'aether', buffName: 'Chrono Surge', x: 550, y: 550, origX: 550, origY: 550, charges: 5, maxCharges: 5, radius: 20, hitFlash: 0 },
-        // 4 Grand World Bosses
-        { id: 'terra_world_boss', name: 'Elder Ironwood Colossus', sub: '★ Lv.9 Terra Continent World Boss', type: 'mob', isBoss: true, dropGear: 'ironwood_armor', spriteKey: 'graniteBoss', x: -950, y: -850, origX: -950, origY: -850, hp: 125, maxHp: 125, damage: 7, xpReward: 260, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        { id: 'umbri_world_boss', name: 'Malakor the Soulreaper', sub: '★ Lv.9 Umbri Continent World Boss', type: 'mob', isBoss: true, dropGear: 'scythe_soulreaper', spriteKey: 'umbriBoss', x: 950, y: -850, origX: 950, origY: -850, hp: 115, maxHp: 115, damage: 8, xpReward: 260, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        { id: 'solari_world_boss', name: 'High Sunfire Juggernaut', sub: '★ Lv.9 Solari Continent World Boss', type: 'mob', isBoss: true, dropGear: 'sunfire_greatsword', spriteKey: 'solariBoss', x: -950, y: 850, origX: -950, origY: 850, hp: 125, maxHp: 125, damage: 7, xpReward: 260, speed: 39, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        { id: 'aether_world_boss', name: 'Continuum Singularity Paradox', sub: '★ Lv.9 Aether Continent World Boss', type: 'mob', isBoss: true, dropGear: 'chronos_singularity_core', spriteKey: 'aetherBoss', x: 950, y: 850, origX: 950, origY: 850, hp: 118, maxHp: 118, damage: 8, xpReward: 260, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        // 4 Grand World Bosses (Late-Game Torment: 10x Stats)
+        { id: 'terra_world_boss', name: 'Elder Ironwood Colossus', sub: '★ Lv.32 Terra Continent World Boss', type: 'mob', isBoss: true, dropGear: 'ironwood_armor', spriteKey: 'graniteBoss', x: -950, y: -850, origX: -950, origY: -850, hp: 1250, maxHp: 1250, damage: 42, xpReward: 2600, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'umbri_world_boss', name: 'Malakor the Soulreaper', sub: '★ Lv.32 Umbri Continent World Boss', type: 'mob', isBoss: true, dropGear: 'scythe_soulreaper', spriteKey: 'umbriBoss', x: 950, y: -850, origX: 950, origY: -850, hp: 1150, maxHp: 1150, damage: 46, xpReward: 2600, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'solari_world_boss', name: 'High Sunfire Juggernaut', sub: '★ Lv.32 Solari Continent World Boss', type: 'mob', isBoss: true, dropGear: 'sunfire_greatsword', spriteKey: 'solariBoss', x: -950, y: 850, origX: -950, origY: 850, hp: 1250, maxHp: 1250, damage: 44, xpReward: 2600, speed: 39, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
+        { id: 'aether_world_boss', name: 'Continuum Singularity Paradox', sub: '★ Lv.32 Aether Continent World Boss', type: 'mob', isBoss: true, dropGear: 'chronos_singularity_core', spriteKey: 'aetherBoss', x: 950, y: 850, origX: 950, origY: 850, hp: 1180, maxHp: 1180, damage: 48, xpReward: 2600, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         // Strategic Glimmer Nodes across valleys, mountain passes, and wilderness
-        { id: 'node_sanctuary', name: 'Sanctuary Vale Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: 1380, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'node_pass', name: 'Whispering Pass Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: 700, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'node_center_s', name: 'Caldera South Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: 180, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'node_center_n', name: 'Caldera North Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: -180, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'node_ruins', name: 'Forgotten Ruins Keystone Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: -900, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'node_terra', name: 'Terra Blossom Spire', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: -1100, y: -700, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'node_umbri', name: 'Sepulcher Shadow Spire', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 1100, y: -700, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'node_solari', name: 'Dawnfire Solar Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: -1100, y: 700, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'node_aether', name: 'Aether Resonance Crystal', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 1100, y: 700, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        // Whispering Mountain Pass Mobs (Hike north through the crags)
-        { id: 'pass_mob_1', name: 'Granite Ridge Sentinel', sub: 'Lv.4 Mountain Golem', type: 'mob', spriteKey: 'graniteBoss', x: -60, y: 880, origX: -60, origY: 880, hp: 42, maxHp: 42, damage: 4, xpReward: 75, speed: 40, aggroRange: 110, attackRange: 30, radius: 18, hitFlash: 0 },
-        { id: 'pass_mob_2', name: 'Whispering Pass Raider', sub: 'Lv.5 Highland Marauder', type: 'mob', spriteKey: 'voidStalker', x: 70, y: 640, origX: 70, origY: 640, hp: 38, maxHp: 38, damage: 5, xpReward: 80, speed: 52, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'pass_mob_3', name: 'High Crag Behemoth', sub: 'Lv.6 Ridge Colossus', type: 'mob', spriteKey: 'graniteBoss', x: -80, y: 460, origX: -80, origY: 460, hp: 54, maxHp: 54, damage: 6, xpReward: 100, speed: 38, aggroRange: 120, attackRange: 32, radius: 20, hitFlash: 0 },
+        { id: 'node_sanctuary', name: 'Sanctuary Vale Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: 1380, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
+        { id: 'node_pass', name: 'Whispering Pass Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: 700, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
+        { id: 'node_center_s', name: 'Caldera South Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: 180, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
+        { id: 'node_center_n', name: 'Caldera North Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: -180, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
+        { id: 'node_ruins', name: 'Forgotten Ruins Keystone Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: -900, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
+        { id: 'node_terra', name: 'Terra Blossom Spire', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: -1100, y: -700, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
+        { id: 'node_umbri', name: 'Sepulcher Shadow Spire', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 1100, y: -700, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
+        { id: 'node_solari', name: 'Dawnfire Solar Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: -1100, y: 700, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
+        { id: 'node_aether', name: 'Aether Resonance Crystal', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 1100, y: 700, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
+        // Whispering Mountain Pass Mobs (Late-Game Torment: 10x Stats)
+        { id: 'pass_mob_1', name: 'Granite Ridge Sentinel', sub: 'Lv.28 Mountain Golem', type: 'mob', spriteKey: 'graniteBoss', x: -60, y: 880, origX: -60, origY: 880, hp: 420, maxHp: 420, damage: 24, xpReward: 750, speed: 40, aggroRange: 110, attackRange: 30, radius: 18, hitFlash: 0 },
+        { id: 'pass_mob_2', name: 'Whispering Pass Raider', sub: 'Lv.29 Highland Marauder', type: 'mob', spriteKey: 'voidStalker', x: 70, y: 640, origX: 70, origY: 640, hp: 380, maxHp: 380, damage: 26, xpReward: 800, speed: 52, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'pass_mob_3', name: 'High Crag Behemoth', sub: 'Lv.30 Ridge Colossus', type: 'mob', spriteKey: 'graniteBoss', x: -80, y: 460, origX: -80, origY: 460, hp: 540, maxHp: 540, damage: 32, xpReward: 1000, speed: 38, aggroRange: 120, attackRange: 32, radius: 20, hitFlash: 0 },
         // North Forgotten Ruins Plateau (Ancient Megaliths)
-        { id: 'ruin_guard_1', name: 'Ancient Keystone Golem', sub: 'Lv.6 Forgotten Golem', type: 'mob', spriteKey: 'graniteBoss', x: -90, y: -750, origX: -90, origY: -750, hp: 52, maxHp: 52, damage: 6, xpReward: 105, speed: 40, aggroRange: 115, attackRange: 30, radius: 18, hitFlash: 0 },
-        { id: 'ruin_guard_2', name: 'Lost Shard Sentinel', sub: 'Lv.6 Keystone Sentinel', type: 'mob', spriteKey: 'mobSolari', x: 90, y: -750, origX: 90, origY: -750, hp: 50, maxHp: 50, damage: 6, xpReward: 100, speed: 52, aggroRange: 115, attackRange: 30, radius: 16, hitFlash: 0 },
-        { id: 'ruin_boss_field', name: 'The Prismatic Overlord', sub: '★ Lv.9 Megalith World Boss', type: 'mob', isBoss: true, dropGear: 'prismatic_keystone', spriteKey: 'graniteBoss', x: 0, y: -1150, origX: 0, origY: -1150, hp: 130, maxHp: 130, damage: 8, xpReward: 275, speed: 38, aggroRange: 135, attackRange: 34, radius: 24, hitFlash: 0 },
-        // Roaming Mob Packs across the 4 Continents & Central Caldera
-        { id: 'ter_mob_1', name: 'Bramble Treant', sub: 'Lv.5 Terra Guardian', type: 'mob', spriteKey: 'terraWarden', x: -680, y: -520, origX: -680, origY: -520, hp: 44, maxHp: 44, damage: 5, xpReward: 85, speed: 52, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'ter_mob_2', name: 'Ironwood Stonekin', sub: 'Lv.6 Forest Sentinel', type: 'mob', spriteKey: 'terraWarden', x: -1020, y: -480, origX: -1020, origY: -480, hp: 48, maxHp: 48, damage: 5, xpReward: 95, speed: 50, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'umb_mob_1', name: 'Void Stalker Vanguard', sub: 'Lv.5 Umbri Assassin', type: 'mob', spriteKey: 'voidStalker', x: 680, y: -520, origX: 680, origY: -520, hp: 42, maxHp: 42, damage: 6, xpReward: 85, speed: 56, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'umb_mob_2', name: 'Graveglass Phantom', sub: 'Lv.6 Gloom Specter', type: 'mob', spriteKey: 'duskFiend', x: 1020, y: -480, origX: 1020, origY: -480, hp: 46, maxHp: 46, damage: 6, xpReward: 95, speed: 56, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'sol_mob_1', name: 'Sunforged Sentinel', sub: 'Lv.5 Solari Construct', type: 'mob', spriteKey: 'solariSentinel', x: -680, y: 520, origX: -680, origY: 520, hp: 45, maxHp: 45, damage: 5, xpReward: 85, speed: 52, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'sol_mob_2', name: 'Dawnblade Crusader', sub: 'Lv.6 Radiant Paladin', type: 'mob', spriteKey: 'solariSentinel', x: -1020, y: 480, origX: -1020, origY: 480, hp: 48, maxHp: 48, damage: 6, xpReward: 95, speed: 54, aggroRange: 115, attackRange: 30, radius: 15, hitFlash: 0 },
-        { id: 'aeth_mob_1', name: 'Chrono Echo', sub: 'Lv.5 Astral Sentinel', type: 'mob', spriteKey: 'aetherWeaver', x: 680, y: 520, origX: 680, origY: 520, hp: 42, maxHp: 42, damage: 6, xpReward: 85, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'aeth_mob_2', name: 'Continuum Weaver', sub: 'Lv.6 Singularity Mage', type: 'mob', spriteKey: 'aetherWeaver', x: 1020, y: 480, origX: 1020, origY: 480, hp: 46, maxHp: 46, damage: 6, xpReward: 95, speed: 55, aggroRange: 115, attackRange: 30, radius: 15, hitFlash: 0 },
-        { id: 'void_mid_1', name: 'Void Stalker Raider', sub: 'Lv.4 Warzone Invader', type: 'mob', spriteKey: 'voidStalker', x: -140, y: -60, origX: -140, origY: -60, hp: 36, maxHp: 36, damage: 4, xpReward: 70, speed: 52, aggroRange: 112, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'void_mid_2', name: 'Duskblade Marauder', sub: 'Lv.4 Warzone Invader', type: 'mob', spriteKey: 'duskFiend', x: 140, y: -60, origX: 140, origY: -60, hp: 34, maxHp: 34, damage: 4, xpReward: 70, speed: 56, aggroRange: 112, attackRange: 26, radius: 14, hitFlash: 0 }
+        { id: 'ruin_guard_1', name: 'Ancient Keystone Golem', sub: 'Lv.30 Forgotten Golem', type: 'mob', spriteKey: 'graniteBoss', x: -90, y: -750, origX: -90, origY: -750, hp: 520, maxHp: 520, damage: 32, xpReward: 1050, speed: 40, aggroRange: 115, attackRange: 30, radius: 18, hitFlash: 0 },
+        { id: 'ruin_guard_2', name: 'Lost Shard Sentinel', sub: 'Lv.30 Keystone Sentinel', type: 'mob', spriteKey: 'mobSolari', x: 90, y: -750, origX: 90, origY: -750, hp: 500, maxHp: 500, damage: 32, xpReward: 1000, speed: 52, aggroRange: 115, attackRange: 30, radius: 16, hitFlash: 0 },
+        { id: 'ruin_boss_field', name: 'The Prismatic Overlord', sub: '★ Lv.34 Megalith World Boss', type: 'mob', isBoss: true, dropGear: 'prismatic_keystone', spriteKey: 'graniteBoss', x: 0, y: -1150, origX: 0, origY: -1150, hp: 1300, maxHp: 1300, damage: 46, xpReward: 2750, speed: 38, aggroRange: 135, attackRange: 34, radius: 24, hitFlash: 0 },
+        // Roaming Mob Packs across the 4 Continents & Central Caldera (10x Stats)
+        { id: 'ter_mob_1', name: 'Bramble Treant', sub: 'Lv.29 Terra Guardian', type: 'mob', spriteKey: 'terraWarden', x: -680, y: -520, origX: -680, origY: -520, hp: 440, maxHp: 440, damage: 28, xpReward: 850, speed: 52, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'ter_mob_2', name: 'Ironwood Stonekin', sub: 'Lv.30 Forest Sentinel', type: 'mob', spriteKey: 'terraWarden', x: -1020, y: -480, origX: -1020, origY: -480, hp: 480, maxHp: 480, damage: 30, xpReward: 950, speed: 50, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'umb_mob_1', name: 'Void Stalker Vanguard', sub: 'Lv.29 Umbri Assassin', type: 'mob', spriteKey: 'voidStalker', x: 680, y: -520, origX: 680, origY: -520, hp: 420, maxHp: 420, damage: 30, xpReward: 850, speed: 56, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'umb_mob_2', name: 'Graveglass Phantom', sub: 'Lv.30 Gloom Specter', type: 'mob', spriteKey: 'duskFiend', x: 1020, y: -480, origX: 1020, origY: -480, hp: 460, maxHp: 460, damage: 32, xpReward: 950, speed: 56, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'sol_mob_1', name: 'Sunforged Sentinel', sub: 'Lv.29 Solari Construct', type: 'mob', spriteKey: 'solariSentinel', x: -680, y: 520, origX: -680, origY: 520, hp: 450, maxHp: 450, damage: 28, xpReward: 850, speed: 52, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'sol_mob_2', name: 'Dawnblade Crusader', sub: 'Lv.30 Radiant Paladin', type: 'mob', spriteKey: 'solariSentinel', x: -1020, y: 480, origX: -1020, origY: 480, hp: 480, maxHp: 480, damage: 30, xpReward: 950, speed: 54, aggroRange: 115, attackRange: 30, radius: 15, hitFlash: 0 },
+        { id: 'aeth_mob_1', name: 'Chrono Echo', sub: 'Lv.29 Astral Sentinel', type: 'mob', spriteKey: 'aetherWeaver', x: 680, y: 520, origX: 680, origY: 520, hp: 420, maxHp: 420, damage: 30, xpReward: 850, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'aeth_mob_2', name: 'Continuum Weaver', sub: 'Lv.30 Singularity Mage', type: 'mob', spriteKey: 'aetherWeaver', x: 1020, y: 480, origX: 1020, origY: 480, hp: 460, maxHp: 460, damage: 32, xpReward: 950, speed: 55, aggroRange: 115, attackRange: 30, radius: 15, hitFlash: 0 },
+        { id: 'void_mid_1', name: 'Void Stalker Raider', sub: 'Lv.28 Warzone Invader', type: 'mob', spriteKey: 'voidStalker', x: -140, y: -60, origX: -140, origY: -60, hp: 360, maxHp: 360, damage: 24, xpReward: 700, speed: 52, aggroRange: 112, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'void_mid_2', name: 'Duskblade Marauder', sub: 'Lv.28 Warzone Invader', type: 'mob', spriteKey: 'duskFiend', x: 140, y: -60, origX: 140, origY: -60, hp: 340, maxHp: 340, damage: 26, xpReward: 700, speed: 56, aggroRange: 112, attackRange: 26, radius: 14, hitFlash: 0 }
       );
     }
     camera.x = player.x;
@@ -2256,17 +2378,30 @@ export function initGame() {
   // ==========================================
   // Real-Time Authoritative Server Packet Handling
   // ==========================================
+  function getZoneDangerTag() {
+    if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB) {
+      return ` • <span style="color:#4ade80; font-weight:800;">[SANCTUARY]</span>`;
+    }
+    if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
+      return ` • <span style="color:#f97316; font-weight:800;">[TORMENT REALM]</span>`;
+    }
+    if (currentRoomType === ROOM_TYPES.CELESTIAL_ASCENT) {
+      return ` • <span style="color:#facc15; font-weight:800;">[TITAN APEX]</span>`;
+    }
+    if (currentRoomType === ROOM_TYPES.NEXUS_FORGOTTEN_RUINS) {
+      return ` • <span style="color:#38bdf8; font-weight:800;">[FIRST NEXUS]</span>`;
+    }
+    return ` • <span style="color:#a855f7; font-weight:800;">[DUNGEON]</span>`;
+  }
+
   function updateNetStatusPill() {
     const pill = document.getElementById('net-status-pill');
     if (!pill) return;
-    const tCfg = getTormentConfig(prog.tormentLevel || 0);
-    const tormentTag = (prog.tormentLevel && prog.tormentLevel > 0)
-      ? ` • <span style="color:${tCfg.color}; font-weight:800;">[T-${prog.tormentLevel}]</span>`
-      : '';
+    const dangerTag = getZoneDangerTag();
 
     if (isSinglePlayer) {
       pill.innerHTML = `
-        <div class="net-pill-line1" style="color:#38bdf8;">● SINGLE PLAYER • 0ms${tormentTag}</div>
+        <div class="net-pill-line1" style="color:#38bdf8;">● SINGLE PLAYER • 0ms${dangerTag}</div>
         <div class="net-pill-line2">OFFLINE REALM • LOCAL INSTANT</div>
       `;
       return;
@@ -2282,7 +2417,7 @@ export function initGame() {
     const ping = net.pingMs || 1;
     const pingColor = ping < 55 ? '#4ade80' : ping < 130 ? '#facc15' : '#f87171';
     pill.innerHTML = `
-      <div class="net-pill-line1" style="color:${pingColor};">● ONLINE • ${ping}ms${tormentTag}</div>
+      <div class="net-pill-line1" style="color:${pingColor};">● ONLINE • ${ping}ms${dangerTag}</div>
       <div class="net-pill-line2">${roomPop}/${currentRoomMax} IN ZONE • ${onlineTotal} ONLINE</div>
     `;
   }
@@ -2451,6 +2586,12 @@ export function initGame() {
         prev.maxCharges = se.maxCharges;
         prev.frozen = se.frozen;
         prev.inCombat = Boolean(se.inCombat);
+        if (se.isDying && !prev.isDying && (se.type === 'mob' || se.type === 'nexus')) {
+          const distToPlayer = Math.hypot(se.x - player.x, se.y - player.y);
+          if (distToPlayer < 400 || (currentTarget && currentTarget.id === se.id)) {
+            onPlayerKilledMob(currentRoomType, se.name, se.isBoss);
+          }
+        }
         prev.isDying = Boolean(se.isDying);
         prev.deathAge = se.isDying ? Math.max(prev.deathAge || 0, se.deathAge || 0) : 0;
         return prev;
@@ -2691,6 +2832,13 @@ export function initGame() {
           renderStatsModal();
           renderKeybindUI();
           if (typeof renderSkillTreeUI === 'function') renderSkillTreeUI();
+          if (msg.xpGained && msg.reason && !msg.reason.includes('Siege') && !msg.reason.includes('Arena') && !msg.reason.includes('Entered') && !msg.reason.includes('Stasis') && !msg.reason.includes('Node')) {
+            onPlayerKilledMob(currentRoomType, msg.reason, false);
+          }
+          break;
+
+        case 'mob_killed':
+          onPlayerKilledMob(msg.roomType, msg.mobName, msg.isBoss);
           break;
 
         case 'cast_cancel':
@@ -5169,7 +5317,7 @@ export function initGame() {
         const spd = tempoSpeed * sprintBonus;
         const stepDist = spd * dt;
 
-        const GATE_HALF_WIDTH = 48;
+        const GATE_HALF_WIDTH = 72;
         const edgeTransitions = ROOM_CONFIGS[currentRoomType]?.edgeTransitions;
         const canPassEastWest = (edgeTransitions?.east || edgeTransitions?.west) && Math.abs(player.y) <= GATE_HALF_WIDTH;
         const canPassNorthSouth = (edgeTransitions?.north || edgeTransitions?.south) && Math.abs(player.x) <= GATE_HALF_WIDTH;
@@ -5254,7 +5402,7 @@ export function initGame() {
             let nextX = player.x;
             let nextY = player.y;
 
-            const GATE_HALF_WIDTH = 48; // Center boundary road opening
+            const GATE_HALF_WIDTH = 72; // Center boundary road opening
             if (player.x >= mapBounds.halfW - edgePad && cfg.edgeTransitions.east && Math.abs(player.y) <= GATE_HALF_WIDTH) {
               dest = cfg.edgeTransitions.east;
               const nextCfg = ROOM_CONFIGS[dest];
@@ -5901,6 +6049,67 @@ export function initGame() {
       }
     }
 
+    // Active Edge Transition Waygate Threshold Beams
+    const activeCfg = ROOM_CONFIGS[currentRoomType];
+    if (activeCfg && activeCfg.edgeTransitions) {
+      const GATE_HW = 72;
+      const pulse = 0.5 + 0.5 * Math.sin(globalTime * 3.5);
+      ctx.save();
+      if (activeCfg.edgeTransitions.north) {
+        const lineY = Math.round(-mapBounds.halfH - camTop);
+        const x1 = Math.round(-GATE_HW - camLeft);
+        const x2 = Math.round(GATE_HW - camLeft);
+        ctx.strokeStyle = `rgba(56, 189, 248, ${0.45 + 0.35 * pulse})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x1, lineY + 1);
+        ctx.lineTo(x2, lineY + 1);
+        ctx.stroke();
+        ctx.fillStyle = `rgba(56, 189, 248, ${0.12 + 0.1 * pulse})`;
+        ctx.fillRect(x1, lineY + 1, x2 - x1, 14);
+      }
+      if (activeCfg.edgeTransitions.south) {
+        const lineY = Math.round(mapBounds.halfH - camTop);
+        const x1 = Math.round(-GATE_HW - camLeft);
+        const x2 = Math.round(GATE_HW - camLeft);
+        ctx.strokeStyle = `rgba(56, 189, 248, ${0.45 + 0.35 * pulse})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x1, lineY - 1);
+        ctx.lineTo(x2, lineY - 1);
+        ctx.stroke();
+        ctx.fillStyle = `rgba(56, 189, 248, ${0.12 + 0.1 * pulse})`;
+        ctx.fillRect(x1, lineY - 15, x2 - x1, 14);
+      }
+      if (activeCfg.edgeTransitions.east) {
+        const lineX = Math.round(mapBounds.halfW - camLeft);
+        const y1 = Math.round(-GATE_HW - camTop);
+        const y2 = Math.round(GATE_HW - camTop);
+        ctx.strokeStyle = `rgba(56, 189, 248, ${0.45 + 0.35 * pulse})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(lineX - 1, y1);
+        ctx.lineTo(lineX - 1, y2);
+        ctx.stroke();
+        ctx.fillStyle = `rgba(56, 189, 248, ${0.12 + 0.1 * pulse})`;
+        ctx.fillRect(lineX - 15, y1, 14, y2 - y1);
+      }
+      if (activeCfg.edgeTransitions.west) {
+        const lineX = Math.round(-mapBounds.halfW - camLeft);
+        const y1 = Math.round(-GATE_HW - camTop);
+        const y2 = Math.round(GATE_HW - camTop);
+        ctx.strokeStyle = `rgba(56, 189, 248, ${0.45 + 0.35 * pulse})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(lineX + 1, y1);
+        ctx.lineTo(lineX + 1, y2);
+        ctx.stroke();
+        ctx.fillStyle = `rgba(56, 189, 248, ${0.12 + 0.1 * pulse})`;
+        ctx.fillRect(lineX + 1, y1, 14, y2 - y1);
+      }
+      ctx.restore();
+    }
+
     // Order Banner +1 Power Aura Rings
     for (const b of worldBanners) {
       const bx = Math.round(b.x - camLeft);
@@ -6063,6 +6272,27 @@ export function initGame() {
           if (img) {
             drawPixelEllipseShadow(sx, sy, shadowRx, shadowRy);
             ctx.drawImage(img, Math.round(sx - img.width / 2), sy - img.height + 2);
+            if (pr.label) {
+              const dist = Math.hypot(player.x - pr.x, player.y - pr.y);
+              if (dist < 220) {
+                const alpha = Math.min(1, Math.max(0, (220 - dist) / 60));
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.font = '700 11px "Outfit", system-ui, sans-serif';
+                ctx.textAlign = 'center';
+                const tw = Math.ceil(ctx.measureText(pr.label).width);
+                const px = Math.round(sx - (tw + 12) / 2);
+                const py = sy - img.height - 15;
+                ctx.fillStyle = 'rgba(7, 10, 20, 0.92)';
+                ctx.fillRect(px, py, tw + 12, 16);
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(px, py, tw + 12, 16);
+                ctx.fillStyle = '#f0f9ff';
+                ctx.fillText(pr.label, sx, py + 12);
+                ctx.restore();
+              }
+            }
           }
         },
       });
@@ -6582,6 +6812,7 @@ export function initGame() {
   }
 
   function getOpenWorldSubRegion(px, py) {
+    if (py <= -1550 && Math.abs(px) <= 120) return 'RUINS WAYGATE PASS';
     if (py >= 1100) return 'SANCTUARY MEADOW VALE';
     if (py >= 350 && py < 1100) {
       if (Math.abs(px) <= 220) return 'WHISPERING MOUNTAIN PASS';
@@ -6614,7 +6845,7 @@ export function initGame() {
       const sub = getOpenWorldSubRegion(player.x, player.y);
       const zoneTitle = document.getElementById('minimap-zone-title');
       const zoneLabel = document.getElementById('zone-label');
-      if (zoneTitle) zoneTitle.innerText = `OPEN WORLD • ${sub}`;
+      if (zoneTitle) zoneTitle.innerText = `TORMENT REALM • ${sub}`;
       if (zoneLabel) zoneLabel.innerText = sub;
     }
 

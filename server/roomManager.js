@@ -79,6 +79,7 @@ export class RoomManager {
     this.getOrCreatePublicRoom(ROOM_TYPES.UMBRI_SHADOW_LABYRINTH);
     this.getOrCreatePublicRoom(ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY);
     this.getOrCreatePublicRoom(ROOM_TYPES.AETHER_FRACTURED_ARCHIVE);
+    this.getOrCreatePublicRoom(ROOM_TYPES.CELESTIAL_ASCENT);
 
     this.tickInterval = setInterval(() => this.tickAllRooms(), TICK_MS);
   }
@@ -274,10 +275,22 @@ export class RoomManager {
           radius: 15,
           hitFlash: 0,
           dammers: new Set(),
+        },
+        {
+          id: 'sanctuary_keystone_portal',
+          name: 'First Nexus Keystone Waygate',
+          sub: 'To Forgotten Ruins [Click/Walk]',
+          type: 'portal',
+          targetRoom: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
+          spriteKey: 'node',
+          x: 0,
+          y: -90,
+          radius: 20,
+          hitFlash: 0,
         }
       );
     } else if (room.type === ROOM_TYPES.NEXUS_WARZONE) {
-      // 4 Faction 30-HP Outpost Nexuses anchored in the 4 continental quadrants
+      // 4 Faction 300-HP Outpost Nexuses anchored in the 4 continental quadrants (Late-Game Torment)
       const outposts = [
         { id: 'outpost_Terra', faction: 'Terra', name: 'Terra Forest Outpost Nexus', spriteKey: 'nexusGreen', x: -850, y: -650 },
         { id: 'outpost_Umbri', faction: 'Umbri', name: 'Umbri Shadow Outpost Nexus', spriteKey: 'nexusPurple', x: 850, y: -650 },
@@ -288,7 +301,7 @@ export class RoomManager {
         room.entities.push({
           id: op.id,
           name: op.name,
-          sub: `30 HP ${op.faction} Outpost Nexus`,
+          sub: `300 HP ${op.faction} Outpost Nexus [Torment]`,
           type: 'outpost_nexus',
           faction: op.faction,
           spriteKey: op.spriteKey,
@@ -296,20 +309,20 @@ export class RoomManager {
           y: op.y,
           origX: op.x,
           origY: op.y,
-          hp: 30,
-          maxHp: 30,
-          xpReward: 200,
+          hp: 300,
+          maxHp: 300,
+          xpReward: 1200,
           radius: 24,
           hitFlash: 0,
           dammers: new Set(),
         });
       }
 
-      // Central Caldera: Shattered Nexus Shard
+      // Central Caldera: Shattered Nexus Shard (Torment Core)
       room.entities.push({
         id: 'siege_shard',
         name: 'Shattered Nexus Shard',
-        sub: '⚡ Continental Nexus Core (PvPvE)',
+        sub: '⚡ Continental Nexus Core (Torment PvPvE)',
         type: 'siege_shard',
         isBoss: true,
         spriteKey: 'siegeShard',
@@ -317,39 +330,38 @@ export class RoomManager {
         y: 0,
         origX: 0,
         origY: 0,
-        hp: 85,
-        maxHp: 85,
-        xpReward: 250,
+        hp: 850,
+        maxHp: 850,
+        xpReward: 2500,
         radius: 24,
         hitFlash: 0,
         dammers: new Set(),
       });
 
-      // Peaceful South Sanctuary Vale Target Dummy
+      // Vanguard Colossus Training Post
       room.entities.push({
         id: 'val_dummy',
-          name: 'Vale Training Dummy',
-          sub: 'Lv.1 Target Post',
-          type: 'dummy',
-          spriteKey: 'dummy',
-          x: 60,
-          y: 1440,
-          origX: 60,
-          origY: 1440,
-          hp: 40,
-          maxHp: 40,
-          xpReward: 30,
-          radius: 14,
-          hitFlash: 0,
-        }
-      );
+        name: 'Vanguard Colossus Post',
+        sub: 'Lv.30 Torment Target Post',
+        type: 'dummy',
+        spriteKey: 'dummy',
+        x: 60,
+        y: 1440,
+        origX: 60,
+        origY: 1440,
+        hp: 600,
+        maxHp: 600,
+        xpReward: 200,
+        radius: 16,
+        hitFlash: 0,
+      });
 
-      // 4 Grand Regional World Bosses across the Open World Continent
+      // 4 Grand Regional World Bosses across the Open World Continent (Late-Game Torment)
       room.entities.push(
         {
           id: 'terra_world_boss',
           name: 'Elder Ironwood Colossus',
-          sub: '★ Lv.9 Terra Continent World Boss',
+          sub: '★ Lv.32 Terra Continent World Boss',
           type: 'mob',
           isBoss: true,
           dropGear: 'ironwood_armor',
@@ -358,10 +370,10 @@ export class RoomManager {
           y: -850,
           origX: -950,
           origY: -850,
-          hp: 125,
-          maxHp: 125,
-          damage: 7,
-          xpReward: 260,
+          hp: 1250,
+          maxHp: 1250,
+          damage: 42,
+          xpReward: 2600,
           speed: 38,
           aggroRange: 135,
           attackRange: 34,
@@ -372,7 +384,7 @@ export class RoomManager {
         {
           id: 'umbri_world_boss',
           name: 'Malakor the Soulreaper',
-          sub: '★ Lv.9 Umbri Continent World Boss',
+          sub: '★ Lv.32 Umbri Continent World Boss',
           type: 'mob',
           isBoss: true,
           dropGear: 'scythe_soulreaper',
@@ -381,10 +393,10 @@ export class RoomManager {
           y: -850,
           origX: 950,
           origY: -850,
-          hp: 115,
-          maxHp: 115,
-          damage: 8,
-          xpReward: 260,
+          hp: 1150,
+          maxHp: 1150,
+          damage: 46,
+          xpReward: 2600,
           speed: 42,
           aggroRange: 135,
           attackRange: 34,
@@ -395,7 +407,7 @@ export class RoomManager {
         {
           id: 'solari_world_boss',
           name: 'High Sunfire Juggernaut',
-          sub: '★ Lv.9 Solari Continent World Boss',
+          sub: '★ Lv.32 Solari Continent World Boss',
           type: 'mob',
           isBoss: true,
           dropGear: 'sunfire_greatsword',
@@ -404,10 +416,10 @@ export class RoomManager {
           y: 850,
           origX: -950,
           origY: 850,
-          hp: 125,
-          maxHp: 125,
-          damage: 7,
-          xpReward: 260,
+          hp: 1250,
+          maxHp: 1250,
+          damage: 44,
+          xpReward: 2600,
           speed: 39,
           aggroRange: 135,
           attackRange: 34,
@@ -418,7 +430,7 @@ export class RoomManager {
         {
           id: 'aether_world_boss',
           name: 'Continuum Singularity Paradox',
-          sub: '★ Lv.9 Aether Continent World Boss',
+          sub: '★ Lv.32 Aether Continent World Boss',
           type: 'mob',
           isBoss: true,
           dropGear: 'chronos_singularity_core',
@@ -427,10 +439,10 @@ export class RoomManager {
           y: 850,
           origX: 950,
           origY: 850,
-          hp: 118,
-          maxHp: 118,
-          damage: 8,
-          xpReward: 260,
+          hp: 1180,
+          maxHp: 1180,
+          damage: 48,
+          xpReward: 2600,
           speed: 42,
           aggroRange: 135,
           attackRange: 34,
@@ -461,8 +473,8 @@ export class RoomManager {
           spriteKey: 'node',
           x: nd.x,
           y: nd.y,
-          charges: 3,
-          maxCharges: 3,
+          charges: 5,
+          maxCharges: 5,
           rechargeTimer: 0,
           radius: 15,
           hitFlash: 0,
@@ -495,36 +507,36 @@ export class RoomManager {
         });
       }
 
-      // Roaming Mob Packs across the Mountains, Ruins, Wilderness, and Caldera
+      // Roaming Mob Packs across the Mountains, Ruins, Wilderness, and Caldera (10x Late-Game Scaling)
       const openWorldMobs = [
         // Whispering Mountain Pass Mobs (Hike north through the crags)
-        { id: 'pass_mob_1', name: 'Granite Ridge Sentinel', sub: 'Lv.4 Mountain Golem', spriteKey: 'graniteBoss', x: -60, y: 880, hp: 42, maxHp: 42, damage: 4, xpReward: 75, speed: 40, aggroRange: 110, attackRange: 30, radius: 18 },
-        { id: 'pass_mob_2', name: 'Whispering Pass Raider', sub: 'Lv.5 Highland Marauder', spriteKey: 'voidStalker', x: 70, y: 640, hp: 38, maxHp: 38, damage: 5, xpReward: 80, speed: 52, aggroRange: 115, attackRange: 28, radius: 15 },
-        { id: 'pass_mob_3', name: 'High Crag Behemoth', sub: 'Lv.6 Ridge Colossus', spriteKey: 'graniteBoss', x: -80, y: 460, hp: 54, maxHp: 54, damage: 6, xpReward: 100, speed: 38, aggroRange: 120, attackRange: 32, radius: 20 },
+        { id: 'pass_mob_1', name: 'Granite Ridge Sentinel', sub: 'Lv.28 Mountain Golem', spriteKey: 'graniteBoss', x: -60, y: 880, hp: 420, maxHp: 420, damage: 24, xpReward: 750, speed: 40, aggroRange: 110, attackRange: 30, radius: 18 },
+        { id: 'pass_mob_2', name: 'Whispering Pass Raider', sub: 'Lv.29 Highland Marauder', spriteKey: 'voidStalker', x: 70, y: 640, hp: 380, maxHp: 380, damage: 26, xpReward: 800, speed: 52, aggroRange: 115, attackRange: 28, radius: 15 },
+        { id: 'pass_mob_3', name: 'High Crag Behemoth', sub: 'Lv.30 Ridge Colossus', spriteKey: 'graniteBoss', x: -80, y: 460, hp: 540, maxHp: 540, damage: 32, xpReward: 1000, speed: 38, aggroRange: 120, attackRange: 32, radius: 20 },
         // North Forgotten Ruins Plateau (Ancient Megaliths)
-        { id: 'ruin_guard_1', name: 'Ancient Keystone Golem', sub: 'Lv.6 Forgotten Golem', spriteKey: 'graniteBoss', x: -90, y: -750, hp: 52, maxHp: 52, damage: 6, xpReward: 105, speed: 40, aggroRange: 115, attackRange: 30, radius: 18 },
-        { id: 'ruin_guard_2', name: 'Lost Shard Sentinel', sub: 'Lv.6 Keystone Sentinel', spriteKey: 'mobSolari', x: 90, y: -750, hp: 50, maxHp: 50, damage: 6, xpReward: 100, speed: 52, aggroRange: 115, attackRange: 30, radius: 16 },
-        { id: 'ruin_boss_field', name: 'The Prismatic Overlord', sub: '★ Lv.9 Megalith World Boss', isBoss: true, dropGear: 'prismatic_keystone', spriteKey: 'graniteBoss', x: 0, y: -1150, hp: 130, maxHp: 130, damage: 8, xpReward: 275, speed: 38, aggroRange: 135, attackRange: 34, radius: 24 },
+        { id: 'ruin_guard_1', name: 'Ancient Keystone Golem', sub: 'Lv.30 Forgotten Golem', spriteKey: 'graniteBoss', x: -90, y: -750, hp: 520, maxHp: 520, damage: 32, xpReward: 1050, speed: 40, aggroRange: 115, attackRange: 30, radius: 18 },
+        { id: 'ruin_guard_2', name: 'Lost Shard Sentinel', sub: 'Lv.30 Keystone Sentinel', spriteKey: 'mobSolari', x: 90, y: -750, hp: 500, maxHp: 500, damage: 32, xpReward: 1000, speed: 52, aggroRange: 115, attackRange: 30, radius: 16 },
+        { id: 'ruin_boss_field', name: 'The Prismatic Overlord', sub: '★ Lv.34 Megalith World Boss', isBoss: true, dropGear: 'prismatic_keystone', spriteKey: 'graniteBoss', x: 0, y: -1150, hp: 1300, maxHp: 1300, damage: 46, xpReward: 2750, speed: 38, aggroRange: 135, attackRange: 34, radius: 24 },
         // Terra Ironwood Wilds (NW)
-        { id: 'ter_mob_1', name: 'Bramble Treant', sub: 'Lv.5 Terra Guardian', spriteKey: 'terraWarden', x: -680, y: -520, hp: 44, maxHp: 44, damage: 5, xpReward: 85, speed: 52, aggroRange: 115, attackRange: 28, radius: 16 },
-        { id: 'ter_mob_2', name: 'Ironwood Stonekin', sub: 'Lv.6 Forest Sentinel', spriteKey: 'terraWarden', x: -1020, y: -480, hp: 48, maxHp: 48, damage: 5, xpReward: 95, speed: 50, aggroRange: 115, attackRange: 28, radius: 16 },
-        { id: 'ter_mob_3', name: 'Rootdeep Vanguard', sub: 'Lv.6 Ancient Ironbark', spriteKey: 'graniteBoss', x: -780, y: -880, hp: 52, maxHp: 52, damage: 6, xpReward: 105, speed: 40, aggroRange: 120, attackRange: 32, radius: 20 },
+        { id: 'ter_mob_1', name: 'Bramble Treant', sub: 'Lv.29 Terra Guardian', spriteKey: 'terraWarden', x: -680, y: -520, hp: 440, maxHp: 440, damage: 28, xpReward: 850, speed: 52, aggroRange: 115, attackRange: 28, radius: 16 },
+        { id: 'ter_mob_2', name: 'Ironwood Stonekin', sub: 'Lv.30 Forest Sentinel', spriteKey: 'terraWarden', x: -1020, y: -480, hp: 480, maxHp: 480, damage: 30, xpReward: 950, speed: 50, aggroRange: 115, attackRange: 28, radius: 16 },
+        { id: 'ter_mob_3', name: 'Rootdeep Vanguard', sub: 'Lv.31 Ancient Ironbark', spriteKey: 'graniteBoss', x: -780, y: -880, hp: 520, maxHp: 520, damage: 32, xpReward: 1050, speed: 40, aggroRange: 120, attackRange: 32, radius: 20 },
         // Umbri Shadow Fens (NE)
-        { id: 'umb_mob_1', name: 'Void Stalker Vanguard', sub: 'Lv.5 Umbri Assassin', spriteKey: 'voidStalker', x: 680, y: -520, hp: 42, maxHp: 42, damage: 6, xpReward: 85, speed: 56, aggroRange: 115, attackRange: 28, radius: 15 },
-        { id: 'umb_mob_2', name: 'Graveglass Phantom', sub: 'Lv.6 Gloom Specter', spriteKey: 'duskFiend', x: 1020, y: -480, hp: 46, maxHp: 46, damage: 6, xpReward: 95, speed: 56, aggroRange: 115, attackRange: 28, radius: 15 },
-        { id: 'umb_mob_3', name: 'Sepulcher Reaver', sub: 'Lv.6 Shadow Knight', spriteKey: 'voidStalker', x: 780, y: -880, hp: 50, maxHp: 50, damage: 6, xpReward: 105, speed: 54, aggroRange: 120, attackRange: 30, radius: 16 },
+        { id: 'umb_mob_1', name: 'Void Stalker Vanguard', sub: 'Lv.29 Umbri Assassin', spriteKey: 'voidStalker', x: 680, y: -520, hp: 420, maxHp: 420, damage: 30, xpReward: 850, speed: 56, aggroRange: 115, attackRange: 28, radius: 15 },
+        { id: 'umb_mob_2', name: 'Graveglass Phantom', sub: 'Lv.30 Gloom Specter', spriteKey: 'duskFiend', x: 1020, y: -480, hp: 460, maxHp: 460, damage: 32, xpReward: 950, speed: 56, aggroRange: 115, attackRange: 28, radius: 15 },
+        { id: 'umb_mob_3', name: 'Sepulcher Reaver', sub: 'Lv.31 Shadow Knight', spriteKey: 'voidStalker', x: 780, y: -880, hp: 500, maxHp: 500, damage: 34, xpReward: 1050, speed: 54, aggroRange: 120, attackRange: 30, radius: 16 },
         // Solari Sun-Canyon (SW)
-        { id: 'sol_mob_1', name: 'Sunforged Sentinel', sub: 'Lv.5 Solari Construct', spriteKey: 'solariSentinel', x: -680, y: 520, hp: 45, maxHp: 45, damage: 5, xpReward: 85, speed: 52, aggroRange: 115, attackRange: 28, radius: 15 },
-        { id: 'sol_mob_2', name: 'Dawnblade Crusader', sub: 'Lv.6 Radiant Paladin', spriteKey: 'solariSentinel', x: -1020, y: 480, hp: 48, maxHp: 48, damage: 6, xpReward: 95, speed: 54, aggroRange: 115, attackRange: 30, radius: 15 },
-        { id: 'sol_mob_3', name: 'Sunfire Automaton', sub: 'Lv.6 Citadel Colossus', spriteKey: 'solariSentinel', x: -780, y: 880, hp: 52, maxHp: 52, damage: 6, xpReward: 105, speed: 48, aggroRange: 120, attackRange: 30, radius: 16 },
+        { id: 'sol_mob_1', name: 'Sunforged Sentinel', sub: 'Lv.29 Solari Construct', spriteKey: 'solariSentinel', x: -680, y: 520, hp: 450, maxHp: 450, damage: 28, xpReward: 850, speed: 52, aggroRange: 115, attackRange: 28, radius: 15 },
+        { id: 'sol_mob_2', name: 'Dawnblade Crusader', sub: 'Lv.30 Radiant Paladin', spriteKey: 'solariSentinel', x: -1020, y: 480, hp: 480, maxHp: 480, damage: 30, xpReward: 950, speed: 54, aggroRange: 115, attackRange: 30, radius: 15 },
+        { id: 'sol_mob_3', name: 'Sunfire Automaton', sub: 'Lv.31 Citadel Colossus', spriteKey: 'solariSentinel', x: -780, y: 880, hp: 520, maxHp: 520, damage: 32, xpReward: 1050, speed: 48, aggroRange: 120, attackRange: 30, radius: 16 },
         // Aether Astral Plateau (SE)
-        { id: 'aeth_mob_1', name: 'Chrono Echo', sub: 'Lv.5 Astral Sentinel', spriteKey: 'aetherWeaver', x: 680, y: 520, hp: 42, maxHp: 42, damage: 6, xpReward: 85, speed: 54, aggroRange: 115, attackRange: 28, radius: 15 },
-        { id: 'aeth_mob_2', name: 'Continuum Weaver', sub: 'Lv.6 Singularity Mage', spriteKey: 'aetherWeaver', x: 1020, y: 480, hp: 46, maxHp: 46, damage: 6, xpReward: 95, speed: 55, aggroRange: 115, attackRange: 30, radius: 15 },
-        { id: 'aeth_mob_3', name: 'Fractured Paradox', sub: 'Lv.6 Time Archon', spriteKey: 'aetherWeaver', x: 780, y: 880, hp: 50, maxHp: 50, damage: 7, xpReward: 105, speed: 52, aggroRange: 120, attackRange: 30, radius: 16 },
+        { id: 'aeth_mob_1', name: 'Chrono Echo', sub: 'Lv.29 Astral Sentinel', spriteKey: 'aetherWeaver', x: 680, y: 520, hp: 420, maxHp: 420, damage: 30, xpReward: 850, speed: 54, aggroRange: 115, attackRange: 28, radius: 15 },
+        { id: 'aeth_mob_2', name: 'Continuum Weaver', sub: 'Lv.30 Singularity Mage', spriteKey: 'aetherWeaver', x: 1020, y: 480, hp: 460, maxHp: 460, damage: 32, xpReward: 950, speed: 55, aggroRange: 115, attackRange: 30, radius: 15 },
+        { id: 'aeth_mob_3', name: 'Fractured Paradox', sub: 'Lv.31 Time Archon', spriteKey: 'aetherWeaver', x: 780, y: 880, hp: 500, maxHp: 500, damage: 36, xpReward: 1050, speed: 52, aggroRange: 120, attackRange: 30, radius: 16 },
         // Central Caldera Skirmishers
-        { id: 'void_mid_1', name: 'Void Stalker Raider', sub: 'Lv.4 Warzone Invader', spriteKey: 'voidStalker', x: -140, y: -60, hp: 36, maxHp: 36, damage: 4, xpReward: 70, speed: 52, aggroRange: 112, attackRange: 28, radius: 15 },
-        { id: 'void_mid_2', name: 'Duskblade Marauder', sub: 'Lv.4 Warzone Invader', spriteKey: 'duskFiend', x: 140, y: -60, hp: 34, maxHp: 34, damage: 4, xpReward: 70, speed: 56, aggroRange: 112, attackRange: 26, radius: 14 },
-        { id: 'void_mid_3', name: 'Warzone Scavenger', sub: 'Lv.5 Chaos Entity', spriteKey: 'graniteBoss', x: 0, y: -130, hp: 46, maxHp: 46, damage: 5, xpReward: 85, speed: 40, aggroRange: 115, attackRange: 30, radius: 18 },
+        { id: 'void_mid_1', name: 'Void Stalker Raider', sub: 'Lv.28 Warzone Invader', spriteKey: 'voidStalker', x: -140, y: -60, hp: 360, maxHp: 360, damage: 24, xpReward: 700, speed: 52, aggroRange: 112, attackRange: 28, radius: 15 },
+        { id: 'void_mid_2', name: 'Duskblade Marauder', sub: 'Lv.28 Warzone Invader', spriteKey: 'duskFiend', x: 140, y: -60, hp: 340, maxHp: 340, damage: 26, xpReward: 700, speed: 56, aggroRange: 112, attackRange: 26, radius: 14 },
+        { id: 'void_mid_3', name: 'Warzone Scavenger', sub: 'Lv.29 Chaos Entity', spriteKey: 'graniteBoss', x: 0, y: -130, hp: 460, maxHp: 460, damage: 30, xpReward: 850, speed: 40, aggroRange: 115, attackRange: 30, radius: 18 },
       ];
       for (const m of openWorldMobs) {
         room.entities.push({
@@ -548,7 +560,8 @@ export class RoomManager {
       room.type === ROOM_TYPES.SOLARI_SUNKEN_VAULT ||
       room.type === ROOM_TYPES.UMBRI_SHADOW_LABYRINTH ||
       room.type === ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY ||
-      room.type === ROOM_TYPES.AETHER_FRACTURED_ARCHIVE
+      room.type === ROOM_TYPES.AETHER_FRACTURED_ARCHIVE ||
+      room.type === ROOM_TYPES.CELESTIAL_ASCENT
     ) {
       this.populateSubZoneDungeon(room);
     } else if (room.type === ROOM_TYPES.ARENA_3V3) {
@@ -1382,6 +1395,179 @@ export class RoomManager {
           dammers: new Set(),
         }
       );
+    } else if (room.type === ROOM_TYPES.CELESTIAL_ASCENT) {
+      room.entities.push(
+        {
+          id: 'celestial_font_1',
+          name: 'Font of the Morning Star',
+          sub: 'Empyrean Glimmer Spire [E]',
+          type: 'node',
+          spriteKey: 'node',
+          x: -120,
+          y: 600,
+          charges: 6,
+          maxCharges: 6,
+          rechargeTimer: 0,
+          radius: 18,
+          hitFlash: 0,
+        },
+        {
+          id: 'celestial_font_2',
+          name: 'Shrine of Empyrean Resonance',
+          sub: 'Ancient Leyline Shrine [E]',
+          type: 'node',
+          spriteKey: 'node',
+          x: 120,
+          y: 600,
+          charges: 6,
+          maxCharges: 6,
+          rechargeTimer: 0,
+          radius: 18,
+          hitFlash: 0,
+        },
+        {
+          id: 'celestial_font_summit',
+          name: 'Apex Keystone Font',
+          sub: 'Titan Glimmer Core [E]',
+          type: 'node',
+          spriteKey: 'node',
+          x: 0,
+          y: -450,
+          charges: 8,
+          maxCharges: 8,
+          rechargeTimer: 0,
+          radius: 18,
+          hitFlash: 0,
+        },
+        {
+          id: 'celestial_mob_1',
+          name: 'Empyrean Star-Knight',
+          sub: 'Lv.28 Celestial Construct',
+          type: 'mob',
+          spriteKey: 'solariSentinel',
+          x: -90,
+          y: 450,
+          origX: -90,
+          origY: 450,
+          hp: 280,
+          maxHp: 280,
+          damage: 16,
+          xpReward: 320,
+          speed: 48,
+          aggroRange: 120,
+          attackRange: 30,
+          radius: 16,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          id: 'celestial_mob_2',
+          name: 'Empyrean Star-Knight',
+          sub: 'Lv.28 Celestial Construct',
+          type: 'mob',
+          spriteKey: 'solariSentinel',
+          x: 90,
+          y: 450,
+          origX: 90,
+          origY: 450,
+          hp: 280,
+          maxHp: 280,
+          damage: 16,
+          xpReward: 320,
+          speed: 48,
+          aggroRange: 120,
+          attackRange: 30,
+          radius: 16,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          id: 'celestial_mob_3',
+          name: 'Astral Chrono-Seraph',
+          sub: 'Lv.30 Celestial Seraph',
+          type: 'mob',
+          spriteKey: 'aetherWeaver',
+          x: -120,
+          y: 100,
+          origX: -120,
+          origY: 100,
+          hp: 260,
+          maxHp: 260,
+          damage: 18,
+          xpReward: 360,
+          speed: 54,
+          aggroRange: 130,
+          attackRange: 36,
+          radius: 16,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          id: 'celestial_mob_4',
+          name: 'Astral Chrono-Seraph',
+          sub: 'Lv.30 Celestial Seraph',
+          type: 'mob',
+          spriteKey: 'aetherWeaver',
+          x: 120,
+          y: 100,
+          origX: 120,
+          origY: 100,
+          hp: 260,
+          maxHp: 260,
+          damage: 18,
+          xpReward: 360,
+          speed: 54,
+          aggroRange: 130,
+          attackRange: 36,
+          radius: 16,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          id: 'celestial_mob_5',
+          name: 'Void Annihilator',
+          sub: 'Lv.32 Apex Infiltrator',
+          type: 'mob',
+          spriteKey: 'mobUmbri',
+          x: 0,
+          y: -250,
+          origX: 0,
+          origY: -250,
+          hp: 420,
+          maxHp: 420,
+          damage: 22,
+          xpReward: 480,
+          speed: 50,
+          aggroRange: 140,
+          attackRange: 32,
+          radius: 18,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          id: 'celestial_titan_boss',
+          name: 'Aurelius the Empyrean Sovereign',
+          sub: '★ Lv.35 Ancient Titan of the Nexus',
+          type: 'mob',
+          isBoss: true,
+          dropGear: 'crown_of_dawn',
+          spriteKey: 'celestialTitanBoss',
+          x: 0,
+          y: -750,
+          origX: 0,
+          origY: -750,
+          hp: 3200,
+          maxHp: 3200,
+          damage: 32,
+          xpReward: 1600,
+          speed: 46,
+          aggroRange: 180,
+          attackRange: 42,
+          radius: 28,
+          hitFlash: 0,
+          dammers: new Set(),
+        }
+      );
     }
   }
 
@@ -1942,7 +2128,7 @@ export class RoomManager {
         const ny = Number(msg.y);
         if (!Number.isFinite(nx) || !Number.isFinite(ny)) return;
 
-        const GATE_HALF_WIDTH = 48;
+        const GATE_HALF_WIDTH = 72;
         const canPassEastWest = (room.edgeTransitions?.east || room.edgeTransitions?.west) && Math.abs(ny) <= GATE_HALF_WIDTH;
         const canPassNorthSouth = (room.edgeTransitions?.north || room.edgeTransitions?.south) && Math.abs(nx) <= GATE_HALF_WIDTH;
         const padX = canPassEastWest ? 4 : 14;
@@ -3453,6 +3639,13 @@ export class RoomManager {
             recipients.size > 1 ? `${ent.name} • +25% Co-op` : ent.name,
             { addKills: 1 }
           );
+          p.send({
+            type: 'mob_killed',
+            mobId: ent.id,
+            mobName: ent.name,
+            roomType: room.type,
+            isBoss: Boolean(ent.isBoss),
+          });
           if (ent.isBoss && ent.dropGear && EQUIPMENT_CATALOG[ent.dropGear]) {
             p.send({
               type: 'sys_msg',
@@ -3954,7 +4147,7 @@ export class RoomManager {
         // Seamless Boundary Transitions across the expanded 48x48 perimeter (Center Border Crossing)
         if (room.edgeTransitions) {
           const pad = 14;
-          const GATE_HALF_WIDTH = 48; // Center road opening
+          const GATE_HALF_WIDTH = 72; // Center road opening
           if (p.x >= room.halfW - pad && room.edgeTransitions.east && Math.abs(p.y) <= GATE_HALF_WIDTH) {
             p.portalCooldown = 1.0;
             const dest = room.edgeTransitions.east;

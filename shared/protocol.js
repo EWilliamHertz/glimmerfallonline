@@ -23,6 +23,7 @@ export const ROOM_TYPES = {
   UMBRI_SHADOW_LABYRINTH: 'umbri_shadow_labyrinth',
   TERRA_OVERGROWTH_SANCTUARY: 'terra_overgrowth_sanctuary',
   AETHER_FRACTURED_ARCHIVE: 'aether_fractured_archive',
+  CELESTIAL_ASCENT: 'celestial_ascent',
 };
 
 export const ROOM_CONFIGS = {
@@ -41,7 +42,7 @@ export const ROOM_CONFIGS = {
     spawnX: 0,
     spawnY: 96,
     edgeTransitions: {
-      north: ROOM_TYPES.NEXUS_WARZONE,
+      north: ROOM_TYPES.AETHER_SPIRE,
       south: ROOM_TYPES.TERRA_ORCHARD,
       east: ROOM_TYPES.UMBRI_UNDERCITY,
       west: ROOM_TYPES.SOLARI_CITADEL,
@@ -49,8 +50,8 @@ export const ROOM_CONFIGS = {
   },
   [ROOM_TYPES.NEXUS_WARZONE]: {
     type: ROOM_TYPES.NEXUS_WARZONE,
-    title: 'THE NEXUS CONTINENT (OPEN WORLD REALM)',
-    shortTitle: 'OPEN WORLD REALM',
+    title: 'THE NEXUS CALDERA (TORMENT REALM • LV. 30+)',
+    shortTitle: 'TORMENT CALDERA',
     biomeTheme: 'warzone',
     bgm: 'warzone',
     maxPlayers: 60,
@@ -60,11 +61,10 @@ export const ROOM_CONFIGS = {
     halfH: 1800,
     pvp: true,
     spawnX: 0,
-    spawnY: 1450,
+    spawnY: 1740,
     edgeTransitions: {
-      south: ROOM_TYPES.SANCTUARY_HUB,
-      north: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
-      east: ROOM_TYPES.AETHER_SPIRE,
+      south: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
+      north: ROOM_TYPES.CELESTIAL_ASCENT,
       west: ROOM_TYPES.ARENA_3V3,
     },
   },
@@ -140,7 +140,7 @@ export const ROOM_CONFIGS = {
     spawnX: 0,
     spawnY: 110,
     edgeTransitions: {
-      west: ROOM_TYPES.NEXUS_WARZONE,
+      south: ROOM_TYPES.SANCTUARY_HUB,
       north: ROOM_TYPES.AETHER_FRACTURED_ARCHIVE,
     },
   },
@@ -176,6 +176,25 @@ export const ROOM_CONFIGS = {
     pvp: false,
     spawnX: 0,
     spawnY: 110,
+    edgeTransitions: {
+      south: ROOM_TYPES.SANCTUARY_HUB,
+      north: ROOM_TYPES.NEXUS_WARZONE,
+    },
+  },
+  [ROOM_TYPES.CELESTIAL_ASCENT]: {
+    type: ROOM_TYPES.CELESTIAL_ASCENT,
+    title: 'CELESTIAL ASCENT & EMPYREAN TITAN SUMMIT (LV. 35+)',
+    shortTitle: 'APEX TITAN SUMMIT',
+    biomeTheme: 'celestial',
+    bgm: 'boss',
+    maxPlayers: 40,
+    width: 140,
+    height: 140,
+    halfW: 1120,
+    halfH: 1120,
+    pvp: true,
+    spawnX: 0,
+    spawnY: 1040,
     edgeTransitions: {
       south: ROOM_TYPES.NEXUS_WARZONE,
     },

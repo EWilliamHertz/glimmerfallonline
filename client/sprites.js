@@ -579,6 +579,56 @@ export function buildSpriteSheet() {
     sprites.tiles[`bridge_wood_${v}`] = c;
   }
 
+  // Celestial Empyrean Summit Tiles (Opalescent Starlight Marble & Gold Inlays)
+  for (let v = 0; v < 4; v++) {
+    const { c, ctx } = makeCanvas(16, 16);
+    rect(ctx, 0, 0, 16, 16, '#0f172a');
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const r = hash2d(x, y, 310 + v);
+        if (r < 0.28) px(ctx, x, y, '#1e293b');
+        else if (r < 0.55) px(ctx, x, y, '#334155');
+        else if (r > 0.88) px(ctx, x, y, '#e2e8f0');
+      }
+    }
+    // Luminous cosmic veining & starlight
+    rect(ctx, 0, 0, 16, 1, '#1e293b');
+    rect(ctx, 0, 0, 1, 16, '#1e293b');
+    if (v === 0) {
+      rect(ctx, 6, 6, 4, 4, '#38bdf8');
+      px(ctx, 7, 7, '#ffffff');
+      px(ctx, 8, 8, '#facc15');
+    } else if (v === 1) {
+      px(ctx, 3, 3, '#facc15');
+      px(ctx, 12, 12, '#38bdf8');
+      rect(ctx, 5, 8, 6, 1, '#6366f1');
+    } else if (v === 2) {
+      rect(ctx, 2, 2, 12, 12, '#1e1b4b');
+      rect(ctx, 4, 4, 8, 8, '#312e81');
+      px(ctx, 7, 7, '#fef08a');
+      px(ctx, 8, 8, '#ffffff');
+    } else {
+      px(ctx, 4, 11, '#38bdf8');
+      px(ctx, 11, 4, '#facc15');
+      rect(ctx, 7, 7, 2, 2, '#818cf8');
+    }
+    sprites.tiles[`celestial_${v}`] = c;
+  }
+
+  for (let v = 0; v < 2; v++) {
+    const { c, ctx } = makeCanvas(16, 16);
+    rect(ctx, 0, 0, 16, 16, '#1e293b');
+    rect(ctx, 1, 1, 14, 14, '#334155');
+    rect(ctx, 2, 2, 12, 12, '#f8fafc');
+    rect(ctx, 4, 4, 8, 8, '#facc15');
+    rect(ctx, 6, 6, 4, 4, '#ffffff');
+    if (v === 1) {
+      px(ctx, 7, 7, '#38bdf8');
+      px(ctx, 8, 8, '#38bdf8');
+    }
+    sprites.tiles[`celestial_road_${v}`] = c;
+  }
+
   // ==========================================
   // 2. WORLD PROPS (Gentle Warm Brazier & Pillar)
   // ==========================================
@@ -1613,14 +1663,17 @@ export function buildSpriteSheet() {
   sprites.bossSolari = buildColossusBoss('#92400e', '#facc15', '#fb923c', '#38bdf8');  // Sunfire Colossus
   sprites.bossUmbri = buildColossusBoss('#3b0764', '#9333ea', '#f43f5e', '#fde047');   // Crypt Lord Malakor
   sprites.bossAether = buildColossusBoss('#1e3a8a', '#38bdf8', '#c084fc', '#ffffff');  // Rift Titan
+  sprites.celestialTitanBoss = buildColossusBoss('#1e1b4b', '#facc15', '#ffffff', '#38bdf8'); // Empyrean Sovereign
 
   // Seamless Aliases for Mobs & Bosses (Both offline and server authoritative names)
   sprites.solariSentinel = sprites.mobSolari;
   sprites.terraWarden = sprites.mobTerra;
   sprites.aetherWeaver = sprites.mobAether;
+  sprites.celestialKnight = sprites.solariSentinel;
   sprites.solariBoss = sprites.bossSolari;
   sprites.umbriBoss = sprites.bossUmbri;
   sprites.aetherBoss = sprites.bossAether;
+  sprites.celestialArbiterNpc = sprites.aetherChronosNpc || sprites.heraldNpc;
 
   return sprites;
 }
