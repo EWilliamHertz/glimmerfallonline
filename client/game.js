@@ -7484,7 +7484,13 @@ export function initGame() {
     }
 
     if (frontpage.isOpen) {
-      if (e.key === 'Escape' && introShown) frontpage.close();
+      if (e.key === 'Escape') {
+        if (frontpage.state === 'CHARACTER_CREATE') {
+          frontpage.transitionTo('CHARACTER_SELECT');
+        } else if (introShown) {
+          frontpage.close();
+        }
+      }
       return;
     }
 

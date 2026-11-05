@@ -616,11 +616,22 @@ export class AccountsStore {
     // Update existing character if characterId passed
     if (characterId && cmap.has(characterId)) {
       const ch = cmap.get(characterId);
+      // When selecting an existing character without editing, preserve character immutability
+      if (!name && !classId && !faction && !loadout && !equipment) {
+        acc.activeCharacterId = ch.id;
+        if (homeBiome) ch.homeBiome = homeBiome;
+        this.syncAccountFromActiveChar(acc);
+        this.schedulePersist(acc.id, ch.id);
+        return ch;
+      }
+
       if (name) ch.name = sanitizeName(name, ch.name);
-      ch.faction = norm.faction;
-      ch.classId = norm.classId;
-      if (orderTag !== undefined) ch.orderTag = sanitizeOrderTag(orderTag) || preset.tag;
-      if (orderName !== undefined) ch.orderName = sanitizeName(orderName, preset.name);
+      if (faction && classId) {
+        ch.faction = norm.faction;
+        ch.classId = norm.classId;
+      }
+      if (orderTag !== undefined && orderTag !== null) ch.orderTag = sanitizeOrderTag(orderTag) || preset.tag;
+      if (orderName !== undefined && orderName !== null) ch.orderName = sanitizeName(orderName, preset.name);
       if (orderColor) ch.orderColor = orderColor;
       if (loadout) ch.loadout = normalizeLoadout(loadout, norm.classId);
       if (equipment) ch.equipment = normalizeEquipment(equipment, norm.classId);
