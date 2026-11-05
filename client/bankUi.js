@@ -53,8 +53,23 @@ export function getBankItems(profile) {
 export function saveBank(profile, bankItems) {
   if (!profile) return;
   profile.bank = bankItems;
-  if (typeof window !== 'undefined' && typeof window.saveProgressionLocal === 'function') {
-    window.saveProgressionLocal();
+  if (typeof window !== 'undefined') {
+    try {
+      const cacheKey = 'glimmerfall_bank_cache_' + (profile.id || 'default');
+      localStorage.setItem(cacheKey, JSON.stringify(bankItems));
+      localStorage.setItem('glimmerfall_bank_latest', JSON.stringify(bankItems));
+    } catch (_) {}
+    if (typeof window.saveProgressionLocal === 'function') {
+      window.saveProgressionLocal();
+    }
+    if (window.net?.connected) {
+      window.net.send({
+        type: 'sync_bank',
+        bank: bankItems,
+        inventory: profile.inventory || [],
+        equipment: profile.equipment || {},
+      });
+    }
   }
 }
 
@@ -85,8 +100,8 @@ export function depositInventoryItemToBank(profile, invIndex, qty = 'all') {
 
   const bank = getBankItems(profile);
 
-  // If stackable item, search existing bank slot
-  let existing = itemDef.stackable ? bank.find((b) => (typeof b === 'string' ? b : b.id) === itemId) : null;
+  // Search existing bank slot (all items stack in bank)
+  let existing = bank.find((b) => (typeof b === 'string' ? b : b.id) === itemId);
   if (existing) {
     if (typeof existing === 'string') {
       const bIdx = bank.indexOf(existing);
@@ -135,7 +150,7 @@ export function depositAllInventoryToBank(profile) {
     const inBagQty = typeof itemObj === 'object' && itemObj.qty ? itemObj.qty : 1;
     const bank = getBankItems(profile);
 
-    let existing = itemDef.stackable ? bank.find((b) => (typeof b === 'string' ? b : b.id) === itemId) : null;
+    let existing = bank.find((b) => (typeof b === 'string' ? b : b.id) === itemId);
     if (existing) {
       if (typeof existing === 'string') {
         const bIdx = bank.indexOf(existing);
@@ -173,7 +188,7 @@ export function depositWornGearToBank(profile) {
     if (bank.length >= MAX_BANK_CAPACITY) break;
 
     const itemDef = EQUIPMENT_CATALOG[itemId];
-    let existing = itemDef.stackable ? bank.find((b) => (typeof b === 'string' ? b : b.id) === itemId) : null;
+    let existing = bank.find((b) => (typeof b === 'string' ? b : b.id) === itemId);
     if (existing) {
       existing.qty = (existing.qty || 1) + 1;
     } else {
@@ -210,8 +225,8 @@ export function withdrawBankItemToInventory(profile, bankIndex, qty = 1) {
   const inBankQty = typeof bankObj === 'object' && bankObj.qty ? bankObj.qty : 1;
   const withdrawQty = qty === 'all' ? inBankQty : Math.min(inBankQty, Number(qty) || 1);
 
-  // Check if backpack can accept it
-  let existingInBag = itemDef.stackable ? inv.find((it) => (typeof it === 'string' ? it : it.id) === itemId) : null;
+  // Check if backpack can accept it (stack into existing slot if present)
+  let existingInBag = inv.find((it) => (typeof it === 'string' ? it : it.id) === itemId);
   if (!existingInBag && inv.length >= 28) {
     safeFCT('🎒 BACKPACK IS FULL (28/28)!', '#ef4444');
     return;

@@ -1271,6 +1271,11 @@ export const EQUIPMENT_CATALOG = {
   },
 };
 
+// Ensure all items across GlimmerFall Online are canonical stackable items (up to 99,999)
+for (const item of Object.values(EQUIPMENT_CATALOG)) {
+  item.stackable = true;
+}
+
 export const CANONICAL_SETS = {
   sunforged_daystar: {
     id: 'sunforged_daystar',

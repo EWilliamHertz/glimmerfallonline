@@ -379,13 +379,26 @@ export function initGame() {
     orderName: 'Order of Dawn',
     orderColor: '#facc15',
     statsMeta: { kills: 0, arenaWins: 0 },
-    bank: [],
+    bank: (() => {
+      try {
+        const raw = localStorage.getItem('glimmerfall_bank_latest');
+        return raw ? JSON.parse(raw) : [];
+      } catch (_) {
+        return [];
+      }
+    })(),
   };
   window.localProfile = localProfile;
 
   function saveProgressionLocal() {
     try {
       localStorage.setItem('glimmerfall_prog_v2', JSON.stringify(prog));
+      if (localProfile?.bank) {
+        localStorage.setItem('glimmerfall_bank_latest', JSON.stringify(localProfile.bank));
+        if (localProfile.id) {
+          localStorage.setItem(`glimmerfall_bank_cache_${localProfile.id}`, JSON.stringify(localProfile.bank));
+        }
+      }
       if (isSinglePlayer && localProfile?.id) {
         const raw = localStorage.getItem('glimmerfall_sp_roster_v2');
         const roster = raw ? JSON.parse(raw) : [];
@@ -2430,6 +2443,33 @@ export function initGame() {
   function applyProfile(prof) {
     if (!prof) return;
     const cls = CLASSES_CATALOG[prof.classId || localProfile.classId] || CLASSES_CATALOG.solari_vanguard;
+    const pId = prof.id || localProfile.id || 'default';
+    let resolvedBank = Array.isArray(prof.bank) ? [...prof.bank] : (localProfile.bank || []);
+    if ((!resolvedBank || resolvedBank.length === 0) && typeof localStorage !== 'undefined') {
+      try {
+        const cached = localStorage.getItem(`glimmerfall_bank_cache_${pId}`) || localStorage.getItem('glimmerfall_bank_latest');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            resolvedBank = parsed;
+            if (window.net?.connected) {
+              window.net.send({
+                type: 'sync_bank',
+                bank: resolvedBank,
+                inventory: Array.isArray(prof.inventory) ? prof.inventory : (localProfile.inventory || []),
+                equipment: prof.equipment || localProfile.equipment || {},
+              });
+            }
+          }
+        }
+      } catch (_) {}
+    } else if (resolvedBank && resolvedBank.length > 0 && typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(`glimmerfall_bank_cache_${pId}`, JSON.stringify(resolvedBank));
+        localStorage.setItem('glimmerfall_bank_latest', JSON.stringify(resolvedBank));
+      } catch (_) {}
+    }
+
     localProfile = {
       ...localProfile,
       ...prof,
@@ -2437,7 +2477,7 @@ export function initGame() {
       loadout: { ...cls.defaultLoadout, ...(prof.loadout || localProfile.loadout || {}) },
       equipment: { ...cls.defaultEquipment, ...(prof.equipment || localProfile.equipment || {}) },
       inventory: Array.isArray(prof.inventory) ? prof.inventory : (localProfile.inventory || []),
-      bank: Array.isArray(prof.bank) ? prof.bank : (localProfile.bank || []),
+      bank: resolvedBank,
     };
     window.localProfile = localProfile;
     if (prof.progression) {
@@ -2687,9 +2727,28 @@ export function initGame() {
     if (targetSlot === 'shield') currentEquip.offhand = item.id;
 
     if (oldId && oldId !== item.id) {
-      inv[idx] = { id: oldId, qty: 1 };
+      if (typeof itemObj === 'object' && itemObj.qty > 1) {
+        itemObj.qty--;
+        const existingOld = inv.find((it) => (typeof it === 'string' ? it : it?.id) === oldId);
+        if (existingOld) {
+          if (typeof existingOld === 'string') {
+            const oIdx = inv.indexOf(existingOld);
+            inv[oIdx] = { id: oldId, qty: 2 };
+          } else {
+            existingOld.qty = (existingOld.qty || 1) + 1;
+          }
+        } else {
+          inv.push({ id: oldId, qty: 1 });
+        }
+      } else {
+        inv[idx] = { id: oldId, qty: 1 };
+      }
     } else {
-      inv.splice(idx, 1);
+      if (typeof itemObj === 'object' && itemObj.qty > 1) {
+        itemObj.qty--;
+      } else {
+        inv.splice(idx, 1);
+      }
     }
     localProfile.equipment = currentEquip;
     localProfile.inventory = inv;
@@ -2707,14 +2766,16 @@ export function initGame() {
 
   window.unequipSlot = function (slotKey) {
     const inv = localProfile.inventory || [];
-    if (inv.length >= 28) {
+    const currentEquip = { ...(localProfile.equipment || {}) };
+    const itemId = currentEquip[slotKey] || (slotKey === 'body' ? currentEquip.armor : slotKey === 'shield' ? currentEquip.offhand : null);
+    if (!itemId) return;
+
+    const existingInBag = inv.find((it) => (typeof it === 'string' ? it : it?.id) === itemId);
+    if (!existingInBag && inv.length >= 28) {
       spawnFCT(player.x, player.y - 14, '🎒 BACKPACK IS FULL (28/28)!', '#ef4444');
       audio.playHurt();
       return;
     }
-    const currentEquip = { ...(localProfile.equipment || {}) };
-    const itemId = currentEquip[slotKey] || (slotKey === 'body' ? currentEquip.armor : slotKey === 'shield' ? currentEquip.offhand : null);
-    if (!itemId) return;
 
     if (net.connected) {
       net.send({ type: 'unequip_item', slotKey });
@@ -2726,7 +2787,16 @@ export function initGame() {
     if (slotKey === 'shield') delete currentEquip.offhand;
     if (slotKey === 'offhand') delete currentEquip.shield;
 
-    inv.push({ id: itemId, qty: 1 });
+    if (existingInBag) {
+      if (typeof existingInBag === 'string') {
+        const eIdx = inv.indexOf(existingInBag);
+        inv[eIdx] = { id: itemId, qty: 2 };
+      } else {
+        existingInBag.qty = (existingInBag.qty || 1) + 1;
+      }
+    } else {
+      inv.push({ id: itemId, qty: 1 });
+    }
     localProfile.equipment = currentEquip;
     localProfile.inventory = inv;
     saveProgressionLocal();
@@ -5033,6 +5103,7 @@ export function initGame() {
     },
   });
   net.onPing = () => updateNetStatusPill();
+  window.net = net;
 
   // ==========================================
   // Game Frontpage Controller (Character Select, Faction, Class & Loadout)
@@ -5381,7 +5452,7 @@ export function initGame() {
         const itemDef = EQUIPMENT_CATALOG[l.itemId];
         if (itemDef) {
           const inv = localProfile.inventory || [];
-          const existing = itemDef.stackable ? inv.find((it) => (typeof it === 'string' ? it : it.id) === l.itemId) : null;
+          const existing = inv.find((it) => (typeof it === 'string' ? it : it.id) === l.itemId);
 
           if (existing) {
             lootDrops.splice(i, 1);

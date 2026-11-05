@@ -122,6 +122,8 @@ export async function initDatabaseSchema() {
   await db.query(`
     ALTER TABLE glimmerfall_accounts ADD COLUMN IF NOT EXISTS inventory JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE glimmerfall_characters ADD COLUMN IF NOT EXISTS inventory JSONB NOT NULL DEFAULT '[]'::jsonb;
+    ALTER TABLE glimmerfall_accounts ADD COLUMN IF NOT EXISTS bank JSONB NOT NULL DEFAULT '[]'::jsonb;
+    ALTER TABLE glimmerfall_characters ADD COLUMN IF NOT EXISTS bank JSONB NOT NULL DEFAULT '[]'::jsonb;
   `);
 
   await db.query(`

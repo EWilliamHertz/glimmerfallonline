@@ -592,22 +592,18 @@ export function addPlayerGold(profile, amount) {
 
 export function addItemToBackpack(profile, itemId, qty = 1) {
   if (!profile.inventory) profile.inventory = [];
-  const def = EQUIPMENT_CATALOG[itemId];
-  if (def?.stackable) {
-    const existing = profile.inventory.find((it) => (typeof it === 'object' ? it.id : it) === itemId);
-    if (existing && typeof existing === 'object') {
+  const existing = profile.inventory.find((it) => (typeof it === 'object' ? it.id : it) === itemId);
+  if (existing) {
+    if (typeof existing === 'string') {
+      const idx = profile.inventory.indexOf(existing);
+      profile.inventory[idx] = { id: itemId, qty: 1 + qty };
+    } else {
       existing.qty = (existing.qty || 1) + qty;
-      return true;
     }
+    return true;
   }
   if (profile.inventory.length >= 28) return false;
-  if (def?.stackable) {
-    profile.inventory.push({ id: itemId, qty });
-  } else {
-    for (let i = 0; i < qty && profile.inventory.length < 28; i++) {
-      profile.inventory.push({ id: itemId, qty: 1 });
-    }
-  }
+  profile.inventory.push({ id: itemId, qty });
   return true;
 }
 

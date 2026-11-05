@@ -133,15 +133,38 @@ export function normalizeInventory(rawInv) {
     for (const item of rawInv) {
       if (!item) continue;
       const itemId = typeof item === 'string' ? item : item.id;
-      if (itemId && EQUIPMENT_CATALOG[itemId]) {
-        out.push(typeof item === 'object' ? { ...item, id: itemId, qty: item.qty || 1 } : { id: itemId, qty: 1 });
-      } else if (itemId) {
-        out.push(typeof item === 'object' ? item : { id: itemId, qty: 1 });
+      if (!itemId) continue;
+      const qty = typeof item === 'object' && item.qty ? Math.max(1, Number(item.qty) || 1) : 1;
+      const existing = out.find((it) => it.id === itemId);
+      if (existing) {
+        existing.qty += qty;
+      } else {
+        out.push({ id: itemId, qty });
       }
       if (out.length >= 28) break;
     }
   }
   return out.slice(0, 28);
+}
+
+export function normalizeBank(rawBank) {
+  const out = [];
+  if (Array.isArray(rawBank)) {
+    for (const item of rawBank) {
+      if (!item) continue;
+      const itemId = typeof item === 'string' ? item : item.id;
+      if (!itemId) continue;
+      const qty = typeof item === 'object' && item.qty ? Math.max(1, Number(item.qty) || 1) : 1;
+      const existing = out.find((it) => it.id === itemId);
+      if (existing) {
+        existing.qty += qty;
+      } else {
+        out.push({ id: itemId, qty });
+      }
+      if (out.length >= 240) break;
+    }
+  }
+  return out.slice(0, 240);
 }
 
 export function getDefaultStarterInventory(classId = 'solari_vanguard') {
@@ -203,6 +226,7 @@ export class AccountsStore {
         loadout: normalizeLoadout(row.loadout, row.class_id),
         equipment: normalizeEquipment(row.equipment, row.class_id),
         inventory: normalizeInventory(row.inventory || getDefaultStarterInventory(row.class_id)),
+        bank: normalizeBank(row.bank || []),
         progression: this.mergeValidProgression(createDefaultProgression(), row.progression),
         statsMeta: row.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
         activeCharacterId: row.active_character_id || null,
@@ -229,6 +253,7 @@ export class AccountsStore {
         loadout: normalizeLoadout(row.loadout, row.class_id),
         equipment: normalizeEquipment(row.equipment, row.class_id),
         inventory: normalizeInventory(row.inventory || getDefaultStarterInventory(row.class_id)),
+        bank: normalizeBank(row.bank || []),
         unlockedGear: Array.isArray(row.unlocked_gear) ? row.unlocked_gear : Object.keys(EQUIPMENT_CATALOG),
         progression: this.mergeValidProgression(createDefaultProgression(), row.progression),
         statsMeta: row.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
@@ -262,6 +287,7 @@ export class AccountsStore {
       loadout: normalizeLoadout(row.loadout, row.class_id),
       equipment: normalizeEquipment(row.equipment, row.class_id),
       inventory: normalizeInventory(row.inventory || getDefaultStarterInventory(row.class_id)),
+      bank: normalizeBank(row.bank || []),
       progression: this.mergeValidProgression(createDefaultProgression(), row.progression),
       statsMeta: row.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
       activeCharacterId: row.active_character_id || null,
@@ -308,6 +334,7 @@ export class AccountsStore {
             loadout: normalizeLoadout(r.loadout, r.class_id),
             equipment: normalizeEquipment(r.equipment, r.class_id),
             inventory: normalizeInventory(r.inventory || getDefaultStarterInventory(r.class_id)),
+            bank: normalizeBank(r.bank || []),
             unlockedGear: Array.isArray(r.unlocked_gear) ? r.unlocked_gear : Object.keys(EQUIPMENT_CATALOG),
             progression: this.mergeValidProgression(createDefaultProgression(), r.progression),
             statsMeta: r.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
@@ -360,9 +387,9 @@ export class AccountsStore {
           id, username, username_lower, display_name, password_hash, is_guest, sso_subject,
           tcg_linked, tcg_handle, tcg_email, tcg_synced_at, faction, class_id,
           order_tag, order_name, order_color, loadout, equipment, progression, stats_meta,
-          active_character_id, created_at, last_login_at, inventory
+          active_character_id, created_at, last_login_at, inventory, bank
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25
         )
         ON CONFLICT (id) DO UPDATE SET
           username = EXCLUDED.username,
@@ -386,7 +413,8 @@ export class AccountsStore {
           stats_meta = EXCLUDED.stats_meta,
           active_character_id = EXCLUDED.active_character_id,
           last_login_at = EXCLUDED.last_login_at,
-          inventory = EXCLUDED.inventory`,
+          inventory = EXCLUDED.inventory,
+          bank = EXCLUDED.bank`,
         [
           a.id, a.username, a.usernameLower, a.displayName, a.passwordHash, a.isGuest, a.ssoSubject,
           a.tcgLinked, a.tcgHandle, a.tcgEmail, a.tcgSyncedAt, a.faction, a.classId,
@@ -399,6 +427,7 @@ export class AccountsStore {
           a.createdAt,
           a.lastLoginAt,
           JSON.stringify(a.inventory || []),
+          JSON.stringify(a.bank || []),
         ]
       );
     }
@@ -415,8 +444,8 @@ export class AccountsStore {
       await this.db.query(
         `INSERT INTO glimmerfall_characters (
           id, account_id, name, faction, class_id, order_tag, order_name, order_color,
-          home_biome, loadout, equipment, unlocked_gear, progression, stats_meta, updated_at, inventory
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW(),$15)
+          home_biome, loadout, equipment, unlocked_gear, progression, stats_meta, updated_at, inventory, bank
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW(),$15,$16)
         ON CONFLICT (id) DO UPDATE SET
           name = EXCLUDED.name,
           faction = EXCLUDED.faction,
@@ -431,6 +460,7 @@ export class AccountsStore {
           progression = EXCLUDED.progression,
           stats_meta = EXCLUDED.stats_meta,
           inventory = EXCLUDED.inventory,
+          bank = EXCLUDED.bank,
           updated_at = NOW()`,
         [
           found.id, found.accountId, found.name, found.faction, found.classId,
@@ -441,6 +471,7 @@ export class AccountsStore {
           JSON.stringify(found.progression || {}),
           JSON.stringify(found.statsMeta || {}),
           JSON.stringify(found.inventory || []),
+          JSON.stringify(found.bank || []),
         ]
       );
     }
@@ -543,6 +574,7 @@ export class AccountsStore {
     acc.loadout = ch.loadout;
     acc.equipment = ch.equipment;
     acc.inventory = ch.inventory;
+    acc.bank = ch.bank;
     acc.progression = ch.progression;
     acc.statsMeta = ch.statsMeta;
   }
@@ -565,6 +597,7 @@ export class AccountsStore {
     loadout,
     equipment,
     inventory,
+    bank,
     homeBiome = ROOM_TYPES.SANCTUARY_HUB,
   }) {
     const acc = this.accountsById.get(accountId);
@@ -592,6 +625,7 @@ export class AccountsStore {
       if (loadout) ch.loadout = normalizeLoadout(loadout, norm.classId);
       if (equipment) ch.equipment = normalizeEquipment(equipment, norm.classId);
       if (inventory) ch.inventory = normalizeInventory(inventory);
+      if (bank) ch.bank = normalizeBank(bank);
       if (homeBiome) ch.homeBiome = homeBiome;
 
       acc.activeCharacterId = ch.id;
@@ -618,6 +652,7 @@ export class AccountsStore {
       loadout: normalizeLoadout(loadout, norm.classId),
       equipment: normalizeEquipment(equipment, norm.classId),
       inventory: normalizeInventory(inventory || getDefaultStarterInventory(norm.classId)),
+      bank: normalizeBank(bank || acc.bank || []),
       unlockedGear: Object.keys(EQUIPMENT_CATALOG),
       progression: createDefaultProgression(),
       statsMeta: { kills: 0, arenaWins: 0, siegeClaims: 0 },
@@ -685,6 +720,7 @@ export class AccountsStore {
       loadout: normalizeLoadout(null, norm.classId),
       equipment: normalizeEquipment(null, norm.classId),
       inventory: getDefaultStarterInventory(norm.classId),
+      bank: [],
       progression: prog,
       statsMeta: { kills: 0, arenaWins: 0, siegeClaims: 0 },
       activeCharacterId: null,
@@ -709,6 +745,7 @@ export class AccountsStore {
     loadout,
     equipment,
     inventory,
+    bank,
     tcgHandle,
     upgradeAccountId = null,
     clientProgression = null,
@@ -742,6 +779,7 @@ export class AccountsStore {
       if (loadout) acc.loadout = normalizeLoadout(loadout, norm.classId);
       if (equipment) acc.equipment = normalizeEquipment(equipment, norm.classId);
       if (inventory) acc.inventory = normalizeInventory(inventory);
+      if (bank) acc.bank = normalizeBank(bank);
       if (tcgHandle) {
         acc.tcgLinked = true;
         acc.tcgHandle = sanitizeName(tcgHandle, cleanUser);
@@ -763,6 +801,7 @@ export class AccountsStore {
         if (loadout) ch.loadout = acc.loadout;
         if (equipment) ch.equipment = acc.equipment;
         if (inventory) ch.inventory = acc.inventory;
+        if (bank) ch.bank = acc.bank;
       }
       this.schedulePersist(acc.id, acc.activeCharacterId);
       return { account: acc, token: this.signToken(acc.id) };
@@ -839,7 +878,7 @@ export class AccountsStore {
     return acc;
   }
 
-  updateProfile(accountId, { displayName, faction, classId, orderTag, orderName, orderColor, loadout, equipment, inventory }) {
+  updateProfile(accountId, { displayName, faction, classId, orderTag, orderName, orderColor, loadout, equipment, inventory, bank }) {
     const acc = this.accountsById.get(accountId);
     if (!acc) throw new Error('Account not found.');
     this.ensureDefaultCharacter(acc);
@@ -861,6 +900,7 @@ export class AccountsStore {
     if (loadout) acc.loadout = normalizeLoadout(loadout, acc.classId);
     if (equipment) acc.equipment = normalizeEquipment(equipment, acc.classId);
     if (inventory) acc.inventory = normalizeInventory(inventory);
+    if (bank) acc.bank = normalizeBank(bank);
 
     if (orderTag !== undefined) {
       const tag = sanitizeOrderTag(orderTag);
@@ -882,6 +922,7 @@ export class AccountsStore {
       ch.loadout = acc.loadout;
       ch.equipment = acc.equipment;
       ch.inventory = acc.inventory;
+      if (bank) ch.bank = acc.bank;
     }
 
     this.schedulePersist(acc.id, ch?.id);
@@ -894,8 +935,7 @@ export class AccountsStore {
     this.ensureDefaultCharacter(acc);
     if (!acc.inventory) acc.inventory = [];
 
-    const itemDef = EQUIPMENT_CATALOG[itemId];
-    const existing = itemDef?.stackable ? acc.inventory.find((i) => (typeof i === 'string' ? i : i.id) === itemId) : null;
+    const existing = acc.inventory.find((i) => (typeof i === 'string' ? i : i.id) === itemId);
     if (existing) {
       if (typeof existing === 'string') {
         const idx = acc.inventory.indexOf(existing);
@@ -914,11 +954,16 @@ export class AccountsStore {
     return true;
   }
 
-  removeItemFromInventory(accountId, slotIndex) {
+  removeItemFromInventory(accountId, slotIndex, qty = 1) {
     const acc = this.accountsById.get(accountId);
     if (!acc || !acc.inventory) return false;
     if (slotIndex < 0 || slotIndex >= acc.inventory.length) return false;
-    acc.inventory.splice(slotIndex, 1);
+    const it = acc.inventory[slotIndex];
+    if (typeof it === 'object' && it.qty > qty) {
+      it.qty -= qty;
+    } else {
+      acc.inventory.splice(slotIndex, 1);
+    }
     const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
     if (ch) ch.inventory = acc.inventory;
     this.schedulePersist(acc.id, ch?.id);
@@ -1021,9 +1066,23 @@ export class AccountsStore {
     if (targetSlot === 'shield') currentEquip.offhand = invItem.id;
 
     if (oldEquippedId && oldEquippedId !== invItem.id) {
-      acc.inventory[slotIndex] = { id: oldEquippedId, qty: 1 };
+      if (invItem.qty > 1) {
+        invItem.qty--;
+        const existingOld = acc.inventory.find((it) => (typeof it === 'string' ? it : it?.id) === oldEquippedId);
+        if (existingOld) {
+          existingOld.qty = (existingOld.qty || 1) + 1;
+        } else {
+          acc.inventory.push({ id: oldEquippedId, qty: 1 });
+        }
+      } else {
+        acc.inventory[slotIndex] = { id: oldEquippedId, qty: 1 };
+      }
     } else {
-      acc.inventory.splice(slotIndex, 1);
+      if (invItem.qty > 1) {
+        invItem.qty--;
+      } else {
+        acc.inventory.splice(slotIndex, 1);
+      }
     }
     acc.equipment = normalizeEquipment(currentEquip, acc.classId);
     const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
@@ -1039,11 +1098,13 @@ export class AccountsStore {
     const acc = this.accountsById.get(accountId);
     if (!acc) return { success: false, reason: 'Account missing' };
     if (!acc.inventory) acc.inventory = [];
-    if (acc.inventory.length >= 28) return { success: false, reason: 'Inventory is full (28/28)' };
 
     const currentEquip = { ...(acc.equipment || {}) };
     const itemId = currentEquip[slotKey] || (slotKey === 'body' ? currentEquip.armor : slotKey === 'shield' ? currentEquip.offhand : null);
     if (!itemId) return { success: false, reason: 'Slot is already empty' };
+
+    const existing = acc.inventory.find((i) => (typeof i === 'string' ? i : i.id) === itemId);
+    if (!existing && acc.inventory.length >= 28) return { success: false, reason: 'Inventory is full (28/28)' };
 
     delete currentEquip[slotKey];
     if (slotKey === 'body') delete currentEquip.armor;
@@ -1051,7 +1112,11 @@ export class AccountsStore {
     if (slotKey === 'shield') delete currentEquip.offhand;
     if (slotKey === 'offhand') delete currentEquip.shield;
 
-    acc.inventory.push({ id: itemId, qty: 1 });
+    if (existing) {
+      existing.qty = (existing.qty || 1) + 1;
+    } else {
+      acc.inventory.push({ id: itemId, qty: 1 });
+    }
     acc.equipment = normalizeEquipment(currentEquip, acc.classId);
     const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
     if (ch) {
@@ -1110,6 +1175,23 @@ export class AccountsStore {
     this.schedulePersist(acc.id, ch?.id);
   }
 
+  syncBankAndInventory(accountId, bank, inventory, equipment = null) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc) return;
+    this.ensureDefaultCharacter(acc);
+    if (Array.isArray(bank)) acc.bank = normalizeBank(bank);
+    if (Array.isArray(inventory)) acc.inventory = normalizeInventory(inventory);
+    if (equipment && typeof equipment === 'object') acc.equipment = normalizeEquipment(equipment, acc.classId);
+
+    const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+    if (ch) {
+      if (Array.isArray(bank)) ch.bank = acc.bank;
+      if (Array.isArray(inventory)) ch.inventory = acc.inventory;
+      if (equipment && typeof equipment === 'object') ch.equipment = acc.equipment;
+    }
+    this.schedulePersist(acc.id, ch?.id);
+  }
+
   toPublicProfile(acc) {
     if (!acc) return null;
     this.ensureDefaultCharacter(acc);
@@ -1129,6 +1211,7 @@ export class AccountsStore {
       loadout: acc.loadout,
       equipment: acc.equipment,
       inventory: acc.inventory || [],
+      bank: acc.bank || [],
       progression: acc.progression,
       statsMeta: acc.statsMeta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
       activeCharacterId: acc.activeCharacterId,

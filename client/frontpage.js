@@ -310,6 +310,13 @@ export class FrontpageController {
           orderTag: this.orderTag,
           equipment: { ...this.equipment },
           loadout: { ...cls.defaultLoadout },
+          inventory: [
+            { id: 'ring_of_the_sun', qty: 1 },
+            { id: 'boots_of_haste', qty: 1 },
+            { id: 'vanguard_gauntlets', qty: 1 },
+            { id: 'amulet_of_glory', qty: 1 },
+          ],
+          bank: [],
           progression: createDefaultProgression(),
           homeBiome: this.startingRealm,
         };
@@ -331,6 +338,8 @@ export class FrontpageController {
         orderName: `Order of ${charObj.faction}`,
         loadout: charObj.loadout,
         equipment: charObj.equipment,
+        inventory: charObj.inventory || [],
+        bank: charObj.bank || [],
         progression: charObj.progression || createDefaultProgression(),
         characters: spRoster,
         activeCharacterId: charObj.id,

@@ -1615,6 +1615,7 @@ export class RoomManager {
       loadout,
       equipment,
       inventory: account.inventory || [],
+      bank: account.bank || [],
       orderTag: account.orderTag || 'SUN',
       orderName: account.orderName || 'Order of Dawn',
       orderColor: account.orderColor || '#facc15',
@@ -1684,6 +1685,7 @@ export class RoomManager {
     client.loadout = acc.loadout || CLASSES_CATALOG[client.classId]?.defaultLoadout || {};
     client.equipment = acc.equipment || CLASSES_CATALOG[client.classId]?.defaultEquipment || {};
     client.inventory = acc.inventory || [];
+    client.bank = acc.bank || [];
     client.orderTag = acc.orderTag;
     client.orderName = acc.orderName;
     client.orderColor = acc.orderColor;
@@ -2320,6 +2322,12 @@ export class RoomManager {
             });
           }
         }
+        break;
+      }
+
+      case 'sync_bank': {
+        this.accounts.syncBankAndInventory(client.id, msg.bank, msg.inventory, msg.equipment);
+        this.refreshClientFromAccount(client.id);
         break;
       }
 
