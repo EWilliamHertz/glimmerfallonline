@@ -107,6 +107,26 @@ export async function handleApiRequest(req, res, { accounts, rooms = null }) {
   };
 
   try {
+    if (pathname === '/api/ping') {
+      if (req.method === 'HEAD') {
+        res.writeHead(200, {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Content-Length': '0',
+          ...CORS_HEADERS,
+        });
+        res.end();
+        return true;
+      }
+      const body = 'pong';
+      res.writeHead(200, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Content-Length': Buffer.byteLength(body),
+        ...CORS_HEADERS,
+      });
+      res.end(body);
+      return true;
+    }
+
     if (pathname === '/api/status' && req.method === 'GET') {
       sendJson(res, 200, {
         ok: true,
@@ -320,12 +340,38 @@ export function createGlimmerFallServer() {
   rooms = new RoomManager({ accountsStore: accounts, partyManager: parties });
 
   const server = http.createServer(async (req, res) => {
+    const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+    const pathname = url.pathname;
+
+    // Lightweight keep-alive endpoint for cron-job.org / monitoring
+    if (pathname === '/ping') {
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204, CORS_HEADERS);
+        res.end();
+        return;
+      }
+      if (req.method === 'HEAD') {
+        res.writeHead(200, {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Content-Length': '0',
+          ...CORS_HEADERS,
+        });
+        res.end();
+        return;
+      }
+      const body = 'pong';
+      res.writeHead(200, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Content-Length': Buffer.byteLength(body),
+        ...CORS_HEADERS,
+      });
+      res.end(body);
+      return;
+    }
+
     await ready;
     const handledApi = await handleApiRequest(req, res, { accounts, rooms });
     if (handledApi) return;
-
-    const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-    const pathname = url.pathname;
 
     // Production static file serving from dist/
     if (fs.existsSync(DIST_DIR)) {
