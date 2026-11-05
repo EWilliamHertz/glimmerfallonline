@@ -933,9 +933,9 @@ export function initGame() {
       const lvlTxt = paragonLeveled ? `PARAGON ${prog.paragonLevel}!` : `LEVEL ${prog.level}!`;
       spawnFCT(player.x, player.y - 12, lvlTxt, paragonLeveled ? '#c084fc' : '#fde047', true);
       if (paragonLeveled) {
-        logMessage(`[PARAGON RESONANCE!] Attained Paragon Level ${prog.paragonLevel}! +1 Paragon Point [C]!`, 'log-solari');
+        logMessage(`[PARAGON RESONANCE!] Attained Paragon Level ${prog.paragonLevel}! +1 Paragon Point!`, 'log-solari');
       } else {
-        logMessage(`[LEVEL UP!] Reached Level ${prog.level}! +3 Stat Pts [C] & +1 Rite Pt [P]!`, 'log-solari');
+        logMessage(`[LEVEL UP!] Reached Level ${prog.level}! +3 Stat Pts & +1 Spell Pt!`, 'log-solari');
       }
       renderStatsModal();
       renderKeybindUI();
@@ -2144,7 +2144,7 @@ export function initGame() {
           saveProgressionLocal();
           if (msg.leveled) {
             audio.playLevelUp();
-            logMessage(`[LEVEL UP!] Reached Level ${prog.level}! +3 Stat Pts [C] & +1 Rite Pt [P]!`, 'log-solari', 'combat');
+            logMessage(`[LEVEL UP!] Reached Level ${prog.level}! +3 Stat Pts & +1 Spell Pt!`, 'log-solari', 'combat');
           } else if (msg.xpGained && msg.reason) {
             logMessage(`[XP] +${msg.xpGained} XP (${msg.reason})`, 'log-gain', 'combat');
           }
