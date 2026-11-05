@@ -502,7 +502,7 @@ export class FrontpageController {
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px;">
             <button class="util-btn ${isSingle ? 'active' : ''}" style="display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 4px; ${isSingle ? 'border-color:#38bdf8; background:#172554; color:#bae6fd;' : 'opacity:0.75;'}" onclick="window._fp.setPlayMode('singleplayer')">
               <span style="font-size:12.5px; font-weight:bold;">🕹️ SINGLE PLAYER</span>
-              <span style="font-size:10px; color:${isSingle ? '#fde047' : '#94a3b8'}; font-weight:600;">0ms • ZERO LAG</span>
+              <span style="font-size:10px; color:${isSingle ? '#fde047' : '#94a3b8'}; font-weight:600;">OFFLINE REALM</span>
             </button>
             <button class="util-btn ${!isSingle ? 'active' : ''}" style="display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 4px; ${!isSingle ? 'border-color:#4ade80; background:#14532d; color:#bbf7d0;' : 'opacity:0.75;'}" onclick="window._fp.setPlayMode('multiplayer')">
               <span style="font-size:12.5px; font-weight:bold;">🌐 MULTIPLAYER</span>

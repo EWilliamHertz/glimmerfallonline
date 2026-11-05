@@ -446,23 +446,62 @@ export function initGame() {
   // ==========================================
   // MMORPG Quest & State Persistence Engine
   // ==========================================
-  let questState = {
-    stasisBroken: false,
-    dummyDamaged: false,
-    nodeHarvested: false,
-    portalTraveled: false,
-    warzoneKills: 0,
-    ruinsKills: 0,
-    calderaKills: 0,
-    titanChallenged: false,
-    ascentReached: false,
-    visitedBiomes: {},
-    activeQuests: {},
-    trackedQuests: {},
-    completedQuests: {},
-    talkedNpcs: {},
-    introShown: false,
-  };
+  const QUEST_VERSION_KEY = 'glimmerfall_quest_version';
+  const CURRENT_QUEST_VERSION = 'gf_quests_v5_wipe';
+
+  function wipeAllStaleQuestData() {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith('glimmerfall_quest_state_') || k === 'glimmerfall_quest_state')) {
+          keysToRemove.push(k);
+        }
+      }
+      for (const k of keysToRemove) localStorage.removeItem(k);
+
+      const spRosterRaw = localStorage.getItem('glimmerfall_sp_roster_v2');
+      if (spRosterRaw) {
+        const roster = JSON.parse(spRosterRaw);
+        if (Array.isArray(roster)) {
+          for (const char of roster) {
+            delete char.questState;
+          }
+          localStorage.setItem('glimmerfall_sp_roster_v2', JSON.stringify(roster));
+        }
+      }
+
+      localStorage.setItem(QUEST_VERSION_KEY, CURRENT_QUEST_VERSION);
+    } catch (_) {}
+  }
+
+  // Auto-wipe stale/stuck quest data across all accounts once
+  if (typeof localStorage !== 'undefined' && localStorage.getItem(QUEST_VERSION_KEY) !== CURRENT_QUEST_VERSION) {
+    wipeAllStaleQuestData();
+  }
+
+  function createDefaultQuestState() {
+    return {
+      stasisBroken: false,
+      dummyDamaged: false,
+      nodeHarvested: false,
+      portalTraveled: false,
+      warzoneKills: 0,
+      ruinsKills: 0,
+      calderaKills: 0,
+      titanChallenged: false,
+      ascentReached: false,
+      visitedBiomes: {},
+      activeQuests: { quest_awakening: { accepted: true } },
+      trackedQuests: { quest_awakening: true },
+      completedQuests: {},
+      talkedNpcs: {},
+      introShown: false,
+    };
+  }
+
+  let questState = createDefaultQuestState();
 
   function getQuestStorageKey() {
     const id = localProfile?.id || (localProfile?.displayName ? `${localProfile.faction}_${localProfile.displayName}` : 'default');
@@ -504,34 +543,19 @@ export function initGame() {
           titanChallenged: Boolean(parsed.titanChallenged),
           ascentReached: Boolean(parsed.ascentReached),
           visitedBiomes: parsed.visitedBiomes || {},
-          activeQuests: parsed.activeQuests || {},
+          activeQuests: parsed.activeQuests && Object.keys(parsed.activeQuests).length > 0 ? parsed.activeQuests : { quest_awakening: { accepted: true } },
           trackedQuests: parsed.trackedQuests || {},
           completedQuests: parsed.completedQuests || {},
           talkedNpcs: parsed.talkedNpcs || {},
           introShown: Boolean(parsed.introShown),
         };
       } else {
-        const isExperienced = (prog.level || 1) >= 2 || (prog.xp || 0) > 0;
-        questState = {
-          stasisBroken: isExperienced,
-          dummyDamaged: isExperienced,
-          nodeHarvested: isExperienced,
-          portalTraveled: isExperienced,
-          warzoneKills: 0,
-          ruinsKills: 0,
-          calderaKills: 0,
-          titanChallenged: false,
-          ascentReached: false,
-          visitedBiomes: {},
-          activeQuests: isExperienced ? { quest_into_the_warzone: { accepted: true } } : {},
-          trackedQuests: isExperienced ? { quest_into_the_warzone: true } : {},
-          completedQuests: isExperienced ? { quest_awakening: true } : {},
-          talkedNpcs: isExperienced ? { npc_aurora: true } : {},
-          introShown: isExperienced,
-        };
+        questState = createDefaultQuestState();
         saveQuestState();
       }
-    } catch (_) {}
+    } catch (_) {
+      questState = createDefaultQuestState();
+    }
 
     // By default, any active quest without explicit false is tracked
     if (!questState.trackedQuests || Object.keys(questState.trackedQuests).length === 0) {
@@ -543,6 +567,81 @@ export function initGame() {
 
     introShown = questState.introShown || Boolean(questState.talkedNpcs?.npc_aurora);
     updateQuestTrackerHUD();
+  }
+
+  window.resetAllQuests = function (askConfirm = false) {
+    if (askConfirm && typeof confirm === 'function' && !confirm('Restart all quests from Awakening? Your character stats, level, and items will be preserved.')) {
+      return;
+    }
+    questState = createDefaultQuestState();
+    saveQuestState();
+    updateQuestTrackerHUD();
+    if (document.getElementById('lore-modal')?.style.display === 'block') {
+      renderLoreModal();
+    }
+    logMessage('📜 [Quest Reset] All quests have been reset to Awakening! Speak with Herald Lyra in Sanctuary Haven.', 'log-quest', 'chat');
+    spawnFCT(player.x, player.y - 14, '↺ ALL QUESTS RESET!', '#facc15', true);
+    if (audio && audio.playChime) audio.playChime();
+  };
+
+  const recentKillKeys = new Set();
+  function onPlayerKilledMob(roomType, mobName, isBoss, mobId = null) {
+    const dedupeKey = mobId ? String(mobId) : `${roomType}_${mobName}_${Math.floor(Date.now() / 1200)}`;
+    if (recentKillKeys.has(dedupeKey)) return;
+    recentKillKeys.add(dedupeKey);
+    setTimeout(() => recentKillKeys.delete(dedupeKey), 8000);
+
+    let changed = false;
+
+    // 1. Commander Valerius's Void Invaders Quest:
+    // Any hostile mob killed outside Sanctuary Haven (or explicitly void-aligned) counts towards warzoneKills!
+    if (roomType !== ROOM_TYPES.SANCTUARY_HUB || (mobName && (mobName.includes('Void') || mobName.includes('Fiend') || mobName.includes('Stalker')))) {
+      questState.warzoneKills = (questState.warzoneKills || 0) + 1;
+      changed = true;
+      if (questState.warzoneKills === 3 && questState.activeQuests?.quest_void_banish) {
+        logMessage('📜 [Quest Objective] Void threats banished (3/3)! Return to Commander Valerius!', 'log-quest', 'chat');
+        spawnFCT(player.x, player.y - 14, '✨ OBJECTIVE COMPLETE (3/3)!', '#facc15', true);
+        if (audio && audio.playChime) audio.playChime();
+      }
+    }
+
+    // 2. Atlas's Forgotten Ruins Quest:
+    if (roomType === ROOM_TYPES.NEXUS_FORGOTTEN_RUINS || (mobName && (mobName.includes('Ruin') || mobName.includes('Ancient') || mobName.includes('Horror')))) {
+      questState.ruinsKills = (questState.ruinsKills || 0) + 1;
+      changed = true;
+      if (questState.ruinsKills === 2 && questState.activeQuests?.quest_first_nexus) {
+        logMessage('📜 [Quest Objective] Ruin horrors banished (2/2)! Return to Atlas!', 'log-quest', 'chat');
+        spawnFCT(player.x, player.y - 14, '✨ OBJECTIVE COMPLETE (2/2)!', '#facc15', true);
+        if (audio && audio.playChime) audio.playChime();
+      }
+    }
+
+    // 3. Caldera Torment Realm Quest:
+    if (roomType === ROOM_TYPES.NEXUS_WARZONE || (mobName && mobName.includes('Torment'))) {
+      questState.calderaKills = (questState.calderaKills || 0) + 1;
+      changed = true;
+      if (questState.calderaKills === 1 && questState.activeQuests?.quest_caldera_siege) {
+        logMessage('📜 [Quest Objective] Torment Caldera foe vanquished (1/1)! Return to Commander Valerius!', 'log-quest', 'chat');
+        spawnFCT(player.x, player.y - 14, '✨ OBJECTIVE COMPLETE (1/1)!', '#facc15', true);
+        if (audio && audio.playChime) audio.playChime();
+      }
+    }
+
+    // 4. Titan Summit:
+    if (roomType === ROOM_TYPES.CELESTIAL_ASCENT || isBoss || (mobName && mobName.includes('Aurelius'))) {
+      if (!questState.titanChallenged) {
+        questState.titanChallenged = true;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      saveQuestState();
+      updateQuestTrackerHUD();
+      if (document.getElementById('lore-modal')?.style.display === 'block') {
+        renderLoreModal();
+      }
+    }
   }
 
   // Backward compatibility proxy for any direct references to 'quests'
@@ -1913,6 +2012,9 @@ export function initGame() {
           </span>
         </div>
         <div style="display:flex; gap:6px;">
+          <button class="id-mini-btn" onclick="resetAllQuests(true)" title="Restart all quests from Awakening" style="font-size:9.5px; padding:3px 8px; border-color:#f59e0b; color:#fbbf24;">
+            ↺ RESTART QUESTS
+          </button>
           <button class="id-mini-btn" onclick="setAllQuestTracking(true)" title="Pin all active quests to HUD" style="font-size:9.5px; padding:3px 8px;">
             👁️ PIN ALL TO HUD
           </button>
@@ -3992,7 +4094,7 @@ export function initGame() {
           triggerEntityDeathEffect(se.x, se.y, se.isBoss);
           const distToPlayer = Math.hypot(se.x - player.x, se.y - player.y);
           if (distToPlayer < 400 || (currentTarget && currentTarget.id === se.id)) {
-            onPlayerKilledMob(currentRoomType, se.name, se.isBoss);
+            onPlayerKilledMob(currentRoomType, se.name, se.isBoss, se.id);
           }
         }
         prev.isDying = Boolean(se.isDying);
@@ -4238,13 +4340,10 @@ export function initGame() {
           renderStatsModal();
           renderKeybindUI();
           if (typeof renderSkillTreeUI === 'function') renderSkillTreeUI();
-          if (msg.xpGained && msg.reason && !msg.reason.includes('Siege') && !msg.reason.includes('Arena') && !msg.reason.includes('Entered') && !msg.reason.includes('Stasis') && !msg.reason.includes('Node')) {
-            onPlayerKilledMob(currentRoomType, msg.reason, false);
-          }
           break;
 
         case 'mob_killed': {
-          onPlayerKilledMob(msg.roomType, msg.mobName, msg.isBoss);
+          onPlayerKilledMob(msg.roomType, msg.mobName, msg.isBoss, msg.mobId);
           const deadEnt = entities.find((e) => e.name === msg.mobName);
           if (deadEnt) {
             triggerEntityDeathEffect(deadEnt.x, deadEnt.y, msg.isBoss);
@@ -4764,23 +4863,7 @@ export function initGame() {
     }
     if (ent.type === 'mob') {
       spawnOfflineLoot(ent);
-      if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
-        questState.warzoneKills = (questState.warzoneKills || 0) + 1;
-        saveQuestState();
-        updateQuestTrackerHUD();
-        if (questState.warzoneKills === 3) {
-          logMessage('📜 [Quest Objective] Void threats banished! Return to Commander Valerius!', 'log-quest');
-          spawnFCT(player.x, player.y - 14, '✨ OBJECTIVE COMPLETE!', '#facc15', true);
-        }
-      } else if (currentRoomType === ROOM_TYPES.NEXUS_FORGOTTEN_RUINS) {
-        questState.ruinsKills = (questState.ruinsKills || 0) + 1;
-        saveQuestState();
-        updateQuestTrackerHUD();
-        if (questState.ruinsKills === 2) {
-          logMessage('📜 [Quest Objective] Ruin horrors banished! Return to Atlas!', 'log-quest');
-          spawnFCT(player.x, player.y - 14, '✨ OBJECTIVE COMPLETE!', '#facc15', true);
-        }
-      }
+      onPlayerKilledMob(currentRoomType, ent.name, ent.isBoss, ent.id);
     }
 
     const deathRoom = currentRoomType;
@@ -7130,8 +7213,11 @@ export function initGame() {
                 }
               }
 
-              // Phase 3: Enrage & Area Shockwaves at 25% HP
-              if (hpPercent <= 25 && e.phase === 2) {
+              // Phase 3: Enrage & Area Shockwaves at 25% HP (Shattered Nexus cannot enrage)
+              const isNexusShard = e.type === 'siege_shard' || e.id === 'siege_shard' || (e.name && e.name.includes('Nexus'));
+              if (isNexusShard) {
+                e.enraged = false;
+              } else if (hpPercent <= 25 && e.phase === 2) {
                 e.phase = 3;
                 e.enraged = true;
                 e.baseDamage = e.baseDamage || e.damage || 7;
@@ -8002,7 +8088,8 @@ export function initGame() {
           if (!img) return;
           drawPixelEllipseShadow(sx, sy, Math.round(img.width * 0.36), 4);
 
-          const isEnraged = Boolean(ent.enraged || ((ent.hp / (ent.maxHp || 1)) <= 0.35));
+          const isNexusShard = ent.type === 'siege_shard' || ent.id === 'siege_shard' || (ent.name && ent.name.includes('Nexus'));
+          const isEnraged = !isNexusShard && Boolean(ent.enraged || ((ent.hp / (ent.maxHp || 1)) <= 0.35));
           if (ent.isBoss && isEnraged && !ent.isDying) {
             ctx.save();
             ctx.strokeStyle = 'rgba(239, 68, 68, 0.75)';

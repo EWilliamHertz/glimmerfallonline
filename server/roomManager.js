@@ -4466,8 +4466,11 @@ export class RoomManager {
               }
             }
 
-            // Phase 3: Enrage & Area Shockwaves at 25% HP
-            if (hpPercent <= 25 && e.phase === 2) {
+            // Phase 3: Enrage & Area Shockwaves at 25% HP (Shattered Nexus cannot enrage)
+            const isNexusShard = e.type === 'siege_shard' || e.id === 'siege_shard' || (e.name && e.name.includes('Nexus'));
+            if (isNexusShard) {
+              e.enraged = false;
+            } else if (hpPercent <= 25 && e.phase === 2) {
               e.phase = 3;
               e.enraged = true;
               e.baseDamage = e.baseDamage || e.damage || 7;
