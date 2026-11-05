@@ -1595,26 +1595,46 @@ export function initGame() {
   };
 
   // ==========================================
-  // Particles
+  // Particles & Visual FX
   // ==========================================
-  function spawnSmokeBurst(wx, wy, count = 28) {
-    const palette = ['#3b0764', '#581c87', '#7e22ce', '#a855f7', '#475569', '#e9d5ff'];
-    for (let i = 0; i < count; i++) {
+  const SMOKE_PURPLE_PALETTE = [
+    { color: '#581c87', darkColor: '#1e0836', highlightColor: '#a855f7' },
+    { color: '#7e22ce', darkColor: '#2e1065', highlightColor: '#c084fc' },
+    { color: '#9333ea', darkColor: '#3b0764', highlightColor: '#d8b4fe' },
+    { color: '#a855f7', darkColor: '#3b0764', highlightColor: '#e9d5ff' },
+    { color: '#3b0764', darkColor: '#18022e', highlightColor: '#7e22ce' },
+    { color: '#c084fc', darkColor: '#4c1d95', highlightColor: '#f3e8ff' },
+  ];
+
+  function spawnSmokeBurst(wx, wy, count = 32, isBoss = false) {
+    const total = isBoss ? Math.max(count, 56) : count;
+    for (let i = 0; i < total; i++) {
       const ang = Math.random() * Math.PI * 2;
-      const spd = 8 + Math.random() * 28;
+      const spd = (isBoss ? 14 : 9) + Math.random() * (isBoss ? 42 : 28);
+      const pTheme = SMOKE_PURPLE_PALETTE[(Math.random() * SMOKE_PURPLE_PALETTE.length) | 0];
+      const baseSize = (isBoss ? 5 : 4) + Math.random() * (isBoss ? 5.5 : 4.0);
       particles.push({
-        x: wx + (Math.random() - 0.5) * 14,
-        y: wy + (Math.random() - 0.5) * 10,
-        z: 4 + Math.random() * 10,
+        type: 'smoke',
+        x: wx + (Math.random() - 0.5) * (isBoss ? 26 : 14),
+        y: wy + (Math.random() - 0.5) * (isBoss ? 18 : 10),
+        z: 4 + Math.random() * 12,
         vx: Math.cos(ang) * spd,
-        vy: Math.sin(ang) * spd * 0.5,
-        vz: 18 + Math.random() * 26,
-        size: Math.random() < 0.45 ? 4 : 3,
-        color: palette[(Math.random() * palette.length) | 0],
+        vy: Math.sin(ang) * spd * 0.45,
+        vz: 18 + Math.random() * (isBoss ? 36 : 26),
+        baseSize,
+        size: baseSize,
+        color: pTheme.color,
+        darkColor: pTheme.darkColor,
+        highlightColor: pTheme.highlightColor,
         age: 0,
-        maxAge: 0.55 + Math.random() * 0.45,
+        maxAge: 0.65 + Math.random() * 0.55,
       });
     }
+  }
+
+  function triggerEntityDeathEffect(wx, wy, isBoss = false) {
+    audio.playSmokePuff();
+    spawnSmokeBurst(wx, wy, isBoss ? 64 : 36, isBoss);
   }
 
   function spawnSparkBurst(wx, wy, colors = ['#facc15', '#fef08a', '#ffffff'], count = 12) {
@@ -1724,13 +1744,7 @@ export function initGame() {
         { type: 'pillar', x: -120, y: -48 },
         { type: 'pillar', x: 120, y: -48 },
         { type: 'pillar', x: -120, y: 56 },
-        { type: 'pillar', x: 120, y: 56 },
-        // Directional Guide Signs to all 4 elemental domains & waygates
-        { type: 'woodenSign', x: 0, y: -160, label: '⬆ NORTH GATE • TO MIRRORGATE SPIRE [WALK NORTH ⬆]' },
-        { type: 'woodenSign', x: -160, y: 0, label: '⬅ WEST GATE • TO GOLDEN CITADEL [WALK WEST ⬅]' },
-        { type: 'woodenSign', x: 160, y: 0, label: '➡ EAST GATE • TO SEPULCHER UNDERCITY [WALK EAST ➡]' },
-        { type: 'woodenSign', x: 0, y: 160, label: '⬇ SOUTH GATE • TO GLIMMER ORCHARD [WALK SOUTH ⬇]' },
-        { type: 'woodenSign', x: 40, y: -90, label: '⭐ FIRST NEXUS KEYSTONE WAYGATE [TO FORGOTTEN RUINS]' }
+        { type: 'pillar', x: 120, y: 56 }
       );
       npcs.push(
         {
@@ -1795,9 +1809,7 @@ export function initGame() {
         { type: 'crystalPillar', x: -80, y: -380 },
         { type: 'crystalPillar', x: 80, y: -380 },
         { type: 'brazier', x: -48, y: -390 },
-        { type: 'brazier', x: 48, y: -390 },
-        { type: 'woodenSign', x: 42, y: -360, label: '⭐ TORMENT GATE • TO CONTINENTAL NEXUS CALDERA [WALK NORTH ⬆]' },
-        { type: 'woodenSign', x: -42, y: 160, label: '⬇ SANCTUARY GATE • TO AWAKENING HUB [WALK SOUTH ⬇]' }
+        { type: 'brazier', x: 48, y: -390 }
       );
       npcs.push({
         id: 'npc_atlas',
@@ -1819,7 +1831,6 @@ export function initGame() {
       props.push(
         // South Entrance Threshold & Greeting Colonnade
         { type: 'ruinedArch', x: 0, y: 1040 },
-        { type: 'woodenSign', x: -40, y: 1040, label: '⬇ DESCENT • TO CONTINENTAL NEXUS CALDERA [WALK SOUTH ⬇]' },
         { type: 'brazier', x: -50, y: 1020 },
         { type: 'brazier', x: 50, y: 1020 },
         { type: 'crystalPillar', x: -90, y: 980 },
@@ -1984,8 +1995,6 @@ export function initGame() {
         props.push(
           { type: 'campfire', x: 0, y: 1490 },
           { type: 'campfire', x: 130, y: 1380 },
-          { type: 'woodenSign', x: 34, y: 1420 }, // Trail sign
-          { type: 'woodenSign', x: -30, y: 1260 }, // Bridge sign
           { type: 'ancientOak', x: -160, y: 1520 },
           { type: 'ancientOak', x: 160, y: 1520 },
           { type: 'ancientOak', x: -260, y: 1380 },
@@ -1999,10 +2008,8 @@ export function initGame() {
           { type: 'brazier', x: 38, y: 1270 }
         );
 
-        // 2. Whispering Mountain Pass (Pines, Granite Crags, Waystation Campfires, Signs)
+        // 2. Whispering Mountain Pass (Pines, Granite Crags, Waystation Campfires)
         props.push(
-          { type: 'woodenSign', x: 36, y: 1060 },
-          { type: 'woodenSign', x: -36, y: 370 },
           { type: 'campfire', x: -45, y: 740 },
           { type: 'campfire', x: 50, y: 490 },
           // Evergreen Pines along the Pass
@@ -2064,9 +2071,7 @@ export function initGame() {
           { type: 'brazier', x: -48, y: -1680 },
           { type: 'brazier', x: 48, y: -1680 },
           { type: 'brazier', x: -48, y: -1760 },
-          { type: 'brazier', x: 48, y: -1760 },
-          { type: 'woodenSign', x: 38, y: -1720, label: '⭐ ASCENT GATE • TO CELESTIAL TITAN SUMMIT [WALK NORTH ⬆]' },
-          { type: 'woodenSign', x: 34, y: 1720, label: '⬇ RUINS GATE • TO FORGOTTEN FIRST NEXUS RUINS [WALK SOUTH ⬇]' }
+          { type: 'brazier', x: 48, y: -1760 }
         );
 
         // 5. Regional Wilderness Features
@@ -2525,6 +2530,7 @@ export function initGame() {
 
         if (sp.isDead && !player.isDead) {
           player.isDead = true;
+          triggerEntityDeathEffect(player.x, player.y, true);
           showDeathScreen(3);
         } else if (!sp.isDead && (player.isDead || deathScreenVisible)) {
           player.isDead = false;
@@ -2587,6 +2593,7 @@ export function initGame() {
         prev.frozen = se.frozen;
         prev.inCombat = Boolean(se.inCombat);
         if (se.isDying && !prev.isDying && (se.type === 'mob' || se.type === 'nexus')) {
+          triggerEntityDeathEffect(se.x, se.y, se.isBoss);
           const distToPlayer = Math.hypot(se.x - player.x, se.y - player.y);
           if (distToPlayer < 400 || (currentTarget && currentTarget.id === se.id)) {
             onPlayerKilledMob(currentRoomType, se.name, se.isBoss);
@@ -2694,8 +2701,7 @@ export function initGame() {
           logMessage(`[Combat] ${fx.attackerName} struck you for ${fx.dmg}!`, 'log-combat', 'combat');
         }
       } else if (fx.kind === 'smoke') {
-        audio.playSmokePuff();
-        spawnSmokeBurst(fx.x, fx.y, fx.count || 26);
+        triggerEntityDeathEffect(fx.x, fx.y, (fx.count || 26) > 35);
       } else if (fx.kind === 'spark') {
         spawnSparkBurst(fx.x, fx.y, fx.colors || ['#facc15', '#ffffff'], 14);
       } else if (fx.kind === 'fct') {
@@ -2837,9 +2843,14 @@ export function initGame() {
           }
           break;
 
-        case 'mob_killed':
+        case 'mob_killed': {
           onPlayerKilledMob(msg.roomType, msg.mobName, msg.isBoss);
+          const deadEnt = entities.find((e) => e.name === msg.mobName);
+          if (deadEnt) {
+            triggerEntityDeathEffect(deadEnt.x, deadEnt.y, msg.isBoss);
+          }
           break;
+        }
 
         case 'cast_cancel':
           isCasting = false;
@@ -3260,8 +3271,7 @@ export function initGame() {
       setTarget(null);
     }
 
-    audio.playSmokePuff();
-    spawnSmokeBurst(ent.x, ent.y, ent.isBoss ? 44 : 28);
+    triggerEntityDeathEffect(ent.x, ent.y, ent.isBoss);
     logMessage(`[Void Banish] ${ent.name} was cast into the Void!`, 'log-gain', 'combat');
     awardXP(ent.xpReward || 30, ent.name);
     if (ent.isBoss) {
@@ -3459,6 +3469,7 @@ export function initGame() {
 
       if (player.hp <= 0) {
         player.isDead = true;
+        triggerEntityDeathEffect(player.x, player.y, true);
         logMessage(`[Defeat] Slain by ${attackerName}! Re-anchoring at Sanctuary...`, 'log-danger', 'combat');
         showDeathScreen(3);
         setTimeout(() => {
@@ -5507,9 +5518,29 @@ export function initGame() {
       }
       if (e.isDying) {
         e.deathAge = (e.deathAge || 0) + dt;
-        e.y -= 18 * dt;
+        e.y -= 22 * dt;
         if (currentTarget && currentTarget.id === e.id) {
           setTarget(null);
+        }
+        // Continuous billowing purple smoke dissolution
+        if (Math.random() < 0.5) {
+          const pTheme = SMOKE_PURPLE_PALETTE[(Math.random() * SMOKE_PURPLE_PALETTE.length) | 0];
+          particles.push({
+            type: 'smoke',
+            x: e.x + (Math.random() - 0.5) * 14,
+            y: e.y + (Math.random() - 0.5) * 10,
+            z: 6 + Math.random() * 12,
+            vx: (Math.random() - 0.5) * 14,
+            vy: (Math.random() - 0.5) * 8,
+            vz: 22 + Math.random() * 20,
+            baseSize: 3.5 + Math.random() * 3.5,
+            size: 4,
+            color: pTheme.color,
+            darkColor: pTheme.darkColor,
+            highlightColor: pTheme.highlightColor,
+            age: 0,
+            maxAge: 0.55 + Math.random() * 0.35,
+          });
         }
         if (e.deathAge >= 0.65) {
           entities.splice(i, 1);
@@ -5783,6 +5814,11 @@ export function initGame() {
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
       p.age += dt;
+      if (p.type === 'smoke') {
+        p.vx *= (1 - 0.75 * dt);
+        p.vy *= (1 - 0.75 * dt);
+        p.vz += 14 * dt;
+      }
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.z = Math.max(0, p.z + p.vz * dt);
@@ -6474,10 +6510,11 @@ export function initGame() {
 
           ctx.save();
           if (ent.isDying) {
-            const sc = Math.max(0.1, 1 - (ent.deathAge || 0) / 0.65);
+            const sc = Math.max(0.08, 1 - (ent.deathAge || 0) / 0.65);
             ctx.globalAlpha = sc;
             ctx.translate(sx, sy - img.height / 2);
             ctx.scale(sc, sc);
+            ctx.rotate((ent.deathAge || 0) * 3.5);
             ctx.drawImage(img, -img.width / 2, -img.height / 2);
           } else {
             if (ent.facingDir === -1) {
@@ -6800,10 +6837,42 @@ export function initGame() {
     for (const pt of particles) {
       const sx = Math.round(pt.x - camLeft);
       const sy = Math.round(pt.y - pt.z - camTop);
-      ctx.fillStyle = '#070a12';
-      ctx.fillRect(sx - 1, sy - 1, pt.size + 2, pt.size + 2);
-      ctx.fillStyle = pt.color;
-      ctx.fillRect(sx, sy, pt.size, pt.size);
+      if (pt.type === 'smoke') {
+        const prog = Math.min(1, pt.age / pt.maxAge);
+        const alpha = Math.max(0, (1 - prog) * (prog < 0.12 ? prog / 0.12 : 1) * 0.88);
+        const scale = 0.85 + prog * 1.55;
+        const r = Math.max(2, Math.round((pt.baseSize || 5) * scale));
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        // Outer dark perimeter halo
+        ctx.fillStyle = pt.darkColor || '#1e0836';
+        ctx.beginPath();
+        ctx.arc(sx, sy, r + 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        // Main vibrant purple smoke puff cloud
+        ctx.fillStyle = pt.color;
+        ctx.beginPath();
+        ctx.arc(sx, sy, r, 0, Math.PI * 2);
+        ctx.fill();
+        // Starlight lavender highlight core (offset top-left)
+        if (r >= 3.5) {
+          ctx.fillStyle = pt.highlightColor || '#e9d5ff';
+          ctx.beginPath();
+          ctx.arc(sx - r * 0.28, sy - r * 0.28, Math.max(1, r * 0.42), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      } else {
+        const prog = Math.min(1, pt.age / pt.maxAge);
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, 1 - prog * 0.6);
+        ctx.fillStyle = '#070a12';
+        ctx.fillRect(sx - 1, sy - 1, pt.size + 2, pt.size + 2);
+        ctx.fillStyle = pt.color;
+        ctx.fillRect(sx, sy, pt.size, pt.size);
+        ctx.restore();
+      }
     }
 
     if (portalMistTimer > 0) {
