@@ -441,7 +441,12 @@ export function initGame() {
     portalTraveled: false,
     warzoneKills: 0,
     ruinsKills: 0,
+    calderaKills: 0,
+    titanChallenged: false,
+    ascentReached: false,
+    visitedBiomes: {},
     activeQuests: {},
+    trackedQuests: {},
     completedQuests: {},
     talkedNpcs: {},
     introShown: false,
@@ -483,7 +488,12 @@ export function initGame() {
           portalTraveled: Boolean(parsed.portalTraveled),
           warzoneKills: Number(parsed.warzoneKills || 0),
           ruinsKills: Number(parsed.ruinsKills || 0),
+          calderaKills: Number(parsed.calderaKills || 0),
+          titanChallenged: Boolean(parsed.titanChallenged),
+          ascentReached: Boolean(parsed.ascentReached),
+          visitedBiomes: parsed.visitedBiomes || {},
           activeQuests: parsed.activeQuests || {},
+          trackedQuests: parsed.trackedQuests || {},
           completedQuests: parsed.completedQuests || {},
           talkedNpcs: parsed.talkedNpcs || {},
           introShown: Boolean(parsed.introShown),
@@ -497,7 +507,12 @@ export function initGame() {
           portalTraveled: isExperienced,
           warzoneKills: 0,
           ruinsKills: 0,
+          calderaKills: 0,
+          titanChallenged: false,
+          ascentReached: false,
+          visitedBiomes: {},
           activeQuests: isExperienced ? { quest_into_the_warzone: { accepted: true } } : {},
+          trackedQuests: isExperienced ? { quest_into_the_warzone: true } : {},
           completedQuests: isExperienced ? { quest_awakening: true } : {},
           talkedNpcs: isExperienced ? { npc_aurora: true } : {},
           introShown: isExperienced,
@@ -505,6 +520,15 @@ export function initGame() {
         saveQuestState();
       }
     } catch (_) {}
+
+    // By default, any active quest without explicit false is tracked
+    if (!questState.trackedQuests || Object.keys(questState.trackedQuests).length === 0) {
+      questState.trackedQuests = {};
+      for (const qId of Object.keys(questState.activeQuests || {})) {
+        questState.trackedQuests[qId] = true;
+      }
+    }
+
     introShown = questState.introShown || Boolean(questState.talkedNpcs?.npc_aurora);
     updateQuestTrackerHUD();
   }
@@ -691,6 +715,166 @@ export function initGame() {
           text: 'Marvelous! The leyline frequency cleared instantly! Look here—the quadrant stones reveal pathways to all four elemental sanctuaries. Take this antique relic!',
         },
       ],
+      nextQuestId: 'quest_celestial_ascent',
+    },
+
+    quest_caldera_siege: {
+      id: 'quest_caldera_siege',
+      title: 'The Continental Nexus Shard',
+      giverId: 'npc_archon',
+      turnInId: 'npc_archon',
+      prereqQuestId: 'quest_void_banish',
+      description: 'Venture into the Continental Nexus Caldera Torment Realm and vanquish a Torment foe or contest an Outpost.',
+      isComplete: () => Boolean((questState.calderaKills || 0) >= 1 || (questState.warzoneKills || 0) >= 4),
+      tasks: [
+        {
+          text: 'Vanquish a Torment Caldera foe',
+          done: () => Boolean((questState.calderaKills || 0) >= 1 || (questState.warzoneKills || 0) >= 4),
+          counter: () => `${Math.min(1, (questState.calderaKills || 0) + ((questState.warzoneKills || 0) >= 4 ? 1 : 0))} / 1`,
+        },
+      ],
+      rewards: { xp: 600, glimmer: 300 },
+      acceptDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Beyond the Forgotten Ruins lies the Continental Caldera—a brutal Torment Realm where foes possess ten times their normal strength! Enter the Caldera and strike down a Torment creature to prove your mastery.',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Steel your resolve in the Caldera! The Torment foes hit hard, but the rewards are unmatched.',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Triumph in the Caldera! You have conquered the Torment Realm and stood against the continental horde! Take this Grand Vanguard Cache!',
+        },
+      ],
+    },
+
+    quest_celestial_ascent: {
+      id: 'quest_celestial_ascent',
+      title: 'Ascent to the Empyrean',
+      giverId: 'npc_atlas',
+      turnInId: 'npc_aurelia',
+      prereqQuestId: 'quest_first_nexus',
+      description: 'Climb past the northern boundary of the Continental Caldera and seek Grand Arbiter Aurelia at the Celestial Ascent.',
+      isComplete: () => Boolean(questState.ascentReached || currentRoomType === ROOM_TYPES.CELESTIAL_ASCENT),
+      tasks: [
+        {
+          text: 'Reach the Celestial Ascent Summit',
+          done: () => Boolean(questState.ascentReached || currentRoomType === ROOM_TYPES.CELESTIAL_ASCENT),
+        },
+      ],
+      rewards: { xp: 750, glimmer: 350 },
+      acceptDialogue: [
+        {
+          speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
+          spriteKey: 'cartographerNpc',
+          text: 'The quadrant stones point further north—high into the clouds beyond the Caldera plateau! The Ancient Titans carved a mountain colonnade called the Celestial Ascent. Climb to the peak and confer with Grand Arbiter Aurelia.',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
+          spriteKey: 'cartographerNpc',
+          text: 'Follow the northern leylines past the Caldera pass to locate the grand ascent stairway.',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'GRAND ARBITER AURELIA • TITAN KEEPER',
+          spriteKey: 'celestialArbiterNpc',
+          text: 'A mortal champion ascends the starlight stairs! Welcome to the Celestial Ascent, Summoner. The leylines of the Ancients recognize your courage.',
+        },
+      ],
+      nextQuestId: 'quest_titan_cleansing',
+    },
+
+    quest_titan_cleansing: {
+      id: 'quest_titan_cleansing',
+      title: 'The Slumbering Sovereign',
+      giverId: 'npc_aurelia',
+      turnInId: 'npc_aurelia',
+      prereqQuestId: 'quest_celestial_ascent',
+      description: 'Challenge Aurelius the Empyrean Sovereign at the Northern Summit Throne.',
+      isComplete: () => Boolean(questState.titanChallenged),
+      tasks: [
+        {
+          text: 'Strike Aurelius the Empyrean Sovereign',
+          done: () => Boolean(questState.titanChallenged),
+        },
+      ],
+      rewards: { xp: 1200, glimmer: 500 },
+      acceptDialogue: [
+        {
+          speaker: 'GRAND ARBITER AURELIA • TITAN KEEPER',
+          spriteKey: 'celestialArbiterNpc',
+          text: 'At the northern summit slumbers our titan lord, Aurelius the Empyrean Sovereign. Corrupted by the Fall, he strikes down all who approach. Ascend to his throne, engage the Sovereign in combat, and awaken his dormant light!',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'GRAND ARBITER AURELIA • TITAN KEEPER',
+          spriteKey: 'celestialArbiterNpc',
+          text: 'The Sovereign awaits at the northern starlight dais. Approach with reverence and prepared steel!',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'GRAND ARBITER AURELIA • TITAN KEEPER',
+          spriteKey: 'celestialArbiterNpc',
+          text: 'Glorious! You have matched blades with the Titan Sovereign and cleansed the encroaching void rifts from his throne! The Empyrean hosts salute your ascension!',
+        },
+      ],
+    },
+
+    quest_elemental_pilgrimage: {
+      id: 'quest_elemental_pilgrimage',
+      title: 'The Four Leyline Sanctuaries',
+      giverId: 'npc_aurora',
+      turnInId: 'npc_aurora',
+      prereqQuestId: 'quest_awakening',
+      description: 'Attune to the leylines of all 4 elemental domains: Solari, Umbri, Terra, and Aether.',
+      isComplete: () => Boolean(
+        questState.visitedBiomes?.solari &&
+        questState.visitedBiomes?.umbri &&
+        questState.visitedBiomes?.terra &&
+        questState.visitedBiomes?.aether
+      ),
+      tasks: [
+        { text: 'Visit Solari Sun-Citadel (West)', done: () => Boolean(questState.visitedBiomes?.solari) },
+        { text: 'Visit Umbri Undercity (East)', done: () => Boolean(questState.visitedBiomes?.umbri) },
+        { text: 'Visit Terra Ironwood Wilds (South)', done: () => Boolean(questState.visitedBiomes?.terra) },
+        { text: 'Visit Aether Astral Spire (North)', done: () => Boolean(questState.visitedBiomes?.aether) },
+      ],
+      rewards: { xp: 500, glimmer: 250 },
+      acceptDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'The four elemental orders—Solari, Umbri, Terra, and Aether—maintain sovereign domains surrounding our Sanctuary. Journey through all four cardinal gates to attune your astral signature to each elemental power!',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'Walk through each cardinal gateway from Sanctuary Haven to complete your elemental pilgrimage.',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'All four elemental affinities now resonate within your core! You are truly a champion of the Glimmerfall.',
+        },
+      ],
     },
   };
 
@@ -699,6 +883,7 @@ export function initGame() {
       npc_aurora: 'Herald Lyra',
       npc_archon: 'Commander Valerius',
       npc_atlas: 'Atlas the Cartographer',
+      npc_aurelia: 'Grand Arbiter Aurelia',
       npc_lucian: 'Pyremaster Lucian',
       npc_vespera: 'Wraithmother Vespera',
       npc_sylvanus: 'Elder Druid Sylvanus',
@@ -870,67 +1055,704 @@ export function initGame() {
     updateQuestTrackerHUD();
   }
 
+  // ==========================================
+  // Continental Atlas & Regions Data
+  // ==========================================
+  const WORLD_ATLAS_REGIONS = {
+    SANCTUARY_HUB: {
+      id: 'SANCTUARY_HUB',
+      name: 'Sanctuary Haven',
+      sub: 'Awakening Sanctum & Keystone Gateway',
+      level: 'Lv. 1 – 5',
+      dangerTag: 'SANCTUARY HAVEN',
+      color: '#38bdf8',
+      borderColor: '#7dd3fc',
+      faction: 'Order of the Sunspire (Neutral Sanctuary)',
+      desc: 'The peaceful haven where Summoner-Knights awaken from stasis. Connects the four outer elemental domains and houses the ancient Keystone Waygate.',
+      entities: [
+        { name: 'Training Dummy', type: 'Neutral Target', hp: '35 HP', desc: 'Safe target for honing Rites and Flashes.' },
+        { name: 'Glimmer Leyline Node', type: 'Harvest Node', hp: '3 Charges', desc: 'Channel with [E] to restore Solar Charge.' },
+        { name: 'Herald Lyra', type: 'Sunspire Herald', hp: 'Immortal', desc: 'Awakening mentor & primary quest giver.' },
+        { name: 'Commander Valerius', type: 'Vanguard Warlord', hp: 'Immortal', desc: 'Frontline commander directing border defense.' }
+      ],
+      objectives: 'Tutorial Rites, Glimmer Harvesting, Gear customization, Squad recruitment [O].',
+      travel: 'You awaken here! Gateways lead North to Aether Spire, West to Solari Citadel, East to Umbri Undercity, South to Terra Orchard, and Center to Forgotten Ruins.'
+    },
+    SOLARI_CITADEL: {
+      id: 'SOLARI_CITADEL',
+      name: 'Solari Sun-Citadel',
+      sub: 'Western Radiant Bastion',
+      level: 'Lv. 6 – 15',
+      dangerTag: 'SOLARI REALM',
+      color: '#facc15',
+      borderColor: '#fde047',
+      faction: '☀️ Solari (The Light)',
+      desc: 'Towering golden parapets and solar obelisks basking in perpetual dawn. Daystar paladins channel burning solar wrath and unbreakable bulwark shields.',
+      entities: [
+        { name: 'Solari Sentinels', type: 'Hostile Mob', hp: '120 HP', desc: 'Golden armored guards with Daystar strikes.' },
+        { name: 'Pyremaster Lucian', type: 'Solari Emissary', hp: 'Immortal', desc: 'Master of Sun Aegis and Daystar rites.' },
+        { name: 'Dawnforged Monolith', type: 'Faction Shard', hp: 'Leyline', desc: 'Sunspire power font channeling holy radiance.' }
+      ],
+      objectives: 'Radiant Bulwark training, Solari faction allegiance, Sunken Vault entrance.',
+      travel: 'From Sanctuary Haven, walk West through the Sunspire Archway into the Golden Citadel.'
+    },
+    UMBRI_UNDERCITY: {
+      id: 'UMBRI_UNDERCITY',
+      name: 'Umbri Sepulcher Undercity',
+      sub: 'Eastern Shadow Fens & Catacombs',
+      level: 'Lv. 6 – 15',
+      dangerTag: 'UMBRI REALM',
+      color: '#c084fc',
+      borderColor: '#e879f9',
+      faction: '🌑 Umbri (The Shadow)',
+      desc: 'Sunken mausoleums shrouded in abyssal mist and void whispers. Duskveil assassins stalk the shadows, draining lifeforce from unsuspecting wanderers.',
+      entities: [
+        { name: 'Dusk Fiends & Shadow Stalkers', type: 'Hostile Mob', hp: '110 HP', desc: 'Stealthed ambushers with life drain strikes.' },
+        { name: 'Wraithmother Vespera', type: 'Shadow Mystic', hp: 'Immortal', desc: 'Mistress of Abyssal Shroud and Soul Tithes.' },
+        { name: 'Abyssal Wellspring', type: 'Faction Shard', hp: 'Leyline', desc: 'Void font empowering shadow leach affinity.' }
+      ],
+      objectives: 'Shadow Labyrinth delve, Void Leach mastery, Umbri stealth training.',
+      travel: 'From Sanctuary Haven, walk East past the Sepulcher braziers into the Undercity.'
+    },
+    TERRA_ORCHARD: {
+      id: 'TERRA_ORCHARD',
+      name: 'Terra Ironwood Wilds',
+      sub: 'Southern Primal Canopies',
+      level: 'Lv. 6 – 15',
+      dangerTag: 'TERRA REALM',
+      color: '#4ade80',
+      borderColor: '#86efac',
+      faction: '🌿 Terra (The Earth)',
+      desc: 'Colossal ironwood groves tangled with thornbark and living moss. Stone behemoths and treants safeguard the wild roots from void corruption.',
+      entities: [
+        { name: 'Ironwood Treants & Bramble Hounds', type: 'Hostile Mob', hp: '160 HP', desc: 'High armor beasts reflecting melee damage via Thorns.' },
+        { name: 'Elder Druid Sylvanus', type: 'Primal Shaman', hp: 'Immortal', desc: 'Teacher of Rooted Bastion and Bramble Reversals.' },
+        { name: 'Verdant Heartstone', type: 'Faction Shard', hp: 'Leyline', desc: 'Primal nexus crystal boosting maximum health.' }
+      ],
+      objectives: 'Overgrowth Sanctuary delve, Thornbark defense, Terra Colossus rites.',
+      travel: 'From Sanctuary Haven, walk South through the Orchard archway into the Ironwood Wilds.'
+    },
+    AETHER_SPIRE: {
+      id: 'AETHER_SPIRE',
+      name: 'Aether Astral Spire',
+      sub: 'Northern Floating Terraces',
+      level: 'Lv. 6 – 15',
+      dangerTag: 'AETHER REALM',
+      color: '#38bdf8',
+      borderColor: '#7dd3fc',
+      faction: '🔮 Aether (The Magic)',
+      desc: 'Glacial starlight terraces suspended over the astral void. Time-bending scholars harness chronomancy to fracture reality and slow enemy actions.',
+      entities: [
+        { name: 'Astral Wisps & Starforged Golems', type: 'Hostile Mob', hp: '105 HP', desc: 'Casts Frost Nova chilling and slowing players.' },
+        { name: 'Chronos Sage Zephyr', type: 'Time Weaver', hp: 'Immortal', desc: 'Master of Chrono Warp and Temporal Apotheosis.' },
+        { name: 'Chrono Crystal Font', type: 'Faction Shard', hp: 'Leyline', desc: 'Astral prism accelerating cooldowns and cast speed.' }
+      ],
+      objectives: 'Fractured Archive delve, Chronomancy training, Aether Spire trials.',
+      travel: 'From Sanctuary Haven, walk North through the Astral Gate into Mirrorgate Spire.'
+    },
+    NEXUS_FORGOTTEN_RUINS: {
+      id: 'NEXUS_FORGOTTEN_RUINS',
+      name: 'Forgotten First Nexus Ruins',
+      sub: 'Sunken Leyline Plateau',
+      level: 'Lv. 15 – 25',
+      dangerTag: 'CONTESTED RUINS',
+      color: '#818cf8',
+      borderColor: '#a5b4fc',
+      faction: 'Ancient Leyline Keepers (Contested)',
+      desc: 'The sunken site where the First Nexus shattered centuries ago. Corrupted stalkers roam the pillars, guarding ancient quadrant runestones and the gateway to Caldera.',
+      entities: [
+        { name: 'Corrupted Ruin Stalkers', type: 'Hostile Mob', hp: '220 HP', desc: 'Void spikes & lingering ruin curse.' },
+        { name: 'Atlas the Cartographer', type: 'Keystone Seeker', hp: 'Immortal', desc: 'Ancient surveyor with deep knowledge of the leylines.' },
+        { name: 'First Nexus Altar', type: 'Ancient Relic', hp: 'Indestructible', desc: 'Central keystone anchoring continental transitions.' }
+      ],
+      objectives: 'Ruin Horrors quest, Keystone navigation, Gateway to Torment Caldera.',
+      travel: 'Step onto the Center Keystone Waygate in Sanctuary Haven. To reach Caldera, walk North through the Torment Gate.'
+    },
+    NEXUS_WARZONE: {
+      id: 'NEXUS_WARZONE',
+      name: 'The Continental Nexus Caldera',
+      sub: 'Torment Realm • Continental Warzone',
+      level: 'Lv. 30+',
+      dangerTag: 'TORMENT REALM • 10× STATS',
+      color: '#f97316',
+      borderColor: '#fdba74',
+      faction: '⚔️ Contested All-Faction Warzone',
+      desc: 'A massive 4800×3600 continental warzone where rival factions fight for domination. All creatures possess 10× health and damage in this brutal Torment Realm!',
+      entities: [
+        { name: 'Torment Void Fiends', type: 'Torment Mob', hp: '340 – 420 HP', desc: 'Vicious stalkers dealing 24-28 damage.' },
+        { name: 'Continental Faction Bosses', type: 'World Bosses', hp: '1150 – 1250 HP', desc: 'Elite warlords casting faction apex abilities.' },
+        { name: '4 Outpost Nexuses', type: 'Strategic Outposts', hp: '300 HP each', desc: 'Capture points for Solari, Umbri, Terra, and Aether.' },
+        { name: 'Shattered Nexus Shard', type: 'Siege Objective', hp: '850 HP', desc: '30-minute continental siege shard granting +250 XP.' },
+        { name: 'Commander Valerius', type: 'Sunspire Warlord', hp: 'Immortal', desc: 'Vanguard post commander offering frontline bounties.' }
+      ],
+      objectives: 'Continental Faction Siege, Outpost control, Ancient Paragon Caches, Titan Ascent gateway.',
+      travel: 'From Forgotten First Nexus Ruins, walk North across the Torment threshold into South Sanctuary Vale. Walk North past Whispering Mountain Pass to reach the Caldera.'
+    },
+    CELESTIAL_ASCENT: {
+      id: 'CELESTIAL_ASCENT',
+      name: 'Celestial Ascent & Titan Summit',
+      sub: 'Empyrean Titan Keep & Throne',
+      level: 'Lv. 35+',
+      dangerTag: 'TITAN APEX RAID',
+      color: '#fde047',
+      borderColor: '#ffffff',
+      faction: 'Empyrean Titan Keepers',
+      desc: 'Sacred starlight terraces towering above the continental clouds. The highest peak in Glimmerfall, where Grand Arbiter Aurelia guards the throne of the Empyrean Sovereign.',
+      entities: [
+        { name: 'AURELIUS THE EMPYREAN SOVEREIGN', type: 'World Raid Boss', hp: '3200 HP', desc: 'Lv. 35 Titan Sovereign dealing 65 holy starlight DMG. Drops Crown of Dawn!' },
+        { name: 'Grand Arbiter Aurelia', type: 'Empyrean Keeper', hp: 'Immortal', desc: 'Guardian of the Morning Star Colonnade.' },
+        { name: 'Morning Star Terraces', type: 'Starlight Colonnade', hp: 'Ancient Monument', desc: 'Sacred terrace fonts resonant with celestial glimmer.' }
+      ],
+      objectives: 'Vanquish Aurelius the Empyrean Sovereign, claim the Crown of Dawn, attune Empyrean resonance.',
+      travel: 'From the northernmost plateau of Continental Nexus Caldera (y: -1760), walk North through the Ascent Gate up the mountain stairs.'
+    }
+  };
+
+  let currentLoreTab = 'quests';
+  let selectedMapRegionId = 'SANCTUARY_HUB';
+
+  window.switchLoreTab = function (tab) {
+    currentLoreTab = tab;
+    renderLoreModal();
+  };
+
+  window.openQuestLog = function () {
+    currentLoreTab = 'quests';
+    if (document.getElementById('lore-modal')?.style.display !== 'block') {
+      window.toggleModal('lore-modal');
+    }
+    renderLoreModal();
+  };
+
+  window.openWorldMap = function () {
+    currentLoreTab = 'map';
+    if (document.getElementById('lore-modal')?.style.display !== 'block') {
+      window.toggleModal('lore-modal');
+    }
+    renderLoreModal();
+  };
+
+  window.toggleWorldAtlas = function () {
+    const modal = document.getElementById('lore-modal');
+    if (modal && modal.style.display === 'block' && currentLoreTab === 'map') {
+      window.toggleModal('lore-modal');
+    } else {
+      window.openWorldMap();
+    }
+  };
+
+  window.inspectMapRegion = function (regId) {
+    if (WORLD_ATLAS_REGIONS[regId]) {
+      selectedMapRegionId = regId;
+      const insp = document.getElementById('atlas-inspector-panel');
+      if (insp) {
+        insp.innerHTML = getRegionInspectorHtml(regId);
+      }
+      document.querySelectorAll('.atlas-realm-card').forEach((el) => {
+        if (el.dataset.regionId === regId) {
+          el.style.borderColor = '#ffffff';
+          el.style.transform = 'translateY(-2px)';
+          el.style.boxShadow = '0 0 16px rgba(255, 255, 255, 0.35)';
+        } else {
+          const origColor = el.dataset.origBorder || '#334155';
+          el.style.borderColor = origColor;
+          el.style.transform = 'none';
+          el.style.boxShadow = 'none';
+        }
+      });
+    }
+  };
+
+  window.toggleQuestTracking = function (qId) {
+    if (!questState.trackedQuests) questState.trackedQuests = {};
+    const currentlyTracked = questState.trackedQuests[qId] !== false;
+    questState.trackedQuests[qId] = !currentlyTracked;
+    saveQuestState();
+    updateQuestTrackerHUD();
+    renderLoreModal();
+  };
+
+  window.setAllQuestTracking = function (track) {
+    if (!questState.trackedQuests) questState.trackedQuests = {};
+    for (const qId of Object.keys(questState.activeQuests || {})) {
+      questState.trackedQuests[qId] = Boolean(track);
+    }
+    saveQuestState();
+    updateQuestTrackerHUD();
+    renderLoreModal();
+  };
+
+  function getRegionInspectorHtml(regId) {
+    const reg = WORLD_ATLAS_REGIONS[regId] || WORLD_ATLAS_REGIONS.SANCTUARY_HUB;
+    const isPlayerHere = currentRoomType === reg.id;
+    return `
+      <div style="background:#070b18; border:2px solid ${reg.borderColor}; border-radius:6px; padding:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; border-bottom:1px solid #1e293b; padding-bottom:6px;">
+          <div>
+            <div style="font-family:var(--font-header); font-size:14px; font-weight:800; color:${reg.color}; letter-spacing:0.5px;">
+              ${reg.name.toUpperCase()}
+            </div>
+            <div style="font-size:10.5px; color:#94a3b8; margin-top:2px;">${reg.sub}</div>
+          </div>
+          <div style="text-align:right;">
+            <span style="display:inline-block; font-size:10px; font-weight:bold; background:#0f172a; border:1px solid ${reg.color}; color:${reg.color}; padding:2px 7px; border-radius:3px;">
+              ${reg.dangerTag}
+            </span>
+            <div style="font-size:10px; color:#facc15; font-weight:bold; margin-top:3px;">${reg.level}</div>
+          </div>
+        </div>
+
+        ${isPlayerHere ? `
+          <div style="background:rgba(34, 197, 94, 0.15); border:1px solid #22c55e; color:#86efac; font-size:10px; font-weight:bold; padding:4px 8px; border-radius:4px; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+            <span>📍</span><span>YOU ARE CURRENTLY IN THIS REALM</span>
+          </div>
+        ` : ''}
+
+        <div style="margin-bottom:10px;">
+          <div style="font-size:10px; font-weight:bold; text-transform:uppercase; margin-bottom:3px; color:#38bdf8;">
+            🏛️ Faction &amp; Affiliation
+          </div>
+          <div style="font-size:11px; color:#f8fafc; font-weight:600;">${reg.faction}</div>
+          <div style="font-size:10px; color:#94a3b8; margin-top:3px; line-height:1.45;">${reg.desc}</div>
+        </div>
+
+        <div style="margin-bottom:10px;">
+          <div style="font-size:10px; font-weight:bold; text-transform:uppercase; margin-bottom:4px; color:#fde047;">
+            👾 Entities &amp; Inhabitants
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px; max-height:140px; overflow-y:auto;">
+            ${reg.entities.map((e) => `
+              <div style="background:#0c1222; border-left:2px solid ${reg.color}; padding:4px 8px; font-size:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <b style="color:#f1f5f9;">${e.name}</b>
+                  <span style="color:#facc15; font-size:9.5px; font-weight:bold;">${e.hp}</span>
+                </div>
+                <div style="color:#94a3b8; font-size:9px; margin-top:1px;">${e.type} • ${e.desc}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div style="margin-bottom:10px;">
+          <div style="font-size:10px; font-weight:bold; text-transform:uppercase; margin-bottom:3px; color:#4ade80;">
+            ⭐ Key Objectives &amp; Lore
+          </div>
+          <div style="font-size:10px; color:#cbd5e1; line-height:1.4;">${reg.objectives}</div>
+        </div>
+
+        <div style="background:#090d1c; border:1px solid #1e293b; border-radius:4px; padding:6px 8px;">
+          <div style="font-size:10px; color:#facc15; font-weight:bold; text-transform:uppercase; margin-bottom:2px;">
+            🧭 How to Travel (From Sanctuary)
+          </div>
+          <div style="font-size:10px; color:#94a3b8; line-height:1.45;">${reg.travel}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderAtlasNodeCard(regId) {
+    const reg = WORLD_ATLAS_REGIONS[regId];
+    if (!reg) return '';
+    const isSelected = selectedMapRegionId === regId;
+    const isHere = currentRoomType === regId;
+    return `
+      <div class="atlas-realm-card"
+        data-region-id="${reg.id}"
+        data-orig-border="${reg.borderColor}"
+        onmouseenter="inspectMapRegion('${reg.id}')"
+        onclick="inspectMapRegion('${reg.id}')"
+        style="
+          background: #090e1d;
+          border: 2px solid ${isSelected ? '#ffffff' : reg.borderColor};
+          border-radius: 5px;
+          padding: 8px 10px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          position: relative;
+          ${isSelected ? 'box-shadow: 0 0 14px rgba(255, 255, 255, 0.25);' : ''}
+        ">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <span style="font-family:var(--font-header); font-size:11.5px; font-weight:bold; color:${reg.color};">
+              ${reg.name}
+            </span>
+            <span style="font-size:9.5px; color:#cbd5e1; margin-left:6px;">[${reg.level}]</span>
+          </div>
+          <div style="font-size:9px; font-weight:bold; color:${reg.color}; background:#070c18; border:1px solid ${reg.color}; padding:1px 5px; border-radius:3px;">
+            ${reg.dangerTag}
+          </div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:3px; font-size:9.5px; color:#94a3b8;">
+          <span>${reg.faction}</span>
+          ${isHere ? '<b style="color:#4ade80; background:rgba(34,197,94,0.2); padding:1px 5px; border-radius:3px; border:1px solid #22c55e;">📍 HERE</b>' : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderWorldAtlasView(body) {
+    body.innerHTML = `
+      <div style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <span style="font-family:var(--font-header); font-size:12px; color:#facc15; font-weight:bold;">
+            🗺️ CONTINENTAL ATLAS OF GLIMMERFALL
+          </span>
+          <span style="font-size:10px; color:#94a3b8; margin-left:8px;">
+            Hover over or click any realm to inspect creatures, danger level, and travel routes.
+          </span>
+        </div>
+        <div style="font-size:10px; color:#38bdf8; font-weight:bold;">
+          CURRENT LOCATION: <b style="color:#86efac;">${WORLD_ATLAS_REGIONS[currentRoomType]?.name || currentRoomType}</b>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:start;">
+        <!-- Left Column: Continental Territory Map -->
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <!-- 1. Summit Apex (Top) -->
+          ${renderAtlasNodeCard('CELESTIAL_ASCENT')}
+
+          <div style="text-align:center; color:#64748b; font-size:9.5px; margin:-2px 0;">
+            ▲ ⬆ North Ascent Gate (y: -1760) ▲
+          </div>
+
+          <!-- 2. Caldera Torment Realm (Upper Center) -->
+          ${renderAtlasNodeCard('NEXUS_WARZONE')}
+
+          <div style="text-align:center; color:#64748b; font-size:9.5px; margin:-2px 0;">
+            ▲ ⬇ Torment Gate (y: 1720) ▲
+          </div>
+
+          <!-- 3. Forgotten First Nexus Ruins (Lower Center) -->
+          ${renderAtlasNodeCard('NEXUS_FORGOTTEN_RUINS')}
+
+          <div style="text-align:center; color:#64748b; font-size:9.5px; margin:-2px 0;">
+            ⭐ Center Keystone Waygate ⭐
+          </div>
+
+          <!-- 4. Sanctuary Hub (Central Haven) -->
+          ${renderAtlasNodeCard('SANCTUARY_HUB')}
+
+          <!-- 5. Cardinal Elemental Realms Grid (Surrounding Hub) -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:4px;">
+            ${renderAtlasNodeCard('SOLARI_CITADEL')}
+            ${renderAtlasNodeCard('UMBRI_UNDERCITY')}
+            ${renderAtlasNodeCard('TERRA_ORCHARD')}
+            ${renderAtlasNodeCard('AETHER_SPIRE')}
+          </div>
+        </div>
+
+        <!-- Right Column: Real-time Region Inspector -->
+        <div id="atlas-inspector-panel">
+          ${getRegionInspectorHtml(selectedMapRegionId)}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderQuestLogView(body) {
+    const activeList = [];
+    for (const qId of Object.keys(questState.activeQuests || {})) {
+      if (QUEST_CATALOG[qId]) activeList.push(QUEST_CATALOG[qId]);
+    }
+    if (activeList.length === 0 && !questState.completedQuests?.quest_awakening) {
+      activeList.push(QUEST_CATALOG.quest_awakening);
+    }
+
+    const completedList = [];
+    for (const qId of Object.keys(questState.completedQuests || {})) {
+      if (QUEST_CATALOG[qId]) completedList.push(QUEST_CATALOG[qId]);
+    }
+
+    const availableList = [];
+    for (const qId of Object.keys(QUEST_CATALOG)) {
+      const q = QUEST_CATALOG[qId];
+      const isCompleted = Boolean(questState.completedQuests?.[qId]);
+      const isActive = Boolean(questState.activeQuests?.[qId]);
+      const prereqMet = !q.prereqQuestId || Boolean(questState.completedQuests?.[q.prereqQuestId]);
+      if (!isCompleted && !isActive && prereqMet) {
+        availableList.push(q);
+      }
+    }
+
+    body.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #1e293b; padding-bottom:6px;">
+        <div>
+          <span style="font-family:var(--font-header); font-size:13px; color:#facc15; font-weight:bold;">
+            📜 SUMMONER QUEST JOURNAL
+          </span>
+          <span style="font-size:10px; color:#94a3b8; margin-left:8px;">
+            Active: <b style="color:#38bdf8;">${activeList.length}</b> | Available: <b style="color:#fde047;">${availableList.length}</b> | Completed: <b style="color:#4ade80;">${completedList.length}</b>
+          </span>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button class="id-mini-btn" onclick="setAllQuestTracking(true)" title="Pin all active quests to HUD" style="font-size:9.5px; padding:3px 8px;">
+            👁️ PIN ALL TO HUD
+          </button>
+          <button class="id-mini-btn" onclick="setAllQuestTracking(false)" title="Hide all quests from HUD" style="font-size:9.5px; padding:3px 8px;">
+            UNPIN ALL
+          </button>
+        </div>
+      </div>
+
+      <!-- Section 1: Active Quests (In Progress) -->
+      <div style="margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-size:11px; font-weight:bold; color:#38bdf8; text-transform:uppercase; letter-spacing:0.5px;">
+            ⚔️ Active Quests in Progress (${activeList.length})
+          </span>
+          <span style="font-size:9.5px; color:#94a3b8;">Check the box to pin/display on your HUD tracker</span>
+        </div>
+
+        ${activeList.length === 0 ? `
+          <div style="background:#090d1c; border:1px dashed #334155; padding:12px; text-align:center; color:#94a3b8; font-size:10.5px;">
+            No quests currently in progress. Speak with NPCs with a golden <b style="color:#facc15;">[ ! ]</b> mark in the world to accept quests!
+          </div>
+        ` : `
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${activeList.map((q) => {
+              const isReady = q.isComplete();
+              const isTracked = questState.trackedQuests?.[q.id] !== false;
+              const completedTasks = q.tasks.filter(t => t.done()).length;
+              return `
+                <div style="background:#080d1e; border:2px solid ${isReady ? '#facc15' : isTracked ? '#38bdf8' : '#1e293b'}; border-radius:6px; padding:10px 12px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:10px; font-weight:bold; color:${isTracked ? '#38bdf8' : '#64748b'}; background:#0c1326; border:1px solid ${isTracked ? '#38bdf8' : '#334155'}; padding:2px 6px; border-radius:3px;">
+                        <input type="checkbox" ${isTracked ? 'checked' : ''} onchange="toggleQuestTracking('${q.id}')" style="cursor:pointer; margin:0;">
+                        <span>${isTracked ? '👁️ DISPLAYED ON HUD' : 'PIN TO HUD'}</span>
+                      </label>
+                      <span style="font-family:var(--font-header); font-size:12px; font-weight:bold; color:#fde047;">
+                        📜 ${q.title.toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <span style="font-size:10px; font-weight:bold; background:${isReady ? 'rgba(250,204,21,0.2)' : 'rgba(56,189,248,0.15)'}; border:1px solid ${isReady ? '#facc15' : '#38bdf8'}; color:${isReady ? '#facc15' : '#38bdf8'}; padding:2px 7px; border-radius:3px;">
+                        ${isReady ? '✨ READY TO TURN IN' : `PROGRESS: ${completedTasks}/${q.tasks.length}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style="font-size:10.5px; color:#cbd5e1; margin-bottom:8px; line-height:1.45;">
+                    ${q.description}
+                  </div>
+
+                  <!-- Tasks Checklist -->
+                  <div style="background:#050814; border:1px solid #1e293b; border-radius:4px; padding:6px 8px; margin-bottom:8px; display:flex; flex-direction:column; gap:4px;">
+                    ${q.tasks.map((t) => {
+                      const done = t.done();
+                      const countStr = t.counter ? ` (${t.counter()})` : '';
+                      return `
+                        <div style="display:flex; align-items:center; gap:6px; font-size:10px;">
+                          <span style="width:14px; height:14px; display:inline-flex; align-items:center; justify-content:center; border:1px solid ${done ? '#86efac' : '#38bdf8'}; background:${done ? '#15803d' : '#0a1020'}; color:#ffffff; font-weight:bold; font-size:9.5px; border-radius:2px;">
+                            ${done ? '✓' : ''}
+                          </span>
+                          <span style="${done ? 'color:#94a3b8; text-decoration:line-through;' : 'color:#f8fafc;'}">
+                            ${t.text}${countStr}
+                          </span>
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:9.5px; color:#94a3b8;">
+                    <span>Turn in to: <b style="color:#f1f5f9;">${getNpcName(q.turnInId)}</b></span>
+                    <span style="color:#facc15; font-weight:bold;">
+                      🎁 REWARDS: +${q.rewards.xp} XP | +${q.rewards.glimmer || 0} GLIMMER
+                    </span>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `}
+      </div>
+
+      <!-- Section 2: Available Quests in the Realm -->
+      ${availableList.length > 0 ? `
+        <div style="margin-bottom:14px;">
+          <div style="font-size:11px; font-weight:bold; color:#facc15; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">
+            ⭐ Available Quests in the Realm (${availableList.length})
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            ${availableList.map((q) => `
+              <div style="background:#090e1d; border:1px solid #334155; border-radius:5px; padding:8px 10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                  <span style="font-family:var(--font-header); font-size:11px; font-weight:bold; color:#facc15;">
+                    ⭐ ${q.title}
+                  </span>
+                  <span style="font-size:9.5px; color:#94a3b8;">
+                    Giver: <b style="color:#38bdf8;">${getNpcName(q.giverId)}</b>
+                  </span>
+                </div>
+                <div style="font-size:10px; color:#94a3b8; margin-bottom:4px;">${q.description}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:9px; color:#64748b;">
+                  <span>Speak with ${getNpcName(q.giverId)} to accept</span>
+                  <span style="color:#fde047;">+${q.rewards.xp} XP | +${q.rewards.glimmer || 0} Glimmer</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Section 3: Completed Quests Archive -->
+      ${completedList.length > 0 ? `
+        <div>
+          <div style="font-size:11px; font-weight:bold; color:#4ade80; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">
+            ✓ Completed Quests Archive (${completedList.length})
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px; max-height:120px; overflow-y:auto;">
+            ${completedList.map((q) => `
+              <div style="background:#070b16; border-left:3px solid #22c55e; padding:5px 8px; font-size:10px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <b style="color:#86efac;">✓ ${q.title}</b>
+                  <span style="color:#64748b; margin-left:6px;">— Turn-in: ${getNpcName(q.turnInId)}</span>
+                </div>
+                <span style="color:#4ade80; font-size:9px;">+${q.rewards.xp} XP CLAIMED</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+    `;
+  }
+
+  function renderChronicleView(body) {
+    body.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="background:#080c18; border:2px solid #1e293b; padding:10px; border-radius:4px;">
+          <b style="color:#facc15; display:block; margin-bottom:4px; font-family:var(--font-header); font-size:12px;">
+            I. THE GLIMMER, THE FALL &amp; THE SHATTERED NEXUS
+          </b>
+          Before time took shape, reality hung between the radiance of the <b>Glimmer</b> and the silence of the <b>Fall</b>. Between them stood the crystalline <b>Nexus</b>, holding the Void at bay—until the Great Shattering scattered its shards across the continental caldera.
+        </div>
+        <div style="background:#080c18; border:2px solid #1e293b; padding:10px; border-radius:4px;">
+          <b style="color:#38bdf8; display:block; margin-bottom:4px; font-family:var(--font-header); font-size:12px;">
+            II. YOUR AWAKENING FROM STASIS
+          </b>
+          Sealed in starlight crystal in <b>Sanctuary Haven</b> since the Fall, you awaken as a <b>Summoner-Knight</b>. Train with <b>Herald Lyra</b>, form 3-player squads [O], and venture into the outer realms—banishing enemies into Void smoke, defending our Sanctuary, and shattering rival Monoliths!
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:10px;">
+          <div style="background:#080c18; border-left:3px solid #facc15; padding:8px; border-radius:3px;">
+            <b style="color:#facc15;">☀️ SOLARI (The Light)</b><br/>Radiant citadels, angelic heralds, Bulwark shields &amp; burning Daystar Rites.
+          </div>
+          <div style="background:#080c18; border-left:3px solid #a855f7; padding:8px; border-radius:3px;">
+            <b style="color:#c084fc;">🌑 UMBRI (The Shadow)</b><br/>Duskveil assassins, Soul Tithes, Stealth strikes &amp; whispers from the Void.
+          </div>
+          <div style="background:#080c18; border-left:3px solid #22c55e; padding:8px; border-radius:3px;">
+            <b style="color:#4ade80;">🌿 TERRA (The Earth)</b><br/>Ancient stone Behemoths, Overwhelm stampedes &amp; Ironwood resilience.
+          </div>
+          <div style="background:#080c18; border-left:3px solid #38bdf8; padding:8px; border-radius:3px;">
+            <b style="color:#38bdf8;">🔮 AETHER (The Magic)</b><br/>Starforged scholars bending time with Chrono Shifts &amp; Reality Fractures.
+          </div>
+        </div>
+        <div style="text-align:center; padding-top:6px;">
+          <a href="https://www.glimmerfalltcg.com" target="_blank" rel="noreferrer" style="color:#facc15; font-family:var(--font-header); font-size:10.5px; text-decoration:none;">
+            ▸ EXPLORE ALL 322 CARDS AT GLIMMERFALLTCG.COM ◂
+          </a>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderLoreModal() {
+    const modal = document.getElementById('lore-modal');
+    if (!modal) return;
+    const body = document.getElementById('lore-modal-body');
+    if (!body) return;
+
+    const tabQuestsBtn = document.getElementById('lore-tab-quests');
+    const tabMapBtn = document.getElementById('lore-tab-map');
+    const tabChronicleBtn = document.getElementById('lore-tab-chronicle');
+    if (tabQuestsBtn) tabQuestsBtn.className = `st-tab-btn ${currentLoreTab === 'quests' ? 'active' : ''}`;
+    if (tabMapBtn) tabMapBtn.className = `st-tab-btn ${currentLoreTab === 'map' ? 'active' : ''}`;
+    if (tabChronicleBtn) tabChronicleBtn.className = `st-tab-btn ${currentLoreTab === 'chronicle' ? 'active' : ''}`;
+
+    if (currentLoreTab === 'quests') {
+      renderQuestLogView(body);
+    } else if (currentLoreTab === 'map') {
+      renderWorldAtlasView(body);
+    } else {
+      renderChronicleView(body);
+    }
+  }
+
   function updateQuestTrackerHUD() {
     const container = document.getElementById('quest-tracker');
     if (!container) return;
 
-    let activeQuest = null;
-    for (const qId of Object.keys(questState.activeQuests)) {
-      if (QUEST_CATALOG[qId]) {
-        activeQuest = QUEST_CATALOG[qId];
-        break;
-      }
+    const activeList = [];
+    for (const qId of Object.keys(questState.activeQuests || {})) {
+      if (QUEST_CATALOG[qId]) activeList.push(QUEST_CATALOG[qId]);
     }
 
-    if (!activeQuest && !questState.completedQuests.quest_awakening) {
-      activeQuest = QUEST_CATALOG.quest_awakening;
-    } else if (!activeQuest && !questState.completedQuests.quest_into_the_warzone && questState.completedQuests.quest_awakening) {
-      activeQuest = QUEST_CATALOG.quest_into_the_warzone;
-    } else if (!activeQuest && !questState.completedQuests.quest_void_banish && questState.completedQuests.quest_into_the_warzone) {
-      activeQuest = QUEST_CATALOG.quest_void_banish;
+    if (activeList.length === 0 && !questState.completedQuests?.quest_awakening) {
+      activeList.push(QUEST_CATALOG.quest_awakening);
     }
 
-    if (activeQuest) {
-      const isReady = activeQuest.isComplete();
-      const tasksHtml = activeQuest.tasks.map((t, idx) => {
-        const isDone = t.done();
-        const countStr = t.counter ? ` (${t.counter()})` : '';
-        return `
-          <div class="quest-task">
-            <div class="quest-check ${isDone ? 'done' : ''}" id="qc-${idx + 1}">${isDone ? '✓' : ''}</div>
-            <span style="${isDone ? 'color:#94a3b8; text-decoration:line-through;' : 'color:#f1f5f9;'}">${t.text}${countStr}</span>
-          </div>
-        `;
-      }).join('');
+    const trackedList = activeList.filter((q) => questState.trackedQuests?.[q.id] !== false);
 
-      const turnInPrompt = isReady ? `
-        <div class="quest-turnin-banner">
-          <span>✨</span><span>Ready to turn in! Return to ${getNpcName(activeQuest.turnInId)}</span>
-        </div>
-      ` : '';
-
-      const completedCount = activeQuest.tasks.filter((t) => t.done()).length;
+    if (trackedList.length === 0) {
       container.innerHTML = `
-        <div class="quest-title">
-          <span>📜 ${activeQuest.title.toUpperCase()}</span>
-          <span id="quest-stage-txt" style="color: ${isReady ? '#facc15' : '#38bdf8'}; font-weight:800;">
-            ${isReady ? 'READY ✓' : `${completedCount} / ${activeQuest.tasks.length}`}
-          </span>
+        <div class="quest-title" style="margin-bottom:2px;">
+          <span>📜 QUEST TRACKER</span>
+          <button class="id-mini-btn" onclick="openQuestLog()" style="font-size:9.5px; padding:1px 6px;">LOG [L]</button>
         </div>
-        ${tasksHtml}
-        ${turnInPrompt}
-      `;
-    } else {
-      container.innerHTML = `
-        <div class="quest-title">
-          <span>⚔️ CONTINENTAL CONQUEST</span>
-          <span style="color: #facc15;">${(localProfile?.faction || 'SOLARI').toUpperCase()}</span>
+        <div style="color:#94a3b8; font-size:9.5px; padding:4px 0;">
+          ${activeList.length > 0 ? `${activeList.length} quest(s) active, but unpinned from HUD.` : 'No active quests.'}<br/>
+          <a href="javascript:void(0)" onclick="openQuestLog()" style="color:#38bdf8; font-weight:bold;">Open Quest Log [L]</a> to select quests to display.
         </div>
-        <div class="quest-task"><span style="color:#cbd5e1;">• Banish Void foes &amp; rival factions</span></div>
-        <div class="quest-task"><span style="color:#cbd5e1;">• Form 3-Player Squad [O] (+25% XP)</span></div>
-        <div class="quest-task"><span style="color:#cbd5e1;">• Slay World Bosses &amp; Shatter Nexus</span></div>
       `;
+      return;
     }
+
+    container.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e293b; padding-bottom:4px; margin-bottom:5px;">
+        <span style="font-family:var(--font-header); font-size:10.5px; color:#facc15; font-weight:bold;">
+          📜 TRACKED QUESTS (${trackedList.length}/${activeList.length})
+        </span>
+        <button class="id-mini-btn" onclick="openQuestLog()" title="Open Quest Log &amp; Atlas [L]" style="font-size:9.5px; padding:2px 6px;">
+          LOG [L]
+        </button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        ${trackedList.map((q) => {
+          const isReady = q.isComplete();
+          const tasksHtml = q.tasks.map((t, idx) => {
+            const isDone = t.done();
+            const countStr = t.counter ? ` (${t.counter()})` : '';
+            return `
+              <div class="quest-task" style="margin-bottom:2px;">
+                <div class="quest-check ${isDone ? 'done' : ''}" style="width:13px; height:13px; font-size:9px;">${isDone ? '✓' : ''}</div>
+                <span style="${isDone ? 'color:#94a3b8; text-decoration:line-through;' : 'color:#f1f5f9; font-size:9.5px;'}">${t.text}${countStr}</span>
+              </div>
+            `;
+          }).join('');
+
+          const turnInPrompt = isReady ? `
+            <div class="quest-turnin-banner" style="margin-top:3px; padding:3px 6px; font-size:9.5px;">
+              <span>✨</span><span>Ready! Return to ${getNpcName(q.turnInId)}</span>
+            </div>
+          ` : '';
+
+          const completedCount = q.tasks.filter((t) => t.done()).length;
+
+          return `
+            <div class="quest-block" style="padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.08);">
+              <div class="quest-title" style="font-size:10.5px; margin-bottom:3px;">
+                <span style="color:#fde047;">${q.title.toUpperCase()}</span>
+                <span style="color:${isReady ? '#facc15' : '#38bdf8'}; font-size:9.5px; font-weight:800;">
+                  ${isReady ? 'READY ✓' : `${completedCount} / ${q.tasks.length}`}
+                </span>
+              </div>
+              ${tasksHtml}
+              ${turnInPrompt}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
   }
   const inputs = { w: false, a: false, s: false, d: false, up: false, down: false, left: false, right: false, shift: false, axisX: 0, axisY: 0 };
 
@@ -1706,6 +2528,15 @@ export function initGame() {
     mapBounds.halfW = cfg.halfW;
     mapBounds.halfH = cfg.halfH;
     audio.setBgmTheme(cfg.bgm || 'sanctuary');
+
+    if (!questState.visitedBiomes) questState.visitedBiomes = {};
+    if (resolvedRoomType === ROOM_TYPES.SOLARI_CITADEL) questState.visitedBiomes.solari = true;
+    if (resolvedRoomType === ROOM_TYPES.UMBRI_UNDERCITY) questState.visitedBiomes.umbri = true;
+    if (resolvedRoomType === ROOM_TYPES.TERRA_ORCHARD) questState.visitedBiomes.terra = true;
+    if (resolvedRoomType === ROOM_TYPES.AETHER_SPIRE) questState.visitedBiomes.aether = true;
+    if (resolvedRoomType === ROOM_TYPES.CELESTIAL_ASCENT) questState.ascentReached = true;
+    saveQuestState();
+    updateQuestTrackerHUD();
 
     npcs = [];
     props = [];
@@ -3354,6 +4185,15 @@ export function initGame() {
       updateQuestTrackerHUD();
     }
 
+    if (ent.id === 'celestial_boss' || (ent.name && ent.name.includes('Aurelius'))) {
+      if (!questState.titanChallenged) {
+        questState.titanChallenged = true;
+        saveQuestState();
+        updateQuestTrackerHUD();
+        spawnFCT(player.x, player.y - 14, '✨ TITAN ENGAGED!', '#fde047', true);
+      }
+    }
+
     if (currentTarget && currentTarget.id === ent.id) {
       updateTargetUI();
     }
@@ -4940,6 +5780,9 @@ export function initGame() {
         if (net.connected) net.send({ type: 'list_rooms' });
         refreshSocialModalView();
       }
+      if (id === 'lore-modal') {
+        renderLoreModal();
+      }
       if (id === 'settings-modal') {
         const touchCb = document.getElementById('settings-touch-checkbox');
         if (touchCb) touchCb.checked = document.body.classList.contains('touch-mode');
@@ -5183,14 +6026,14 @@ export function initGame() {
     if (key === 'v') window.triggerEmote('cheer');
     if (key === 'b') window.plantOrderBanner();
     if (key === 'i') window.toggleModal('paperdoll-modal');
-    if (key === 'm') window.toggleBgmMute();
+    if (key === 'm') window.toggleWorldAtlas();
     if (key === 'p') window.toggleModal('spellbook-modal');
     if (key === 'c') window.toggleModal('char-modal');
     if (key === 'g') window.toggleModal('account-modal');
     if (key === 'o') window.toggleModal('social-modal');
     if (key === 'h') window.openFrontpage();
     if (key === 'k') window.toggleModal('cards-modal');
-    if (key === 'l') window.toggleModal('lore-modal');
+    if (key === 'l') window.openQuestLog();
   }, true);
 
   window.addEventListener('keyup', (e) => {

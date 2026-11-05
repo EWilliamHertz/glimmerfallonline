@@ -247,10 +247,15 @@
       position: absolute;
       top: 98px;
       left: 12px;
-      width: 262px;
-      font-size: 9px;
+      width: 280px;
+      max-height: 48vh;
+      overflow-y: auto;
+      font-size: 9.5px;
       line-height: 1.38;
-      padding: 7px 9px;
+      padding: 8px 10px;
+      pointer-events: all;
+      scrollbar-width: thin;
+      scrollbar-color: #38bdf8 #080c18;
     }
     .quest-title {
       font-family: var(--font-header);
@@ -1571,6 +1576,9 @@
           <div class="net-pill-line1" style="color:#fbbf24;">● CONNECTING...</div>
           <div class="net-pill-line2">ENTERING ONLINE REALM</div>
         </div>
+        <button class="util-btn" style="width:100%; margin-top:3px; padding:3px 6px; font-size:10px; border-color:#38bdf8; color:#7dd3fc; display:flex; justify-content:center; align-items:center; gap:4px;" onclick="openWorldMap()">
+          🗺️ WORLD ATLAS [M]
+        </button>
       </div>
 
       <div id="zone-controls">
@@ -1725,7 +1733,8 @@
       <button class="util-btn" style="border-color:#fde047;" onclick="toggleModal('account-modal')">🆔 ID [G]</button>
       <button class="util-btn" style="border-color:#4ade80;" onclick="toggleModal('social-modal')">👥 SOCIAL [O]</button>
       <button class="util-btn" onclick="toggleModal('cards-modal')">🃏 RELICS [K]</button>
-      <button class="util-btn" onclick="toggleModal('lore-modal')">📜 LORE [L]</button>
+      <button class="util-btn" style="border-color:#38bdf8; color:#7dd3fc;" onclick="openWorldMap()">🗺️ MAP [M]</button>
+      <button class="util-btn" onclick="openQuestLog()">📜 QUESTS [L]</button>
       <button class="util-btn" style="border-color:#38bdf8; color:#7dd3fc;" onclick="toggleModal('settings-modal')">⚙️ SETTINGS [ESC]</button>
     </div>
 
@@ -1889,40 +1898,25 @@
       </div>
     </div>
 
-    <!-- MODAL 6: GlimmerFall Universe Chronicle & Lore [L] -->
-    <div id="lore-modal" class="modal panel" style="width: 580px;">
-      <div class="modal-header">
-        <div class="modal-title">📜 CHRONICLE OF THE GLIMMERFALL [L]</div>
-        <div class="modal-close" onclick="toggleModal('lore-modal')">✕</div>
+    <!-- MODAL 6: GlimmerFall Universe Chronicle, Quests & World Atlas [L] / [M] -->
+    <div id="lore-modal" class="modal panel" style="width: 820px; max-width: 96vw; max-height: 88vh; overflow-y: auto; display: none;">
+      <div class="modal-header" style="border-bottom:none; margin-bottom:4px; padding-bottom:0;">
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="modal-title" style="font-size: 14px; color: #facc15; font-family:var(--font-header); letter-spacing:0.5px;">
+              📜 GLIMMERFALL CHRONICLE, QUESTS &amp; WORLD ATLAS
+            </div>
+            <div class="modal-close" onclick="toggleModal('lore-modal')">✕</div>
+          </div>
+          <div class="skilltree-nav-tabs" style="margin: 8px 0 0 0; padding-bottom: 2px;">
+            <button type="button" class="st-tab-btn active" id="lore-tab-quests" onclick="switchLoreTab('quests')">📜 QUEST LOG</button>
+            <button type="button" class="st-tab-btn" id="lore-tab-map" onclick="switchLoreTab('map')">🗺️ WORLD ATLAS &amp; REGIONS [M]</button>
+            <button type="button" class="st-tab-btn" id="lore-tab-chronicle" onclick="switchLoreTab('chronicle')">📖 ANCIENT CHRONICLE [L]</button>
+          </div>
+        </div>
       </div>
-      <div style="font-size:10px; color:#e2e8f0; line-height:1.55; display:flex; flex-direction:column; gap:10px;">
-        <div style="background:#080c18; border:2px solid #1e293b; padding:9px;">
-          <b style="color:#facc15; display:block; margin-bottom:3px;">I. THE GLIMMER, THE FALL &amp; THE SHATTERED NEXUS</b>
-          Before time took shape, reality hung between the radiance of the <b>Glimmer</b> and the silence of the <b>Fall</b>. Between them stood the crystalline <b>Nexus</b>, holding the Void at bay—until the Great Shattering scattered its shards across four realms.
-        </div>
-        <div style="background:#080c18; border:2px solid #1e293b; padding:9px;">
-          <b style="color:#38bdf8; display:block; margin-bottom:3px;">II. YOUR AWAKENING FROM STASIS</b>
-          Sealed in starlight crystal on <b>Awakening Isle</b> since the Fall, you awaken as a <b>Summoner-Knight</b>. Train with <b>Aurora Marshal</b>, form 3-player squads in the Sanctuary Hub, and cross the Astral Rift to reunite with your faction—banishing enemies into Void smoke, defending our 25-HP Sanctuary Nexus, and shattering rival Monoliths!
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:9.5px;">
-          <div style="background:#080c18; border-left:3px solid #facc15; padding:7px;">
-            <b style="color:#facc15;">☀️ SOLARI (The Light)</b><br/>Radiant citadels, angelic heralds, Bulwark shields &amp; burning Daystar Rites.
-          </div>
-          <div style="background:#080c18; border-left:3px solid #a855f7; padding:7px;">
-            <b style="color:#c084fc;">🌑 UMBRI (The Shadow)</b><br/>Duskveil assassins, Soul Tithes, Stealth strikes &amp; whispers from the Void.
-          </div>
-          <div style="background:#080c18; border-left:3px solid #22c55e; padding:7px;">
-            <b style="color:#4ade80;">🌿 TERRA (The Earth)</b><br/>Ancient stone Behemoths, Overwhelm stampedes &amp; Ironwood resilience.
-          </div>
-          <div style="background:#080c18; border-left:3px solid #38bdf8; padding:7px;">
-            <b style="color:#38bdf8;">🔮 AETHER (The Magic)</b><br/>Starforged scholars bending time with Chrono Shifts &amp; Reality Fractures.
-          </div>
-        </div>
-        <div style="text-align:center; padding-top:4px;">
-          <a href="https://www.glimmerfalltcg.com" target="_blank" rel="noreferrer" style="color:#facc15; font-family:var(--font-header); font-size:8.5px;">
-            ▸ EXPLORE ALL 322 CARDS AT GLIMMERFALLTCG.COM ◂
-          </a>
-        </div>
+      <div id="lore-modal-body" style="font-size:11px; color:#e2e8f0; line-height:1.55; margin-top:8px;">
+        <!-- Dynamically rendered by renderLoreModal() in client/game.js -->
       </div>
     </div>
   </div>
