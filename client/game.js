@@ -32,7 +32,12 @@ import {
   removeItemFromBackpack,
   getItemGuidePrice,
   countItemInBackpack,
+  setHoveredEquipment,
+  clearHoveredEquipment,
+  updateFloatingGearTooltipPos,
+  hideFloatingGearTooltip,
 } from './equipmentUi.js';
+import { getItemCanvas, getItemIconDataUrl } from './itemSprites.js';
 import {
   drawPixelNameplateAndBubbles,
   renderPartyHud,
@@ -2920,6 +2925,11 @@ export function initGame() {
     tickExchangeOffers(localProfile);
   }, 3000);
 
+  window.setHoveredEquipment = setHoveredEquipment;
+  window.clearHoveredEquipment = clearHoveredEquipment;
+  window.updateHoveredEquipmentPos = updateFloatingGearTooltipPos;
+  window.hideHoveredEquipmentTooltip = hideFloatingGearTooltip;
+
   window.assignSlotAbilityInGame = function (slot, abilityId) {
     const ab = ABILITIES_CATALOG[abilityId];
     if (!ab) return;
@@ -5243,7 +5253,10 @@ export function initGame() {
       const def = l.itemId ? EQUIPMENT_CATALOG[l.itemId] : null;
       ctx.fillStyle = 'rgba(245, 158, 11, 0.4)';
       ctx.fillRect(sx - 8, cy - 2, 17, 1);
-      if (def?.icon) {
+      const iconCv = l.itemId ? getItemCanvas(l.itemId, 16) : null;
+      if (iconCv) {
+        ctx.drawImage(iconCv, Math.round(sx - 8), Math.round(cy - 16), 16, 16);
+      } else if (def?.icon) {
         ctx.font = '13px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';

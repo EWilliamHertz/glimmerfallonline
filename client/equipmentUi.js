@@ -15,6 +15,141 @@ import {
   CLASSES_CATALOG,
 } from '../shared/protocol.js';
 import { getCharacterSprites } from './sprites.js';
+import { getItemIconDataUrl, getItemCanvas } from './itemSprites.js';
+
+let currentHoveredItemId = null;
+let currentHoveredSource = 'equipped';
+
+export function formatItemStatsHtml(item, showSet = true) {
+  if (!item) return '';
+  const stats = item.stats || {};
+  const lines = [];
+  if (stats.power) lines.push(`<span style="color:#fde047; font-weight:bold;">⚔️ +${stats.power} Power</span>`);
+  if (stats.bastion) lines.push(`<span style="color:#4ade80; font-weight:bold;">🛡️ +${stats.bastion} Bastion</span>`);
+  if (stats.resonance) lines.push(`<span style="color:#38bdf8; font-weight:bold;">🔮 +${stats.resonance} Resonance</span>`);
+  if (stats.tempo) lines.push(`<span style="color:#c084fc; font-weight:bold;">⚡ +${stats.tempo} Tempo</span>`);
+  if (stats.maxHp) lines.push(`<span style="color:#f87171; font-weight:bold;">❤️ +${stats.maxHp} Max HP</span>`);
+  if (stats.maxGlimmer) lines.push(`<span style="color:#fde047; font-weight:bold;">✨ +${stats.maxGlimmer} Glimmer</span>`);
+  if (stats.critPct) lines.push(`<span style="color:#fbbf24; font-weight:bold;">🎯 +${Math.round(stats.critPct * 100)}% Crit</span>`);
+  if (item.healHp) lines.push(`<span style="color:#4ade80; font-weight:bold;">🧪 Restores +${item.healHp} Health</span>`);
+  if (item.restoreGlimmer) lines.push(`<span style="color:#38bdf8; font-weight:bold;">⚗️ Restores +${item.restoreGlimmer} Glimmer</span>`);
+
+  let setHtml = '';
+  if (showSet && item.set && BARROWS_SETS[item.set]) {
+    const s = BARROWS_SETS[item.set];
+    setHtml = `
+      <div style="margin-top:6px; padding:4px 7px; background:#1c1917; border-left:3px solid ${s.color}; border-radius:3px; font-size:8px;">
+        <b style="color:${s.color};">👑 ${s.name}</b>
+        <div style="color:#fde047; font-weight:bold; margin-top:2px;">${s.perkTitle}</div>
+        <div style="color:#cbd5e1; font-size:7.5px; margin-top:1px; line-height:1.3;">${s.perkDesc}</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div style="display:flex; flex-wrap:wrap; gap:6px; font-size:8.5px; margin:4px 0;">
+      ${lines.length > 0 ? lines.join(' • ') : '<span style="color:#94a3b8; font-size:8px;">No direct combat stat bonuses</span>'}
+    </div>
+    ${setHtml}
+  `;
+}
+
+export function getHoveredCardHtml(itemId, source = 'equipped') {
+  const item = itemId ? EQUIPMENT_CATALOG[itemId] : null;
+  if (!item) {
+    return `
+      <div style="text-align:center; padding:10px 8px; color:#78716c; font-size:8.5px; border:1px dashed #44403c; border-radius:4px;">
+        🔍 Hover over any worn gear slot or backpack item to inspect its combat bonuses and set synergies.
+      </div>
+    `;
+  }
+
+  const borderCol = getRarityColor(item.rarity);
+  const actionTip = source === 'equipped'
+    ? '👉 Click slot to Unequip to Backpack'
+    : source === 'inventory'
+    ? '👉 Left-click to Equip • Right-click to Drop'
+    : '👉 AetherSwap Catalog Entry';
+
+  return `
+    <div style="background:#090d1c; border:1.5px solid ${borderCol}; border-radius:4px; padding:8px 10px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <img class="pixel-art" src="${getItemIconDataUrl(item.id, 32)}" width="32" height="32" style="image-rendering:pixelated; background:#070b18; border:1px solid ${borderCol}; border-radius:3px; padding:2px;" alt="${item.name}" />
+        <div style="line-height:1.25; overflow:hidden;">
+          <b style="color:#f8fafc; font-size:10.5px; display:block; text-overflow:ellipsis; white-space:nowrap; overflow:hidden;">${item.name}</b>
+          <div style="font-size:8px; color:${borderCol}; font-weight:bold;">${item.rarity} • ${item.slot.toUpperCase()}</div>
+        </div>
+      </div>
+      <div style="margin-top:6px; border-top:1px solid #1e293b; padding-top:4px;">
+        ${formatItemStatsHtml(item, true)}
+      </div>
+      <div style="font-size:7.5px; color:#94a3b8; font-style:italic; margin-top:4px; line-height:1.3;">
+        ${item.desc || ''}
+      </div>
+      <div style="font-size:7.5px; color:#38bdf8; font-weight:bold; margin-top:5px; border-top:1px solid #1e293b; padding-top:3px;">
+        ${actionTip}
+      </div>
+    </div>
+  `;
+}
+
+export function updateHoveredEquipmentDisplay() {
+  if (typeof document === 'undefined') return;
+  const gearCard = document.getElementById('hovered-gear-card');
+  if (gearCard) {
+    gearCard.innerHTML = getHoveredCardHtml(currentHoveredItemId, currentHoveredSource);
+  }
+  const bagCard = document.getElementById('bag-hovered-gear-card');
+  if (bagCard) {
+    bagCard.innerHTML = getHoveredCardHtml(currentHoveredItemId, currentHoveredSource);
+  }
+}
+
+export function setHoveredEquipment(itemId, source = 'equipped', evt = null) {
+  currentHoveredItemId = itemId || null;
+  currentHoveredSource = source;
+  updateHoveredEquipmentDisplay();
+  if (evt && itemId) {
+    showFloatingGearTooltip(itemId, source, evt);
+  }
+}
+
+export function clearHoveredEquipment() {
+  currentHoveredItemId = null;
+  currentHoveredSource = 'equipped';
+  updateHoveredEquipmentDisplay();
+  hideFloatingGearTooltip();
+}
+
+export function showFloatingGearTooltip(itemId, source, evt) {
+  if (typeof document === 'undefined') return;
+  const tip = document.getElementById('gear-floating-tooltip');
+  if (!tip) return;
+  const item = itemId ? EQUIPMENT_CATALOG[itemId] : null;
+  if (!item) {
+    tip.style.display = 'none';
+    return;
+  }
+  tip.innerHTML = getHoveredCardHtml(itemId, source);
+  tip.style.display = 'block';
+  updateFloatingGearTooltipPos(evt);
+}
+
+export function updateFloatingGearTooltipPos(evt) {
+  if (typeof document === 'undefined') return;
+  const tip = document.getElementById('gear-floating-tooltip');
+  if (!tip || tip.style.display === 'none') return;
+  const x = Math.min(window.innerWidth - 275, (evt?.clientX || 0) + 14);
+  const y = Math.min(window.innerHeight - 200, (evt?.clientY || 0) + 14);
+  tip.style.left = `${x}px`;
+  tip.style.top = `${y}px`;
+}
+
+export function hideFloatingGearTooltip() {
+  if (typeof document === 'undefined') return;
+  const tip = document.getElementById('gear-floating-tooltip');
+  if (tip) tip.style.display = 'none';
+}
 
 export const RS_SLOTS_LAYOUT = [
   // Row 1
@@ -86,9 +221,11 @@ export function renderEquipmentModal({ profile }) {
               <div class="rs-equip-slot ${item ? 'filled' : ''}"
                    style="border-color:${borderCol};"
                    onclick="window.unequipSlot('${s.key}')"
-                   title="${item ? `${item.name} (${item.rarity})\n${item.desc}\n\n👉 Click to Unequip to Backpack` : `Empty ${s.label} Slot`}">
+                   onmouseenter="window.setHoveredEquipment('${item ? item.id : ''}', 'equipped', event)"
+                   onmousemove="window.updateHoveredEquipmentPos(event)"
+                   onmouseleave="window.clearHoveredEquipment()">
                 ${item ? `
-                  <div style="font-size:20px; line-height:1;">${item.icon}</div>
+                  <img class="pixel-art" src="${getItemIconDataUrl(item.id, 24)}" width="24" height="24" style="image-rendering:pixelated; display:block; margin:0 auto;" alt="${item.name}" />
                   <div style="font-size:7.5px; color:${borderCol}; font-weight:700; max-width:52px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; margin-top:2px;">
                     ${item.name.replace(/^(Sunforged|Ironwood|Chrono|Duskveil|Aurelius)\s*/i, '')}
                   </div>
@@ -117,11 +254,22 @@ export function renderEquipmentModal({ profile }) {
       </div>
 
       <!-- RIGHT: Combat Bonuses & Canonical Faction Set Perks -->
-      <div style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <!-- Hovered Equipment Bonus Inspection Card -->
+        <div style="background:#141210; border:2px solid #57534e; border-radius:4px; padding:8px 10px;">
+          <div style="font-family:var(--font-header); font-size:9.5px; color:#fde047; margin-bottom:4px; border-bottom:1px solid #292524; padding-bottom:3px; display:flex; justify-content:space-between; align-items:center;">
+            <span>🔍 INSPECTED EQUIPMENT BONUSES</span>
+            <span style="font-size:7.5px; color:#94a3b8;">HOVER PREVIEW</span>
+          </div>
+          <div id="hovered-gear-card">
+            ${getHoveredCardHtml(currentHoveredItemId, currentHoveredSource)}
+          </div>
+        </div>
+
         <!-- Combat Stat Bonuses Breakdown -->
-        <div style="background:#141210; border:2px solid #57534e; border-radius:4px; padding:10px 12px;">
-          <div style="font-family:var(--font-header); font-size:10px; color:#fde047; margin-bottom:8px; border-bottom:1px solid #292524; padding-bottom:4px;">
-            📊 COMBAT STAT BONUSES
+        <div style="background:#141210; border:2px solid #57534e; border-radius:4px; padding:8px 12px;">
+          <div style="font-family:var(--font-header); font-size:10px; color:#fde047; margin-bottom:6px; border-bottom:1px solid #292524; padding-bottom:4px;">
+            📊 TOTAL COMBAT STAT BONUSES
           </div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:9.5px;">
             <div style="background:#1c1917; border:1px solid #292524; padding:5px 8px; border-radius:3px;">
@@ -264,8 +412,10 @@ export function renderInventoryModal({ profile }) {
                  style="border-color:${borderCol};"
                  onclick="window.equipInventorySlot(${i})"
                  oncontextmenu="event.preventDefault(); window.dropInventorySlot(${i});"
-                 title="${item.name} (${item.rarity})\nSlot: ${item.slot.toUpperCase()}\n${item.desc}\n\n👉 Left-click: Equip / Swap\n👉 Right-click: Drop on ground">
-              <div style="font-size:22px; line-height:1;">${item.icon}</div>
+                 onmouseenter="window.setHoveredEquipment('${item.id}', 'inventory', event)"
+                 onmousemove="window.updateHoveredEquipmentPos(event)"
+                 onmouseleave="window.clearHoveredEquipment()">
+              <img class="pixel-art" src="${getItemIconDataUrl(item.id, 24)}" width="24" height="24" style="image-rendering:pixelated; display:block; margin:0 auto;" alt="${item.name}" />
               <div style="font-size:7px; color:${borderCol}; font-weight:700; max-width:48px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; margin-top:2px;">
                 ${item.name.replace(/^(Sunforged|Ironwood|Chrono|Duskveil|Aurelius)\s*/i, '')}
               </div>
@@ -280,6 +430,17 @@ export function renderInventoryModal({ profile }) {
           </div>
         `;
       }).join('')}
+    </div>
+
+    <!-- Backpack Hovered Item Inspection & Combat Bonuses -->
+    <div style="background:#141210; border:2px solid #57534e; border-radius:4px; padding:8px 10px; margin-top:10px;">
+      <div style="font-family:var(--font-header); font-size:9.5px; color:#fbbf24; margin-bottom:4px; border-bottom:1px solid #292524; padding-bottom:3px; display:flex; justify-content:space-between; align-items:center;">
+        <span>🔍 BACKPACK ITEM INSPECTION</span>
+        <span style="font-size:7.5px; color:#94a3b8;">COMBAT BONUSES</span>
+      </div>
+      <div id="bag-hovered-gear-card">
+        ${getHoveredCardHtml(currentHoveredItemId, currentHoveredSource)}
+      </div>
     </div>
 
     <div style="display:flex; justify-content:space-between; gap:10px; margin-top:12px;">
@@ -565,7 +726,7 @@ export function renderExchangeModal({ profile }) {
           <div style="display:grid; grid-template-columns: 240px 1fr; gap:16px; align-items:center;">
             <!-- Left: Item Card -->
             <div style="background:#060b18; border:1px solid #1e293b; border-radius:4px; padding:10px; display:flex; align-items:center; gap:10px;">
-              <span style="font-size:32px;">${itemDef?.icon || '📦'}</span>
+              <img class="pixel-art" src="${getItemIconDataUrl(d.itemId, 32)}" alt="${itemDef?.name || d.itemId}" style="width:32px; height:32px; object-fit:contain; border:1px solid #1e293b; background:#040711; border-radius:4px; padding:2px;" />
               <div>
                 <b style="color:#f8fafc; font-size:11px; display:block;">${itemDef?.name || d.itemId}</b>
                 <span style="color:#38bdf8; font-size:8.5px;">${itemDef?.rarity || 'Common'} • ${itemDef?.slot?.toUpperCase() || 'ITEM'}</span>
@@ -656,7 +817,7 @@ export function renderExchangeModal({ profile }) {
                   </span>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px; margin:6px 0;">
-                  <span style="font-size:26px;">${itemDef?.icon || '📦'}</span>
+                  <img class="pixel-art" src="${getItemIconDataUrl(o.itemId, 28)}" alt="${itemDef?.name || o.itemId}" style="width:28px; height:28px; object-fit:contain; border:1px solid #1e293b; background:#040711; border-radius:4px; padding:2px;" />
                   <div style="overflow:hidden; line-height:1.25;">
                     <div style="font-size:9.5px; font-weight:bold; color:#f8fafc; text-overflow:ellipsis; white-space:nowrap; overflow:hidden;" title="${itemDef?.name || o.itemId}">
                       ${itemDef?.name || o.itemId}
@@ -742,9 +903,12 @@ export function renderExchangeModal({ profile }) {
           const inBagCount = countItemInBackpack(profile, it.id);
 
           return `
-            <div style="background:#080d1e; border:1px solid ${borderCol}; border-radius:4px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="background:#080d1e; border:1px solid ${borderCol}; border-radius:4px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center;"
+                 onmouseenter="window.setHoveredEquipment('${it.id}', 'exchange', event)"
+                 onmousemove="window.updateHoveredEquipmentPos(event)"
+                 onmouseleave="window.clearHoveredEquipment()">
               <div style="display:flex; align-items:center; gap:10px;">
-                <span style="font-size:24px;">${it.icon}</span>
+                <img class="pixel-art" src="${getItemIconDataUrl(it.id, 26)}" alt="${it.name}" style="width:26px; height:26px; object-fit:contain; border:1px solid ${borderCol}; background:#040711; border-radius:4px; padding:2px;" />
                 <div style="font-size:9px; line-height:1.35;">
                   <b style="color:#f8fafc;">${it.name}</b>
                   <div style="color:${borderCol}; font-size:7.5px;">${it.rarity || 'Common'} • ${it.slot.toUpperCase()}</div>
@@ -791,9 +955,12 @@ export function renderExchangeModal({ profile }) {
           const inBagCount = countItemInBackpack(profile, it.id);
 
           return `
-            <div style="background:#090e1f; border:1.5px solid ${borderCol}; border-radius:4px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="background:#090e1f; border:1.5px solid ${borderCol}; border-radius:4px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center;"
+                 onmouseenter="window.setHoveredEquipment('${it.id}', 'exchange', event)"
+                 onmousemove="window.updateHoveredEquipmentPos(event)"
+                 onmouseleave="window.clearHoveredEquipment()">
               <div style="display:flex; align-items:center; gap:10px;">
-                <span style="font-size:26px;">${it.icon}</span>
+                <img class="pixel-art" src="${getItemIconDataUrl(it.id, 28)}" alt="${it.name}" style="width:28px; height:28px; object-fit:contain; border:1px solid ${borderCol}; background:#040711; border-radius:4px; padding:2px;" />
                 <div style="line-height:1.3;">
                   <b style="color:#f8fafc; font-size:9.5px;">${it.name}</b>
                   <div style="font-size:8px; color:#f59e0b; font-weight:bold;">${p.trend}</div>
@@ -840,4 +1007,11 @@ export function setExchangeOrderDialog(dlg) {
 
 export function getActiveOrderDialog() {
   return activeOrderDialog;
+}
+
+if (typeof window !== 'undefined') {
+  window.setHoveredEquipment = setHoveredEquipment;
+  window.clearHoveredEquipment = clearHoveredEquipment;
+  window.updateHoveredEquipmentPos = updateFloatingGearTooltipPos;
+  window.hideHoveredEquipmentTooltip = hideFloatingGearTooltip;
 }
