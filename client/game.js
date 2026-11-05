@@ -5606,26 +5606,29 @@ export function initGame() {
       const cluster = lootDrops.filter((o) => Math.hypot(l.x - o.x, l.y - o.y) < 34);
       cluster.sort((a, b) => String(a.id).localeCompare(String(b.id)));
       const stackRank = Math.max(0, cluster.findIndex((o) => o.id === l.id));
-      const labelY = cy - 20 - (stackRank * 13);
+      const labelY = Math.round(cy - 20 - (stackRank * 13));
+      const rx = Math.round(sx);
 
       ctx.save();
-      ctx.font = 'bold 8.5px monospace';
+      ctx.font = 'bold 9px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const tw = ctx.measureText(labelText).width;
-      const boxW = Math.round(tw + 8);
+      const tw = Math.ceil(ctx.measureText(labelText).width);
+      const boxW = tw + 8;
       const boxH = 11;
-      const boxX = Math.round(sx - boxW / 2);
+      const boxX = Math.round(rx - boxW / 2);
       const boxY = Math.round(labelY - boxH / 2);
 
-      ctx.fillStyle = 'rgba(5, 8, 18, 0.85)';
+      ctx.fillStyle = 'rgba(5, 8, 18, 0.90)';
       ctx.fillRect(boxX, boxY, boxW, boxH);
       ctx.strokeStyle = labelColor;
       ctx.lineWidth = 1;
       ctx.strokeRect(boxX, boxY, boxW, boxH);
 
+      ctx.fillStyle = '#05070f';
+      ctx.fillText(labelText, rx + 1, labelY + 1);
       ctx.fillStyle = labelColor;
-      ctx.fillText(labelText, sx, labelY + 1);
+      ctx.fillText(labelText, rx, labelY);
       ctx.restore();
     }
   }
@@ -8653,14 +8656,21 @@ export function initGame() {
 
         // 4. Countdown warning label
         const remain = Math.max(0, (gz.maxAge || 1.5) - (gz.age || 0));
-        ctx.font = '700 10.5px Outfit, system-ui, sans-serif';
-        ctx.fillStyle = '#fde047';
+        ctx.font = '700 11px "Outfit", system-ui, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`⚠️ ${(remain).toFixed(1)}s`, gx, gy - ry - 4);
+        const warnText = `⚠️ ${(remain).toFixed(1)}s`;
+        const wy = Math.round(gy - ry - 4);
+        ctx.fillStyle = '#05070f';
+        ctx.fillText(warnText, gx + 1, wy + 1);
+        ctx.fillStyle = '#fde047';
+        ctx.fillText(warnText, gx, wy);
         if (gz.label) {
-          ctx.font = '800 9.5px Cinzel, serif';
+          ctx.font = '800 10px "Cinzel", serif';
+          const ly = Math.round(gy + 3);
+          ctx.fillStyle = '#05070f';
+          ctx.fillText(gz.label, gx + 1, ly + 1);
           ctx.fillStyle = '#ffffff';
-          ctx.fillText(gz.label, gx, gy + 3);
+          ctx.fillText(gz.label, gx, ly);
         }
       }
     }
@@ -8763,15 +8773,18 @@ export function initGame() {
                 ctx.font = '700 11px "Outfit", system-ui, sans-serif';
                 ctx.textAlign = 'center';
                 const tw = Math.ceil(ctx.measureText(pr.label).width);
-                const px = Math.round(sx - (tw + 12) / 2);
-                const py = sy - img.height - 15;
+                const rx = Math.round(sx);
+                const px = Math.round(rx - (tw + 12) / 2);
+                const py = Math.round(sy - img.height - 15);
                 ctx.fillStyle = 'rgba(7, 10, 20, 0.92)';
                 ctx.fillRect(px, py, tw + 12, 16);
                 ctx.strokeStyle = '#38bdf8';
                 ctx.lineWidth = 1;
                 ctx.strokeRect(px, py, tw + 12, 16);
+                ctx.fillStyle = '#05070f';
+                ctx.fillText(pr.label, rx + 1, py + 13);
                 ctx.fillStyle = '#f0f9ff';
-                ctx.fillText(pr.label, sx, py + 12);
+                ctx.fillText(pr.label, rx, py + 12);
                 ctx.restore();
               }
             }
@@ -8792,22 +8805,21 @@ export function initGame() {
           ctx.drawImage(img, Math.round(sx - img.width / 2), sy - img.height + 2);
 
           // Clear, High-Contrast Order Banner Plaque
-          ctx.font = '700 11.5px "Outfit", system-ui, sans-serif';
+          ctx.font = '700 11px "Outfit", system-ui, sans-serif';
           ctx.textAlign = 'center';
           const bannerTag = `<${b.orderTag || 'STANDARD'}>`;
           const bw = Math.ceil(ctx.measureText(bannerTag).width);
-          const bpx = Math.round(sx - (bw + 8) / 2);
-          const bpy = sy - img.height - 10;
-          ctx.fillStyle = 'rgba(5, 7, 15, 0.88)';
+          const rx = Math.round(sx);
+          const bpx = Math.round(rx - (bw + 8) / 2);
+          const bpy = Math.round(sy - img.height - 10);
+          ctx.fillStyle = 'rgba(5, 7, 15, 0.92)';
           ctx.fillRect(bpx, bpy, bw + 8, 14);
           ctx.fillStyle = b.color || '#fde047';
-          ctx.fillRect(bpx, bpy + 13, bw + 8, 1.5);
-          ctx.strokeStyle = '#05070f';
-          ctx.lineWidth = 2.5;
-          ctx.lineJoin = 'round';
-          ctx.strokeText(bannerTag, sx, bpy + 11);
+          ctx.fillRect(bpx, bpy + 13, bw + 8, 1);
+          ctx.fillStyle = '#05070f';
+          ctx.fillText(bannerTag, rx + 1, bpy + 12);
           ctx.fillStyle = b.color || '#fde047';
-          ctx.fillText(bannerTag, sx, bpy + 11);
+          ctx.fillText(bannerTag, rx, bpy + 11);
         },
       });
     }
@@ -8855,32 +8867,33 @@ export function initGame() {
             const symbol = (isFinished || isOngoing) ? '?' : '!';
             const fillColor = isFinished ? '#fef08a' : (isOngoing ? '#cbd5e1' : '#fde047');
             const strokeColor = isFinished ? '#78350f' : (isOngoing ? '#0f172a' : '#05070f');
+            const qx = Math.round(sx);
+            const qry = Math.round(qy);
 
             ctx.strokeStyle = strokeColor;
-            ctx.lineWidth = 4;
-            ctx.strokeText(symbol, sx, qy);
+            ctx.lineWidth = 1.5;
+            ctx.strokeText(symbol, qx, qry);
             ctx.fillStyle = fillColor;
-            ctx.fillText(symbol, sx, qy);
+            ctx.fillText(symbol, qx, qry);
             ctx.restore();
           }
 
           // Overhead High-Contrast NPC Badge
-          ctx.font = '700 12px "Outfit", system-ui, sans-serif';
+          ctx.font = '700 11px "Outfit", system-ui, sans-serif';
           ctx.textAlign = 'center';
           const npcName = npc.name || 'Herald Lyra';
           const nw = Math.ceil(ctx.measureText(npcName).width);
-          const npx = Math.round(sx - (nw + 10) / 2);
-          const npy = sy - img.height - 11;
+          const rx = Math.round(sx);
+          const npx = Math.round(rx - (nw + 10) / 2);
+          const npy = Math.round(sy - img.height - 11);
           ctx.fillStyle = 'rgba(5, 7, 18, 0.92)';
           ctx.fillRect(npx, npy - 1, nw + 10, 15);
           ctx.fillStyle = '#fde047';
-          ctx.fillRect(npx, npy + 13, nw + 10, 1.5);
-          ctx.strokeStyle = '#05070f';
-          ctx.lineWidth = 2.5;
-          ctx.lineJoin = 'round';
-          ctx.strokeText(npcName, sx, npy + 11);
+          ctx.fillRect(npx, npy + 13, nw + 10, 1);
+          ctx.fillStyle = '#05070f';
+          ctx.fillText(npcName, rx + 1, npy + 11);
           ctx.fillStyle = '#fde047';
-          ctx.fillText(npcName, sx, npy + 11);
+          ctx.fillText(npcName, rx, npy + 10);
         },
       });
     }
@@ -8982,14 +8995,15 @@ export function initGame() {
 
           // Portal destination badge & interact prompt
           if (ent.type === 'portal') {
-            ctx.font = '700 12px "Outfit", system-ui, sans-serif';
+            ctx.font = '700 11px "Outfit", system-ui, sans-serif';
             ctx.textAlign = 'center';
             const nameStr = ent.name;
             const subStr = ent.sub || 'Step In [W]';
             const nw = Math.ceil(ctx.measureText(nameStr).width);
             const badgeW = Math.max(nw + 14, 70);
             const badgeH = 19;
-            const bx = Math.round(sx - badgeW / 2);
+            const rx = Math.round(sx);
+            const bx = Math.round(rx - badgeW / 2);
             const by = Math.round(sy - img.height - 19);
 
             // Dark plaque with cyan cybernetic border
@@ -9001,22 +9015,18 @@ export function initGame() {
             ctx.fillRect(bx, by, 1, badgeH);
             ctx.fillRect(bx + badgeW - 1, by, 1, badgeH);
 
-            // Nameplate text with clean crisp stroke
-            ctx.strokeStyle = '#05070f';
-            ctx.lineWidth = 2.5;
-            ctx.lineJoin = 'round';
-            ctx.strokeText(nameStr, sx, by + 10);
+            // Nameplate text with crisp 1px shadow
+            ctx.fillStyle = '#05070f';
+            ctx.fillText(nameStr, rx + 1, by + 11);
             ctx.fillStyle = '#7dd3fc';
-            ctx.fillText(nameStr, sx, by + 10);
+            ctx.fillText(nameStr, rx, by + 10);
 
             // Subtitle prompt
-            ctx.font = '600 10.5px "Outfit", system-ui, sans-serif';
-            ctx.strokeStyle = '#05070f';
-            ctx.lineWidth = 2.5;
-            ctx.lineJoin = 'round';
-            ctx.strokeText(subStr, sx, by + 17);
+            ctx.font = '600 10px "Outfit", system-ui, sans-serif';
+            ctx.fillStyle = '#05070f';
+            ctx.fillText(subStr, rx + 1, by + 18);
             ctx.fillStyle = '#fde047';
-            ctx.fillText(subStr, sx, by + 17);
+            ctx.fillText(subStr, rx, by + 17);
           } else if (!ent.isDying) {
             const val = ent.hp ?? ent.charges ?? 0;
             const max = ent.maxHp ?? ent.maxCharges ?? 1;
@@ -9044,7 +9054,7 @@ export function initGame() {
             const showName = isBossOrCore || isTargeted || dPlayer < 95 || ent.type === 'dummy' || (ent.type === 'node' && dPlayer < 120);
 
             if (showName) {
-              ctx.font = isBossOrCore ? '700 12px "Outfit", system-ui, sans-serif' : '600 10.5px "Outfit", system-ui, sans-serif';
+              ctx.font = isBossOrCore ? '700 11px "Outfit", system-ui, sans-serif' : '600 10px "Outfit", system-ui, sans-serif';
               ctx.textAlign = 'center';
               const label = ent.type === 'dummy'
                 ? 'Training Dummy'
@@ -9057,24 +9067,23 @@ export function initGame() {
                       : ent.name;
 
               const lw = Math.ceil(ctx.measureText(label).width);
-              const lpx = Math.round(sx - (lw + 8) / 2);
+              const rx = Math.round(sx);
+              const lpx = Math.round(rx - (lw + 8) / 2);
               const lpy = Math.round(by - (isBossOrCore ? 14 : 12));
               const badgeColor = isBossOrCore ? (isEnraged ? '#ef4444' : '#facc15') : isTargeted ? '#38bdf8' : ent.type === 'shrine' ? '#facc15' : ent.type === 'node' ? '#c084fc' : '#ffffff';
 
-              ctx.fillStyle = 'rgba(5, 7, 16, 0.88)';
+              ctx.fillStyle = 'rgba(5, 7, 16, 0.90)';
               ctx.fillRect(lpx, lpy, lw + 8, isBossOrCore ? 14 : 12);
               if (isBossOrCore || isTargeted) {
                 ctx.fillStyle = badgeColor;
-                ctx.fillRect(lpx, lpy + (isBossOrCore ? 13 : 11), lw + 8, 1.5);
+                ctx.fillRect(lpx, lpy + (isBossOrCore ? 13 : 11), lw + 8, 1);
               }
 
-              ctx.strokeStyle = '#05070f';
-              ctx.lineWidth = 2.5;
-              ctx.lineJoin = 'round';
-              const textY = lpy + (isBossOrCore ? 10.5 : 9);
-              ctx.strokeText(label, sx, textY);
+              const textY = Math.round(lpy + (isBossOrCore ? 10 : 9));
+              ctx.fillStyle = '#05070f';
+              ctx.fillText(label, rx + 1, textY + 1);
               ctx.fillStyle = badgeColor;
-              ctx.fillText(label, sx, textY);
+              ctx.fillText(label, rx, textY);
             }
           }
         },

@@ -42,45 +42,33 @@ export function drawPixelNameplateAndBubbles(ctx, {
     ctx.fillRect(bx, by, Math.max(0, Math.round((hp / Math.max(1, maxHp)) * bw)), 2);
   }
 
-  // 2. Bold, High-Contrast Pixel Nameplate + <ORDER> Tag (dark plaque + thick outline)
-  ctx.font = '700 12px "Outfit", system-ui, -apple-system, sans-serif';
+  // 2. Crisp, High-Contrast Pixel Nameplate + <ORDER> Tag (Clean Dark Plaque + Integer Alignment)
+  ctx.font = '700 11px "Outfit", system-ui, -apple-system, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   const tagPrefix = orderTag && orderTag !== 'NONE' ? `<${orderTag}> ` : '';
-  const tcgStar = tcgLinked ? '⚡' : '';
+  const tcgStar = tcgLinked ? '⚡ ' : '';
   const label = `${tcgStar}${tagPrefix}${name}`;
-  const ny = isSelf ? topY - 6 : topY - 11;
+  const rx = Math.round(sx);
+  const ny = Math.round(isSelf ? topY - 6 : topY - 11);
   const labelW = Math.ceil(ctx.measureText(label).width);
   const facColor = FACTIONS_META[faction]?.color || orderColor || '#facc15';
   const textColor = isHostile ? '#fecaca' : isParty ? '#bbf7d0' : '#ffffff';
   const accentColor = isHostile ? '#ef4444' : isParty ? '#4ade80' : facColor;
 
-  // Dark semi-opaque plaque with faction-colored underline for instant legibility
-  const plateW = labelW + 10;
-  const plateX = Math.round(sx - plateW / 2);
-  ctx.fillStyle = 'rgba(5, 7, 15, 0.88)';
-  ctx.fillRect(plateX - 1, ny - 12, plateW + 2, 16);
+  // Dark high-contrast plaque with faction accent line
+  const plateW = labelW + 8;
+  const plateX = Math.round(rx - plateW / 2);
+  ctx.fillStyle = 'rgba(5, 7, 15, 0.92)';
+  ctx.fillRect(plateX, ny - 11, plateW, 14);
   ctx.fillStyle = accentColor;
-  ctx.fillRect(plateX, ny + 3, plateW, 1);
+  ctx.fillRect(plateX, ny + 2, plateW, 1);
 
-  // Crisp high-contrast outline without multi-pass overdraw blurring
-  ctx.strokeStyle = '#05070f';
-  ctx.lineWidth = 2.5;
-  ctx.lineJoin = 'round';
-  ctx.miterLimit = 2;
-  ctx.strokeText(label, sx, ny);
-  // Bright fill (white by default, tinted when hostile/party) so name never washes out
-  ctx.fillStyle = textColor;
-  ctx.fillText(label, sx, ny);
-  // Faction-colored name overlay for the actual character name (keeps faction identity)
-  if (!isHostile && !isParty) {
-    const nameW = Math.ceil(ctx.measureText(name).width);
-    const prefixW = labelW - nameW;
-    ctx.textAlign = 'left';
-    ctx.fillStyle = facColor;
-    ctx.fillText(name, Math.round(sx - labelW / 2 + prefixW), ny);
-    ctx.textAlign = 'center';
-  }
+  // Sharp, un-smeared 1px drop shadow + single-pass crisp fill
+  ctx.fillStyle = '#05070f';
+  ctx.fillText(label, rx + 1, ny + 1);
+  ctx.fillStyle = isHostile ? textColor : isParty ? textColor : facColor;
+  ctx.fillText(label, rx, ny);
 
   // 3. Pixel Emote Badge (bouncing above nameplate)
   if (emote && EMOTES_CATALOG[emote]) {
@@ -141,7 +129,7 @@ export function drawPixelNameplateAndBubbles(ctx, {
 
     ctx.fillStyle = '#f8fafc';
     lines.forEach((ln, idx) => {
-      ctx.fillText(ln, sx, by + 8 + idx * lineH);
+      ctx.fillText(ln, Math.round(sx), Math.round(by + 8 + idx * lineH));
     });
   }
 
