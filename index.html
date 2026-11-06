@@ -914,6 +914,183 @@
       border-radius: 3px;
     }
 
+    /* ==========================================
+       6b. BOTTOM-RIGHT: SKILL TAB PROGRESSION POPUP
+       Pops up upwards towards the top-right 3v3 map / minimap
+       ========================================== */
+    #skills-tab-popup {
+      position: absolute;
+      bottom: 172px;
+      right: 12px;
+      width: 254px;
+      background: rgba(5, 8, 17, 0.96);
+      border: 2px solid #38bdf8;
+      box-shadow: 0 0 0 2px #05070f, 0 12px 28px rgba(0,0,0,0.88), 0 0 16px rgba(56,189,248,0.22);
+      border-radius: 4px;
+      padding: 10px 12px;
+      display: none;
+      flex-direction: column;
+      gap: 7px;
+      z-index: 45;
+      pointer-events: auto;
+      transform-origin: bottom right;
+    }
+    @keyframes skillPopUp {
+      0% {
+        opacity: 0;
+        transform: translateY(28px) scale(0.94);
+      }
+      70% {
+        transform: translateY(-4px) scale(1.01);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    #skills-tab-popup.active {
+      display: flex !important;
+      animation: skillPopUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .skills-tab-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(56,189,248,0.25);
+      padding-bottom: 6px;
+    }
+    .skills-tab-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-header);
+      font-size: 12px;
+      font-weight: 800;
+      color: #facc15;
+      letter-spacing: 0.5px;
+    }
+    .skills-total-pill {
+      background: #0369a1;
+      border: 1px solid #38bdf8;
+      color: #f0f9ff;
+      font-family: var(--font-header);
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .skills-tab-close {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 13px;
+      cursor: pointer;
+      padding: 1px 5px;
+      border-radius: 3px;
+      transition: all 0.15s;
+    }
+    .skills-tab-close:hover {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+    }
+    .skills-tab-sub {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 8.5px;
+      color: #94a3b8;
+      padding: 0 1px;
+    }
+    .skills-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      max-height: calc(100vh - 380px);
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+    .skill-card {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #1e293b;
+      border-radius: 3px;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      transition: all 0.15s;
+    }
+    .skill-card:hover {
+      background: rgba(30, 41, 59, 0.95);
+      border-color: #38bdf8;
+      transform: translateX(1px);
+    }
+    .skill-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .skill-card-name {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-family: var(--font-header);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    .skill-card-icon {
+      font-size: 12px;
+    }
+    .skill-card-lvl {
+      display: flex;
+      align-items: baseline;
+      gap: 1px;
+      font-family: var(--font-header);
+    }
+    .skill-lvl-prefix {
+      font-size: 9px;
+      color: #94a3b8;
+    }
+    .skill-lvl-num {
+      font-size: 13px;
+      font-weight: 800;
+      color: #fde047;
+    }
+    .skill-lvl-max {
+      font-size: 8.5px;
+      color: #64748b;
+    }
+    .skill-bar-wrap {
+      width: 100%;
+      height: 5px;
+      background: #030712;
+      border-radius: 2px;
+      overflow: hidden;
+      border: 1px solid #1e293b;
+    }
+    .skill-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s ease-out;
+    }
+    .skill-card-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 8px;
+      color: #94a3b8;
+      font-family: var(--font-body);
+    }
+    .skill-card-activity {
+      font-size: 8.5px;
+      color: #cbd5e1;
+      font-style: italic;
+      margin-top: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     /* RuneScape Equipment Paperdoll Grid */
     .rs-paperdoll-wrapper {
       display: grid;
@@ -1704,7 +1881,6 @@
 
       <div id="zone-controls">
         <button class="util-btn queue-btn" id="btn-queue" onclick="toggleMatchmaking()">⚔️ 3v3 ARENA</button>
-        <button class="util-btn" style="border-color:#facc15; color:#fde047;" onclick="plantOrderBanner()" title="Plant your Guild/Order Standard (+1 Power Aura)">⚑ BANNER [B]</button>
       </div>
     </div>
 
@@ -1858,12 +2034,38 @@
       <button class="util-btn" onclick="openQuestLog()">
         📜 QUESTS [L]
       </button>
+      <button class="util-btn" id="btn-skills-tab" style="border-color:#38bdf8; color:#7dd3fc;" onclick="toggleSkillsTab()" title="Open Skill Progression [N]">
+        ✨ SKILLS [N]
+      </button>
       <button class="util-btn" style="border-color:#f59e0b; color:#fef3c7;" onclick="toggleModal('inventory-modal')">
         🎒 BAG [B] <span id="inv-count-pip" class="pt-pip" style="background:#b45309; display:none;">0</span>
       </button>
       <button class="util-btn" style="border-color:#94a3b8; color:#cbd5e1;" onclick="toggleModal('settings-modal')">
         ⚙️ MENU [ESC]
       </button>
+    </div>
+
+    <!-- SKILL PROGRESSION POPUP TAB (Pops up upwards towards the 3v3 map / minimap) -->
+    <div id="skills-tab-popup" class="panel">
+      <div class="skills-tab-header">
+        <div class="skills-tab-title">
+          <span>✨ SKILL PROGRESSION</span>
+          <span id="skills-total-badge" class="skills-total-pill">TOTAL LVL: 5</span>
+        </div>
+        <button class="skills-tab-close" onclick="toggleSkillsTab()" title="Close [N] / [ESC]">✕</button>
+      </div>
+      <div class="skills-tab-sub">
+        <span>Traditional MMORPG Skilling</span>
+        <span style="color:#fde047; font-weight:700;">MAX LVL 99</span>
+      </div>
+      <div id="skills-list-container" class="skills-list">
+        <!-- Rendered dynamically by renderSkillsTabUI() in game.js -->
+      </div>
+      <div style="border-top:1px solid rgba(56,189,248,0.2); padding-top:5px; margin-top:2px;">
+        <div style="font-size:9px; color:#94a3b8; text-align:center;">
+          Press <b style="color:#7dd3fc;">[N]</b> to toggle • Channel <b style="color:#fde047;">[E]</b> to harvest
+        </div>
+      </div>
     </div>
 
     <!-- MODAL 1: GlimmerFall TCG Rites & Flashes Skill Tree [P] (Sticky Top Header) -->

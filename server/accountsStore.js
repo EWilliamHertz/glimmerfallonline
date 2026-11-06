@@ -19,6 +19,8 @@ import {
   ROOM_TYPES,
   createDefaultProgression,
   resolveFactionAndClass,
+  PROFESSIONS_CATALOG,
+  getProfessionLevelFromXp,
 } from '../shared/protocol.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -1198,7 +1200,24 @@ export class AccountsStore {
         skills[k] = Math.max(0, Math.min(5, Math.floor(Number(v) || 0)));
       }
     }
-    return { level: lvl, xp, statPoints, skillPoints, stats, ranks, skills };
+    const professions = {
+      resonance_extraction: { xp: 0, level: 1 },
+      relic_forging: { xp: 0, level: 1 },
+      rite_binding: { xp: 0, level: 1 },
+      glimmerweaving: { xp: 0, level: 1 },
+      combat_mastery: { xp: 0, level: 1 },
+      ...(base.professions || {}),
+    };
+    if (incoming.professions && typeof incoming.professions === 'object') {
+      for (const [k, v] of Object.entries(incoming.professions)) {
+        if (professions[k] !== undefined && v && typeof v === 'object') {
+          const xp = Math.max(0, Math.floor(Number(v.xp) || 0));
+          const level = getProfessionLevelFromXp(xp);
+          professions[k] = { xp, level };
+        }
+      }
+    }
+    return { level: lvl, xp, statPoints, skillPoints, stats, ranks, skills, professions };
   }
 
   saveProgression(accountId, progression, statsMetaPatch = null) {

@@ -76,6 +76,15 @@ export const MERCHANT_CATALOGS = {
 
 export function getMerchantDialoguePages(merchantId) {
   const cat = MERCHANT_CATALOGS[merchantId] || MERCHANT_CATALOGS.merchant_apothecary;
+  // Mark inspection in quest state if active
+  if (typeof window !== 'undefined' && window.questState) {
+    if (cat.id === 'merchant_smith') window.questState.smithInspected = true;
+    if (cat.id === 'merchant_apothecary') window.questState.apothecaryInspected = true;
+    if (cat.id === 'merchant_provisions') window.questState.provisionsInspected = true;
+    if (cat.id === 'merchant_relics') window.questState.relicsInspected = true;
+    if (typeof window.saveQuestState === 'function') window.saveQuestState();
+    if (typeof window.updateQuestTrackerHUD === 'function') window.updateQuestTrackerHUD();
+  }
   return [
     {
       speaker: `${cat.name.toUpperCase()} • ${cat.title.toUpperCase()}`,
@@ -286,6 +295,24 @@ export function buyMerchantItem(merchantId, itemId, qty = 1) {
   }
   if (typeof window.logMessage === 'function') {
     window.logMessage(`🛒 Purchased ${qty}x ${item.name} from ${cat.name} for ${totalCost} Solar Gold.`, 'log-gain', 'combat');
+  }
+
+  // Award respective artisan profession XP & update quest inspection flags
+  if (typeof window !== 'undefined') {
+    if (window.questState) {
+      if (cat.id === 'merchant_smith') window.questState.smithInspected = true;
+      if (cat.id === 'merchant_apothecary') window.questState.apothecaryInspected = true;
+      if (cat.id === 'merchant_provisions') window.questState.provisionsInspected = true;
+      if (cat.id === 'merchant_relics') window.questState.relicsInspected = true;
+      if (typeof window.saveQuestState === 'function') window.saveQuestState();
+      if (typeof window.updateQuestTrackerHUD === 'function') window.updateQuestTrackerHUD();
+    }
+    if (typeof window.awardProfessionXP === 'function') {
+      if (cat.id === 'merchant_smith') window.awardProfessionXP('relic_forging', 35, 'Smithing Craft');
+      if (cat.id === 'merchant_apothecary') window.awardProfessionXP('rite_binding', 35, 'Alchemy & Draught Craft');
+      if (cat.id === 'merchant_provisions') window.awardProfessionXP('glimmerweaving', 35, 'Provisions & Weaving');
+      if (cat.id === 'merchant_relics') window.awardProfessionXP('resonance_extraction', 35, 'Relic Resonance');
+    }
   }
 
   // Update UI

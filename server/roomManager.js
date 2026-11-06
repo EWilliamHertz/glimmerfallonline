@@ -48,6 +48,9 @@ import {
   calcHolyRadianceBurstDmg,
   calcMoveSpeedMult,
   isWaterTile,
+  PROFESSIONS_CATALOG,
+  getProfessionLevelFromXp,
+  getTotalProfessionLevel,
 } from '../shared/protocol.js';
 
 const SIEGE_INTERVAL_MS = 30 * 60 * 1000; // Every 30 minutes per roadmap spec
@@ -1652,7 +1655,7 @@ export class RoomManager {
       thornbarkTimer: 0,
       zenithTimer: 0,
       echoPrimed: false,
-      cooldowns: { 1: 0, 2: 0, 3: 0, 4: 0, 9: 0, 10: 0, 11: 0, 12: 0, banner: 0 },
+      cooldowns: { 1: 0, 2: 0, 3: 0, 4: 0, 9: 0, 10: 0, 11: 0, 12: 0 },
       castState: null,
       team: null,
       roomId: null,
@@ -2112,13 +2115,6 @@ export class RoomManager {
         }
       }
     }
-    for (const b of room.banners) {
-      const owner = room.players.get(b.ownerId);
-      if ((!owner || this.arePlayersAllied(room, player, owner)) && Math.hypot(player.x - b.x, player.y - b.y) <= 110) {
-        bonus += 1;
-        break;
-      }
-    }
     return bonus;
   }
 
@@ -2216,10 +2212,6 @@ export class RoomManager {
 
       case 'harvest_node':
         if (room) this.handleHarvestNode(room, client, msg.nodeId);
-        break;
-
-      case 'plant_banner':
-        if (room) this.handlePlantBanner(room, client);
         break;
 
       case 'equip_item': {
@@ -3456,32 +3448,55 @@ export class RoomManager {
     room.fxQueue.push({ kind: 'spark', x: node.x, y: node.y - 10, colors: ['#c084fc', '#e879f9', '#38bdf8'] });
     room.fxQueue.push({ kind: 'fct', x: node.x, y: node.y, text: `+${gain} GLIMMER`, color: '#c084fc' });
     this.awardPlayerXP(player, 25, 'Glimmer Node');
+    this.awardProfessionXP(player, 'resonance_extraction', 35, 'Glimmer Node Channeling');
   }
 
-  handlePlantBanner(room, player) {
-    if (player.isDead || (player.cooldowns.banner || 0) > 0) return;
-    player.cooldowns.banner = 16.0;
-    room.banners = room.banners.filter((b) => b.ownerId !== player.id);
-    const tag = player.orderTag && player.orderTag !== 'NONE' ? player.orderTag : 'SOL';
-    room.banners.push({
-      id: `bnr_${crypto.randomUUID().slice(0, 6)}`,
-      ownerId: player.id,
-      ownerName: player.displayName,
-      faction: player.faction,
-      orderTag: tag,
-      orderName: player.orderName || 'Vanguard Order',
-      color: player.orderColor || FACTIONS_META[player.faction]?.color || '#facc15',
-      x: player.x,
-      y: player.y - 4,
-      age: 0,
-      maxAge: 20.0,
-    });
-    room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 12, colors: [player.orderColor || '#facc15', '#ffffff'] });
-    room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: `⚑ <${tag}> STANDARD!`, color: player.orderColor || '#facc15', isCrit: true });
-    this.broadcastToRoom(room, {
-      type: 'sys_msg',
-      category: 'chat',
-      text: `⚑ ${player.displayName} planted the <${tag}> ${player.orderName} Banner (+1 Power Aura)!`,
+  awardProfessionXP(player, professionId, amount, reason = '') {
+    if (!player || !player.prog || amount <= 0) return;
+    if (!player.prog.professions) {
+      player.prog.professions = {
+        resonance_extraction: { xp: 0, level: 1 },
+        relic_forging: { xp: 0, level: 1 },
+        rite_binding: { xp: 0, level: 1 },
+        glimmerweaving: { xp: 0, level: 1 },
+        combat_mastery: { xp: 0, level: 1 },
+      };
+    }
+    const prof = player.prog.professions[professionId];
+    if (!prof) return;
+
+    const oldLevel = prof.level || getProfessionLevelFromXp(prof.xp || 0);
+    prof.xp = (prof.xp || 0) + amount;
+    const newLevel = getProfessionLevelFromXp(prof.xp);
+    prof.level = newLevel;
+
+    const leveled = newLevel > oldLevel;
+    if (leveled) {
+      const pInfo = PROFESSIONS_CATALOG[professionId];
+      const profName = pInfo?.name || professionId;
+      const room = this.rooms.get(player.roomId);
+      if (room) {
+        room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 12, colors: [pInfo?.color || '#38bdf8', '#ffffff', '#fde047'] });
+        room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 16, text: `🎉 ${profName.toUpperCase()} LVL ${newLevel}!`, color: pInfo?.color || '#38bdf8', isCrit: true });
+      }
+      this.broadcastToRoom(room, {
+        type: 'sys_msg',
+        category: 'chat',
+        text: `✨ ${player.displayName} has achieved level ${newLevel} in ${profName}!`,
+      });
+    }
+
+    this.accounts.saveProgression(player.id, player.prog);
+    player.send({
+      type: 'progression_sync',
+      progression: player.prog,
+      professionGained: {
+        id: professionId,
+        amount,
+        newLevel,
+        leveled,
+        reason,
+      },
     });
   }
 
@@ -3898,6 +3913,7 @@ export class RoomManager {
             recipients.size > 1 ? `${ent.name} • +25% Co-op` : ent.name,
             { addKills: 1 }
           );
+          this.awardProfessionXP(p, 'combat_mastery', Math.max(20, Math.round(xpAmt * 0.75)), ent.name);
           p.send({
             type: 'mob_killed',
             mobId: ent.id,
@@ -4191,9 +4207,6 @@ export class RoomManager {
         return;
       } else if (cmd === 'leave') {
         this.parties.leaveParty(sender);
-        return;
-      } else if (cmd === 'banner') {
-        if (room) this.handlePlantBanner(room, sender);
         return;
       } else if (cmd === 'siege') {
         const wz = Array.from(this.rooms.values()).find((r) => r.type === ROOM_TYPES.NEXUS_WARZONE);
@@ -4793,14 +4806,6 @@ export class RoomManager {
       }
     }
 
-    // 6. Planted Order Banners
-    for (let i = room.banners.length - 1; i >= 0; i--) {
-      room.banners[i].age += dt;
-      if (room.banners[i].age >= room.banners[i].maxAge) {
-        room.banners.splice(i, 1);
-      }
-    }
-
     // 6b. Loot Shard pickups
     this.tickLoot(room, dt);
 
@@ -4905,15 +4910,7 @@ export class RoomManager {
       maxAge: gz.maxAge,
     }));
 
-    const banners = room.banners.map((b) => ({
-      id: b.id,
-      ownerName: b.ownerName,
-      orderTag: b.orderTag,
-      orderName: b.orderName,
-      color: b.color,
-      x: Math.round(b.x),
-      y: Math.round(b.y),
-    }));
+    const banners = [];
 
     let siegeState = undefined;
     if (room.siege) {

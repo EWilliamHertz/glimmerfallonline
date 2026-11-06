@@ -91,6 +91,10 @@ import {
   calcHolyRadianceBurstDmg,
   calcMoveSpeedMult,
   isWaterTile,
+  PROFESSIONS_CATALOG,
+  getProfessionLevelFromXp,
+  getXpForProfessionLevel,
+  getTotalProfessionLevel,
 } from '../shared/protocol.js';
 
 const DEFAULT_KEYBINDS = {
@@ -452,7 +456,6 @@ export function initGame() {
   let props = [];
   let projectiles = [];
   let groundZones = [];
-  let worldBanners = [];
   let lootDrops = [];
   let particles = [];
   let afterimages = [];
@@ -520,6 +523,10 @@ export function initGame() {
       stasisBroken: false,
       dummyDamaged: false,
       nodeHarvested: false,
+      extractionNodesHarvested: 0,
+      smithInspected: false,
+      apothecaryInspected: false,
+      provisionsInspected: false,
       portalTraveled: false,
       warzoneKills: 0,
       ruinsKills: 0,
@@ -602,6 +609,10 @@ export function initGame() {
           stasisBroken: Boolean(parsed.stasisBroken || completed.quest_awakening),
           dummyDamaged: Boolean(parsed.dummyDamaged || completed.quest_awakening),
           nodeHarvested: Boolean(parsed.nodeHarvested || completed.quest_awakening),
+          extractionNodesHarvested: Number(parsed.extractionNodesHarvested || 0),
+          smithInspected: Boolean(parsed.smithInspected),
+          apothecaryInspected: Boolean(parsed.apothecaryInspected),
+          provisionsInspected: Boolean(parsed.provisionsInspected),
           portalTraveled: Boolean(parsed.portalTraveled),
           warzoneKills: Number(parsed.warzoneKills || 0),
           ruinsKills: Number(parsed.ruinsKills || 0),
@@ -621,6 +632,15 @@ export function initGame() {
       }
     } catch (_) {
       questState = createDefaultQuestState();
+    }
+
+    function profileHasAnyItem(itemIds) {
+      if (!itemIds || !Array.isArray(itemIds)) return false;
+      const inv = Array.isArray(localProfile?.inventory) ? localProfile.inventory : [];
+      return inv.some((it) => {
+        const itId = typeof it === 'string' ? it : it?.id;
+        return itemIds.includes(itId);
+      });
     }
 
     // High-level or experienced characters (like EWACH) should never be stuck on the Awakening tutorial:
@@ -1113,10 +1133,243 @@ export function initGame() {
         },
       ],
     },
+
+    quest_skill_extraction: {
+      id: 'quest_skill_extraction',
+      title: 'Resonance: First Extraction',
+      giverId: 'merchant_relics',
+      turnInId: 'merchant_relics',
+      description: 'Channel 2 Glimmer or Leyline Nodes around Sanctuary to harvest raw resonant crystals.',
+      isComplete: () => Boolean((questState.extractionNodesHarvested || 0) >= 2 || (prog?.professions?.resonance_extraction?.level || 1) >= 2),
+      tasks: [
+        {
+          text: 'Channel Leyline / Glimmer Nodes [E]',
+          done: () => Boolean((questState.extractionNodesHarvested || 0) >= 2 || (prog?.professions?.resonance_extraction?.level || 1) >= 2),
+          counter: () => `${Math.min(2, questState.extractionNodesHarvested || 0)} / 2`,
+        },
+        {
+          text: 'Return to Relic-Seeker Moira',
+          done: () => Boolean((questState.extractionNodesHarvested || 0) >= 2 || (prog?.professions?.resonance_extraction?.level || 1) >= 2),
+        },
+      ],
+      rewards: {
+        xp: 140,
+        glimmer: 60,
+        gold: 100,
+        professionXp: { resonance_extraction: 75 },
+      },
+      acceptDialogue: [
+        {
+          speaker: 'RELIC-SEEKER MOIRA • AETHER CURIOS',
+          spriteKey: 'merchantRelicsNpc',
+          text: 'Greetings, traveler! The earth beneath Sanctuary pulses with raw Glimmer. To survive the wild realms, one must learn Resonance Extraction. Step to any Glimmer node or ancient shrine and press [E] to channel its frequency twice. Bring back the resonant crystals!',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'RELIC-SEEKER MOIRA • AETHER CURIOS',
+          spriteKey: 'merchantRelicsNpc',
+          text: 'Channel 2 Glimmer nodes or ancient shrines with [E] to tune your extraction technique! Press [N] anytime to inspect your Skills tab.',
+          actions: [
+            { label: '🛒 BROWSE WARES & RELICS', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '👋 I WILL GATHER THEM', action: 'close' },
+          ],
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'RELIC-SEEKER MOIRA • AETHER CURIOS',
+          spriteKey: 'merchantRelicsNpc',
+          text: 'Incredible resonance! The crystals hum in your hands. You have mastered the fundamentals of Resonance Extraction! Continue tapping nodes across the continent to gather rare gems, leyline essence, and ancient relics.',
+          actions: [
+            { label: '🛒 BROWSE MOIRA\'S RELICS', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
+          ],
+        },
+      ],
+    },
+
+    quest_skill_forging: {
+      id: 'quest_skill_forging',
+      title: 'Forging: The Anvil\'s Spark',
+      giverId: 'merchant_smith',
+      turnInId: 'merchant_smith',
+      description: 'Speak with Blacksmith Torvin and inspect his smithy or acquire iron wares to learn Relic-Forging.',
+      isComplete: () => Boolean(questState.smithInspected || profileHasAnyItem(['iron_ore', 'bronze_bar', 'iron_broadsword', 'iron_heater_shield']) || (prog?.professions?.relic_forging?.level || 1) >= 2),
+      tasks: [
+        {
+          text: 'Inspect Smithy Wares or Acquire Metalwork',
+          done: () => Boolean(questState.smithInspected || profileHasAnyItem(['iron_ore', 'bronze_bar', 'iron_broadsword', 'iron_heater_shield']) || (prog?.professions?.relic_forging?.level || 1) >= 2),
+        },
+        {
+          text: 'Confer with Blacksmith Torvin',
+          done: () => Boolean(questState.smithInspected || profileHasAnyItem(['iron_ore', 'bronze_bar', 'iron_broadsword', 'iron_heater_shield']) || (prog?.professions?.relic_forging?.level || 1) >= 2),
+        },
+      ],
+      rewards: {
+        xp: 140,
+        glimmer: 50,
+        gold: 100,
+        professionXp: { relic_forging: 75 },
+      },
+      acceptDialogue: [
+        {
+          speaker: 'BLACKSMITH TORVIN • SMITHING WARES',
+          spriteKey: 'merchantSmithNpc',
+          text: 'Hmph! If you\'re going to fight in the Warzone, you need arms forged of true temper. In the old days, our order shaped armor right here at the Great Anvil. Inspect my smithy wares or purchase an arming piece to learn the balance of steel!',
+          actions: [
+            { label: '🛒 INSPECT SMITHY & WARES', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '🔨 I WILL RETURN SHORTLY', action: 'close' },
+          ],
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'BLACKSMITH TORVIN • SMITHING WARES',
+          spriteKey: 'merchantSmithNpc',
+          text: 'Look over my raw iron ore, smelted bronze, or blades to learn the smith\'s craft. You can check your progress in the Skills tab [N].',
+          actions: [
+            { label: '🛒 BROWSE SMITHY WARES', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '👋 FAREWELL', action: 'close' },
+          ],
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'BLACKSMITH TORVIN • SMITHING WARES',
+          spriteKey: 'merchantSmithNpc',
+          text: 'Aye, now you feel the weight in the balance! That is the spark of Relic-Forging. As your skill levels up, you\'ll smelt rarer ores and forge mythic weapons that channel the elements themselves!',
+          actions: [
+            { label: '🛒 WORK THE FORGE (BROWSE)', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
+          ],
+        },
+      ],
+    },
+
+    quest_skill_binding: {
+      id: 'quest_skill_binding',
+      title: 'Binding: The Alchemical Draught',
+      giverId: 'merchant_apothecary',
+      turnInId: 'merchant_apothecary',
+      description: 'Speak with Alchemist Faye and inspect her apothecary formulas or acquire a healing salve to learn Rite-Binding.',
+      isComplete: () => Boolean(questState.apothecaryInspected || profileHasAnyItem(['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir']) || (prog?.professions?.rite_binding?.level || 1) >= 2),
+      tasks: [
+        {
+          text: 'Inspect Apothecary Formulas or Acquire Salve',
+          done: () => Boolean(questState.apothecaryInspected || profileHasAnyItem(['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir']) || (prog?.professions?.rite_binding?.level || 1) >= 2),
+        },
+        {
+          text: 'Confer with Alchemist Faye',
+          done: () => Boolean(questState.apothecaryInspected || profileHasAnyItem(['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir']) || (prog?.professions?.rite_binding?.level || 1) >= 2),
+        },
+      ],
+      rewards: {
+        xp: 140,
+        glimmer: 50,
+        gold: 100,
+        professionXp: { rite_binding: 75 },
+      },
+      acceptDialogue: [
+        {
+          speaker: 'ALCHEMIST FAYE • APOTHECARY & POTIONS',
+          spriteKey: 'merchantApothecaryNpc',
+          text: 'Ah, welcome seeker of mysteries! Rites and draughts are not mere superstition—they are distilled formulas of pure Aether. Inspect my apothecary wares or acquire a healing salve to understand how living energy binds to liquid glass!',
+          actions: [
+            { label: '🛒 INSPECT APOTHECARY WARES', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '📜 I WILL STUDY THE CRAFT', action: 'close' },
+          ],
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'ALCHEMIST FAYE • APOTHECARY & POTIONS',
+          spriteKey: 'merchantApothecaryNpc',
+          text: 'Inspect my remedies or take a minor healing salve to complete your introduction to Rite-Binding.',
+          actions: [
+            { label: '🛒 BROWSE POTIONS & SALVES', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '👋 FAREWELL', action: 'close' },
+          ],
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'ALCHEMIST FAYE • APOTHECARY & POTIONS',
+          spriteKey: 'merchantApothecaryNpc',
+          text: 'Exquisite distillation! You feel how the Glimmer suspends within the solvent? That is the heart of Rite-Binding. Soon you shall bind scrolls, elixirs, and defensive wards that shield your allies in battle!',
+          actions: [
+            { label: '🛒 BROWSE APOTHECARY SHOP', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
+          ],
+        },
+      ],
+    },
+
+    quest_skill_weaving: {
+      id: 'quest_skill_weaving',
+      title: 'Weaving: The Luminescent Thread',
+      giverId: 'merchant_provisions',
+      turnInId: 'merchant_provisions',
+      description: 'Speak with Farmer Bran and acquire field provisions or inspect his provisions to learn Glimmerweaving.',
+      isComplete: () => Boolean(questState.provisionsInspected || profileHasAnyItem(['sweet_apple', 'fresh_crusty_bread', 'field_rations']) || (prog?.professions?.glimmerweaving?.level || 1) >= 2),
+      tasks: [
+        {
+          text: 'Inspect Provisions or Acquire Sustenance',
+          done: () => Boolean(questState.provisionsInspected || profileHasAnyItem(['sweet_apple', 'fresh_crusty_bread', 'field_rations']) || (prog?.professions?.glimmerweaving?.level || 1) >= 2),
+        },
+        {
+          text: 'Confer with Farmer Bran',
+          done: () => Boolean(questState.provisionsInspected || profileHasAnyItem(['sweet_apple', 'fresh_crusty_bread', 'field_rations']) || (prog?.professions?.glimmerweaving?.level || 1) >= 2),
+        },
+      ],
+      rewards: {
+        xp: 140,
+        glimmer: 50,
+        gold: 100,
+        professionXp: { glimmerweaving: 75 },
+      },
+      acceptDialogue: [
+        {
+          speaker: 'FARMER BRAN • PROVISIONS & RATIONS',
+          spriteKey: 'merchantProvisionsNpc',
+          text: 'Good day to ye! An adventurer marches on their stomach and clothes their back in woven fiber. Glimmerweaving transforms raw flax, leystrand, and field grains into sustaining rations and satchels. Inspect my provisions to start your weaving journey!',
+          actions: [
+            { label: '🛒 INSPECT PROVISIONS & RATIONS', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '🌾 I WILL INSPECT SHORTLY', action: 'close' },
+          ],
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'FARMER BRAN • PROVISIONS & RATIONS',
+          spriteKey: 'merchantProvisionsNpc',
+          text: 'Inspect my baked loaves, apples, or trail rations to understand Glimmerweaving fiber craft.',
+          actions: [
+            { label: '🛒 BROWSE PROVISIONS', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '👋 FAREWELL', action: 'close' },
+          ],
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'FARMER BRAN • PROVISIONS & RATIONS',
+          spriteKey: 'merchantProvisionsNpc',
+          text: 'Well look at that! Properly woven, airtight and nourishing. That\'s true Glimmerweaving craft! Keep practicing and you\'ll weave greater bags, travel cloaks, and royal tabards.',
+          actions: [
+            { label: '🛒 BROWSE PROVISIONS SHOP', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
+          ],
+        },
+      ],
+    },
   };
 
   function getNpcName(npcId) {
     const map = {
+      merchant_relics: 'Relic-Seeker Moira',
+      merchant_smith: 'Blacksmith Torvin',
+      merchant_apothecary: 'Alchemist Faye',
+      merchant_provisions: 'Farmer Bran',
       npc_aurora: 'Herald Lyra',
       npc_archon: 'Commander Valerius',
       npc_atlas: 'Atlas the Cartographer',
@@ -1135,8 +1388,8 @@ export function initGame() {
 
   function getNpcQuestStatus(npc) {
     if (!npc) return 'none';
-    // Bankers, exchange brokers, and market stall merchants do not display quest exclamation marks
-    if (npc.isBank || npc.isExchange || npc.isMerchant || MERCHANT_CATALOGS[npc.id]) {
+    // Bankers and exchange brokers do not have quests
+    if (npc.isBank || npc.isExchange) {
       return 'none';
     }
     const npcId = npc.id;
@@ -1157,7 +1410,7 @@ export function initGame() {
     // 2. Check for ongoing (in-progress) quests to turn in to THIS npc
     for (const qId of Object.keys(questState.activeQuests)) {
       const q = QUEST_CATALOG[qId];
-      if (q && q.turnInId === npcId) {
+      if (q && (q.turnInId === npcId || q.giverId === npcId)) {
         if (!q.isComplete()) return 'ongoing';
       }
     }
@@ -1171,6 +1424,11 @@ export function initGame() {
         const prereqMet = !q.prereqQuestId || Boolean(questState.completedQuests[q.prereqQuestId]);
         if (!isCompleted && !isActive && prereqMet) return 'available';
       }
+    }
+
+    // Market Stall Merchants without an active or available quest do not show generic talk indicator
+    if (npc.isMerchant || MERCHANT_CATALOGS[npc.id]) {
+      return 'none';
     }
 
     // 4. Check if this is an NPC who hasn't been talked to yet
@@ -1233,6 +1491,14 @@ export function initGame() {
     if (quest.rewards?.glimmer) {
       player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + quest.rewards.glimmer);
     }
+    if (quest.rewards?.professionXp) {
+      for (const [profId, pAmt] of Object.entries(quest.rewards.professionXp)) {
+        awardProfessionXP(profId, pAmt, quest.title);
+      }
+    }
+    if (quest.rewards?.gold && typeof addPlayerGold === 'function') {
+      addPlayerGold(localProfile, quest.rewards.gold);
+    }
 
     spawnSparkBurst(player.x, player.y - 10, ['#fde047', '#ffffff', '#38bdf8', '#86efac'], 20);
     spawnFCT(player.x, player.y - 16, `✨ QUEST COMPLETE: ${quest.title.toUpperCase()}!`, '#facc15', true);
@@ -1277,15 +1543,6 @@ export function initGame() {
     }
     audio.playDialogue();
 
-    // Market Stall Merchant interaction
-    if (npc.isMerchant || npc.merchantType || MERCHANT_CATALOGS[npc.id]) {
-      questState.talkedNpcs[npc.id] = true;
-      saveQuestState();
-      const mId = npc.merchantType || npc.id;
-      const pages = getMerchantDialoguePages(mId);
-      openDialogue(pages, npc.spriteKey, npc.id);
-      return;
-    }
     const status = getNpcQuestStatus(npc);
 
     if (status === 'finished') {
@@ -1310,6 +1567,16 @@ export function initGame() {
         openDialogue(q.ongoingDialogue, npc.spriteKey, npc.id);
         return;
       }
+    }
+
+    // Market Stall Merchant interaction (when no quest is active/available/finished)
+    if (npc.isMerchant || npc.merchantType || MERCHANT_CATALOGS[npc.id]) {
+      questState.talkedNpcs[npc.id] = true;
+      saveQuestState();
+      const mId = npc.merchantType || npc.id;
+      const pages = getMerchantDialoguePages(mId);
+      openDialogue(pages, npc.spriteKey, npc.id);
+      return;
     }
 
     // Lore / Standard dialogue
@@ -2553,6 +2820,7 @@ export function initGame() {
       ...(prof.progression || {}),
       stats: { ...createDefaultProgression().stats, ...(prof.progression?.stats || {}) },
       ranks: { ...createDefaultProgression().ranks, ...(prof.progression?.ranks || {}) },
+      professions: { ...createDefaultProgression().professions, ...(prof.progression?.professions || {}) },
       paragon: { ...(prof.progression?.paragon || {}) },
     };
     saveProgressionLocal();
@@ -2687,29 +2955,6 @@ export function initGame() {
       player.emote = em.id;
       player.emoteTimer = 3.6;
       logMessage(`${em.icon} ${localProfile.displayName} ${em.text}`, 'log-solari', 'chat');
-    }
-  };
-
-  window.plantOrderBanner = function () {
-    audio.playBannerPlant();
-    if (net.connected) {
-      net.send({ type: 'plant_banner' });
-    } else {
-      worldBanners = [
-        {
-          id: 'local_bnr',
-          ownerName: localProfile.displayName,
-          orderTag: localProfile.orderTag || 'SUN',
-          orderName: localProfile.orderName || 'Order of Dawn',
-          color: localProfile.orderColor || '#facc15',
-          x: player.x,
-          y: player.y - 4,
-          age: 0,
-          maxAge: 20,
-        },
-      ];
-      spawnFCT(player.x, player.y - 14, `⚑ <${localProfile.orderTag || 'SUN'}> STANDARD!`, '#facc15', true);
-      logMessage(`⚑ Planted <${localProfile.orderTag || 'SUN'}> Order Banner (+1 Power Aura)!`, 'log-solari', 'chat');
     }
   };
 
@@ -3450,6 +3695,9 @@ export function initGame() {
       const merchantId = page.merchantId || activeDialogueNpcId || 'merchant_apothecary';
       window.closeDialogue();
       openMerchantShop(merchantId);
+    } else if (act.action === 'openSkills') {
+      window.closeDialogue();
+      window.toggleSkillsTab();
     } else if (act.action === 'advance') {
       window.advanceDialogue();
     } else if (act.action === 'prev') {
@@ -3545,6 +3793,122 @@ export function initGame() {
     saveProgressionLocal();
     updatePlayerUI();
   }
+
+  function awardProfessionXP(professionId, amount, reason = '') {
+    if (!amount || amount <= 0) return;
+    if (!prog.professions) {
+      prog.professions = {
+        resonance_extraction: { xp: 0, level: 1 },
+        relic_forging: { xp: 0, level: 1 },
+        rite_binding: { xp: 0, level: 1 },
+        glimmerweaving: { xp: 0, level: 1 },
+        combat_mastery: { xp: 0, level: 1 },
+      };
+    }
+    const prof = prog.professions[professionId];
+    if (!prof) return;
+
+    const oldLevel = prof.level || getProfessionLevelFromXp(prof.xp || 0);
+    prof.xp = (prof.xp || 0) + amount;
+    const newLevel = getProfessionLevelFromXp(prof.xp);
+    prof.level = newLevel;
+
+    const pInfo = PROFESSIONS_CATALOG[professionId];
+    const profName = pInfo?.name || professionId;
+
+    if (newLevel > oldLevel) {
+      audio.playLevelUp?.();
+      spawnSparkBurst(player.x, player.y - 12, [pInfo?.color || '#38bdf8', '#ffffff', '#fde047'], 28);
+      spawnFCT(player.x, player.y - 16, `🎉 ${profName.toUpperCase()} LVL ${newLevel}!`, pInfo?.color || '#38bdf8', true);
+      logMessage(`🎉 [SKILL LEVEL UP!] You achieved ${profName} Level ${newLevel}! Total Skill Level: ${getTotalProfessionLevel(prog.professions)}`, 'log-gain', 'chat');
+    } else {
+      spawnFCT(player.x, player.y - 14, `+${amount} ${profName} XP`, pInfo?.color || '#38bdf8', false);
+      if (reason) {
+        logMessage(`✨ Gained ${amount} ${profName} XP (${reason}).`, 'log-gain', 'combat');
+      }
+    }
+
+    saveProgressionLocal();
+    if (net.connected) {
+      net.send({ type: 'save_progression', progression: prog });
+    }
+    renderSkillsTabUI();
+  }
+  window.awardProfessionXP = awardProfessionXP;
+
+  window.toggleSkillsTab = function () {
+    const el = document.getElementById('skills-tab-popup');
+    if (!el) return;
+    const isVisible = el.style.display !== 'none' && el.classList.contains('active');
+    if (isVisible) {
+      el.classList.remove('active');
+      el.style.display = 'none';
+    } else {
+      renderSkillsTabUI();
+      el.style.display = 'flex';
+      el.classList.add('active');
+      audio.playChime?.();
+    }
+  };
+
+  window.renderSkillsTabUI = function () {
+    const container = document.getElementById('skills-list-container');
+    const totalBadge = document.getElementById('skills-total-badge');
+    if (!container) return;
+
+    if (!prog.professions) {
+      prog.professions = {
+        resonance_extraction: { xp: 0, level: 1 },
+        relic_forging: { xp: 0, level: 1 },
+        rite_binding: { xp: 0, level: 1 },
+        glimmerweaving: { xp: 0, level: 1 },
+        combat_mastery: { xp: 0, level: 1 },
+      };
+    }
+
+    const totalLevel = getTotalProfessionLevel(prog.professions);
+    if (totalBadge) totalBadge.innerText = `TOTAL LVL: ${totalLevel}`;
+
+    let html = '';
+    for (const [profId, meta] of Object.entries(PROFESSIONS_CATALOG)) {
+      const data = prog.professions[profId] || { xp: 0, level: 1 };
+      const xp = Math.max(0, Math.floor(Number(data.xp) || 0));
+      const currentLevel = getProfessionLevelFromXp(xp);
+      data.level = currentLevel;
+
+      const currentLvlXp = getXpForProfessionLevel(currentLevel);
+      const nextLvlXp = currentLevel >= 99 ? currentLvlXp : getXpForProfessionLevel(currentLevel + 1);
+      const diffXp = Math.max(1, nextLvlXp - currentLvlXp);
+      const progressXp = Math.max(0, xp - currentLvlXp);
+      const pct = currentLevel >= 99 ? 100 : Math.min(100, Math.floor((progressXp / diffXp) * 100));
+
+      html += `
+        <div class="skill-card" style="border-left: 3px solid ${meta.color};">
+          <div class="skill-card-top">
+            <div class="skill-card-name" style="color: ${meta.color};">
+              <span class="skill-card-icon">${meta.icon}</span>
+              <span>${meta.name}</span>
+            </div>
+            <div class="skill-card-lvl">
+              <span class="skill-lvl-prefix">Lv.</span>
+              <span class="skill-lvl-num">${currentLevel}</span>
+              <span class="skill-lvl-max">/99</span>
+            </div>
+          </div>
+          <div class="skill-bar-wrap">
+            <div class="skill-bar-fill" style="width: ${pct}%; background: ${meta.color};"></div>
+          </div>
+          <div class="skill-card-meta">
+            <span>${currentLevel >= 99 ? 'MASTER (Lv. 99)' : `${xp.toLocaleString()} / ${nextLvlXp.toLocaleString()} XP (${pct}%)`}</span>
+            <span style="color:#94a3b8; font-size:8px;">${meta.instructor || 'Sanctuary'}</span>
+          </div>
+          <div class="skill-card-activity" title="${meta.activity}">${meta.activity}</div>
+        </div>
+      `;
+    }
+
+    container.innerHTML = html;
+  };
 
   window.allocateStat = function (statKey) {
     if (prog.statPoints <= 0 || !(statKey in prog.stats)) return;
@@ -4374,7 +4738,6 @@ export function initGame() {
     allies = [];
     projectiles = [];
     groundZones = [];
-    worldBanners = [];
     lootDrops = [];
 
     const hasCustomSpawn = spawnX !== null && spawnY !== null && Number.isFinite(Number(spawnX)) && Number.isFinite(Number(spawnY));
@@ -4844,7 +5207,6 @@ export function initGame() {
     allies = snap.allies || [];
     projectiles = snap.projectiles || [];
     groundZones = snap.groundZones || [];
-    worldBanners = snap.banners || [];
     lootDrops = snap.loot || [];
 
     for (const fx of snap.fx || []) {
@@ -5028,6 +5390,7 @@ export function initGame() {
             ...msg.progression,
             stats: { ...prog.stats, ...(msg.progression.stats || {}) },
             ranks: { ...prog.ranks, ...(msg.progression.ranks || {}) },
+            professions: { ...(prog.professions || {}), ...(msg.progression.professions || {}) },
             paragon: { ...(prog.paragon || {}), ...(msg.progression.paragon || {}) },
           };
           player.hp = msg.hp ?? player.hp;
@@ -5040,10 +5403,27 @@ export function initGame() {
           } else if (msg.xpGained && msg.reason) {
             logMessage(`[XP] +${msg.xpGained} XP (${msg.reason})`, 'log-gain', 'combat');
           }
+          if (msg.professionGained) {
+            const pg = msg.professionGained;
+            const pInfo = PROFESSIONS_CATALOG[pg.id];
+            const pName = pInfo?.name || pg.id;
+            if (pg.leveled) {
+              audio.playLevelUp?.();
+              spawnSparkBurst(player.x, player.y - 12, [pInfo?.color || '#38bdf8', '#ffffff', '#fde047'], 28);
+              spawnFCT(player.x, player.y - 16, `🎉 ${pName.toUpperCase()} LVL ${pg.newLevel}!`, pInfo?.color || '#38bdf8', true);
+              logMessage(`🎉 [SKILL LEVEL UP!] You achieved ${pName} Level ${pg.newLevel}! Total Skill Level: ${getTotalProfessionLevel(prog.professions)}`, 'log-gain', 'chat');
+            } else {
+              spawnFCT(player.x, player.y - 14, `+${pg.amount} ${pName} XP`, pInfo?.color || '#38bdf8', false);
+              if (pg.reason) {
+                logMessage(`✨ Gained ${pg.amount} ${pName} XP (${pg.reason}).`, 'log-gain', 'combat');
+              }
+            }
+          }
           updatePlayerUI();
           updateActionBarBadges();
           renderStatsModal();
           renderKeybindUI();
+          renderSkillsTabUI();
           if (typeof renderSkillTreeUI === 'function') renderSkillTreeUI();
           break;
 
@@ -5705,6 +6085,7 @@ export function initGame() {
     triggerEntityDeathEffect(ent.x, ent.y, ent.isBoss);
     logMessage(`[Void Banish] ${ent.name} was cast into the Void!`, 'log-gain', 'combat');
     awardXP(ent.xpReward || 30, ent.name);
+    awardProfessionXP('combat_mastery', Math.max(20, Math.round((ent.xpReward || 30) * 0.75)), ent.name);
     if (ent.isBoss) {
       logMessage(`🏆 CONTINENTAL VICTORY: ${ent.name} has been vanquished! The Leylines surge with an Ancient Paragon Cache!`, 'log-solari', 'combat');
       if ((prog.level || 1) >= 30) {
@@ -6545,6 +6926,10 @@ export function initGame() {
       spawnSparkBurst(shrine.x, shrine.y - 12, ['#facc15', '#ffffff', '#38bdf8', '#c084fc'], 32);
       spawnFCT(player.x, player.y - 14, `✨ ${shrine.buffName.toUpperCase()} BLESSING!`, '#facc15', true);
       logMessage(`✨ [LEYLINE BLESSING] ${shrine.name} granted ${shrine.buffName} (+Stats for 60s)!`, 'log-solari');
+      questState.extractionNodesHarvested = (questState.extractionNodesHarvested || 0) + 1;
+      awardProfessionXP('resonance_extraction', 45, `${shrine.name} Channeling`);
+      saveQuestState();
+      updateQuestTrackerHUD();
       if (net.connected) {
         net.send({ type: 'harvest_node', nodeId: shrine.id });
       }
@@ -6562,11 +6947,13 @@ export function initGame() {
       return;
     }
     audio.playChime();
+    questState.extractionNodesHarvested = (questState.extractionNodesHarvested || 0) + 1;
+    awardProfessionXP('resonance_extraction', 35, 'Channeling Leyline Node');
     if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !questState.nodeHarvested) {
       questState.nodeHarvested = true;
-      saveQuestState();
-      updateQuestTrackerHUD();
     }
+    saveQuestState();
+    updateQuestTrackerHUD();
     if (net.connected) {
       net.send({ type: 'harvest_node', nodeId: node.id });
     } else if (node.charges > 0) {
@@ -7558,9 +7945,15 @@ export function initGame() {
 
     if (key === 'escape') {
       const openModal = Array.from(document.querySelectorAll('.modal')).find((m) => m.style.display === 'block');
-      if (openModal || currentTarget || dialogueOpen) {
+      const skPopup = document.getElementById('skills-tab-popup');
+      const isSkOpen = skPopup && skPopup.style.display !== 'none' && skPopup.classList.contains('active');
+      if (openModal || currentTarget || dialogueOpen || isSkOpen) {
         setTarget(null);
         window.closeDialogue();
+        if (skPopup) {
+          skPopup.classList.remove('active');
+          skPopup.style.display = 'none';
+        }
         document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
       } else {
         window.toggleModal('settings-modal');
@@ -7616,7 +8009,7 @@ export function initGame() {
       spawnFCT(player.x, player.y - 18, '🏛️ Visit an AetherVault Bank in the city!', '#fde047', true);
     }
     if (key === 'u') window.toggleUiEditMode();
-    if (key === 'y') window.plantOrderBanner();
+    if (key === 'n') window.toggleSkillsTab();
     if (key === 'b') window.toggleModal('inventory-modal');
     if (key === 'i') window.toggleModal('inventory-modal');
     if (key === 'k') window.toggleModal('equipment-modal');
@@ -8614,17 +9007,6 @@ export function initGame() {
       ctx.restore();
     }
 
-    // Order Banner +1 Power Aura Rings
-    for (const b of worldBanners) {
-      const bx = Math.round(b.x - camLeft);
-      const by = Math.round(b.y - camTop);
-      ctx.strokeStyle = b.color || '#facc15';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.ellipse(bx, by, 56, 36, 0, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
     // Ground Zones (Consecration, Nightfall Plague, Briar Snare, Gravity Well, Frost Ring, Shockwave)
     for (const gz of groundZones) {
       const gx = Math.round(gz.x - camLeft);
@@ -8836,37 +9218,6 @@ export function initGame() {
               }
             }
           }
-        },
-      });
-    }
-
-    for (const b of worldBanners) {
-      renderables.push({
-        y: b.y,
-        draw: () => {
-          const sx = Math.round(b.x - camLeft);
-          const sy = Math.round(b.y - camTop);
-          const frames = getOrderBannerSprites(b.color || '#facc15');
-          const img = frames[Math.floor(globalTime * 3.5) % frames.length];
-          drawPixelEllipseShadow(sx, sy, 6, 3);
-          ctx.drawImage(img, Math.round(sx - img.width / 2), sy - img.height + 2);
-
-          // Clear, High-Contrast Order Banner Plaque
-          ctx.font = '700 11px "Outfit", system-ui, sans-serif';
-          ctx.textAlign = 'center';
-          const bannerTag = `<${b.orderTag || 'STANDARD'}>`;
-          const bw = Math.ceil(ctx.measureText(bannerTag).width);
-          const rx = Math.round(sx);
-          const bpx = Math.round(rx - (bw + 8) / 2);
-          const bpy = Math.round(sy - img.height - 10);
-          ctx.fillStyle = 'rgba(5, 7, 15, 0.92)';
-          ctx.fillRect(bpx, bpy, bw + 8, 14);
-          ctx.fillStyle = b.color || '#fde047';
-          ctx.fillRect(bpx, bpy + 13, bw + 8, 1);
-          ctx.fillStyle = '#05070f';
-          ctx.fillText(bannerTag, rx + 1, bpy + 12);
-          ctx.fillStyle = b.color || '#fde047';
-          ctx.fillText(bannerTag, rx, bpy + 11);
         },
       });
     }
@@ -9480,11 +9831,6 @@ export function initGame() {
       Math.round(mapBounds.halfW * 2 * scale),
       Math.round(mapBounds.halfH * 2 * scale)
     );
-
-    for (const b of worldBanners) {
-      mmCtx.fillStyle = b.color || '#fde047';
-      mmCtx.fillRect(Math.round(cx + (b.x - player.x) * scale) - 2, Math.round(cy + (b.y - player.y) * scale) - 2, 4, 4);
-    }
 
     for (const e of entities) {
       if (e.isDying) continue;

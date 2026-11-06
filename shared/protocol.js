@@ -1995,6 +1995,92 @@ export function canUpgradeParagon(prog, affinityId) {
   return true;
 }
 
+export const PROFESSIONS_CATALOG = {
+  resonance_extraction: {
+    id: 'resonance_extraction',
+    name: 'Resonance Extraction',
+    icon: '⚡',
+    color: '#38bdf8',
+    description: 'Channeling raw Glimmer, tapping leyline fissures, and extracting crystalline Nexus shards.',
+    activity: 'Channel Leyline Nodes [E] across Sanctuary and the Nexus Warzone.',
+    instructor: 'Relic-Seeker Moira',
+    starterQuestId: 'quest_skill_extraction',
+  },
+  relic_forging: {
+    id: 'relic_forging',
+    name: 'Relic-Forging',
+    icon: '🔨',
+    color: '#f97316',
+    description: 'Smelting raw ores and forging enchanted blades, plate armor, and resonant battle relics.',
+    activity: 'Work the forge and craft armaments with Blacksmith Torvin.',
+    instructor: 'Blacksmith Torvin',
+    starterQuestId: 'quest_skill_forging',
+  },
+  rite_binding: {
+    id: 'rite_binding',
+    name: 'Rite-Binding',
+    icon: '📜',
+    color: '#a855f7',
+    description: 'Distilling Glimmer essence, compounding alchemical salves, and binding ceremonial rites.',
+    activity: 'Brew tinctures, salves, and draughts with Alchemist Faye.',
+    instructor: 'Alchemist Faye',
+    starterQuestId: 'quest_skill_binding',
+  },
+  glimmerweaving: {
+    id: 'glimmerweaving',
+    name: 'Glimmerweaving',
+    icon: '🧵',
+    color: '#22c55e',
+    description: 'Spinning luminescent thread, tailoring satchels, and weaving nourishing field rations.',
+    activity: 'Craft provisions, satchels, and woven goods with Farmer Bran.',
+    instructor: 'Farmer Bran',
+    starterQuestId: 'quest_skill_weaving',
+  },
+  combat_mastery: {
+    id: 'combat_mastery',
+    name: 'Combat Mastery',
+    icon: '⚔️',
+    color: '#ef4444',
+    description: 'Mastery over the blade, staff, and war arts honed through defeating monsters and rivals.',
+    activity: 'Slay Voidbeasts, Bandits, Constructs, and enemy champions in 3v3 Arena.',
+    instructor: 'Commander Valerius',
+    starterQuestId: null,
+  },
+};
+
+const RS_XP_TABLE_99 = [0];
+let _rsAcc = 0;
+for (let lvl = 1; lvl < 99; lvl++) {
+  _rsAcc += Math.floor(lvl + 300 * Math.pow(2, lvl / 7));
+  RS_XP_TABLE_99.push(Math.floor(_rsAcc / 4));
+}
+
+export function getProfessionLevelFromXp(xp) {
+  const safeXp = Math.max(0, Math.floor(Number(xp) || 0));
+  for (let lvl = 99; lvl >= 1; lvl--) {
+    if (safeXp >= (RS_XP_TABLE_99[lvl - 1] || 0)) {
+      return lvl;
+    }
+  }
+  return 1;
+}
+
+export function getXpForProfessionLevel(lvl) {
+  const clamped = Math.max(1, Math.min(99, Math.floor(Number(lvl) || 1)));
+  return RS_XP_TABLE_99[clamped - 1] || 0;
+}
+
+export function getTotalProfessionLevel(professions) {
+  if (!professions || typeof professions !== 'object') return 5;
+  let total = 0;
+  for (const profId of Object.keys(PROFESSIONS_CATALOG)) {
+    const prof = professions[profId];
+    const lvl = Math.max(prof?.level || 1, getProfessionLevelFromXp(prof?.xp || 0));
+    total += Math.max(1, Math.min(99, Math.floor(Number(lvl) || 1)));
+  }
+  return total;
+}
+
 export function createDefaultProgression() {
   return {
     level: 1,
@@ -2004,6 +2090,13 @@ export function createDefaultProgression() {
     stats: { power: 2, bastion: 2, resonance: 1, tempo: 1 },
     ranks: { 1: 0, 2: 0, 3: 0, 4: 0, 9: 0, 10: 0, 11: 0, 12: 0 },
     skills: {}, // abilityId -> rank (0 to 5)
+    professions: {
+      resonance_extraction: { xp: 0, level: 1 },
+      relic_forging: { xp: 0, level: 1 },
+      rite_binding: { xp: 0, level: 1 },
+      glimmerweaving: { xp: 0, level: 1 },
+      combat_mastery: { xp: 0, level: 1 },
+    },
     paragonLevel: 0,
     paragonXp: 0,
     paragonPoints: 0,

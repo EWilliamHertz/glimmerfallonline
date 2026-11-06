@@ -361,16 +361,13 @@ export function renderSocialModal({ rooms = [], currentRoomId = '', roomPlayers 
     <!-- Emotes & Chat Slash Commands -->
     <div style="background:#080c18; border:2px solid #1e293b; padding:10px 12px; font-size:11px;">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
-        <b style="color:#fde047; font-size:11.5px;">PIXEL EMOTES [V] &amp; ORDER BANNER [B]:</b>
+        <b style="color:#fde047; font-size:11.5px;">PIXEL EMOTES [V]:</b>
         <div style="display:flex; gap:5px; flex-wrap:wrap;">
           ${Object.values(EMOTES_CATALOG).map((em) => `
             <button class="id-mini-btn" style="font-size:10.5px; padding:3px 7px;" onclick="triggerEmote('${em.id}'); toggleModal('social-modal');">
               ${em.icon} ${em.label}
             </button>
           `).join('')}
-          <button class="id-mini-btn" style="border-color:#facc15; color:#fde047; font-size:10.5px; padding:3px 7px;" onclick="plantOrderBanner(); toggleModal('social-modal');">
-            ⚑ PLANT BANNER [B]
-          </button>
         </div>
       </div>
       <div style="color:#94a3b8; font-size:10.5px;">

@@ -217,18 +217,32 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
 
 ### Phase 3: Player Economy, Crafting & Social Systems (Days 15–21)
 
-#### Day 15 — Leyline Gathering & Resource Refining
-- [ ] Expand Leyline Nodes into 3 gathering disciplines:
-  * Mining: Sunstone, Gloam Ore, Ironwood Vein, Chrono-Quartz.
-  * Herbalism: Dawn Blossom, Duskweed, Primordial Root, Astral Petal.
-  * Glimmer Wellsprings: Pure condensed Glimmer essence.
-- [ ] Gathering tool upgrades and gathering level progression (1-50).
+#### Day 15 — Canonical Grindable Skilling System & Bottom-Right Skills Tab *(COMPLETE)*
+- [x] **5 Canonical Grindable Skills (Levels 1–99, Authentic RuneScape XP Curve)**:
+  * ⚡ **Resonance Extraction**: Channeling raw Glimmer and tapping leyline fissures across the world `[E]`.
+  * 🔨 **Relic-Forging**: Smelting ores and forging enchanted weapons and armor with Blacksmith Torvin.
+  * 📜 **Rite-Binding**: Distilling Glimmer, compounding restorative salves, and inscribing ceremonial rites with Alchemist Faye.
+  * 🧵 **Glimmerweaving**: Spinning luminescent fibers, tailoring gear, and preparing provisions with Farmer Bran.
+  * ⚔️ **Combat Mastery**: Battle prowess honed by banishing monsters and triumphing in 3v3 Arena.
+- [x] **Bottom-Right Skills Tab `[N]` with Upward Pop-Up Animation**:
+  * Integrated dedicated `✨ SKILLS [N]` button into bottom-right `#micro-menu` dock.
+  * Anchored popup modal with smooth cubic-bezier upward pop-up animation directed towards the top-right 3v3 Arena Map / Minimap.
+  * Real-time Total Level counter (5 to 495), per-skill level indicators (1–99), XP progress bars, and activity tooltips.
+- [x] **Removed Order Banner Function**:
+  * Fully decommissioned legacy banner button `[B]` from `#zone-controls` to eliminate keybind conflicts with `[B]` Backpack.
+  * Cleared banner server handlers and client render loops.
 
-#### Day 16 — Blacksmithing, Tailoring & Artificing
-- [ ] Sanctuary Hub crafting station with interactable anvil and alchemy cauldron.
-- [ ] Craftable equipment recipes for each of the 4 factions and 8 classes.
-- [ ] Item Reforging: reroll stat ranges on rare equipment using Glimmer essences.
-- [ ] Crafting discovery recipes unlocked by defeating dungeon bosses.
+#### Day 16 — Artisan Starter Quests & Skilling Integration *(COMPLETE)*
+- [x] **4 Sanctuary Hub Artisan Starter Quests**:
+  * ⚡ `Resonance: First Extraction` (Relic-Seeker Moira): Channel 2 Leyline / Glimmer Nodes around Sanctuary to harvest raw crystals. Awards 140 XP, 60 Glimmer, 100 Gold, and +75 Resonance Extraction XP.
+  * 🔨 `Forging: The Anvil's Spark` (Blacksmith Torvin): Inspect Torvin's smithy or acquire forged iron wares. Awards 140 XP, 50 Glimmer, 100 Gold, and +75 Relic-Forging XP.
+  * 📜 `Binding: The Alchemical Draught` (Alchemist Faye): Inspect Faye's apothecary formulas or acquire a healing salve. Awards 140 XP, 50 Glimmer, 100 Gold, and +75 Rite-Binding XP.
+  * 🧵 `Weaving: The Luminescent Thread` (Farmer Bran): Inspect Bran's provisions or acquire field rations. Awards 140 XP, 50 Glimmer, 100 Gold, and +75 Glimmerweaving XP.
+- [x] **Skilling Progression Integration & Authoritative Synchronization**:
+  * Node harvesting awards +35 Extraction XP and updates quest task counters in real time.
+  * Purchasing or crafting with artisans awards respective profession XP.
+  * Monster kills award Combat Mastery XP.
+  * Full persistence across sessions and database synchronization in PostgreSQL JSONB `progression.professions`.
 
 #### Day 17 — Player-to-Player Trading & Secure Trade Windows
 - [ ] Right-click another player -> `[Trade]` option.
