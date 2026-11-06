@@ -256,6 +256,10 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
   - Real-time status header tracking Current Level (Lv. X / 99), Total XP, and exact XP required for next level.
   - Dynamic filter pills (`ALL`, `UNLOCKED`, `LOCKED`) showing unlocked milestones with green checkmarks (`✓ UNLOCKED`) and future unlocks with padlock badges (`🔒 REQ. LV. X`).
   - Milestone cards detail unlock icon, milestone title, lore description, crafting station/instructor, and XP rewards.
+- [x] **Launcher UX Polish & Persistent "Remember Me" Toggle**:
+  - Removed "Read-only roster" label from the hero selection header in `client/frontpage.js` for a clean presentation.
+  - Added an integrated "Remember me" checkbox toggle immediately to the right of `LOGIN` / `REGISTER`.
+  - Automatic credential and session persistence with background auto-login across sessions, so players never have to re-enter credentials every launch.
 
 #### Day 17 — Player-to-Player Trading & Secure Trade Windows
 - [ ] Right-click another player -> `[Trade]` option.

@@ -3548,6 +3548,12 @@ export function initGame() {
       if (mode === 'login') {
         updated = await net.login({ username, password });
         accountStatusMsg = `✓ Signed in as @${updated.username}!`;
+        if (localStorage.getItem('glimmerfall_remember_me') !== 'false') {
+          try {
+            localStorage.setItem('glimmerfall_saved_username', username);
+            localStorage.setItem('glimmerfall_saved_password', password);
+          } catch (_) {}
+        }
       } else {
         updated = await net.register({
           username,
@@ -3560,6 +3566,12 @@ export function initGame() {
           clientProgression: prog,
         });
         accountStatusMsg = `✓ Claimed GlimmerFall ID @${updated.username}!`;
+        if (localStorage.getItem('glimmerfall_remember_me') !== 'false') {
+          try {
+            localStorage.setItem('glimmerfall_saved_username', username);
+            localStorage.setItem('glimmerfall_saved_password', password);
+          } catch (_) {}
+        }
       }
       audio.playLevelUp();
       applyProfile(updated);
@@ -10575,7 +10587,9 @@ export function initGame() {
     console.error('[Frontpage] Failed to open on startup:', err);
   }
   if (frontpage.playMode === 'multiplayer') {
-    net.bootstrapAndConnect(prog);
+    net.bootstrapAndConnect(prog).then((prof) => {
+      if (prof) frontpage.syncFromProfile(prof);
+    }).catch(() => {});
   } else {
     isSinglePlayer = true;
     updateNetStatusPill();

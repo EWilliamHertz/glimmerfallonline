@@ -54,8 +54,82 @@ export class FrontpageController {
     this.creationError = '';
     this.authMessage = '';
 
+    // Remember Me & Saved Credentials
+    try {
+      const storedRemember = localStorage.getItem('glimmerfall_remember_me');
+      this.rememberMe = storedRemember !== null ? storedRemember === 'true' : true;
+      this.savedUsername = localStorage.getItem('glimmerfall_saved_username') || '';
+      this.savedPassword = localStorage.getItem('glimmerfall_saved_password') || '';
+    } catch (_) {
+      this.rememberMe = true;
+      this.savedUsername = '';
+      this.savedPassword = '';
+    }
+    this.isAutoLoggingIn = false;
+
     // Initialize Single Player default roster if none exists
     this.ensureSinglePlayerDefaults();
+  }
+
+  toggleRememberMe(checked) {
+    this.rememberMe = !!checked;
+    try {
+      localStorage.setItem('glimmerfall_remember_me', this.rememberMe ? 'true' : 'false');
+      if (!this.rememberMe) {
+        this.savedPassword = '';
+        localStorage.removeItem('glimmerfall_saved_password');
+      }
+    } catch (_) {}
+    if (this.isOpen) this.render();
+  }
+
+  async tryAutoLogin() {
+    if (!this.rememberMe || !this.net) return false;
+    if (this.net.profile && !this.net.profile.isGuest) {
+      this.syncFromProfile(this.net.profile);
+      return true;
+    }
+    if (this.isAutoLoggingIn) return false;
+    this.isAutoLoggingIn = true;
+
+    try {
+      if (this.savedUsername && this.savedPassword) {
+        let prof;
+        if (this.playMode === 'multiplayer') {
+          prof = await this.net.login({ username: this.savedUsername, password: this.savedPassword });
+        } else {
+          // Single player mode: authenticate cloud profile without persistent WS overhead
+          const data = await this.net.apiCall('/api/auth/login', 'POST', {
+            username: this.savedUsername,
+            password: this.savedPassword,
+          });
+          if (data?.token) this.net.saveStoredToken(data.token);
+          if (data?.profile) {
+            this.net.profile = data.profile;
+            prof = data.profile;
+          }
+        }
+        if (prof && !prof.isGuest) {
+          this.authMessage = `✓ Welcome back, @${prof.username}!`;
+          this.syncFromProfile(prof);
+          if (this.isOpen) this.render();
+          return true;
+        }
+      } else if (this.net.token) {
+        const prof = await this.net.bootstrapAndConnect();
+        if (prof && !prof.isGuest) {
+          this.authMessage = `✓ Welcome back, @${prof.username}!`;
+          this.syncFromProfile(prof);
+          if (this.isOpen) this.render();
+          return true;
+        }
+      }
+    } catch (err) {
+      console.warn('[Frontpage] Auto-login attempt failed:', err.message);
+    } finally {
+      this.isAutoLoggingIn = false;
+    }
+    return false;
   }
 
   ensureSinglePlayerDefaults() {
@@ -442,6 +516,13 @@ export class FrontpageController {
   async handleQuickAuth(mode) {
     const u = document.getElementById('fp-auth-user')?.value?.trim();
     const p = document.getElementById('fp-auth-pass')?.value || '';
+    const remCb = document.getElementById('fp-remember-me');
+    if (remCb) {
+      this.rememberMe = remCb.checked;
+      try {
+        localStorage.setItem('glimmerfall_remember_me', this.rememberMe ? 'true' : 'false');
+      } catch (_) {}
+    }
     if (!u || !p) {
       this.authMessage = '⚠️ Enter Username & Password first.';
       this.render();
@@ -462,6 +543,23 @@ export class FrontpageController {
             classId: targetClassId,
             orderTag: targetTag,
           });
+
+      if (this.rememberMe) {
+        this.savedUsername = u;
+        this.savedPassword = p;
+        try {
+          localStorage.setItem('glimmerfall_saved_username', u);
+          localStorage.setItem('glimmerfall_saved_password', p);
+        } catch (_) {}
+      } else {
+        this.savedUsername = '';
+        this.savedPassword = '';
+        try {
+          localStorage.removeItem('glimmerfall_saved_username');
+          localStorage.removeItem('glimmerfall_saved_password');
+        } catch (_) {}
+      }
+
       this.authMessage = `✓ Signed in as @${prof.username}!`;
       this.syncFromProfile(prof);
     } catch (err) {
@@ -475,6 +573,14 @@ export class FrontpageController {
     if (typeof window !== 'undefined' && window.resetSessionState) {
       window.resetSessionState();
     }
+    this.savedPassword = '';
+    try {
+      localStorage.removeItem('glimmerfall_saved_password');
+      if (!this.rememberMe) {
+        this.savedUsername = '';
+        localStorage.removeItem('glimmerfall_saved_username');
+      }
+    } catch (_) {}
     this.authMessage = 'Logged out. Guest session active.';
     this.selectedCharacterId = null;
     this.render();
@@ -526,6 +632,9 @@ export class FrontpageController {
       console.error('[Frontpage] Error during render:', err);
     }
     this.startPreviewLoop();
+    if (this.rememberMe && (!this.net?.profile || this.net.profile.isGuest)) {
+      this.tryAutoLogin();
+    }
   }
 
   close() {
@@ -663,11 +772,15 @@ export class FrontpageController {
             </button>
           </div>
         ` : `
-          <div style="display:flex; gap:6px; align-items:center;">
-            <input id="fp-auth-user" class="pixel-input" placeholder="GlimmerFall ID" value="${prof?.username || ''}" maxlength="18" style="font-size:10px; padding:3px 6px; width:100px;" />
-            <input id="fp-auth-pass" class="pixel-input" type="password" placeholder="Password" maxlength="48" style="font-size:10px; padding:3px 6px; width:80px;" />
+          <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+            <input id="fp-auth-user" class="pixel-input" placeholder="GlimmerFall ID" value="${this.savedUsername || prof?.username || ''}" maxlength="18" style="font-size:10px; padding:3px 6px; width:100px;" />
+            <input id="fp-auth-pass" class="pixel-input" type="password" placeholder="Password" value="${this.savedPassword || ''}" maxlength="48" style="font-size:10px; padding:3px 6px; width:80px;" />
             <button class="util-btn" style="font-size:9.5px; border-color:#38bdf8; color:#bae6fd; padding:3px 6px;" onclick="window._fp.handleQuickAuth('login')">LOGIN</button>
             <button class="util-btn" style="font-size:9.5px; border-color:#facc15; color:#fde047; padding:3px 6px;" onclick="window._fp.handleQuickAuth('register')">REGISTER</button>
+            <label style="display:flex; align-items:center; gap:4px; font-size:10px; color:#cbd5e1; cursor:pointer; user-select:none; margin-left:3px; background:#080e1e; border:1px solid #1e293b; padding:2px 6px; border-radius:3px;" title="Remember login credentials and stay signed in">
+              <input id="fp-remember-me" type="checkbox" ${this.rememberMe ? 'checked' : ''} onchange="window._fp.toggleRememberMe(this.checked)" style="accent-color:#38bdf8; cursor:pointer; width:12px; height:12px; margin:0;" />
+              <span style="font-size:9.5px; color:${this.rememberMe ? '#38bdf8' : '#94a3b8'}; font-weight:600;">Remember me</span>
+            </label>
           </div>
         `}
       </div>
@@ -682,9 +795,6 @@ export class FrontpageController {
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #1e293b; padding-bottom:6px;">
               <div class="fp-section-title" style="margin-bottom:0; font-size:11.5px;">
                 1. SELECT HERO LOADOUT
-              </div>
-              <div style="font-size:9.5px; color:#94a3b8; font-weight:600;">
-                READ-ONLY ROSTER
               </div>
             </div>
 
