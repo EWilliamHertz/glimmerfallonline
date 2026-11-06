@@ -244,6 +244,19 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
   * Monster kills award Combat Mastery XP.
   * Full persistence across sessions and database synchronization in PostgreSQL JSONB `progression.professions`.
 
+#### Day 16B — Incremental XP Progression Curves & OSRS-Style Skill Unlock Guides *(COMPLETE)*
+- [x] **Incremental XP Curve Scaling (50%–55% Compounding Per Level)**:
+  - Eliminated flat linear level-up deltas where Lv. 1->2 and 3->4 felt identical.
+  - Scaled character level XP progression using a 52–53% compounding delta formula: Lv. 1->2 requires 80 XP, Lv. 2->3 requires 122 XP (+52.5%), Lv. 3->4 requires 185 XP (+51.6%), Lv. 4->5 requires 281 XP (+51.9%).
+  - Retuned 99-level profession XP table (`RS_XP_TABLE_99`) in `shared/protocol.js` with early-level +55% incremental delta increases (Lv. 2: 78 XP, Lv. 3: 199 XP, Lv. 4: 387 XP, Lv. 5: 678 XP) smoothly transitioning to classic high-level mastery.
+- [x] **Old School RuneScape-Style Skill Guide & Milestone Unlock Browser**:
+  - Clicking any skill card in the `#skills-tab-popup` opens the dedicated `#skill-guide-modal`.
+  - Authored comprehensive milestone unlock guides for all 5 skills (Resonance Extraction, Relic-Forging, Rite-Binding, Glimmerweaving, Combat Mastery) spanning Lv. 1 to 99 Skillcapes.
+  - Interactive quick-switch skill navigation tabs (`.sg-tab-btn`) with faction/skill accent themes.
+  - Real-time status header tracking Current Level (Lv. X / 99), Total XP, and exact XP required for next level.
+  - Dynamic filter pills (`ALL`, `UNLOCKED`, `LOCKED`) showing unlocked milestones with green checkmarks (`✓ UNLOCKED`) and future unlocks with padlock badges (`🔒 REQ. LV. X`).
+  - Milestone cards detail unlock icon, milestone title, lore description, crafting station/instructor, and XP rewards.
+
 #### Day 17 — Player-to-Player Trading & Secure Trade Windows
 - [ ] Right-click another player -> `[Trade]` option.
 - [ ] Two-sided secure trade window with item slots and Glimmer currency exchange.

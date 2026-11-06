@@ -1091,6 +1091,146 @@
       text-overflow: ellipsis;
     }
 
+    /* ==========================================
+       6c. OLD SCHOOL RUNESCAPE STYLE SKILL GUIDE
+       ========================================== */
+    .sg-tab-btn {
+      background: #090e1d;
+      border: 1px solid #1e293b;
+      color: #94a3b8;
+      font-family: var(--font-header);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .sg-tab-btn:hover {
+      background: #111a30;
+      color: #f8fafc;
+      border-color: #38bdf8;
+    }
+    .sg-tab-btn.active {
+      background: #0369a1;
+      border-color: #38bdf8;
+      color: #f0f9ff;
+      box-shadow: 0 0 10px rgba(56,189,248,0.35);
+    }
+    .sg-filter-btn {
+      background: #0b1329;
+      border: 1px solid #1e293b;
+      color: #94a3b8;
+      font-family: var(--font-pixel);
+      font-size: 8.5px;
+      padding: 3px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .sg-filter-btn:hover {
+      background: #1e293b;
+      color: #f1f5f9;
+    }
+    .sg-filter-btn.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #38bdf8;
+    }
+    .osrs-unlock-card {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #1e293b;
+      border-radius: 4px;
+      padding: 9px 12px;
+      display: grid;
+      grid-template-columns: 68px 1fr 140px;
+      gap: 12px;
+      align-items: center;
+      transition: all 0.15s;
+    }
+    .osrs-unlock-card:hover {
+      background: rgba(30, 41, 59, 0.95);
+      border-color: rgba(56,189,248,0.5);
+    }
+    .osrs-unlock-card.is-unlocked {
+      border-left: 4px solid #22c55e;
+    }
+    .osrs-unlock-card.is-locked {
+      border-left: 4px solid #475569;
+      opacity: 0.82;
+    }
+    .osrs-lvl-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #050811;
+      border: 1px solid #1e293b;
+      border-radius: 3px;
+      padding: 4px 6px;
+      text-align: center;
+    }
+    .osrs-lvl-num {
+      font-family: var(--font-header);
+      font-size: 16px;
+      font-weight: 800;
+      color: #fde047;
+      line-height: 1;
+    }
+    .osrs-lvl-lbl {
+      font-size: 8px;
+      color: #94a3b8;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }
+    .osrs-unlock-title {
+      font-family: var(--font-header);
+      font-size: 12px;
+      font-weight: 700;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .osrs-unlock-desc {
+      font-size: 10px;
+      color: #cbd5e1;
+      margin-top: 3px;
+      line-height: 1.4;
+    }
+    .osrs-status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      font-family: var(--font-header);
+      font-size: 9px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 3px;
+    }
+    .osrs-status-unlocked {
+      background: rgba(34, 197, 94, 0.18);
+      border: 1px solid #22c55e;
+      color: #4ade80;
+    }
+    .osrs-status-locked {
+      background: rgba(100, 116, 139, 0.18);
+      border: 1px solid #475569;
+      color: #94a3b8;
+    }
+    .osrs-xp-badge {
+      font-size: 8.5px;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 2px 6px;
+      border-radius: 3px;
+      display: inline-block;
+      margin-top: 4px;
+    }
+
     /* RuneScape Equipment Paperdoll Grid */
     .rs-paperdoll-wrapper {
       display: grid;
@@ -2055,7 +2195,7 @@
         <button class="skills-tab-close" onclick="toggleSkillsTab()" title="Close [N] / [ESC]">✕</button>
       </div>
       <div class="skills-tab-sub">
-        <span>Traditional MMORPG Skilling</span>
+        <span>Click any skill to view OSRS Skill Guide</span>
         <span style="color:#fde047; font-weight:700;">MAX LVL 99</span>
       </div>
       <div id="skills-list-container" class="skills-list">
@@ -2270,6 +2410,48 @@
       </div>
       <div id="lore-modal-body" style="font-size:11px; color:#e2e8f0; line-height:1.55; margin-top:8px;">
         <!-- Dynamically rendered by renderLoreModal() in client/game.js -->
+      </div>
+    </div>
+
+    <!-- MODAL 7: Old School RuneScape-Style Skill Guide & Milestone Unlocks -->
+    <div id="skill-guide-modal" class="modal panel" style="width: 780px; max-width: 96vw; max-height: 88vh; display: none;">
+      <div class="modal-header" style="border-bottom: 1px solid rgba(56,189,248,0.25); padding-bottom: 8px;">
+        <div style="flex: 1;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div id="skill-guide-title" class="modal-title" style="font-size: 14px; color: #facc15; font-family: var(--font-header); letter-spacing: 0.5px;">
+              ⚡ RESONANCE EXTRACTION — SKILL GUIDE &amp; UNLOCKS
+            </div>
+            <div class="modal-close" onclick="toggleModal('skill-guide-modal')">✕</div>
+          </div>
+          <div id="skill-guide-status-bar" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 6px; font-size: 10px; color: #cbd5e1;">
+            <!-- Populated dynamically by renderSkillGuide() -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Skill Selection Tabs (OSRS Style quick switch) -->
+      <div class="skill-guide-tabs" style="display: flex; gap: 4px; padding: 8px 0; border-bottom: 1px solid #1e293b; flex-wrap: wrap;">
+        <button class="sg-tab-btn" id="sg-tab-resonance_extraction" onclick="openSkillGuide('resonance_extraction')">⚡ EXTRACTION</button>
+        <button class="sg-tab-btn" id="sg-tab-relic_forging" onclick="openSkillGuide('relic_forging')">🔨 FORGING</button>
+        <button class="sg-tab-btn" id="sg-tab-rite_binding" onclick="openSkillGuide('rite_binding')">📜 BINDING</button>
+        <button class="sg-tab-btn" id="sg-tab-glimmerweaving" onclick="openSkillGuide('glimmerweaving')">🧵 WEAVING</button>
+        <button class="sg-tab-btn" id="sg-tab-combat_mastery" onclick="openSkillGuide('combat_mastery')">⚔️ COMBAT</button>
+      </div>
+
+      <!-- Category Filter Tabs -->
+      <div id="skill-guide-filters" style="display: flex; gap: 6px; padding: 6px 0; align-items: center; flex-wrap: wrap;">
+        <!-- Filter pills dynamically generated -->
+      </div>
+
+      <!-- Unlock Milestones List (OSRS Style) -->
+      <div id="skill-guide-unlocks-container" class="osrs-unlocks-grid" style="overflow-y: auto; max-height: calc(88vh - 210px); padding: 8px 4px; display: flex; flex-direction: column; gap: 8px;">
+        <!-- Rendered by renderSkillGuide() in client/game.js -->
+      </div>
+
+      <!-- Footer Info -->
+      <div style="border-top: 1px solid #1e293b; padding-top: 8px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center; font-size: 9.5px; color: #94a3b8;">
+        <span>Levels 1 to 99 • Unlocks grant recipes, gathering nodes, and battle perks</span>
+        <button class="id-mini-btn" onclick="toggleModal('skill-guide-modal')" style="font-size: 9.5px; padding: 2px 8px;">CLOSE [ESC]</button>
       </div>
     </div>
   </div>

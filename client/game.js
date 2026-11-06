@@ -3883,7 +3883,7 @@ export function initGame() {
       const pct = currentLevel >= 99 ? 100 : Math.min(100, Math.floor((progressXp / diffXp) * 100));
 
       html += `
-        <div class="skill-card" style="border-left: 3px solid ${meta.color};">
+        <div class="skill-card" style="border-left: 3px solid ${meta.color}; cursor: pointer;" onclick="openSkillGuide('${profId}')" title="Click to view Old School RuneScape-style Skill Guide & Unlocks">
           <div class="skill-card-top">
             <div class="skill-card-name" style="color: ${meta.color};">
               <span class="skill-card-icon">${meta.icon}</span>
@@ -3900,7 +3900,7 @@ export function initGame() {
           </div>
           <div class="skill-card-meta">
             <span>${currentLevel >= 99 ? 'MASTER (Lv. 99)' : `${xp.toLocaleString()} / ${nextLvlXp.toLocaleString()} XP (${pct}%)`}</span>
-            <span style="color:#94a3b8; font-size:8px;">${meta.instructor || 'Sanctuary'}</span>
+            <span style="color:#fde047; font-size:8px; font-weight:bold;">📖 VIEW GUIDE →</span>
           </div>
           <div class="skill-card-activity" title="${meta.activity}">${meta.activity}</div>
         </div>
@@ -3908,6 +3908,671 @@ export function initGame() {
     }
 
     container.innerHTML = html;
+  };
+
+  // ==========================================
+  // Old School RuneScape Style Skill Guide & Unlocks
+  // ==========================================
+  const SKILL_GUIDE_DATA = {
+    resonance_extraction: {
+      id: 'resonance_extraction',
+      name: 'Resonance Extraction',
+      icon: '⚡',
+      color: '#38bdf8',
+      instructor: 'Relic-Seeker Moira (Sanctuary Haven Market)',
+      description: 'The ancient art of harmonizing with the fractured leylines. Extract concentrated Glimmer, crystalline shards, and ancient keystone relics from nodes across the continent.',
+      unlocks: [
+        {
+          level: 1,
+          title: 'Minor Glimmer Node Channeling',
+          icon: '💎',
+          category: 'gathering',
+          desc: 'Extract raw Glimmer from purple crystal fissures around Sanctuary Hub and border roads. Press [E] when near.',
+          method: 'Channeling [E]',
+          xp: '+35 Extraction XP',
+        },
+        {
+          level: 1,
+          title: 'Ancient Leyline Shrines',
+          icon: '✨',
+          category: 'shrines',
+          desc: 'Attune to elemental shrines (Solari, Umbri, Terra, Aether) to receive 60s power blessings and resonance.',
+          method: 'Channeling [E]',
+          xp: '+45 Extraction XP',
+        },
+        {
+          level: 5,
+          title: 'Solid Glimmer Shards',
+          icon: '🔮',
+          category: 'gathering',
+          desc: 'Gather solid crystalline Glimmer Shards valued by market traders, alchemists, and the Grand Exchange.',
+          method: 'Channeling [E]',
+          xp: '+55 Extraction XP',
+        },
+        {
+          level: 12,
+          title: 'Resonant Leyline Fissures',
+          icon: '⚡',
+          category: 'gathering',
+          desc: 'Extract high-frequency Leyline Fissures in the border passes between Sanctuary and the 4 Faction Biomes.',
+          method: 'Channeling [E]',
+          xp: '+85 Extraction XP',
+        },
+        {
+          level: 20,
+          title: 'Chrono-Quartz Geodes',
+          icon: '⏳',
+          category: 'gathering',
+          desc: 'Tap temporal crystal formations in the Forgotten Ruins and Aether Astral Spire. Used in chrono-crafting.',
+          method: 'Ruins Exploration',
+          xp: '+135 Extraction XP',
+        },
+        {
+          level: 35,
+          title: 'Continental Caldera Veins',
+          icon: '🌋',
+          category: 'gathering',
+          desc: 'Harvest molten Glimmer conduits in the contested Continental Warzone Caldera under dangerous conditions.',
+          method: 'Warzone Channeling',
+          xp: '+220 Extraction XP',
+        },
+        {
+          level: 50,
+          title: 'Deep Leyline Surge Attunement',
+          icon: '🌊',
+          category: 'perk',
+          desc: 'Passive perk: Extraction yields 50% more raw Glimmer per charge and has a 15% chance to uncover ancient relics.',
+          method: 'Passive Mastery',
+          xp: 'Double Yield Perk',
+        },
+        {
+          level: 65,
+          title: 'Corrupted Void Rift Sealing',
+          icon: '🌀',
+          category: 'shrines',
+          desc: 'Channel unstable Void Rifts in the outer wastes, banishing shadow tendrils and capturing condensed dark aether.',
+          method: 'Wastes Channeling',
+          xp: '+450 Extraction XP',
+        },
+        {
+          level: 80,
+          title: 'Starlight Geode Extraction',
+          icon: '⭐',
+          category: 'gathering',
+          desc: 'Mine pure starlight crystals along the precipices of the Celestial Ascent Colonnade.',
+          method: 'Celestial Ascent',
+          xp: '+750 Extraction XP',
+        },
+        {
+          level: 90,
+          title: 'Aurelius Empyrean Conduits',
+          icon: '👑',
+          category: 'shrines',
+          desc: 'Channel the sovereign titan conduits on the Northern Summit Throne to harness primal continental light.',
+          method: 'Summit Throne',
+          xp: '+1,200 Extraction XP',
+        },
+        {
+          level: 99,
+          title: 'Skillcape of Extraction & Grand Attunement',
+          icon: '🏆',
+          category: 'mastery',
+          desc: 'Wear the Resonance Extraction Skillcape (+5 all stats). Instant node channeling and +25% bonus Glimmer across all realms.',
+          method: 'Mastery Vendor',
+          xp: 'Grand Mastery Perk',
+        },
+      ],
+    },
+    relic_forging: {
+      id: 'relic_forging',
+      name: 'Relic-Forging',
+      icon: '🔨',
+      color: '#f97316',
+      instructor: 'Blacksmith Torvin (Sanctuary Haven Smithy)',
+      description: 'The martial craft of smelting raw ores, shaping tempered metals, and hammering mythic blades, shields, and plate armor at the Great Anvil.',
+      unlocks: [
+        {
+          level: 1,
+          title: 'Iron Ore Smelting',
+          icon: '🪨',
+          category: 'smelting',
+          desc: 'Smelt quarried iron rocks into tempered Iron Bars at Blacksmith Torvin\'s Great Anvil.',
+          method: 'Great Anvil',
+          xp: '+35 Forging XP',
+        },
+        {
+          level: 1,
+          title: 'Iron Broadsword & Heater Shield',
+          icon: '🗡️',
+          category: 'equipment',
+          desc: 'Forge sturdy Iron Broadswords (+2 Power) and Iron Heater Shields (+2 Bastion) for novice champions.',
+          method: 'Smithing Station',
+          xp: '+45 Forging XP',
+        },
+        {
+          level: 5,
+          title: 'Bronze Alloy & Bucklers',
+          icon: '🛡️',
+          category: 'smelting',
+          desc: 'Combine copper and tin ores into Bronze Bars to shape lightweight agile bucklers.',
+          method: 'Great Anvil',
+          xp: '+65 Forging XP',
+        },
+        {
+          level: 12,
+          title: 'Sunsteel Blades & Vanguard Helms',
+          icon: '⚔️',
+          category: 'equipment',
+          desc: 'Forge Sunsteel Arming Blades and Reinforced Vanguard Casques with enhanced critical strike rating.',
+          method: 'Smithing Station',
+          xp: '+110 Forging XP',
+        },
+        {
+          level: 20,
+          title: 'Heavy Iron Breastplate & Pauldrons',
+          icon: '🥋',
+          category: 'equipment',
+          desc: 'Shape interlocking steel chestplates granting substantial flat physical damage reduction.',
+          method: 'Great Anvil',
+          xp: '+180 Forging XP',
+        },
+        {
+          level: 35,
+          title: 'Continental Cleaving Greathammers',
+          icon: '🔨',
+          category: 'equipment',
+          desc: 'Forge massive Ironwood Mauls and Sunfire Warhammers capable of staggering multiple foes in melee.',
+          method: 'Great Anvil',
+          xp: '+290 Forging XP',
+        },
+        {
+          level: 50,
+          title: 'Chrono-Alloy Armor & Greatswords',
+          icon: '🌟',
+          category: 'equipment',
+          desc: 'Forge shimmering Chrono-Alloy Plate that shortens ability cooldowns and deflects projectile spells.',
+          method: 'Sanctuary Forge',
+          xp: '+480 Forging XP',
+        },
+        {
+          level: 65,
+          title: 'Primal Socket Reforging',
+          icon: '💎',
+          category: 'perk',
+          desc: 'Punch primal jewel sockets into existing weapons and armor to embed paragon stat gems.',
+          method: 'Anvil Reforging',
+          xp: '+680 Forging XP',
+        },
+        {
+          level: 80,
+          title: 'Titan Sovereign Greatshield',
+          icon: '🛡️',
+          category: 'equipment',
+          desc: 'Craft colossal Empyrean Shields with 20% passive block chance and retaliation damage.',
+          method: 'Master Forge',
+          xp: '+950 Forging XP',
+        },
+        {
+          level: 90,
+          title: 'Sunfire Colossus Greatsword',
+          icon: '🔥',
+          category: 'equipment',
+          desc: 'Hammer blazing Mythic Greatswords infused with living sunfire (+4 Power, +1 Bastion, Holy burst).',
+          method: 'Master Forge',
+          xp: '+1,400 Forging XP',
+        },
+        {
+          level: 99,
+          title: 'Skillcape of Forging & Master Smithing',
+          icon: '🏆',
+          category: 'mastery',
+          desc: 'Wear the Relic-Forging Skillcape (+5 all stats). 20% chance to forge flawless masterwork equipment with double bonus stats.',
+          method: 'Mastery Vendor',
+          xp: 'Masterwork Smithing Perk',
+        },
+      ],
+    },
+    rite_binding: {
+      id: 'rite_binding',
+      name: 'Rite-Binding',
+      icon: '📜',
+      color: '#a855f7',
+      instructor: 'Alchemist Faye (Sanctuary Haven Apothecary)',
+      description: 'The mystical compounding of alchemical elixirs, vitality salves, and inscribing ceremonial rites and scrolls imbued with living Aether.',
+      unlocks: [
+        {
+          level: 1,
+          title: 'Minor Healing Salve',
+          icon: '🧪',
+          category: 'alchemy',
+          desc: 'Distill mountain herb roots into immediate healing salves restoring +35 Health on consumption.',
+          method: 'Apothecary Distiller',
+          xp: '+35 Binding XP',
+        },
+        {
+          level: 1,
+          title: 'Leyline Glimmer Draught',
+          icon: '⚗️',
+          category: 'alchemy',
+          desc: 'Brew sparkling Glimmer tonics that instantly recover +40 ability charge in battle.',
+          method: 'Apothecary Distiller',
+          xp: '+40 Binding XP',
+        },
+        {
+          level: 5,
+          title: 'Major Vitality Elixir',
+          icon: '🍷',
+          category: 'alchemy',
+          desc: 'Compound concentrated vitality flasks restoring +80 Health to sustain prolonged dungeon fights.',
+          method: 'Cauldron Station',
+          xp: '+65 Binding XP',
+        },
+        {
+          level: 12,
+          title: 'Tincture of Astral Swiftness',
+          icon: '⚡',
+          category: 'alchemy',
+          desc: 'Brew swiftness potions granting +25% sprint speed for 30s to outrun foes or cross biomes rapidly.',
+          method: 'Apothecary Distiller',
+          xp: '+110 Binding XP',
+        },
+        {
+          level: 20,
+          title: 'Inscribed Scroll of Flare Strike',
+          icon: '📜',
+          category: 'rites',
+          desc: 'Inscribe ceremonial parchment with Solar runes to unleash instant searing radial firewaves.',
+          method: 'Scribing Desk',
+          xp: '+180 Binding XP',
+        },
+        {
+          level: 35,
+          title: 'Chrono-Flux Draught',
+          icon: '⏳',
+          category: 'alchemy',
+          desc: 'Distill temporal flux reducing all rite cast times by 20% and flash cooldowns by 15% for 45 seconds.',
+          method: 'Cauldron Station',
+          xp: '+290 Binding XP',
+        },
+        {
+          level: 50,
+          title: 'Sigil of Consecrated Ground',
+          icon: '☀️',
+          category: 'rites',
+          desc: 'Inscribe holy ground sigils that bathe party members in radiant healing while incinerating void enemies.',
+          method: 'Scribing Desk',
+          xp: '+480 Binding XP',
+        },
+        {
+          level: 65,
+          title: 'Void Ward Inscription',
+          icon: '🛡️',
+          category: 'rites',
+          desc: 'Bind protective wards absorbing up to 250 shadow and dark damage before collapsing.',
+          method: 'Scribing Desk',
+          xp: '+680 Binding XP',
+        },
+        {
+          level: 80,
+          title: 'Elixir of the Empyrean Sovereign',
+          icon: '🌟',
+          category: 'alchemy',
+          desc: 'Compound legendary starlight drafts granting 5 seconds of complete invulnerability and full recovery.',
+          method: 'Master Cauldron',
+          xp: '+950 Binding XP',
+        },
+        {
+          level: 90,
+          title: 'Scroll of Continental Teleportation',
+          icon: '✨',
+          category: 'rites',
+          desc: 'Inscribe master scrolls capable of attuning party members to any continental sanctuary waypoint.',
+          method: 'Master Scribing Desk',
+          xp: '+1,400 Binding XP',
+        },
+        {
+          level: 99,
+          title: 'Skillcape of Rite-Binding & Duplication',
+          icon: '🏆',
+          category: 'mastery',
+          desc: 'Wear the Rite-Binding Skillcape (+5 all stats). 25% chance to duplicate any brewed potion or scroll without consuming ingredients.',
+          method: 'Mastery Vendor',
+          xp: 'Duplication Mastery Perk',
+        },
+      ],
+    },
+    glimmerweaving: {
+      id: 'glimmerweaving',
+      name: 'Glimmerweaving',
+      icon: '🧵',
+      color: '#22c55e',
+      instructor: 'Farmer Bran (Sanctuary Haven Provisions)',
+      description: 'The artisan discipline of spinning luminescent thread, tailoring satchels, expanded backpacks, protective cloaks, and crafting nourishing field rations.',
+      unlocks: [
+        {
+          level: 1,
+          title: 'Fresh Baked Bread & Orchard Apples',
+          icon: '🍞',
+          category: 'provisions',
+          desc: 'Bake warm crusty loaves and prepare crisp orchard apples recovering Health between fights.',
+          method: 'Field Hearth',
+          xp: '+35 Weaving XP',
+        },
+        {
+          level: 1,
+          title: 'Apprentice Fiber Satchel',
+          icon: '🎒',
+          category: 'tailoring',
+          desc: 'Weave beginner utility satchels from wild flax to safely organize inventory and reagents.',
+          method: 'Weaving Loom',
+          xp: '+40 Weaving XP',
+        },
+        {
+          level: 5,
+          title: 'Hearty Field Provisions',
+          icon: '🍖',
+          category: 'provisions',
+          desc: 'Smoke trail jerky and dried fruit rations recovering +35 Health and stamina over time.',
+          method: 'Field Hearth',
+          xp: '+65 Weaving XP',
+        },
+        {
+          level: 12,
+          title: 'Luminescent Linen Robes',
+          icon: '🥋',
+          category: 'tailoring',
+          desc: 'Tailor soft robes from glimmering linen boosting player Tempo and cast speed.',
+          method: 'Weaving Loom',
+          xp: '+110 Weaving XP',
+        },
+        {
+          level: 20,
+          title: 'Reinforced Traveler\'s Rucksack',
+          icon: '🎒',
+          category: 'tailoring',
+          desc: 'Weave durable backpack expansions granting additional carry resilience in the wild.',
+          method: 'Weaving Loom',
+          xp: '+180 Weaving XP',
+        },
+        {
+          level: 35,
+          title: 'Warzone Camouflage Cloak',
+          icon: '🧥',
+          category: 'tailoring',
+          desc: 'Tailor cloaks woven with shadow thread reducing hostile monster aggro detection distance by 30%.',
+          method: 'Weaving Loom',
+          xp: '+290 Weaving XP',
+        },
+        {
+          level: 50,
+          title: 'Faction Order Tabards',
+          icon: '🧣',
+          category: 'tailoring',
+          desc: 'Weave royal guild tabards emblazoned with faction crests providing +1 Power aura to nearby party allies.',
+          method: 'Master Loom',
+          xp: '+480 Weaving XP',
+        },
+        {
+          level: 65,
+          title: 'Gossamer Astral Robes',
+          icon: '✨',
+          category: 'tailoring',
+          desc: 'Spin starlight filaments into ceremonial archmage vestments with high magic resistance.',
+          method: 'Master Loom',
+          xp: '+680 Weaving XP',
+        },
+        {
+          level: 80,
+          title: 'Feast of the Continental Champions',
+          icon: '🍲',
+          category: 'provisions',
+          desc: 'Cook glorious grand banquets granting the entire party +15% maximum Health and +10% damage for 1 hour.',
+          method: 'Grand Hearth',
+          xp: '+950 Weaving XP',
+        },
+        {
+          level: 90,
+          title: 'Empyrean Sovereign Mantle',
+          icon: '👑',
+          category: 'tailoring',
+          desc: 'Weave the mantle of the titan lords with flowing trailing starlight particles and +12% dodge rating.',
+          method: 'Master Loom',
+          xp: '+1,400 Weaving XP',
+        },
+        {
+          level: 99,
+          title: 'Skillcape of Glimmerweaving & Master Tailor',
+          icon: '🏆',
+          category: 'mastery',
+          desc: 'Wear the Glimmerweaving Skillcape (+5 all stats). Provisions heal 50% more Health and backpack weight is reduced to zero.',
+          method: 'Mastery Vendor',
+          xp: 'Master Provisions Perk',
+        },
+      ],
+    },
+    combat_mastery: {
+      id: 'combat_mastery',
+      name: 'Combat Mastery',
+      icon: '⚔️',
+      color: '#ef4444',
+      instructor: 'Commander Valerius (Sanctuary Haven Command Post)',
+      description: 'The martial art of combat timing, spell rotations, dodging strikes, and triumphing over Voidbeasts, Bandits, Constructs, and enemy champions.',
+      unlocks: [
+        {
+          level: 1,
+          title: 'Training Dummy Sparring',
+          icon: '🎯',
+          category: 'combat',
+          desc: 'Practice basic attack combos and ability timings on the immortal training dummies in Sanctuary Haven.',
+          method: 'Sanctuary Dummies',
+          xp: '+20 Combat XP',
+        },
+        {
+          level: 1,
+          title: 'Wandering Voidling Banishment',
+          icon: '👾',
+          category: 'combat',
+          desc: 'Slay stray voidlings and wandering goblins prowling outside the Sanctuary Haven gate.',
+          method: 'Open World Mobs',
+          xp: '+30 Combat XP',
+        },
+        {
+          level: 5,
+          title: 'Highway Highwaymen & Wild Beasts',
+          icon: '🐺',
+          category: 'combat',
+          desc: 'Hunt aggressive wild wolves and rogue highwaymen along the cardinal roads leading to faction biomes.',
+          method: 'Roadway Skirmishing',
+          xp: '+60 Combat XP',
+        },
+        {
+          level: 12,
+          title: 'Ruins Horrors & Mechanical Watchers',
+          icon: '🗿',
+          category: 'combat',
+          desc: 'Engage ancient ruin stalkers and mechanical construct sentinels in the Forgotten First Nexus Ruins.',
+          method: 'Forgotten Ruins',
+          xp: '+110 Combat XP',
+        },
+        {
+          level: 20,
+          title: 'Ranked 3v3 Nexus Arena Access',
+          icon: '⚔️',
+          category: 'pvp',
+          desc: 'Queue for competitive 3v3 Arena matches via the top-right HUD button to test your build against player champions.',
+          method: '3v3 Arena Queue',
+          xp: '+180 Combat XP',
+        },
+        {
+          level: 35,
+          title: 'Continental Warzone Outposts',
+          icon: '🚩',
+          category: 'pvp',
+          desc: 'Participate in open-world Caldera battles, contesting faction outposts and claiming high-tier mob bounties.',
+          method: 'Caldera Warzone',
+          xp: '+290 Combat XP',
+        },
+        {
+          level: 50,
+          title: 'Scheduled Nexus Siege Events',
+          icon: '⚡',
+          category: 'events',
+          desc: 'Lead the charge during bi-hourly Continental Nexus Sieges, damaging the central shard to win faction glory.',
+          method: 'Continental Siege',
+          xp: '+500 Combat XP',
+        },
+        {
+          level: 65,
+          title: 'Paragon Boss Hunts',
+          icon: '🐉',
+          category: 'bosses',
+          desc: 'Vanquish high-level elite dungeon bosses in coordinated party raids for Mythic equipment drops.',
+          method: 'Dungeon Encounters',
+          xp: '+750 Combat XP',
+        },
+        {
+          level: 80,
+          title: 'Celestial Ascent Colonnade Cleansing',
+          icon: '⛰️',
+          category: 'bosses',
+          desc: 'Battle through ancient titan guardians along the northern mountain stairs to reach the summit throne.',
+          method: 'Celestial Ascent',
+          xp: '+1,100 Combat XP',
+        },
+        {
+          level: 90,
+          title: 'Aurelius the Empyrean Sovereign',
+          icon: '👑',
+          category: 'bosses',
+          desc: 'Challenge the supreme Titan Lord at the Northern Summit Throne to cleanse the lingering Fall corruption.',
+          method: 'Summit Throne Boss',
+          xp: '+1,600 Combat XP',
+        },
+        {
+          level: 99,
+          title: 'Skillcape of Combat Mastery & Champion Aura',
+          icon: '🏆',
+          category: 'mastery',
+          desc: 'Wear the Combat Mastery Skillcape (+5 all stats). Permanent +5% Critical Strike chance and glorious Champion radiant aura.',
+          method: 'Mastery Vendor',
+          xp: 'Champion Aura Perk',
+        },
+      ],
+    },
+  };
+
+  let currentSkillGuideId = 'resonance_extraction';
+  let currentSkillGuideFilter = 'all';
+
+  window.openSkillGuide = function (skillId = 'resonance_extraction', filter = 'all') {
+    currentSkillGuideId = skillId;
+    currentSkillGuideFilter = filter;
+    renderSkillGuide(currentSkillGuideId, currentSkillGuideFilter);
+    const modal = document.getElementById('skill-guide-modal');
+    if (modal) {
+      document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
+      modal.style.display = 'block';
+      audio.playChime?.();
+    }
+  };
+
+  window.renderSkillGuide = function (skillId = currentSkillGuideId, filter = currentSkillGuideFilter) {
+    currentSkillGuideId = skillId;
+    currentSkillGuideFilter = filter;
+    const meta = PROFESSIONS_CATALOG[skillId] || PROFESSIONS_CATALOG.resonance_extraction;
+    const guideData = SKILL_GUIDE_DATA[skillId] || SKILL_GUIDE_DATA.resonance_extraction;
+
+    const titleEl = document.getElementById('skill-guide-title');
+    const statusEl = document.getElementById('skill-guide-status-bar');
+    const filtersEl = document.getElementById('skill-guide-filters');
+    const unlocksEl = document.getElementById('skill-guide-unlocks-container');
+
+    // Update active tab button
+    document.querySelectorAll('.sg-tab-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.id === `sg-tab-${skillId}`);
+    });
+
+    const profData = prog?.professions?.[skillId] || { xp: 0, level: 1 };
+    const xp = Math.max(0, Math.floor(Number(profData.xp) || 0));
+    const currentLevel = getProfessionLevelFromXp(xp);
+    profData.level = currentLevel;
+
+    const curLvlXp = getXpForProfessionLevel(currentLevel);
+    const nextLvlXp = currentLevel >= 99 ? curLvlXp : getXpForProfessionLevel(currentLevel + 1);
+    const diff = Math.max(1, nextLvlXp - curLvlXp);
+    const progress = Math.max(0, xp - curLvlXp);
+    const pct = currentLevel >= 99 ? 100 : Math.min(100, Math.floor((progress / diff) * 100));
+
+    if (titleEl) {
+      titleEl.innerHTML = `${meta.icon} ${meta.name.toUpperCase()} — SKILL GUIDE &amp; UNLOCKS`;
+      titleEl.style.color = meta.color;
+    }
+
+    if (statusEl) {
+      statusEl.innerHTML = `
+        <span style="background:#0284c7; color:#fff; font-weight:800; padding:2px 7px; border-radius:3px; font-family:var(--font-header);">
+          CURRENT LEVEL: LV. ${currentLevel} / 99
+        </span>
+        <span>TOTAL XP: <b style="color:#fde047;">${xp.toLocaleString()}</b></span>
+        <span>NEXT LEVEL: <b style="color:#38bdf8;">${currentLevel >= 99 ? 'MAX' : `${nextLvlXp.toLocaleString()} XP (+${(nextLvlXp - xp).toLocaleString()} needed)`}</b></span>
+        <span style="color:#94a3b8;">Instructor: <b style="color:#e2e8f0;">${meta.instructor || 'Sanctuary Haven'}</b></span>
+      `;
+    }
+
+    if (filtersEl) {
+      filtersEl.innerHTML = `
+        <span style="font-size:9px; color:#94a3b8; font-weight:bold; margin-right:4px;">FILTER:</span>
+        <button class="sg-filter-btn ${filter === 'all' ? 'active' : ''}" onclick="renderSkillGuide('${skillId}', 'all')">ALL UNLOCKS (${guideData.unlocks.length})</button>
+        <button class="sg-filter-btn ${filter === 'unlocked' ? 'active' : ''}" onclick="renderSkillGuide('${skillId}', 'unlocked')">✓ UNLOCKED ONLY</button>
+        <button class="sg-filter-btn ${filter === 'locked' ? 'active' : ''}" onclick="renderSkillGuide('${skillId}', 'locked')">🔒 LOCKED ONLY</button>
+      `;
+    }
+
+    if (unlocksEl) {
+      const filtered = guideData.unlocks.filter((u) => {
+        const isUnlocked = currentLevel >= u.level;
+        if (filter === 'unlocked') return isUnlocked;
+        if (filter === 'locked') return !isUnlocked;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        unlocksEl.innerHTML = `
+          <div style="background:#090d1c; border:1px dashed #334155; padding:24px; text-align:center; color:#94a3b8; font-size:11px;">
+            No milestone unlocks match the current filter.
+          </div>
+        `;
+        return;
+      }
+
+      unlocksEl.innerHTML = filtered.map((u) => {
+        const isUnlocked = currentLevel >= u.level;
+        return `
+          <div class="osrs-unlock-card ${isUnlocked ? 'is-unlocked' : 'is-locked'}">
+            <div class="osrs-lvl-box">
+              <span class="osrs-lvl-num" style="${isUnlocked ? 'color:#fde047;' : 'color:#94a3b8;'}">${u.level}</span>
+              <span class="osrs-lvl-lbl">LEVEL</span>
+            </div>
+            <div>
+              <div class="osrs-unlock-title">
+                <span>${u.icon}</span>
+                <span style="${isUnlocked ? 'color:#f8fafc;' : 'color:#cbd5e1;'}">${u.title}</span>
+              </div>
+              <div class="osrs-unlock-desc">${u.desc}</div>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:4px;">
+                <span class="osrs-xp-badge">${u.xp}</span>
+                <span style="font-size:9px; color:#94a3b8;">Station / Method: <b style="color:#e2e8f0;">${u.method}</b></span>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <span class="osrs-status-badge ${isUnlocked ? 'osrs-status-unlocked' : 'osrs-status-locked'}">
+                ${isUnlocked ? '✓ UNLOCKED' : `🔒 REQ. LV. ${u.level}`}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
   };
 
   window.allocateStat = function (statKey) {
@@ -7739,6 +8404,9 @@ export function initGame() {
       }
       if (id === 'lore-modal') {
         renderLoreModal();
+      }
+      if (id === 'skill-guide-modal') {
+        renderSkillGuide(currentSkillGuideId, currentSkillGuideFilter);
       }
       if (id === 'settings-modal') {
         const touchCb = document.getElementById('settings-touch-checkbox');

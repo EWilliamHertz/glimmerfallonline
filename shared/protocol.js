@@ -2049,10 +2049,22 @@ export const PROFESSIONS_CATALOG = {
 };
 
 const RS_XP_TABLE_99 = [0];
-let _rsAcc = 0;
-for (let lvl = 1; lvl < 99; lvl++) {
-  _rsAcc += Math.floor(lvl + 300 * Math.pow(2, lvl / 7));
-  RS_XP_TABLE_99.push(Math.floor(_rsAcc / 4));
+let _rsTotal = 0;
+let _rsDelta = 50;
+for (let lvl = 2; lvl <= 99; lvl++) {
+  if (lvl <= 7) {
+    _rsDelta = Math.round(_rsDelta * 1.55); // ~55% more experience required each level
+  } else if (lvl <= 20) {
+    _rsDelta = Math.round(_rsDelta * 1.155);
+  } else if (lvl <= 40) {
+    _rsDelta = Math.round(_rsDelta * 1.09);
+  } else if (lvl <= 70) {
+    _rsDelta = Math.round(_rsDelta * 1.055);
+  } else {
+    _rsDelta = Math.round(_rsDelta * 1.042);
+  }
+  _rsTotal += _rsDelta;
+  RS_XP_TABLE_99.push(_rsTotal);
 }
 
 export function getProfessionLevelFromXp(xp) {
@@ -2193,7 +2205,11 @@ export function getEffectiveStats(prog, equipment = {}, classId = 'solari_vangua
 }
 
 export function xpForNextLevel(lvl) {
-  return 80 + (Math.max(1, lvl) - 1) * 55;
+  const l = Math.max(1, Math.floor(Number(lvl) || 1));
+  if (l === 1) return 80;
+  if (l <= 8) return Math.round(80 * Math.pow(1.52, l - 1)); // ~52% incremental increase per level
+  if (l <= 20) return Math.round(80 * Math.pow(1.52, 7) * Math.pow(1.22, l - 8));
+  return Math.round(80 * Math.pow(1.52, 7) * Math.pow(1.22, 12) * Math.pow(1.10, l - 20));
 }
 
 export function calcMaxHp(prog, equipment = {}, classId = 'solari_vanguard') {
