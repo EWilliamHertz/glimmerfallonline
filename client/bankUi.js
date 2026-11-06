@@ -132,6 +132,9 @@ export function depositInventoryItemToBank(profile, invIndex, qty = 'all') {
   safePlay('playShield');
   safeFCT(`DEPOSITED ${itemDef.name.toUpperCase()} (x${depositQty})`, '#38bdf8');
 
+  if (typeof window !== 'undefined' && window.clearHoveredEquipment) {
+    window.clearHoveredEquipment();
+  }
   renderBankModal({ profile });
   safeRenderInventory(profile);
 }
@@ -173,6 +176,9 @@ export function depositAllInventoryToBank(profile) {
   safePlay('playShield');
   safeFCT(`DEPOSITED ${depositedCount} ITEMS TO VAULT`, '#38bdf8');
 
+  if (typeof window !== 'undefined' && window.clearHoveredEquipment) {
+    window.clearHoveredEquipment();
+  }
   renderBankModal({ profile });
   safeRenderInventory(profile);
 }
@@ -206,6 +212,9 @@ export function depositWornGearToBank(profile) {
   safeRecalc();
   safeFCT(`STORED ${unequippedCount} WORN ITEMS IN VAULT`, '#fde047');
 
+  if (typeof window !== 'undefined' && window.clearHoveredEquipment) {
+    window.clearHoveredEquipment();
+  }
   renderBankModal({ profile });
   safeRenderEquipment(profile);
 }
@@ -257,6 +266,9 @@ export function withdrawBankItemToInventory(profile, bankIndex, qty = 1) {
   safePlay('playPickup');
   safeFCT(`WITHDREW ${itemDef.name.toUpperCase()} (x${withdrawQty})`, '#4ade80');
 
+  if (typeof window !== 'undefined' && window.clearHoveredEquipment) {
+    window.clearHoveredEquipment();
+  }
   renderBankModal({ profile });
   safeRenderInventory(profile);
 }
@@ -273,6 +285,15 @@ export function renderBankModal({ profile }) {
   if (typeof document === 'undefined') return;
   const container = document.getElementById('bank-modal-body');
   if (!container) return;
+
+  if (typeof window !== 'undefined' && window.clearHoveredEquipment) {
+    window.clearHoveredEquipment();
+  }
+  container.onmouseleave = () => {
+    if (typeof window !== 'undefined' && window.clearHoveredEquipment) {
+      window.clearHoveredEquipment();
+    }
+  };
 
   const bank = getBankItems(profile);
   const inv = Array.isArray(profile?.inventory) ? profile.inventory : [];

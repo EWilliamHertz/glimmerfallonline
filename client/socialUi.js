@@ -236,8 +236,8 @@ export function renderAccountModal({ profile, authTab = 'register', statusMsg = 
       <div class="faction-choice-grid" style="margin-bottom:8px;">
         ${Object.values(FACTIONS_META).map((f) => `
           <div class="faction-card-btn ${p.faction === f.id ? 'selected' : ''}" onclick="selectProfileFaction('${f.id}')">
-            <div style="font-size:13px;">${f.icon}</div>
-            <b style="color:${f.color};">${f.id.toUpperCase()}</b>
+            <img src="${f.logo}" alt="${f.id}" style="width:26px; height:26px; object-fit:contain; display:block; margin:0 auto 3px; filter:drop-shadow(0 0 3px ${f.color});" />
+            <b style="color:${f.color}; font-size:9.5px;">${f.id.toUpperCase()}</b>
           </div>
         `).join('')}
       </div>

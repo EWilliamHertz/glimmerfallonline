@@ -133,6 +133,13 @@ export function showFloatingGearTooltip(itemId, source, evt) {
   if (typeof document === 'undefined') return;
   const tip = document.getElementById('gear-floating-tooltip');
   if (!tip) return;
+  if (source === 'bank') {
+    const bModal = document.getElementById('bank-modal');
+    if (!bModal || bModal.style.display !== 'block') {
+      tip.style.display = 'none';
+      return;
+    }
+  }
   const item = itemId ? EQUIPMENT_CATALOG[itemId] : null;
   if (!item) {
     tip.style.display = 'none';
@@ -147,6 +154,13 @@ export function updateFloatingGearTooltipPos(evt) {
   if (typeof document === 'undefined') return;
   const tip = document.getElementById('gear-floating-tooltip');
   if (!tip || tip.style.display === 'none') return;
+  if (currentHoveredSource === 'bank') {
+    const bModal = document.getElementById('bank-modal');
+    if (!bModal || bModal.style.display !== 'block') {
+      tip.style.display = 'none';
+      return;
+    }
+  }
   const x = Math.min(window.innerWidth - 275, (evt?.clientX || 0) + 14);
   const y = Math.min(window.innerHeight - 200, (evt?.clientY || 0) + 14);
   tip.style.left = `${x}px`;

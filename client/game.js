@@ -6697,7 +6697,7 @@ export function initGame() {
     if (subEl) {
       const orderStr = localProfile.orderTag && localProfile.orderTag !== 'NONE' ? `<${localProfile.orderTag}> ` : '';
       const tcgBadge = localProfile.tcgLinked ? ' • ⚡TCG' : '';
-      subEl.innerText = `${fm.icon} ${cls.name} • ${orderStr}${tcgBadge}`;
+      subEl.innerHTML = `<img src="${fm.logo}" alt="${fm.id}" style="width:13px; height:13px; object-fit:contain; vertical-align:middle; margin-right:3px; filter:drop-shadow(0 0 2px ${fm.color});" /> ${cls.name} • ${orderStr}${tcgBadge}`;
     }
     const qFac = document.getElementById('quest-faction-pill');
     if (qFac) {
@@ -8068,7 +8068,7 @@ export function initGame() {
         const fm = FACTIONS_META[pl.faction] || FACTIONS_META.Solari;
         slots.push(`
           <div class="arena-slot filled" style="border-color:${fm.color};">
-            <div style="font-size:14px;">${fm.icon}</div>
+            <img src="${fm.logo}" alt="${pl.faction}" style="width:20px; height:20px; object-fit:contain; display:block; margin:0 auto 2px; filter:drop-shadow(0 0 3px ${fm.color});" />
             <b style="color:${fm.color};">${escHtml(pl.name)}${pl.id === myId ? ' (You)' : ''}</b>
             <span style="color:#94a3b8;">Lv.${pl.level}${pl.partySize > 1 ? ` • Squad ${pl.partySize}` : ''}</span>
           </div>`);
@@ -8626,8 +8626,11 @@ export function initGame() {
           UNSPENT STAT POINTS: <span class="skill-pts-badge" style="font-size:12px; padding:2px 7px;">${prog.statPoints}</span>
         </div>
       </div>
-      <div style="background:#080c18; border-left:3px solid ${fm.color}; padding:8px 10px; margin-bottom:10px; font-size:11px; line-height:1.45;">
-        <b style="color:${fm.color}; font-size:12px;">${fm.icon} ${fm.mechanicName}:</b> ${fm.mechanicDesc}
+      <div style="background:#080c18; border-left:3px solid ${fm.color}; padding:8px 10px; margin-bottom:10px; font-size:11px; line-height:1.45; display:flex; align-items:center; gap:8px;">
+        <img src="${fm.logo}" alt="${fm.id}" style="width:22px; height:22px; object-fit:contain; filter:drop-shadow(0 0 3px ${fm.color}); flex-shrink:0;" />
+        <div>
+          <b style="color:${fm.color}; font-size:12px;">${fm.mechanicName}:</b> ${fm.mechanicDesc}
+        </div>
       </div>
       <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
         ${statDefs.map((s) => `
@@ -8749,6 +8752,7 @@ export function initGame() {
     const opening = el.style.display !== 'block';
     listeningSlot = null;
     rebindFeedbackMsg = '';
+    window.clearHoveredEquipment?.();
     document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
     if (opening) {
       if (id === 'char-modal') renderStatsModal();
@@ -8823,6 +8827,7 @@ export function initGame() {
 
   canvas.addEventListener('mousedown', (e) => {
     if (frontpage.isOpen) return;
+    window.clearHoveredEquipment?.();
     audio.init();
     const { wx, wy } = screenToWorld(e.clientX, e.clientY);
 
@@ -9017,6 +9022,7 @@ export function initGame() {
       if (openModal || currentTarget || dialogueOpen || isSkOpen) {
         setTarget(null);
         window.closeDialogue();
+        window.clearHoveredEquipment?.();
         if (skPopup) {
           skPopup.classList.remove('active');
           skPopup.style.display = 'none';
@@ -9125,6 +9131,23 @@ export function initGame() {
     }
     if (portalCooldown > 0) portalCooldown = Math.max(0, portalCooldown - dt);
     if (portalMistTimer > 0) portalMistTimer = Math.max(0, portalMistTimer - dt);
+
+    // Safeguard: Ensure floating gear tooltip auto-dismisses if modal is closed
+    const tip = document.getElementById('gear-floating-tooltip');
+    if (tip && tip.style.display !== 'none') {
+      const bModal = document.getElementById('bank-modal');
+      const iModal = document.getElementById('inventory-modal');
+      const eModal = document.getElementById('equipment-modal');
+      const xModal = document.getElementById('exchange-modal');
+      const mModal = document.getElementById('merchant-modal');
+      if (bModal?.style.display !== 'block' &&
+          iModal?.style.display !== 'block' &&
+          eModal?.style.display !== 'block' &&
+          xModal?.style.display !== 'block' &&
+          mModal?.style.display !== 'block') {
+        window.clearHoveredEquipment?.();
+      }
+    }
 
     for (const slot in cooldowns) {
       if (cooldowns[slot] > 0) {
@@ -9292,6 +9315,17 @@ export function initGame() {
         }
         player.isMoving = true;
         player.walkTimer += dt * (inputs.shift ? 13 : 9);
+
+        // Auto-close bank/depository if walking away from banker NPC
+        const bModal = document.getElementById('bank-modal');
+        if (bModal && bModal.style.display === 'block') {
+          const bankNpc = npcs.find((n) => n.isBank);
+          const dist = bankNpc ? Math.hypot(player.x - bankNpc.x, player.y - bankNpc.y) : Infinity;
+          if (dist > 95) {
+            bModal.style.display = 'none';
+            window.clearHoveredEquipment?.();
+          }
+        }
 
         if (player.slashTimer <= 0) {
           if (Math.abs(mx) > Math.abs(my)) player.dir = mx > 0 ? 'right' : 'left';

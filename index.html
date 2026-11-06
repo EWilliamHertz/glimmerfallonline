@@ -2516,37 +2516,37 @@
     <div id="cards-modal" style="display:none;"></div>
 
     <!-- MODAL 4C: Canonical 28-Slot Inventory Backpack [B] -->
-    <div id="inventory-modal" class="modal panel" style="width: 480px; max-width: 96vw; max-height: 88vh; display: none;">
+    <div id="inventory-modal" class="modal panel" style="width: 480px; max-width: 96vw; max-height: 88vh; display: none;" onmouseleave="window.clearHoveredEquipment && window.clearHoveredEquipment()">
       <div class="modal-header">
         <div class="modal-title" style="color:#fbbf24; font-size:12px;">🎒 INVENTORY &amp; BACKPACK (28 SLOTS) [B]</div>
-        <div class="modal-close" onclick="toggleModal('inventory-modal')">✕</div>
+        <div class="modal-close" onclick="window.clearHoveredEquipment && window.clearHoveredEquipment(); toggleModal('inventory-modal')">✕</div>
       </div>
       <div id="inventory-modal-body"></div>
     </div>
 
     <!-- MODAL 5: AetherSwap Continental Trading Exchange [X] -->
-    <div id="exchange-modal" class="modal panel" style="width: 820px; max-width: 96vw; max-height: 88vh; display: none;">
+    <div id="exchange-modal" class="modal panel" style="width: 820px; max-width: 96vw; max-height: 88vh; display: none;" onmouseleave="window.clearHoveredEquipment && window.clearHoveredEquipment()">
       <div class="modal-header">
         <div class="modal-title" style="color:#7dd3fc; font-size:12px;">🌀 AETHERSWAP (CONTINENTAL TRADING ALLIANCE) [X]</div>
-        <div class="modal-close" onclick="toggleModal('exchange-modal')">✕</div>
+        <div class="modal-close" onclick="window.clearHoveredEquipment && window.clearHoveredEquipment(); toggleModal('exchange-modal')">✕</div>
       </div>
       <div id="exchange-modal-body"></div>
     </div>
 
     <!-- MODAL 5B: Canonical AetherVault Depository (City Bank) -->
-    <div id="bank-modal" class="modal panel" style="width: 840px; max-width: 96vw; max-height: 90vh; display: none;">
+    <div id="bank-modal" class="modal panel" style="width: 840px; max-width: 96vw; max-height: 90vh; display: none;" onmouseleave="window.clearHoveredEquipment && window.clearHoveredEquipment()">
       <div class="modal-header">
         <div class="modal-title" style="color:#fde047; font-size:12px;">🏛️ AETHERVAULT DEPOSITORY (SANCTUARY ARCHIVE)</div>
-        <div class="modal-close" onclick="toggleModal('bank-modal')">✕</div>
+        <div class="modal-close" onclick="window.clearHoveredEquipment && window.clearHoveredEquipment(); toggleModal('bank-modal')">✕</div>
       </div>
       <div id="bank-modal-body"></div>
     </div>
 
     <!-- MODAL 5C: Continental Market Merchant Store -->
-    <div id="merchant-modal" class="modal panel" style="width: 760px; max-width: 96vw; max-height: 88vh; overflow-y: auto; display: none;">
+    <div id="merchant-modal" class="modal panel" style="width: 760px; max-width: 96vw; max-height: 88vh; overflow-y: auto; display: none;" onmouseleave="window.clearHoveredEquipment && window.clearHoveredEquipment()">
       <div class="modal-header">
         <div id="merchant-modal-title" class="modal-title" style="color:#fde047; font-size:12px;">⚖️ SANCTUARY MARKET MERCHANT</div>
-        <div class="modal-close" onclick="toggleModal('merchant-modal')">✕</div>
+        <div class="modal-close" onclick="window.clearHoveredEquipment && window.clearHoveredEquipment(); toggleModal('merchant-modal')">✕</div>
       </div>
       <div id="merchant-modal-body"></div>
     </div>

@@ -880,7 +880,7 @@ export class FrontpageController {
                        onclick="window._fp.selectCharacter('${ch.id}')">
                     <div style="flex:1;">
                       <div style="display:flex; align-items:center; gap:6px;">
-                        <span style="font-size:13px;">${cf.icon}</span>
+                        <img src="${cf.logo}" alt="${cf.id}" style="width:18px; height:18px; object-fit:contain; filter:drop-shadow(0 0 3px ${cf.color}); flex-shrink:0;" />
                         <span style="font-size:12.5px; font-weight:bold; color:${isSelected ? '#fde047' : cf.color}; font-family:var(--font-header);">
                           ${ch.name}
                         </span>
@@ -953,7 +953,8 @@ export class FrontpageController {
                   </div>
 
                   <div style="font-size:11px; color:${selectedFm.color}; font-weight:bold; display:flex; gap:6px; align-items:center;">
-                    <span>${selectedFm.icon} Faction: ${selectedChar.faction}</span>
+                    <img src="${selectedFm.logo}" alt="${selectedChar.faction}" style="width:18px; height:18px; object-fit:contain; filter:drop-shadow(0 0 3px ${selectedFm.color}); flex-shrink:0;" />
+                    <span>Faction: ${selectedChar.faction}</span>
                     <span>•</span>
                     <span style="color:#cbd5e1;">Order &lt;${selectedChar.orderTag || 'SUN'}&gt;</span>
                   </div>
@@ -1079,7 +1080,7 @@ export class FrontpageController {
               <div class="faction-card-btn ${draft.faction === f.id ? 'selected' : ''}"
                    style="border:2px solid ${draft.faction === f.id ? f.color : '#1e293b'}; background:${draft.faction === f.id ? '#0f1d3a' : '#080d1c'}; padding:8px 4px; text-align:center; cursor:pointer;"
                    onclick="window._fp.setCreationFaction('${f.id}')">
-                <div style="font-size:18px;">${f.icon}</div>
+                <img src="${f.logo}" alt="${f.id}" style="width:34px; height:34px; object-fit:contain; display:block; margin:0 auto 3px; filter:drop-shadow(0 0 4px ${f.color});" />
                 <div style="color:${f.color}; font-size:10.5px; font-weight:bold; font-family:var(--font-header); margin-top:2px;">
                   ${f.id.toUpperCase()}
                 </div>
@@ -1088,9 +1089,12 @@ export class FrontpageController {
           </div>
 
           <!-- Faction Mechanic Description -->
-          <div style="background:#060a15; border-left:3px solid ${fm.color}; padding:8px 10px; margin-bottom:12px; font-size:10.5px; line-height:1.4;">
-            <b style="color:${fm.color};">${fm.icon} ${fm.mechanicName}:</b>
-            <span style="color:#cbd5e1; margin-left:4px;">${fm.mechanicDesc}</span>
+          <div style="background:#060a15; border-left:3px solid ${fm.color}; padding:8px 10px; margin-bottom:12px; font-size:10.5px; line-height:1.4; display:flex; align-items:center; gap:8px;">
+            <img src="${fm.logo}" alt="${fm.id}" style="width:24px; height:24px; object-fit:contain; filter:drop-shadow(0 0 3px ${fm.color}); flex-shrink:0;" />
+            <div>
+              <b style="color:${fm.color};">${fm.mechanicName}:</b>
+              <span style="color:#cbd5e1; margin-left:4px;">${fm.mechanicDesc}</span>
+            </div>
           </div>
 
           <!-- Role / Archetype Selection Elements -->

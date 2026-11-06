@@ -281,6 +281,7 @@ export const FACTIONS_META = {
     name: 'Solari (The Light)',
     title: 'Solari Vanguard',
     icon: '☀️',
+    logo: '/solari_nobg.png',
     color: '#facc15',
     accent: '#2563eb',
     homeBiome: ROOM_TYPES.SOLARI_CITADEL,
@@ -293,6 +294,7 @@ export const FACTIONS_META = {
     name: 'Umbri (The Shadow)',
     title: 'Umbral Assassin',
     icon: '🌑',
+    logo: '/umbri_nobg.png',
     color: '#c084fc',
     accent: '#581c87',
     homeBiome: ROOM_TYPES.UMBRI_UNDERCITY,
@@ -305,6 +307,7 @@ export const FACTIONS_META = {
     name: 'Terra (The Earth)',
     title: 'Forest Warden',
     icon: '🌿',
+    logo: '/terra_nobg.png',
     color: '#4ade80',
     accent: '#15803d',
     homeBiome: ROOM_TYPES.TERRA_ORCHARD,
@@ -317,6 +320,7 @@ export const FACTIONS_META = {
     name: 'Aether (The Magic)',
     title: 'Chronomancer Sage',
     icon: '🔮',
+    logo: '/aether_nobg.png',
     color: '#38bdf8',
     accent: '#0369a1',
     homeBiome: ROOM_TYPES.AETHER_SPIRE,
@@ -1816,11 +1820,11 @@ export function getSlotAbilitySpec(loadout, slot) {
 }
 
 export const ORDER_PRESETS = [
-  { tag: 'SUN', name: 'Order of Dawn', color: '#facc15', emblem: '☀️' },
-  { tag: 'VOID', name: 'Duskveil Cabal', color: '#c084fc', emblem: '🌑' },
-  { tag: 'ROOT', name: 'Ironwood Watch', color: '#4ade80', emblem: '🌿' },
-  { tag: 'AETH', name: 'Chronocore Wardens', color: '#38bdf8', emblem: '🔮' },
-  { tag: 'GLIM', name: 'GlimmerFall Founders', color: '#fb923c', emblem: '⚡' },
+  { tag: 'SUN', name: 'Order of Dawn', color: '#facc15', emblem: '☀️', logo: '/solari_nobg.png' },
+  { tag: 'VOID', name: 'Duskveil Cabal', color: '#c084fc', emblem: '🌑', logo: '/umbri_nobg.png' },
+  { tag: 'ROOT', name: 'Ironwood Watch', color: '#4ade80', emblem: '🌿', logo: '/terra_nobg.png' },
+  { tag: 'AETH', name: 'Chronocore Wardens', color: '#38bdf8', emblem: '🔮', logo: '/aether_nobg.png' },
+  { tag: 'GLIM', name: 'GlimmerFall Founders', color: '#fb923c', emblem: '⚡', logo: '/solari_nobg.png' },
 ];
 
 export const EMOTES_CATALOG = {
