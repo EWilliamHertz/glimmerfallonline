@@ -2116,27 +2116,7 @@
       </div>
     </div>
 
-    <div id="quest-tracker" class="ui-draggable-panel">
-      <div id="quest-tasks-tutorial">
-        <div class="quest-title">
-          <span>📜 STASIS AWAKENING</span>
-          <span id="quest-stage-txt" style="color: #38bdf8;">1 / 4</span>
-        </div>
-        <div class="quest-task"><div class="quest-check" id="qc-1"></div><span>Break stasis: Move [WASD]</span></div>
-        <div class="quest-task"><div class="quest-check" id="qc-2"></div><span>Cast Flare Strike [1] on Dummy</span></div>
-        <div class="quest-task"><div class="quest-check" id="qc-3"></div><span>Ready Glimmer Node [E]</span></div>
-        <div class="quest-task"><div class="quest-check" id="qc-4"></div><span>Enter North Rift -&gt; Warzone</span></div>
-      </div>
-      <div id="quest-tasks-warzone" style="display:none;">
-        <div class="quest-title">
-          <span>⚔️ WAR FOR THE NEXUS</span>
-          <span id="quest-faction-pill" style="color: #facc15;">SOLARI</span>
-        </div>
-        <div class="quest-task"><span>• Banish Void foes &amp; rival factions</span></div>
-        <div class="quest-task"><span>• Form 3-Player Squad [O] (+25% XP)</span></div>
-        <div class="quest-task"><span>• Queue 3v3 &amp; Shatter Enemy Nexus!</span></div>
-      </div>
-    </div>
+    <div id="quest-tracker" class="ui-draggable-panel"></div>
 
     <div id="arena-invite-toast" class="panel">
       <div style="font-family:var(--font-header); font-size:7.5px; color:#38bdf8; margin-bottom:4px;">⚔️ 3v3 ARENA LOBBY!</div>
@@ -2667,7 +2647,7 @@
 
       <!-- Claim Rewards & Close Button -->
       <div style="margin-top: 14px;">
-        <button id="qc-scroll-close-btn" class="rs-scroll-btn" onclick="window.closeQuestCompleteModal()">
+        <button id="qc-scroll-close-btn" class="rs-scroll-btn" onclick="window.closeQuestCompleteModal(true)">
           CLAIM REWARDS &amp; CLOSE
         </button>
       </div>

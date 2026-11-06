@@ -2347,6 +2347,8 @@ export class RoomManager {
       case 'sync_quest_state': {
         if (msg.questState && typeof msg.questState === 'object') {
           this.accounts.saveQuestState(client.id, msg.questState);
+          client.questState = msg.questState;
+          this.refreshClientFromAccount(client.id);
         }
         break;
       }

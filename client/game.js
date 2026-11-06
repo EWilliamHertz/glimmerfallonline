@@ -534,11 +534,24 @@ export function initGame() {
       titanChallenged: false,
       ascentReached: false,
       visitedBiomes: {},
-      activeQuests: { quest_awakening: { accepted: true } },
-      trackedQuests: { quest_awakening: true },
+      activeQuests: {
+        quest_awakening: { accepted: true },
+        quest_skill_extraction: { accepted: true },
+        quest_skill_forging: { accepted: true },
+        quest_skill_binding: { accepted: true },
+        quest_skill_weaving: { accepted: true },
+      },
+      trackedQuests: {
+        quest_awakening: true,
+        quest_skill_extraction: true,
+        quest_skill_forging: true,
+        quest_skill_binding: true,
+        quest_skill_weaving: true,
+      },
       completedQuests: {},
       talkedNpcs: {},
       introShown: false,
+      elementalPilgrimageAcknowledged: false,
     };
   }
 
@@ -556,6 +569,13 @@ export function initGame() {
       if (charId) {
         localStorage.setItem(`glimmerfall_quest_state_${charId}`, JSON.stringify(questState));
       }
+      localStorage.setItem('glimmerfall_quest_state_latest', JSON.stringify(questState));
+      localStorage.setItem('glimmerfall_quest_state_default', JSON.stringify(questState));
+
+      if (localProfile) {
+        localProfile.questState = JSON.parse(JSON.stringify(questState));
+      }
+
       if (isSinglePlayer && localProfile?.id) {
         const raw = localStorage.getItem('glimmerfall_sp_roster_v2');
         if (raw) {
@@ -587,6 +607,9 @@ export function initGame() {
       const charId = localProfile?.activeCharacterId || (localProfile?.id && localProfile.id !== 'default' && localProfile.id !== 'local_hero' ? localProfile.id : null);
       const charKey = charId ? `glimmerfall_quest_state_${charId}` : null;
       let raw = charKey ? localStorage.getItem(charKey) : null;
+      if (!raw) {
+        raw = localStorage.getItem('glimmerfall_quest_state_latest') || localStorage.getItem('glimmerfall_quest_state_default');
+      }
       let parsed = raw ? JSON.parse(raw) : null;
 
       // Merge server-authoritative questState if present on profile
@@ -615,6 +638,22 @@ export function initGame() {
           if (parsed.trackedQuests) delete parsed.trackedQuests[doneId];
         }
 
+        // Ensure the 4 foundational skill starter quests are active if not yet completed:
+        const skillStarterQuestIds = [
+          'quest_skill_extraction',
+          'quest_skill_forging',
+          'quest_skill_binding',
+          'quest_skill_weaving',
+        ];
+        for (const sqId of skillStarterQuestIds) {
+          if (!completed[sqId] && !active[sqId]) {
+            active[sqId] = { accepted: true, acceptedAt: Date.now() };
+            if (parsed.trackedQuests && parsed.trackedQuests[sqId] === undefined) {
+              parsed.trackedQuests[sqId] = true;
+            }
+          }
+        }
+
         questState = {
           stasisBroken: Boolean(parsed.stasisBroken || completed.quest_awakening),
           dummyDamaged: Boolean(parsed.dummyDamaged || completed.quest_awakening),
@@ -630,11 +669,12 @@ export function initGame() {
           titanChallenged: Boolean(parsed.titanChallenged),
           ascentReached: Boolean(parsed.ascentReached),
           visitedBiomes: parsed.visitedBiomes || {},
-          activeQuests: Object.keys(active).length > 0 ? active : (completed.quest_awakening ? {} : { quest_awakening: { accepted: true } }),
+          activeQuests: active,
           trackedQuests: parsed.trackedQuests || {},
           completedQuests: completed,
           talkedNpcs: parsed.talkedNpcs || {},
           introShown: Boolean(parsed.introShown),
+          elementalPilgrimageAcknowledged: Boolean(parsed.elementalPilgrimageAcknowledged),
         };
       } else {
         questState = createDefaultQuestState();
@@ -655,12 +695,6 @@ export function initGame() {
       questState.completedQuests.quest_awakening = true;
       if (questState.activeQuests) delete questState.activeQuests.quest_awakening;
       if (questState.trackedQuests) delete questState.trackedQuests.quest_awakening;
-      if (!questState.activeQuests?.quest_into_the_warzone && !questState.completedQuests?.quest_into_the_warzone) {
-        if (!questState.activeQuests) questState.activeQuests = {};
-        if (!questState.trackedQuests) questState.trackedQuests = {};
-        questState.activeQuests.quest_into_the_warzone = { accepted: true, acceptedAt: Date.now() };
-        questState.trackedQuests.quest_into_the_warzone = true;
-      }
       saveQuestState();
     }
 
@@ -1546,7 +1580,6 @@ export function initGame() {
         if (!isCompleted) {
           if (isActive && q.isComplete()) return q;
           if (qId === 'quest_awakening' && q.isComplete()) return q;
-          if (q.turnInId === npcId && q.isComplete()) return q;
         }
       }
     }
@@ -1582,10 +1615,12 @@ export function initGame() {
 
   let pendingQuestCompleteDialogue = null;
   let pendingQuestCompleteNpc = null;
+  let questCompleteModalOpenedAt = 0;
 
   function showRunescapeQuestCompleteScroll(quest, npc, nextQuest) {
     const modal = document.getElementById('quest-complete-modal');
     if (!modal) return;
+    questCompleteModalOpenedAt = Date.now();
 
     const titleEl = document.getElementById('qc-scroll-title');
     const subtitleEl = document.getElementById('qc-scroll-subtitle');
@@ -1593,8 +1628,10 @@ export function initGame() {
     const qpEl = document.getElementById('qc-scroll-qp');
 
     const qpAwarded = quest.questPoints || 1;
-    const totalQP = getTotalCompletedQuestPoints();
-    const maxQP = getMaxQuestPoints();
+    let totalQP = 0;
+    let maxQP = 0;
+    try { totalQP = getTotalCompletedQuestPoints(); } catch (_) {}
+    try { maxQP = getMaxQuestPoints(); } catch (_) {}
 
     if (titleEl) titleEl.innerText = quest.title.toUpperCase();
     if (subtitleEl) subtitleEl.innerText = `Congratulations! You have completed ${quest.title}!`;
@@ -1672,13 +1709,18 @@ export function initGame() {
     modal.style.display = 'flex';
   }
 
-  window.closeQuestCompleteModal = function () {
+  window.closeQuestCompleteModal = function (force = false) {
+    if (!force && Date.now() - questCompleteModalOpenedAt < 400) {
+      return;
+    }
     const modal = document.getElementById('quest-complete-modal');
     if (modal) modal.style.display = 'none';
 
     if (audio && audio.playDialogue) {
       audio.playDialogue();
     }
+
+    updateQuestTrackerHUD();
 
     if (pendingQuestCompleteDialogue) {
       const dlg = pendingQuestCompleteDialogue;
@@ -1694,24 +1736,37 @@ export function initGame() {
     if (!quest) return;
     questState.completedQuests[quest.id] = true;
     delete questState.activeQuests[quest.id];
+    if (questState.trackedQuests) {
+      delete questState.trackedQuests[quest.id];
+    }
     if (npc && npc.id) {
       questState.talkedNpcs[npc.id] = true;
     }
 
     const qpAwarded = quest.questPoints || 1;
 
-    if (quest.rewards?.xp) awardXP(quest.rewards.xp, quest.title);
-    if (quest.rewards?.glimmer) {
-      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + quest.rewards.glimmer);
+    try {
+      if (quest.rewards?.xp) awardXP(quest.rewards.xp, quest.title);
+    } catch (e) {
+      console.warn('[Quest] Error awarding XP:', e);
     }
-    if (quest.rewards?.professionXp) {
-      for (const [profId, pAmt] of Object.entries(quest.rewards.professionXp)) {
-        awardProfessionXP(profId, pAmt, quest.title);
+    try {
+      if (quest.rewards?.glimmer) {
+        player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + quest.rewards.glimmer);
       }
-    }
-    if (quest.rewards?.gold && typeof addPlayerGold === 'function') {
-      addPlayerGold(localProfile, quest.rewards.gold);
-    }
+    } catch (_) {}
+    try {
+      if (quest.rewards?.professionXp) {
+        for (const [profId, pAmt] of Object.entries(quest.rewards.professionXp)) {
+          awardProfessionXP(profId, pAmt, quest.title);
+        }
+      }
+    } catch (_) {}
+    try {
+      if (quest.rewards?.gold && typeof addPlayerGold === 'function') {
+        addPlayerGold(localProfile, quest.rewards.gold);
+      }
+    } catch (_) {}
 
     spawnSparkBurst(player.x, player.y - 12, ['#fde047', '#ffffff', '#38bdf8', '#86efac', '#ec4899', '#f97316'], 36);
     spawnFCT(player.x, player.y - 18, `★ QUEST COMPLETE: ${quest.title.toUpperCase()}! ★`, '#facc15', true);
@@ -1720,25 +1775,30 @@ export function initGame() {
     let nextQuest = null;
     if (quest.nextQuestId && QUEST_CATALOG[quest.nextQuestId]) {
       nextQuest = QUEST_CATALOG[quest.nextQuestId];
-      questState.activeQuests[nextQuest.id] = { accepted: true, acceptedAt: Date.now() };
     }
 
     saveQuestState();
     updateQuestTrackerHUD();
 
     // Play iconic RuneScape Quest Complete Fanfare sound!
-    if (audio && audio.playQuestCompleteFanfare) {
-      audio.playQuestCompleteFanfare();
-    } else if (audio && audio.playLevelUp) {
-      audio.playLevelUp();
-    }
+    try {
+      if (audio && audio.playQuestCompleteFanfare) {
+        audio.playQuestCompleteFanfare();
+      } else if (audio && audio.playLevelUp) {
+        audio.playLevelUp();
+      }
+    } catch (_) {}
 
     // Save pending completion dialogue to open when modal is dismissed
     pendingQuestCompleteDialogue = quest.completeDialogue || (npc ? npc.dialogue : null);
     pendingQuestCompleteNpc = npc;
 
     // Show authentic Old School RuneScape Quest Complete Scroll modal!
-    showRunescapeQuestCompleteScroll(quest, npc, nextQuest);
+    try {
+      showRunescapeQuestCompleteScroll(quest, npc, nextQuest);
+    } catch (err) {
+      console.error('[Quest] Error showing RuneScape quest complete scroll:', err);
+    }
   }
 
   function acceptQuest(quest, npc) {
@@ -1771,16 +1831,23 @@ export function initGame() {
 
     // 1. Immediately register talking/conferring with this NPC
     questState.talkedNpcs[npc.id] = true;
-    if (npc.id === 'merchant_smith') questState.smithInspected = true;
-    if (npc.id === 'merchant_apothecary') questState.apothecaryInspected = true;
-    if (npc.id === 'merchant_provisions') questState.provisionsInspected = true;
-    if (npc.id === 'merchant_relics') questState.relicsInspected = true;
     if (npc.id === 'npc_archon') questState.talkedNpcs.npc_archon = true;
     if (npc.id === 'npc_atlas') questState.talkedNpcs.npc_atlas = true;
     if (npc.id === 'npc_aurelia') questState.talkedNpcs.npc_aurelia = true;
     saveQuestState();
 
     audio.playDialogue();
+
+    // Special recovery for Leyline Pilgrimage completion if missed:
+    if (npc.id === 'npc_aurora' && questState.completedQuests?.quest_elemental_pilgrimage && !questState.elementalPilgrimageAcknowledged) {
+      questState.elementalPilgrimageAcknowledged = true;
+      saveQuestState();
+      if (audio && audio.playQuestCompleteFanfare) audio.playQuestCompleteFanfare();
+      showRunescapeQuestCompleteScroll(QUEST_CATALOG.quest_elemental_pilgrimage, npc, null);
+      pendingQuestCompleteDialogue = QUEST_CATALOG.quest_elemental_pilgrimage.completeDialogue;
+      pendingQuestCompleteNpc = npc;
+      return;
+    }
 
     // 2. Check for ANY finished quest ready to turn in to THIS npc
     let finishedQ = getFinishedQuestForNpc(npc.id);
@@ -3985,6 +4052,12 @@ export function initGame() {
     audio.playDialogue();
     if (act.action === 'openShop') {
       const merchantId = page.merchantId || activeDialogueNpcId || 'merchant_apothecary';
+      if (merchantId === 'merchant_smith') questState.smithInspected = true;
+      if (merchantId === 'merchant_apothecary') questState.apothecaryInspected = true;
+      if (merchantId === 'merchant_provisions') questState.provisionsInspected = true;
+      if (merchantId === 'merchant_relics') questState.relicsInspected = true;
+      saveQuestState();
+      updateQuestTrackerHUD();
       window.closeDialogue();
       openMerchantShop(merchantId);
     } else if (act.action === 'openSkills') {
@@ -4029,6 +4102,7 @@ export function initGame() {
     }
     activeDialoguePages = [];
     renderDialogueBox();
+    updateQuestTrackerHUD();
   };
 
   // ==========================================
@@ -4036,10 +4110,6 @@ export function initGame() {
   // ==========================================
   function awardXP(amount, reason = '') {
     if (amount <= 0) return;
-    const tCfg = getTormentConfig(prog.tormentLevel || 0);
-    if (tCfg.xpMult && tCfg.xpMult > 1) {
-      amount = Math.round(amount * tCfg.xpMult);
-    }
     let leveled = false;
     let paragonLeveled = false;
 
@@ -5079,8 +5149,6 @@ export function initGame() {
     const zoneLabel = document.getElementById('zone-label');
     const arenaBanner = document.getElementById('arena-banner');
     const siegeBanner = document.getElementById('siege-banner');
-    const tutQuestBody = document.getElementById('quest-tasks-tutorial');
-    const warzoneQuestBody = document.getElementById('quest-tasks-warzone');
 
     hudEl.classList.toggle('in-arena', resolvedRoomType === ROOM_TYPES.ARENA_3V3);
     hudEl.classList.toggle('in-siege', resolvedRoomType === ROOM_TYPES.NEXUS_WARZONE);
@@ -5092,8 +5160,6 @@ export function initGame() {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'SANCTUARY METROPOLIS #1';
       if (zoneLabel) zoneLabel.innerText = 'Sanctuary Haven';
       arenaBanner.style.display = 'none';
-      if (tutQuestBody) tutQuestBody.style.display = 'block';
-      if (warzoneQuestBody) warzoneQuestBody.style.display = 'none';
 
       // ==========================================
       // SPRAWLING SANCTUARY METROPOLIS PROPS
@@ -5280,8 +5346,6 @@ export function initGame() {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || '3v3 NEXUS ARENA';
       if (zoneLabel) zoneLabel.innerText = 'Exit Arena';
       arenaBanner.style.display = 'flex';
-      if (tutQuestBody) tutQuestBody.style.display = 'none';
-      if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
 
       props.push(
         { type: 'brazier', x: -64, y: 180 },
@@ -5295,8 +5359,6 @@ export function initGame() {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'FORGOTTEN FIRST NEXUS RUINS';
       if (zoneLabel) zoneLabel.innerText = 'To Caldera';
       arenaBanner.style.display = 'none';
-      if (tutQuestBody) tutQuestBody.style.display = 'none';
-      if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
 
       props.push(
         { type: 'monument', x: 0, y: -30 },
@@ -5328,8 +5390,6 @@ export function initGame() {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'CELESTIAL ASCENT & EMPYREAN TITAN SUMMIT';
       if (zoneLabel) zoneLabel.innerText = 'To Caldera';
       arenaBanner.style.display = 'none';
-      if (tutQuestBody) tutQuestBody.style.display = 'none';
-      if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
 
       // Grand Summit Props (Stairway colonnade, terrace monuments, throne braziers)
       props.push(
@@ -5383,8 +5443,6 @@ export function initGame() {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'SUNKEN VAULT OF THE DAWN';
       if (zoneLabel) zoneLabel.innerText = 'To Golden Citadel';
       arenaBanner.style.display = 'none';
-      if (tutQuestBody) tutQuestBody.style.display = 'none';
-      if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
 
       props.push(
         { type: 'crystalPillar', x: -110, y: -40 },
@@ -5411,8 +5469,6 @@ export function initGame() {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'DUSKVEIL SHADOW LABYRINTH';
       if (zoneLabel) zoneLabel.innerText = 'To Undercity';
       arenaBanner.style.display = 'none';
-      if (tutQuestBody) tutQuestBody.style.display = 'none';
-      if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
 
       props.push(
         { type: 'monument', x: 0, y: -30 },
@@ -5438,8 +5494,6 @@ export function initGame() {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'ROOTDEEP PRIMORDIAL HOLLOW';
       if (zoneLabel) zoneLabel.innerText = 'To Glimmer Orchard';
       arenaBanner.style.display = 'none';
-      if (tutQuestBody) tutQuestBody.style.display = 'none';
-      if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
 
       props.push(
         { type: 'monument', x: 0, y: -30 },
@@ -5465,8 +5519,6 @@ export function initGame() {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'FRACTURED CHRONO-ARCHIVE';
       if (zoneLabel) zoneLabel.innerText = 'To Mirrorgate Spire';
       arenaBanner.style.display = 'none';
-      if (tutQuestBody) tutQuestBody.style.display = 'none';
-      if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
 
       props.push(
         { type: 'crystalPillar', x: -120, y: 70 },
@@ -5490,8 +5542,6 @@ export function initGame() {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || cfg.shortTitle || 'NEXUS WARZONE';
       if (zoneLabel) zoneLabel.innerText = 'To Sanctuary';
       arenaBanner.style.display = 'none';
-      if (tutQuestBody) tutQuestBody.style.display = 'none';
-      if (warzoneQuestBody) warzoneQuestBody.style.display = 'block';
 
       if (resolvedRoomType === ROOM_TYPES.NEXUS_WARZONE) {
         // Decorate the massive 4800x3600 Open World Continent
@@ -8903,7 +8953,7 @@ export function initGame() {
     if (qcModal && qcModal.style.display === 'flex') {
       if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
-        window.closeQuestCompleteModal();
+        window.closeQuestCompleteModal(true);
         return;
       }
     }
