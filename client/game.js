@@ -8564,7 +8564,6 @@ export function initGame() {
     let node = currentTarget && currentTarget.type === 'node' ? currentTarget : null;
     if (!node) {
       node = entities.find((e) => e.type === 'node' && Math.hypot(e.x - player.x, e.y - player.y) <= 6.8 * YARD_PX);
-      if (node) setTarget(node);
     }
     if (!node || Math.hypot(node.x - player.x, node.y - player.y) > 7.0 * YARD_PX) {
       logMessage('[Glimmer Node] Step near a purple Glimmer Node or Ancient Shrine first!', 'log-combat');
@@ -8574,12 +8573,13 @@ export function initGame() {
       logMessage('[Glimmer Node] This node is depleted. Wait for it to recharge.', 'log-combat');
       return;
     }
-    audio.playChime();
-    const eff = getEffectiveStats(prog, localProfile.equipment, localProfile.classId);
     const isGrand = Boolean(node.isGrand);
     const cooldown = (isGrand ? HARVEST_COOLDOWN_MS.grand : HARVEST_COOLDOWN_MS.normal) / 1000;
     if (globalTime - lastNodeHarvestAt < cooldown) return;
     lastNodeHarvestAt = globalTime;
+    if (currentTarget !== node) setTarget(node);
+    audio.playChime();
+    const eff = getEffectiveStats(prog, localProfile.equipment, localProfile.classId);
     const gain = isGrand ? 60 + eff.resonance * 6 : 18 + Math.floor(eff.resonance * 1.5);
     // Character (combat) XP is deliberately minor; profession XP is the real node reward.
     const charXp = isGrand ? 7 : 3;

@@ -29,7 +29,7 @@ export const ROOM_TYPES = {
 // Per-character delay between node harvests. Grand Fonts take longer to channel.
 export const HARVEST_COOLDOWN_MS = {
   normal: 250,
-  grand: 750,
+  grand: 1250,
 };
 
 // Three shared Grand Fonts per realm, placed away from spawn crowds and quest NPCs.
