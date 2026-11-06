@@ -172,6 +172,7 @@ export function normalizeBank(rawBank) {
 
 export function getDefaultStarterInventory(classId = 'solari_vanguard') {
   return [
+    { id: 'solar_gold', qty: 60 },
     { id: 'ring_of_the_sun', qty: 1 },
     { id: 'boots_of_haste', qty: 1 },
     { id: 'vanguard_gauntlets', qty: 1 },

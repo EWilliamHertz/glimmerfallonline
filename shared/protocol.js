@@ -1914,7 +1914,8 @@ export function calcLifeLeechPct(prog, faction) {
 
 export function calcHpRegenPerSec(prog) {
   const terraPts = prog?.paragon?.terra_bulwark || 0;
-  return terraPts * 0.5;
+  // Baseline natural vitality regeneration (+2.5 HP/s) plus 0.5 HP/s per Terra Bulwark paragon point
+  return 2.5 + terraPts * 0.5;
 }
 
 export function calcHolyRadianceBurstDmg(prog) {

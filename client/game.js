@@ -361,6 +361,7 @@ export function initGame() {
     loadout: { ...CLASSES_CATALOG.solari_vanguard.defaultLoadout },
     equipment: { ...CLASSES_CATALOG.solari_vanguard.defaultEquipment },
     inventory: [
+      { id: 'solar_gold', qty: 60 },
       { id: 'ring_of_the_sun', qty: 1 },
       { id: 'boots_of_haste', qty: 1 },
       { id: 'vanguard_gauntlets', qty: 1 },
@@ -531,22 +532,16 @@ export function initGame() {
       warzoneKills: 0,
       ruinsKills: 0,
       calderaKills: 0,
+      chronoKills: 0,
+      aetherFontChanneled: false,
       titanChallenged: false,
       ascentReached: false,
       visitedBiomes: {},
       activeQuests: {
         quest_awakening: { accepted: true },
-        quest_skill_extraction: { accepted: true },
-        quest_skill_forging: { accepted: true },
-        quest_skill_binding: { accepted: true },
-        quest_skill_weaving: { accepted: true },
       },
       trackedQuests: {
         quest_awakening: true,
-        quest_skill_extraction: true,
-        quest_skill_forging: true,
-        quest_skill_binding: true,
-        quest_skill_weaving: true,
       },
       completedQuests: {},
       talkedNpcs: {},
@@ -614,10 +609,21 @@ export function initGame() {
 
       // Merge server-authoritative questState if present on profile
       const srvQuest = localProfile?.questState;
-      if (srvQuest && typeof srvQuest === 'object' && (Object.keys(srvQuest.completedQuests || {}).length > 0 || Object.keys(srvQuest.activeQuests || {}).length > 0)) {
+      if (srvQuest && typeof srvQuest === 'object') {
         parsed = {
           ...(parsed || {}),
           ...srvQuest,
+          stasisBroken: Boolean(parsed?.stasisBroken || srvQuest.stasisBroken),
+          dummyDamaged: Boolean(parsed?.dummyDamaged || srvQuest.dummyDamaged),
+          nodeHarvested: Boolean(parsed?.nodeHarvested || srvQuest.nodeHarvested),
+          extractionNodesHarvested: Math.max(Number(parsed?.extractionNodesHarvested || 0), Number(srvQuest.extractionNodesHarvested || 0)),
+          warzoneKills: Math.max(Number(parsed?.warzoneKills || 0), Number(srvQuest.warzoneKills || 0)),
+          ruinsKills: Math.max(Number(parsed?.ruinsKills || 0), Number(srvQuest.ruinsKills || 0)),
+          calderaKills: Math.max(Number(parsed?.calderaKills || 0), Number(srvQuest.calderaKills || 0)),
+          chronoKills: Math.max(Number(parsed?.chronoKills || 0), Number(srvQuest.chronoKills || 0)),
+          aetherFontChanneled: Boolean(parsed?.aetherFontChanneled || srvQuest.aetherFontChanneled),
+          titanChallenged: Boolean(parsed?.titanChallenged || srvQuest.titanChallenged),
+          ascentReached: Boolean(parsed?.ascentReached || srvQuest.ascentReached),
           completedQuests: {
             ...(parsed?.completedQuests || {}),
             ...(srvQuest.completedQuests || {}),
@@ -625,6 +631,14 @@ export function initGame() {
           activeQuests: {
             ...(parsed?.activeQuests || {}),
             ...(srvQuest.activeQuests || {}),
+          },
+          talkedNpcs: {
+            ...(parsed?.talkedNpcs || {}),
+            ...(srvQuest.talkedNpcs || {}),
+          },
+          visitedBiomes: {
+            ...(parsed?.visitedBiomes || {}),
+            ...(srvQuest.visitedBiomes || {}),
           },
         };
       }
@@ -636,22 +650,6 @@ export function initGame() {
         for (const doneId of Object.keys(completed)) {
           delete active[doneId];
           if (parsed.trackedQuests) delete parsed.trackedQuests[doneId];
-        }
-
-        // Ensure the 4 foundational skill starter quests are active if not yet completed:
-        const skillStarterQuestIds = [
-          'quest_skill_extraction',
-          'quest_skill_forging',
-          'quest_skill_binding',
-          'quest_skill_weaving',
-        ];
-        for (const sqId of skillStarterQuestIds) {
-          if (!completed[sqId] && !active[sqId]) {
-            active[sqId] = { accepted: true, acceptedAt: Date.now() };
-            if (parsed.trackedQuests && parsed.trackedQuests[sqId] === undefined) {
-              parsed.trackedQuests[sqId] = true;
-            }
-          }
         }
 
         questState = {
@@ -666,6 +664,8 @@ export function initGame() {
           warzoneKills: Number(parsed.warzoneKills || 0),
           ruinsKills: Number(parsed.ruinsKills || 0),
           calderaKills: Number(parsed.calderaKills || 0),
+          chronoKills: Number(parsed.chronoKills || 0),
+          aetherFontChanneled: Boolean(parsed.aetherFontChanneled),
           titanChallenged: Boolean(parsed.titanChallenged),
           ascentReached: Boolean(parsed.ascentReached),
           visitedBiomes: parsed.visitedBiomes || {},
@@ -737,6 +737,7 @@ export function initGame() {
       loadout: { ...CLASSES_CATALOG.solari_vanguard.defaultLoadout },
       equipment: { ...CLASSES_CATALOG.solari_vanguard.defaultEquipment },
       inventory: [
+        { id: 'solar_gold', qty: 60 },
         { id: 'ring_of_the_sun', qty: 1 },
         { id: 'boots_of_haste', qty: 1 },
         { id: 'vanguard_gauntlets', qty: 1 },
@@ -838,7 +839,18 @@ export function initGame() {
       }
     }
 
-    // 4. Titan Summit:
+    // 4. Astromancer Kaelen's Aether Spire Chrono Quest:
+    if (roomType === ROOM_TYPES.AETHER_SPIRE || (mobName && (mobName.includes('Chrono') || mobName.includes('Continuum') || mobName.includes('Anomaly') || mobName.includes('Wraith') || mobName.includes('Aether')))) {
+      questState.chronoKills = (questState.chronoKills || 0) + 1;
+      changed = true;
+      if (questState.chronoKills === 1 && questState.activeQuests?.quest_stargazer_chronos) {
+        logMessage('📜 [Quest Objective] Chrono Anomaly banished (1/1)! Channel the Mirrorgate Star Font and return to Astromancer Kaelen!', 'log-quest', 'chat');
+        spawnFCT(player.x, player.y - 14, '✨ OBJECTIVE COMPLETE (1/1)!', '#facc15', true);
+        if (audio && audio.playChime) audio.playChime();
+      }
+    }
+
+    // 5. Titan Summit:
     if (roomType === ROOM_TYPES.CELESTIAL_ASCENT || isBoss || (mobName && mobName.includes('Aurelius'))) {
       if (!questState.titanChallenged) {
         questState.titanChallenged = true;
@@ -882,7 +894,7 @@ export function initGame() {
         { text: 'Cast Flare Strike [1] on Dummy', done: () => Boolean(questState.dummyDamaged) },
         { text: 'Channel Glimmer Node [E]', done: () => Boolean(questState.nodeHarvested) },
       ],
-      rewards: { xp: 120, glimmer: 60, gold: 50 },
+      rewards: { xp: 140, glimmer: 70, gold: 75 },
       acceptDialogue: [
         {
           speaker: 'HERALD LYRA • SUNSPIRE HERALD',
@@ -930,7 +942,7 @@ export function initGame() {
       tasks: [
         { text: 'Report to Commander Valerius', done: () => Boolean(questState.talkedNpcs?.npc_archon || questState.completedQuests?.quest_into_the_warzone) },
       ],
-      rewards: { xp: 160, glimmer: 80, gold: 50 },
+      rewards: { xp: 180, glimmer: 90, gold: 75 },
       acceptDialogue: [
         {
           speaker: 'HERALD LYRA • SUNSPIRE HERALD',
@@ -977,7 +989,7 @@ export function initGame() {
           counter: () => `${Math.min(3, questState.warzoneKills || 0)} / 3`,
         },
       ],
-      rewards: { xp: 320, glimmer: 150, gold: 100 },
+      rewards: { xp: 350, glimmer: 150, gold: 140 },
       acceptDialogue: [
         {
           speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
@@ -1023,7 +1035,7 @@ export function initGame() {
           counter: () => `${Math.min(2, questState.ruinsKills || 0)} / 2`,
         },
       ],
-      rewards: { xp: 450, glimmer: 200, gold: 120 },
+      rewards: { xp: 500, glimmer: 200, gold: 180 },
       acceptDialogue: [
         {
           speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
@@ -1065,7 +1077,7 @@ export function initGame() {
           counter: () => `${Math.min(1, (questState.calderaKills || 0) + ((questState.warzoneKills || 0) >= 4 ? 1 : 0))} / 1`,
         },
       ],
-      rewards: { xp: 600, glimmer: 300, gold: 150 },
+      rewards: { xp: 700, glimmer: 300, gold: 250 },
       acceptDialogue: [
         {
           speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
@@ -1105,7 +1117,7 @@ export function initGame() {
           done: () => Boolean(questState.ascentReached || currentRoomType === ROOM_TYPES.CELESTIAL_ASCENT || questState.talkedNpcs?.npc_aurelia),
         },
       ],
-      rewards: { xp: 750, glimmer: 350, gold: 200 },
+      rewards: { xp: 900, glimmer: 350, gold: 350 },
       acceptDialogue: [
         {
           speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
@@ -1146,7 +1158,7 @@ export function initGame() {
           done: () => Boolean(questState.titanChallenged),
         },
       ],
-      rewards: { xp: 1200, glimmer: 500, gold: 350 },
+      rewards: { xp: 1500, glimmer: 500, gold: 600 },
       acceptDialogue: [
         {
           speaker: 'GRAND ARBITER AURELIA • TITAN KEEPER',
@@ -1191,7 +1203,7 @@ export function initGame() {
         { text: 'Visit Terra Ironwood Wilds (South)', done: () => Boolean(questState.visitedBiomes?.terra) },
         { text: 'Visit Aether Astral Spire (North)', done: () => Boolean(questState.visitedBiomes?.aether) },
       ],
-      rewards: { xp: 500, glimmer: 250, gold: 150 },
+      rewards: { xp: 600, glimmer: 250, gold: 250 },
       acceptDialogue: [
         {
           speaker: 'HERALD LYRA • SUNSPIRE HERALD',
@@ -1215,6 +1227,60 @@ export function initGame() {
       ],
     },
 
+    quest_stargazer_chronos: {
+      id: 'quest_stargazer_chronos',
+      title: "Astromancer's Continuum",
+      giverId: 'npc_kaelen',
+      turnInId: 'npc_kaelen',
+      prereqQuestId: 'quest_awakening',
+      questPoints: 1,
+      unlocks: ['Mirrorgate Portal Attunement', 'Chrono-Archive Astral Path'],
+      description: 'Ascend the Astral Waygate to the Aether Spire, channel the Mirrorgate Star Font [E], and vanquish a Chrono Anomaly.',
+      isComplete: () => Boolean(questState.aetherFontChanneled && (questState.chronoKills || 0) >= 1),
+      tasks: [
+        {
+          text: 'Channel Star Font in Aether Spire [E]',
+          done: () => Boolean(questState.aetherFontChanneled),
+        },
+        {
+          text: 'Banish Chrono Anomaly in Spire',
+          done: () => (questState.chronoKills || 0) >= 1,
+          counter: () => `${Math.min(1, questState.chronoKills || 0)} / 1`,
+        },
+        {
+          text: 'Return to Astromancer Kaelen',
+          done: () => Boolean(questState.aetherFontChanneled && (questState.chronoKills || 0) >= 1),
+        },
+      ],
+      rewards: {
+        xp: 350,
+        glimmer: 120,
+        gold: 150,
+        professionXp: { resonance_extraction: 60 },
+      },
+      acceptDialogue: [
+        {
+          speaker: 'ASTROMANCER KAELEN • MIRRORGATE STARGAZER',
+          spriteKey: 'aetherAstromancerNpc',
+          text: 'Greetings, traveler! The celestial mirrors resonate tonight. Temporal fractures ripple through the Aether Spire from the Chrono-Archive above! Channel the Mirrorgate Star Font [E] and banish a Chrono Anomaly to stabilize our timeline!',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'ASTROMANCER KAELEN • MIRRORGATE STARGAZER',
+          spriteKey: 'aetherAstromancerNpc',
+          text: 'The temporal rifts still fluctuate! Channel the Mirrorgate Star Font [E] and banish a Chrono Anomaly to calm the spire.',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'ASTROMANCER KAELEN • MIRRORGATE STARGAZER',
+          spriteKey: 'aetherAstromancerNpc',
+          text: 'Magnificent! The mirrors have stabilized, and the celestial resonance sings pure once more. Take this astral reward, Champion of the Continuum!',
+        },
+      ],
+    },
+
     quest_skill_extraction: {
       id: 'quest_skill_extraction',
       title: 'Resonance: First Extraction',
@@ -1223,22 +1289,22 @@ export function initGame() {
       questPoints: 1,
       unlocks: ['Resonance Extraction Lv. 2 Recipes', 'Moira\'s Curio & Relic Trade'],
       description: 'Channel 2 Glimmer or Leyline Nodes around Sanctuary to harvest raw resonant crystals.',
-      isComplete: () => Boolean((questState.extractionNodesHarvested || 0) >= 2 || (prog?.professions?.resonance_extraction?.level || 1) >= 2),
+      isComplete: () => (questState.extractionNodesHarvested || 0) >= 2,
       tasks: [
         {
           text: 'Channel Leyline / Glimmer Nodes [E]',
-          done: () => Boolean((questState.extractionNodesHarvested || 0) >= 2 || (prog?.professions?.resonance_extraction?.level || 1) >= 2),
+          done: () => (questState.extractionNodesHarvested || 0) >= 2,
           counter: () => `${Math.min(2, questState.extractionNodesHarvested || 0)} / 2`,
         },
         {
           text: 'Return to Relic-Seeker Moira',
-          done: () => Boolean((questState.extractionNodesHarvested || 0) >= 2 || (prog?.professions?.resonance_extraction?.level || 1) >= 2),
+          done: () => (questState.extractionNodesHarvested || 0) >= 2,
         },
       ],
       rewards: {
-        xp: 140,
+        xp: 180,
         glimmer: 60,
-        gold: 100,
+        gold: 120,
         professionXp: { resonance_extraction: 75 },
       },
       acceptDialogue: [
@@ -1292,9 +1358,9 @@ export function initGame() {
         },
       ],
       rewards: {
-        xp: 140,
+        xp: 180,
         glimmer: 50,
-        gold: 100,
+        gold: 120,
         professionXp: { relic_forging: 75 },
       },
       acceptDialogue: [
@@ -1352,9 +1418,9 @@ export function initGame() {
         },
       ],
       rewards: {
-        xp: 140,
+        xp: 180,
         glimmer: 50,
-        gold: 100,
+        gold: 120,
         professionXp: { rite_binding: 75 },
       },
       acceptDialogue: [
@@ -1412,9 +1478,9 @@ export function initGame() {
         },
       ],
       rewards: {
-        xp: 140,
+        xp: 180,
         glimmer: 50,
-        gold: 100,
+        gold: 120,
         professionXp: { glimmerweaving: 75 },
       },
       acceptDialogue: [
@@ -1557,17 +1623,7 @@ export function initGame() {
       }
     }
 
-    // Market Stall Merchants without an active or available quest do not show generic talk indicator
-    if (npc.isMerchant || MERCHANT_CATALOGS[npc.id]) {
-      return 'none';
-    }
-
-    // 4. Check if this is an NPC who hasn't been talked to yet
-    if (!questState.talkedNpcs[npcId]) {
-      return 'talk_available';
-    }
-
-    // 5. Otherwise, nothing above their head
+    // 4. Otherwise, no quest marker above their head
     return 'none';
   }
 
@@ -1886,34 +1942,7 @@ export function initGame() {
       }
     }
 
-    // 5. Check if the player has ANY other quest that is ready to turn in elsewhere
-    let otherReadyQ = null;
-    for (const qId of Object.keys(questState.activeQuests || {})) {
-      const q = QUEST_CATALOG[qId];
-      if (q && q.isComplete()) {
-        otherReadyQ = q;
-        break;
-      }
-    }
-    if (otherReadyQ) {
-      const targetNpcName = getNpcName(otherReadyQ.turnInId);
-      const advicePage = [{
-        speaker: `${(npc.name || 'SANCTUARY ADVISOR').toUpperCase()}`,
-        spriteKey: npc.spriteKey || 'heraldNpc',
-        text: `Greetings, Champion! You have completed your objectives for "${otherReadyQ.title}". Return to ${targetNpcName} to turn in your quest and claim your rewards!`,
-        actions: [
-          { label: `✨ TURN IN "${otherReadyQ.title.toUpperCase()}" NOW`, action: `remoteTurnIn_${otherReadyQ.id}`, style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
-          { label: 'CONTINUE TALKING', action: 'advance' },
-        ],
-      }];
-      if (npc.dialogue && npc.dialogue.length > 0) {
-        advicePage.push(...npc.dialogue);
-      }
-      openDialogue(advicePage, npc.spriteKey, npc.id);
-      return;
-    }
-
-    // 6. Market Stall Merchant interaction (when no quest is active/available/finished)
+    // 5. Market Stall Merchant interaction (when no quest is active/available/finished)
     if (npc.isMerchant || npc.merchantType || MERCHANT_CATALOGS[npc.id]) {
       const mId = npc.merchantType || npc.id;
       const pages = getMerchantDialoguePages(mId);
@@ -1921,7 +1950,7 @@ export function initGame() {
       return;
     }
 
-    // 7. Lore / Standard dialogue
+    // 6. Lore / Standard dialogue
     openDialogue(npc.dialogue, npc.spriteKey, npc.id);
     updateQuestTrackerHUD();
   }
@@ -3036,9 +3065,8 @@ export function initGame() {
             }).join('');
 
             const turnInPrompt = isReady ? `
-              <div class="quest-turnin-banner" style="margin-top:3px; padding:3px 6px; font-size:9.5px; background:rgba(234,179,8,0.25); border:1px solid #fde047; text-shadow:1px 1px 0 #000; display:flex; justify-content:space-between; align-items:center; gap:4px;">
+              <div class="quest-turnin-banner" style="margin-top:3px; padding:3px 6px; font-size:9.5px; background:rgba(234,179,8,0.25); border:1px solid #fde047; text-shadow:1px 1px 0 #000; display:flex; justify-content:center; align-items:center; gap:4px; font-weight:bold; color:#fde047;">
                 <span>✨ Ready! Return to ${getNpcName(q.turnInId)}</span>
-                <button class="id-mini-btn" style="background:#ca8a04; color:#fff; border-color:#fde047; font-size:9px; padding:1px 5px; cursor:pointer;" onclick="window.turnInQuestRemote('${q.id}')">TURN IN ✓</button>
               </div>
             ` : '';
 
@@ -7939,6 +7967,15 @@ export function initGame() {
       logMessage(`✨ [LEYLINE BLESSING] ${shrine.name} granted ${shrine.buffName} (+Stats for 60s)!`, 'log-solari');
       questState.extractionNodesHarvested = (questState.extractionNodesHarvested || 0) + 1;
       awardProfessionXP('resonance_extraction', 45, `${shrine.name} Channeling`);
+      if (currentRoomType === ROOM_TYPES.AETHER_SPIRE || shrine.id === 'aeth_node_1') {
+        if (!questState.aetherFontChanneled) {
+          questState.aetherFontChanneled = true;
+          if (questState.activeQuests?.quest_stargazer_chronos) {
+            logMessage('📜 [Quest Objective] Mirrorgate Star Font channeled! Return to Astromancer Kaelen!', 'log-quest', 'chat');
+            spawnFCT(player.x, player.y - 14, '✨ STAR FONT CHANNELED!', '#facc15', true);
+          }
+        }
+      }
       saveQuestState();
       updateQuestTrackerHUD();
       if (net.connected) {
@@ -7962,6 +7999,15 @@ export function initGame() {
     awardProfessionXP('resonance_extraction', 35, 'Channeling Leyline Node');
     if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !questState.nodeHarvested) {
       questState.nodeHarvested = true;
+    }
+    if (currentRoomType === ROOM_TYPES.AETHER_SPIRE || node.id === 'aeth_node_1') {
+      if (!questState.aetherFontChanneled) {
+        questState.aetherFontChanneled = true;
+        if (questState.activeQuests?.quest_stargazer_chronos) {
+          logMessage('📜 [Quest Objective] Mirrorgate Star Font channeled! Return to Astromancer Kaelen!', 'log-quest', 'chat');
+          spawnFCT(player.x, player.y - 14, '✨ STAR FONT CHANNELED!', '#facc15', true);
+        }
+      }
     }
     saveQuestState();
     updateQuestTrackerHUD();
@@ -9141,10 +9187,15 @@ export function initGame() {
     if (player.phaseShiftTimer > 0) player.phaseShiftTimer = Math.max(0, player.phaseShiftTimer - dt);
     if (player.temporalApotheosisTimer > 0) player.temporalApotheosisTimer = Math.max(0, player.temporalApotheosisTimer - dt);
 
-    // Terra Primal Bastion Passive Health Regeneration (0.5 HP/s per point)
+    // Vitality Health Regeneration (+2.5 HP/s baseline + 0.5 HP/s per Terra Bulwark point)
     const hpRegen = calcHpRegenPerSec(prog);
     if (hpRegen > 0 && !player.isDead && player.hp < player.maxHp) {
       player.hp = Math.min(player.maxHp, player.hp + hpRegen * dt);
+    }
+
+    // Baseline Glimmer resonance recovery (+3.5 Glimmer/s)
+    if (!player.isDead && player.solarCharge < player.maxSolarCharge) {
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 3.5 * dt);
     }
 
     if (player.slashTimer > 0) player.slashTimer = Math.max(0, player.slashTimer - dt);

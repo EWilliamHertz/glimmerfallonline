@@ -3430,6 +3430,13 @@ export class RoomManager {
         category: 'combat',
         text: `✨ [SHRINE] Received ${shrine.buffName} Blessing (+Stats for 60s)!`,
       });
+
+      player.questState = player.questState || {};
+      player.questState.extractionNodesHarvested = (player.questState.extractionNodesHarvested || 0) + 1;
+      if (room.type === ROOM_TYPES.AETHER_SPIRE || shrine.id === 'aeth_node_1') {
+        player.questState.aetherFontChanneled = true;
+      }
+      this.accounts.saveQuestState(player.id, player.questState);
       return;
     }
 
@@ -3451,6 +3458,13 @@ export class RoomManager {
     room.fxQueue.push({ kind: 'fct', x: node.x, y: node.y, text: `+${gain} GLIMMER`, color: '#c084fc' });
     this.awardPlayerXP(player, 25, 'Glimmer Node');
     this.awardProfessionXP(player, 'resonance_extraction', 35, 'Glimmer Node Channeling');
+
+    player.questState = player.questState || {};
+    player.questState.extractionNodesHarvested = (player.questState.extractionNodesHarvested || 0) + 1;
+    if (room.type === ROOM_TYPES.AETHER_SPIRE || node.id === 'aeth_node_1') {
+      player.questState.aetherFontChanneled = true;
+    }
+    this.accounts.saveQuestState(player.id, player.questState);
   }
 
   awardProfessionXP(player, professionId, amount, reason = '') {
@@ -4338,10 +4352,15 @@ export class RoomManager {
       if (p.phaseShiftTimer > 0) p.phaseShiftTimer = Math.max(0, p.phaseShiftTimer - dt);
       if (p.temporalApotheosisTimer > 0) p.temporalApotheosisTimer = Math.max(0, p.temporalApotheosisTimer - dt);
 
-      // Terra Primal Bastion Passive Health Regeneration (0.5 HP/s per point)
+      // Vitality Health Regeneration (+2.5 HP/s baseline + 0.5 HP/s per Terra Bulwark point)
       const hpRegen = calcHpRegenPerSec(p.prog);
       if (hpRegen > 0 && !p.isDead && p.hp < p.maxHp) {
         p.hp = Math.min(p.maxHp, p.hp + hpRegen * dt);
+      }
+
+      // Baseline Glimmer resonance recovery (+3.5 Glimmer/s)
+      if (!p.isDead && p.solarCharge < p.maxSolarCharge) {
+        p.solarCharge = Math.min(p.maxSolarCharge, p.solarCharge + 3.5 * dt);
       }
 
       if (p.speechBubble && p.speechBubble.expiresAt <= now) p.speechBubble = null;
