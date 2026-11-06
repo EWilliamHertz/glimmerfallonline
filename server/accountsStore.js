@@ -18,6 +18,7 @@ import {
   ORDER_PRESETS,
   ROOM_TYPES,
   createDefaultProgression,
+  resolveFactionAndClass,
 } from '../shared/protocol.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -241,19 +242,25 @@ export class AccountsStore {
 
     const charRes = await this.db.query('SELECT * FROM glimmerfall_characters ORDER BY created_at ASC');
     for (const row of charRes.rows) {
+      const resolved = resolveFactionAndClass({
+        faction: row.faction,
+        classId: row.class_id,
+        loadout: row.loadout,
+        orderTag: row.order_tag,
+      });
       const ch = {
         id: row.id,
         accountId: row.account_id,
         name: row.name,
-        faction: row.faction,
-        classId: row.class_id,
-        orderTag: row.order_tag || 'SUN',
-        orderName: row.order_name || 'Order of Dawn',
+        faction: resolved.faction,
+        classId: resolved.classId,
+        orderTag: row.order_tag || (resolved.faction === 'Umbri' ? 'VOID' : resolved.faction === 'Terra' ? 'ROOT' : resolved.faction === 'Aether' ? 'AETH' : 'SUN'),
+        orderName: row.order_name || `Order of ${resolved.faction}`,
         orderColor: row.order_color || '#facc15',
         homeBiome: row.home_biome || ROOM_TYPES.SANCTUARY_HUB,
-        loadout: normalizeLoadout(row.loadout, row.class_id),
-        equipment: normalizeEquipment(row.equipment, row.class_id),
-        inventory: normalizeInventory(row.inventory || getDefaultStarterInventory(row.class_id)),
+        loadout: normalizeLoadout(row.loadout, resolved.classId),
+        equipment: normalizeEquipment(row.equipment, resolved.classId),
+        inventory: normalizeInventory(row.inventory || getDefaultStarterInventory(resolved.classId)),
         bank: normalizeBank(row.bank || []),
         questState: row.quest_state || {},
         unlockedGear: Array.isArray(row.unlocked_gear) ? row.unlocked_gear : Object.keys(EQUIPMENT_CATALOG),
@@ -273,6 +280,12 @@ export class AccountsStore {
   }
 
   hydrateAccountRow(row) {
+    const resolved = resolveFactionAndClass({
+      faction: row.faction,
+      classId: row.class_id,
+      loadout: row.loadout,
+      orderTag: row.order_tag,
+    });
     const acc = {
       id: row.id,
       username: row.username,
@@ -285,14 +298,14 @@ export class AccountsStore {
       tcgHandle: row.tcg_handle,
       tcgEmail: row.tcg_email,
       tcgSyncedAt: row.tcg_synced_at ? new Date(row.tcg_synced_at).toISOString() : null,
-      faction: row.faction || 'Solari',
-      classId: row.class_id || 'solari_vanguard',
-      orderTag: row.order_tag || 'SUN',
-      orderName: row.order_name || 'Order of Dawn',
+      faction: resolved.faction,
+      classId: resolved.classId,
+      orderTag: row.order_tag || (resolved.faction === 'Umbri' ? 'VOID' : resolved.faction === 'Terra' ? 'ROOT' : resolved.faction === 'Aether' ? 'AETH' : 'SUN'),
+      orderName: row.order_name || `Order of ${resolved.faction}`,
       orderColor: row.order_color || '#facc15',
-      loadout: normalizeLoadout(row.loadout, row.class_id),
-      equipment: normalizeEquipment(row.equipment, row.class_id),
-      inventory: normalizeInventory(row.inventory || getDefaultStarterInventory(row.class_id)),
+      loadout: normalizeLoadout(row.loadout, resolved.classId),
+      equipment: normalizeEquipment(row.equipment, resolved.classId),
+      inventory: normalizeInventory(row.inventory || getDefaultStarterInventory(resolved.classId)),
       bank: normalizeBank(row.bank || []),
       questState: row.quest_state || {},
       progression: this.mergeValidProgression(createDefaultProgression(), row.progression),
@@ -328,19 +341,25 @@ export class AccountsStore {
         const cRes = await this.db.query('SELECT * FROM glimmerfall_characters WHERE account_id = $1 ORDER BY created_at ASC', [acc.id]);
         const cmap = this.charactersByAccount.get(acc.id);
         for (const r of cRes.rows) {
+          const charResolved = resolveFactionAndClass({
+            faction: r.faction,
+            classId: r.class_id,
+            loadout: r.loadout,
+            orderTag: r.order_tag,
+          });
           cmap.set(r.id, {
             id: r.id,
             accountId: r.account_id,
             name: r.name,
-            faction: r.faction,
-            classId: r.class_id,
-            orderTag: r.order_tag || 'SUN',
-            orderName: r.order_name || 'Order of Dawn',
+            faction: charResolved.faction,
+            classId: charResolved.classId,
+            orderTag: r.order_tag || (charResolved.faction === 'Umbri' ? 'VOID' : charResolved.faction === 'Terra' ? 'ROOT' : charResolved.faction === 'Aether' ? 'AETH' : 'SUN'),
+            orderName: r.order_name || `Order of ${charResolved.faction}`,
             orderColor: r.order_color || '#facc15',
             homeBiome: r.home_biome || ROOM_TYPES.SANCTUARY_HUB,
-            loadout: normalizeLoadout(r.loadout, r.class_id),
-            equipment: normalizeEquipment(r.equipment, r.class_id),
-            inventory: normalizeInventory(r.inventory || getDefaultStarterInventory(r.class_id)),
+            loadout: normalizeLoadout(r.loadout, charResolved.classId),
+            equipment: normalizeEquipment(r.equipment, charResolved.classId),
+            inventory: normalizeInventory(r.inventory || getDefaultStarterInventory(charResolved.classId)),
             bank: normalizeBank(r.bank || []),
             questState: r.quest_state || {},
             unlockedGear: Array.isArray(r.unlocked_gear) ? r.unlocked_gear : Object.keys(EQUIPMENT_CATALOG),
@@ -1237,6 +1256,12 @@ export class AccountsStore {
     this.ensureDefaultCharacter(acc);
     this.syncAccountFromActiveChar(acc);
     const activeChar = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+    const resolved = resolveFactionAndClass({
+      faction: activeChar?.faction || acc.faction,
+      classId: activeChar?.classId || acc.classId,
+      loadout: activeChar?.loadout || acc.loadout,
+      orderTag: activeChar?.orderTag || acc.orderTag,
+    });
     return {
       id: acc.id,
       username: acc.username,
@@ -1245,10 +1270,10 @@ export class AccountsStore {
       tcgLinked: acc.tcgLinked,
       tcgHandle: acc.tcgHandle,
       tcgEmail: acc.tcgEmail,
-      faction: activeChar?.faction || acc.faction || 'Solari',
-      classId: activeChar?.classId || acc.classId || 'solari_vanguard',
-      orderTag: activeChar?.orderTag || acc.orderTag || 'SUN',
-      orderName: activeChar?.orderName || acc.orderName || 'Order of Dawn',
+      faction: resolved.faction,
+      classId: resolved.classId,
+      orderTag: activeChar?.orderTag || acc.orderTag || (resolved.faction === 'Umbri' ? 'VOID' : resolved.faction === 'Terra' ? 'ROOT' : resolved.faction === 'Aether' ? 'AETH' : 'SUN'),
+      orderName: activeChar?.orderName || acc.orderName || `Order of ${resolved.faction}`,
       orderColor: activeChar?.orderColor || acc.orderColor || '#facc15',
       loadout: activeChar?.loadout || acc.loadout || {},
       equipment: activeChar?.equipment || acc.equipment || {},

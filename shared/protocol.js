@@ -50,8 +50,8 @@ export const ROOM_CONFIGS = {
   },
   [ROOM_TYPES.NEXUS_WARZONE]: {
     type: ROOM_TYPES.NEXUS_WARZONE,
-    title: 'THE NEXUS CALDERA (TORMENT REALM • LV. 30+)',
-    shortTitle: 'TORMENT CALDERA',
+    title: 'THE CONTINENTAL CALDERA (OPEN WARZONE • LV. 30+)',
+    shortTitle: 'CONTINENTAL CALDERA',
     biomeTheme: 'warzone',
     bgm: 'warzone',
     maxPlayers: 60,
@@ -1941,20 +1941,49 @@ export function paragonXpForLevel(paragonLvl = 0) {
 }
 
 // ==========================================
-// Late-Game Leyline Torment Difficulty Scaling
+// Canonical Faction & Archetype Resolution
 // ==========================================
-export const TORMENT_LEVELS = [
-  { level: 0, name: 'Normal', hpMult: 1.0, dmgMult: 1.0, xpMult: 1.0, dropChance: 1.0, color: '#38bdf8', desc: 'Standard Continental Difficulty' },
-  { level: 1, name: 'Torment I', hpMult: 1.5, dmgMult: 1.3, xpMult: 1.8, dropChance: 1.35, color: '#facc15', desc: '+50% Mob HP, +30% Mob DMG • +80% Paragon XP • +35% Relic Drops' },
-  { level: 2, name: 'Torment II', hpMult: 2.2, dmgMult: 1.6, xpMult: 2.8, dropChance: 1.65, color: '#fb923c', desc: '+120% Mob HP, +60% Mob DMG • +180% Paragon XP • +65% Relic Drops' },
-  { level: 3, name: 'Torment III', hpMult: 3.2, dmgMult: 2.0, xpMult: 4.2, dropChance: 2.0, color: '#ef4444', desc: '+220% Mob HP, +100% Mob DMG • +320% Paragon XP • 2x Relic Drops' },
-  { level: 4, name: 'Torment IV', hpMult: 4.5, dmgMult: 2.5, xpMult: 6.0, dropChance: 2.5, color: '#c084fc', desc: '+350% Mob HP, +150% Mob DMG • +500% Paragon XP • 2.5x Relic Drops' },
-  { level: 5, name: 'Torment V (Mythic)', hpMult: 6.5, dmgMult: 3.2, xpMult: 9.0, dropChance: 3.5, color: '#f43f5e', desc: '+550% Mob HP, +220% Mob DMG • +800% Paragon XP • 3.5x Relic Drops' },
-];
+export function resolveFactionAndClass({ faction = null, classId = null, loadout = null, orderTag = null } = {}) {
+  // If slot 1 is an explicit canonical ability, that determines the true faction
+  const s1 = loadout?.[1] || loadout?.['1'];
+  if (s1 && ABILITIES_CATALOG[s1]?.faction && ABILITIES_CATALOG[s1].faction !== 'All') {
+    const abFac = ABILITIES_CATALOG[s1].faction;
+    if (classId && CLASSES_CATALOG[classId] && CLASSES_CATALOG[classId].faction === abFac) {
+      return { faction: abFac, classId };
+    }
+    const defClass = abFac === 'Umbri' ? 'umbral_assassin' : abFac === 'Terra' ? 'forest_warden' : abFac === 'Aether' ? 'chronomancer_sage' : 'solari_vanguard';
+    return { faction: abFac, classId: defClass };
+  }
 
-export function getTormentConfig(tormentLevel = 0) {
-  const idx = Math.max(0, Math.min(TORMENT_LEVELS.length - 1, Math.floor(tormentLevel || 0)));
-  return TORMENT_LEVELS[idx];
+  // Canonical Order Tag checks if slot 1 was not conclusive
+  const tag = String(orderTag || '').toUpperCase();
+  if (tag === 'VOID') {
+    const cid = classId && CLASSES_CATALOG[classId]?.faction === 'Umbri' ? classId : 'umbral_assassin';
+    return { faction: 'Umbri', classId: cid };
+  }
+  if (tag === 'ROOT') {
+    const cid = classId && CLASSES_CATALOG[classId]?.faction === 'Terra' ? classId : 'forest_warden';
+    return { faction: 'Terra', classId: cid };
+  }
+  if (tag === 'AETH') {
+    const cid = classId && CLASSES_CATALOG[classId]?.faction === 'Aether' ? classId : 'chronomancer_sage';
+    return { faction: 'Aether', classId: cid };
+  }
+  if (tag === 'SUN') {
+    const cid = classId && CLASSES_CATALOG[classId]?.faction === 'Solari' ? classId : 'solari_vanguard';
+    return { faction: 'Solari', classId: cid };
+  }
+
+  // Catalog normalization fallback
+  let cls = CLASSES_CATALOG[classId];
+  if (!cls) {
+    cls = Object.values(CLASSES_CATALOG).find((c) => c.faction === faction) || CLASSES_CATALOG.solari_vanguard;
+  }
+  const resolvedFac = faction || cls.faction || 'Solari';
+  if (cls.faction !== resolvedFac) {
+    cls = Object.values(CLASSES_CATALOG).find((c) => c.faction === resolvedFac) || CLASSES_CATALOG.solari_vanguard;
+  }
+  return { faction: resolvedFac, classId: cls.id };
 }
 
 export function canUpgradeParagon(prog, affinityId) {
@@ -1978,7 +2007,6 @@ export function createDefaultProgression() {
     paragonLevel: 0,
     paragonXp: 0,
     paragonPoints: 0,
-    tormentLevel: 0, // Leyline Torment Rank (0 = Normal, 1-5 = Torment I to V)
     paragon: {
       solari_radiance: 0,
       umbri_shadowcraft: 0,
@@ -1995,8 +2023,13 @@ export function getAbilityRank(prog, abilityId) {
   if (!spec) return 0;
   const r = prog?.skills?.[abilityId];
   if (r !== undefined && r !== null) {
-    return Math.max(0, Math.min(spec.maxRank || 5, Math.floor(Number(r) || 0)));
+    const rankVal = Math.max(0, Math.min(spec.maxRank || 5, Math.floor(Number(r) || 0)));
+    // Tier 1 starter abilities are always at least Rank 1 so players are never soft-locked
+    if ((spec.tier || 1) === 1) return Math.max(1, rankVal);
+    return rankVal;
   }
+  // Tier 1 basic attacks (whisper_of_the_void, flare_strike, tectonic_slam, reality_fracture) default to Rank 1
+  if ((spec.tier || 1) === 1) return 1;
   return 0;
 }
 

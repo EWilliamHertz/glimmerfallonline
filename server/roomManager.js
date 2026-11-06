@@ -34,8 +34,7 @@ import {
   PARAGON_AFFINITIES,
   paragonXpForLevel,
   canUpgradeParagon,
-  TORMENT_LEVELS,
-  getTormentConfig,
+  resolveFactionAndClass,
   calcMaxHp,
   calcMaxGlimmer,
   calcCritChance,
@@ -278,7 +277,7 @@ export class RoomManager {
         }
       );
     } else if (room.type === ROOM_TYPES.NEXUS_WARZONE) {
-      // 4 Faction 300-HP Outpost Nexuses anchored in the 4 continental quadrants (Late-Game Torment)
+      // 4 Faction 300-HP Outpost Nexuses anchored in the 4 continental quadrants
       const outposts = [
         { id: 'outpost_Terra', faction: 'Terra', name: 'Terra Forest Outpost Nexus', spriteKey: 'nexusGreen', x: -850, y: -650 },
         { id: 'outpost_Umbri', faction: 'Umbri', name: 'Umbri Shadow Outpost Nexus', spriteKey: 'nexusPurple', x: 850, y: -650 },
@@ -289,7 +288,7 @@ export class RoomManager {
         room.entities.push({
           id: op.id,
           name: op.name,
-          sub: `300 HP ${op.faction} Outpost Nexus [Torment]`,
+          sub: `300 HP ${op.faction} Outpost Nexus [Continental]`,
           type: 'outpost_nexus',
           faction: op.faction,
           spriteKey: op.spriteKey,
@@ -306,11 +305,11 @@ export class RoomManager {
         });
       }
 
-      // Central Caldera: Shattered Nexus Shard (Torment Core)
+      // Central Caldera: Shattered Nexus Shard
       room.entities.push({
         id: 'siege_shard',
         name: 'Shattered Nexus Shard',
-        sub: '⚡ Continental Nexus Core (Torment PvPvE)',
+        sub: '⚡ Continental Nexus Core (PvPvE)',
         type: 'siege_shard',
         isBoss: true,
         spriteKey: 'siegeShard',
@@ -330,7 +329,7 @@ export class RoomManager {
       room.entities.push({
         id: 'val_dummy',
         name: 'Vanguard Colossus Post',
-        sub: 'Lv.30 Torment Target Post',
+        sub: 'Lv.30 Target Post',
         type: 'dummy',
         spriteKey: 'dummy',
         x: 60,
@@ -344,7 +343,7 @@ export class RoomManager {
         hitFlash: 0,
       });
 
-      // 4 Grand Regional World Bosses across the Open World Continent (Late-Game Torment)
+      // 4 Grand Regional World Bosses across the Open World Continent
       room.entities.push(
         {
           id: 'terra_world_boss',
@@ -1600,8 +1599,14 @@ export class RoomManager {
     const ch = this.accounts.charactersByAccount.get(account.id)?.get(account.activeCharacterId);
 
     const prog = ch?.progression || account.progression || createDefaultProgression();
-    const classId = ch?.classId || account.classId || 'solari_vanguard';
-    const faction = ch?.faction || account.faction || 'Solari';
+    const resolved = resolveFactionAndClass({
+      faction: ch?.faction || account.faction,
+      classId: ch?.classId || account.classId,
+      loadout: ch?.loadout || account.loadout,
+      orderTag: ch?.orderTag || account.orderTag,
+    });
+    const classId = resolved.classId;
+    const faction = resolved.faction;
     const equipment = ch?.equipment || account.equipment || CLASSES_CATALOG[classId]?.defaultEquipment || {};
     const loadout = ch?.loadout || account.loadout || CLASSES_CATALOG[classId]?.defaultLoadout || {};
     const maxHp = calcMaxHp(prog, equipment, classId);
@@ -1684,13 +1689,19 @@ export class RoomManager {
     this.accounts.ensureDefaultCharacter(acc);
     this.accounts.syncAccountFromActiveChar(acc);
     const ch = this.accounts.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+    const resolved = resolveFactionAndClass({
+      faction: ch?.faction || acc.faction,
+      classId: ch?.classId || acc.classId,
+      loadout: ch?.loadout || acc.loadout,
+      orderTag: ch?.orderTag || acc.orderTag,
+    });
     client.username = acc.username;
     client.displayName = ch?.name || acc.displayName;
     client.isGuest = acc.isGuest;
     client.tcgLinked = acc.tcgLinked;
     client.tcgHandle = acc.tcgHandle;
-    client.faction = ch?.faction || acc.faction || 'Solari';
-    client.classId = ch?.classId || acc.classId || 'solari_vanguard';
+    client.faction = resolved.faction;
+    client.classId = resolved.classId;
     client.loadout = ch?.loadout || acc.loadout || CLASSES_CATALOG[client.classId]?.defaultLoadout || {};
     client.equipment = ch?.equipment || acc.equipment || CLASSES_CATALOG[client.classId]?.defaultEquipment || {};
     client.inventory = ch?.inventory || acc.inventory || [];
@@ -2362,10 +2373,6 @@ export class RoomManager {
 
       case 'upgrade_paragon':
         this.handleUpgradeParagon(client, msg.affinityId);
-        break;
-
-      case 'set_torment':
-        this.handleSetTorment(client, Number(msg.tormentLevel));
         break;
 
       case 'upgrade_skill':
@@ -3998,10 +4005,6 @@ export class RoomManager {
   // ==========================================
   awardPlayerXP(player, amount, reason = '', statsMetaPatch = null) {
     if (amount <= 0) return;
-    const tCfg = getTormentConfig(player.prog?.tormentLevel || 0);
-    if (tCfg.xpMult && tCfg.xpMult > 1) {
-      amount = Math.round(amount * tCfg.xpMult);
-    }
     let leveled = false;
     let paragonLeveled = false;
 
@@ -4076,37 +4079,6 @@ export class RoomManager {
       maxSolarCharge: player.maxSolarCharge,
     });
     this.parties.syncPlayerVitals(player.id);
-  }
-
-  handleSetTorment(player, tormentLevel) {
-    if (!player.prog) return;
-    const tLevel = Math.max(0, Math.min(TORMENT_LEVELS.length - 1, Math.floor(tormentLevel || 0)));
-    if (tLevel > 0 && (player.prog.level || 1) < 30) {
-      player.send({
-        type: 'sys_msg',
-        category: 'combat',
-        text: '⚠️ Leyline Torment requires Level 30 Champion status!',
-      });
-      return;
-    }
-    player.prog.tormentLevel = tLevel;
-    const tCfg = getTormentConfig(tLevel);
-    this.accounts.saveProgression(player.id, player.prog);
-    player.send({
-      type: 'progression_sync',
-      progression: player.prog,
-      hp: player.hp,
-      maxHp: player.maxHp,
-      maxSolarCharge: player.maxSolarCharge,
-      xpGained: 0,
-      reason: `Torment: ${tCfg.name}`,
-      leveled: false,
-    });
-    player.send({
-      type: 'sys_msg',
-      category: 'combat',
-      text: `🔥 [TORMENT] Difficulty set to ${tCfg.name}! ${tCfg.desc}`,
-    });
   }
 
   handleAllocateStat(player, statKey) {

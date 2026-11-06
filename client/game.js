@@ -77,8 +77,7 @@ import {
   PARAGON_AFFINITIES,
   paragonXpForLevel,
   canUpgradeParagon,
-  TORMENT_LEVELS,
-  getTormentConfig,
+  resolveFactionAndClass,
   calcMaxHp,
   calcMaxGlimmer,
   calcCritChance,
@@ -743,12 +742,12 @@ export function initGame() {
       }
     }
 
-    // 3. Caldera Torment Realm Quest:
-    if (roomType === ROOM_TYPES.NEXUS_WARZONE || (mobName && mobName.includes('Torment'))) {
+    // 3. Caldera Warzone Quest:
+    if (roomType === ROOM_TYPES.NEXUS_WARZONE || (mobName && (mobName.includes('Caldera') || mobName.includes('Void Fiend') || mobName.includes('Titan')))) {
       questState.calderaKills = (questState.calderaKills || 0) + 1;
       changed = true;
       if (questState.calderaKills === 1 && questState.activeQuests?.quest_caldera_siege) {
-        logMessage('📜 [Quest Objective] Torment Caldera foe vanquished (1/1)! Return to Commander Valerius!', 'log-quest', 'chat');
+        logMessage('📜 [Quest Objective] Continental Caldera foe vanquished (1/1)! Return to Commander Valerius!', 'log-quest', 'chat');
         spawnFCT(player.x, player.y - 14, '✨ OBJECTIVE COMPLETE (1/1)!', '#facc15', true);
         if (audio && audio.playChime) audio.playChime();
       }
@@ -962,11 +961,11 @@ export function initGame() {
       giverId: 'npc_archon',
       turnInId: 'npc_archon',
       prereqQuestId: 'quest_void_banish',
-      description: 'Venture into the Continental Nexus Caldera Torment Realm and vanquish a Torment foe or contest an Outpost.',
+      description: 'Venture into the Continental Nexus Caldera and vanquish a Caldera foe or contest an Outpost.',
       isComplete: () => Boolean((questState.calderaKills || 0) >= 1 || (questState.warzoneKills || 0) >= 4),
       tasks: [
         {
-          text: 'Vanquish a Torment Caldera foe',
+          text: 'Vanquish a Continental Caldera foe',
           done: () => Boolean((questState.calderaKills || 0) >= 1 || (questState.warzoneKills || 0) >= 4),
           counter: () => `${Math.min(1, (questState.calderaKills || 0) + ((questState.warzoneKills || 0) >= 4 ? 1 : 0))} / 1`,
         },
@@ -976,21 +975,21 @@ export function initGame() {
         {
           speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
           spriteKey: 'warzoneArchonNpc',
-          text: 'Beyond the Forgotten Ruins lies the Continental Caldera—a brutal Torment Realm where foes possess ten times their normal strength! Enter the Caldera and strike down a Torment creature to prove your mastery.',
+          text: 'Beyond the Forgotten Ruins lies the Continental Caldera—a brutal high-level warzone where rival factions clash! Enter the Caldera and strike down a creature to prove your mastery.',
         },
       ],
       ongoingDialogue: [
         {
           speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
           spriteKey: 'warzoneArchonNpc',
-          text: 'Steel your resolve in the Caldera! The Torment foes hit hard, but the rewards are unmatched.',
+          text: 'Steel your resolve in the Caldera! The foes hit hard, but the rewards are unmatched.',
         },
       ],
       completeDialogue: [
         {
           speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
           spriteKey: 'warzoneArchonNpc',
-          text: 'Triumph in the Caldera! You have conquered the Torment Realm and stood against the continental horde! Take this Grand Vanguard Cache!',
+          text: 'Triumph in the Caldera! You have conquered the Continental Caldera and stood against the horde! Take this Grand Vanguard Cache!',
         },
       ],
     },
@@ -1513,7 +1512,7 @@ export function initGame() {
         { x: 50, y: 68, icon: '📜', name: 'Atlas the Cartographer', sub: 'Keystone Seeker NPC', desc: 'Ancient surveyor mapping continental leylines.' },
         { x: 30, y: 50, icon: '👾', name: 'Corrupted Stalkers', sub: 'Lv.4 Keystone Constructs', desc: 'Lingering void constructs around ruined pillars.' },
         { x: 70, y: 50, icon: '💎', name: 'Prismatic Leyline Node', sub: 'Glimmer Font [E]', desc: 'Omni-resonance energy node.' },
-        { x: 50, y: 8, icon: '▲', name: 'Torment Boundary Gate', sub: 'To Continental Caldera [North]', desc: 'Walk North across the Torment threshold.' },
+        { x: 50, y: 8, icon: '▲', name: 'Continental Boundary Gate', sub: 'To Continental Caldera [North]', desc: 'Walk North across the continental threshold.' },
         { x: 50, y: 92, icon: '▼', name: 'Aether Archway', sub: 'To Aether Spire [South]', desc: 'Walk South back into Aether Spire.' }
       ],
       entities: [
@@ -1527,13 +1526,13 @@ export function initGame() {
     NEXUS_WARZONE: {
       id: 'NEXUS_WARZONE',
       name: 'The Continental Nexus Caldera',
-      sub: 'Torment Realm • Continental Warzone',
+      sub: 'Continental Caldera • Open Warzone',
       level: 'Lv. 30+',
-      dangerTag: 'TORMENT REALM • 10× STATS',
+      dangerTag: 'OPEN WARZONE • HIGH-LEVEL PvPvE',
       color: '#f97316',
       borderColor: '#fdba74',
       faction: '⚔️ Contested All-Faction Warzone',
-      desc: 'A massive 4800×3600 continental warzone where rival factions fight for domination. All creatures possess 10× health and damage in this brutal Torment Realm!',
+      desc: 'A massive 4800×3600 continental warzone where rival factions fight for domination across the Open World!',
       gridPos: { col: 1, row: 1 },
       neighbors: {
         north: 'CELESTIAL_ASCENT',
@@ -1549,10 +1548,10 @@ export function initGame() {
         { x: 75, y: 70, icon: '⚔️', name: 'Aether Astral Outpost', sub: '300 HP Strategic Outpost', desc: 'Cyan faction capture point.' },
         { x: 50, y: 80, icon: '🛡️', name: 'Commander Valerius', sub: 'Vanguard Outpost Commander', desc: 'Directs frontline continental bounties.' },
         { x: 50, y: 8, icon: '▲', name: 'Ascent Mountain Colonnade', sub: 'To Celestial Titan Summit [North]', desc: 'Walk North through the Ascent Gate.' },
-        { x: 50, y: 92, icon: '▼', name: 'Torment Boundary Gate', sub: 'To Forgotten Ruins [South]', desc: 'Walk South back to Forgotten Ruins.' }
+        { x: 50, y: 92, icon: '▼', name: 'Continental Boundary Gate', sub: 'To Forgotten Ruins [South]', desc: 'Walk South back to Forgotten Ruins.' }
       ],
       entities: [
-        { name: 'Torment Void Fiends', type: 'Torment Mob', hp: '340 – 420 HP', desc: 'Vicious stalkers dealing 24-28 damage.' },
+        { name: 'Caldera Void Fiends', type: 'Caldera Mob', hp: '340 – 420 HP', desc: 'Vicious stalkers dealing 24-28 damage.' },
         { name: 'Continental Faction Bosses', type: 'World Bosses', hp: '1150 – 1250 HP', desc: 'Elite warlords casting faction apex abilities.' },
         { name: '4 Outpost Nexuses', type: 'Strategic Outposts', hp: '300 HP each', desc: 'Capture points for Solari, Umbri, Terra, and Aether.' },
         { name: 'Shattered Nexus Shard', type: 'Siege Objective', hp: '850 HP', desc: '30-minute continental siege shard granting +250 XP.' },
@@ -2502,9 +2501,13 @@ export function initGame() {
 
   function applyProfile(prof) {
     if (!prof) return;
-    const faction = prof.faction || localProfile.faction || 'Solari';
-    const targetClassId = prof.classId || (faction === 'Umbri' ? 'umbral_assassin' : faction === 'Terra' ? 'forest_warden' : faction === 'Aether' ? 'chronomancer_sage' : 'solari_vanguard');
-    const cls = CLASSES_CATALOG[targetClassId] || (Object.values(CLASSES_CATALOG).find((c) => c.faction === faction) || CLASSES_CATALOG.solari_vanguard);
+    const resolved = resolveFactionAndClass({
+      faction: prof.faction,
+      classId: prof.classId,
+      loadout: prof.loadout || localProfile.loadout,
+      orderTag: prof.orderTag || localProfile.orderTag,
+    });
+    const cls = CLASSES_CATALOG[resolved.classId] || CLASSES_CATALOG.solari_vanguard;
     const pId = prof.activeCharacterId || prof.id || 'default';
     let resolvedBank = Array.isArray(prof.bank) ? [...prof.bank] : (localProfile.bank || []);
     if ((!resolvedBank || resolvedBank.length === 0) && typeof localStorage !== 'undefined') {
@@ -2535,8 +2538,8 @@ export function initGame() {
     localProfile = {
       ...localProfile,
       ...prof,
-      faction: prof.faction || cls.faction || faction,
-      classId: cls.id,
+      faction: resolved.faction,
+      classId: resolved.classId,
       loadout: { ...cls.defaultLoadout, ...(prof.loadout || {}) },
       equipment: { ...cls.defaultEquipment, ...(prof.equipment || {}) },
       inventory: Array.isArray(prof.inventory) ? prof.inventory : (localProfile.inventory || []),
@@ -3581,28 +3584,6 @@ export function initGame() {
     renderStatsModal();
   };
 
-  window.setTormentLevel = function (level) {
-    const tLevel = Math.max(0, Math.min(TORMENT_LEVELS.length - 1, Math.floor(Number(level) || 0)));
-    if (tLevel > 0 && (prog.level || 1) < 30) {
-      logMessage('⚠️ Leyline Torment difficulty requires Level 30 Champion status!', 'log-combat');
-      audio.playWarning?.() || audio.playHit(false);
-      return;
-    }
-    prog.tormentLevel = tLevel;
-    const tCfg = getTormentConfig(tLevel);
-    saveProgressionLocal();
-    updateNetStatusPill();
-    renderStatsModal();
-    audio.playChime();
-    spawnSparkBurst(player.x, player.y - 10, [tCfg.color, '#facc15', '#ffffff'], 20);
-    spawnFCT(player.x, player.y - 14, `🔥 TORMENT: ${tCfg.name.toUpperCase()}`, tCfg.color, true);
-    logMessage(`[Torment] Realm difficulty set to ${tCfg.name}! ${tCfg.desc}`, 'log-solari');
-
-    if (net.connected) {
-      net.send({ type: 'set_torment', tormentLevel: tLevel });
-    }
-  };
-
   window.upgradeSkillRank = function (slot) {
     const s = Number(slot);
     if (prog.skillPoints <= 0 || !(s in prog.ranks)) return;
@@ -4002,7 +3983,7 @@ export function initGame() {
         { type: 'brazier', x: 70, y: -140 },
         { type: 'pillar', x: -160, y: -90 },
         { type: 'pillar', x: 160, y: -90 },
-        // Grand North Waygate to Continental Caldera Torment Realm
+        // Grand North Waygate to Continental Caldera Realm
         { type: 'ruinedArch', x: 0, y: -380 },
         { type: 'crystalPillar', x: -80, y: -380 },
         { type: 'crystalPillar', x: 80, y: -380 },
@@ -4549,20 +4530,20 @@ export function initGame() {
       player.y = 1740;
       entities.push(
         // Vanguard Colossus Training Post
-        { id: 'val_dummy', name: 'Vanguard Colossus Post', sub: 'Lv.30 Torment Target Post', type: 'dummy', spriteKey: 'dummy', x: 60, y: 1440, origX: 60, origY: 1440, hp: 600, maxHp: 600, xpReward: 200, radius: 16, hitFlash: 0 },
-        // 4 Continental Faction Outposts (Late-Game Torment: 300 HP)
-        { id: 'outpost_Terra', faction: 'Terra', name: 'Terra Forest Outpost Nexus', sub: '300 HP Terra Outpost Nexus [Torment]', type: 'outpost_nexus', spriteKey: 'nexusGreen', x: -850, y: -650, origX: -850, origY: -650, hp: 300, maxHp: 300, xpReward: 1200, radius: 24, hitFlash: 0 },
-        { id: 'outpost_Umbri', faction: 'Umbri', name: 'Umbri Shadow Outpost Nexus', sub: '300 HP Umbri Outpost Nexus [Torment]', type: 'outpost_nexus', spriteKey: 'nexusPurple', x: 850, y: -650, origX: 850, origY: -650, hp: 300, maxHp: 300, xpReward: 1200, radius: 24, hitFlash: 0 },
-        { id: 'outpost_Solari', faction: 'Solari', name: 'Solari Radiant Outpost Nexus', sub: '300 HP Solari Outpost Nexus [Torment]', type: 'outpost_nexus', spriteKey: 'nexusGold', x: -850, y: 650, origX: -850, origY: 650, hp: 300, maxHp: 300, xpReward: 1200, radius: 24, hitFlash: 0 },
-        { id: 'outpost_Aether', faction: 'Aether', name: 'Aether Astral Outpost Nexus', sub: '300 HP Aether Outpost Nexus [Torment]', type: 'outpost_nexus', spriteKey: 'nexusCyan', x: 850, y: 650, origX: 850, origY: 650, hp: 300, maxHp: 300, xpReward: 1200, radius: 24, hitFlash: 0 },
-        // Shattered Nexus Shard (Torment Core)
-        { id: 'siege_shard', name: 'Shattered Nexus Shard', sub: '⚡ Continental Nexus Core (Torment PvPvE)', type: 'siege_shard', isBoss: true, spriteKey: 'siegeShard', x: 0, y: 0, origX: 0, origY: 0, hp: 850, maxHp: 850, xpReward: 2500, radius: 24, hitFlash: 0 },
+        { id: 'val_dummy', name: 'Vanguard Colossus Post', sub: 'Lv.30 Target Post', type: 'dummy', spriteKey: 'dummy', x: 60, y: 1440, origX: 60, origY: 1440, hp: 600, maxHp: 600, xpReward: 200, radius: 16, hitFlash: 0 },
+        // 4 Continental Faction Outposts
+        { id: 'outpost_Terra', faction: 'Terra', name: 'Terra Forest Outpost Nexus', sub: '300 HP Terra Outpost Nexus [Continental]', type: 'outpost_nexus', spriteKey: 'nexusGreen', x: -850, y: -650, origX: -850, origY: -650, hp: 300, maxHp: 300, xpReward: 1200, radius: 24, hitFlash: 0 },
+        { id: 'outpost_Umbri', faction: 'Umbri', name: 'Umbri Shadow Outpost Nexus', sub: '300 HP Umbri Outpost Nexus [Continental]', type: 'outpost_nexus', spriteKey: 'nexusPurple', x: 850, y: -650, origX: 850, origY: -650, hp: 300, maxHp: 300, xpReward: 1200, radius: 24, hitFlash: 0 },
+        { id: 'outpost_Solari', faction: 'Solari', name: 'Solari Radiant Outpost Nexus', sub: '300 HP Solari Outpost Nexus [Continental]', type: 'outpost_nexus', spriteKey: 'nexusGold', x: -850, y: 650, origX: -850, origY: 650, hp: 300, maxHp: 300, xpReward: 1200, radius: 24, hitFlash: 0 },
+        { id: 'outpost_Aether', faction: 'Aether', name: 'Aether Astral Outpost Nexus', sub: '300 HP Aether Outpost Nexus [Continental]', type: 'outpost_nexus', spriteKey: 'nexusCyan', x: 850, y: 650, origX: 850, origY: 650, hp: 300, maxHp: 300, xpReward: 1200, radius: 24, hitFlash: 0 },
+        // Shattered Nexus Shard
+        { id: 'siege_shard', name: 'Shattered Nexus Shard', sub: '⚡ Continental Nexus Core (PvPvE)', type: 'siege_shard', isBoss: true, spriteKey: 'siegeShard', x: 0, y: 0, origX: 0, origY: 0, hp: 850, maxHp: 850, xpReward: 2500, radius: 24, hitFlash: 0 },
         // 4 Ancient Leyline Shrines [E]
         { id: 'shrine_solari', name: 'Solari Radiant Shrine', sub: 'Ancient Leyline [E] • Radiant Wrath', type: 'shrine', affinity: 'solari', buffName: 'Solar Wrath', x: -550, y: 550, origX: -550, origY: 550, charges: 5, maxCharges: 5, radius: 20, hitFlash: 0 },
         { id: 'shrine_umbri', name: 'Umbri Void Obelisk', sub: 'Ancient Leyline [E] • Void Leech', type: 'shrine', affinity: 'umbri', buffName: 'Void Step', x: 550, y: -550, origX: 550, origY: -550, charges: 5, maxCharges: 5, radius: 20, hitFlash: 0 },
         { id: 'shrine_terra', name: 'Terra Bastion Monolith', sub: 'Ancient Leyline [E] • Primal Bastion', type: 'shrine', affinity: 'terra', buffName: 'Stone Ward', x: -550, y: -550, origX: -550, origY: -550, charges: 5, maxCharges: 5, radius: 20, hitFlash: 0 },
         { id: 'shrine_aether', name: 'Aether Chrono Spire', sub: 'Ancient Leyline [E] • Chrono Surge', type: 'shrine', affinity: 'aether', buffName: 'Chrono Surge', x: 550, y: 550, origX: 550, origY: 550, charges: 5, maxCharges: 5, radius: 20, hitFlash: 0 },
-        // 4 Grand World Bosses (Late-Game Torment: 10x Stats)
+        // 4 Grand World Bosses
         { id: 'terra_world_boss', name: 'Elder Ironwood Colossus', sub: '★ Lv.32 Terra Continent World Boss', type: 'mob', isBoss: true, dropGear: 'ironwood_armor', spriteKey: 'graniteBoss', x: -950, y: -850, origX: -950, origY: -850, hp: 1250, maxHp: 1250, damage: 42, xpReward: 2600, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         { id: 'umbri_world_boss', name: 'Malakor the Soulreaper', sub: '★ Lv.32 Umbri Continent World Boss', type: 'mob', isBoss: true, dropGear: 'scythe_soulreaper', spriteKey: 'umbriBoss', x: 950, y: -850, origX: 950, origY: -850, hp: 1150, maxHp: 1150, damage: 46, xpReward: 2600, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
         { id: 'solari_world_boss', name: 'High Sunfire Juggernaut', sub: '★ Lv.32 Solari Continent World Boss', type: 'mob', isBoss: true, dropGear: 'sunfire_greatsword', spriteKey: 'solariBoss', x: -950, y: 850, origX: -950, origY: 850, hp: 1250, maxHp: 1250, damage: 44, xpReward: 2600, speed: 39, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
@@ -4577,7 +4558,7 @@ export function initGame() {
         { id: 'node_umbri', name: 'Sepulcher Shadow Spire', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 1100, y: -700, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
         { id: 'node_solari', name: 'Dawnfire Solar Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: -1100, y: 700, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
         { id: 'node_aether', name: 'Aether Resonance Crystal', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 1100, y: 700, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
-        // Whispering Mountain Pass Mobs (Late-Game Torment: 10x Stats)
+        // Whispering Mountain Pass Mobs
         { id: 'pass_mob_1', name: 'Granite Ridge Sentinel', sub: 'Lv.28 Mountain Golem', type: 'mob', spriteKey: 'graniteBoss', x: -60, y: 880, origX: -60, origY: 880, hp: 420, maxHp: 420, damage: 24, xpReward: 750, speed: 40, aggroRange: 110, attackRange: 30, radius: 18, hitFlash: 0 },
         { id: 'pass_mob_2', name: 'Whispering Pass Raider', sub: 'Lv.29 Highland Marauder', type: 'mob', spriteKey: 'voidStalker', x: 70, y: 640, origX: 70, origY: 640, hp: 380, maxHp: 380, damage: 26, xpReward: 800, speed: 52, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
         { id: 'pass_mob_3', name: 'High Crag Behemoth', sub: 'Lv.30 Ridge Colossus', type: 'mob', spriteKey: 'graniteBoss', x: -80, y: 460, origX: -80, origY: 460, hp: 540, maxHp: 540, damage: 32, xpReward: 1000, speed: 38, aggroRange: 120, attackRange: 32, radius: 20, hitFlash: 0 },
@@ -4610,7 +4591,7 @@ export function initGame() {
       return ` • <span style="color:#4ade80; font-weight:800;">[SANCTUARY]</span>`;
     }
     if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
-      return ` • <span style="color:#f97316; font-weight:800;">[TORMENT REALM]</span>`;
+      return ` • <span style="color:#f97316; font-weight:800;">[OPEN WARZONE]</span>`;
     }
     if (currentRoomType === ROOM_TYPES.CELESTIAL_ASCENT) {
       return ` • <span style="color:#facc15; font-weight:800;">[TITAN APEX]</span>`;
@@ -6919,7 +6900,15 @@ export function initGame() {
 
     const isFlashesTab = currentSkillTreeTab === 'flashes';
     const targetTree = isFlashesTab ? 'flashes' : 'rites';
-    const myFaction = localProfile.faction || 'Solari';
+    const resolved = resolveFactionAndClass({
+      faction: localProfile.faction,
+      classId: localProfile.classId,
+      loadout: localProfile.loadout,
+      orderTag: localProfile.orderTag,
+    });
+    localProfile.faction = resolved.faction;
+    localProfile.classId = resolved.classId;
+    const myFaction = resolved.faction;
     const sp = prog.skillPoints || 0;
 
     const spBadge = document.getElementById('sp-count-txt');
@@ -7262,36 +7251,6 @@ export function initGame() {
                   ${curRank >= aff.maxRank ? 'MAX' : '+INVEST'}
                 </button>
               </div>
-            `;
-          }).join('')}
-        </div>
-      </div>
-
-      <!-- Leyline Torment Difficulty Selection -->
-      <div style="background:#130b1c; border:2px solid #854d0e; padding:10px 12px; margin-top:8px; font-size:11px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <div>
-            <span style="color:#fbbf24; font-weight:bold; font-size:12px; font-family:var(--font-header);">🔥 LEYLINE TORMENT:</span>
-            <b style="color:${getTormentConfig(prog.tormentLevel || 0).color}; font-size:12px;">${getTormentConfig(prog.tormentLevel || 0).name}</b>
-          </div>
-          <div style="font-size:10.5px; font-weight:700;">
-            ${(prog.level || 1) >= 30 ? '<span style="color:#4ade80;">UNLOCKED</span>' : '<span style="color:#94a3b8;">REQUIRES LV. 30</span>'}
-          </div>
-        </div>
-        <div style="font-size:10px; color:#cbd5e1; margin-bottom:8px; line-height:1.4;">
-          ${getTormentConfig(prog.tormentLevel || 0).desc}
-        </div>
-        <div style="display:flex; gap:5px; flex-wrap:wrap;">
-          ${TORMENT_LEVELS.map((t) => {
-            const isCur = t.level === (prog.tormentLevel || 0);
-            const isUnlocked = t.level === 0 || (prog.level || 1) >= 30;
-            return `
-              <button class="upgrade-btn ${isCur ? 'ready' : ''}"
-                style="padding:5px 9px; font-size:10.5px; border-color:${t.color}; color:${isCur ? '#05070f' : t.color}; background:${isCur ? t.color : '#0f172a'};"
-                ${isUnlocked ? '' : 'disabled'}
-                onclick="setTormentLevel(${t.level})">
-                ${t.name}
-              </button>
             `;
           }).join('')}
         </div>
@@ -9458,7 +9417,7 @@ export function initGame() {
       const sub = getOpenWorldSubRegion(player.x, player.y);
       const zoneTitle = document.getElementById('minimap-zone-title');
       const zoneLabel = document.getElementById('zone-label');
-      if (zoneTitle) zoneTitle.innerText = `TORMENT REALM • ${sub}`;
+      if (zoneTitle) zoneTitle.innerText = `CONTINENTAL CALDERA • ${sub}`;
       if (zoneLabel) zoneLabel.innerText = sub;
     }
 

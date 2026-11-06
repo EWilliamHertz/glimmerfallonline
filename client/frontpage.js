@@ -448,9 +448,10 @@ export class FrontpageController {
       return;
     }
     try {
-      const targetFaction = this.creationDraft?.faction || 'Solari';
-      const targetClassId = this.creationDraft?.classId || (targetFaction === 'Umbri' ? 'umbral_assassin' : targetFaction === 'Terra' ? 'forest_warden' : targetFaction === 'Aether' ? 'chronomancer_sage' : 'solari_vanguard');
-      const targetTag = this.creationDraft?.orderTag || (targetFaction === 'Umbri' ? 'VOID' : targetFaction === 'Terra' ? 'ROOT' : targetFaction === 'Aether' ? 'AETH' : 'SUN');
+      const selected = this.getSelectedCharacter();
+      const targetFaction = this.creationDraft?.faction || selected?.faction || 'Solari';
+      const targetClassId = this.creationDraft?.classId || selected?.classId || (targetFaction === 'Umbri' ? 'umbral_assassin' : targetFaction === 'Terra' ? 'forest_warden' : targetFaction === 'Aether' ? 'chronomancer_sage' : 'solari_vanguard');
+      const targetTag = this.creationDraft?.orderTag || selected?.orderTag || (targetFaction === 'Umbri' ? 'VOID' : targetFaction === 'Terra' ? 'ROOT' : targetFaction === 'Aether' ? 'AETH' : 'SUN');
       const prof = mode === 'login'
         ? await this.net.login({ username: u, password: p })
         : await this.net.register({

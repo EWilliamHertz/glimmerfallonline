@@ -86,6 +86,48 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
 - [x] Biome-specific monster and world boss equipment drops (Solari, Terra, Aether, Umbri, Warzone).
 - [x] Authoritative server & offline single-player drop roll, ground loot rendering, pickup detection, and full inventory guardrails.
 
+#### Day 1D — Diablo 2 Skill Tree Architecture, 8 Faction Archetypes, Rites vs Flashes & Manual Progression *(COMPLETED)*
+- [x] **Diablo 2 Spellbook & Skill Tree Modal (`[P]`)**:
+  - Authored a dedicated full-screen Skill Tree UI (`renderSkillTreeUI`) inspired by classic Diablo 2 skill trees with authentic gold borders, dark slate parchment, and tiered progression.
+  - Divided into 3 active sub-views: **⚡ FLASH SPELLS**, **☀️ RITE SPELLS**, and **⌨️ KEYBINDS / ACTION SLOTS**.
+  - Dynamic skill tree filtering automatically aligns to the champion's canonical faction (`Solari`, `Umbri`, `Terra`, `Aether`) based on equipped loadout and faction identity.
+- [x] **7 Progression Tiers & Prerequisite Trees**:
+  - **Tier 1 (Novice — Lv. 1)**: Starter basic attacks and baseline utility.
+  - **Tier 2 (Initiate — Lv. 3)**: Secondary tactical abilities.
+  - **Tier 3 (Adept — Lv. 6)**: Advanced area and crowd-control spells.
+  - **Tier 4 (Vanguard — Lv. 12)**: Signature offensive and defensive spikes.
+  - **Tier 5 (Master — Lv. 18)**: High-tier tactical and healing rites.
+  - **Tier 6 (Champion — Lv. 24)**: Elite mobility, crowd-control, and execution tools.
+  - **Tier 7 (Apex Ultimate — Lv. 30)**: Mythic screen-clearing ultimates (*Corona Cataclysm*, *Daystar*, *Unmake*, *Time Loop Paradox*).
+  - Explicit prerequisite gates (`ab.prereq`): Higher-tier abilities strictly require investing at least Rank 1 into their precursor skills before unlocking.
+- [x] **Rites (Heavy Cast-Time Spells) vs Flashes (Instant Off-GCD Abilities)**:
+  - **Rites (Slots 1–4)**: High-impact canonical abilities with authentic cast times (0.6s to 1.8s), visible casting bar HUD, movement cancel penalties, and massive damage or area healing.
+  - **Flashes (Slots 9–12)**: Instant (0.0s cast time) off-GCD abilities designed for high-tempo mobility (Blinks, Shadow Steps), stuns, shields, interrupts, and life-drains.
+- [x] **8 Canonical Playable Archetypes Across 4 Factions**:
+  - **☀️ Solari (The Light)**:
+    * *Solari Vanguard*: Radiant Frontliner • Guard & Zenith (*Flare Strike*, *Solar Flare*, *Judgement of the Sun*, *Consecrated Ground*, *Radiant Bulwark*).
+    * *Aurora Marshal*: Celestial Commander • Nexus Healer (*Flare Strike*, *Solar Flare*, *Decree of the Sun*, *Daybreak*, *Wrath of the Daystar*).
+  - **🌑 Umbri (The Shadow)**:
+    * *Umbral Assassin*: Stealth Executioner • Void Harvest (*Whisper of the Void*, *Unmake*, *Soul Tithe*, *Nightfall Plague*, *Shadow Step*).
+    * *Graveglass Oracle*: Blood-Hex Reaper • Life Drain (*Whisper of the Void*, *Siphon Soul*, *Soul Tithe*, *Graveglass Ward*, *Veil of Dusk*).
+  - **🌿 Terra (The Earth)**:
+    * *Forest Warden*: Primal Bruiser • Overwhelm & Roots (*Tectonic Slam*, *Earthshatter*, *Ancient Boulder*, *Briar Snare*, *Wildshape Surge*).
+    * *Stonekin Elder*: Colossal Tank • Thornbark Reflect (*Tectonic Slam*, *Ancient Boulder*, *Barkskin Infusion*, *Overwhelm Roar*).
+  - **🔮 Aether (The Magic)**:
+    * *Chronomancer Sage*: Time-Bender • Flash Tempo & Echo (*Reality Fracture*, *Astral Convergence*, *Arcane Bolt*, *Gravity Well*, *Chrono Shift*).
+    * *Nexus Weaver*: Arcane Battlemage • Starfall & Freeze (*Reality Fracture*, *Arcane Bolt*, *Astral Convergence*, *Frost Nova*, *Mirror Barrier*).
+- [x] **Manual Progression & Level-Up Dopamine**:
+  - Defeating monsters awards character XP. Leveling up grants **+3 Stat Points** and **+1 Skill Point** per level.
+  - Slaying monsters and clicking `[+]` upgrades abilities from Rank 1 to 5, granting bonus damage (`+3/rank`), cooldown reduction (`-0.35s/rank`), and increased shield/heal magnitudes.
+  - Level-up fanfare: Gold sparks, screen chime, and floating combat text celebrating champion empowerment.
+- [x] **Starter Rank 1 Auto-Unlock & Anti-Softlock Guarantee**:
+  - Guaranteed starter attacks (`flare_strike`, `whisper_of_the_void`, `tectonic_slam`, `reality_fracture`) default to minimum Rank 1 so champions can always cast their primary basic attack without being soft-locked.
+  - Implemented `resolveFactionAndClass` across database loading, WebSocket packets, and client profile synchronization—preventing characters from ever having mismatched factions or uncastable hotbars.
+- [x] **Dynamic Keybind & Action Slot Remapping**:
+  - Players can click any learned ability in the Spellbook or Keybinds tab to assign it to any unlocked action slot (Slots 1–4 or 9–12).
+  - Action bar badges dynamically update with ability names, keybinds, rank indicators, and cooldown overlays.
+  - Full server-authoritative validation preventing unlearned (Rank 0) abilities from executing.
+
 #### Day 2 — Multi-Phase Continental World Bosses
 - [ ] Add dynamic AoE telegraph rings (solar bursts, void pools, earth tremors) to the 4 Continental World Bosses.
 - [ ] Implement Phase 2 Enrage mechanics (<40% HP: +35% attack speed, summoning faction minions).
@@ -273,11 +315,79 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
 - [ ] Spectator mode: players in Sanctuary Hub can click a scrying pool to watch live tournament matches.
 - [ ] In-game trophy pedestals displaying the reigning Gladiator champions of the season.
 
-#### Day 30+ — Live Operations & Future Expansions
+#### Day 30 — Live Operations & Continuous World Evolution
 - [ ] Bi-weekly balance patches and community feedback integration.
-- [ ] New continental expansion lands: *The Frostveil Wastes* and *The Molten Caldera*.
 - [ ] Global Seasonal Events (Solstice of Dawn, Night of the Eclipse, Bloom of the World Tree).
-- [ ] Continual expansion of the GlimmerFall universe!
+- [ ] End-of-season title distribution and realm-wide statue inaugurations in Sanctuary Haven.
+
+---
+
+### Phase 5: Global Expansion & Persistent World Architecture (Days 31–45)
+
+#### Day 31 — Dynamic Day/Night Cycle & Biome Climate Shifts
+- [ ] 24-minute game world day/night cycle (18 minutes daylight, 6 minutes eclipse/nightfall).
+- [ ] Dynamic ambient lighting shifts: warm golden hues at dawn, deep twilight shadows during nightfall.
+- [ ] Nocturnal creature spawns: Umbri Void Stalkers gain +15% movement and stealth during nightfall, while Solari Vanguard gain +15% holy radiance during peak midday.
+
+#### Day 32 — Outpost Upgrade System & Tactical Warfare
+- [ ] Factions can invest harvested Glimmer and Ironwood into upgrading captured Outposts in Continental Caldera.
+- [ ] Tiered outpost upgrades:
+  * Tier 1: Wooden Palisade & Basic Guard Sentry.
+  * Tier 2: Stone Fortification & Faction Ballistas dealing defensive area damage.
+  * Tier 3: Bastion Citadel with automated Leyline Shield Generators and Outpost Healers.
+
+#### Day 33 — Multi-Floor Faction Dungeons & Keystone Affixes
+- [ ] Expand each faction's ancestral dungeon into a 3-floor labyrinth with escalating challenges:
+  * Solari: *Sunken Vault of the Daystar* (Boss: *Dawn Primarch Caelum*).
+  * Umbri: *Sepulcher of the Endless Night* (Boss: *Arch-Lich Vesper*).
+  * Terra: *The Hollow Heartwood* (Boss: *Yggdrasil Malform*).
+  * Aether: *The Chrono-Fracture Abyss* (Boss: *Singularity Prime*).
+- [ ] Dynamic dungeon affixes (Volcanic, Bolstering, Sanguine, Quaking, Inspiring).
+
+#### Day 34 — Order Hall Citadels & Player Guild Castles
+- [ ] High-ranking Guilds can claim abandoned ruins across the continent to establish their Order Citadel.
+- [ ] Custom guild banners, trophy pedestals displaying slain World Boss heads, and shared Guild Stash chests.
+- [ ] Guild-wide passive perks (e.g., +5% movement speed on roads, +10% vendor buy discounts).
+
+#### Day 35 — Canonical Mount System & Overland Traversal
+- [ ] Introduce pixel-art mounts for rapid foot travel across the 4800×3600 continental continent:
+  * Solari: *Starlight Charger* (Armored radiant steed).
+  * Umbri: *Voidfang Prowler* (Spectral shadow panther).
+  * Terra: *Ironwood Elk* (Massive antlered forest stag).
+  * Aether: *Chrono Drake* (Phase-shifting celestial drake).
+- [ ] Mount summoning cast time (1.5s), dismounted upon taking player combat damage.
+
+#### Day 36 — Cross-Faction Bounty Board & Renown Ranks
+- [ ] Sanctuary Haven bounty board issuing daily high-value targets across the continent.
+- [ ] 5 Faction Renown Ranks (Neutral, Recognized, Honored, Revered, Exalted) with exclusive cosmetic armor dyes and titles.
+
+#### Day 37 — Fishing, Archeology & Ancient Relic Excavation
+- [ ] Peaceful gathering sub-skills along continental rivers and ocean shores.
+- [ ] Excavate ancient First Nexus relic fragments that assemble into collectible artifacts for the Lore Codex.
+
+---
+
+### Phase 6: Canonical GlimmerFall TCG Physical/Digital Convergence (Days 46–60)
+
+#### Day 38 — In-World Sanctuary Tavern Card Tables
+- [ ] Place interactive pixel card tables inside the Sanctuary Hub Tavern.
+- [ ] Two players sitting across from each other can click the table to launch directly into an authentic 1v1 *GlimmerFall TCG* duel with their unlocked card decks.
+
+#### Day 39 — Sealed Booster Pack Cracking & Relic Card Drops
+- [ ] World Bosses and Mythic Dungeon chests drop sealed **Awakening Booster Packs**.
+- [ ] Interactive 16-bit pack-cracking UI where cards flip open with foil shimmer VFX, revealing their real card art, card number, and TCG rarity.
+- [ ] "View Card on GlimmerFallTCG.com ↗" instant link.
+
+#### Day 40 — Unified GlimmerFall ID & Cross-Game Promotional Rewards
+- [ ] Achievements unlocked in *GlimmerFall Online* award claimable promo codes for digital packs and starter deck discounts on `glimmerfalltcg.com`.
+- [ ] Physical TCG card pack redeem codes unlock matching pixel paperdoll skins, titles, and weapon glows in the MMO.
+
+#### Day 41 — Alternate-Art Pixel Card Skins & Foil Shimmer Shaders
+- [ ] Custom WebGL shader rendering real-time holographic rainbow foil reflection on cards examined in the Codex.
+- [ ] Collector binder UI displaying all 322 cards from *The Awakening* set with completion percentages.
+
+#### Day 42 — Continental World Championship Spectator Amphitheater
+- [ ] Dedicated spectator arena in the Aether Spire where players can watch high-ranked 3v3 Arena matches and seasonal TCG championship finals with live commentary chat.
 
 ---
 
