@@ -3716,8 +3716,8 @@ export class RoomManager {
     if (!room.loot) room.loot = [];
     const drops = [];
 
-    // Vital / Glimmer recovery orbs
-    const count = ent.isBoss ? 4 : Math.random() < 0.45 ? 1 : 0;
+    // Vital / Glimmer recovery orbs (cleaner battlefield with reduced clutter)
+    const count = ent.isBoss ? 2 : Math.random() < 0.20 ? 1 : 0;
     for (let i = 0; i < count; i++) {
       let kind = Math.random() < 0.5 ? 'vital' : 'glimmer';
       if (ent.isBoss && i === 0) kind = 'relic';
@@ -3728,29 +3728,31 @@ export class RoomManager {
     const goldQty = ent.isBoss ? (150 + Math.floor(Math.random() * 200)) : (8 + Math.floor(Math.random() * 25));
     drops.push({ kind: 'item', itemId: 'solar_gold', qty: goldQty });
 
-    // 2. Faction elemental currency
-    const rType = String(room?.type || '').toLowerCase();
-    let factionCurr = 'glimmer_shard';
-    let factionCurrQty = ent.isBoss ? 15 + Math.floor(Math.random() * 20) : 1 + Math.floor(Math.random() * 3);
-    if (rType.includes('aether')) factionCurr = 'chrono_gem';
-    else if (rType.includes('terra')) factionCurr = 'verdant_amber';
-    else if (rType.includes('umbri')) factionCurr = 'void_essence';
-    drops.push({ kind: 'item', itemId: factionCurr, qty: factionCurrQty });
+    // 2. Faction elemental currency (40% mob chance or 100% boss to reduce ground item spam)
+    if (ent.isBoss || Math.random() < 0.40) {
+      const rType = String(room?.type || '').toLowerCase();
+      let factionCurr = 'glimmer_shard';
+      let factionCurrQty = ent.isBoss ? 15 + Math.floor(Math.random() * 20) : 1 + Math.floor(Math.random() * 2);
+      if (rType.includes('aether')) factionCurr = 'chrono_gem';
+      else if (rType.includes('terra')) factionCurr = 'verdant_amber';
+      else if (rType.includes('umbri')) factionCurr = 'void_essence';
+      drops.push({ kind: 'item', itemId: factionCurr, qty: factionCurrQty });
+    }
 
-    // 3. Consumables (healing salves / glimmer draughts)
-    if (ent.isBoss || Math.random() < 0.25) {
+    // 3. Consumables (healing salves / glimmer draughts - 12% on mobs, 100% on boss)
+    if (ent.isBoss || Math.random() < 0.12) {
       const potId = Math.random() < 0.5 ? 'minor_healing_salve' : 'glimmer_draught';
       drops.push({ kind: 'item', itemId: potId, qty: ent.isBoss ? 2 : 1 });
     }
 
     // 4. Equipment Drops:
-    // User rule: set pieces drop ONLY on faction bosses (rare 15%), non-bosses get beginner gear (10%)
+    // Set pieces drop ONLY on faction bosses (15%), non-bosses get beginner gear (6%)
     if (ent.isBoss) {
       const isRareSet = Math.random() < 0.15;
       const dropId = isRareSet ? this.getFactionBossSetDrop(room, ent) : this.getBossAccessoryDrop(room, ent);
       if (dropId) drops.push({ kind: 'item', itemId: dropId, qty: 1 });
     } else {
-      if (Math.random() < 0.10) {
+      if (Math.random() < 0.06) {
         const dropId = this.getBeginnerMobDrop(room);
         if (dropId) drops.push({ kind: 'item', itemId: dropId, qty: 1 });
       }

@@ -185,7 +185,45 @@ export class FrontpageController {
     if (this.playMode === 'singleplayer') {
       return this.getSinglePlayerRoster();
     }
-    return this.net?.profile?.characters || [];
+    const mpChars = this.net?.profile?.characters;
+    if (Array.isArray(mpChars) && mpChars.length > 0) {
+      return mpChars;
+    }
+    // Fallback: If multiplayer profile is loaded or has an active character/profile, synthesize entry so buttons are NEVER disabled
+    if (this.net?.profile) {
+      const p = this.net.profile;
+      return [{
+        id: p.activeCharacterId || p.id || 'mp_char_default',
+        name: p.displayName || p.username || 'Realm Champion',
+        faction: p.faction || 'Solari',
+        classId: p.classId || 'solari_vanguard',
+        orderTag: p.orderTag || 'SUN',
+        equipment: p.equipment || {},
+        loadout: p.loadout || {},
+        inventory: p.inventory || [],
+        bank: p.bank || [],
+        progression: p.progression || createDefaultProgression(),
+        homeBiome: ROOM_TYPES.SANCTUARY_HUB,
+      }];
+    }
+    // If still connecting, use cached local profile as placeholder so user is NEVER blocked with pointer-events:none
+    if (typeof window !== 'undefined' && window.localProfile) {
+      const lp = window.localProfile;
+      return [{
+        id: lp.id || 'mp_char_cached',
+        name: lp.displayName || 'Champion',
+        faction: lp.faction || 'Solari',
+        classId: lp.classId || 'solari_vanguard',
+        orderTag: lp.orderTag || 'SUN',
+        equipment: lp.equipment || {},
+        loadout: lp.loadout || {},
+        inventory: lp.inventory || [],
+        bank: lp.bank || [],
+        progression: createDefaultProgression(),
+        homeBiome: ROOM_TYPES.SANCTUARY_HUB,
+      }];
+    }
+    return [];
   }
 
   getSelectedCharacter() {
@@ -331,25 +369,48 @@ export class FrontpageController {
 
     // === MULTIPLAYER (ONLINE REALM) ===
     let updatedProfile = this.net?.profile;
-    try {
-      // Pure selection payload: ONLY characterId and enterRealm, NO classId/faction/name overrides!
-      const res = await this.net.saveOrSelectCharacter({
+    // Dispatch character selection without locking the UI:
+    if (this.net?.connected) {
+      // Use lightning-fast WebSocket RPC to authoritative server
+      this.net.wsRpc('save_character', {
         characterId: chosenChar.id,
         enterRealm: chosenChar.homeBiome || ROOM_TYPES.SANCTUARY_HUB,
+      }, 1500).then((res) => {
+        if (res?.profile) {
+          this.net.profile = res.profile;
+          if (typeof window !== 'undefined' && window.applyProfile) {
+            window.applyProfile(res.profile);
+          }
+        }
+      }).catch((err) => {
+        console.warn('[Frontpage] wsRpc character selection warning:', err?.message || err);
       });
-      updatedProfile = res.profile || updatedProfile;
-    } catch (err) {
-      console.warn('[Frontpage] Error selecting online character, continuing with cached profile:', err);
+    } else {
+      // Trigger background character sync / connect
+      this.net?.saveOrSelectCharacter({
+        characterId: chosenChar.id,
+        enterRealm: chosenChar.homeBiome || ROOM_TYPES.SANCTUARY_HUB,
+      }).catch(() => {});
+      this.net?.connectWebSocket();
     }
 
-    if (this.net && !this.net.connected) {
-      this.net.connectWebSocket();
-    }
-
+    // Immediately close overlay and transition into realm - never trap the user
     this.close();
     if (this.onEnterWorld) {
       this.onEnterWorld({
-        profile: updatedProfile,
+        profile: updatedProfile || {
+          id: chosenChar.id,
+          displayName: chosenChar.name,
+          faction: chosenChar.faction,
+          classId: chosenChar.classId,
+          orderTag: chosenChar.orderTag || 'SUN',
+          loadout: chosenChar.loadout,
+          equipment: chosenChar.equipment,
+          inventory: chosenChar.inventory || [],
+          bank: chosenChar.bank || [],
+          progression: chosenChar.progression || createDefaultProgression(),
+          activeCharacterId: chosenChar.id,
+        },
         startingRealm: chosenChar.homeBiome || ROOM_TYPES.SANCTUARY_HUB,
         playMode: 'multiplayer',
       });
@@ -481,6 +542,8 @@ export class FrontpageController {
     }
 
     // === MULTIPLAYER (ONLINE REALM) ===
+    this.creationError = '⏳ Forging champion on realm...';
+    this.render();
     try {
       const res = await this.net.saveOrSelectCharacter({
         name: charName,
@@ -531,6 +594,8 @@ export class FrontpageController {
       this.render();
       return;
     }
+    this.authMessage = mode === 'login' ? '⏳ Authenticating with realm...' : '⏳ Registering account on realm...';
+    this.render();
     try {
       const selected = this.getSelectedCharacter();
       const targetFaction = this.creationDraft?.faction || selected?.faction || 'Solari';
@@ -923,9 +988,9 @@ export class FrontpageController {
           <!-- "Select/Play" Button -->
           <div style="border-top:1px solid #1e293b; padding-top:12px; margin-top:8px;">
             <button class="fp-enter-btn"
-                    style="padding:14px; font-size:13px; font-weight:800; letter-spacing:0.8px; ${selectedChar ? '' : 'opacity:0.5; pointer-events:none;'}"
+                    style="padding:14px; font-size:13px; font-weight:800; letter-spacing:0.8px; cursor:pointer;"
                     onclick="window._fp.playSelectedCharacter()">
-              ${selectedChar ? `⚔️ SELECT & ENTER REALM (${selectedChar.name}) ▸` : '⚔️ SELECT CHAMPION ▸'}
+              ${selectedChar ? `⚔️ SELECT & ENTER REALM (${selectedChar.name}) ▸` : '⚔️ ENTER REALM ▸'}
             </button>
             <div style="font-size:9.5px; color:#94a3b8; text-align:center; margin-top:5px;">
               ${isSingle ? '⚡ Offline Engine • Local Execution • Zero Server Latency' : '🌐 Authoritative Realm • Co-Op &amp; PvPvE Multiplayer'}

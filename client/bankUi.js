@@ -55,9 +55,9 @@ export function saveBank(profile, bankItems) {
   profile.bank = bankItems;
   if (typeof window !== 'undefined') {
     try {
-      const cacheKey = 'glimmerfall_bank_cache_' + (profile.id || 'default');
+      const charId = profile.activeCharacterId || profile.id || 'default';
+      const cacheKey = `glimmerfall_bank_cache_${charId}`;
       localStorage.setItem(cacheKey, JSON.stringify(bankItems));
-      localStorage.setItem('glimmerfall_bank_latest', JSON.stringify(bankItems));
     } catch (_) {}
     if (typeof window.saveProgressionLocal === 'function') {
       window.saveProgressionLocal();

@@ -305,9 +305,23 @@ export class MultiplayerClient {
   }
 
   async apiCall(path, method = 'POST', body = null) {
+    const action = MultiplayerClient.WS_RPC_MAP[`${method} ${path}`];
+    // If WebSocket is already connected, try WS RPC first for supported actions (zero CORS overhead!)
+    if (action && this.ws && this.ws.readyState === 1) {
+      try {
+        const wsRes = await this.wsRpc(action, body || {}, 3500);
+        if (wsRes && wsRes.ok) return wsRes;
+      } catch (wsErr) {
+        console.warn('[Network] wsRpc failed, attempting HTTP fallback:', wsErr?.message || wsErr);
+      }
+    }
+
     const base = this.getServerBase();
-    const doFetch = (url) =>
-      fetch(url, {
+    const doFetch = (url, timeoutMs = 3500) => {
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+      return fetch(url, {
+        signal: ctrl ? ctrl.signal : undefined,
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -315,7 +329,10 @@ export class MultiplayerClient {
           ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
         },
         body: body ? JSON.stringify(body) : undefined,
+      }).finally(() => {
+        if (timer) clearTimeout(timer);
       });
+    };
 
     let res;
     try {
@@ -330,9 +347,8 @@ export class MultiplayerClient {
         }
       }
       if (!res) {
-        const action = MultiplayerClient.WS_RPC_MAP[`${method} ${path}`];
         if (action && this.ws && this.ws.readyState === 1) {
-          const data = await this.wsRpc(action, body || {});
+          const data = await this.wsRpc(action, body || {}, 4000);
           if (!data.ok) throw new Error(data.error || 'Server request failed');
           return data;
         }
@@ -341,9 +357,8 @@ export class MultiplayerClient {
     }
 
     if (res.status === 404 && this.ws && this.ws.readyState === 1) {
-      const action = MultiplayerClient.WS_RPC_MAP[`${method} ${path}`];
       if (action) {
-        const data = await this.wsRpc(action, body || {});
+        const data = await this.wsRpc(action, body || {}, 4000);
         if (!data.ok) throw new Error(data.error || 'Server request failed');
         return data;
       }

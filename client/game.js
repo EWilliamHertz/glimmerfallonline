@@ -371,14 +371,7 @@ export function initGame() {
     orderName: 'Order of Dawn',
     orderColor: '#facc15',
     statsMeta: { kills: 0, arenaWins: 0 },
-    bank: (() => {
-      try {
-        const raw = localStorage.getItem('glimmerfall_bank_latest');
-        return raw ? JSON.parse(raw) : [];
-      } catch (_) {
-        return [];
-      }
-    })(),
+    bank: [],
   };
   window.localProfile = localProfile;
 
@@ -386,9 +379,9 @@ export function initGame() {
     try {
       localStorage.setItem('glimmerfall_prog_v2', JSON.stringify(prog));
       if (localProfile?.bank) {
-        localStorage.setItem('glimmerfall_bank_latest', JSON.stringify(localProfile.bank));
-        if (localProfile.id) {
-          localStorage.setItem(`glimmerfall_bank_cache_${localProfile.id}`, JSON.stringify(localProfile.bank));
+        const charKey = localProfile.activeCharacterId || localProfile.id;
+        if (charKey) {
+          localStorage.setItem(`glimmerfall_bank_cache_${charKey}`, JSON.stringify(localProfile.bank));
         }
       }
       if (isSinglePlayer && localProfile?.id) {
@@ -3151,29 +3144,20 @@ export function initGame() {
     });
     const cls = CLASSES_CATALOG[resolved.classId] || CLASSES_CATALOG.solari_vanguard;
     const pId = prof.activeCharacterId || prof.id || 'default';
-    let resolvedBank = Array.isArray(prof.bank) ? [...prof.bank] : (localProfile.bank || []);
-    if ((!resolvedBank || resolvedBank.length === 0) && typeof localStorage !== 'undefined') {
+    let resolvedBank = Array.isArray(prof.bank) ? [...prof.bank] : [];
+    if (resolvedBank.length === 0 && typeof localStorage !== 'undefined') {
       try {
-        const cached = localStorage.getItem(`glimmerfall_bank_cache_${pId}`) || localStorage.getItem('glimmerfall_bank_latest');
+        const cached = localStorage.getItem(`glimmerfall_bank_cache_${pId}`);
         if (cached) {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed) && parsed.length > 0) {
             resolvedBank = parsed;
-            if (window.net?.connected) {
-              window.net.send({
-                type: 'sync_bank',
-                bank: resolvedBank,
-                inventory: Array.isArray(prof.inventory) ? prof.inventory : (localProfile.inventory || []),
-                equipment: prof.equipment || localProfile.equipment || {},
-              });
-            }
           }
         }
       } catch (_) {}
-    } else if (resolvedBank && resolvedBank.length > 0 && typeof localStorage !== 'undefined') {
+    } else if (resolvedBank.length > 0 && typeof localStorage !== 'undefined') {
       try {
         localStorage.setItem(`glimmerfall_bank_cache_${pId}`, JSON.stringify(resolvedBank));
-        localStorage.setItem('glimmerfall_bank_latest', JSON.stringify(resolvedBank));
       } catch (_) {}
     }
 
@@ -6850,7 +6834,7 @@ export function initGame() {
 
   function spawnOfflineLoot(ent) {
     const pendingDrops = [];
-    const count = ent.isBoss ? 4 : Math.random() < 0.45 ? 1 : 0;
+    const count = ent.isBoss ? 2 : Math.random() < 0.20 ? 1 : 0;
     for (let i = 0; i < count; i++) {
       let kind = Math.random() < 0.5 ? 'vital' : 'glimmer';
       if (ent.isBoss && i === 0) kind = 'relic';
@@ -6861,23 +6845,25 @@ export function initGame() {
     const goldQty = ent.isBoss ? (150 + Math.floor(Math.random() * 200)) : (8 + Math.floor(Math.random() * 25));
     pendingDrops.push({ kind: 'item', itemId: 'solar_gold', qty: goldQty });
 
-    // 2. Faction elemental currency
-    const rType = String(currentRoomType || '').toLowerCase();
-    let factionCurr = 'glimmer_shard';
-    let factionCurrQty = ent.isBoss ? 15 + Math.floor(Math.random() * 20) : 1 + Math.floor(Math.random() * 3);
-    if (rType.includes('aether')) factionCurr = 'chrono_gem';
-    else if (rType.includes('terra')) factionCurr = 'verdant_amber';
-    else if (rType.includes('umbri')) factionCurr = 'void_essence';
-    pendingDrops.push({ kind: 'item', itemId: factionCurr, qty: factionCurrQty });
+    // 2. Faction elemental currency (40% mob chance or 100% boss to reduce ground item spam)
+    if (ent.isBoss || Math.random() < 0.40) {
+      const rType = String(currentRoomType || '').toLowerCase();
+      let factionCurr = 'glimmer_shard';
+      let factionCurrQty = ent.isBoss ? 15 + Math.floor(Math.random() * 20) : 1 + Math.floor(Math.random() * 2);
+      if (rType.includes('aether')) factionCurr = 'chrono_gem';
+      else if (rType.includes('terra')) factionCurr = 'verdant_amber';
+      else if (rType.includes('umbri')) factionCurr = 'void_essence';
+      pendingDrops.push({ kind: 'item', itemId: factionCurr, qty: factionCurrQty });
+    }
 
-    // 3. Consumables (healing salves / glimmer draughts)
-    if (ent.isBoss || Math.random() < 0.25) {
+    // 3. Consumables (healing salves / glimmer draughts - 12% on mobs, 100% on boss)
+    if (ent.isBoss || Math.random() < 0.12) {
       const potId = Math.random() < 0.5 ? 'minor_healing_salve' : 'glimmer_draught';
       pendingDrops.push({ kind: 'item', itemId: potId, qty: ent.isBoss ? 2 : 1 });
     }
 
     // 4. Equipment Drops:
-    // User rule: set pieces drop ONLY on faction bosses (rare 15%), non-bosses get beginner gear (10%)
+    // Set pieces drop ONLY on faction bosses (15%), non-bosses get beginner gear (6%)
     if (ent.isBoss) {
       const isRareSet = Math.random() < 0.15;
       const dropId = isRareSet ? getFactionBossSetDrop(ent, currentRoomType) : getBossAccessoryDrop(ent, currentRoomType);
@@ -6885,7 +6871,7 @@ export function initGame() {
         pendingDrops.push({ kind: 'item', itemId: dropId, qty: 1, ttl: 60 });
       }
     } else {
-      if (Math.random() < 0.10) {
+      if (Math.random() < 0.06) {
         const dropId = getBeginnerMobDrop(currentRoomType);
         if (dropId) {
           pendingDrops.push({ kind: 'item', itemId: dropId, qty: 1, ttl: 35 });
@@ -7012,12 +6998,11 @@ export function initGame() {
   function drawLootShard(l, sx, sy) {
     const st = LOOT_STYLE[l.kind] || LOOT_STYLE.glimmer;
     const age = l.age ?? (28 - l.ttl);
-    // pop-out arc on spawn
+    // pop-out arc on spawn (rests stationary on ground without bouncing)
     const pop = age < 0.6 ? Math.sin((age / 0.6) * Math.PI) * 9 : 0;
-    const bob = Math.round(Math.sin(globalTime * 4 + (l.x + l.y) * 0.05) * 1.5);
     const blink = l.ttl < 6 && Math.floor(globalTime * 8) % 2 === 0;
     if (blink) return;
-    const cy = sy - 6 - Math.round(pop) + bob;
+    const cy = sy - 6 - Math.round(pop);
     drawPixelEllipseShadow(sx, sy, 4, 2);
     // 7px pixel diamond
     ctx.fillStyle = '#05070f';

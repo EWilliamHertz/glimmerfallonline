@@ -584,6 +584,7 @@ export class AccountsStore {
         loadout: normalizeLoadout(acc.loadout, acc.classId),
         equipment: normalizeEquipment(acc.equipment, acc.classId),
         inventory: normalizeInventory(acc.inventory || getDefaultStarterInventory(acc.classId)),
+        bank: normalizeBank(acc.bank || []),
         unlockedGear: Object.keys(EQUIPMENT_CATALOG),
         progression: acc.progression,
         questState: acc.questState || {},
@@ -694,7 +695,7 @@ export class AccountsStore {
       loadout: normalizeLoadout(loadout, norm.classId),
       equipment: normalizeEquipment(equipment, norm.classId),
       inventory: normalizeInventory(inventory || getDefaultStarterInventory(norm.classId)),
-      bank: normalizeBank(bank || acc.bank || []),
+      bank: normalizeBank(bank || []),
       questState: {},
       unlockedGear: Object.keys(EQUIPMENT_CATALOG),
       progression: createDefaultProgression(),
@@ -1244,16 +1245,15 @@ export class AccountsStore {
     const acc = this.accountsById.get(accountId);
     if (!acc) return;
     this.ensureDefaultCharacter(acc);
-    if (Array.isArray(bank)) acc.bank = normalizeBank(bank);
-    if (Array.isArray(inventory)) acc.inventory = normalizeInventory(inventory);
-    if (equipment && typeof equipment === 'object') acc.equipment = normalizeEquipment(equipment, acc.classId);
-
     const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
     if (ch) {
-      if (Array.isArray(bank)) ch.bank = acc.bank;
-      if (Array.isArray(inventory)) ch.inventory = acc.inventory;
-      if (equipment && typeof equipment === 'object') ch.equipment = acc.equipment;
+      if (Array.isArray(bank)) ch.bank = normalizeBank(bank);
+      if (Array.isArray(inventory)) ch.inventory = normalizeInventory(inventory);
+      if (equipment && typeof equipment === 'object') ch.equipment = normalizeEquipment(equipment, ch.classId);
     }
+    if (Array.isArray(bank)) acc.bank = ch ? ch.bank : normalizeBank(bank);
+    if (Array.isArray(inventory)) acc.inventory = ch ? ch.inventory : normalizeInventory(inventory);
+    if (equipment && typeof equipment === 'object') acc.equipment = ch ? ch.equipment : normalizeEquipment(equipment, acc.classId);
     this.schedulePersist(acc.id, ch?.id);
   }
 
@@ -1298,7 +1298,7 @@ export class AccountsStore {
       loadout: activeChar?.loadout || acc.loadout || {},
       equipment: activeChar?.equipment || acc.equipment || {},
       inventory: activeChar?.inventory || acc.inventory || [],
-      bank: activeChar?.bank || acc.bank || [],
+      bank: Array.isArray(activeChar?.bank) ? activeChar.bank : [],
       questState: activeChar?.questState || acc.questState || {},
       progression: activeChar?.progression || acc.progression || {},
       statsMeta: activeChar?.statsMeta || acc.statsMeta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
