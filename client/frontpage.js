@@ -95,19 +95,15 @@ export class FrontpageController {
     try {
       if (this.savedUsername && this.savedPassword) {
         let prof;
-        if (this.playMode === 'multiplayer') {
-          prof = await this.net.login({ username: this.savedUsername, password: this.savedPassword });
-        } else {
-          // Single player mode: authenticate cloud profile without persistent WS overhead
-          const data = await this.net.apiCall('/api/auth/login', 'POST', {
-            username: this.savedUsername,
-            password: this.savedPassword,
-          });
-          if (data?.token) this.net.saveStoredToken(data.token);
-          if (data?.profile) {
-            this.net.profile = data.profile;
-            prof = data.profile;
-          }
+        // Authenticate cloud profile via REST API first without persistent WS overhead
+        const data = await this.net.apiCall('/api/auth/login', 'POST', {
+          username: this.savedUsername,
+          password: this.savedPassword,
+        });
+        if (data?.token) this.net.saveStoredToken(data.token);
+        if (data?.profile) {
+          this.net.profile = data.profile;
+          prof = data.profile;
         }
         if (prof && !prof.isGuest) {
           this.authMessage = `✓ Welcome back, @${prof.username}!`;
@@ -116,13 +112,16 @@ export class FrontpageController {
           return true;
         }
       } else if (this.net.token) {
-        const prof = await this.net.bootstrapAndConnect();
-        if (prof && !prof.isGuest) {
-          this.authMessage = `✓ Welcome back, @${prof.username}!`;
-          this.syncFromProfile(prof);
-          if (this.isOpen) this.render();
-          return true;
-        }
+        try {
+          const data = await this.net.apiCall('/api/auth/me', 'GET');
+          if (data?.profile && !data.profile.isGuest) {
+            this.net.profile = data.profile;
+            this.authMessage = `✓ Welcome back, @${data.profile.username}!`;
+            this.syncFromProfile(data.profile);
+            if (this.isOpen) this.render();
+            return true;
+          }
+        } catch (_) {}
       }
     } catch (err) {
       console.warn('[Frontpage] Auto-login attempt failed:', err.message);
@@ -341,6 +340,10 @@ export class FrontpageController {
       updatedProfile = res.profile || updatedProfile;
     } catch (err) {
       console.warn('[Frontpage] Error selecting online character, continuing with cached profile:', err);
+    }
+
+    if (this.net && !this.net.connected) {
+      this.net.connectWebSocket();
     }
 
     this.close();

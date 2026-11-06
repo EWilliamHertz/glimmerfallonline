@@ -2133,6 +2133,12 @@ export function getAbilityRank(prog, abilityId) {
     if ((spec.tier || 1) === 1) return Math.max(1, rankVal);
     return rankVal;
   }
+  // Check prog?.ranks?.[abilityId]
+  if (prog?.ranks?.[abilityId] !== undefined && prog?.ranks?.[abilityId] !== null) {
+    const rankVal = Math.max(0, Math.min(spec.maxRank || 5, Math.floor(Number(prog.ranks[abilityId]) || 0)));
+    if ((spec.tier || 1) === 1) return Math.max(1, rankVal);
+    return rankVal;
+  }
   // Tier 1 basic attacks (whisper_of_the_void, flare_strike, tectonic_slam, reality_fracture) default to Rank 1
   if ((spec.tier || 1) === 1) return 1;
   return 0;

@@ -573,6 +573,15 @@ export function initGame() {
     } catch (_) {}
   }
 
+  function profileHasAnyItem(itemIds) {
+    if (!itemIds || !Array.isArray(itemIds)) return false;
+    const inv = Array.isArray(localProfile?.inventory) ? localProfile.inventory : [];
+    return inv.some((it) => {
+      const itId = typeof it === 'string' ? it : it?.id;
+      return itemIds.includes(itId);
+    });
+  }
+
   function loadQuestState() {
     try {
       const charId = localProfile?.activeCharacterId || (localProfile?.id && localProfile.id !== 'default' && localProfile.id !== 'local_hero' ? localProfile.id : null);
@@ -603,6 +612,7 @@ export function initGame() {
         const completed = { ...(parsed.completedQuests || {}) };
         for (const doneId of Object.keys(completed)) {
           delete active[doneId];
+          if (parsed.trackedQuests) delete parsed.trackedQuests[doneId];
         }
 
         questState = {
@@ -634,18 +644,11 @@ export function initGame() {
       questState = createDefaultQuestState();
     }
 
-    function profileHasAnyItem(itemIds) {
-      if (!itemIds || !Array.isArray(itemIds)) return false;
-      const inv = Array.isArray(localProfile?.inventory) ? localProfile.inventory : [];
-      return inv.some((it) => {
-        const itId = typeof it === 'string' ? it : it?.id;
-        return itemIds.includes(itId);
-      });
-    }
-
     // High-level or experienced characters (like EWACH) should never be stuck on the Awakening tutorial:
     const charName = String(localProfile?.displayName || localProfile?.name || '').toUpperCase();
-    if (charName === 'EWACH' && !questState.completedQuests?.quest_awakening) {
+    const isExperienced = (prog && (prog.level || 1) >= 2) || charName === 'EWACH';
+    if (isExperienced) {
+      if (!questState.completedQuests) questState.completedQuests = {};
       questState.stasisBroken = true;
       questState.dummyDamaged = true;
       questState.nodeHarvested = true;
@@ -661,6 +664,14 @@ export function initGame() {
       saveQuestState();
     }
 
+    // Clean up any completed quests from active & tracked sets
+    if (questState.completedQuests) {
+      for (const doneId of Object.keys(questState.completedQuests)) {
+        if (questState.activeQuests) delete questState.activeQuests[doneId];
+        if (questState.trackedQuests) delete questState.trackedQuests[doneId];
+      }
+    }
+
     // By default, any active quest without explicit false is tracked
     if (!questState.trackedQuests || Object.keys(questState.trackedQuests).length === 0) {
       questState.trackedQuests = {};
@@ -670,7 +681,11 @@ export function initGame() {
     }
 
     introShown = questState.introShown || Boolean(questState.talkedNpcs?.npc_aurora);
-    updateQuestTrackerHUD();
+    try {
+      updateQuestTrackerHUD();
+    } catch (err) {
+      console.warn('[QuestTracker] Error updating HUD:', err);
+    }
   }
 
   window.resetSessionState = function () {
@@ -2640,82 +2655,89 @@ export function initGame() {
     const container = document.getElementById('quest-tracker');
     if (!container) return;
 
-    const activeList = [];
-    for (const qId of Object.keys(questState.activeQuests || {})) {
-      if (QUEST_CATALOG[qId]) activeList.push(QUEST_CATALOG[qId]);
-    }
-
-    if (activeList.length === 0 && !questState.completedQuests?.quest_awakening) {
-      const charName = String(localProfile?.displayName || localProfile?.name || '').toUpperCase();
-      const isExperienced = (prog && (prog.level || 1) >= 2) || charName === 'EWACH';
-      if (!isExperienced) {
-        activeList.push(QUEST_CATALOG.quest_awakening);
+    try {
+      const activeList = [];
+      for (const qId of Object.keys(questState.activeQuests || {})) {
+        if (QUEST_CATALOG[qId]) activeList.push(QUEST_CATALOG[qId]);
       }
-    }
 
-    const trackedList = activeList.filter((q) => questState.trackedQuests?.[q.id] !== false);
+      if (activeList.length === 0 && !questState.completedQuests?.quest_awakening) {
+        const charName = String(localProfile?.displayName || localProfile?.name || '').toUpperCase();
+        const isExperienced = (prog && (prog.level || 1) >= 2) || charName === 'EWACH';
+        if (!isExperienced) {
+          activeList.push(QUEST_CATALOG.quest_awakening);
+        }
+      }
 
-    if (trackedList.length === 0) {
+      const trackedList = activeList.filter((q) => questState.trackedQuests?.[q.id] !== false);
+
+      if (trackedList.length === 0) {
+        container.innerHTML = `
+          <div class="quest-title" style="margin-bottom:2px;">
+            <span style="text-shadow:0 1px 3px rgba(0,0,0,0.95), 1px 1px 0 #000;">📜 QUEST TRACKER</span>
+            <button class="id-mini-btn" onclick="openQuestLog()" style="font-size:9.5px; padding:1px 6px;">LOG [L]</button>
+          </div>
+          <div style="color:#e2e8f0; font-size:9.5px; padding:4px 0; text-shadow:0 1px 3px rgba(0,0,0,0.95), 1px 1px 0 #000, -1px -1px 0 #000;">
+            ${activeList.length > 0 ? `${activeList.length} quest(s) active, but unpinned from HUD.` : 'No active quests.'}<br/>
+            <a href="javascript:void(0)" onclick="openQuestLog()" style="color:#38bdf8; font-weight:bold; text-shadow:1px 1px 0 #000;">Open Quest Log [L]</a> to select quests to display.
+          </div>
+        `;
+        return;
+      }
+
       container.innerHTML = `
-        <div class="quest-title" style="margin-bottom:2px;">
-          <span style="text-shadow:0 1px 3px rgba(0,0,0,0.95), 1px 1px 0 #000;">📜 QUEST TRACKER</span>
-          <button class="id-mini-btn" onclick="openQuestLog()" style="font-size:9.5px; padding:1px 6px;">LOG [L]</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.18); padding-bottom:3px; margin-bottom:5px;">
+          <span style="font-family:var(--font-header); font-size:10.5px; color:#facc15; font-weight:bold; text-shadow:0 1px 3px rgba(0,0,0,0.95), 1px 1px 0 #000, -1px -1px 0 #000;">
+            📜 TRACKED QUESTS (${trackedList.length}/${activeList.length})
+          </span>
+          <button class="id-mini-btn" onclick="openQuestLog()" title="Open Quest Log &amp; Atlas [L]" style="font-size:9.5px; padding:2px 6px;">
+            LOG [L]
+          </button>
         </div>
-        <div style="color:#e2e8f0; font-size:9.5px; padding:4px 0; text-shadow:0 1px 3px rgba(0,0,0,0.95), 1px 1px 0 #000, -1px -1px 0 #000;">
-          ${activeList.length > 0 ? `${activeList.length} quest(s) active, but unpinned from HUD.` : 'No active quests.'}<br/>
-          <a href="javascript:void(0)" onclick="openQuestLog()" style="color:#38bdf8; font-weight:bold; text-shadow:1px 1px 0 #000;">Open Quest Log [L]</a> to select quests to display.
-        </div>
-      `;
-      return;
-    }
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          ${trackedList.map((q) => {
+            let isReady = false;
+            try { isReady = Boolean(q.isComplete()); } catch (_) {}
+            const tasksHtml = q.tasks.map((t, idx) => {
+              let isDone = false;
+              try { isDone = Boolean(t.done()); } catch (_) {}
+              const countStr = t.counter ? ` (${t.counter()})` : '';
+              return `
+                <div class="quest-task" style="margin-bottom:2px;">
+                  <div class="quest-check ${isDone ? 'done' : ''}" style="width:13px; height:13px; font-size:9px;">${isDone ? '✓' : ''}</div>
+                  <span style="${isDone ? 'color:#94a3b8; text-decoration:line-through;' : 'color:#f8fafc; font-size:9.5px; font-weight:600;'} text-shadow:0 1px 2px #000, 1px 1px 0 #000, -1px -1px 0 #000;">${t.text}${countStr}</span>
+                </div>
+              `;
+            }).join('');
 
-    container.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.18); padding-bottom:3px; margin-bottom:5px;">
-        <span style="font-family:var(--font-header); font-size:10.5px; color:#facc15; font-weight:bold; text-shadow:0 1px 3px rgba(0,0,0,0.95), 1px 1px 0 #000, -1px -1px 0 #000;">
-          📜 TRACKED QUESTS (${trackedList.length}/${activeList.length})
-        </span>
-        <button class="id-mini-btn" onclick="openQuestLog()" title="Open Quest Log &amp; Atlas [L]" style="font-size:9.5px; padding:2px 6px;">
-          LOG [L]
-        </button>
-      </div>
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        ${trackedList.map((q) => {
-          const isReady = q.isComplete();
-          const tasksHtml = q.tasks.map((t, idx) => {
-            const isDone = t.done();
-            const countStr = t.counter ? ` (${t.counter()})` : '';
+            const turnInPrompt = isReady ? `
+              <div class="quest-turnin-banner" style="margin-top:3px; padding:3px 6px; font-size:9.5px; background:rgba(234,179,8,0.25); border:1px solid #fde047; text-shadow:1px 1px 0 #000; display:flex; justify-content:space-between; align-items:center; gap:4px;">
+                <span>✨ Ready! Return to ${getNpcName(q.turnInId)}</span>
+                <button class="id-mini-btn" style="background:#ca8a04; color:#fff; border-color:#fde047; font-size:9px; padding:1px 5px; cursor:pointer;" onclick="window.turnInQuestRemote('${q.id}')">TURN IN ✓</button>
+              </div>
+            ` : '';
+
+            let completedCount = 0;
+            try { completedCount = q.tasks.filter((t) => Boolean(t.done())).length; } catch (_) {}
+
             return `
-              <div class="quest-task" style="margin-bottom:2px;">
-                <div class="quest-check ${isDone ? 'done' : ''}" style="width:13px; height:13px; font-size:9px;">${isDone ? '✓' : ''}</div>
-                <span style="${isDone ? 'color:#94a3b8; text-decoration:line-through;' : 'color:#f8fafc; font-size:9.5px; font-weight:600;'} text-shadow:0 1px 2px #000, 1px 1px 0 #000, -1px -1px 0 #000;">${t.text}${countStr}</span>
+              <div class="quest-block" style="padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.12);">
+                <div class="quest-title" style="font-size:10.5px; margin-bottom:3px;">
+                  <span style="color:#fde047; text-shadow:0 1px 2px #000, 1px 1px 0 #000;">${q.title.toUpperCase()}</span>
+                  <span style="color:${isReady ? '#facc15' : '#38bdf8'}; font-size:9.5px; font-weight:800; text-shadow:0 1px 2px #000, 1px 1px 0 #000;">
+                    ${isReady ? 'READY ✓' : `${completedCount} / ${q.tasks.length}`}
+                  </span>
+                </div>
+                ${tasksHtml}
+                ${turnInPrompt}
               </div>
             `;
-          }).join('');
-
-          const turnInPrompt = isReady ? `
-            <div class="quest-turnin-banner" style="margin-top:3px; padding:3px 6px; font-size:9.5px; background:rgba(234,179,8,0.25); border:1px solid #fde047; text-shadow:1px 1px 0 #000; display:flex; justify-content:space-between; align-items:center; gap:4px;">
-              <span>✨ Ready! Return to ${getNpcName(q.turnInId)}</span>
-              <button class="id-mini-btn" style="background:#ca8a04; color:#fff; border-color:#fde047; font-size:9px; padding:1px 5px; cursor:pointer;" onclick="window.turnInQuestRemote('${q.id}')">TURN IN ✓</button>
-            </div>
-          ` : '';
-
-          const completedCount = q.tasks.filter((t) => t.done()).length;
-
-          return `
-            <div class="quest-block" style="padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.12);">
-              <div class="quest-title" style="font-size:10.5px; margin-bottom:3px;">
-                <span style="color:#fde047; text-shadow:0 1px 2px #000, 1px 1px 0 #000;">${q.title.toUpperCase()}</span>
-                <span style="color:${isReady ? '#facc15' : '#38bdf8'}; font-size:9.5px; font-weight:800; text-shadow:0 1px 2px #000, 1px 1px 0 #000;">
-                  ${isReady ? 'READY ✓' : `${completedCount} / ${q.tasks.length}`}
-                </span>
-              </div>
-              ${tasksHtml}
-              ${turnInPrompt}
-            </div>
-          `;
-        }).join('')}
-      </div>
-    `;
+          }).join('')}
+        </div>
+      `;
+    } catch (err) {
+      console.warn('[QuestTracker] Failed to render tracker HUD:', err);
+    }
   }
   const inputs = { w: false, a: false, s: false, d: false, up: false, down: false, left: false, right: false, shift: false, axisX: 0, axisY: 0 };
 
@@ -10308,7 +10330,13 @@ export function initGame() {
     }
 
     renderables.sort((a, b) => a.y - b.y);
-    for (const r of renderables) r.draw();
+    for (const r of renderables) {
+      try {
+        r.draw();
+      } catch (err) {
+        console.error('[Render Error] Failed to draw renderable:', err);
+      }
+    }
 
     for (const sa of slashArcs) {
       const sx = Math.round(sa.x - camLeft);
@@ -10600,9 +10628,21 @@ export function initGame() {
     requestAnimationFrame(frame);
     const dt = Math.min(0.08, Math.max(0.001, (now - lastTs) / 1000));
     lastTs = now;
-    update(dt);
-    drawWorld();
-    renderMinimap();
+    try {
+      update(dt);
+    } catch (err) {
+      console.error('[Frame Error update]:', err);
+    }
+    try {
+      drawWorld();
+    } catch (err) {
+      console.error('[Frame Error drawWorld]:', err);
+    }
+    try {
+      renderMinimap();
+    } catch (err) {
+      console.error('[Frame Error renderMinimap]:', err);
+    }
   }
   requestAnimationFrame(frame);
 }
