@@ -162,7 +162,7 @@ export function renderPartyHud(party, selfId) {
         <div class="party-member-row">
           <div style="display:flex; justify-content:space-between; color:#f8fafc; font-size:8.5px;">
             <span>${crown}${fMeta.icon} <b>${m.name}</b>${youTag}</span>
-            <span style="color:#94a3b8;">Lv.${m.level} • ${m.hp}/${m.maxHp}</span>
+            <span style="color:#94a3b8;">Lv.${m.level} • ${Math.round(m.hp)}/${Math.round(m.maxHp)}</span>
           </div>
           <div class="bar-bg" style="height:6px; margin-top:2px;">
             <div class="bar-hp ${m.shield > 0 ? 'shielded' : ''}" style="width:${pct}%;"></div>

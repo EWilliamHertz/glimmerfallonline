@@ -928,6 +928,32 @@ function drawItemPixels(ctx, id) {
       break;
     }
 
+    case 'skillcape_extraction':
+    case 'skillcape_forging':
+    case 'skillcape_binding':
+    case 'skillcape_weaving':
+    case 'skillcape_combat': {
+      const capeColors = {
+        skillcape_extraction: '#38bdf8',
+        skillcape_forging: '#f97316',
+        skillcape_binding: '#a855f7',
+        skillcape_weaving: '#22c55e',
+        skillcape_combat: '#ef4444',
+      };
+      const capeColor = capeColors[id] || '#facc15';
+      rect(ctx, 8, 4, 8, 4, '#0f172a');
+      rect(ctx, 9, 5, 6, 2, capeColor);
+      rect(ctx, 6, 8, 12, 3, capeColor);
+      rect(ctx, 5, 10, 14, 8, '#0f172a');
+      rect(ctx, 6, 11, 12, 6, capeColor);
+      rect(ctx, 9, 11, 6, 5, '#111827');
+      px(ctx, 11, 6, '#ffffff');
+      px(ctx, 12, 7, '#fef08a');
+      px(ctx, 7, 12, '#f8fafc');
+      px(ctx, 16, 12, '#f8fafc');
+      break;
+    }
+
     // Default Fallback
     default: {
       rect(ctx, 6, 6, 12, 12, '#ca8a04');

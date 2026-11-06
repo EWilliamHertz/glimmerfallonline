@@ -11,7 +11,10 @@ export function shouldEnableTouch() {
     if (stored === '0') return false;
     const q = new URLSearchParams(window.location.search);
     if (q.get('touch') === '1') return true;
-    return false; // Disabled by default; user can enable in Settings [ESC]
+    if (q.get('touch') === '0') return false;
+    // Touch-first devices (iPad, phones, tablets) get the virtual stick automatically.
+    const coarse = window.matchMedia?.('(pointer: coarse)')?.matches;
+    return Boolean(coarse) && window.innerWidth <= 1366;
   } catch (_) {
     return false;
   }
@@ -19,7 +22,7 @@ export function shouldEnableTouch() {
 
 const TOUCH_CSS = `
   body.touch-mode #minimap-panel { transform: scale(0.62); transform-origin: top right; top: 6px; right: 6px; }
-  body.touch-mode #bottom-bar-dock { bottom: 6px; transform-origin: bottom center; }
+  body.touch-mode #bottom-bar-dock { bottom: calc(6px + env(safe-area-inset-bottom, 0px)); transform-origin: bottom center; }
   body.touch-mode .action-button { width: 48px; height: 52px; }
   body.touch-mode #canvas-container { touch-action: none; }
   #touch-layer { position: fixed; inset: 0; z-index: 40; pointer-events: none; display: none; font-family: var(--font-header, monospace); }
@@ -58,7 +61,7 @@ const TOUCH_CSS = `
 export function updateTouchUiButtons(enabled) {
   const btn = document.getElementById('btn-touch-toggle');
   if (btn) {
-    btn.innerHTML = `📱 TOUCH <span style="color:${enabled ? '#4ade80' : '#94a3b8'};">${enabled ? 'ON' : 'OFF'}</span>`;
+    btn.innerHTML = `TOUCH <span style="color:${enabled ? '#4ade80' : '#94a3b8'};">${enabled ? 'ON' : 'OFF'}</span>`;
     btn.style.borderColor = enabled ? '#38bdf8' : '#475569';
   }
   const modalBtn = document.getElementById('modal-touch-toggle-btn');
@@ -91,10 +94,10 @@ export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstT
   layer.id = 'touch-layer';
   layer.innerHTML = `
     <div id="touch-stick"><div id="touch-knob"></div></div>
-    <div class="touch-btn" id="touch-btn-sprint"><span class="ti">💨</span>SPRINT</div>
-    <div class="touch-btn" id="touch-btn-target"><span class="ti">🎯</span>TARGET</div>
-    <div class="touch-btn" id="touch-btn-harvest"><span class="ti">🔮</span>GLIMMER</div>
-    <div class="touch-btn" id="touch-btn-chat"><span class="ti">💬</span>CHAT</div>
+    <div class="touch-btn" id="touch-btn-sprint">SPRINT</div>
+    <div class="touch-btn" id="touch-btn-target">TARGET</div>
+    <div class="touch-btn" id="touch-btn-harvest">GLIMMER</div>
+    <div class="touch-btn" id="touch-btn-chat">CHAT</div>
   `;
   document.body.appendChild(layer);
 
@@ -188,6 +191,17 @@ export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstT
     if (inp) inp.focus();
   });
 
+  // Measure env(safe-area-inset-bottom) without hard-coding device values.
+  let safeAreaProbe = null;
+  function getSafeAreaBottom() {
+    if (!safeAreaProbe) {
+      safeAreaProbe = document.createElement('div');
+      safeAreaProbe.style.cssText = 'position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden;';
+      document.body.appendChild(safeAreaProbe);
+    }
+    return Math.round(safeAreaProbe.getBoundingClientRect().height) || 0;
+  }
+
   // Fit the action bar to narrow screens
   function fitDock() {
     const dock = document.getElementById('bottom-bar-dock');
@@ -201,13 +215,15 @@ export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstT
 
     // Lift the thumbstick / buttons above the action bar
     const lift = Math.round(dock.getBoundingClientRect().height + 14);
+    const safeBottom = getSafeAreaBottom();
     layer.querySelectorAll('#touch-stick, .touch-btn').forEach((el) => {
       if (!el.dataset.baseBottom) el.dataset.baseBottom = parseInt(getComputedStyle(el).bottom, 10) - 96;
-      el.style.bottom = `${lift + Number(el.dataset.baseBottom)}px`;
+      el.style.bottom = `${lift + Number(el.dataset.baseBottom) + safeBottom}px`;
     });
   }
   window.addEventListener('resize', fitDock);
   window.addEventListener('orientationchange', () => setTimeout(fitDock, 250));
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', fitDock);
   setTimeout(fitDock, 50);
   setTimeout(fitDock, 800);
 

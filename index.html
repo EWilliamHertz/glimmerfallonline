@@ -58,6 +58,7 @@
       color: #f8fafc;
       width: 100vw;
       height: 100vh;
+      height: 100dvh;
     }
 
     #canvas-container {
@@ -70,6 +71,7 @@
     #game-canvas {
       width: 100vw;
       height: 100vh;
+      height: 100dvh;
       display: block;
     }
 
@@ -764,7 +766,7 @@
 
     #bottom-bar-dock {
       position: absolute;
-      bottom: 12px;
+      bottom: calc(12px + env(safe-area-inset-bottom, 0px));
       left: 50%;
       transform: translateX(-50%);
       display: flex;
@@ -922,7 +924,7 @@
       position: absolute;
       bottom: 172px;
       right: 12px;
-      width: 254px;
+      width: 300px;
       background: rgba(5, 8, 17, 0.96);
       border: 2px solid #38bdf8;
       box-shadow: 0 0 0 2px #05070f, 0 12px 28px rgba(0,0,0,0.88), 0 0 16px rgba(56,189,248,0.22);
@@ -1000,12 +1002,53 @@
       font-size: 8.5px;
       color: #94a3b8;
       padding: 0 1px;
+      gap: 6px;
+    }
+    .skills-start-here {
+      background: linear-gradient(135deg, rgba(30, 27, 75, 0.95), rgba(9, 13, 22, 0.98));
+      border: 1px solid rgba(250, 204, 21, 0.55);
+      border-left: 4px solid #facc15;
+      border-radius: 4px;
+      padding: 7px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .skills-start-head {
+      font-family: var(--font-header);
+      font-size: 10px;
+      font-weight: 800;
+      color: #fde047;
+      letter-spacing: 0.4px;
+    }
+    .skills-start-copy {
+      font-size: 8.5px;
+      color: #cbd5e1;
+      line-height: 1.35;
+    }
+    .skills-start-btn {
+      background: #1e1b4b;
+      border: 1px solid #facc15;
+      color: #fde047;
+      font-family: var(--font-header);
+      font-size: 8.5px;
+      font-weight: 800;
+      padding: 4px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+      letter-spacing: 0.2px;
+      transition: all 0.15s;
+    }
+    .skills-start-btn:hover {
+      background: #422006;
+      color: #fef08a;
+      box-shadow: 0 0 8px rgba(250, 204, 21, 0.25);
     }
     .skills-list {
       display: flex;
       flex-direction: column;
       gap: 5px;
-      max-height: calc(100vh - 380px);
+      max-height: calc(100vh - 470px);
       overflow-y: auto;
       padding-right: 2px;
     }
@@ -1135,6 +1178,127 @@
       background: #0284c7;
       color: #ffffff;
       border-color: #38bdf8;
+    }
+    .skill-guide-howto {
+      background: linear-gradient(135deg, rgba(5, 46, 22, 0.8), rgba(9, 13, 28, 0.96));
+      border: 1px solid rgba(34, 197, 94, 0.45);
+      border-left: 4px solid #22c55e;
+      border-radius: 4px;
+      padding: 8px 10px;
+      margin: 8px 0 4px;
+      font-size: 10px;
+      line-height: 1.45;
+      color: #cbd5e1;
+    }
+    .skill-guide-howto-title {
+      font-family: var(--font-header);
+      font-size: 10px;
+      font-weight: 800;
+      color: #86efac;
+      letter-spacing: 0.3px;
+      margin-bottom: 3px;
+    }
+    .skill-guide-howto-line {
+      margin-top: 2px;
+    }
+    .skill-training-lead {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid #334155;
+      border-left: 4px solid #facc15;
+      border-radius: 4px;
+      padding: 9px 11px;
+      font-size: 10.5px;
+      line-height: 1.45;
+      color: #cbd5e1;
+    }
+    .skill-training-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 9px 0 10px;
+    }
+    .skill-training-step {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      font-size: 10.5px;
+      line-height: 1.4;
+      color: #cbd5e1;
+    }
+    .skill-training-num {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #0369a1;
+      border: 1px solid #38bdf8;
+      color: #f0f9ff;
+      font-family: var(--font-header);
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .skill-training-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 8px;
+    }
+    .skill-training-card {
+      background: #090e1d;
+      border: 1px solid #1e293b;
+      border-left: 3px solid #38bdf8;
+      border-radius: 4px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .skill-training-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-header);
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .skill-training-card-start {
+      font-size: 9.5px;
+      color: #e2e8f0;
+      line-height: 1.4;
+    }
+    .skill-training-card-loc {
+      font-size: 8.5px;
+      color: #94a3b8;
+      line-height: 1.35;
+    }
+    .skill-training-card-btn {
+      margin-top: auto;
+      align-self: flex-start;
+      background: #0b1329;
+      border: 1px solid #38bdf8;
+      color: #7dd3fc;
+      font-family: var(--font-header);
+      font-size: 8.5px;
+      font-weight: 800;
+      padding: 4px 7px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .skill-training-card-btn:hover {
+      background: #1e293b;
+      color: #f8fafc;
+    }
+    .skill-training-tip {
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px dashed rgba(56, 189, 248, 0.4);
+      border-radius: 4px;
+      padding: 8px 10px;
+      margin-top: 10px;
+      font-size: 10px;
+      line-height: 1.45;
+      color: #bae6fd;
     }
     .osrs-unlock-card {
       background: rgba(15, 23, 42, 0.85);
@@ -2355,15 +2519,20 @@
         <button class="skills-tab-close" onclick="toggleSkillsTab()" title="Close [N] / [ESC]">✕</button>
       </div>
       <div class="skills-tab-sub">
-        <span>Click any skill to view OSRS Skill Guide</span>
+        <span>Click a skill for its exact training steps</span>
         <span style="color:#fde047; font-weight:700;">MAX LVL 99</span>
+      </div>
+      <div class="skills-start-here">
+        <div class="skills-start-head">🎓 NEW TO SKILLS?</div>
+        <div class="skills-start-copy">XP is automatic — no skill points needed.</div>
+        <button class="skills-start-btn" onclick="openSkillTrainingGuide()">📖 HOW TO TRAIN — START HERE →</button>
       </div>
       <div id="skills-list-container" class="skills-list">
         <!-- Rendered dynamically by renderSkillsTabUI() in game.js -->
       </div>
       <div style="border-top:1px solid rgba(56,189,248,0.2); padding-top:5px; margin-top:2px;">
         <div style="font-size:9px; color:#94a3b8; text-align:center;">
-          Press <b style="color:#7dd3fc;">[N]</b> to toggle • Channel <b style="color:#fde047;">[E]</b> to harvest
+          <b style="color:#7dd3fc;">[N]</b> toggle • <b style="color:#fde047;">[E]</b> harvest • Visit Sanctuary artisans
         </div>
       </div>
     </div>
@@ -2411,6 +2580,10 @@
             <input type="checkbox" id="settings-touch-checkbox" onchange="toggleTouchControls(this.checked)" />
             <span>Enable Mobile / iPad Virtual Joystick &amp; Touchpad Controls</span>
           </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 8px;">
+            <input type="checkbox" id="settings-compass-checkbox" onchange="toggleQuestCompass(this.checked)" checked />
+            <span>Quest Objective Compass (pixel arrow to nearby quest givers)</span>
+          </label>
           <div style="display: flex; gap: 8px; align-items: center;">
             <button class="util-btn" style="font-size: 10px; border-color: #38bdf8; color: #38bdf8;" onclick="resetDefaultKeybinds()">↺ Reset Action Bar Keybindings to Defaults</button>
           </div>
@@ -2418,11 +2591,17 @@
 
         <!-- Audio -->
         <div style="background: #080c18; border: 1px solid #1e293b; padding: 10px; border-radius: 4px;">
-          <div style="font-weight: 700; color: #facc15; margin-bottom: 6px;">🎵 AUDIO</div>
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="settings-bgm-checkbox" onchange="toggleBgmMute(this.checked)" checked />
-            <span>Enable 16-Bit Chiptune Background Music (BGM) [M]</span>
-          </label>
+          <div style="font-weight: 700; color: #facc15; margin-bottom: 6px;">🎚️ SOUND &amp; VOLUME</div>
+          <div style="font-size: 10px; color: #94a3b8; line-height: 1.5; margin-bottom: 8px;">
+            Set separate levels for Master, Music, and SFX. Drag a slider, click a track, or type a percentage from 0 to 100.
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+            <button class="util-btn" style="font-size: 10px; border-color: #facc15; color: #facc15;" onclick="openAudioMixer()">🎚️ OPEN SOUND MIXER</button>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="settings-bgm-checkbox" onchange="toggleBgmMute(this.checked)" checked />
+              <span>Enable Background Music (BGM)</span>
+            </label>
+          </div>
         </div>
 
         <!-- Video & Graphics -->
@@ -2460,9 +2639,46 @@
           <div style="font-size: 10px; color: #cbd5e1; line-height: 1.6;">
             <b>WASD</b>: Move • <b>Space</b>: Jump • <b>1-4 / Q,R,F,Z</b>: Cast Rites/Flashes • <b>P</b>: Skill Tree • <b>H</b>: Hero Selection • <b>ESC</b>: Settings
           </div>
+        </div>      </div>
+    </div>
+
+    <!-- MODAL 1B: Audio Mixer -->
+    <div id="audio-mixer-modal" class="modal panel" style="width: 480px; max-width: 95vw; display: none;">
+      <div class="modal-header">
+        <div class="modal-title" style="font-size: 13px; color: #facc15;">🎚️ SOUND MIXER</div>
+        <div class="modal-close" onclick="toggleModal('audio-mixer-modal')">✕</div>
+      </div>
+      <div style="font-size: 10px; color: #94a3b8; line-height: 1.5; margin-bottom: 12px;">
+        Drag a slider, click a track, or type a percentage. Every channel saves automatically.
+      </div>
+      <div style="display: grid; gap: 8px;">
+        <div style="display: grid; grid-template-columns: 92px 1fr 58px; gap: 10px; align-items: center; background: #080c18; border: 1px solid #1e293b; padding: 10px; border-radius: 4px;">
+          <div><div style="font-weight: 700; color: #facc15; font-size: 10px;">MASTER</div><div style="font-size: 8px; color: #94a3b8;">All audio</div></div>
+          <input type="range" id="vol-master-range" min="0" max="100" step="1" value="80" oninput="setAudioVolume('master', this.value)" style="width: 100%; accent-color: #facc15; cursor: pointer;" />
+          <div style="display: flex; align-items: center; gap: 2px;"><input type="number" id="vol-master-number" min="0" max="100" step="1" value="80" onchange="setAudioVolume('master', this.value)" style="width: 42px; background: #020617; color: #fde047; border: 1px solid #334155; border-radius: 3px; padding: 3px; font-size: 10px;" /><span style="font-size: 9px; color: #94a3b8;">%</span></div>
+        </div>
+        <div style="display: grid; grid-template-columns: 92px 1fr 58px; gap: 10px; align-items: center; background: #080c18; border: 1px solid #1e293b; padding: 10px; border-radius: 4px;">
+          <div><div style="font-weight: 700; color: #38bdf8; font-size: 10px;">MUSIC</div><div style="font-size: 8px; color: #94a3b8;">BGM / chiptune</div></div>
+          <input type="range" id="vol-music-range" min="0" max="100" step="1" value="65" oninput="setAudioVolume('music', this.value)" style="width: 100%; accent-color: #38bdf8; cursor: pointer;" />
+          <div style="display: flex; align-items: center; gap: 2px;"><input type="number" id="vol-music-number" min="0" max="100" step="1" value="65" onchange="setAudioVolume('music', this.value)" style="width: 42px; background: #020617; color: #7dd3fc; border: 1px solid #334155; border-radius: 3px; padding: 3px; font-size: 10px;" /><span style="font-size: 9px; color: #94a3b8;">%</span></div>
+        </div>
+        <div style="display: grid; grid-template-columns: 92px 1fr 58px; gap: 10px; align-items: center; background: #080c18; border: 1px solid #1e293b; padding: 10px; border-radius: 4px;">
+          <div><div style="font-weight: 700; color: #4ade80; font-size: 10px;">SFX</div><div style="font-size: 8px; color: #94a3b8;">Spells / impacts</div></div>
+          <input type="range" id="vol-sfx-range" min="0" max="100" step="1" value="80" oninput="setAudioVolume('sfx', this.value)" style="width: 100%; accent-color: #4ade80; cursor: pointer;" />
+          <div style="display: flex; align-items: center; gap: 2px;"><input type="number" id="vol-sfx-number" min="0" max="100" step="1" value="80" onchange="setAudioVolume('sfx', this.value)" style="width: 42px; background: #020617; color: #86efac; border: 1px solid #334155; border-radius: 3px; padding: 3px; font-size: 10px;" /><span style="font-size: 9px; color: #94a3b8;">%</span></div>
         </div>
       </div>
+      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 12px; font-size: 10px; color: #e2e8f0;">
+        <input type="checkbox" id="mixer-bgm-checkbox" onchange="toggleBgmMute(this.checked)" checked />
+        Enable Background Music
+      </label>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; border-top: 1px solid #1e293b; padding-top: 12px;">
+        <button class="util-btn" style="font-size: 10px; border-color: #ef4444; color: #fca5a5;" onclick="muteAllAudio()">🔇 MUTE ALL</button>
+        <button class="util-btn" style="font-size: 10px;" onclick="resetAudioVolumes()">↺ RESET LEVELS</button>
+        <button class="util-btn" style="font-size: 10px; margin-left: auto;" onclick="toggleModal('audio-mixer-modal')">CLOSE</button>
+      </div>
     </div>
+
 
     <!-- MODAL 2: Character Level & Allocatable Stats [C] -->
     <div id="char-modal" class="modal panel" style="width: 500px;">
@@ -2589,6 +2805,10 @@
         </div>
       </div>
 
+      <div id="skill-guide-howto" class="skill-guide-howto">
+        <!-- Populated dynamically: exact steps for training this skill -->
+      </div>
+
       <!-- Skill Selection Tabs (OSRS Style quick switch) -->
       <div class="skill-guide-tabs" style="display: flex; gap: 4px; padding: 8px 0; border-bottom: 1px solid #1e293b; flex-wrap: wrap;">
         <button class="sg-tab-btn" id="sg-tab-resonance_extraction" onclick="openSkillGuide('resonance_extraction')">⚡ EXTRACTION</button>
@@ -2604,7 +2824,7 @@
       </div>
 
       <!-- Unlock Milestones List (OSRS Style) -->
-      <div id="skill-guide-unlocks-container" class="osrs-unlocks-grid" style="overflow-y: auto; max-height: calc(88vh - 210px); padding: 8px 4px; display: flex; flex-direction: column; gap: 8px;">
+      <div id="skill-guide-unlocks-container" class="osrs-unlocks-grid" style="overflow-y: auto; max-height: calc(88vh - 310px); padding: 8px 4px; display: flex; flex-direction: column; gap: 8px;">
         <!-- Rendered by renderSkillGuide() in client/game.js -->
       </div>
 
@@ -2612,6 +2832,29 @@
       <div style="border-top: 1px solid #1e293b; padding-top: 8px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center; font-size: 9.5px; color: #94a3b8;">
         <span>Levels 1 to 99 • Unlocks grant recipes, gathering nodes, and battle perks</span>
         <button class="id-mini-btn" onclick="toggleModal('skill-guide-modal')" style="font-size: 9.5px; padding: 2px 8px;">CLOSE [ESC]</button>
+      </div>
+    </div>
+
+    <!-- MODAL 8: Skill Training 101 Onboarding -->
+    <div id="skill-training-modal" class="modal panel" style="width: 760px; max-width: 96vw; max-height: 88vh; display: none;">
+      <div class="modal-header" style="border-bottom: 1px solid rgba(34, 197, 94, 0.3); padding-bottom: 8px;">
+        <div style="flex: 1;">
+          <div class="modal-title" style="font-size: 14px; color: #86efac; font-family: var(--font-header); letter-spacing: 0.5px;">
+            🎓 HOW TO TRAIN — SKILL TRAINING 101
+          </div>
+          <div style="font-size: 10px; color: #cbd5e1; margin-top: 4px; line-height: 1.4;">
+            All five skills earn XP automatically from their activities. You never spend skill points to train.
+          </div>
+        </div>
+        <div class="modal-close" onclick="toggleModal('skill-training-modal')">✕</div>
+      </div>
+      <div id="skill-training-body" style="font-size: 11px; color: #e2e8f0; margin-top: 8px; overflow-y: auto; max-height: calc(88vh - 165px); padding-right: 4px;"></div>
+      <div style="border-top: 1px solid #1e293b; padding-top: 8px; margin-top: 6px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 9px; color: #94a3b8;">
+        <span>Tip: press <b style="color:#7dd3fc;">[N]</b> to open Skills, then click any skill.</span>
+        <div style="display:flex; gap:6px;">
+          <button class="id-mini-btn" onclick="openWorldMap()" style="font-size: 9.5px; padding: 3px 9px;">🗺️ OPEN MAP [M]</button>
+          <button class="id-mini-btn" onclick="toggleModal('skill-training-modal')" style="font-size: 9.5px; padding: 3px 9px;">CLOSE</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2642,7 +2885,7 @@
 
       <!-- Total Quest Points Counter (RuneScape style) -->
       <div id="qc-scroll-qp" class="rs-scroll-qp">
-        Quest Points: 1 / 17
+        Quest Points: 0 / 22
       </div>
 
       <!-- Claim Rewards & Close Button -->

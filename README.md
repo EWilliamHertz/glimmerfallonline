@@ -42,9 +42,26 @@ npm install
 cp .env.example .env
 # Edit .env and set DATABASE_URL="postgresql://..."
 
-# 3. Start both the 20Hz Authoritative MMO Server (:3001) + Vite Client (:8080)
-npm start
+# 3. Start the Vite client (:8080). It auto-starts the 20Hz game server (:3001)
+#    and proxies /api + /ws to it — open http://localhost:8080
+npm run dev
+
+# Production-style single process instead (serves the built dist/ on :8080):
+npm run build && npm start
 ```
+
+### Local multiplayer
+
+Localhost does **not** need `VITE_GAME_SERVER_URL`. The Vite dev server proxies `/api` and `/ws`
+to `127.0.0.1:3001`, so Multiplayer connects to your local server and your local changes.
+
+- `npm run dev` — client on `:8080`, game server auto-started on `:3001` (recommended).
+- `npm run server` — game server only.
+- `npm start` — game server on `:8080` serving `dist/`; run `npm run build` first.
+
+A custom realm saved by an earlier tunnel/remote session is ignored on localhost. To deliberately
+point a local client at a deployed realm, use `?server=https://...` (this tab only) or set
+`VITE_GAME_SERVER_URL` in `.env` and restart Vite.
 
 ## Hosting online multiplayer for free (Vercel + Render)
 

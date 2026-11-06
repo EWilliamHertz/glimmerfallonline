@@ -61,6 +61,8 @@ import {
   isSlotUnlocked,
   ROOM_TYPES,
   ROOM_CONFIGS,
+  GRAND_FONT_POSITIONS,
+  HARVEST_COOLDOWN_MS,
   FACTIONS_META,
   CLASSES_CATALOG,
   EQUIPMENT_CATALOG,
@@ -92,6 +94,7 @@ import {
   calcMoveSpeedMult,
   isWaterTile,
   PROFESSIONS_CATALOG,
+  PROFESSION_MASTERY_CAPES,
   getProfessionLevelFromXp,
   getXpForProfessionLevel,
   getTotalProfessionLevel,
@@ -316,10 +319,41 @@ export function initGame() {
   }
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('orientationchange', resizeCanvas);
+  if (window.visualViewport) {
+    // Safari's dynamic toolbars resize the visual viewport without firing window.resize.
+    window.visualViewport.addEventListener('resize', resizeCanvas);
+  }
   const initialZoomBtn = document.getElementById('zoom-label');
   if (initialZoomBtn) initialZoomBtn.innerText = `${zoom}x`;
 
   const camera = { x: 0, y: 0 };
+
+  // HUD elements are looked up once and reused. The render loop must never query
+  // the DOM per frame (every lookup can force style/layout work).
+  const uiElCache = new Map();
+  function uiEl(id) {
+    let el = uiElCache.get(id);
+    if (!el || el.isConnected === false) {
+      el = document.getElementById(id);
+      if (el) uiElCache.set(id, el);
+      else uiElCache.delete(id);
+    }
+    return el;
+  }
+
+  // Accumulator for DOM-only HUD work, kept separate from the simulation clock.
+  let hudTickAccum = 0;
+
+  let questCompassEnabled = true;
+  try {
+    questCompassEnabled = localStorage.getItem('glimmerfall_quest_compass') !== '0';
+  } catch (_) {}
+  window.toggleQuestCompass = function (enabled) {
+    questCompassEnabled = Boolean(enabled);
+    try { localStorage.setItem('glimmerfall_quest_compass', questCompassEnabled ? '1' : '0'); } catch (_) {}
+  };
+
   let currentZone = 'tutorial';
   let currentRoomType = ROOM_TYPES.SANCTUARY_HUB;
   let currentBiomeTheme = 'sanctuary';
@@ -464,6 +498,7 @@ export function initGame() {
   let castDuration = 0;
   let currentSpell = null;
   let globalTime = 0;
+  let lastNodeHarvestAt = -Infinity;
   let footstepAccum = 0;
   let moveSyncAccum = 0;
   let lastSentMove = { x: null, y: null, z: null, dir: null, isMoving: null, time: 0 };
@@ -526,6 +561,8 @@ export function initGame() {
       ruinsKills: 0,
       calderaKills: 0,
       chronoKills: 0,
+      combatKills: 0,
+      combatTrainingHits: 0,
       aetherFontChanneled: false,
       titanChallenged: false,
       ascentReached: false,
@@ -544,6 +581,15 @@ export function initGame() {
   }
 
   let questState = createDefaultQuestState();
+
+  // Merchant UI and other modules read/write quest flags through these globals.
+  try {
+    Object.defineProperty(window, 'questState', { get: () => questState, configurable: true });
+  } catch (_) {
+    window.questState = questState;
+  }
+  window.saveQuestState = saveQuestState;
+  window.updateQuestTrackerHUD = updateQuestTrackerHUD;
 
   function getQuestStorageKey() {
     const charId = localProfile?.activeCharacterId || (localProfile?.id && localProfile.id !== 'default' && localProfile.id !== 'local_hero' ? localProfile.id : null);
@@ -595,7 +641,22 @@ export function initGame() {
       const charId = localProfile?.activeCharacterId || (localProfile?.id && localProfile.id !== 'default' && localProfile.id !== 'local_hero' ? localProfile.id : null);
       const charKey = charId ? `glimmerfall_quest_state_${charId}` : null;
       let raw = charKey ? localStorage.getItem(charKey) : null;
-      if (!raw) {
+
+      // Single-player characters keep their canonical quest state in the roster.
+      // Read that before falling back to the shared "latest" key so one character's
+      // completed quests can never hide another character's markers.
+      if (!raw && isSinglePlayer && charId) {
+        const rosterRaw = localStorage.getItem('glimmerfall_sp_roster_v2');
+        if (rosterRaw) {
+          const roster = JSON.parse(rosterRaw);
+          const rosterChar = Array.isArray(roster) ? roster.find((c) => c.id === charId) : null;
+          if (rosterChar?.questState) raw = JSON.stringify(rosterChar.questState);
+        }
+      }
+
+      // Multiplayer can use the shared fallback, but a fresh single-player character
+      // must start with the clean Awakening state instead of inheriting old progress.
+      if (!raw && !isSinglePlayer) {
         raw = localStorage.getItem('glimmerfall_quest_state_latest') || localStorage.getItem('glimmerfall_quest_state_default');
       }
       let parsed = raw ? JSON.parse(raw) : null;
@@ -614,6 +675,8 @@ export function initGame() {
           ruinsKills: Math.max(Number(parsed?.ruinsKills || 0), Number(srvQuest.ruinsKills || 0)),
           calderaKills: Math.max(Number(parsed?.calderaKills || 0), Number(srvQuest.calderaKills || 0)),
           chronoKills: Math.max(Number(parsed?.chronoKills || 0), Number(srvQuest.chronoKills || 0)),
+          combatKills: Math.max(Number(parsed?.combatKills || 0), Number(srvQuest.combatKills || 0)),
+          combatTrainingHits: Math.max(Number(parsed?.combatTrainingHits || 0), Number(srvQuest.combatTrainingHits || 0)),
           aetherFontChanneled: Boolean(parsed?.aetherFontChanneled || srvQuest.aetherFontChanneled),
           titanChallenged: Boolean(parsed?.titanChallenged || srvQuest.titanChallenged),
           ascentReached: Boolean(parsed?.ascentReached || srvQuest.ascentReached),
@@ -658,6 +721,8 @@ export function initGame() {
           ruinsKills: Number(parsed.ruinsKills || 0),
           calderaKills: Number(parsed.calderaKills || 0),
           chronoKills: Number(parsed.chronoKills || 0),
+          combatKills: Number(parsed.combatKills || 0),
+          combatTrainingHits: Number(parsed.combatTrainingHits || 0),
           aetherFontChanneled: Boolean(parsed.aetherFontChanneled),
           titanChallenged: Boolean(parsed.titanChallenged),
           ascentReached: Boolean(parsed.ascentReached),
@@ -790,13 +855,25 @@ export function initGame() {
   };
 
   const recentKillKeys = new Set();
-  function onPlayerKilledMob(roomType, mobName, isBoss, mobId = null) {
+  function onPlayerKilledMob(roomType, mobName, isBoss, mobId = null, mobType = 'mob') {
+    // Training posts are practice targets, not hostile foes. Their kills must never
+    // advance "Banish Hostile Foes" or the public kill counter.
+    if (mobType === 'dummy' || /dummy|training post/i.test(mobName || '')) return;
     const dedupeKey = mobId ? String(mobId) : `${roomType}_${mobName}_${Math.floor(Date.now() / 1200)}`;
     if (recentKillKeys.has(dedupeKey)) return;
     recentKillKeys.add(dedupeKey);
     setTimeout(() => recentKillKeys.delete(dedupeKey), 8000);
 
     let changed = false;
+
+    // Combat Mastery: every hostile kill advances the first-blood trial.
+    questState.combatKills = (questState.combatKills || 0) + 1;
+    changed = true;
+    if (questState.combatKills === 3 && questState.activeQuests?.quest_skill_combat) {
+      logMessage('📜 [Quest Objective] Combat foes banished (3/3)! Return to Commander Valerius!', 'log-quest', 'chat');
+      spawnFCT(player.x, player.y - 14, '✨ COMBAT TRIAL COMPLETE (3/3)!', '#facc15', true);
+      if (audio && audio.playChime) audio.playChime();
+    }
 
     // 1. Commander Valerius's Void Invaders Quest:
     // Any hostile mob killed outside Sanctuary Haven (or explicitly void-aligned) counts towards warzoneKills!
@@ -973,11 +1050,11 @@ export function initGame() {
       prereqQuestId: 'quest_into_the_warzone',
       questPoints: 1,
       unlocks: ['Next Quest: First Nexus Secrets', 'Vanguard Frontline Cache'],
-      description: 'Banish 3 Void foes roaming outside the Sanctuary.',
+      description: 'Banish 3 hostile foes roaming outside the Sanctuary. Training dummies do not count.',
       isComplete: () => (questState.warzoneKills || 0) >= 3,
       tasks: [
         {
-          text: 'Banish Hostile Foes',
+          text: 'Banish Hostile Foes (not dummies)',
           done: () => (questState.warzoneKills || 0) >= 3,
           counter: () => `${Math.min(3, questState.warzoneKills || 0)} / 3`,
         },
@@ -987,14 +1064,14 @@ export function initGame() {
         {
           speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
           spriteKey: 'warzoneArchonNpc',
-          text: 'Void entities stalk outside our gates. Step into any outer domain, cut down 3 foes, and report back to prove your steel!',
+          text: 'Void entities stalk outside our gates. Step into any outer domain, cut down 3 real foes, and report back to prove your steel. Training dummies do not count.',
         },
       ],
       ongoingDialogue: [
         {
           speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
           spriteKey: 'warzoneArchonNpc',
-          text: 'Keep hunting, soldier! The void creeps ever closer until all 3 threats are banished.',
+          text: 'Keep hunting, soldier! The void creeps ever closer until all 3 real threats are banished. Practice dummies do not count.',
         },
       ],
       completeDialogue: [
@@ -1510,6 +1587,181 @@ export function initGame() {
         },
       ],
     },
+
+    quest_skill_combat: {
+      id: 'quest_skill_combat',
+      title: 'Combat: First Blood',
+      giverId: 'npc_archon',
+      turnInId: 'npc_archon',
+      prereqQuestId: 'quest_awakening',
+      questPoints: 1,
+      unlocks: ['Combat Mastery Lv. 2 Drills', 'Vanguard Sparring Rites'],
+      description: 'Prove your combat discipline by banishing 3 foes or landing 15 strikes on a training dummy.',
+      isComplete: () => (questState.combatKills || 0) >= 3 || (questState.combatTrainingHits || 0) >= 15,
+      tasks: [
+        {
+          text: 'Banish Hostile Foes (not dummies)',
+          done: () => (questState.combatKills || 0) >= 3,
+          counter: () => `${Math.min(3, questState.combatKills || 0)} / 3`,
+        },
+        {
+          text: 'Strike a Training Dummy',
+          done: () => (questState.combatTrainingHits || 0) >= 15,
+          counter: () => `${Math.min(15, questState.combatTrainingHits || 0)} / 15`,
+        },
+      ],
+      rewards: {
+        xp: 220,
+        glimmer: 60,
+        gold: 100,
+        professionXp: { combat_mastery: 75 },
+      },
+      acceptDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Steel is nothing without discipline. Banish three real foes in the outer realms, or drill your forms against the Sanctuary training dummies, and I will mark your first combat rank. Dummy kills do not count as hostile kills.',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Keep your guard high. Three clean kills of real foes or fifteen solid dummy strikes will prove your readiness. Dummy kills do not count toward the kill task.',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Good. Your footwork is no longer a liability. Carry that discipline into every fight and your Combat Mastery will grow quickly.',
+        },
+      ],
+    },
+
+    quest_skill_training: {
+      id: 'quest_skill_training',
+      title: "The Artisan's First Rank",
+      giverId: 'npc_aurora',
+      turnInId: 'npc_aurora',
+      prereqQuestId: 'quest_awakening',
+      questPoints: 1,
+      unlocks: ['Artisan Training Drills', 'Skill Mentor Guidance'],
+      description: 'Train any profession to Level 2. Press [N] to open Skills, click a skill, and follow its green HOW TO TRAIN steps.',
+      isComplete: () => getTotalProfessionLevel(prog?.professions) >= 6,
+      tasks: [
+        {
+          text: 'Train any skill to Level 2',
+          done: () => Object.values(prog?.professions || {}).some((p) => getProfessionLevelFromXp(p?.xp || 0) >= 2),
+        },
+        {
+          text: 'Reach Total Skill Level 6',
+          done: () => getTotalProfessionLevel(prog?.professions) >= 6,
+        },
+      ],
+      rewards: {
+        xp: 240,
+        glimmer: 80,
+        gold: 120,
+        professionXp: {
+          resonance_extraction: 25,
+          relic_forging: 25,
+          rite_binding: 25,
+          glimmerweaving: 25,
+          combat_mastery: 25,
+        },
+      },
+      acceptDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'A champion must hone more than the blade. Press [N], click any skill, and read the green HOW TO TRAIN box. The fastest start is [E] at a purple Glimmer Node, or TRAIN with Blacksmith Torvin at the Sanctuary market. Raise any profession to Level 2 and return to me.',
+          actions: [
+            { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
+            { label: '👋 I WILL START NOW', action: 'close' },
+          ],
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'Open Skills [N], click a skill, and follow its green HOW TO TRAIN box. Artisans offer repeatable training at their market stalls, and Glimmer nodes recharge over time.',
+          actions: [
+            { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
+            { label: '👋 I WILL KEEP TRAINING', action: 'close' },
+          ],
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'Your first rank is earned. Keep training, and the artisan masters will open rarer recipes and stronger gear to you.',
+          actions: [
+            { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
+          ],
+        },
+      ],
+    },
+
+    quest_artisan_capstone: {
+      id: 'quest_artisan_capstone',
+      title: "The Artisan's Path",
+      giverId: 'npc_aurora',
+      turnInId: 'npc_aurora',
+      prereqQuestIds: ['quest_skill_extraction', 'quest_skill_forging', 'quest_skill_binding', 'quest_skill_weaving'],
+      questPoints: 2,
+      unlocks: ['Artisan Guild Recognition', 'Master Crafting Commission'],
+      description: 'Complete the four artisan initiation trials and prove that every Sanctuary craft is within your reach.',
+      isComplete: () => Boolean(
+        questState.completedQuests?.quest_skill_extraction &&
+        questState.completedQuests?.quest_skill_forging &&
+        questState.completedQuests?.quest_skill_binding &&
+        questState.completedQuests?.quest_skill_weaving
+      ),
+      tasks: [
+        { text: 'Complete Resonance: First Extraction', done: () => Boolean(questState.completedQuests?.quest_skill_extraction) },
+        { text: "Complete Forging: The Anvil's Spark", done: () => Boolean(questState.completedQuests?.quest_skill_forging) },
+        { text: 'Complete Binding: The Alchemical Draught', done: () => Boolean(questState.completedQuests?.quest_skill_binding) },
+        { text: 'Complete Weaving: The Luminescent Thread', done: () => Boolean(questState.completedQuests?.quest_skill_weaving) },
+      ],
+      rewards: {
+        xp: 800,
+        glimmer: 220,
+        gold: 300,
+        professionXp: {
+          resonance_extraction: 40,
+          relic_forging: 40,
+          rite_binding: 40,
+          glimmerweaving: 40,
+        },
+      },
+      acceptDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'You have walked every artisan path: extraction, forging, binding, and weaving. The Guild has taken notice. Accept their recognition and carry the mark of a true maker.',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'The four initiation trials are complete. Return to me to claim the Artisan Guild recognition.',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'All four crafts now answer to your hand. The Artisan Guild recognizes you as a Master of the Sanctuary trades!',
+          actions: [
+            { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
+          ],
+        },
+      ],
+    },
   };
 
   function getNpcName(npcId) {
@@ -1575,6 +1827,13 @@ export function initGame() {
     return (dx <= 34 && dy >= -74 && dy <= 14);
   }
 
+  function isQuestPrereqMet(q) {
+    if (!q) return false;
+    if (q.prereqQuestId && !questState.completedQuests?.[q.prereqQuestId]) return false;
+    if (Array.isArray(q.prereqQuestIds) && q.prereqQuestIds.some((id) => !questState.completedQuests?.[id])) return false;
+    return true;
+  }
+
   function getNpcQuestStatus(npc) {
     if (!npc) return 'none';
     // Bankers and exchange brokers do not have quests
@@ -1611,7 +1870,7 @@ export function initGame() {
       if (q.giverId === npcId) {
         const isCompleted = Boolean(questState.completedQuests[qId]);
         const isActive = Boolean(questState.activeQuests[qId]);
-        const prereqMet = !q.prereqQuestId || Boolean(questState.completedQuests[q.prereqQuestId]);
+        const prereqMet = isQuestPrereqMet(q);
         if (!isCompleted && !isActive && prereqMet) return 'available';
       }
     }
@@ -1641,7 +1900,7 @@ export function initGame() {
       if (q.giverId === npcId) {
         const isCompleted = Boolean(questState.completedQuests[qId]);
         const isActive = Boolean(questState.activeQuests[qId]);
-        const prereqMet = !q.prereqQuestId || Boolean(questState.completedQuests[q.prereqQuestId]);
+        const prereqMet = isQuestPrereqMet(q);
         if (!isCompleted && !isActive && prereqMet) return q;
       }
     }
@@ -1807,7 +2066,7 @@ export function initGame() {
     try {
       if (quest.rewards?.professionXp) {
         for (const [profId, pAmt] of Object.entries(quest.rewards.professionXp)) {
-          awardProfessionXP(profId, pAmt, quest.title);
+          awardProfessionXP(profId, pAmt, quest.title, true);
         }
       }
     } catch (_) {}
@@ -2785,8 +3044,7 @@ export function initGame() {
     for (const qId of Object.keys(QUEST_CATALOG)) {
       const q = QUEST_CATALOG[qId];
       const isCompleted = Boolean(questState.completedQuests?.[qId]);
-      const isActive = Boolean(questState.activeQuests?.[qId]);
-      const prereqMet = !q.prereqQuestId || Boolean(questState.completedQuests?.[q.prereqQuestId]);
+      const isActive = Boolean(questState.activeQuests?.[qId]);            const prereqMet = isQuestPrereqMet(q);
       if (!isCompleted && !isActive && prereqMet) {
         availableList.push(q);
       }
@@ -3102,19 +3360,60 @@ export function initGame() {
     if (btn) btn.innerText = audio.bgmMuted ? '🔇 BGM' : '🎵 BGM';
   }
   syncBgmButtonLabel();
+  syncAudioMixerUI();
 
   window.toggleBgmMute = function (force) {
-    let playing;
-    if (typeof force === 'boolean') {
-      audio.setBgmEnabled(force);
-      playing = force;
-    } else {
-      playing = audio.toggleBgm();
-    }
+    const playing = typeof force === 'boolean' ? audio.setBgmEnabled(force) : audio.toggleBgm();
     const btn = document.getElementById('btn-bgm-toggle');
     if (btn) btn.innerText = playing ? '🎵 BGM' : '🔇 BGM';
-    const cb = document.getElementById('settings-bgm-checkbox');
-    if (cb) cb.checked = playing;
+    const settingsCb = document.getElementById('settings-bgm-checkbox');
+    if (settingsCb) settingsCb.checked = playing;
+    const mixerCb = document.getElementById('mixer-bgm-checkbox');
+    if (mixerCb) mixerCb.checked = playing;
+    syncAudioMixerUI();
+  };
+
+  function syncAudioMixerUI() {
+    const volumes = audio.getVolumes();
+    for (const channel of ['master', 'music', 'sfx']) {
+      const range = document.getElementById(`vol-${channel}-range`);
+      const number = document.getElementById(`vol-${channel}-number`);
+      if (range) range.value = String(volumes[channel]);
+      if (number) number.value = String(volumes[channel]);
+    }
+    const mixerCb = document.getElementById('mixer-bgm-checkbox');
+    if (mixerCb) mixerCb.checked = !audio.bgmMuted;
+    const settingsCb = document.getElementById('settings-bgm-checkbox');
+    if (settingsCb) settingsCb.checked = !audio.bgmMuted;
+  }
+
+  window.syncAudioMixerUI = syncAudioMixerUI;
+
+  window.setAudioVolume = function (channel, value) {
+    const applied = audio.setVolume(channel, value);
+    if (applied !== null) {
+      const range = document.getElementById(`vol-${channel}-range`);
+      const number = document.getElementById(`vol-${channel}-number`);
+      if (range) range.value = String(applied);
+      if (number) number.value = String(applied);
+    }
+  };
+
+  window.openAudioMixer = function () {
+    window.toggleModal('audio-mixer-modal');
+    syncAudioMixerUI();
+  };
+
+  window.muteAllAudio = function () {
+    window.setAudioVolume('master', 0);
+  };
+
+  window.resetAudioVolumes = function () {
+    audio.setVolume('master', 80);
+    audio.setVolume('music', 65);
+    audio.setVolume('sfx', 80);
+    if (audio.bgmMuted) audio.setBgmEnabled(true);
+    syncAudioMixerUI();
   };
 
   function refreshHeroPortrait() {
@@ -3170,6 +3469,8 @@ export function initGame() {
       equipment: { ...cls.defaultEquipment, ...(prof.equipment || {}) },
       inventory: Array.isArray(prof.inventory) ? prof.inventory : (localProfile.inventory || []),
       bank: resolvedBank,
+      // Do not leak the previous character's quest state into this profile.
+      questState: prof.questState || null,
     };
     window.localProfile = localProfile;
 
@@ -3200,6 +3501,9 @@ export function initGame() {
     }
     if (document.getElementById('bank-modal')?.style.display === 'block') {
       renderBankModal({ profile: localProfile });
+    }
+    if (document.getElementById('merchant-modal')?.style.display === 'block') {
+      renderMerchantModal();
     }
   }
 
@@ -4033,9 +4337,11 @@ export function initGame() {
     document.getElementById('dlg-text').innerText = page.text;
     const btn = document.getElementById('dlg-next-btn');
     if (btn) {
-      btn.innerText = dialogueIdx < activeDialoguePages.length - 1
+      const isLast = dialogueIdx >= activeDialoguePages.length - 1;
+      const hasShopAction = isLast && page.actions?.some((act) => act.action === 'openShop');
+      btn.innerText = !isLast
         ? `NEXT (${dialogueIdx + 1}/${activeDialoguePages.length}) ▸`
-        : 'BEGIN TRAINING ✓';
+        : hasShopAction ? 'BEGIN TRAINING ✓' : 'CLOSE ✓';
     }
 
     const actionsEl = document.getElementById('dlg-actions');
@@ -4093,6 +4399,14 @@ export function initGame() {
 
   window.advanceDialogue = function () {
     audio.playDialogue();
+    const currentPage = activeDialoguePages[dialogueIdx];
+    if (currentPage && dialogueIdx >= activeDialoguePages.length - 1) {
+      const shopActionIdx = currentPage.actions?.findIndex((act) => act.action === 'openShop') ?? -1;
+      if (shopActionIdx >= 0) {
+        window.handleDialogueAction(shopActionIdx);
+        return;
+      }
+    }
     dialogueIdx++;
     if (dialogueIdx >= activeDialoguePages.length) {
       if (activeDialogueNpcId) {
@@ -4172,7 +4486,28 @@ export function initGame() {
     updatePlayerUI();
   }
 
-  function awardProfessionXP(professionId, amount, reason = '') {
+  function grantProfessionMasteryCape(professionId, profName) {
+    if (net.connected) return false;
+    const prof = prog?.professions?.[professionId];
+    const capeId = PROFESSION_MASTERY_CAPES[professionId];
+    if (!prof || !capeId || prof.masteryCapeAwarded) return false;
+    if (getProfessionLevelFromXp(prof.xp || 0) < 99) return false;
+    const ownsCape = (localProfile.inventory || []).some((it) => (typeof it === 'string' ? it : it?.id) === capeId);
+    if (!ownsCape && !addItemToBackpack(localProfile, capeId, 1)) {
+      logMessage(`🏆 [Mastery] ${profName} reached Level 99, but your backpack is full. Free a slot and train once more to claim the skillcape.`, 'log-gain', 'chat');
+      return false;
+    }
+    prof.masteryCapeAwarded = true;
+    const cape = EQUIPMENT_CATALOG[capeId];
+    spawnSparkBurst(player.x, player.y - 12, ['#facc15', '#ffffff', '#38bdf8'], 36);
+    spawnFCT(player.x, player.y - 18, `🏆 ${cape?.name?.toUpperCase() || 'SKILLCAPE'} CLAIMED!`, '#facc15', true);
+    logMessage(`🏆 [MASTERY] ${profName} Level 99 reached! ${cape?.name || 'Skillcape'} added to your backpack.`, 'log-gain', 'chat');
+    if (audio?.playQuestCompleteFanfare) audio.playQuestCompleteFanfare();
+    else audio?.playLevelUp?.();
+    return true;
+  }
+
+  function awardProfessionXP(professionId, amount, reason = '', syncToServer = false) {
     if (!amount || amount <= 0) return;
     if (!prog.professions) {
       prog.professions = {
@@ -4206,13 +4541,108 @@ export function initGame() {
       }
     }
 
+    if (!net.connected) grantProfessionMasteryCape(professionId, profName);
     saveProgressionLocal();
-    if (net.connected) {
-      net.send({ type: 'save_progression', progression: prog });
+    if (net.connected && syncToServer) {
+      net.send({ type: 'sync_profession_progress', professions: prog.professions });
     }
     renderSkillsTabUI();
   }
   window.awardProfessionXP = awardProfessionXP;
+
+  const ARTISAN_TRAINING = {
+    merchant_smith: { professionId: 'relic_forging', verb: 'SMELT & HAMMER', baseCost: 8, baseXp: 35 },
+    merchant_apothecary: { professionId: 'rite_binding', verb: 'DISTILL & BIND', baseCost: 8, baseXp: 35 },
+    merchant_provisions: { professionId: 'glimmerweaving', verb: 'WEAVE & BAKE', baseCost: 8, baseXp: 35 },
+    merchant_relics: { professionId: 'resonance_extraction', verb: 'ATTUNE A RELIC', baseCost: 8, baseXp: 35 },
+  };
+
+  // Cost and XP are recalculated after every session so bulk training cannot
+  // accidentally use the starting level's reward for all five sessions.
+  function getArtisanTrainingPlan(def, startXp, count = 1) {
+    const sessions = Math.max(1, Math.min(25, Math.floor(Number(count) || 1)));
+    let xp = Math.max(0, Math.floor(Number(startXp) || 0));
+    let cost = 0;
+    let gain = 0;
+    const startLevel = getProfessionLevelFromXp(xp);
+    let endLevel = startLevel;
+    for (let i = 0; i < sessions; i++) {
+      const level = getProfessionLevelFromXp(xp);
+      cost += def.baseCost + Math.floor(level * 1.5);
+      const stepGain = def.baseXp + level * 2;
+      gain += stepGain;
+      xp += stepGain;
+      endLevel = getProfessionLevelFromXp(xp);
+    }
+    return { count: sessions, cost, gain, startXp: startXp, endXp: xp, startLevel, endLevel, levelsGained: endLevel - startLevel };
+  }
+
+  function getArtisanTrainingQuote(merchantId) {
+    const def = ARTISAN_TRAINING[merchantId];
+    if (!def) return null;
+    const pInfo = PROFESSIONS_CATALOG[def.professionId];
+    const xp = Math.max(0, Math.floor(Number(prog?.professions?.[def.professionId]?.xp) || 0));
+    const level = getProfessionLevelFromXp(xp);
+    const curXp = getXpForProfessionLevel(level);
+    const nextXp = level >= 99 ? curXp : getXpForProfessionLevel(level + 1);
+    const pct = level >= 99 ? 100 : Math.min(100, Math.floor(((xp - curXp) / Math.max(1, nextXp - curXp)) * 100));
+    const cost = def.baseCost + Math.floor(level * 1.5);
+    const gain = def.baseXp + level * 2;
+    return {
+      merchantId,
+      ...def,
+      name: pInfo?.name || formatProfessionName(def.professionId),
+      icon: pInfo?.icon || '✨',
+      color: pInfo?.color || '#38bdf8',
+      xp,
+      level,
+      nextXp,
+      pct,
+      cost,
+      gain,
+      bulk: getArtisanTrainingPlan(def, xp, 5),
+    };
+  }
+  window.getArtisanTrainingQuote = getArtisanTrainingQuote;
+
+  window.trainArtisanProfession = function (merchantId, count = 1) {
+    const def = ARTISAN_TRAINING[merchantId];
+    const q = getArtisanTrainingQuote(merchantId);
+    if (!def || !q || !localProfile) return false;
+    const plan = getArtisanTrainingPlan(def, q.xp, count);
+    if (getPlayerGold(localProfile) < plan.cost) {
+      spawnFCT(player.x, player.y - 14, `NEED ${plan.cost} SOLAR GOLD TO TRAIN!`, '#ef4444');
+      audio.playHurt?.();
+      return false;
+    }
+
+    if (net.connected) {
+      net.send({ type: 'train_artisan_profession', merchantId, count: plan.count });
+      return true;
+    }
+
+    deductPlayerGold(localProfile, plan.cost);
+    if (merchantId === 'merchant_smith') questState.smithInspected = true;
+    if (merchantId === 'merchant_apothecary') questState.apothecaryInspected = true;
+    if (merchantId === 'merchant_provisions') questState.provisionsInspected = true;
+    if (merchantId === 'merchant_relics') questState.relicsInspected = true;
+
+    awardProfessionXP(q.professionId, plan.gain, plan.count > 1 ? `${plan.count} training sessions` : '');
+    saveQuestState();
+    saveProgressionLocal();
+
+    spawnFCT(player.x, player.y - 20, `-${plan.cost} SOLAR GOLD`, '#facc15');
+    const sessionLabel = plan.count > 1 ? `${plan.count} sessions` : 'one session';
+    logMessage(`[Artisan Training] Completed ${sessionLabel} with ${getNpcName(merchantId)}: +${plan.gain} ${q.name} XP for ${plan.cost} Solar Gold.`, 'log-gain', 'combat');
+    updatePlayerUI();
+    updateQuestTrackerHUD();
+    try {
+      if (document.getElementById('merchant-modal')?.style.display === 'block') {
+        renderMerchantModal(merchantId);
+      }
+    } catch (_) {}
+    return true;
+  };
 
   window.toggleSkillsTab = function () {
     const el = document.getElementById('skills-tab-popup');
@@ -4261,7 +4691,7 @@ export function initGame() {
       const pct = currentLevel >= 99 ? 100 : Math.min(100, Math.floor((progressXp / diffXp) * 100));
 
       html += `
-        <div class="skill-card" style="border-left: 3px solid ${meta.color}; cursor: pointer;" onclick="openSkillGuide('${profId}')" title="Click to view Old School RuneScape-style Skill Guide & Unlocks">
+        <div class="skill-card" style="border-left: 3px solid ${meta.color}; cursor: pointer;" onclick="openSkillGuide('${profId}')" title="Click for exact training steps, methods, and unlocks">
           <div class="skill-card-top">
             <div class="skill-card-name" style="color: ${meta.color};">
               <span class="skill-card-icon">${meta.icon}</span>
@@ -4278,7 +4708,7 @@ export function initGame() {
           </div>
           <div class="skill-card-meta">
             <span>${currentLevel >= 99 ? 'MASTER (Lv. 99)' : `${xp.toLocaleString()} / ${nextLvlXp.toLocaleString()} XP (${pct}%)`}</span>
-            <span style="color:#fde047; font-size:8px; font-weight:bold;">📖 VIEW GUIDE →</span>
+            <span style="color:#fde047; font-size:8px; font-weight:bold;">📖 HOW TO TRAIN →</span>
           </div>
           <div class="skill-card-activity" title="${meta.activity}">${meta.activity}</div>
         </div>
@@ -4286,6 +4716,47 @@ export function initGame() {
     }
 
     container.innerHTML = html;
+  };
+
+  window.openSkillTrainingGuide = function () {
+    window.renderSkillTrainingGuide();
+    window.toggleModal('skill-training-modal');
+  };
+
+  window.renderSkillTrainingGuide = function () {
+    const body = document.getElementById('skill-training-body');
+    if (!body) return;
+
+    const cards = Object.values(PROFESSIONS_CATALOG).map((meta) => {
+      const xp = Math.max(0, Math.floor(Number(prog?.professions?.[meta.id]?.xp) || 0));
+      const level = getProfessionLevelFromXp(xp);
+      return `
+        <div class="skill-training-card" style="border-left-color:${meta.color};">
+          <div class="skill-training-card-head">
+            <span style="color:${meta.color};">${meta.icon} ${meta.name}</span>
+            <span style="color:#fde047; font-size:9px;">LV. ${level} / 99</span>
+          </div>
+          <div class="skill-training-card-start">${meta.quickStart || meta.activity}</div>
+          <div class="skill-training-card-loc">📍 ${meta.trainerLocation || meta.instructor || 'Sanctuary Haven'}</div>
+          <button class="skill-training-card-btn" style="border-color:${meta.color}; color:${meta.color};" onclick="openSkillGuide('${meta.id}')">
+            OPEN STEP-BY-STEP GUIDE →
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    body.innerHTML = `
+      <div class="skill-training-lead">
+        <b style="color:#fde047;">Start with one skill.</b> There are no skill points to spend and no training unlocks to buy: do the activity and the bar fills automatically. Pick a card below, then open its guide for every Level 1–99 milestone.
+      </div>
+      <div class="skill-training-steps">
+        <div class="skill-training-step"><span class="skill-training-num">1</span><span><b>Open Skills [N]</b> and click any skill card. The green <b>HOW TO TRAIN</b> box at the top tells you exactly what to do.</span></div>
+        <div class="skill-training-step"><span class="skill-training-num">2</span><span><b>Do the activity.</b> Channel a node, train with an artisan, or fight monsters. XP is awarded automatically.</span></div>
+        <div class="skill-training-step"><span class="skill-training-num">3</span><span><b>Watch the bar.</b> Level 99 automatically awards that skill's mastery cape. Artisan training is repeatable and costs Solar Gold.</span></div>
+      </div>
+      <div class="skill-training-grid">${cards}</div>
+      <div class="skill-training-tip">💡 <b>Fastest first level:</b> press <b>[E]</b> at the purple Glimmer Node beside the Sanctuary Dummy. For artisan skills, walk to the Sanctuary market, talk to the artisan, then click <b>TRAIN</b> in their shop.</div>
+    `;
   };
 
   // ==========================================
@@ -4305,9 +4776,18 @@ export function initGame() {
           title: 'Minor Glimmer Node Channeling',
           icon: '💎',
           category: 'gathering',
-          desc: 'Extract raw Glimmer from purple crystal fissures around Sanctuary Hub and border roads. Press [E] when near.',
+          desc: 'Extract raw Glimmer from purple crystal fissures around Sanctuary Hub and border roads. Normal nodes give 18+ Glimmer and 25 Extraction XP per charge.',
           method: 'Channeling [E]',
-          xp: '+35 Extraction XP',
+          xp: '+25 Extraction XP',
+        },
+        {
+          level: 1,
+          title: 'Grand Glimmer Fonts (Co-op)',
+          icon: '🌌',
+          category: 'gathering',
+          desc: 'Massive shared leyline fonts with 25 charges. Every player in the realm draws from the same pool, making them ideal for group Resonance Extraction grinding. A Grand Font yields 60+ Glimmer and 100 Extraction XP per charge.',
+          method: 'Channeling [E]',
+          xp: '+100 Extraction XP',
         },
         {
           level: 1,
@@ -4396,7 +4876,7 @@ export function initGame() {
           icon: '🏆',
           category: 'mastery',
           desc: 'Wear the Resonance Extraction Skillcape (+5 all stats). Instant node channeling and +25% bonus Glimmer across all realms.',
-          method: 'Mastery Vendor',
+          method: 'Automatic Level 99 Reward',
           xp: 'Grand Mastery Perk',
         },
       ],
@@ -4505,7 +4985,7 @@ export function initGame() {
           icon: '🏆',
           category: 'mastery',
           desc: 'Wear the Relic-Forging Skillcape (+5 all stats). 20% chance to forge flawless masterwork equipment with double bonus stats.',
-          method: 'Mastery Vendor',
+          method: 'Automatic Level 99 Reward',
           xp: 'Masterwork Smithing Perk',
         },
       ],
@@ -4614,7 +5094,7 @@ export function initGame() {
           icon: '🏆',
           category: 'mastery',
           desc: 'Wear the Rite-Binding Skillcape (+5 all stats). 25% chance to duplicate any brewed potion or scroll without consuming ingredients.',
-          method: 'Mastery Vendor',
+          method: 'Automatic Level 99 Reward',
           xp: 'Duplication Mastery Perk',
         },
       ],
@@ -4723,7 +5203,7 @@ export function initGame() {
           icon: '🏆',
           category: 'mastery',
           desc: 'Wear the Glimmerweaving Skillcape (+5 all stats). Provisions heal 50% more Health and backpack weight is reduced to zero.',
-          method: 'Mastery Vendor',
+          method: 'Automatic Level 99 Reward',
           xp: 'Master Provisions Perk',
         },
       ],
@@ -4832,7 +5312,7 @@ export function initGame() {
           icon: '🏆',
           category: 'mastery',
           desc: 'Wear the Combat Mastery Skillcape (+5 all stats). Permanent +5% Critical Strike chance and glorious Champion radiant aura.',
-          method: 'Mastery Vendor',
+          method: 'Automatic Level 99 Reward',
           xp: 'Champion Aura Perk',
         },
       ],
@@ -4862,6 +5342,7 @@ export function initGame() {
 
     const titleEl = document.getElementById('skill-guide-title');
     const statusEl = document.getElementById('skill-guide-status-bar');
+    const howtoEl = document.getElementById('skill-guide-howto');
     const filtersEl = document.getElementById('skill-guide-filters');
     const unlocksEl = document.getElementById('skill-guide-unlocks-container');
 
@@ -4894,6 +5375,15 @@ export function initGame() {
         <span>TOTAL XP: <b style="color:#fde047;">${xp.toLocaleString()}</b></span>
         <span>NEXT LEVEL: <b style="color:#38bdf8;">${currentLevel >= 99 ? 'MAX' : `${nextLvlXp.toLocaleString()} XP (+${(nextLvlXp - xp).toLocaleString()} needed)`}</b></span>
         <span style="color:#94a3b8;">Instructor: <b style="color:#e2e8f0;">${meta.instructor || 'Sanctuary Haven'}</b></span>
+      `;
+    }
+
+    if (howtoEl) {
+      howtoEl.innerHTML = `
+        <div class="skill-guide-howto-title">🚀 HOW TO TRAIN ${meta.name.toUpperCase()}</div>
+        <div class="skill-guide-howto-line"><b>1.</b> ${meta.quickStart || meta.activity}</div>
+        <div class="skill-guide-howto-line"><b>2.</b> 📍 ${meta.trainerLocation || meta.instructor || 'Sanctuary Haven'} <span style="color:#64748b;">• Instructor: ${meta.instructor || 'Sanctuary Haven'}</span></div>
+        <div class="skill-guide-howto-line" style="color:#94a3b8; font-size:9px;">XP is automatic — no skill points needed. <button class="id-mini-btn" style="font-size:8.5px; padding:1px 6px;" onclick="openSkillTrainingGuide()">SEE ALL 5 TRAINING PATHS →</button></div>
       `;
     }
 
@@ -5965,6 +6455,31 @@ export function initGame() {
         { id: 'void_mid_2', name: 'Duskblade Marauder', sub: 'Lv.28 Warzone Invader', type: 'mob', spriteKey: 'duskFiend', x: 140, y: -60, origX: 140, origY: -60, hp: 340, maxHp: 340, damage: 26, xpReward: 700, speed: 56, aggroRange: 112, attackRange: 26, radius: 14, hitFlash: 0 }
       );
     }
+
+    // Three shared Grand Glimmer Fonts per realm. Each has 25 charges that are
+    // global to the room, so parties can grind the same font together.
+    if (currentRoomType !== ROOM_TYPES.ARENA_3V3) {
+      const positions = GRAND_FONT_POSITIONS[currentRoomType]?.length
+        ? GRAND_FONT_POSITIONS[currentRoomType]
+        : [{ x: 0, y: 130 }];
+      positions.forEach((gp, index) => {
+        entities.push({
+          id: `grand_font_${currentRoomType}_${index + 1}`,
+          name: 'Grand Glimmer Font',
+          sub: 'GRAND LEYLINE FONT • 25 SHARED CHARGES [E]',
+          type: 'node',
+          spriteKey: 'grandNode',
+          isGrand: true,
+          x: gp.x,
+          y: gp.y,
+          charges: 25,
+          maxCharges: 25,
+          radius: 90,
+          hitFlash: 0,
+        });
+      });
+    }
+
     camera.x = player.x;
     camera.y = player.y;
   }
@@ -5989,7 +6504,7 @@ export function initGame() {
   }
 
   function updateNetStatusPill() {
-    const pill = document.getElementById('net-status-pill');
+    const pill = uiEl('net-status-pill');
     if (!pill) return;
     const dangerTag = getZoneDangerTag();
 
@@ -6001,9 +6516,10 @@ export function initGame() {
       return;
     }
     if (!net.connected) {
+      const attempt = net.reconnectAttempt || 0;
       pill.innerHTML = `
-        <div class="net-pill-line1" style="color:#fbbf24;">● CONNECTING...</div>
-        <div class="net-pill-line2">ENTERING CONTINENTAL REALM</div>
+        <div class="net-pill-line1" style="color:#fbbf24;">● ${attempt > 0 ? `RECONNECTING (${attempt})` : 'CONNECTING...'}</div>
+        <div class="net-pill-line2">${attempt > 0 ? 'RETRYING REALM LINK' : 'ENTERING CONTINENTAL REALM'}</div>
       `;
       return;
     }
@@ -6185,7 +6701,7 @@ export function initGame() {
           triggerEntityDeathEffect(se.x, se.y, se.isBoss);
           const distToPlayer = Math.hypot(se.x - player.x, se.y - player.y);
           if (distToPlayer < 400 || (currentTarget && currentTarget.id === se.id)) {
-            onPlayerKilledMob(currentRoomType, se.name, se.isBoss, se.id);
+            onPlayerKilledMob(currentRoomType, se.name, se.isBoss, se.id, se.type);
           }
         }
         prev.isDying = Boolean(se.isDying);
@@ -6270,6 +6786,16 @@ export function initGame() {
         spawnFCT(fx.x, fx.y, `-${fx.dmg}`, fx.isCrit ? '#facc15' : '#f87171', fx.isCrit);
         if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !questState.dummyDamaged) {
           questState.dummyDamaged = true;
+          saveQuestState();
+          updateQuestTrackerHUD();
+        }
+        if (hitEnt?.type === 'dummy') {
+          questState.combatTrainingHits = (questState.combatTrainingHits || 0) + 1;
+          if (questState.combatTrainingHits === 15 && questState.activeQuests?.quest_skill_combat) {
+            logMessage('📜 [Quest Objective] Training dummy strikes (15/15)! Return to Commander Valerius!', 'log-quest', 'chat');
+            spawnFCT(player.x, player.y - 14, '✨ COMBAT DRILL COMPLETE (15/15)!', '#facc15', true);
+            if (audio && audio.playChime) audio.playChime();
+          }
           saveQuestState();
           updateQuestTrackerHUD();
         }
@@ -6451,7 +6977,7 @@ export function initGame() {
           break;
 
         case 'mob_killed': {
-          onPlayerKilledMob(msg.roomType, msg.mobName, msg.isBoss, msg.mobId);
+          onPlayerKilledMob(msg.roomType, msg.mobName, msg.isBoss, msg.mobId, msg.mobType);
           const deadEnt = entities.find((e) => e.name === msg.mobName);
           if (deadEnt) {
             triggerEntityDeathEffect(deadEnt.x, deadEnt.y, msg.isBoss);
@@ -6685,52 +7211,72 @@ export function initGame() {
     document.getElementById('target-hp-fill').style.width = `${pct}%`;
   }
 
+  // Vitals are rounded for display only: regeneration stays fractional internally so
+  // bars move smoothly, but the HUD must never print decimal HP or Glimmer.
+  function updateVitalsUI() {
+    const hpNow = Math.round(player.hp);
+    const hpMax = Math.round(player.maxHp);
+    const shieldNow = Math.round(player.shield);
+    const hpTxtEl = uiEl('player-hp-txt');
+    if (hpTxtEl) {
+      hpTxtEl.innerText = shieldNow > 0
+        ? `${hpNow}/${hpMax} (+${shieldNow} SHIELD)`
+        : `${hpNow} / ${hpMax}`;
+    }
+    const hpFill = uiEl('player-hp-fill');
+    if (hpFill) {
+      hpFill.style.width = `${Math.min(100, (player.hp / Math.max(1, player.maxHp)) * 100)}%`;
+      hpFill.className = shieldNow > 0 ? 'bar-hp shielded' : 'bar-hp';
+    }
+    const resTxt = uiEl('player-res-txt');
+    if (resTxt) resTxt.innerText = `${Math.round(player.solarCharge)} / ${Math.round(player.maxSolarCharge)}`;
+    const resFill = uiEl('player-res-fill');
+    if (resFill) {
+      resFill.style.width = `${Math.min(100, (player.solarCharge / Math.max(1, player.maxSolarCharge)) * 100)}%`;
+    }
+  }
+
   function updatePlayerUI() {
     const fm = FACTIONS_META[localProfile.faction] || FACTIONS_META.Solari;
     const cls = CLASSES_CATALOG[localProfile.classId] || CLASSES_CATALOG.solari_vanguard;
-    const nameEl = document.getElementById('player-name-label');
+    const nameEl = uiEl('player-name-label');
     if (nameEl) {
       nameEl.innerText = localProfile.displayName.toUpperCase();
       nameEl.style.color = fm.color;
     }
-    const subEl = document.getElementById('player-sub-label');
+    const subEl = uiEl('player-sub-label');
     if (subEl) {
       const orderStr = localProfile.orderTag && localProfile.orderTag !== 'NONE' ? `<${localProfile.orderTag}> ` : '';
       const tcgBadge = localProfile.tcgLinked ? ' • ⚡TCG' : '';
       subEl.innerHTML = `<img src="${fm.logo}" alt="${fm.id}" style="width:13px; height:13px; object-fit:contain; vertical-align:middle; margin-right:3px; filter:drop-shadow(0 0 2px ${fm.color});" /> ${cls.name} • ${orderStr}${tcgBadge}`;
     }
-    const qFac = document.getElementById('quest-faction-pill');
+    const qFac = uiEl('quest-faction-pill');
     if (qFac) {
       qFac.innerText = localProfile.faction.toUpperCase();
       qFac.style.color = fm.color;
     }
 
-    document.getElementById('player-level-badge').innerText = prog.level;
-    const hpTxt = player.shield > 0
-      ? `${player.hp}/${player.maxHp} (+${player.shield}🛡)`
-      : `${player.hp} / ${player.maxHp}`;
-    document.getElementById('player-hp-txt').innerText = hpTxt;
-    document.getElementById('player-hp-fill').style.width = `${Math.min(100, (player.hp / Math.max(1, player.maxHp)) * 100)}%`;
-    document.getElementById('player-hp-fill').className = player.shield > 0 ? 'bar-hp shielded' : 'bar-hp';
-
-    document.getElementById('player-res-txt').innerText = `${player.solarCharge} / ${player.maxSolarCharge}`;
-    document.getElementById('player-res-fill').style.width = `${Math.min(100, (player.solarCharge / Math.max(1, player.maxSolarCharge)) * 100)}%`;
+    const levelBadge = uiEl('player-level-badge');
+    if (levelBadge) levelBadge.innerText = prog.level;
+    updateVitalsUI();
 
     const needXp = xpForNextLevel(prog.level);
-    document.getElementById('xp-bar-txt').innerText = `LV.${prog.level} ${cls.name.toUpperCase()}  •  XP ${prog.xp} / ${needXp}`;
-    document.getElementById('xp-bar-fill').style.width = `${Math.min(100, (prog.xp / needXp) * 100)}%`;
+    const xpBarTxt = uiEl('xp-bar-txt');
+    if (xpBarTxt) xpBarTxt.innerText = `LV.${prog.level} ${cls.name.toUpperCase()}  •  XP ${prog.xp} / ${needXp}`;
+    const xpBarFill = uiEl('xp-bar-fill');
+    if (xpBarFill) xpBarFill.style.width = `${Math.min(100, (prog.xp / needXp) * 100)}%`;
 
-    const spBadge = document.getElementById('skill-pt-pip');
+    const spBadge = uiEl('skill-pt-pip');
     if (spBadge) {
       spBadge.style.display = prog.skillPoints > 0 ? 'inline-block' : 'none';
       spBadge.innerText = `+${prog.skillPoints}`;
     }
-    const stBadge = document.getElementById('stat-pt-pip');
+    const stBadge = uiEl('stat-pt-pip');
     if (stBadge) {
       stBadge.style.display = prog.statPoints > 0 ? 'inline-block' : 'none';
       stBadge.innerText = `+${prog.statPoints}`;
     }
-    const invBadge = document.getElementById('inv-count-pip');
+    const invBadge = uiEl('inv-count-pip');
     if (invBadge) {
       const invLen = (localProfile.inventory || []).length;
       invBadge.style.display = invLen > 0 ? 'inline-block' : 'none';
@@ -6994,15 +7540,70 @@ export function initGame() {
     relic: { core: '#facc15', light: '#fffbeb', dark: '#854d0e' },
     item: { core: '#f59e0b', light: '#fef3c7', dark: '#78350f' },
   };
+  const LOOT_LABEL_FONT = 'bold 9px monospace';
+  const LOOT_LABEL_H = 11;
+  const LOOT_LABEL_GAP = 2;
+  const LOOT_LABEL_STEP = LOOT_LABEL_H + LOOT_LABEL_GAP;
+
+  function getLootLabel(l) {
+    const def = l.itemId ? EQUIPMENT_CATALOG[l.itemId] : null;
+    if (l.kind === 'item') {
+      const isSet = def?.rarity?.includes('Set') || def?.rarity?.includes('Apex');
+      return {
+        text: `${def?.name || l.itemId}${l.qty > 1 ? ` x${l.qty}` : ''}`,
+        color: isSet ? '#fde047' : def?.slot === 'currency' ? '#facc15' : def?.slot === 'consumable' ? '#4ade80' : (def ? (def.rarity === 'Epic' ? '#c084fc' : def.rarity === 'Rare' ? '#38bdf8' : def.rarity === 'Uncommon' ? '#4ade80' : '#f8fafc') : '#f8fafc'),
+      };
+    }
+    if (l.kind === 'relic') return { text: 'Ancient Relic Cache', color: '#fde047' };
+    if (l.kind === 'vital') return { text: 'Vital Shard', color: '#f87171' };
+    if (l.kind === 'glimmer') return { text: 'Glimmer Shard', color: '#38bdf8' };
+    return null;
+  }
+
+  // Lay out every ground-item label once per frame in screen space. A label that
+  // would cover an already-placed box is lifted above it, so nearby drops read as
+  // a clean vertical stack instead of overlapping text.
+  function layoutLootLabels(camLeft, camTop) {
+    const labels = [];
+    for (const l of lootDrops) l._labelY = null;
+
+    ctx.save();
+    ctx.font = LOOT_LABEL_FONT;
+    for (const l of lootDrops) {
+      const label = getLootLabel(l);
+      if (!label) continue;
+      if (l.ttl < 6 && Math.floor(globalTime * 8) % 2 === 0) continue;
+      const sx = Math.round(l.x - camLeft);
+      const sy = Math.round(l.y - camTop);
+      if (sx < -240 || sx > viewW + 240 || sy < -120 || sy > viewH + 120) continue;
+      labels.push({ l, sx, sy, w: Math.ceil(ctx.measureText(label.text).width) + 8 });
+    }
+    ctx.restore();
+
+    // Place the lowest drop first, then lift each overlapping label above it.
+    labels.sort((a, b) => (b.sy - a.sy) || (a.sx - b.sx) || String(a.l.id).localeCompare(String(b.l.id)));
+    const placed = [];
+    for (const item of labels) {
+      let y = Math.round(item.sy - 20);
+      for (let guard = 0; guard < 200; guard++) {
+        const hit = placed.find((p) =>
+          Math.abs(item.sx - p.sx) * 2 < (item.w + p.w) &&
+          Math.abs(y - p.y) < LOOT_LABEL_H
+        );
+        if (!hit) break;
+        y = hit.y - LOOT_LABEL_STEP;
+      }
+      item.l._labelY = y;
+      placed.push({ sx: item.sx, y, w: item.w });
+    }
+  }
 
   function drawLootShard(l, sx, sy) {
     const st = LOOT_STYLE[l.kind] || LOOT_STYLE.glimmer;
-    const age = l.age ?? (28 - l.ttl);
-    // pop-out arc on spawn (rests stationary on ground without bouncing)
-    const pop = age < 0.6 ? Math.sin((age / 0.6) * Math.PI) * 9 : 0;
     const blink = l.ttl < 6 && Math.floor(globalTime * 8) % 2 === 0;
     if (blink) return;
-    const cy = sy - 6 - Math.round(pop);
+    // Ground drops rest stationary on their tile — no sine hop, bounce, or drift.
+    const cy = sy - 6;
     drawPixelEllipseShadow(sx, sy, 4, 2);
     // 7px pixel diamond
     ctx.fillStyle = '#05070f';
@@ -7045,54 +7646,32 @@ export function initGame() {
       }
     }
 
-    // OSRS-Style Stacked Ground Items Label
-    const def = l.itemId ? EQUIPMENT_CATALOG[l.itemId] : null;
-    let labelText = '';
-    let labelColor = '#f8fafc';
-
-    if (l.kind === 'item') {
-      const isSet = def?.rarity?.includes('Set') || def?.rarity?.includes('Apex');
-      labelText = `${def?.name || l.itemId}${l.qty > 1 ? ` x${l.qty}` : ''}`;
-      labelColor = isSet ? '#fde047' : def?.slot === 'currency' ? '#facc15' : def?.slot === 'consumable' ? '#4ade80' : (def ? (def.rarity === 'Epic' ? '#c084fc' : def.rarity === 'Rare' ? '#38bdf8' : def.rarity === 'Uncommon' ? '#4ade80' : '#f8fafc') : '#f8fafc');
-    } else if (l.kind === 'relic') {
-      labelText = 'Ancient Relic Cache';
-      labelColor = '#fde047';
-    } else if (l.kind === 'vital') {
-      labelText = 'Vital Shard';
-      labelColor = '#f87171';
-    } else if (l.kind === 'glimmer') {
-      labelText = 'Glimmer Shard';
-      labelColor = '#38bdf8';
-    }
-
-    if (labelText) {
-      // Find all loot items within 34px cluster
-      const cluster = lootDrops.filter((o) => Math.hypot(l.x - o.x, l.y - o.y) < 34);
-      cluster.sort((a, b) => String(a.id).localeCompare(String(b.id)));
-      const stackRank = Math.max(0, cluster.findIndex((o) => o.id === l.id));
-      const labelY = Math.round(cy - 20 - (stackRank * 13));
+    // OSRS-Style Ground Items Label. The Y position is computed once per frame
+    // by layoutLootLabels() so nearby labels stack instead of overlapping.
+    const label = getLootLabel(l);
+    if (label) {
+      const labelY = Number.isFinite(l._labelY) ? l._labelY : Math.round(cy - 20);
       const rx = Math.round(sx);
 
       ctx.save();
-      ctx.font = 'bold 9px monospace';
+      ctx.font = LOOT_LABEL_FONT;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const tw = Math.ceil(ctx.measureText(labelText).width);
+      const tw = Math.ceil(ctx.measureText(label.text).width);
       const boxW = tw + 8;
-      const boxH = 11;
       const boxX = Math.round(rx - boxW / 2);
-      const boxY = Math.round(labelY - boxH / 2);
+      const boxY = Math.round(labelY - LOOT_LABEL_H / 2);
 
       ctx.fillStyle = 'rgba(5, 8, 18, 0.90)';
-      ctx.fillRect(boxX, boxY, boxW, boxH);
-      ctx.strokeStyle = labelColor;
+      ctx.fillRect(boxX, boxY, boxW, LOOT_LABEL_H);
+      ctx.strokeStyle = label.color;
       ctx.lineWidth = 1;
-      ctx.strokeRect(boxX, boxY, boxW, boxH);
+      ctx.strokeRect(boxX, boxY, boxW, LOOT_LABEL_H);
 
       ctx.fillStyle = '#05070f';
-      ctx.fillText(labelText, rx + 1, labelY + 1);
-      ctx.fillStyle = labelColor;
-      ctx.fillText(labelText, rx, labelY);
+      ctx.fillText(label.text, rx + 1, labelY + 1);
+      ctx.fillStyle = label.color;
+      ctx.fillText(label.text, rx, labelY);
       ctx.restore();
     }
   }
@@ -7118,7 +7697,7 @@ export function initGame() {
     }
     if (ent.type === 'mob') {
       spawnOfflineLoot(ent);
-      onPlayerKilledMob(currentRoomType, ent.name, ent.isBoss, ent.id);
+      onPlayerKilledMob(currentRoomType, ent.name, ent.isBoss, ent.id, ent.type);
     }
 
     const deathRoom = currentRoomType;
@@ -7189,6 +7768,17 @@ export function initGame() {
 
     if (ent.type === 'dummy' && ent.hp > 0) {
       awardXP(8, '');
+      questState.combatTrainingHits = (questState.combatTrainingHits || 0) + 1;
+      if (questState.combatTrainingHits % 5 === 0) {
+        awardProfessionXP('combat_mastery', 15, '');
+      }
+      if (questState.combatTrainingHits === 15 && questState.activeQuests?.quest_skill_combat) {
+        logMessage('📜 [Quest Objective] Training dummy strikes (15/15)! Return to Commander Valerius!', 'log-quest', 'chat');
+        spawnFCT(player.x, player.y - 14, '✨ COMBAT DRILL COMPLETE (15/15)!', '#facc15', true);
+        if (audio && audio.playChime) audio.playChime();
+      }
+      saveQuestState();
+      updateQuestTrackerHUD();
     }
 
     // Solari Paragon: Holy Radiance Burst on critical strike!
@@ -7946,6 +8536,7 @@ export function initGame() {
       audio.playChime();
       audio.playZenith?.();
       shrine.charges--;
+      if (shrine.charges === 0) shrine.rechargeTimer = 15;
       player.shrineBuff = { affinity: shrine.affinity, name: shrine.buffName, timer: 60 };
       spawnSparkBurst(shrine.x, shrine.y - 12, ['#facc15', '#ffffff', '#38bdf8', '#c084fc'], 32);
       spawnFCT(player.x, player.y - 14, `✨ ${shrine.buffName.toUpperCase()} BLESSING!`, '#facc15', true);
@@ -7979,9 +8570,24 @@ export function initGame() {
       logMessage('[Glimmer Node] Step near a purple Glimmer Node or Ancient Shrine first!', 'log-combat');
       return;
     }
+    if (node.charges <= 0) {
+      logMessage('[Glimmer Node] This node is depleted. Wait for it to recharge.', 'log-combat');
+      return;
+    }
     audio.playChime();
+    const eff = getEffectiveStats(prog, localProfile.equipment, localProfile.classId);
+    const isGrand = Boolean(node.isGrand);
+    const cooldown = (isGrand ? HARVEST_COOLDOWN_MS.grand : HARVEST_COOLDOWN_MS.normal) / 1000;
+    if (globalTime - lastNodeHarvestAt < cooldown) return;
+    lastNodeHarvestAt = globalTime;
+    const gain = isGrand ? 60 + eff.resonance * 6 : 18 + Math.floor(eff.resonance * 1.5);
+    // Character (combat) XP is deliberately minor; profession XP is the real node reward.
+    const charXp = isGrand ? 7 : 3;
+    const profXp = isGrand ? 100 : 25;
+    node.charges--;
+    if (node.charges === 0) node.rechargeTimer = isGrand ? 45 : 11;
     questState.extractionNodesHarvested = (questState.extractionNodesHarvested || 0) + 1;
-    awardProfessionXP('resonance_extraction', 35, 'Channeling Leyline Node');
+    awardProfessionXP('resonance_extraction', profXp, isGrand ? 'Grand Glimmer Font' : 'Channeling Leyline Node');
     if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !questState.nodeHarvested) {
       questState.nodeHarvested = true;
     }
@@ -7998,10 +8604,10 @@ export function initGame() {
     updateQuestTrackerHUD();
     if (net.connected) {
       net.send({ type: 'harvest_node', nodeId: node.id });
-    } else if (node.charges > 0) {
-      node.charges--;
-      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 35);
-      awardXP(25, 'Glimmer Node');
+    } else {
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + gain);
+      spawnFCT(player.x, player.y - 14, `+${gain} GLIMMER`, isGrand ? '#fde047' : '#c084fc', isGrand);
+      awardXP(charXp, isGrand ? 'Grand Glimmer Font' : 'Glimmer Node');
     }
   };
 
@@ -8789,9 +9395,17 @@ export function initGame() {
       if (id === 'skill-guide-modal') {
         renderSkillGuide(currentSkillGuideId, currentSkillGuideFilter);
       }
+      if (id === 'skill-training-modal') {
+        renderSkillTrainingGuide();
+      }
+      if (id === 'audio-mixer-modal') {
+        syncAudioMixerUI();
+      }
       if (id === 'settings-modal') {
         const touchCb = document.getElementById('settings-touch-checkbox');
         if (touchCb) touchCb.checked = document.body.classList.contains('touch-mode');
+        const compassCb = document.getElementById('settings-compass-checkbox');
+        if (compassCb) compassCb.checked = questCompassEnabled;
         const crtCb = document.getElementById('settings-crt-checkbox');
         if (crtCb) crtCb.checked = document.getElementById('crt-overlay')?.style.display === 'block';
         const zLbl = document.getElementById('zoom-label');
@@ -9132,32 +9746,41 @@ export function initGame() {
     if (portalCooldown > 0) portalCooldown = Math.max(0, portalCooldown - dt);
     if (portalMistTimer > 0) portalMistTimer = Math.max(0, portalMistTimer - dt);
 
-    // Safeguard: Ensure floating gear tooltip auto-dismisses if modal is closed
-    const tip = document.getElementById('gear-floating-tooltip');
-    if (tip && tip.style.display !== 'none') {
-      const bModal = document.getElementById('bank-modal');
-      const iModal = document.getElementById('inventory-modal');
-      const eModal = document.getElementById('equipment-modal');
-      const xModal = document.getElementById('exchange-modal');
-      const mModal = document.getElementById('merchant-modal');
-      if (bModal?.style.display !== 'block' &&
-          iModal?.style.display !== 'block' &&
-          eModal?.style.display !== 'block' &&
-          xModal?.style.display !== 'block' &&
-          mModal?.style.display !== 'block') {
-        window.clearHoveredEquipment?.();
-      }
+    // Cooldowns advance every frame; the DOM overlays refresh on the HUD tick below.
+    for (const slot in cooldowns) {
+      if (cooldowns[slot] > 0) cooldowns[slot] = Math.max(0, cooldowns[slot] - dt);
     }
 
-    for (const slot in cooldowns) {
-      if (cooldowns[slot] > 0) {
-        cooldowns[slot] = Math.max(0, cooldowns[slot] - dt);
-        const ov = document.getElementById(`cd-${slot}`);
-        if (ov) {
-          ov.style.opacity = cooldowns[slot] > 0 ? '1' : '0';
-          ov.innerText = cooldowns[slot] > 0 ? cooldowns[slot].toFixed(1) : '';
+    hudTickAccum += dt;
+    if (hudTickAccum >= 0.1) {
+      hudTickAccum = 0;
+
+      // Safeguard: Ensure floating gear tooltip auto-dismisses if modal is closed
+      const tip = uiEl('gear-floating-tooltip');
+      if (tip && tip.style.display !== 'none') {
+        const bModal = uiEl('bank-modal');
+        const iModal = uiEl('inventory-modal');
+        const eModal = uiEl('equipment-modal');
+        const xModal = uiEl('exchange-modal');
+        const mModal = uiEl('merchant-modal');
+        if (bModal?.style.display !== 'block' &&
+            iModal?.style.display !== 'block' &&
+            eModal?.style.display !== 'block' &&
+            xModal?.style.display !== 'block' &&
+            mModal?.style.display !== 'block') {
+          window.clearHoveredEquipment?.();
         }
       }
+
+      for (const slot in cooldowns) {
+        const ov = uiEl(`cd-${slot}`);
+        if (!ov) continue;
+        const cd = cooldowns[slot];
+        ov.style.opacity = cd > 0 ? '1' : '0';
+        ov.innerText = cd > 0 ? cd.toFixed(1) : '';
+      }
+
+      updateVitalsUI();
     }
 
     if (!net.connected) {
@@ -9168,6 +9791,16 @@ export function initGame() {
       if (player.emoteTimer > 0) {
         player.emoteTimer -= dt;
         if (player.emoteTimer <= 0) player.emote = null;
+      }
+
+      // Offline leyline nodes and shrines replenish so gathering can be trained indefinitely.
+      for (const e of entities) {
+        if ((e.type !== 'node' && e.type !== 'shrine') || e.charges > 0) continue;
+        e.rechargeTimer = Math.max(0, (e.rechargeTimer || 0) - dt);
+        if (e.rechargeTimer <= 0) {
+          e.charges = e.maxCharges || (e.type === 'shrine' ? 5 : 3);
+          e.rechargeTimer = 0;
+        }
       }
     }
 
@@ -9210,7 +9843,8 @@ export function initGame() {
 
     if (isCasting) {
       castProgress += dt;
-      document.getElementById('cast-fill').style.width = `${Math.min(100, (castProgress / castDuration) * 100)}%`;
+      const castFill = uiEl('cast-fill');
+      if (castFill) castFill.style.width = `${Math.min(100, (castProgress / castDuration) * 100)}%`;
       if (castProgress >= castDuration) {
         isCasting = false;
         document.getElementById('cast-bar-container').style.display = 'none';
@@ -10033,6 +10667,544 @@ export function initGame() {
     ctx.restore();
   }
 
+  // Pixel-art quest compass: a chunky arrow at the screen edge pointing toward the
+  // nearest quest giver when they are off-screen. Drawn from canvas rects only.
+  function drawQuestCompass() {
+    if (!questCompassEnabled || frontpage.isOpen || player.isDead) return;
+
+    let target = null;
+    let bestScore = Infinity;
+    for (const npc of npcs) {
+      const status = getNpcQuestStatus(npc);
+      if (status === 'none') continue;
+      const priority = status === 'finished' ? 0 : status === 'ongoing' ? 2 : 1;
+      const dist = Math.hypot(npc.x - player.x, npc.y - player.y);
+      const score = priority * 1000000 + dist;
+      if (score < bestScore) {
+        bestScore = score;
+        target = { npc, dist };
+      }
+    }
+    if (!target || target.dist < 140) return;
+
+    const p = worldToScreen(target.npc.x, target.npc.y);
+    const margin = 30;
+    if (p.x >= margin && p.x <= viewW - margin && p.y >= margin && p.y <= viewH - margin) return;
+
+    const ax = Math.max(margin, Math.min(viewW - margin, Math.round(p.x)));
+    const ay = Math.max(margin, Math.min(viewH - margin, Math.round(p.y)));
+
+    const dx = p.x - viewW / 2;
+    const dy = p.y - viewH / 2;
+    let dirX = 0;
+    let dirY = 0;
+    if (Math.abs(dx) > Math.abs(dy)) dirX = dx > 0 ? 1 : -1;
+    else dirY = dy > 0 ? 1 : -1;
+
+    // 5x5 triangle pointing right, rotated to the dominant direction.
+    const base = [];
+    for (let r = 0; r < 5; r += 1) {
+      const span = Math.abs(2 - r);
+      for (let c = 0; c < 5 - span; c += 1) base.push([c, r]);
+    }
+    const points = base.map(([c, r]) => {
+      if (dirX === 1) return [c, r];
+      if (dirX === -1) return [4 - c, r];
+      if (dirY === 1) return [r, c];
+      return [r, 4 - c];
+    });
+
+    const scale = 2;
+    const ox = Math.round(ax - (5 * scale) / 2);
+    const oy = Math.round(ay - (5 * scale) / 2);
+    ctx.save();
+    ctx.fillStyle = '#05070f';
+    for (const [c, r] of points) {
+      ctx.fillRect(ox + c * scale - 1, oy + r * scale - 1, scale + 2, scale + 2);
+    }
+    ctx.fillStyle = '#facc15';
+    for (const [c, r] of points) {
+      ctx.fillRect(ox + c * scale, oy + r * scale, scale, scale);
+    }
+    const tip = points.reduce((best, [c, r]) => {
+      const score = dirX === 1 ? c : dirX === -1 ? 4 - c : dirY === 1 ? r : 4 - r;
+      return score > best.score ? { score, c, r } : best;
+    }, { score: -1, c: 0, r: 0 });
+    ctx.fillStyle = '#fef08a';
+    ctx.fillRect(ox + tip.c * scale, oy + tip.r * scale, scale, scale);
+    ctx.restore();
+  }
+
+  // Static ground is baked into 256px chunk canvases once per room. This collapses
+  // roughly a thousand per-frame tile blits into ~20 cached chunk blits.
+  const TILE_CHUNK_TILES = 16;
+  const TILE_CHUNK_PX = TILE_CHUNK_TILES * TILE_SIZE;
+  const tileChunkCache = new Map();
+  let tileChunkRoomKey = '';
+  let animatedWaterTiles = null;
+
+  function getTileChunk(chunkX, chunkY) {
+    const key = `${tileChunkRoomKey}:${chunkX},${chunkY}`;
+    const cached = tileChunkCache.get(key);
+    if (cached) return cached;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = TILE_CHUNK_PX;
+    canvas.height = TILE_CHUNK_PX;
+    const cctx = canvas.getContext('2d');
+    cctx.imageSmoothingEnabled = false;
+
+    if (!animatedWaterTiles) {
+      animatedWaterTiles = new Set(
+        [sprites.tiles.river_water_0, sprites.tiles.river_water_1].filter(Boolean)
+      );
+    }
+
+    const water = [];
+    for (let ty = 0; ty < TILE_CHUNK_TILES; ty++) {
+      for (let tx = 0; tx < TILE_CHUNK_TILES; tx++) {
+        const tile = pickTile(chunkX * TILE_CHUNK_TILES + tx, chunkY * TILE_CHUNK_TILES + ty);
+        if (!tile) continue;
+        cctx.drawImage(tile, tx * TILE_SIZE, ty * TILE_SIZE);
+        if (animatedWaterTiles.has(tile)) water.push({ tx, ty });
+      }
+    }
+
+    const chunk = { canvas, water };
+    if (tileChunkCache.size >= 64) tileChunkCache.clear();
+    tileChunkCache.set(key, chunk);
+    return chunk;
+  }
+
+  // ==========================================
+  // Animated Ambient Dressing
+  // ==========================================
+  // Deterministic per world cell, so scenery never pops between frames and needs
+  // no room state. Only cells touching the current view are considered.
+  const AMBIENT_SEA_CELL = 44;
+  const AMBIENT_STACK_CELL = 190;
+  const AMBIENT_GROUND_CELL = 46;
+  const AMBIENT_MOTE_CELL = 68;
+
+  function ambientHash(x, y, seed = 0) {
+    let h = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(seed | 0, 1442695041);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
+
+  function drawSeaStack(sx, sy, h, t) {
+    const w = 8 + Math.floor(h * 10);
+    const hgt = 7 + Math.floor(h * 12);
+    const left = Math.round(sx - w / 2);
+    const top = Math.round(sy - hgt);
+
+    ctx.fillStyle = '#050b16';
+    ctx.fillRect(left, top, w, hgt);
+    ctx.fillRect(left - 2, sy - 3, w + 4, 3);
+    ctx.fillStyle = '#12233b';
+    ctx.fillRect(left + 2, top + 2, Math.max(1, w - 4), Math.max(1, hgt - 4));
+    ctx.fillRect(left - 1, sy - 2, w + 2, 1);
+    ctx.fillStyle = '#1e3a5f';
+    ctx.fillRect(left + Math.max(1, Math.floor(w / 2) - 1), top + 3, 2, Math.max(1, hgt - 5));
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(left + 2, top + 1, 3, 1);
+
+    const pulse = 0.5 + 0.5 * Math.sin(t * 1.4 + h * 30);
+    ctx.fillStyle = `rgba(125, 211, 252, ${0.10 + pulse * 0.12})`;
+    ctx.fillRect(left - 3, sy, w + 6, 1);
+    ctx.fillRect(left - 1, sy + 2, w + 2, 1);
+    if (h > 0.7) {
+      ctx.fillStyle = `rgba(224, 242, 254, ${0.25 + pulse * 0.35})`;
+      ctx.fillRect(left + Math.floor(w / 2), top + 2, 1, 1);
+    }
+  }
+
+  function drawSeaAmbient(camLeft, camTop) {
+    const t = globalTime;
+    const halfW = mapBounds.halfW;
+    const halfH = mapBounds.halfH;
+    const step = 24;
+
+    // Animated surf hugging each shoreline; the sea itself sits outside the rim.
+    const northY = Math.round(-halfH - camTop);
+    if (northY > -16 && northY < viewH + 16) {
+      const from = Math.max(-halfW, camLeft - step);
+      const to = Math.min(halfW, camLeft + viewW + step);
+      for (let wx = Math.ceil(from / step) * step; wx <= to; wx += step) {
+        const sx = Math.round(wx - camLeft);
+        const ph = Math.sin(t * 2.3 + wx * 0.055);
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.20)';
+        ctx.fillRect(sx, northY - 3, 9 + Math.round((ph + 1) * 4), 1);
+        ctx.fillStyle = 'rgba(224, 242, 254, 0.30)';
+        ctx.fillRect(sx + 3, northY - 5, 4 + Math.round((ph + 1) * 2), 1);
+      }
+    }
+    const southY = Math.round(halfH - camTop);
+    if (southY > -16 && southY < viewH + 16) {
+      const from = Math.max(-halfW, camLeft - step);
+      const to = Math.min(halfW, camLeft + viewW + step);
+      for (let wx = Math.ceil(from / step) * step; wx <= to; wx += step) {
+        const sx = Math.round(wx - camLeft);
+        const ph = Math.sin(t * 2.3 + wx * 0.055 + 1.7);
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.20)';
+        ctx.fillRect(sx, southY + 2, 9 + Math.round((ph + 1) * 4), 1);
+        ctx.fillStyle = 'rgba(224, 242, 254, 0.30)';
+        ctx.fillRect(sx + 3, southY + 4, 4 + Math.round((ph + 1) * 2), 1);
+      }
+    }
+    const westX = Math.round(-halfW - camLeft);
+    if (westX > -16 && westX < viewW + 16) {
+      const from = Math.max(-halfH, camTop - step);
+      const to = Math.min(halfH, camTop + viewH + step);
+      for (let wy = Math.ceil(from / step) * step; wy <= to; wy += step) {
+        const sy = Math.round(wy - camTop);
+        const ph = Math.sin(t * 2.3 + wy * 0.055 + 3.1);
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.20)';
+        ctx.fillRect(westX - 3, sy, 1, 9 + Math.round((ph + 1) * 4));
+        ctx.fillStyle = 'rgba(224, 242, 254, 0.30)';
+        ctx.fillRect(westX - 5, sy + 3, 1, 4 + Math.round((ph + 1) * 2));
+      }
+    }
+    const eastX = Math.round(halfW - camLeft);
+    if (eastX > -16 && eastX < viewW + 16) {
+      const from = Math.max(-halfH, camTop - step);
+      const to = Math.min(halfH, camTop + viewH + step);
+      for (let wy = Math.ceil(from / step) * step; wy <= to; wy += step) {
+        const sy = Math.round(wy - camTop);
+        const ph = Math.sin(t * 2.3 + wy * 0.055 + 4.6);
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.20)';
+        ctx.fillRect(eastX + 2, sy, 1, 9 + Math.round((ph + 1) * 4));
+        ctx.fillStyle = 'rgba(224, 242, 254, 0.30)';
+        ctx.fillRect(eastX + 4, sy + 3, 1, 4 + Math.round((ph + 1) * 2));
+      }
+    }
+
+    // Sparse wave glints across the deep sea.
+    const seaCell = AMBIENT_SEA_CELL;
+    const sgx0 = Math.floor((camLeft - seaCell) / seaCell);
+    const sgx1 = Math.floor((camLeft + viewW + seaCell) / seaCell);
+    const sgy0 = Math.floor((camTop - seaCell) / seaCell);
+    const sgy1 = Math.floor((camTop + viewH + seaCell) / seaCell);
+    for (let gy = sgy0; gy <= sgy1; gy++) {
+      for (let gx = sgx0; gx <= sgx1; gx++) {
+        const h = ambientHash(gx, gy, 11);
+        if (h > 0.22) continue;
+        const wx = gx * seaCell + 5 + ambientHash(gx, gy, 12) * (seaCell - 10);
+        const wy = gy * seaCell + 5 + ambientHash(gx, gy, 13) * (seaCell - 10);
+        if (wx >= -halfW && wx < halfW && wy >= -halfH && wy < halfH) continue;
+        const sx = Math.round(wx - camLeft);
+        const sy = Math.round(wy - camTop);
+        if (sx < -8 || sx > viewW + 8 || sy < -8 || sy > viewH + 8) continue;
+
+        const shimmer = 0.5 + 0.5 * Math.sin(t * 1.7 + h * 37 + gx * 0.8);
+        ctx.fillStyle = `rgba(125, 211, 252, ${0.06 + shimmer * 0.12})`;
+        ctx.fillRect(sx, sy, 3 + Math.round(shimmer * 4), 1);
+        if (shimmer > 0.86) {
+          ctx.fillStyle = 'rgba(224, 242, 254, 0.42)';
+          ctx.fillRect(sx + 2, sy - 1, 1, 1);
+        }
+      }
+    }
+
+    // Distant sea stacks clustered near the shoreline.
+    const stackCell = AMBIENT_STACK_CELL;
+    const stx0 = Math.floor((camLeft - stackCell) / stackCell);
+    const stx1 = Math.floor((camLeft + viewW + stackCell) / stackCell);
+    const sty0 = Math.floor((camTop - stackCell) / stackCell);
+    const sty1 = Math.floor((camTop + viewH + stackCell) / stackCell);
+    for (let gy = sty0; gy <= sty1; gy++) {
+      for (let gx = stx0; gx <= stx1; gx++) {
+        const h = ambientHash(gx, gy, 21);
+        if (h > 0.17) continue;
+        const wx = gx * stackCell + 16 + ambientHash(gx, gy, 22) * (stackCell - 32);
+        const wy = gy * stackCell + 16 + ambientHash(gx, gy, 23) * (stackCell - 32);
+        if (wx >= -halfW && wx < halfW && wy >= -halfH && wy < halfH) continue;
+        const shore = Math.max(-halfW - wx, wx - halfW, -halfH - wy, wy - halfH);
+        if (shore < 20 || shore > 190) continue;
+        const sx = Math.round(wx - camLeft);
+        const sy = Math.round(wy - camTop);
+        if (sx < -24 || sx > viewW + 24 || sy < -28 || sy > viewH + 12) continue;
+        drawSeaStack(sx, sy, ambientHash(gx, gy, 24), t);
+      }
+    }
+  }
+
+  function ambientGroundKind() {
+    switch (currentBiomeTheme) {
+      case 'sanctuary':
+      case 'terra':
+      case 'terra_grove': return 'grass';
+      case 'umbri':
+      case 'umbri_labyrinth': return 'glowcap';
+      case 'solari':
+      case 'solari_vault': return 'sunleaf';
+      case 'aether':
+      case 'aether_archive': return 'crystal';
+      case 'celestial': return 'starlight';
+      case 'ruins': return 'pebble';
+      case 'warzone': return 'ash';
+      default: return 'none';
+    }
+  }
+
+  function ambientGroundAllowed(wx, wy) {
+    const edge = Math.min(mapBounds.halfW - Math.abs(wx), mapBounds.halfH - Math.abs(wy));
+    if (edge < 24) return false;
+    // Keep the four gate approaches and the central crossroads clear.
+    if (Math.abs(wx) < 56 || Math.abs(wy) < 56) return false;
+
+    const tx = Math.floor(wx / TILE_SIZE);
+    const ty = Math.floor(wy / TILE_SIZE);
+
+    switch (currentBiomeTheme) {
+      case 'sanctuary':
+        if (Math.abs(tx) <= 3 || Math.abs(ty) <= 3) return false;
+        if (Math.abs(tx) <= 7 && Math.abs(ty) <= 7) return false;
+        if (tx >= 11 && tx <= 25 && ty >= -18 && ty <= -7) return false;
+        if (tx >= -26 && tx <= -11 && ty >= -18 && ty <= -7) return false;
+        if (ty >= -22 && ty <= -19 && Math.abs(tx) <= 35) return false;
+        if (tx >= 14 && tx <= 28 && ty >= 10 && ty <= 18) return false;
+        return true;
+      case 'terra':
+      case 'umbri':
+      case 'solari':
+      case 'aether':
+        return Math.abs(tx) > 2;
+      case 'terra_grove': {
+        const d2 = tx * tx + ty * ty;
+        if ((d2 >= 25 && d2 <= 49) || (d2 >= 144 && d2 <= 196) || Math.abs(tx) <= 1) return false;
+        return true;
+      }
+      case 'umbri_labyrinth': {
+        const cellX = Math.floor(tx / 4);
+        const cellY = Math.floor(ty / 4);
+        return !((cellX + cellY) % 2 === 0 || Math.abs(tx) <= 1 || Math.abs(ty) <= 1);
+      }
+      case 'aether_archive':
+        if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) return false;
+        if (Math.abs(tx) % 6 <= 1 && Math.abs(ty) % 6 <= 1) return false;
+        return true;
+      case 'solari_vault':
+        if (Math.abs(tx) <= 3 && Math.abs(ty) <= 3) return false;
+        if ((Math.abs(tx) + Math.abs(ty)) % 5 === 0 || Math.abs(tx) <= 1) return false;
+        return true;
+      case 'ruins':
+      case 'celestial':
+        return true;
+      case 'warzone':
+        return edge < 170;
+      default:
+        return false;
+    }
+  }
+
+  function drawGroundDetail(kind, sx, sy, h, t) {
+    switch (kind) {
+      case 'grass': {
+        const lush = currentBiomeTheme !== 'sanctuary';
+        const sway = Math.round(Math.sin(t * 2.2 + h * 31));
+        ctx.fillStyle = 'rgba(3, 8, 14, 0.38)';
+        ctx.fillRect(sx - 3, sy, 7, 1);
+        ctx.fillStyle = lush ? '#166534' : '#14532d';
+        ctx.fillRect(sx - 2 + sway, sy - 3, 1, 3);
+        ctx.fillRect(sx + 1 - sway, sy - 5, 1, 5);
+        ctx.fillRect(sx + 3, sy - 2, 1, 2);
+        ctx.fillStyle = lush ? '#4ade80' : '#22c55e';
+        ctx.fillRect(sx - 2 + sway, sy - 4, 1, 1);
+        ctx.fillRect(sx + 1 - sway, sy - 6, 1, 1);
+        ctx.fillRect(sx + 3, sy - 3, 1, 1);
+        if (h > 0.78) {
+          const petal = h > 0.89 ? '#7dd3fc' : '#fde047';
+          ctx.fillStyle = petal;
+          ctx.fillRect(sx, sy - 7, 1, 1);
+          ctx.fillRect(sx - 1, sy - 6, 1, 1);
+          ctx.fillRect(sx + 1, sy - 6, 1, 1);
+          ctx.fillRect(sx, sy - 5, 1, 1);
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillRect(sx, sy - 6, 1, 1);
+        }
+        break;
+      }
+      case 'glowcap': {
+        const pulse = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(t * 2.6 + h * 40));
+        ctx.fillStyle = `rgba(168, 85, 247, ${0.08 + pulse * 0.10})`;
+        ctx.fillRect(sx - 5, sy - 6, 11, 1);
+        ctx.fillRect(sx - 3, sy - 7, 7, 1);
+        ctx.fillStyle = 'rgba(3, 8, 14, 0.42)';
+        ctx.fillRect(sx - 4, sy, 9, 1);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(sx - 2, sy - 2, 1, 3);
+        ctx.fillRect(sx + 2, sy - 3, 1, 4);
+        ctx.fillStyle = '#6b21a8';
+        ctx.fillRect(sx - 4, sy - 4, 4, 2);
+        ctx.fillRect(sx, sy - 5, 5, 2);
+        ctx.fillStyle = '#c084fc';
+        ctx.fillRect(sx - 3, sy - 5, 2, 1);
+        ctx.fillRect(sx + 1, sy - 6, 2, 1);
+        ctx.fillStyle = '#f0abfc';
+        ctx.fillRect(sx - 3, sy - 5, 1, 1);
+        ctx.fillRect(sx + 2, sy - 6, 1, 1);
+        break;
+      }
+      case 'sunleaf': {
+        const sway = Math.round(Math.sin(t * 2.4 + h * 23));
+        ctx.fillStyle = 'rgba(3, 8, 14, 0.35)';
+        ctx.fillRect(sx - 3, sy, 7, 1);
+        ctx.fillStyle = '#713f12';
+        ctx.fillRect(sx - 2, sy - 3, 1, 3);
+        ctx.fillRect(sx + 1, sy - 4, 1, 4);
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(sx - 2 + sway, sy - 4, 1, 1);
+        ctx.fillRect(sx + 1 - sway, sy - 5, 1, 1);
+        const rise = (t * 7 + h * 30) % 18;
+        const a = 1 - rise / 18;
+        ctx.fillStyle = `rgba(251, 146, 60, ${0.15 + a * 0.55})`;
+        ctx.fillRect(sx + 3, Math.round(sy - 6 - rise), 1, 1);
+        break;
+      }
+      case 'crystal': {
+        const pulse = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(t * 2.0 + h * 27));
+        const bob = Math.round(Math.sin(t * 1.6 + h * 14));
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.10)';
+        ctx.fillRect(sx - 4, sy - 9 + bob, 9, 1);
+        ctx.fillStyle = 'rgba(3, 8, 14, 0.42)';
+        ctx.fillRect(sx - 3, sy, 7, 1);
+        ctx.fillStyle = '#0c4a6e';
+        ctx.fillRect(sx - 2, sy - 6 + bob, 4, 6);
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(sx - 1, sy - 5 + bob, 2, 5);
+        ctx.fillStyle = '#e0f2fe';
+        ctx.fillRect(sx - 1, sy - 5 + bob, 1, 3);
+        ctx.fillStyle = `rgba(125, 211, 252, ${0.30 + pulse * 0.45})`;
+        ctx.fillRect(sx, sy - 8 + bob, 1, 1);
+        break;
+      }
+      case 'starlight': {
+        const pulse = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 2.8 + h * 41));
+        const bob = Math.round(Math.sin(t * 1.7 + h * 11) * 2);
+        ctx.fillStyle = `rgba(254, 240, 138, ${0.08 + pulse * 0.10})`;
+        ctx.fillRect(sx - 4, sy - 7 + bob, 9, 1);
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(sx, sy - 7 + bob, 1, 5);
+        ctx.fillRect(sx - 2, sy - 5 + bob, 5, 1);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(sx, sy - 5 + bob, 1, 1);
+        break;
+      }
+      case 'pebble': {
+        ctx.fillStyle = 'rgba(3, 8, 14, 0.40)';
+        ctx.fillRect(sx - 2, sy, 5, 1);
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(sx - 2, sy - 2, 4, 2);
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(sx - 1, sy - 2, 2, 1);
+        if (h > 0.7) {
+          ctx.fillStyle = 'rgba(125, 211, 252, 0.35)';
+          ctx.fillRect(sx + 3, sy - 4, 1, 1);
+        }
+        break;
+      }
+      case 'ash': {
+        const flicker = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 5.2 + h * 33));
+        ctx.fillStyle = 'rgba(3, 6, 12, 0.48)';
+        ctx.fillRect(sx - 3, sy, 7, 1);
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(sx - 2, sy - 1, 5, 2);
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(sx - 1, sy - 2, 3, 1);
+        ctx.fillStyle = `rgba(249, 115, 22, ${flicker})`;
+        ctx.fillRect(sx + 1, sy - 3, 1, 1);
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  function drawGroundAmbient(camLeft, camTop) {
+    const kind = ambientGroundKind();
+    if (kind === 'none') return;
+    const t = globalTime;
+    const cell = AMBIENT_GROUND_CELL;
+    const gx0 = Math.floor((camLeft - cell) / cell);
+    const gx1 = Math.floor((camLeft + viewW + cell) / cell);
+    const gy0 = Math.floor((camTop - cell) / cell);
+    const gy1 = Math.floor((camTop + viewH + cell) / cell);
+
+    for (let gy = gy0; gy <= gy1; gy++) {
+      for (let gx = gx0; gx <= gx1; gx++) {
+        const h = ambientHash(gx, gy, 31);
+        const h2 = ambientHash(gx, gy, 32);
+        const wx = gx * cell + 5 + h2 * (cell - 10);
+        const wy = gy * cell + 5 + ambientHash(gx, gy, 33) * (cell - 10);
+        if (!ambientGroundAllowed(wx, wy)) continue;
+
+        const edge = Math.min(mapBounds.halfW - Math.abs(wx), mapBounds.halfH - Math.abs(wy));
+        const density = edge < 132 ? 0.46 : 0.18;
+        if (h > density) continue;
+
+        const sx = Math.round(wx - camLeft);
+        const sy = Math.round(wy - camTop);
+        if (sx < -12 || sx > viewW + 12 || sy < -16 || sy > viewH + 12) continue;
+        drawGroundDetail(kind, sx, sy, h2, t);
+      }
+    }
+  }
+
+  function ambientMotePalette() {
+    switch (currentBiomeTheme) {
+      case 'sanctuary': return ['#fde68a', '#a7f3d0'];
+      case 'terra':
+      case 'terra_grove': return ['#bef264', '#86efac'];
+      case 'umbri':
+      case 'umbri_labyrinth': return ['#c084fc', '#e9d5ff'];
+      case 'solari':
+      case 'solari_vault': return ['#fbbf24', '#fef08a'];
+      case 'aether':
+      case 'aether_archive': return ['#7dd3fc', '#e0f2fe'];
+      case 'warzone': return ['#fb923c', '#fde68a'];
+      case 'ruins': return ['#94a3b8', '#7dd3fc'];
+      case 'celestial': return ['#fef08a', '#ffffff'];
+      default: return ['#cbd5e1', '#7dd3fc'];
+    }
+  }
+
+  function drawAirMotes(camLeft, camTop) {
+    const t = globalTime;
+    const palette = ambientMotePalette();
+    const cell = AMBIENT_MOTE_CELL;
+    const gx0 = Math.floor(camLeft / cell) - 1;
+    const gx1 = Math.floor((camLeft + viewW) / cell) + 1;
+    const gy0 = Math.floor(camTop / cell) - 1;
+    const gy1 = Math.floor((camTop + viewH) / cell) + 1;
+
+    ctx.save();
+    for (let gy = gy0; gy <= gy1; gy++) {
+      for (let gx = gx0; gx <= gx1; gx++) {
+        const h = ambientHash(gx, gy, 51);
+        if (h > 0.46) continue;
+        const h2 = ambientHash(gx, gy, 52);
+        const h3 = ambientHash(gx, gy, 53);
+        const wx = gx * cell + 6 + h2 * (cell - 12);
+        const wy = gy * cell + 6 + h3 * (cell - 12);
+        const outside = wx < -mapBounds.halfW || wx >= mapBounds.halfW || wy < -mapBounds.halfH || wy >= mapBounds.halfH;
+
+        const sx = Math.round(wx - camLeft + Math.sin(t * 0.55 + h * 20) * (outside ? 9 : 6));
+        const sy = Math.round(wy - camTop + Math.cos(t * 0.70 + h2 * 20) * 4);
+        if (sx < -4 || sx > viewW + 4 || sy < -4 || sy > viewH + 4) continue;
+
+        const twinkle = 0.5 + 0.5 * Math.sin(t * 2.4 + h3 * 30);
+        const color = outside ? (h2 > 0.5 ? '#7dd3fc' : '#e0f2fe') : palette[h2 > 0.5 ? 0 : 1];
+        ctx.globalAlpha = outside ? 0.16 + twinkle * 0.20 : 0.28 + twinkle * 0.28;
+        ctx.fillStyle = color;
+        const big = h3 > 0.82;
+        ctx.fillRect(sx, sy, big ? 2 : 1, 1);
+        if (big) ctx.fillRect(sx, sy - 1, 1, 1);
+      }
+    }
+    ctx.restore();
+  }
+
   function drawWorld() {
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#070b19';
@@ -10041,16 +11213,35 @@ export function initGame() {
     const camLeft = Math.floor(camera.x - viewW / 2);
     const camTop = Math.floor(camera.y - viewH / 2);
 
-    const startTx = Math.floor(camLeft / TILE_SIZE) - 1;
-    const endTx = Math.ceil((camLeft + viewW) / TILE_SIZE) + 1;
-    const startTy = Math.floor(camTop / TILE_SIZE) - 1;
-    const endTy = Math.ceil((camTop + viewH) / TILE_SIZE) + 1;
+    const roomKey = `${currentRoomId}|${currentRoomType}|${currentBiomeTheme}|${mapBounds.halfW}x${mapBounds.halfH}`;
+    if (roomKey !== tileChunkRoomKey) {
+      tileChunkRoomKey = roomKey;
+      tileChunkCache.clear();
+    }
 
-    for (let ty = startTy; ty <= endTy; ty++) {
-      for (let tx = startTx; tx <= endTx; tx++) {
-        ctx.drawImage(pickTile(tx, ty), tx * TILE_SIZE - camLeft, ty * TILE_SIZE - camTop);
+    const startCx = Math.floor(camLeft / TILE_CHUNK_PX);
+    const endCx = Math.floor((camLeft + viewW) / TILE_CHUNK_PX);
+    const startCy = Math.floor(camTop / TILE_CHUNK_PX);
+    const endCy = Math.floor((camTop + viewH) / TILE_CHUNK_PX);
+
+    for (let cy = startCy; cy <= endCy; cy++) {
+      for (let cx = startCx; cx <= endCx; cx++) {
+        const chunk = getTileChunk(cx, cy);
+        ctx.drawImage(chunk.canvas, cx * TILE_CHUNK_PX - camLeft, cy * TILE_CHUNK_PX - camTop);
+        // Re-draw only the animated river tiles that were baked into this chunk.
+        for (const w of chunk.water) {
+          const tx = cx * TILE_CHUNK_TILES + w.tx;
+          const ty = cy * TILE_CHUNK_TILES + w.ty;
+          const tile = pickTile(tx, ty);
+          if (tile) ctx.drawImage(tile, tx * TILE_SIZE - camLeft, ty * TILE_SIZE - camTop);
+        }
       }
     }
+
+    // Animated ambient dressing: sea beyond the rim, biome ground details, and drifting motes.
+    drawSeaAmbient(camLeft, camTop);
+    drawGroundAmbient(camLeft, camTop);
+    drawAirMotes(camLeft, camTop);
 
     // Active Edge Transition Waygate Threshold Beams
     const activeCfg = ROOM_CONFIGS[currentRoomType];
@@ -10430,6 +11621,7 @@ export function initGame() {
       });
     }
 
+    layoutLootLabels(camLeft, camTop);
     for (const l of lootDrops) {
       renderables.push({
         y: l.y,
@@ -10445,7 +11637,13 @@ export function initGame() {
           const sy = Math.round(ent.y - camTop);
           let img = null;
           if (ent.type === 'node') {
-            img = ent.charges > 0 ? sprites.node[Math.floor(globalTime * 2.5) % sprites.node.length] : sprites.nodeEmpty;
+            if (ent.isGrand && ent.charges > 0 && sprites.grandNode?.length) {
+              img = sprites.grandNode[Math.floor(globalTime * 2.5) % sprites.grandNode.length];
+            } else if (ent.isGrand && sprites.grandNodeEmpty) {
+              img = sprites.grandNodeEmpty;
+            } else {
+              img = ent.charges > 0 ? sprites.node[Math.floor(globalTime * 2.5) % sprites.node.length] : sprites.nodeEmpty;
+            }
           } else if (ent.type === 'shrine') {
             const list = sprites.props.crystalPillar || sprites.node;
             img = list[Math.floor(globalTime * 3.0) % list.length];
@@ -10456,6 +11654,23 @@ export function initGame() {
             img = arr[Math.floor(globalTime * (ent.type === 'portal' ? 1.8 : 3.5)) % arr.length];
           }
           if (!img) return;
+          const isGrandNode = ent.type === 'node' && Boolean(ent.isGrand);
+          if (isGrandNode) {
+            const pulse = 0.82 + Math.sin(globalTime * 2.4) * 0.12;
+            const auraW = Math.round(img.width * 1.05);
+            const auraH = Math.round(img.height * 0.34);
+            ctx.save();
+            ctx.strokeStyle = 'rgba(253, 224, 71, 0.75)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(sx, sy, auraW * pulse, auraH * pulse, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(192, 132, 252, 0.10)';
+            ctx.beginPath();
+            ctx.ellipse(sx, sy, (auraW - 8) * pulse, (auraH - 2) * pulse, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
           drawPixelEllipseShadow(sx, sy, Math.round(img.width * 0.36), 4);
 
           const isNexusShard = ent.type === 'siege_shard' || ent.id === 'siege_shard' || (ent.name && ent.name.includes('Nexus'));
@@ -10535,7 +11750,7 @@ export function initGame() {
             const val = ent.hp ?? ent.charges ?? 0;
             const max = ent.maxHp ?? ent.maxCharges ?? 1;
             const isBossOrCore = ent.isBoss || ent.type === 'nexus' || ent.type === 'ally_nexus' || ent.type === 'outpost_nexus' || ent.type === 'siege_shard';
-            const bw = isBossOrCore ? 34 : 22;
+            const bw = isBossOrCore || isGrandNode ? 34 : 22;
             const bx = Math.round(sx - bw / 2);
             const by = Math.round(sy - img.height - 5);
 
@@ -10555,7 +11770,7 @@ export function initGame() {
             // Overhead entity label for Bosses, Objectives, Targeted entity, Dummy, or nearby entities
             const isTargeted = currentTarget && currentTarget.id === ent.id;
             const dPlayer = Math.hypot(ent.x - player.x, ent.y - player.y);
-            const showName = isBossOrCore || isTargeted || dPlayer < 95 || ent.type === 'dummy' || (ent.type === 'node' && dPlayer < 120);
+            const showName = isBossOrCore || isTargeted || dPlayer < 95 || ent.type === 'dummy' || (ent.type === 'node' && dPlayer < (isGrandNode ? 220 : 120));
 
             if (showName) {
               ctx.font = isBossOrCore ? '700 11px "Outfit", system-ui, sans-serif' : '600 10px "Outfit", system-ui, sans-serif';
@@ -10565,7 +11780,7 @@ export function initGame() {
                 : ent.type === 'shrine'
                   ? (ent.charges > 0 ? `${ent.name} [E]` : `${ent.name} (Depleted)`)
                   : ent.type === 'node'
-                    ? (ent.charges > 0 ? `${ent.name} [E]` : 'Depleted Node')
+                    ? (ent.charges > 0 ? `${ent.name} [E] • ${ent.charges}/${ent.maxCharges}` : `Depleted ${ent.isGrand ? 'Grand Font' : 'Node'}`)
                     : ent.isBoss
                       ? (isEnraged ? `★ ${ent.name} 🔥 ENRAGED` : `★ ${ent.name}`)
                       : ent.name;
@@ -10574,7 +11789,7 @@ export function initGame() {
               const rx = Math.round(sx);
               const lpx = Math.round(rx - (lw + 8) / 2);
               const lpy = Math.round(by - (isBossOrCore ? 14 : 12));
-              const badgeColor = isBossOrCore ? (isEnraged ? '#ef4444' : '#facc15') : isTargeted ? '#38bdf8' : ent.type === 'shrine' ? '#facc15' : ent.type === 'node' ? '#c084fc' : '#ffffff';
+              const badgeColor = isBossOrCore ? (isEnraged ? '#ef4444' : '#facc15') : isTargeted ? '#38bdf8' : ent.type === 'shrine' ? '#facc15' : ent.type === 'node' ? (isGrandNode ? '#fde047' : '#c084fc') : '#ffffff';
 
               ctx.fillStyle = 'rgba(5, 7, 16, 0.90)';
               ctx.fillRect(lpx, lpy, lw + 8, isBossOrCore ? 14 : 12);
@@ -10878,8 +12093,8 @@ export function initGame() {
     // Real-Time Continental Sub-Region Banner Update
     if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
       const sub = getOpenWorldSubRegion(player.x, player.y);
-      const zoneTitle = document.getElementById('minimap-zone-title');
-      const zoneLabel = document.getElementById('zone-label');
+      const zoneTitle = uiEl('minimap-zone-title');
+      const zoneLabel = uiEl('zone-label');
       if (zoneTitle) zoneTitle.innerText = `CONTINENTAL CALDERA • ${sub}`;
       if (zoneLabel) zoneLabel.innerText = sub;
     }
@@ -11028,6 +12243,9 @@ export function initGame() {
   }
 
   let lastTs = performance.now();
+  let lastRenderTs = 0;
+  let minimapAccum = 0;
+  const MIN_RENDER_MS = 1000 / 60;
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.min(0.08, Math.max(0.001, (now - lastTs) / 1000));
@@ -11037,15 +12255,23 @@ export function initGame() {
     } catch (err) {
       console.error('[Frame Error update]:', err);
     }
+    // Cap world rendering at 60 FPS on high-refresh displays.
+    if (now - lastRenderTs < MIN_RENDER_MS - 1) return;
+    lastRenderTs = now;
     try {
       drawWorld();
+      drawQuestCompass();
     } catch (err) {
       console.error('[Frame Error drawWorld]:', err);
     }
-    try {
-      renderMinimap();
-    } catch (err) {
-      console.error('[Frame Error renderMinimap]:', err);
+    minimapAccum += dt;
+    if (minimapAccum >= 0.1) {
+      minimapAccum = 0;
+      try {
+        renderMinimap();
+      } catch (err) {
+        console.error('[Frame Error renderMinimap]:', err);
+      }
     }
   }
   requestAnimationFrame(frame);

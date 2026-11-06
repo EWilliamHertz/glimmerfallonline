@@ -1019,6 +1019,56 @@ export class AccountsStore {
     return true;
   }
 
+  spendGold(accountId, amount) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc) return { success: false, reason: 'Account missing' };
+    this.ensureDefaultCharacter(acc);
+    if (!acc.inventory) acc.inventory = [];
+
+    const cost = Math.max(0, Math.floor(Number(amount) || 0));
+    let availableGold = acc.gold || 0;
+    for (const it of acc.inventory) {
+      if (!it) continue;
+      const id = typeof it === 'string' ? it : it.id;
+      if (id === 'solar_gold') {
+        availableGold += (typeof it === 'object' && it.qty ? it.qty : 1);
+      }
+    }
+    if (availableGold < cost) {
+      return { success: false, reason: 'Not enough Solar Gold', availableGold };
+    }
+
+    let needed = cost;
+    for (let i = 0; i < acc.inventory.length; i++) {
+      const it = acc.inventory[i];
+      if (!it) continue;
+      const id = typeof it === 'string' ? it : it.id;
+      if (id === 'solar_gold') {
+        const currentQty = typeof it === 'object' && it.qty ? it.qty : 1;
+        if (currentQty <= needed) {
+          needed -= currentQty;
+          acc.inventory.splice(i, 1);
+          i--;
+        } else {
+          it.qty -= needed;
+          needed = 0;
+          break;
+        }
+      }
+    }
+    if (needed > 0 && acc.gold) {
+      acc.gold = Math.max(0, acc.gold - needed);
+    }
+
+    const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+    if (ch) {
+      ch.inventory = acc.inventory;
+      ch.gold = acc.gold;
+    }
+    this.schedulePersist(acc.id, ch?.id);
+    return { success: true, remainingGold: availableGold - cost };
+  }
+
   buyMerchantItem(accountId, itemId, unitPrice, qty = 1) {
     const acc = this.accountsById.get(accountId);
     if (!acc) return { success: false, reason: 'Account missing' };
@@ -1176,6 +1226,37 @@ export class AccountsStore {
     return { success: true, itemId, item: EQUIPMENT_CATALOG[itemId] };
   }
 
+  saveProfessionProgress(accountId, incomingProfessions) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc || !incomingProfessions || typeof incomingProfessions !== 'object') return null;
+    const base = acc.progression || createDefaultProgression();
+    const professions = {
+      ...createDefaultProgression().professions,
+      ...(base.professions || {}),
+    };
+
+    for (const professionId of Object.keys(PROFESSIONS_CATALOG)) {
+      const incoming = incomingProfessions[professionId];
+      if (!incoming || typeof incoming !== 'object') continue;
+      const current = professions[professionId] || { xp: 0, level: 1 };
+      const currentXp = Math.max(0, Math.floor(Number(current.xp) || 0));
+      const incomingXp = Math.max(0, Math.floor(Number(incoming.xp) || 0));
+      const xp = Math.min(500_000_000, Math.max(currentXp, incomingXp));
+      professions[professionId] = {
+        ...current,
+        xp,
+        level: getProfessionLevelFromXp(xp),
+        masteryCapeAwarded: Boolean(current.masteryCapeAwarded || incoming.masteryCapeAwarded),
+      };
+    }
+
+    acc.progression = { ...base, professions };
+    const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+    if (ch) ch.progression = acc.progression;
+    this.schedulePersist(acc.id, ch?.id);
+    return acc.progression;
+  }
+
   mergeValidProgression(base, incoming) {
     if (!incoming || typeof incoming !== 'object') return base;
     const lvl = Math.max(1, Math.min(50, Number(incoming.level) || base.level));
@@ -1215,7 +1296,11 @@ export class AccountsStore {
         if (professions[k] !== undefined && v && typeof v === 'object') {
           const xp = Math.max(0, Math.floor(Number(v.xp) || 0));
           const level = getProfessionLevelFromXp(xp);
-          professions[k] = { xp, level };
+          professions[k] = {
+            xp,
+            level,
+            masteryCapeAwarded: Boolean(base.professions?.[k]?.masteryCapeAwarded || v.masteryCapeAwarded),
+          };
         }
       }
     }

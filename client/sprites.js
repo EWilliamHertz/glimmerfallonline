@@ -301,6 +301,8 @@ export function buildSpriteSheet() {
     dummy: [],
     node: [],
     nodeEmpty: null,
+    grandNode: [],
+    grandNodeEmpty: null,
     portal: [],
     nexusBlue: [],
     nexusRed: [],
@@ -2193,6 +2195,16 @@ export function buildSpriteSheet() {
     rect(ctx, 10, 9, 4, 12, '#475569');
     sprites.nodeEmpty = addPixelOutline(c);
   }
+
+  // Grand Fonts use a 3x nearest-neighbour scale so their pixel art stays crisp.
+  const scaleNodeFrame = (frame, scale = 3) => {
+    const { c, ctx } = makeCanvas(frame.width * scale, frame.height * scale);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(frame, 0, 0, c.width, c.height);
+    return c;
+  };
+  sprites.grandNode = sprites.node.map((frame) => scaleNodeFrame(frame));
+  sprites.grandNodeEmpty = scaleNodeFrame(sprites.nodeEmpty);
 
   // ==========================================
   // 6. CALM ASTRAL WAYGATE PORTAL (Smooth, Zero Strobe!)

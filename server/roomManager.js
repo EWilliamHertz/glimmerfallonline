@@ -18,6 +18,8 @@ import {
   isSlotUnlocked,
   ROOM_TYPES,
   ROOM_CONFIGS,
+  GRAND_FONT_POSITIONS,
+  HARVEST_COOLDOWN_MS,
   FACTIONS_META,
   CLASSES_CATALOG,
   EQUIPMENT_CATALOG,
@@ -49,6 +51,7 @@ import {
   calcMoveSpeedMult,
   isWaterTile,
   PROFESSIONS_CATALOG,
+  PROFESSION_MASTERY_CAPES,
   getProfessionLevelFromXp,
   getTotalProfessionLevel,
 } from '../shared/protocol.js';
@@ -146,6 +149,7 @@ export class RoomManager {
     };
 
     this.populateRoomEntities(room);
+    this.populateGrandGlimmerFont(room);
     if (room.type === ROOM_TYPES.NEXUS_WARZONE) {
       // Spawn opening Shattered Nexus Shard Siege so Warzone is immediately alive,
       // then follow the recurring 30-minute wall-clock siege schedule!
@@ -1561,6 +1565,31 @@ export class RoomManager {
     }
   }
 
+  populateGrandGlimmerFont(room) {
+    if (!room || room.type === ROOM_TYPES.ARENA_3V3) return;
+    if (room.entities.some((e) => e.isGrand)) return;
+    const positions = GRAND_FONT_POSITIONS[room.type]?.length
+      ? GRAND_FONT_POSITIONS[room.type]
+      : [{ x: 0, y: 130 }];
+    positions.forEach((pos, index) => {
+      room.entities.push({
+        id: `grand_font_${room.type}_${index + 1}`,
+        name: 'Grand Glimmer Font',
+        sub: 'GRAND LEYLINE FONT • 25 SHARED CHARGES [E]',
+        type: 'node',
+        spriteKey: 'grandNode',
+        isGrand: true,
+        x: pos.x,
+        y: pos.y,
+        charges: 25,
+        maxCharges: 25,
+        rechargeTimer: 0,
+        radius: 90,
+        hitFlash: 0,
+      });
+    });
+  }
+
   getOrCreatePublicRoom(roomType) {
     for (const room of this.rooms.values()) {
       if (room.type === roomType && room.players.size < room.maxPlayers) {
@@ -2214,6 +2243,10 @@ export class RoomManager {
         if (room) this.handleHarvestNode(room, client, msg.nodeId);
         break;
 
+      case 'train_artisan_profession':
+        this.handleTrainArtisanProfession(client, msg.merchantId, msg.count);
+        break;
+
       case 'equip_item': {
         let item = null;
         if (msg.slotIndex !== undefined) {
@@ -2349,6 +2382,20 @@ export class RoomManager {
           this.accounts.saveQuestState(client.id, msg.questState);
           client.questState = msg.questState;
           this.refreshClientFromAccount(client.id);
+        }
+        break;
+      }
+
+      case 'sync_profession_progress': {
+        if (msg.professions && typeof msg.professions === 'object') {
+          const updated = this.accounts.saveProfessionProgress(client.id, msg.professions);
+          if (updated) {
+            client.prog = updated;
+            for (const professionId of Object.keys(PROFESSION_MASTERY_CAPES)) {
+              this.grantProfessionMasteryCape(client, professionId);
+            }
+            client.send({ type: 'progression_sync', progression: updated });
+          }
         }
         break;
       }
@@ -3448,16 +3495,22 @@ export class RoomManager {
     if (!node || Math.hypot(node.x - player.x, node.y - player.y) > 7.5 * YARD_PX) return;
     if (node.charges <= 0) return;
 
+    const isGrand = Boolean(node.isGrand);
+    const now = Date.now();
+    if (now < (player.harvestReadyAt || 0)) return;
+    player.harvestReadyAt = now + (isGrand ? HARVEST_COOLDOWN_MS.grand : HARVEST_COOLDOWN_MS.normal);
+
     node.charges--;
-    if (node.charges === 0) node.rechargeTimer = 11.0;
+    if (node.charges === 0) node.rechargeTimer = isGrand ? 45.0 : 11.0;
 
     const eff = getEffectiveStats(player.prog, player.equipment, player.classId);
-    const gain = 32 + eff.resonance * 4;
+    const gain = isGrand ? 60 + eff.resonance * 6 : 18 + Math.floor(eff.resonance * 1.5);
     this.addPlayerGlimmer(room, player, gain);
-    room.fxQueue.push({ kind: 'spark', x: node.x, y: node.y - 10, colors: ['#c084fc', '#e879f9', '#38bdf8'] });
-    room.fxQueue.push({ kind: 'fct', x: node.x, y: node.y, text: `+${gain} GLIMMER`, color: '#c084fc' });
-    this.awardPlayerXP(player, 25, 'Glimmer Node');
-    this.awardProfessionXP(player, 'resonance_extraction', 35, 'Glimmer Node Channeling');
+    room.fxQueue.push({ kind: 'spark', x: node.x, y: node.y - 10, colors: isGrand ? ['#fde047', '#c084fc', '#38bdf8'] : ['#c084fc', '#e879f9', '#38bdf8'] });
+    room.fxQueue.push({ kind: 'fct', x: node.x, y: node.y, text: isGrand ? `+${gain} GLIMMER • GRAND FONT` : `+${gain} GLIMMER`, color: isGrand ? '#fde047' : '#c084fc', isCrit: isGrand });
+    // Nodes are primarily a Glimmer/Extraction grind: character (combat) XP is intentionally small.
+    this.awardPlayerXP(player, isGrand ? 7 : 3, isGrand ? 'Grand Glimmer Font' : 'Glimmer Node');
+    this.awardProfessionXP(player, 'resonance_extraction', isGrand ? 100 : 25, isGrand ? 'Grand Glimmer Font Channeling' : 'Glimmer Node Channeling');
 
     player.questState = player.questState || {};
     player.questState.extractionNodesHarvested = (player.questState.extractionNodesHarvested || 0) + 1;
@@ -3465,6 +3518,55 @@ export class RoomManager {
       player.questState.aetherFontChanneled = true;
     }
     this.accounts.saveQuestState(player.id, player.questState);
+  }
+
+  handleTrainArtisanProfession(player, merchantId, count = 1) {
+    if (!player || !player.prog) return;
+    const training = {
+      merchant_smith: { professionId: 'relic_forging', baseCost: 8, baseXp: 35 },
+      merchant_apothecary: { professionId: 'rite_binding', baseCost: 8, baseXp: 35 },
+      merchant_provisions: { professionId: 'glimmerweaving', baseCost: 8, baseXp: 35 },
+      merchant_relics: { professionId: 'resonance_extraction', baseCost: 8, baseXp: 35 },
+    }[merchantId];
+    if (!training) return;
+
+    const sessions = Math.max(1, Math.min(25, Math.floor(Number(count) || 1)));
+    const profession = player.prog.professions?.[training.professionId];
+    let xp = Math.max(0, Math.floor(Number(profession?.xp) || 0));
+    let cost = 0;
+    let gain = 0;
+    for (let i = 0; i < sessions; i++) {
+      const level = getProfessionLevelFromXp(xp);
+      cost += training.baseCost + Math.floor(level * 1.5);
+      const stepGain = training.baseXp + level * 2;
+      gain += stepGain;
+      xp += stepGain;
+    }
+
+    const payment = this.accounts.spendGold(player.id, cost);
+    if (!payment.success) {
+      player.send({
+        type: 'sys_msg',
+        category: 'chat',
+        text: `[Artisan Training] You need ${cost} Solar Gold for ${sessions} training session${sessions === 1 ? '' : 's'} with this artisan.`,
+      });
+      return;
+    }
+
+    player.questState = player.questState || {};
+    if (merchantId === 'merchant_smith') player.questState.smithInspected = true;
+    if (merchantId === 'merchant_apothecary') player.questState.apothecaryInspected = true;
+    if (merchantId === 'merchant_provisions') player.questState.provisionsInspected = true;
+    if (merchantId === 'merchant_relics') player.questState.relicsInspected = true;
+    this.accounts.saveQuestState(player.id, player.questState);
+
+    this.awardProfessionXP(player, training.professionId, gain, sessions > 1 ? `${sessions} training sessions` : '');
+    this.refreshClientFromAccount(player.id);
+
+    const room = this.rooms.get(player.roomId);
+    if (room) {
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 20, text: `-${cost} SOLAR GOLD`, color: '#facc15' });
+    }
   }
 
   awardProfessionXP(player, professionId, amount, reason = '') {
@@ -3514,6 +3616,42 @@ export class RoomManager {
         reason,
       },
     });
+    this.grantProfessionMasteryCape(player, professionId);
+  }
+
+  grantProfessionMasteryCape(player, professionId) {
+    if (!player || !player.prog) return false;
+    const prof = player.prog.professions?.[professionId];
+    const capeId = PROFESSION_MASTERY_CAPES[professionId];
+    if (!prof || !capeId || prof.masteryCapeAwarded) return false;
+    if (getProfessionLevelFromXp(prof.xp || 0) < 99) return false;
+
+    const inventory = Array.isArray(player.inventory) ? player.inventory : [];
+    const ownsCape = inventory.some((it) => (typeof it === 'string' ? it : it?.id) === capeId);
+    if (!ownsCape && !this.accounts.addItemToInventory(player.id, capeId, 1)) {
+      player.send({
+        type: 'sys_msg',
+        category: 'chat',
+        text: `[Mastery] Your backpack is full. Free a slot and train once more to claim the ${EQUIPMENT_CATALOG[capeId]?.name || 'skillcape'}.`,
+      });
+      return false;
+    }
+
+    prof.masteryCapeAwarded = true;
+    this.accounts.saveProgression(player.id, player.prog);
+    const cape = EQUIPMENT_CATALOG[capeId];
+    const room = this.rooms.get(player.roomId);
+    if (room) {
+      room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 14, colors: ['#facc15', '#ffffff', '#38bdf8'] });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 20, text: `🏆 ${cape?.name?.toUpperCase() || 'SKILLCAPE'}!`, color: '#facc15', isCrit: true });
+    }
+    this.broadcastToRoom(room, {
+      type: 'sys_msg',
+      category: 'quest',
+      text: `🏆 ${player.displayName} reached Level 99 in ${PROFESSIONS_CATALOG[professionId]?.name || professionId} and claimed the ${cape?.name || 'Skillcape'}!`,
+    });
+    this.refreshClientFromAccount(player.id);
+    return true;
   }
 
   applyAuthoritativeDamage(room, attackerPlayer, targetWrap, dmg, isCrit, spellName, isRite = false) {
@@ -3543,6 +3681,22 @@ export class RoomManager {
 
       if (attackerPlayer && t.type === 'dummy' && t.hp > 0) {
         this.awardPlayerXP(attackerPlayer, 8, '');
+        attackerPlayer.questState = attackerPlayer.questState || {};
+        attackerPlayer.questState.combatTrainingHits = (attackerPlayer.questState.combatTrainingHits || 0) + 1;
+        if (attackerPlayer.questState.combatTrainingHits % 5 === 0) {
+          this.awardProfessionXP(attackerPlayer, 'combat_mastery', 15, '');
+        }
+        this.accounts.saveQuestState(attackerPlayer.id, attackerPlayer.questState);
+      }
+
+      // The Titan trial needs to register online as well as in the offline damage path.
+      if (attackerPlayer && t.name && t.name.includes('Aurelius')) {
+        attackerPlayer.questState = attackerPlayer.questState || {};
+        if (!attackerPlayer.questState.titanChallenged) {
+          attackerPlayer.questState.titanChallenged = true;
+          this.accounts.saveQuestState(attackerPlayer.id, attackerPlayer.questState);
+          this.refreshClientFromAccount(attackerPlayer.id);
+        }
       }
 
       if (t.hp <= 0) {
@@ -3921,6 +4075,7 @@ export class RoomManager {
 
       const squadBonusMult = recipients.size > 1 ? 1.25 : 1.0;
       const xpAmt = Math.round(ent.xpReward * squadBonusMult);
+      const isTrainingDummy = ent.type === 'dummy';
 
       for (const pid of recipients) {
         const p = room.players.get(pid);
@@ -3929,16 +4084,19 @@ export class RoomManager {
             p,
             xpAmt,
             recipients.size > 1 ? `${ent.name} • +25% Co-op` : ent.name,
-            { addKills: 1 }
+            isTrainingDummy ? null : { addKills: 1 }
           );
           this.awardProfessionXP(p, 'combat_mastery', Math.max(20, Math.round(xpAmt * 0.75)), ent.name);
-          p.send({
-            type: 'mob_killed',
-            mobId: ent.id,
-            mobName: ent.name,
-            roomType: room.type,
-            isBoss: Boolean(ent.isBoss),
-          });
+          if (!isTrainingDummy) {
+            p.send({
+              type: 'mob_killed',
+              mobId: ent.id,
+              mobName: ent.name,
+              roomType: room.type,
+              isBoss: Boolean(ent.isBoss),
+              mobType: ent.type,
+            });
+          }
           if (ent.isBoss && ent.dropGear && EQUIPMENT_CATALOG[ent.dropGear]) {
             p.send({
               type: 'sys_msg',
@@ -4888,6 +5046,7 @@ export class RoomManager {
       faction: e.faction,
       team: e.team,
       isBoss: e.isBoss || false,
+      isGrand: Boolean(e.isGrand),
       affinity: e.affinity,
       buffName: e.buffName,
       spriteKey: e.spriteKey,

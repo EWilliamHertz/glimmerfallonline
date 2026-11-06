@@ -62,9 +62,38 @@ export class PixelSoundEngine {
     this.bgmTheme = 'sanctuary';
     this.bgmStep = 0;
     this.bgmTimer = null;
+    this.masterGain = null;
+    this.musicGain = null;
+    this.sfxGain = null;
+    this.masterVolume = this.readVolume('glimmerfall_vol_master', 0.8);
+    this.musicVolume = this.readVolume('glimmerfall_vol_music', 0.65);
+    this.sfxVolume = this.readVolume('glimmerfall_vol_sfx', 0.8);
     try {
       this.bgmMuted = localStorage.getItem('glimmerfall_bgm_muted') === '1';
     } catch (_) {}
+  }
+
+  readVolume(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw === null) return fallback;
+      const saved = Number(raw);
+      if (Number.isFinite(saved)) return Math.max(0, Math.min(1, saved));
+    } catch (_) {}
+    return fallback;
+  }
+
+  ensureGainNodes() {
+    if (!this.ctx || this.masterGain) return;
+    this.masterGain = this.ctx.createGain();
+    this.musicGain = this.ctx.createGain();
+    this.sfxGain = this.ctx.createGain();
+    this.masterGain.gain.value = this.masterVolume;
+    this.musicGain.gain.value = this.musicVolume;
+    this.sfxGain.gain.value = this.sfxVolume;
+    this.musicGain.connect(this.masterGain);
+    this.sfxGain.connect(this.masterGain);
+    this.masterGain.connect(this.ctx.destination);
   }
 
   init() {
@@ -75,9 +104,51 @@ export class PixelSoundEngine {
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
+    this.ensureGainNodes();
     if (!this.bgmTimer && !this.bgmMuted) {
       this.startBgmLoop();
     }
+  }
+
+  getVolumes() {
+    return {
+      master: Math.round(this.masterVolume * 100),
+      music: Math.round(this.musicVolume * 100),
+      sfx: Math.round(this.sfxVolume * 100),
+    };
+  }
+
+  setVolume(channel, percent) {
+    const value = Math.max(0, Math.min(100, Math.round(Number(percent) || 0))) / 100;
+    if (channel === 'master') this.masterVolume = value;
+    else if (channel === 'music') this.musicVolume = value;
+    else if (channel === 'sfx') this.sfxVolume = value;
+    else return null;
+    if (this.ctx) {
+      this.ensureGainNodes();
+      const now = this.ctx.currentTime;
+      const target = channel === 'master' ? this.masterGain : channel === 'music' ? this.musicGain : this.sfxGain;
+      target?.gain.setTargetAtTime(value, now, 0.02);
+    }
+    try {
+      localStorage.setItem(`glimmerfall_vol_${channel}`, String(value));
+    } catch (_) {}
+    return Math.round(value * 100);
+  }
+
+  setBgmEnabled(enabled) {
+    this.bgmMuted = !Boolean(enabled);
+    try {
+      localStorage.setItem('glimmerfall_bgm_muted', this.bgmMuted ? '1' : '0');
+    } catch (_) {}
+    if (this.bgmMuted) {
+      clearInterval(this.bgmTimer);
+      this.bgmTimer = null;
+    } else {
+      this.init();
+      this.startBgmLoop();
+    }
+    return !this.bgmMuted;
   }
 
   setBgmTheme(theme) {
@@ -91,18 +162,7 @@ export class PixelSoundEngine {
   }
 
   toggleBgm() {
-    this.init();
-    this.bgmMuted = !this.bgmMuted;
-    try {
-      localStorage.setItem('glimmerfall_bgm_muted', this.bgmMuted ? '1' : '0');
-    } catch (_) {}
-    if (this.bgmMuted) {
-      clearInterval(this.bgmTimer);
-      this.bgmTimer = null;
-    } else {
-      this.startBgmLoop();
-    }
-    return !this.bgmMuted;
+    return this.setBgmEnabled(this.bgmMuted);
   }
 
   startBgmLoop() {
@@ -138,7 +198,7 @@ export class PixelSoundEngine {
     gain.gain.setValueAtTime(gainVal, now);
     gain.gain.exponentialRampToValueAtTime(0.0008, now + dur);
     osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(this.musicGain || this.ctx.destination);
     osc.start(now);
     osc.stop(now + dur + 0.01);
   }
@@ -162,7 +222,7 @@ export class PixelSoundEngine {
     gain.gain.exponentialRampToValueAtTime(0.001, now + totalDur);
 
     osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(this.sfxGain || this.ctx.destination);
     osc.start(now);
     osc.stop(now + totalDur + 0.01);
   }
@@ -197,7 +257,7 @@ export class PixelSoundEngine {
 
     src.connect(filter);
     filter.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(this.sfxGain || this.ctx.destination);
     src.start(now);
   }
 

@@ -26,6 +26,77 @@ export const ROOM_TYPES = {
   CELESTIAL_ASCENT: 'celestial_ascent',
 };
 
+// Per-character delay between node harvests. Grand Fonts take longer to channel.
+export const HARVEST_COOLDOWN_MS = {
+  normal: 250,
+  grand: 750,
+};
+
+// Three shared Grand Fonts per realm, placed away from spawn crowds and quest NPCs.
+export const GRAND_FONT_POSITIONS = {
+  [ROOM_TYPES.SANCTUARY_HUB]: [
+    { x: 0, y: 140 },
+    { x: -420, y: 0 },
+    { x: 420, y: 0 },
+  ],
+  [ROOM_TYPES.NEXUS_WARZONE]: [
+    { x: 0, y: 300 },
+    { x: -600, y: 1100 },
+    { x: 600, y: 1100 },
+  ],
+  [ROOM_TYPES.SOLARI_CITADEL]: [
+    { x: 0, y: 130 },
+    { x: -250, y: 110 },
+    { x: 250, y: 110 },
+  ],
+  [ROOM_TYPES.UMBRI_UNDERCITY]: [
+    { x: 0, y: 130 },
+    { x: -250, y: 110 },
+    { x: 250, y: 110 },
+  ],
+  [ROOM_TYPES.TERRA_ORCHARD]: [
+    { x: 0, y: 130 },
+    { x: -250, y: 110 },
+    { x: 250, y: 110 },
+  ],
+  [ROOM_TYPES.AETHER_SPIRE]: [
+    { x: 0, y: 130 },
+    { x: -250, y: 110 },
+    { x: 250, y: 110 },
+  ],
+  [ROOM_TYPES.NEXUS_FORGOTTEN_RUINS]: [
+    { x: 0, y: 130 },
+    { x: -250, y: 80 },
+    { x: 250, y: 80 },
+  ],
+  [ROOM_TYPES.SOLARI_SUNKEN_VAULT]: [
+    { x: 0, y: 130 },
+    { x: -250, y: 80 },
+    { x: 250, y: 80 },
+  ],
+  [ROOM_TYPES.UMBRI_SHADOW_LABYRINTH]: [
+    { x: 0, y: 130 },
+    { x: -250, y: 80 },
+    { x: 250, y: 80 },
+  ],
+  [ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY]: [
+    { x: 0, y: 130 },
+    { x: -250, y: 80 },
+    { x: 250, y: 80 },
+  ],
+  [ROOM_TYPES.AETHER_FRACTURED_ARCHIVE]: [
+    { x: 0, y: 130 },
+    { x: -250, y: 80 },
+    { x: 250, y: 80 },
+  ],
+  [ROOM_TYPES.CELESTIAL_ASCENT]: [
+    { x: 0, y: 900 },
+    { x: -350, y: 800 },
+    { x: 350, y: 800 },
+  ],
+  [ROOM_TYPES.ARENA_3V3]: [],
+};
+
 export const ROOM_CONFIGS = {
   [ROOM_TYPES.SANCTUARY_HUB]: {
     type: ROOM_TYPES.SANCTUARY_HUB,
@@ -909,6 +980,61 @@ export const EQUIPMENT_CATALOG = {
   },
 
   // --- CANONICAL ACCESSORIES (CAPES, AMULETS, RINGS, GLOVES, BOOTS, AMMO) ---
+  skillcape_extraction: {
+    id: 'skillcape_extraction',
+    slot: 'cape',
+    name: 'Skillcape of Extraction',
+    icon: '🏆',
+    rarity: 'Skill Mastery',
+    capeColor: '#38bdf8',
+    stats: { power: 5, bastion: 5, resonance: 5, tempo: 5 },
+    guidePrice: 5000,
+    desc: 'Woven from living leyline light. Awarded at Resonance Extraction Level 99 (+5 all stats).',
+  },
+  skillcape_forging: {
+    id: 'skillcape_forging',
+    slot: 'cape',
+    name: 'Skillcape of Relic-Forging',
+    icon: '🏆',
+    rarity: 'Skill Mastery',
+    capeColor: '#f97316',
+    stats: { power: 5, bastion: 5, resonance: 5, tempo: 5 },
+    guidePrice: 5000,
+    desc: 'Hammered from starlit alloy. Awarded at Relic-Forging Level 99 (+5 all stats).',
+  },
+  skillcape_binding: {
+    id: 'skillcape_binding',
+    slot: 'cape',
+    name: 'Skillcape of Rite-Binding',
+    icon: '🏆',
+    rarity: 'Skill Mastery',
+    capeColor: '#a855f7',
+    stats: { power: 5, bastion: 5, resonance: 5, tempo: 5 },
+    guidePrice: 5000,
+    desc: 'Inscribed with every canonical rite. Awarded at Rite-Binding Level 99 (+5 all stats).',
+  },
+  skillcape_weaving: {
+    id: 'skillcape_weaving',
+    slot: 'cape',
+    name: 'Skillcape of Glimmerweaving',
+    icon: '🏆',
+    rarity: 'Skill Mastery',
+    capeColor: '#22c55e',
+    stats: { power: 5, bastion: 5, resonance: 5, tempo: 5 },
+    guidePrice: 5000,
+    desc: 'Spun from aurora-thread and starlight flax. Awarded at Glimmerweaving Level 99 (+5 all stats).',
+  },
+  skillcape_combat: {
+    id: 'skillcape_combat',
+    slot: 'cape',
+    name: 'Skillcape of Combat Mastery',
+    icon: '🏆',
+    rarity: 'Skill Mastery',
+    capeColor: '#ef4444',
+    stats: { power: 5, bastion: 5, resonance: 5, tempo: 5 },
+    guidePrice: 5000,
+    desc: 'The mantle of a champion who has mastered every weapon. Awarded at Combat Mastery Level 99 (+5 all stats).',
+  },
   fire_cape: {
     id: 'fire_cape',
     slot: 'cape',
@@ -1807,7 +1933,7 @@ export const ABILITIES_CATALOG = {
     tcgType: 'TCG Core Rule', tree: 'core', tier: 1, reqLevel: 1, maxRank: 1, prereq: null,
     icon: '🔮', kind: 'harvest', range: '6.5y', rangeYards: 6.5,
     cost: 0, baseCd: 0, castTime: 0.6, color: '#c084fc',
-    desc: 'Draws raw leyline energy from a Glimmer Node (+35 Glimmer & +25 XP).',
+    desc: 'Draws raw leyline energy from a Glimmer Node (+18+ Glimmer & +3 XP; Grand Fonts give 60+ Glimmer & +7 XP).',
     lore: 'Summoners channel Glimmer Nodes to fuel Rites and Flashes.',
   },
 };
@@ -2007,9 +2133,11 @@ export const PROFESSIONS_CATALOG = {
     icon: '⚡',
     color: '#38bdf8',
     description: 'Channeling raw Glimmer, tapping leyline fissures, and extracting crystalline Nexus shards.',
-    activity: 'Channel Leyline Nodes [E] across Sanctuary and the Nexus Warzone.',
+    activity: 'Press [E] at glowing purple Glimmer Nodes, or find a massive Grand Glimmer Font with 25 shared charges.',
     instructor: 'Relic-Seeker Moira',
     starterQuestId: 'quest_skill_extraction',
+    quickStart: 'Stand beside a glowing purple Glimmer Node and press [E]. For faster skill XP, gather at a huge Grand Glimmer Font — it has 25 charges shared by everyone in the realm.',
+    trainerLocation: 'Sanctuary Haven • normal nodes near the plaza, and one Grand Font just south of the spawn circle',
   },
   relic_forging: {
     id: 'relic_forging',
@@ -2017,9 +2145,11 @@ export const PROFESSIONS_CATALOG = {
     icon: '🔨',
     color: '#f97316',
     description: 'Smelting raw ores and forging enchanted blades, plate armor, and resonant battle relics.',
-    activity: 'Work the forge and craft armaments with Blacksmith Torvin.',
+    activity: 'Visit Blacksmith Torvin at the Sanctuary market and click TRAIN.',
     instructor: 'Blacksmith Torvin',
     starterQuestId: 'quest_skill_forging',
+    quickStart: 'Visit Blacksmith Torvin at the Sanctuary market, browse his wares, then click TRAIN in the artisan training panel.',
+    trainerLocation: 'Sanctuary Haven • south-west market stall',
   },
   rite_binding: {
     id: 'rite_binding',
@@ -2027,9 +2157,11 @@ export const PROFESSIONS_CATALOG = {
     icon: '📜',
     color: '#a855f7',
     description: 'Distilling Glimmer essence, compounding alchemical salves, and binding ceremonial rites.',
-    activity: 'Brew tinctures, salves, and draughts with Alchemist Faye.',
+    activity: 'Visit Alchemist Faye at the Sanctuary market and click TRAIN.',
     instructor: 'Alchemist Faye',
     starterQuestId: 'quest_skill_binding',
+    quickStart: 'Visit Alchemist Faye at the Sanctuary market, browse her wares, then click TRAIN in the artisan training panel.',
+    trainerLocation: 'Sanctuary Haven • north-west market stall',
   },
   glimmerweaving: {
     id: 'glimmerweaving',
@@ -2037,9 +2169,11 @@ export const PROFESSIONS_CATALOG = {
     icon: '🧵',
     color: '#22c55e',
     description: 'Spinning luminescent thread, tailoring satchels, and weaving nourishing field rations.',
-    activity: 'Craft provisions, satchels, and woven goods with Farmer Bran.',
+    activity: 'Visit Farmer Bran at the Sanctuary market and click TRAIN.',
     instructor: 'Farmer Bran',
     starterQuestId: 'quest_skill_weaving',
+    quickStart: 'Visit Farmer Bran at the Sanctuary market, browse his wares, then click TRAIN in the artisan training panel.',
+    trainerLocation: 'Sanctuary Haven • west market stall',
   },
   combat_mastery: {
     id: 'combat_mastery',
@@ -2047,10 +2181,21 @@ export const PROFESSIONS_CATALOG = {
     icon: '⚔️',
     color: '#ef4444',
     description: 'Mastery over the blade, staff, and war arts honed through defeating monsters and rivals.',
-    activity: 'Slay Voidbeasts, Bandits, Constructs, and enemy champions in 3v3 Arena.',
+    activity: 'Fight monsters outside the gate, or strike the Sanctuary Dummy.',
     instructor: 'Commander Valerius',
     starterQuestId: null,
+    quickStart: 'Fight monsters outside Sanctuary Haven, or strike the Sanctuary Dummy 15 times with [1]. Dummy kills never count as hostile quest kills.',
+    trainerLocation: 'Outer realms • or the Sanctuary Haven training grounds',
   },
+};
+
+// Level-99 mastery capes are the concrete reward behind each skill guide's final milestone.
+export const PROFESSION_MASTERY_CAPES = {
+  resonance_extraction: 'skillcape_extraction',
+  relic_forging: 'skillcape_forging',
+  rite_binding: 'skillcape_binding',
+  glimmerweaving: 'skillcape_weaving',
+  combat_mastery: 'skillcape_combat',
 };
 
 const RS_XP_TABLE_99 = [0];

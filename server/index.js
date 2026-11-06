@@ -18,6 +18,12 @@ const DIST_DIR = path.resolve(__dirname, '../dist');
 const PORT = Number(process.env.PORT || 3001);
 const HOST = process.env.HOST || '0.0.0.0';
 
+// WebSocket ingress guardrails. A legitimate client sends ~20 movement packets/s
+// plus occasional actions and a 5s ping, so this budget is generous.
+const MAX_WS_FRAME_BYTES = 16 * 1024;
+const WS_PACKET_BUCKET_MAX = 90;
+const WS_PACKET_REFILL_PER_SEC = 45;
+
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
@@ -465,7 +471,33 @@ export function createGlimmerFallServer() {
       session.send({ type: 'session_token', token: issuedToken });
     }
 
+    let packetTokens = WS_PACKET_BUCKET_MAX;
+    let packetRefillAt = Date.now();
+    let floodDrops = 0;
+    let parseErrors = 0;
+
     ws.on('message', (raw) => {
+      const frameBytes = typeof raw === 'string' ? Buffer.byteLength(raw) : (raw?.length || 0);
+      if (frameBytes > MAX_WS_FRAME_BYTES) {
+        try { ws.close(1009, 'Frame too large'); } catch (_) {}
+        return;
+      }
+
+      const now = Date.now();
+      const refill = ((now - packetRefillAt) / 1000) * WS_PACKET_REFILL_PER_SEC;
+      if (refill > 0) {
+        packetTokens = Math.min(WS_PACKET_BUCKET_MAX, packetTokens + refill);
+        packetRefillAt = now;
+      }
+      if (packetTokens < 1) {
+        floodDrops += 1;
+        if (floodDrops > 120) {
+          try { ws.close(1008, 'Rate limit exceeded'); } catch (_) {}
+        }
+        return;
+      }
+      packetTokens -= 1;
+
       try {
         const msg = JSON.parse(String(raw));
         // Immediate low-latency ping response
@@ -474,7 +506,14 @@ export function createGlimmerFallServer() {
           return;
         }
         rooms.handlePacket(session, msg);
-      } catch (_) {}
+      } catch (err) {
+        parseErrors += 1;
+        // Keep normal play quiet; only the first few malformed frames are logged.
+        if (parseErrors <= 3) console.warn('[WS] Dropped malformed frame:', err?.message || err);
+        if (parseErrors > 200) {
+          try { ws.close(1008, 'Malformed frames'); } catch (_) {}
+        }
+      }
     });
 
     ws.on('close', () => {

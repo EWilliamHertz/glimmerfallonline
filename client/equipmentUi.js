@@ -197,6 +197,7 @@ export const RS_SLOTS_LAYOUT = [
 ];
 
 export function getRarityColor(rarity = '') {
+  if (rarity.includes('Skill Mastery')) return '#fde047';
   if (rarity.includes('Continental Set') || rarity.includes('Barrows') || rarity.includes('Ancient Set')) return '#facc15';
   if (rarity.includes('Mythic') || rarity.includes('Apex')) return '#f59e0b';
   if (rarity.includes('Epic')) return '#c084fc';

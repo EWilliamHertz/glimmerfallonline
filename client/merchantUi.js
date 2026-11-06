@@ -134,6 +134,9 @@ export function renderMerchantModal(merchantId = null) {
   const gold = getPlayerGold(profile);
   const inv = Array.isArray(profile.inventory) ? profile.inventory : [];
   const invCount = inv.length;
+  const training = typeof window.getArtisanTrainingQuote === 'function'
+    ? window.getArtisanTrainingQuote(cat.id)
+    : null;
 
   body.innerHTML = `
     <div style="display:flex; flex-direction:column; gap:12px; font-family:var(--font-body); color:#e2e8f0;">
@@ -172,6 +175,51 @@ export function renderMerchantModal(merchantId = null) {
           `;
         }).join('')}
       </div>
+
+      <!-- Repeatable Artisan Training -->
+      ${training ? `
+        <div style="background:#090d16; border:1px solid ${training.color}; border-left:4px solid ${training.color}; border-radius:5px; padding:10px 12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+            <div>
+              <div style="font-size:11px; font-weight:800; color:${training.color}; font-family:var(--font-header); letter-spacing:0.4px;">
+                ${training.icon} ARTISAN TRAINING — ${training.name.toUpperCase()}
+              </div>
+              <div style="font-size:9.5px; color:#94a3b8; margin-top:2px;">
+                Lv. ${training.level} / 99 • ${training.xp.toLocaleString()} XP • Practice ${training.verb.toLowerCase()} for repeatable skill XP.
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:12px; font-weight:800; color:${training.color};">+${training.gain} ${training.name} XP</div>
+              <div style="font-size:8.5px; color:#64748b;">per training session</div>
+              ${training.bulk ? `<div style="font-size:8.5px; color:#94a3b8; margin-top:2px;">×${training.bulk.count}: +${training.bulk.gain} XP • ends Lv. ${training.bulk.endLevel}</div>` : ''}
+            </div>
+          </div>
+          <div class="skill-bar-wrap" style="margin:7px 0 6px; height:7px; background:#050811; border:1px solid #1e293b; border-radius:2px; overflow:hidden;">
+            <div class="skill-bar-fill" style="width:${training.pct}%; height:100%; background:${training.color};"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span style="font-size:9px; color:#94a3b8;">
+              ${training.level >= 99 ? 'Mastery reached — the skillcape is awarded automatically.' : `${(training.nextXp - training.xp).toLocaleString()} XP to next level`}
+            </span>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+              <button class="util-btn"
+                      style="font-size:9.5px; padding:5px 12px; border-color:${gold >= training.cost ? training.color : '#475569'}; color:${gold >= training.cost ? '#f8fafc' : '#64748b'}; background:${gold >= training.cost ? '#0f172a' : '#0b1120'}; font-weight:800;"
+                      ${gold < training.cost ? 'disabled' : ''}
+                      onclick="window.trainArtisanProfession('${cat.id}', 1)">
+                🛠️ TRAIN — 🪙 ${training.cost}
+              </button>
+              ${training.bulk ? `
+                <button class="util-btn"
+                        style="font-size:9.5px; padding:5px 12px; border-color:${gold >= training.bulk.cost ? '#facc15' : '#475569'}; color:${gold >= training.bulk.cost ? '#fde047' : '#64748b'}; background:${gold >= training.bulk.cost ? '#1e1b4b' : '#0b1120'}; font-weight:800;"
+                        ${gold < training.bulk.cost ? 'disabled' : ''}
+                        onclick="window.trainArtisanProfession('${cat.id}', ${training.bulk.count})">
+                  ⏩ TRAIN ×${training.bulk.count} — 🪙 ${training.bulk.cost}
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      ` : ''}
 
       <!-- Wares Showcase Grid -->
       <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:10px; max-height:50vh; overflow-y:auto; padding-right:4px;">
@@ -308,10 +356,10 @@ export function buyMerchantItem(merchantId, itemId, qty = 1) {
       if (typeof window.updateQuestTrackerHUD === 'function') window.updateQuestTrackerHUD();
     }
     if (typeof window.awardProfessionXP === 'function') {
-      if (cat.id === 'merchant_smith') window.awardProfessionXP('relic_forging', 35, 'Smithing Craft');
-      if (cat.id === 'merchant_apothecary') window.awardProfessionXP('rite_binding', 35, 'Alchemy & Draught Craft');
-      if (cat.id === 'merchant_provisions') window.awardProfessionXP('glimmerweaving', 35, 'Provisions & Weaving');
-      if (cat.id === 'merchant_relics') window.awardProfessionXP('resonance_extraction', 35, 'Relic Resonance');
+      if (cat.id === 'merchant_smith') window.awardProfessionXP('relic_forging', 35, 'Smithing Craft', true);
+      if (cat.id === 'merchant_apothecary') window.awardProfessionXP('rite_binding', 35, 'Alchemy & Draught Craft', true);
+      if (cat.id === 'merchant_provisions') window.awardProfessionXP('glimmerweaving', 35, 'Provisions & Weaving', true);
+      if (cat.id === 'merchant_relics') window.awardProfessionXP('resonance_extraction', 35, 'Relic Resonance', true);
     }
   }
 

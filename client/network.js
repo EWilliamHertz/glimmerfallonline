@@ -22,6 +22,7 @@ export class MultiplayerClient {
     this.preferredRoom = null;
     this.pendingRpc = new Map();
     this.isBootstrapping = false;
+    this.reconnectAttempt = 0;
   }
 
   loadStoredToken() {
@@ -40,14 +41,37 @@ export class MultiplayerClient {
     return '';
   }
 
+  isLocalOrigin() {
+    try {
+      const host = String(window.location.hostname || '').toLowerCase();
+      return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]' || host === '0.0.0.0';
+    } catch (_) {
+      return false;
+    }
+  }
+
   getServerBase() {
     try {
       const params = new URLSearchParams(window.location.search);
       const qServer = params.get('server');
       if (qServer) {
         const clean = qServer.trim().replace(/\/+$/, '');
-        localStorage.setItem('glimmerfall_server_url', clean);
+        if (this.isLocalOrigin()) {
+          // An explicit ?server= is honored for this tab only.
+          sessionStorage.setItem('glimmerfall_server_url', clean);
+          localStorage.removeItem('glimmerfall_server_url');
+        } else {
+          localStorage.setItem('glimmerfall_server_url', clean);
+        }
         return clean;
+      }
+      if (this.isLocalOrigin()) {
+        // A realm URL saved by an earlier tunnel/remote session must not hijack
+        // localhost. Local dev uses its own origin so Vite can proxy /api and /ws.
+        localStorage.removeItem('glimmerfall_server_url');
+        const sessionBase = sessionStorage.getItem('glimmerfall_server_url');
+        if (sessionBase) return sessionBase.trim().replace(/\/+$/, '');
+        return this.getDefaultServerBase();
       }
       const stored = localStorage.getItem('glimmerfall_server_url');
       if (stored) return stored.trim().replace(/\/+$/, '');
@@ -64,11 +88,15 @@ export class MultiplayerClient {
   }
 
   setServerBase(url) {
+    const clean = url ? String(url).trim().replace(/\/+$/, '') : '';
     try {
-      if (url) localStorage.setItem('glimmerfall_server_url', String(url).trim().replace(/\/+$/, ''));
+      if (clean && !this.isLocalOrigin()) localStorage.setItem('glimmerfall_server_url', clean);
       else localStorage.removeItem('glimmerfall_server_url');
+      if (clean && this.isLocalOrigin()) sessionStorage.setItem('glimmerfall_server_url', clean);
+      else sessionStorage.removeItem('glimmerfall_server_url');
     } catch (_) {}
-    this.connectWebSocket();
+    // Force a new socket even if the old one is still open/reconnecting.
+    this.connectWebSocket(true);
   }
 
   saveStoredToken(tok) {
@@ -132,12 +160,12 @@ export class MultiplayerClient {
     }
   }
 
-  connectWebSocket() {
+  connectWebSocket(force = false) {
     if (typeof window === 'undefined' || !window.WebSocket) return;
     if (window.location.protocol === 'file:') return;
 
     // Prevent thrashing if connection is already healthy and active
-    if (this.ws && (this.ws.readyState === 0 || this.ws.readyState === 1)) {
+    if (!force && this.ws && (this.ws.readyState === 0 || this.ws.readyState === 1)) {
       return;
     }
 
@@ -183,6 +211,7 @@ export class MultiplayerClient {
 
     sock.onopen = () => {
       this.connected = true;
+      this.reconnectAttempt = 0;
       if (this.onStatusChange) this.onStatusChange(true);
       clearInterval(this.pingInterval);
       this.send({ type: 'ping', ts: performance.now() });
@@ -190,7 +219,7 @@ export class MultiplayerClient {
         if (this.ws && this.ws.readyState === 1) {
           this.send({ type: 'ping', ts: performance.now() });
         }
-      }, 1000);
+      }, 5000);
     };
 
     sock.onmessage = (ev) => {
@@ -231,17 +260,15 @@ export class MultiplayerClient {
     };
 
     sock.onclose = (ev) => {
-      const wasConnected = this.connected;
       this.connected = false;
       clearInterval(this.pingInterval);
       const isSuperseded = ev?.code === 4001;
-      if (wasConnected && this.onStatusChange) {
-        this.onStatusChange(false, isSuperseded ? 'superseded' : 'disconnected');
-      }
       if (isSuperseded) {
         console.warn('[Network] Disconnected: Session opened from another window or tab.');
+        if (this.onStatusChange) this.onStatusChange(false, 'superseded');
         return; // Halt reconnect duel: do not schedule reconnect!
       }
+      if (this.onStatusChange) this.onStatusChange(false, 'disconnected');
       if (!this.manualReconnect) {
         this.scheduleReconnect();
       }
@@ -254,7 +281,12 @@ export class MultiplayerClient {
 
   scheduleReconnect() {
     clearTimeout(this.reconnectTimer);
-    this.reconnectTimer = setTimeout(() => this.connectWebSocket(), 2500);
+    // Exponential backoff with jitter (1s, 2s, 4s ... capped at 30s). A flat retry
+    // hammers a sleeping or saturated host and prevents it from recovering.
+    const attempt = Math.min(this.reconnectAttempt, 5);
+    this.reconnectAttempt += 1;
+    const delay = Math.min(30000, 1000 * 2 ** attempt) + Math.floor(Math.random() * 400);
+    this.reconnectTimer = setTimeout(() => this.connectWebSocket(), delay);
   }
 
   disconnect() {
@@ -302,6 +334,13 @@ export class MultiplayerClient {
       this.pendingRpc.set(reqId, { resolve, reject, timer });
       this.ws.send(JSON.stringify({ type: 'auth_rpc', reqId, action, payload }));
     });
+  }
+
+  realmUnreachableMessage() {
+    if (this.isLocalOrigin()) {
+      return 'Cannot reach the local GlimmerFall server. Run "npm run dev" (client :8080 + game server :3001), then reload this page.';
+    }
+    return 'Cannot reach the GlimmerFall realm. If the realm was idle it may be waking up — wait ~30s and try again.';
   }
 
   async apiCall(path, method = 'POST', body = null) {
@@ -352,7 +391,7 @@ export class MultiplayerClient {
           if (!data.ok) throw new Error(data.error || 'Server request failed');
           return data;
         }
-        throw new Error('Cannot reach the GlimmerFall realm. If the realm was idle it may be waking up — wait ~30s and try again.');
+        throw new Error(this.realmUnreachableMessage());
       }
     }
 
