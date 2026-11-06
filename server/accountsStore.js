@@ -21,6 +21,7 @@ import {
   resolveFactionAndClass,
   PROFESSIONS_CATALOG,
   getProfessionLevelFromXp,
+  sanitizeLoadout,
 } from '../shared/protocol.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -72,18 +73,10 @@ export function normalizeClassAndFaction(classId, faction) {
   return { classId: cls.id, faction: cls.faction, cls };
 }
 
+// Loadouts are sanitized in one place so offline and server characters agree on
+// the "slot 1 only" starting bar and on legacy default migrations.
 export function normalizeLoadout(rawLoadout, classId) {
-  const cls = CLASSES_CATALOG[classId] || CLASSES_CATALOG.solari_vanguard;
-  const out = { ...cls.defaultLoadout };
-  if (rawLoadout && typeof rawLoadout === 'object') {
-    for (const slot of ACTION_SLOTS) {
-      const candidate = rawLoadout[slot];
-      if (candidate && ABILITIES_CATALOG[candidate] && candidate !== 'harvest') {
-        out[slot] = candidate;
-      }
-    }
-  }
-  return out;
+  return sanitizeLoadout(rawLoadout, classId);
 }
 
 export const VALID_EQUIP_SLOTS = [

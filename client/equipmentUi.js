@@ -417,7 +417,7 @@ export function renderInventoryModal({ profile }) {
         🎒 BACKPACK SLOTS: <b style="color:${inv.length >= 28 ? '#ef4444' : '#4ade80'};">${inv.length} / ${capacity}</b>
       </span>
       <span style="color:#94a3b8; font-size:8.5px;">
-        Left-Click to Equip / Swap • Right-Click to Drop
+        Left-Click to Equip • Drag to Action Bar • Right-Click to Drop
       </span>
     </div>
 
@@ -432,7 +432,9 @@ export function renderInventoryModal({ profile }) {
           const borderCol = getRarityColor(item.rarity);
           return `
             <div class="rs-inv-slot"
-                 style="border-color:${borderCol};"
+                 style="border-color:${borderCol}; cursor:grab;"
+                 draggable="true"
+                 ondragstart="window.beginActionDrag(event, 'item', '${item.id}')"
                  onclick="window.equipInventorySlot(${i})"
                  oncontextmenu="event.preventDefault(); window.dropInventorySlot(${i});"
                  onmouseenter="window.setHoveredEquipment('${item.id}', 'inventory', event)"

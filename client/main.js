@@ -3,7 +3,6 @@ import { buildSpriteSheet } from './sprites.js';
 import { initUiLayout } from './uiLayout.js';
 
 window.addEventListener('selectstart', (e) => e.preventDefault());
-window.addEventListener('dragstart', (e) => e.preventDefault());
 
 window.toggleScanlines = function () {
   const ov = document.getElementById('crt-overlay');

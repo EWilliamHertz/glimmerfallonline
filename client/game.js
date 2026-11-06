@@ -80,6 +80,7 @@ import {
   paragonXpForLevel,
   canUpgradeParagon,
   resolveFactionAndClass,
+  sanitizeLoadout,
   calcMaxHp,
   calcMaxGlimmer,
   calcCritChance,
@@ -105,6 +106,10 @@ const DEFAULT_KEYBINDS = {
   2: '2',
   3: '3',
   4: '4',
+  5: '5',
+  6: '6',
+  7: '7',
+  8: '8',
   harvest: 'e',
   9: 'q',
   10: 'r',
@@ -564,9 +569,12 @@ export function initGame() {
       combatKills: 0,
       combatTrainingHits: 0,
       aetherFontChanneled: false,
+      aetherFontChannels: 0,
       titanChallenged: false,
+      titanChallenges: 0,
       ascentReached: false,
       visitedBiomes: {},
+      questRuns: {},
       activeQuests: {
         quest_awakening: { accepted: true },
       },
@@ -636,6 +644,162 @@ export function initGame() {
     });
   }
 
+  const ARTISAN_PROFESSION_IDS = ['relic_forging', 'rite_binding', 'glimmerweaving'];
+  const QUEST_RUN_COUNTERS = [
+    'extractionNodesHarvested',
+    'warzoneKills',
+    'ruinsKills',
+    'calderaKills',
+    'chronoKills',
+    'combatKills',
+    'combatTrainingHits',
+    'aetherFontChannels',
+    'titanChallenges',
+  ];
+  const QUEST_RUN_FLAGS = [
+    'stasisBroken',
+    'dummyDamaged',
+    'nodeHarvested',
+    'smithInspected',
+    'apothecaryInspected',
+    'provisionsInspected',
+    'portalTraveled',
+    'aetherFontChanneled',
+    'titanChallenged',
+    'ascentReached',
+  ];
+
+  function countInventoryItems(itemIds) {
+    const ids = Array.isArray(itemIds) ? itemIds : [];
+    const inv = Array.isArray(localProfile?.inventory) ? localProfile.inventory : [];
+    return inv.reduce((total, it) => {
+      const id = typeof it === 'string' ? it : it?.id;
+      if (!ids.includes(id)) return total;
+      return total + Math.max(0, Number(it?.qty ?? 1) || 0);
+    }, 0);
+  }
+
+  // A quest run freezes everything that existed when the quest was accepted.
+  // Objectives then count only the change since that moment.
+  function createQuestBaseline() {
+    const counters = {};
+    for (const key of QUEST_RUN_COUNTERS) {
+      counters[key] = Math.max(0, Number(questState?.[key]) || 0);
+    }
+    const flags = {};
+    for (const key of QUEST_RUN_FLAGS) {
+      flags[key] = Boolean(questState?.[key]);
+    }
+    const professions = {};
+    for (const profId of Object.keys(PROFESSIONS_CATALOG)) {
+      professions[profId] = getProfessionLevelFromXp(prog?.professions?.[profId]?.xp || 0);
+    }
+    const inventory = {};
+    for (const it of Array.isArray(localProfile?.inventory) ? localProfile.inventory : []) {
+      const id = typeof it === 'string' ? it : it?.id;
+      if (!id) continue;
+      inventory[id] = (inventory[id] || 0) + Math.max(0, Number(it?.qty ?? 1) || 0);
+    }
+    return {
+      acceptedAt: Date.now(),
+      counters,
+      flags,
+      professions,
+      inventory,
+      talkedNpcs: { ...(questState?.talkedNpcs || {}) },
+      visitedBiomes: { ...(questState?.visitedBiomes || {}) },
+    };
+  }
+
+  function resetQuestObjectiveState(questId) {
+    if (!questState.talkedNpcs) questState.talkedNpcs = {};
+    if (questId === 'quest_into_the_warzone') {
+      questState.talkedNpcs.npc_archon = false;
+    } else if (questId === 'quest_celestial_ascent') {
+      questState.ascentReached = false;
+      questState.talkedNpcs.npc_aurelia = false;
+    } else if (questId === 'quest_titan_cleansing') {
+      questState.titanChallenged = false;
+    } else if (questId === 'quest_elemental_pilgrimage') {
+      questState.visitedBiomes = {};
+    } else if (questId === 'quest_stargazer_chronos') {
+      questState.aetherFontChanneled = false;
+    } else if (questId === 'quest_skill_forging') {
+      questState.smithInspected = false;
+    } else if (questId === 'quest_skill_binding') {
+      questState.apothecaryInspected = false;
+    } else if (questId === 'quest_skill_weaving') {
+      questState.provisionsInspected = false;
+    }
+  }
+
+  function ensureQuestRuns() {
+    if (!questState.questRuns || typeof questState.questRuns !== 'object') {
+      questState.questRuns = {};
+    }
+    let changed = false;
+    for (const questId of Object.keys(questState.activeQuests || {})) {
+      // The Awakening quest starts with the character, so its existing progress is valid.
+      if (questId === 'quest_awakening' || questState.questRuns[questId]) continue;
+      resetQuestObjectiveState(questId);
+      questState.questRuns[questId] = createQuestBaseline();
+      changed = true;
+    }
+    return changed;
+  }
+
+  function questRun(questId) {
+    return questState.questRuns?.[questId] || null;
+  }
+
+  function questCounter(questId, key) {
+    const base = Math.max(0, Number(questRun(questId)?.counters?.[key]) || 0);
+    return Math.max(0, (Number(questState?.[key]) || 0) - base);
+  }
+
+  function questFlag(questId, key) {
+    const run = questRun(questId);
+    if (!run) return Boolean(questState?.[key]);
+    return Boolean(questState?.[key]) && !run.flags?.[key];
+  }
+
+  function questNpcTalked(questId, npcId) {
+    const run = questRun(questId);
+    const talked = Boolean(questState?.talkedNpcs?.[npcId]);
+    return run ? talked && !run.talkedNpcs?.[npcId] : talked;
+  }
+
+  function questVisited(questId, biomeKey) {
+    const run = questRun(questId);
+    const visited = Boolean(questState?.visitedBiomes?.[biomeKey]);
+    return run ? visited && !run.visitedBiomes?.[biomeKey] : visited;
+  }
+
+  function questProfessionGain(questId, profId) {
+    const run = questRun(questId);
+    if (!run) return 0;
+    const current = getProfessionLevelFromXp(prog?.professions?.[profId]?.xp || 0);
+    const base = Math.max(1, Number(run.professions?.[profId]) || 1);
+    return Math.max(0, current - base);
+  }
+
+  function questHasNewItem(questId, itemIds) {
+    const run = questRun(questId);
+    if (!run) return false;
+    const ids = Array.isArray(itemIds) ? itemIds : [];
+    const now = countInventoryItems(ids);
+    const before = ids.reduce((sum, id) => sum + Math.max(0, Number(run.inventory?.[id]) || 0), 0);
+    return now > before;
+  }
+
+  function artisanQuestDone(questId, flagKey, itemIds, profId) {
+    return Boolean(
+      questFlag(questId, flagKey) ||
+      questHasNewItem(questId, itemIds) ||
+      questProfessionGain(questId, profId) >= 1
+    );
+  }
+
   function loadQuestState() {
     try {
       const charId = localProfile?.activeCharacterId || (localProfile?.id && localProfile.id !== 'default' && localProfile.id !== 'local_hero' ? localProfile.id : null);
@@ -678,8 +842,14 @@ export function initGame() {
           combatKills: Math.max(Number(parsed?.combatKills || 0), Number(srvQuest.combatKills || 0)),
           combatTrainingHits: Math.max(Number(parsed?.combatTrainingHits || 0), Number(srvQuest.combatTrainingHits || 0)),
           aetherFontChanneled: Boolean(parsed?.aetherFontChanneled || srvQuest.aetherFontChanneled),
+          aetherFontChannels: Math.max(Number(parsed?.aetherFontChannels || 0), Number(srvQuest.aetherFontChannels || 0)),
           titanChallenged: Boolean(parsed?.titanChallenged || srvQuest.titanChallenged),
+          titanChallenges: Math.max(Number(parsed?.titanChallenges || 0), Number(srvQuest.titanChallenges || 0)),
           ascentReached: Boolean(parsed?.ascentReached || srvQuest.ascentReached),
+          questRuns: {
+            ...(parsed?.questRuns || {}),
+            ...(srvQuest.questRuns || {}),
+          },
           completedQuests: {
             ...(parsed?.completedQuests || {}),
             ...(srvQuest.completedQuests || {}),
@@ -724,9 +894,12 @@ export function initGame() {
           combatKills: Number(parsed.combatKills || 0),
           combatTrainingHits: Number(parsed.combatTrainingHits || 0),
           aetherFontChanneled: Boolean(parsed.aetherFontChanneled),
+          aetherFontChannels: Number(parsed.aetherFontChannels || 0),
           titanChallenged: Boolean(parsed.titanChallenged),
+          titanChallenges: Number(parsed.titanChallenges || 0),
           ascentReached: Boolean(parsed.ascentReached),
           visitedBiomes: parsed.visitedBiomes || {},
+          questRuns: parsed.questRuns || {},
           activeQuests: active,
           trackedQuests: parsed.trackedQuests || {},
           completedQuests: completed,
@@ -755,6 +928,10 @@ export function initGame() {
       if (questState.trackedQuests) delete questState.trackedQuests.quest_awakening;
       saveQuestState();
     }
+
+    // Legacy saves predate per-run baselines. Give every already-active quest a
+    // fresh start so work done before this update cannot auto-complete it.
+    if (ensureQuestRuns()) saveQuestState();
 
     // Clean up any completed quests from active & tracked sets
     if (questState.completedQuests) {
@@ -869,7 +1046,7 @@ export function initGame() {
     // Combat Mastery: every hostile kill advances the first-blood trial.
     questState.combatKills = (questState.combatKills || 0) + 1;
     changed = true;
-    if (questState.combatKills === 3 && questState.activeQuests?.quest_skill_combat) {
+    if (questCounter('quest_skill_combat', 'combatKills') === 3 && questState.activeQuests?.quest_skill_combat) {
       logMessage('📜 [Quest Objective] Combat foes banished (3/3)! Return to Commander Valerius!', 'log-quest', 'chat');
       spawnFCT(player.x, player.y - 14, '✨ COMBAT TRIAL COMPLETE (3/3)!', '#facc15', true);
       if (audio && audio.playChime) audio.playChime();
@@ -880,7 +1057,7 @@ export function initGame() {
     if (roomType !== ROOM_TYPES.SANCTUARY_HUB || (mobName && (mobName.includes('Void') || mobName.includes('Fiend') || mobName.includes('Stalker')))) {
       questState.warzoneKills = (questState.warzoneKills || 0) + 1;
       changed = true;
-      if (questState.warzoneKills === 3 && questState.activeQuests?.quest_void_banish) {
+      if (questCounter('quest_void_banish', 'warzoneKills') === 3 && questState.activeQuests?.quest_void_banish) {
         logMessage('📜 [Quest Objective] Void threats banished (3/3)! Return to Commander Valerius!', 'log-quest', 'chat');
         spawnFCT(player.x, player.y - 14, '✨ OBJECTIVE COMPLETE (3/3)!', '#facc15', true);
         if (audio && audio.playChime) audio.playChime();
@@ -891,7 +1068,7 @@ export function initGame() {
     if (roomType === ROOM_TYPES.NEXUS_FORGOTTEN_RUINS || (mobName && (mobName.includes('Ruin') || mobName.includes('Ancient') || mobName.includes('Horror')))) {
       questState.ruinsKills = (questState.ruinsKills || 0) + 1;
       changed = true;
-      if (questState.ruinsKills === 2 && questState.activeQuests?.quest_first_nexus) {
+      if (questCounter('quest_first_nexus', 'ruinsKills') === 2 && questState.activeQuests?.quest_first_nexus) {
         logMessage('📜 [Quest Objective] Ruin horrors banished (2/2)! Return to Atlas!', 'log-quest', 'chat');
         spawnFCT(player.x, player.y - 14, '✨ OBJECTIVE COMPLETE (2/2)!', '#facc15', true);
         if (audio && audio.playChime) audio.playChime();
@@ -902,7 +1079,7 @@ export function initGame() {
     if (roomType === ROOM_TYPES.NEXUS_WARZONE || (mobName && (mobName.includes('Caldera') || mobName.includes('Void Fiend') || mobName.includes('Titan')))) {
       questState.calderaKills = (questState.calderaKills || 0) + 1;
       changed = true;
-      if (questState.calderaKills === 1 && questState.activeQuests?.quest_caldera_siege) {
+      if (questCounter('quest_caldera_siege', 'calderaKills') === 1 && questState.activeQuests?.quest_caldera_siege) {
         logMessage('📜 [Quest Objective] Continental Caldera foe vanquished (1/1)! Return to Commander Valerius!', 'log-quest', 'chat');
         spawnFCT(player.x, player.y - 14, '✨ OBJECTIVE COMPLETE (1/1)!', '#facc15', true);
         if (audio && audio.playChime) audio.playChime();
@@ -913,7 +1090,7 @@ export function initGame() {
     if (roomType === ROOM_TYPES.AETHER_SPIRE || (mobName && (mobName.includes('Chrono') || mobName.includes('Continuum') || mobName.includes('Anomaly') || mobName.includes('Wraith') || mobName.includes('Aether')))) {
       questState.chronoKills = (questState.chronoKills || 0) + 1;
       changed = true;
-      if (questState.chronoKills === 1 && questState.activeQuests?.quest_stargazer_chronos) {
+      if (questCounter('quest_stargazer_chronos', 'chronoKills') === 1 && questState.activeQuests?.quest_stargazer_chronos) {
         logMessage('📜 [Quest Objective] Chrono Anomaly banished (1/1)! Channel the Mirrorgate Star Font and return to Astromancer Kaelen!', 'log-quest', 'chat');
         spawnFCT(player.x, player.y - 14, '✨ OBJECTIVE COMPLETE (1/1)!', '#facc15', true);
         if (audio && audio.playChime) audio.playChime();
@@ -921,7 +1098,8 @@ export function initGame() {
     }
 
     // 5. Titan Summit:
-    if (roomType === ROOM_TYPES.CELESTIAL_ASCENT || isBoss || (mobName && mobName.includes('Aurelius'))) {
+    if ((roomType === ROOM_TYPES.CELESTIAL_ASCENT && isBoss) || (mobName && mobName.includes('Aurelius'))) {
+      questState.titanChallenges = (questState.titanChallenges || 0) + 1;
       if (!questState.titanChallenged) {
         questState.titanChallenged = true;
         changed = true;
@@ -1008,9 +1186,9 @@ export function initGame() {
       questPoints: 1,
       unlocks: ['Next Quest: Banish Void Invaders', 'North Vanguard Command Post Access'],
       description: 'Report to Commander Valerius at the North Vanguard Post.',
-      isComplete: () => Boolean(questState.talkedNpcs?.npc_archon || questState.completedQuests?.quest_into_the_warzone),
+      isComplete: () => questNpcTalked('quest_into_the_warzone', 'npc_archon'),
       tasks: [
-        { text: 'Report to Commander Valerius', done: () => Boolean(questState.talkedNpcs?.npc_archon || questState.completedQuests?.quest_into_the_warzone) },
+        { text: 'Report to Commander Valerius', done: () => questNpcTalked('quest_into_the_warzone', 'npc_archon') },
       ],
       rewards: { xp: 180, glimmer: 90, gold: 75 },
       acceptDialogue: [
@@ -1051,12 +1229,12 @@ export function initGame() {
       questPoints: 1,
       unlocks: ['Next Quest: First Nexus Secrets', 'Vanguard Frontline Cache'],
       description: 'Banish 3 hostile foes roaming outside the Sanctuary. Training dummies do not count.',
-      isComplete: () => (questState.warzoneKills || 0) >= 3,
+      isComplete: () => questCounter('quest_void_banish', 'warzoneKills') >= 3,
       tasks: [
         {
           text: 'Banish Hostile Foes (not dummies)',
-          done: () => (questState.warzoneKills || 0) >= 3,
-          counter: () => `${Math.min(3, questState.warzoneKills || 0)} / 3`,
+          done: () => questCounter('quest_void_banish', 'warzoneKills') >= 3,
+          counter: () => `${Math.min(3, questCounter('quest_void_banish', 'warzoneKills'))} / 3`,
         },
       ],
       rewards: { xp: 350, glimmer: 150, gold: 140 },
@@ -1097,12 +1275,12 @@ export function initGame() {
       questPoints: 1,
       unlocks: ['Next Quest: Ascent to the Empyrean', 'Quadrant Waystone Secrets'],
       description: 'Banish 2 ruin horrors in the Forgotten First Nexus Ruins.',
-      isComplete: () => (questState.ruinsKills || 0) >= 2,
+      isComplete: () => questCounter('quest_first_nexus', 'ruinsKills') >= 2,
       tasks: [
         {
           text: 'Banish Ancient Ruin Horrors',
-          done: () => (questState.ruinsKills || 0) >= 2,
-          counter: () => `${Math.min(2, questState.ruinsKills || 0)} / 2`,
+          done: () => questCounter('quest_first_nexus', 'ruinsKills') >= 2,
+          counter: () => `${Math.min(2, questCounter('quest_first_nexus', 'ruinsKills'))} / 2`,
         },
       ],
       rewards: { xp: 500, glimmer: 200, gold: 180 },
@@ -1139,12 +1317,12 @@ export function initGame() {
       questPoints: 2,
       unlocks: ['Grand Vanguard Cache', 'Continental Caldera Outpost Access'],
       description: 'Venture into the Continental Nexus Caldera and vanquish a Caldera foe or contest an Outpost.',
-      isComplete: () => Boolean((questState.calderaKills || 0) >= 1 || (questState.warzoneKills || 0) >= 4),
+      isComplete: () => Boolean(questCounter('quest_caldera_siege', 'calderaKills') >= 1 || questCounter('quest_caldera_siege', 'warzoneKills') >= 4),
       tasks: [
         {
           text: 'Vanquish a Continental Caldera foe',
-          done: () => Boolean((questState.calderaKills || 0) >= 1 || (questState.warzoneKills || 0) >= 4),
-          counter: () => `${Math.min(1, (questState.calderaKills || 0) + ((questState.warzoneKills || 0) >= 4 ? 1 : 0))} / 1`,
+          done: () => Boolean(questCounter('quest_caldera_siege', 'calderaKills') >= 1 || questCounter('quest_caldera_siege', 'warzoneKills') >= 4),
+          counter: () => `${Math.min(1, questCounter('quest_caldera_siege', 'calderaKills') + (questCounter('quest_caldera_siege', 'warzoneKills') >= 4 ? 1 : 0))} / 1`,
         },
       ],
       rewards: { xp: 700, glimmer: 300, gold: 250 },
@@ -1180,11 +1358,11 @@ export function initGame() {
       questPoints: 2,
       unlocks: ['Next Quest: The Slumbering Sovereign', 'Empyrean Summit Colonnade'],
       description: 'Climb past the northern boundary of the Continental Caldera and seek Grand Arbiter Aurelia at the Celestial Ascent.',
-      isComplete: () => Boolean(questState.ascentReached || currentRoomType === ROOM_TYPES.CELESTIAL_ASCENT || questState.talkedNpcs?.npc_aurelia),
+      isComplete: () => Boolean(questFlag('quest_celestial_ascent', 'ascentReached') || questNpcTalked('quest_celestial_ascent', 'npc_aurelia')),
       tasks: [
         {
           text: 'Reach the Celestial Ascent Summit',
-          done: () => Boolean(questState.ascentReached || currentRoomType === ROOM_TYPES.CELESTIAL_ASCENT || questState.talkedNpcs?.npc_aurelia),
+          done: () => Boolean(questFlag('quest_celestial_ascent', 'ascentReached') || questNpcTalked('quest_celestial_ascent', 'npc_aurelia')),
         },
       ],
       rewards: { xp: 900, glimmer: 350, gold: 350 },
@@ -1221,11 +1399,11 @@ export function initGame() {
       questPoints: 3,
       unlocks: ['Titan Sovereign Favor', 'Apex Starlight Champion Title'],
       description: 'Challenge Aurelius the Empyrean Sovereign at the Northern Summit Throne.',
-      isComplete: () => Boolean(questState.titanChallenged),
+      isComplete: () => questCounter('quest_titan_cleansing', 'titanChallenges') >= 1,
       tasks: [
         {
           text: 'Strike Aurelius the Empyrean Sovereign',
-          done: () => Boolean(questState.titanChallenged),
+          done: () => questCounter('quest_titan_cleansing', 'titanChallenges') >= 1,
         },
       ],
       rewards: { xp: 1500, glimmer: 500, gold: 600 },
@@ -1262,16 +1440,16 @@ export function initGame() {
       unlocks: ['Elemental Quad-Attunement', 'Cross-Domain Travel Mastery'],
       description: 'Attune to the leylines of all 4 elemental domains: Solari, Umbri, Terra, and Aether.',
       isComplete: () => Boolean(
-        questState.visitedBiomes?.solari &&
-        questState.visitedBiomes?.umbri &&
-        questState.visitedBiomes?.terra &&
-        questState.visitedBiomes?.aether
+        questVisited('quest_elemental_pilgrimage', 'solari') &&
+        questVisited('quest_elemental_pilgrimage', 'umbri') &&
+        questVisited('quest_elemental_pilgrimage', 'terra') &&
+        questVisited('quest_elemental_pilgrimage', 'aether')
       ),
       tasks: [
-        { text: 'Visit Solari Sun-Citadel (West)', done: () => Boolean(questState.visitedBiomes?.solari) },
-        { text: 'Visit Umbri Undercity (East)', done: () => Boolean(questState.visitedBiomes?.umbri) },
-        { text: 'Visit Terra Ironwood Wilds (South)', done: () => Boolean(questState.visitedBiomes?.terra) },
-        { text: 'Visit Aether Astral Spire (North)', done: () => Boolean(questState.visitedBiomes?.aether) },
+        { text: 'Visit Solari Sun-Citadel (West)', done: () => questVisited('quest_elemental_pilgrimage', 'solari') },
+        { text: 'Visit Umbri Undercity (East)', done: () => questVisited('quest_elemental_pilgrimage', 'umbri') },
+        { text: 'Visit Terra Ironwood Wilds (South)', done: () => questVisited('quest_elemental_pilgrimage', 'terra') },
+        { text: 'Visit Aether Astral Spire (North)', done: () => questVisited('quest_elemental_pilgrimage', 'aether') },
       ],
       rewards: { xp: 600, glimmer: 250, gold: 250 },
       acceptDialogue: [
@@ -1306,20 +1484,20 @@ export function initGame() {
       questPoints: 1,
       unlocks: ['Mirrorgate Portal Attunement', 'Chrono-Archive Astral Path'],
       description: 'Ascend the Astral Waygate to the Aether Spire, channel the Mirrorgate Star Font [E], and vanquish a Chrono Anomaly.',
-      isComplete: () => Boolean(questState.aetherFontChanneled && (questState.chronoKills || 0) >= 1),
+      isComplete: () => Boolean(questCounter('quest_stargazer_chronos', 'aetherFontChannels') >= 1 && questCounter('quest_stargazer_chronos', 'chronoKills') >= 1),
       tasks: [
         {
-          text: 'Channel Star Font in Aether Spire [E]',
-          done: () => Boolean(questState.aetherFontChanneled),
+          text: 'Channel Star Font in Aether Spire',
+          done: () => questCounter('quest_stargazer_chronos', 'aetherFontChannels') >= 1,
         },
         {
           text: 'Banish Chrono Anomaly in Spire',
-          done: () => (questState.chronoKills || 0) >= 1,
-          counter: () => `${Math.min(1, questState.chronoKills || 0)} / 1`,
+          done: () => questCounter('quest_stargazer_chronos', 'chronoKills') >= 1,
+          counter: () => `${Math.min(1, questCounter('quest_stargazer_chronos', 'chronoKills'))} / 1`,
         },
         {
           text: 'Return to Astromancer Kaelen',
-          done: () => Boolean(questState.aetherFontChanneled && (questState.chronoKills || 0) >= 1),
+          done: () => Boolean(questCounter('quest_stargazer_chronos', 'aetherFontChannels') >= 1 && questCounter('quest_stargazer_chronos', 'chronoKills') >= 1),
         },
       ],
       rewards: {
@@ -1359,16 +1537,16 @@ export function initGame() {
       questPoints: 1,
       unlocks: ['Resonance Extraction Lv. 2 Recipes', 'Moira\'s Curio & Relic Trade'],
       description: 'Channel 2 Glimmer or Leyline Nodes around Sanctuary to harvest raw resonant crystals.',
-      isComplete: () => (questState.extractionNodesHarvested || 0) >= 2,
+      isComplete: () => questCounter('quest_skill_extraction', 'extractionNodesHarvested') >= 2,
       tasks: [
         {
-          text: 'Channel Leyline / Glimmer Nodes [E]',
-          done: () => (questState.extractionNodesHarvested || 0) >= 2,
-          counter: () => `${Math.min(2, questState.extractionNodesHarvested || 0)} / 2`,
+          text: 'Channel Leyline / Glimmer Nodes',
+          done: () => questCounter('quest_skill_extraction', 'extractionNodesHarvested') >= 2,
+          counter: () => `${Math.min(2, questCounter('quest_skill_extraction', 'extractionNodesHarvested'))} / 2`,
         },
         {
           text: 'Return to Relic-Seeker Moira',
-          done: () => (questState.extractionNodesHarvested || 0) >= 2,
+          done: () => questCounter('quest_skill_extraction', 'extractionNodesHarvested') >= 2,
         },
       ],
       rewards: {
@@ -1416,15 +1594,15 @@ export function initGame() {
       questPoints: 1,
       unlocks: ['Relic-Forging Lv. 2 Recipes', 'Great Anvil Smelting Access'],
       description: 'Speak with Blacksmith Torvin and inspect his smithy or acquire iron wares to learn Relic-Forging.',
-      isComplete: () => Boolean(questState.smithInspected || profileHasAnyItem(['iron_ore', 'bronze_bar', 'iron_broadsword', 'iron_heater_shield']) || (prog?.professions?.relic_forging?.level || 1) >= 2),
+      isComplete: () => artisanQuestDone('quest_skill_forging', 'smithInspected', ['iron_ore', 'bronze_bar', 'iron_broadsword', 'iron_heater_shield'], 'relic_forging'),
       tasks: [
         {
           text: 'Inspect Smithy Wares or Acquire Metalwork',
-          done: () => Boolean(questState.smithInspected || profileHasAnyItem(['iron_ore', 'bronze_bar', 'iron_broadsword', 'iron_heater_shield']) || (prog?.professions?.relic_forging?.level || 1) >= 2),
+          done: () => artisanQuestDone('quest_skill_forging', 'smithInspected', ['iron_ore', 'bronze_bar', 'iron_broadsword', 'iron_heater_shield'], 'relic_forging'),
         },
         {
           text: 'Confer with Blacksmith Torvin',
-          done: () => Boolean(questState.smithInspected || profileHasAnyItem(['iron_ore', 'bronze_bar', 'iron_broadsword', 'iron_heater_shield']) || (prog?.professions?.relic_forging?.level || 1) >= 2),
+          done: () => artisanQuestDone('quest_skill_forging', 'smithInspected', ['iron_ore', 'bronze_bar', 'iron_broadsword', 'iron_heater_shield'], 'relic_forging'),
         },
       ],
       rewards: {
@@ -1476,15 +1654,15 @@ export function initGame() {
       questPoints: 1,
       unlocks: ['Rite-Binding Lv. 2 Formulas', 'Apothecary Solvent Crafting'],
       description: 'Speak with Alchemist Faye and inspect her apothecary formulas or acquire a healing salve to learn Rite-Binding.',
-      isComplete: () => Boolean(questState.apothecaryInspected || profileHasAnyItem(['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir']) || (prog?.professions?.rite_binding?.level || 1) >= 2),
+      isComplete: () => artisanQuestDone('quest_skill_binding', 'apothecaryInspected', ['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir'], 'rite_binding'),
       tasks: [
         {
           text: 'Inspect Apothecary Formulas or Acquire Salve',
-          done: () => Boolean(questState.apothecaryInspected || profileHasAnyItem(['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir']) || (prog?.professions?.rite_binding?.level || 1) >= 2),
+          done: () => artisanQuestDone('quest_skill_binding', 'apothecaryInspected', ['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir'], 'rite_binding'),
         },
         {
           text: 'Confer with Alchemist Faye',
-          done: () => Boolean(questState.apothecaryInspected || profileHasAnyItem(['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir']) || (prog?.professions?.rite_binding?.level || 1) >= 2),
+          done: () => artisanQuestDone('quest_skill_binding', 'apothecaryInspected', ['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir'], 'rite_binding'),
         },
       ],
       rewards: {
@@ -1536,15 +1714,15 @@ export function initGame() {
       questPoints: 1,
       unlocks: ['Glimmerweaving Lv. 2 Patterns', 'High-Capacity Satchel Crafting'],
       description: 'Speak with Farmer Bran and acquire field provisions or inspect his provisions to learn Glimmerweaving.',
-      isComplete: () => Boolean(questState.provisionsInspected || profileHasAnyItem(['sweet_apple', 'fresh_crusty_bread', 'field_rations']) || (prog?.professions?.glimmerweaving?.level || 1) >= 2),
+      isComplete: () => artisanQuestDone('quest_skill_weaving', 'provisionsInspected', ['sweet_apple', 'fresh_crusty_bread', 'field_rations'], 'glimmerweaving'),
       tasks: [
         {
           text: 'Inspect Provisions or Acquire Sustenance',
-          done: () => Boolean(questState.provisionsInspected || profileHasAnyItem(['sweet_apple', 'fresh_crusty_bread', 'field_rations']) || (prog?.professions?.glimmerweaving?.level || 1) >= 2),
+          done: () => artisanQuestDone('quest_skill_weaving', 'provisionsInspected', ['sweet_apple', 'fresh_crusty_bread', 'field_rations'], 'glimmerweaving'),
         },
         {
           text: 'Confer with Farmer Bran',
-          done: () => Boolean(questState.provisionsInspected || profileHasAnyItem(['sweet_apple', 'fresh_crusty_bread', 'field_rations']) || (prog?.professions?.glimmerweaving?.level || 1) >= 2),
+          done: () => artisanQuestDone('quest_skill_weaving', 'provisionsInspected', ['sweet_apple', 'fresh_crusty_bread', 'field_rations'], 'glimmerweaving'),
         },
       ],
       rewards: {
@@ -1597,17 +1775,17 @@ export function initGame() {
       questPoints: 1,
       unlocks: ['Combat Mastery Lv. 2 Drills', 'Vanguard Sparring Rites'],
       description: 'Prove your combat discipline by banishing 3 foes or landing 15 strikes on a training dummy.',
-      isComplete: () => (questState.combatKills || 0) >= 3 || (questState.combatTrainingHits || 0) >= 15,
+      isComplete: () => questCounter('quest_skill_combat', 'combatKills') >= 3 || questCounter('quest_skill_combat', 'combatTrainingHits') >= 15,
       tasks: [
         {
           text: 'Banish Hostile Foes (not dummies)',
-          done: () => (questState.combatKills || 0) >= 3,
-          counter: () => `${Math.min(3, questState.combatKills || 0)} / 3`,
+          done: () => questCounter('quest_skill_combat', 'combatKills') >= 3,
+          counter: () => `${Math.min(3, questCounter('quest_skill_combat', 'combatKills'))} / 3`,
         },
         {
           text: 'Strike a Training Dummy',
-          done: () => (questState.combatTrainingHits || 0) >= 15,
-          counter: () => `${Math.min(15, questState.combatTrainingHits || 0)} / 15`,
+          done: () => questCounter('quest_skill_combat', 'combatTrainingHits') >= 15,
+          counter: () => `${Math.min(15, questCounter('quest_skill_combat', 'combatTrainingHits'))} / 15`,
         },
       ],
       rewards: {
@@ -1647,16 +1825,12 @@ export function initGame() {
       prereqQuestId: 'quest_awakening',
       questPoints: 1,
       unlocks: ['Artisan Training Drills', 'Skill Mentor Guidance'],
-      description: 'Train any profession to Level 2. Press [N] to open Skills, click a skill, and follow its green HOW TO TRAIN steps.',
-      isComplete: () => getTotalProfessionLevel(prog?.professions) >= 6,
+      description: 'Raise one artisan profession — Relic-Forging, Rite-Binding, or Glimmerweaving — by 1 level after accepting. Press [N] to open Skills and follow its green HOW TO TRAIN steps.',
+      isComplete: () => ARTISAN_PROFESSION_IDS.some((profId) => questProfessionGain('quest_skill_training', profId) >= 1),
       tasks: [
         {
-          text: 'Train any skill to Level 2',
-          done: () => Object.values(prog?.professions || {}).some((p) => getProfessionLevelFromXp(p?.xp || 0) >= 2),
-        },
-        {
-          text: 'Reach Total Skill Level 6',
-          done: () => getTotalProfessionLevel(prog?.professions) >= 6,
+          text: 'Gain 1 Relic-Forging, Rite-Binding, or Glimmerweaving level',
+          done: () => ARTISAN_PROFESSION_IDS.some((profId) => questProfessionGain('quest_skill_training', profId) >= 1),
         },
       ],
       rewards: {
@@ -1664,18 +1838,16 @@ export function initGame() {
         glimmer: 80,
         gold: 120,
         professionXp: {
-          resonance_extraction: 25,
-          relic_forging: 25,
-          rite_binding: 25,
-          glimmerweaving: 25,
-          combat_mastery: 25,
+          relic_forging: 75,
+          rite_binding: 75,
+          glimmerweaving: 75,
         },
       },
       acceptDialogue: [
         {
           speaker: 'HERALD LYRA • SUNSPIRE HERALD',
           spriteKey: 'heraldNpc',
-          text: 'A champion must hone more than the blade. Press [N], click any skill, and read the green HOW TO TRAIN box. The fastest start is [E] at a purple Glimmer Node, or TRAIN with Blacksmith Torvin at the Sanctuary market. Raise any profession to Level 2 and return to me.',
+          text: 'A champion must hone more than the blade. Press [N], click an artisan skill, and read the green HOW TO TRAIN box. Raise Relic-Forging, Rite-Binding, or Glimmerweaving by one level after accepting this task, then return to me. Combat and extraction training do not count for this artisan rank.',
           actions: [
             { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
             { label: '👋 I WILL START NOW', action: 'close' },
@@ -1686,7 +1858,7 @@ export function initGame() {
         {
           speaker: 'HERALD LYRA • SUNSPIRE HERALD',
           spriteKey: 'heraldNpc',
-          text: 'Open Skills [N], click a skill, and follow its green HOW TO TRAIN box. Artisans offer repeatable training at their market stalls, and Glimmer nodes recharge over time.',
+          text: 'Open Skills [N], choose Relic-Forging, Rite-Binding, or Glimmerweaving, and follow its green HOW TO TRAIN box. Only levels gained after you accepted this task count. Combat and extraction training do not count for this artisan rank.',
           actions: [
             { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
             { label: '👋 I WILL KEEP TRAINING', action: 'close' },
@@ -2110,6 +2282,9 @@ export function initGame() {
   }
 
   function acceptQuest(quest, npc) {
+    resetQuestObjectiveState(quest.id);
+    if (!questState.questRuns || typeof questState.questRuns !== 'object') questState.questRuns = {};
+    questState.questRuns[quest.id] = createQuestBaseline();
     questState.activeQuests[quest.id] = { accepted: true, acceptedAt: Date.now() };
     questState.talkedNpcs[npc.id] = true;
 
@@ -3465,7 +3640,7 @@ export function initGame() {
       ...prof,
       faction: resolved.faction,
       classId: resolved.classId,
-      loadout: { ...cls.defaultLoadout, ...(prof.loadout || {}) },
+      loadout: sanitizeLoadout(prof.loadout, resolved.classId),
       equipment: { ...cls.defaultEquipment, ...(prof.equipment || {}) },
       inventory: Array.isArray(prof.inventory) ? prof.inventory : (localProfile.inventory || []),
       bank: resolvedBank,
@@ -3473,6 +3648,7 @@ export function initGame() {
       questState: prof.questState || null,
     };
     window.localProfile = localProfile;
+    loadActionBarItems();
 
     // Reset progression cleanly to default and apply the active character's progression
     prog = {
@@ -3638,6 +3814,52 @@ export function initGame() {
     logMessage(`🛡️ Equipped ${item.name} (${item.desc})!`, 'log-solari', 'combat');
   };
 
+  // Shared by bag clicks and action-bar item slots.
+  function consumeInventoryItem(itemId) {
+    const inv = localProfile.inventory || [];
+    const idx = inv.findIndex((it) => (typeof it === 'string' ? it : it?.id) === itemId);
+    if (idx < 0) return 'missing';
+    const itemObj = inv[idx];
+    const item = EQUIPMENT_CATALOG[itemId];
+    if (!item || item.slot !== 'consumable') return 'not-consumable';
+
+    if (item.healHp) {
+      if (player.hp >= player.maxHp) {
+        spawnFCT(player.x, player.y - 14, 'HEALTH ALREADY FULL!', '#94a3b8');
+        return 'blocked';
+      }
+      player.hp = Math.min(player.maxHp, player.hp + item.healHp);
+      spawnFCT(player.x, player.y - 14, `+${item.healHp} HEALTH!`, '#4ade80', true);
+      const actionVerb = item.id.includes('bread') || item.id.includes('apple') || item.id.includes('ration') ? 'Ate' : 'Consumed';
+      const actionIcon = item.id.includes('bread') ? '🍞' : item.id.includes('apple') ? '🍎' : item.id.includes('ration') ? '🥩' : '🧪';
+      logMessage(`${actionIcon} ${actionVerb} ${item.name} (+${item.healHp} Health)!`, 'log-gain', 'combat');
+    } else if (item.restoreGlimmer) {
+      if (player.solarCharge >= player.maxSolarCharge) {
+        spawnFCT(player.x, player.y - 14, 'GLIMMER ALREADY FULL!', '#94a3b8');
+        return 'blocked';
+      }
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + item.restoreGlimmer);
+      spawnFCT(player.x, player.y - 14, `+${item.restoreGlimmer} GLIMMER!`, '#38bdf8', true);
+      logMessage(`⚗️ Consumed ${item.name} (+${item.restoreGlimmer} Glimmer)!`, 'log-gain', 'combat');
+    } else {
+      return 'not-usable';
+    }
+
+    audio.playPickup();
+    if (typeof itemObj === 'object' && itemObj.qty > 1) {
+      itemObj.qty--;
+    } else {
+      inv.splice(idx, 1);
+    }
+    localProfile.inventory = inv;
+    saveProgressionLocal();
+    updatePlayerUI();
+    if (document.getElementById('inventory-modal')?.style.display === 'block') {
+      renderInventoryModal({ profile: localProfile });
+    }
+    return 'used';
+  }
+
   window.equipInventorySlot = function (slotIndex) {
     const inv = localProfile.inventory || [];
     const idx = Number(slotIndex);
@@ -3649,35 +3871,7 @@ export function initGame() {
 
     // Handle consumables!
     if (item.slot === 'consumable') {
-      if (item.healHp) {
-        if (player.hp >= player.maxHp) {
-          spawnFCT(player.x, player.y - 14, 'HEALTH ALREADY FULL!', '#94a3b8');
-          return;
-        }
-        player.hp = Math.min(player.maxHp, player.hp + item.healHp);
-        spawnFCT(player.x, player.y - 14, `+${item.healHp} HEALTH!`, '#4ade80', true);
-        const actionVerb = item.id.includes('bread') || item.id.includes('apple') || item.id.includes('ration') ? 'Ate' : 'Consumed';
-        const actionIcon = item.id.includes('bread') ? '🍞' : item.id.includes('apple') ? '🍎' : item.id.includes('ration') ? '🥩' : '🧪';
-        logMessage(`${actionIcon} ${actionVerb} ${item.name} (+${item.healHp} Health)!`, 'log-gain', 'combat');
-      } else if (item.restoreGlimmer) {
-        if (player.solarCharge >= player.maxSolarCharge) {
-          spawnFCT(player.x, player.y - 14, 'GLIMMER ALREADY FULL!', '#94a3b8');
-          return;
-        }
-        player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + item.restoreGlimmer);
-        spawnFCT(player.x, player.y - 14, `+${item.restoreGlimmer} GLIMMER!`, '#38bdf8', true);
-        logMessage(`⚗️ Consumed ${item.name} (+${item.restoreGlimmer} Glimmer)!`, 'log-gain', 'combat');
-      }
-      audio.playPickup();
-      if (typeof itemObj === 'object' && itemObj.qty > 1) {
-        itemObj.qty--;
-      } else {
-        inv.splice(idx, 1);
-      }
-      localProfile.inventory = inv;
-      saveProgressionLocal();
-      updatePlayerUI();
-      renderInventoryModal({ profile: localProfile });
+      consumeInventoryItem(itemId);
       return;
     }
 
@@ -6791,7 +6985,7 @@ export function initGame() {
         }
         if (hitEnt?.type === 'dummy') {
           questState.combatTrainingHits = (questState.combatTrainingHits || 0) + 1;
-          if (questState.combatTrainingHits === 15 && questState.activeQuests?.quest_skill_combat) {
+          if (questCounter('quest_skill_combat', 'combatTrainingHits') === 15 && questState.activeQuests?.quest_skill_combat) {
             logMessage('📜 [Quest Objective] Training dummy strikes (15/15)! Return to Commander Valerius!', 'log-quest', 'chat');
             spawnFCT(player.x, player.y - 14, '✨ COMBAT DRILL COMPLETE (15/15)!', '#facc15', true);
             if (audio && audio.playChime) audio.playChime();
@@ -7184,7 +7378,7 @@ export function initGame() {
     }
     frame.style.display = 'block';
     document.getElementById('target-name').innerText = ent.name;
-    document.getElementById('target-sub').innerText = ent.sub || 'World Entity';
+    document.getElementById('target-sub').innerText = getEntitySubtitle(ent);
     if (actRow) {
       actRow.style.display = ent.isRemotePlayer ? 'block' : 'none';
     }
@@ -7754,6 +7948,7 @@ export function initGame() {
     }
 
     if (ent.id === 'celestial_boss' || (ent.name && ent.name.includes('Aurelius'))) {
+      questState.titanChallenges = (questState.titanChallenges || 0) + 1;
       if (!questState.titanChallenged) {
         questState.titanChallenged = true;
         saveQuestState();
@@ -7772,7 +7967,7 @@ export function initGame() {
       if (questState.combatTrainingHits % 5 === 0) {
         awardProfessionXP('combat_mastery', 15, '');
       }
-      if (questState.combatTrainingHits === 15 && questState.activeQuests?.quest_skill_combat) {
+      if (questCounter('quest_skill_combat', 'combatTrainingHits') === 15 && questState.activeQuests?.quest_skill_combat) {
         logMessage('📜 [Quest Objective] Training dummy strikes (15/15)! Return to Commander Valerius!', 'log-quest', 'chat');
         spawnFCT(player.x, player.y - 14, '✨ COMBAT DRILL COMPLETE (15/15)!', '#facc15', true);
         if (audio && audio.playChime) audio.playChime();
@@ -7919,7 +8114,10 @@ export function initGame() {
       return;
     }
     const spec = getSlotAbilitySpec(localProfile.loadout, slot);
-    if (!spec) return;
+    if (!spec) {
+      logMessage(`[Action Bar] Slot ${slot} is empty — drag a Rite or Flash onto it first.`, 'log-combat');
+      return;
+    }
 
     // Diablo 2 Requirement: Abilities with 0 points allocated cannot be cast!
     const abilityRank = getAbilityRank(prog, spec.id);
@@ -8544,12 +8742,11 @@ export function initGame() {
       questState.extractionNodesHarvested = (questState.extractionNodesHarvested || 0) + 1;
       awardProfessionXP('resonance_extraction', 45, `${shrine.name} Channeling`);
       if (currentRoomType === ROOM_TYPES.AETHER_SPIRE || shrine.id === 'aeth_node_1') {
-        if (!questState.aetherFontChanneled) {
-          questState.aetherFontChanneled = true;
-          if (questState.activeQuests?.quest_stargazer_chronos) {
-            logMessage('📜 [Quest Objective] Mirrorgate Star Font channeled! Return to Astromancer Kaelen!', 'log-quest', 'chat');
-            spawnFCT(player.x, player.y - 14, '✨ STAR FONT CHANNELED!', '#facc15', true);
-          }
+        questState.aetherFontChannels = (questState.aetherFontChannels || 0) + 1;
+        questState.aetherFontChanneled = true;
+        if (questState.activeQuests?.quest_stargazer_chronos && questCounter('quest_stargazer_chronos', 'aetherFontChannels') === 1) {
+          logMessage('📜 [Quest Objective] Mirrorgate Star Font channeled! Return to Astromancer Kaelen!', 'log-quest', 'chat');
+          spawnFCT(player.x, player.y - 14, '✨ STAR FONT CHANNELED!', '#facc15', true);
         }
       }
       saveQuestState();
@@ -8592,12 +8789,11 @@ export function initGame() {
       questState.nodeHarvested = true;
     }
     if (currentRoomType === ROOM_TYPES.AETHER_SPIRE || node.id === 'aeth_node_1') {
-      if (!questState.aetherFontChanneled) {
-        questState.aetherFontChanneled = true;
-        if (questState.activeQuests?.quest_stargazer_chronos) {
-          logMessage('📜 [Quest Objective] Mirrorgate Star Font channeled! Return to Astromancer Kaelen!', 'log-quest', 'chat');
-          spawnFCT(player.x, player.y - 14, '✨ STAR FONT CHANNELED!', '#facc15', true);
-        }
+      questState.aetherFontChannels = (questState.aetherFontChannels || 0) + 1;
+      questState.aetherFontChanneled = true;
+      if (questState.activeQuests?.quest_stargazer_chronos && questCounter('quest_stargazer_chronos', 'aetherFontChannels') === 1) {
+        logMessage('📜 [Quest Objective] Mirrorgate Star Font channeled! Return to Astromancer Kaelen!', 'log-quest', 'chat');
+        spawnFCT(player.x, player.y - 14, '✨ STAR FONT CHANNELED!', '#facc15', true);
       }
     }
     saveQuestState();
@@ -8820,56 +9016,332 @@ export function initGame() {
     return k.toUpperCase();
   }
 
-  function updateActionBarBadges() {
-    for (const slot of ACTION_SLOTS) {
-      const spec = getSlotAbilitySpec(localProfile.loadout, slot);
-      const unlocked = isSlotUnlocked(prog, slot);
-      const reqLvl = SLOT_UNLOCK_LEVELS[slot] || 1;
-      const abilityRank = getAbilityRank(prog, spec?.id);
-      const isLearned = abilityRank >= 1;
+  function getHarvestKeyLabel() {
+    return formatKeyLabel(keybinds?.harvest || DEFAULT_KEYBINDS.harvest);
+  }
 
-      const badge = document.getElementById(`badge-${slot}`);
-      if (badge && keybinds[slot]) badge.innerText = formatKeyLabel(keybinds[slot]);
-      const rk = document.getElementById(`rank-${slot}`);
-      if (rk) {
-        rk.style.display = 'none';
-      }
-      const iconEl = document.getElementById(`icon-${slot}`);
-      if (iconEl) iconEl.innerText = (!unlocked || !isLearned) ? '🔒' : (spec?.icon || '⚔️');
-      const nameEl = document.getElementById(`name-${slot}`);
-      if (nameEl) {
-        if (!unlocked) {
-          nameEl.innerText = 'Locked';
-          nameEl.style.color = '#94a3b8';
-        } else if (!isLearned) {
-          nameEl.innerText = spec?.short || 'Rite';
-          nameEl.style.color = '#ef4444';
-        } else {
-          nameEl.innerText = spec?.short || 'Rite';
-          nameEl.style.color = spec?.color || '#ffffff';
-        }
-      }
-      const btnEl = document.getElementById(`btn-slot-${slot}`);
-      if (btnEl) {
-        if (!unlocked) {
-          btnEl.title = `Locked: Reach Level ${reqLvl} to unlock this ${slot >= 9 ? 'Flash' : 'Rite'}!`;
-          btnEl.classList.add('slot-locked');
-          btnEl.classList.remove('flash-card', 'rite-card');
-        } else if (!isLearned) {
-          btnEl.title = `🔒 [Unlearned] ${spec.name} — Allocate skill points in Spellbook [P] to unlock!`;
-          btnEl.classList.add('slot-locked');
-          btnEl.classList.remove('flash-card', 'rite-card');
-        } else if (spec) {
-          const castTxt = spec.castTime > 0 ? `${spec.castTime.toFixed(1)}s Cast` : 'Instant Flash';
-          btnEl.title = `${spec.name} (${spec.tcgType} • Rank ${abilityRank}/5 • ${castTxt}) — ${spec.desc}`;
-          btnEl.classList.remove('slot-locked');
-          btnEl.classList.toggle('flash-card', spec.tcgType.includes('Flash'));
-          btnEl.classList.toggle('rite-card', spec.tcgType.includes('Rite'));
-        }
-      }
+  function getEntitySubtitle(ent) {
+    if (!ent) return 'World Entity';
+    const key = getHarvestKeyLabel();
+    if ((ent.type === 'node' || ent.type === 'shrine') && (ent.charges ?? 0) <= 0) {
+      return ent.type === 'shrine' ? 'Depleted Shrine' : `Depleted ${ent.isGrand ? 'Grand Font' : 'Node'}`;
     }
-    const hb = document.getElementById('badge-harvest');
-    if (hb && keybinds.harvest) hb.innerText = formatKeyLabel(keybinds.harvest);
+    const base = String(ent.sub || (ent.type === 'node' ? 'Glimmer Leyline Node' : ent.type === 'shrine' ? 'Ancient Leyline Shrine' : 'World Entity'));
+    if (base.includes('[E]')) return base.replace(/\[E\]/g, `[${key}]`);
+    if (ent.type === 'node' || ent.type === 'shrine') return `${base} • Channel [${key}]`;
+    return base;
+  }
+
+  // ==========================================
+  // Action Bar — drag & drop slots
+  // ==========================================
+  // Ability slots (1-4, 9-12) start empty except the class primary in slot 1.
+  // Item slots (5-8) hold bag items the player drags down from the backpack.
+  const ITEM_ACTION_SLOTS = [5, 6, 7, 8];
+  let actionBarItems = {};
+  let actionBarSignature = '';
+
+  function getActionBarStorageKey() {
+    const charKey = localProfile?.activeCharacterId || localProfile?.id || 'local_hero';
+    return `glimmerfall_action_items_${charKey}`;
+  }
+
+  function loadActionBarItems() {
+    actionBarItems = {};
+    try {
+      const raw = localStorage.getItem(getActionBarStorageKey());
+      const parsed = raw ? JSON.parse(raw) : {};
+      if (parsed && typeof parsed === 'object') {
+        for (const slot of ITEM_ACTION_SLOTS) {
+          const id = parsed[slot];
+          const def = id ? EQUIPMENT_CATALOG[id] : null;
+          if (def && def.slot !== 'currency') actionBarItems[slot] = id;
+        }
+      }
+    } catch (_) {
+      actionBarItems = {};
+    }
+    actionBarSignature = '';
+  }
+
+  function saveActionBarItems() {
+    try {
+      localStorage.setItem(getActionBarStorageKey(), JSON.stringify(actionBarItems));
+    } catch (_) {}
+  }
+
+  function countInventoryItem(itemId) {
+    if (!itemId) return 0;
+    const inv = localProfile.inventory || [];
+    let total = 0;
+    for (const it of inv) {
+      const id = typeof it === 'string' ? it : it?.id;
+      if (id !== itemId) continue;
+      total += typeof it === 'object' && it?.qty ? it.qty : 1;
+    }
+    return total;
+  }
+
+  loadActionBarItems();
+
+  function buildActionBarSignature() {
+    const loadout = ACTION_SLOTS.map((s) => `${s}=${localProfile.loadout?.[s] || ''}`).join(',');
+    const ranks = ACTION_SLOTS.map((s) => getAbilityRank(prog, localProfile.loadout?.[s])).join(',');
+    const keys = [...ACTION_SLOTS, 'harvest', ...ITEM_ACTION_SLOTS]
+      .map((s) => `${s}=${formatKeyLabel(keybinds[s])}`)
+      .join(',');
+    const items = ITEM_ACTION_SLOTS
+      .map((s) => `${s}=${actionBarItems[s] || ''}:${countInventoryItem(actionBarItems[s])}`)
+      .join(',');
+    return `${loadout}|${ranks}|${keys}|${items}|LV${prog.level}`;
+  }
+
+  function renderActionSlotButton(slot) {
+    const spec = getSlotAbilitySpec(localProfile.loadout, slot);
+    const unlocked = isSlotUnlocked(prog, slot);
+    const rank = spec ? getAbilityRank(prog, spec.id) : 0;
+    const learned = Boolean(spec) && rank >= 1;
+    const keyLabel = formatKeyLabel(keybinds[slot]);
+    let cls = 'action-button';
+    let icon = '＋';
+    let name = 'Empty';
+    let nameColor = '#64748b';
+    let title = '';
+
+    if (!unlocked) {
+      const reqLvl = SLOT_UNLOCK_LEVELS[slot] || 1;
+      cls += ' slot-locked';
+      icon = '🔒';
+      name = `LV.${reqLvl}`;
+      title = `Slot locked — reach Level ${reqLvl}. Press [${keyLabel}] to try anyway.`;
+    } else if (spec && learned) {
+      cls += spec.tcgType?.includes('Flash') ? ' flash-card' : ' rite-card';
+      icon = spec.icon || '⚔️';
+      name = spec.short || 'Rite';
+      nameColor = spec.color || '#e2e8f0';
+      title = `${spec.name} — Rank ${rank}/5 • [${keyLabel}] to cast • Right-click to clear`;
+    } else if (spec) {
+      cls += ' slot-locked';
+      icon = spec.icon || '⚔️';
+      name = spec.short || 'Rite';
+      nameColor = '#ef4444';
+      title = `${spec.name} is unlearned — allocate a skill point in the Skill Tree or Spellbook first.`;
+    } else {
+      cls += ' slot-empty';
+      title = `Empty slot — drag a Rite or Flash here from the Skill Tree or Spellbook. [${keyLabel}]`;
+    }
+
+    const draggable = spec && learned ? 'true' : 'false';
+    return `<div class="${cls}" id="btn-slot-${slot}" data-slot-kind="ability" data-slot="${slot}" draggable="${draggable}" title="${title}">
+      <span class="key-badge">${keyLabel}</span>
+      <span class="action-icon">${icon}</span>
+      <span class="action-name" style="color:${nameColor};">${name}</span>
+      <div class="cooldown-overlay" id="cd-${slot}"></div>
+    </div>`;
+  }
+
+  function renderActionItemSlot(slot) {
+    const itemId = actionBarItems[slot];
+    const item = itemId ? EQUIPMENT_CATALOG[itemId] : null;
+    const qty = countInventoryItem(itemId);
+    const keyLabel = formatKeyLabel(keybinds[slot]);
+    const depleted = Boolean(item) && qty <= 0;
+    let cls = 'action-button item-card';
+    if (!item) cls += ' slot-empty';
+    if (depleted) cls += ' slot-depleted';
+
+    const icon = item
+      ? `<img class="action-item-icon pixel-art" src="${getItemIconDataUrl(item.id, 22)}" width="22" height="22" alt="${item.name}" />`
+      : '＋';
+    const shortName = item
+      ? item.name.replace(/^(Sunforged|Ironwood|Chrono|Duskveil|Aurelius)\s*/i, '').split(' ')[0]
+      : 'Item';
+    const title = item
+      ? `${item.name}${qty > 1 ? ` ×${qty}` : ''}${depleted ? ' — none left in your bag' : ''} • [${keyLabel}] to use • Right-click to clear`
+      : `Empty item slot — drag a potion, food, or gear piece here from the bag. [${keyLabel}]`;
+
+    return `<div class="${cls}" id="btn-item-${slot}" data-slot-kind="item" data-slot="${slot}" draggable="${item ? 'true' : 'false'}" title="${title}">
+      <span class="key-badge">${keyLabel}</span>
+      <span class="action-icon">${icon}</span>
+      <span class="action-name">${shortName}</span>
+      ${item && qty > 1 ? `<span class="action-qty">${qty}</span>` : ''}
+    </div>`;
+  }
+
+  function findFirstFreeAbilitySlot() {
+    for (const s of ACTION_SLOTS) {
+      if (!localProfile.loadout?.[s]) return s;
+    }
+    return null;
+  }
+
+  function findFirstFreeItemSlot() {
+    for (const s of ITEM_ACTION_SLOTS) {
+      if (!actionBarItems[s]) return s;
+    }
+    return ITEM_ACTION_SLOTS[0];
+  }
+
+  function handleActionBarDrop(ev, slotKind, slot) {
+    const raw = (ev.dataTransfer?.getData('application/x-glimmerfall') || ev.dataTransfer?.getData('text/plain') || '').trim();
+    const sep = raw.indexOf(':');
+    const kind = sep >= 0 ? raw.slice(0, sep) : raw;
+    const id = sep >= 0 ? raw.slice(sep + 1) : '';
+    if (!id) return;
+
+    if (kind === 'ability') {
+      const target = slotKind === 'ability' ? slot : findFirstFreeAbilitySlot();
+      if (target === null) {
+        logMessage('[Action Bar] Every Rite/Flash slot is full — right-click one to clear it first.', 'log-combat');
+        return;
+      }
+      window.assignSlotAbilityInGame(target, id);
+      return;
+    }
+
+    if (kind === 'item') {
+      const item = EQUIPMENT_CATALOG[id];
+      if (!item || item.slot === 'currency') return;
+      const target = slotKind === 'item' ? slot : findFirstFreeItemSlot();
+      actionBarItems[target] = id;
+      saveActionBarItems();
+      actionBarSignature = '';
+      updateActionBarBadges();
+      audio.playPickup?.();
+      logMessage(`[Action Bar] Bound ${item.name} to item slot ${target} [${formatKeyLabel(keybinds[target])}].`, 'log-gain');
+    }
+  }
+
+  function renderActionBar() {
+    const cluster = document.getElementById('action-bar-cluster');
+    if (!cluster) return;
+    const harvestKey = getHarvestKeyLabel();
+    cluster.innerHTML = `
+      <div class="action-group">
+        ${[1, 2, 3, 4].map(renderActionSlotButton).join('')}
+        <div class="action-button harvest-card" id="btn-slot-harvest" data-slot-kind="harvest" title="Channel the nearest Glimmer node or Grand Font [${harvestKey}]">
+          <span class="key-badge">${harvestKey}</span>
+          <span class="action-icon">🔮</span>
+          <span class="action-name">Glimmer</span>
+        </div>
+      </div>
+      <div class="action-divider"></div>
+      <div class="action-group">${[9, 10, 11, 12].map(renderActionSlotButton).join('')}</div>
+      <div class="action-divider"></div>
+      <div class="action-group">${ITEM_ACTION_SLOTS.map(renderActionItemSlot).join('')}</div>
+    `;
+
+    for (const el of cluster.querySelectorAll('[data-slot-kind]')) {
+      const kind = el.dataset.slotKind;
+      const slot = Number(el.dataset.slot);
+
+      if (kind === 'harvest') {
+        el.addEventListener('click', () => window.harvestTarget());
+        continue;
+      }
+
+      el.addEventListener('click', () => window.activateActionSlot(slot));
+      el.addEventListener('contextmenu', (ev) => {
+        ev.preventDefault();
+        window.clearActionSlot(slot);
+      });
+      el.addEventListener('dragstart', (ev) => {
+        const id = kind === 'ability' ? localProfile.loadout?.[slot] : actionBarItems[slot];
+        if (id) window.beginActionDrag(ev, kind, id);
+      });
+      el.addEventListener('dragover', (ev) => {
+        if (!Array.from(ev.dataTransfer?.types || []).some((t) => t.startsWith('application/x-glimmerfall') || t === 'text/plain')) return;
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = 'copy';
+        el.classList.add('drop-hover');
+      });
+      el.addEventListener('dragleave', () => el.classList.remove('drop-hover'));
+      el.addEventListener('drop', (ev) => {
+        ev.preventDefault();
+        el.classList.remove('drop-hover');
+        handleActionBarDrop(ev, kind, slot);
+      });
+    }
+  }
+
+  window.beginActionDrag = function (ev, kind, id) {
+    if (!ev?.dataTransfer || !id) return;
+    ev.dataTransfer.effectAllowed = 'copy';
+    ev.dataTransfer.setData('application/x-glimmerfall', `${kind}:${id}`);
+    ev.dataTransfer.setData('text/plain', `${kind}:${id}`);
+  };
+
+  window.clearActionSlot = function (slot) {
+    const s = Number(slot);
+    if (ACTION_SLOTS.includes(s)) {
+      if (!localProfile.loadout?.[s]) return;
+      const next = { ...(localProfile.loadout || {}) };
+      delete next[s];
+      localProfile.loadout = next;
+      if (prog.ranks) delete prog.ranks[s];
+      if (net.connected) net.send({ type: 'update_loadout', loadout: next });
+      logMessage(`[Action Bar] Cleared slot ${s} — drag a Rite or Flash back in whenever you like.`, 'log-combat');
+    } else if (ITEM_ACTION_SLOTS.includes(s)) {
+      if (!actionBarItems[s]) return;
+      delete actionBarItems[s];
+      saveActionBarItems();
+    } else {
+      return;
+    }
+    actionBarSignature = '';
+    updateActionBarBadges();
+    audio.playHurt?.();
+  };
+
+  window.activateActionSlot = function (slot) {
+    const s = Number(slot);
+    if (ACTION_SLOTS.includes(s)) {
+      window.castAbility(s);
+      return;
+    }
+    if (!ITEM_ACTION_SLOTS.includes(s)) return;
+
+    const itemId = actionBarItems[s];
+    if (!itemId) {
+      logMessage(`[Action Bar] Item slot ${s} is empty — drag a potion or gear piece here from your bag.`, 'log-combat');
+      return;
+    }
+    const item = EQUIPMENT_CATALOG[itemId];
+    if (!item) {
+      delete actionBarItems[s];
+      saveActionBarItems();
+      actionBarSignature = '';
+      updateActionBarBadges();
+      return;
+    }
+    if (countInventoryItem(itemId) <= 0) {
+      spawnFCT(player.x, player.y - 14, `NO ${item.name.toUpperCase()} IN BAG!`, '#94a3b8');
+      return;
+    }
+
+    if (item.slot === 'consumable') {
+      consumeInventoryItem(itemId);
+    } else {
+      const inv = localProfile.inventory || [];
+      const idx = inv.findIndex((it) => (typeof it === 'string' ? it : it?.id) === itemId);
+      if (idx >= 0) window.equipInventorySlot(idx);
+    }
+    actionBarSignature = '';
+    updateActionBarBadges();
+  };
+
+  function updateActionBarBadges() {
+    const sig = buildActionBarSignature();
+    if (sig !== actionBarSignature) {
+      actionBarSignature = sig;
+      renderActionBar();
+    }
+    const harvestHint = document.getElementById('harvest-key-hint');
+    if (harvestHint) harvestHint.innerText = `[${getHarvestKeyLabel()}]`;
+    if (currentTarget && (currentTarget.type === 'node' || currentTarget.type === 'shrine')) {
+      const subEl = document.getElementById('target-sub');
+      if (subEl) subEl.innerText = getEntitySubtitle(currentTarget);
+    }
   }
 
   let rebindFeedbackMsg = '';
@@ -9038,7 +9510,7 @@ export function initGame() {
         const equipSlots = isFlashesTab ? [9, 10, 11, 12] : [1, 2, 3, 4];
 
         html += `
-          <div class="${cardClass}">
+          <div class="${cardClass}" data-ability-id="${ab.id}" draggable="${isLearned}" ondragstart="window.beginActionDrag(event, 'ability', '${ab.id}')" title="${isLearned ? 'Drag onto an empty action-bar slot' : 'Unlearned'}${equippedSlot ? ` • Currently in slot ${equippedSlot}` : ''}">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
               <div style="display:flex; align-items:center; gap:6px;">
                 <span style="font-size:18px;">${ab.icon}</span>
@@ -9150,12 +9622,23 @@ export function initGame() {
     const myFaction = localProfile.faction || 'Solari';
 
     for (const slot of [1, 2, 3, 4, 'harvest', 9, 10, 11, 12]) {
-      const spec = getSlotAbilitySpec(localProfile.loadout, slot);
-      if (!spec) continue;
+      const equippedSpec = getSlotAbilitySpec(localProfile.loadout, slot);
+      const isEmptySlot = !equippedSpec && typeof slot === 'number';
+      const spec = equippedSpec || {
+        id: null,
+        name: `Empty Slot ${slot}`,
+        icon: '＋',
+        color: '#94a3b8',
+        tcgType: 'Empty Slot',
+        castTime: 0,
+        baseCd: 0,
+        range: '—',
+        desc: 'Drag a learned Rite or Flash onto this action-bar slot (or pick one from the dropdown below).',
+      };
       const bound = formatKeyLabel(keybinds[slot]);
       const isListening = listeningSlot === slot;
       const isRankable = typeof slot === 'number';
-      const curRank = isRankable ? getAbilityRank(prog, spec.id) : null;
+      const curRank = isRankable && equippedSpec ? getAbilityRank(prog, spec.id) : 0;
       const isLearned = isRankable ? curRank >= 1 : true;
       const canUpgrade = isRankable && canUpgradeAbility(prog, spec.id);
 
@@ -9177,7 +9660,7 @@ export function initGame() {
             <span style="font-size:16px;">${isLearned ? spec.icon : '🔒'}</span>
             <b style="color:${spec.color}; font-size:12px;">${spec.name}</b>
             <span class="spec-pill">${spec.tcgType}</span>
-            ${isRankable ? `<span class="rank-pill">${isLearned ? `RANK ${curRank}/5` : '🔒 UNLEARNED'}</span>` : ''}
+            ${isRankable ? `<span class="rank-pill">${isLearned ? `RANK ${curRank}/5` : isEmptySlot ? 'EMPTY' : '🔒 UNLEARNED'}</span>` : ''}
             <span style="font-size:10px; color:#94a3b8;">${castTimeTxt} • CD: ${spec.baseCd > 0 ? (spec.baseCd * cdMult).toFixed(1) + 's' : '0s'} • ${spec.range}</span>
           </div>
           <div style="font-size:10.5px; color:#e2e8f0; margin-top:3px; line-height:1.4;">${spec.desc}</div>
@@ -9185,7 +9668,7 @@ export function initGame() {
             <div style="margin-top:5px;">
               <select class="pixel-input" style="width:auto; padding:3px 8px; font-size:10.5px;" onchange="assignSlotAbilityInGame(${slot}, this.value); this.blur();">
                 ${allowedChoices.length > 0
-                  ? allowedChoices.map((ab) => `<option value="${ab.id}" ${spec.id === ab.id ? 'selected' : ''}>${ab.icon} ${ab.name} (Rank ${getAbilityRank(prog, ab.id)}/5)</option>`).join('')
+                  ? `<option value="" ${spec.id ? '' : 'selected'}>— EMPTY SLOT —</option>` + allowedChoices.map((ab) => `<option value="${ab.id}" ${spec.id === ab.id ? 'selected' : ''}>${ab.icon} ${ab.name} (Rank ${getAbilityRank(prog, ab.id)}/5)</option>`).join('')
                   : `<option disabled selected>🔒 No ${isFlashSlot ? 'Flashes' : 'Rites'} learned yet — allocate points in Spellbook [P]!</option>`}
               </select>
             </div>
@@ -9660,6 +10143,7 @@ export function initGame() {
         if (boundKey && (key === boundKey || normKey === boundKey)) {
           e.preventDefault();
           if (slot === 'harvest') window.harvestTarget();
+          else if (ITEM_ACTION_SLOTS.includes(Number(slot))) window.activateActionSlot(Number(slot));
           else window.castAbility(Number(slot));
           return;
         }
@@ -11778,9 +12262,9 @@ export function initGame() {
               const label = ent.type === 'dummy'
                 ? 'Training Dummy'
                 : ent.type === 'shrine'
-                  ? (ent.charges > 0 ? `${ent.name} [E]` : `${ent.name} (Depleted)`)
+                  ? (ent.charges > 0 ? `${ent.name} [${getHarvestKeyLabel()}]` : `${ent.name} (Depleted)`)
                   : ent.type === 'node'
-                    ? (ent.charges > 0 ? `${ent.name} [E] • ${ent.charges}/${ent.maxCharges}` : `Depleted ${ent.isGrand ? 'Grand Font' : 'Node'}`)
+                    ? (ent.charges > 0 ? `${ent.name} [${getHarvestKeyLabel()}] • ${ent.charges}/${ent.maxCharges}` : `Depleted ${ent.isGrand ? 'Grand Font' : 'Node'}`)
                     : ent.isBoss
                       ? (isEnraged ? `★ ${ent.name} 🔥 ENRAGED` : `★ ${ent.name}`)
                       : ent.name;

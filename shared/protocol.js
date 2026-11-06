@@ -35,49 +35,49 @@ export const HARVEST_COOLDOWN_MS = {
 // Three shared Grand Fonts per realm, placed away from spawn crowds and quest NPCs.
 export const GRAND_FONT_POSITIONS = {
   [ROOM_TYPES.SANCTUARY_HUB]: [
-    { x: 0, y: 140 },
-    { x: -420, y: 0 },
-    { x: 420, y: 0 },
+    { x: -470, y: 60 },
+    { x: 470, y: 60 },
+    { x: 0, y: -320 },
   ],
   [ROOM_TYPES.NEXUS_WARZONE]: [
-    { x: 0, y: 300 },
-    { x: -600, y: 1100 },
-    { x: 600, y: 1100 },
+    { x: 0, y: 380 },
+    { x: -680, y: 1180 },
+    { x: 680, y: 1180 },
   ],
   [ROOM_TYPES.SOLARI_CITADEL]: [
-    { x: 0, y: 130 },
-    { x: -250, y: 110 },
-    { x: 250, y: 110 },
+    { x: 0, y: 270 },
+    { x: -330, y: 170 },
+    { x: 330, y: 170 },
   ],
   [ROOM_TYPES.UMBRI_UNDERCITY]: [
-    { x: 0, y: 130 },
-    { x: -250, y: 110 },
-    { x: 250, y: 110 },
+    { x: 0, y: 270 },
+    { x: -330, y: 170 },
+    { x: 330, y: 170 },
   ],
   [ROOM_TYPES.TERRA_ORCHARD]: [
-    { x: 0, y: 130 },
-    { x: -250, y: 110 },
-    { x: 250, y: 110 },
+    { x: 0, y: 270 },
+    { x: -330, y: 170 },
+    { x: 330, y: 170 },
   ],
   [ROOM_TYPES.AETHER_SPIRE]: [
-    { x: 0, y: 130 },
-    { x: -250, y: 110 },
-    { x: 250, y: 110 },
+    { x: 0, y: 270 },
+    { x: -330, y: 170 },
+    { x: 330, y: 170 },
   ],
   [ROOM_TYPES.NEXUS_FORGOTTEN_RUINS]: [
-    { x: 0, y: 130 },
-    { x: -250, y: 80 },
-    { x: 250, y: 80 },
+    { x: 0, y: 280 },
+    { x: -320, y: 140 },
+    { x: 320, y: 140 },
   ],
   [ROOM_TYPES.SOLARI_SUNKEN_VAULT]: [
-    { x: 0, y: 130 },
-    { x: -250, y: 80 },
-    { x: 250, y: 80 },
+    { x: 0, y: 280 },
+    { x: -320, y: 140 },
+    { x: 320, y: 140 },
   ],
   [ROOM_TYPES.UMBRI_SHADOW_LABYRINTH]: [
-    { x: 0, y: 130 },
-    { x: -250, y: 80 },
-    { x: 250, y: 80 },
+    { x: 0, y: 280 },
+    { x: -320, y: 140 },
+    { x: 320, y: 140 },
   ],
   [ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY]: [
     { x: 0, y: 130 },
@@ -411,7 +411,10 @@ export const CLASSES_CATALOG = {
     desc: 'Sun-forged champion wielding radiant steel, starlight barriers, and Daystar novas.',
     bonusStats: { power: 1, bastion: 2, resonance: 0, tempo: 0 },
     defaultEquipment: { weapon: 'solari_spellblade', armor: 'sunforged_plate', offhand: 'radiant_shield' },
-    defaultLoadout: {
+    // Only the primary attack starts equipped. Every other action slot is an
+    // empty target the player fills by dragging Rites/Flashes onto the bar.
+    defaultLoadout: { 1: 'flare_strike' },
+    legacyDefaultLoadout: {
       1: 'flare_strike', 2: 'solar_flare', 3: 'judgement_of_the_sun', 4: 'consecrated_ground',
       9: 'radiant_bulwark', 10: 'blessing_of_dawn', 11: 'wrath_of_the_daystar', 12: 'blinding_radiance',
     },
@@ -424,7 +427,8 @@ export const CLASSES_CATALOG = {
     desc: 'Herald of Dawn commanding Decree of the Sun and Daybreak to mend allies and Outpost Nexuses.',
     bonusStats: { power: 1, bastion: 1, resonance: 1, tempo: 0 },
     defaultEquipment: { weapon: 'solari_spellblade', armor: 'sunforged_plate', offhand: 'mirror_shield' },
-    defaultLoadout: {
+    defaultLoadout: { 1: 'flare_strike' },
+    legacyDefaultLoadout: {
       1: 'flare_strike', 2: 'solar_flare', 3: 'decree_of_the_sun', 4: 'consecrated_ground',
       9: 'radiant_bulwark', 10: 'daybreak', 11: 'wrath_of_the_daystar', 12: 'blinding_radiance',
     },
@@ -437,7 +441,8 @@ export const CLASSES_CATALOG = {
     desc: 'Duskveil stalker vanishing in shadow, teleporting with Shadow Step, and executing foes with Unmake.',
     bonusStats: { power: 2, bastion: 0, resonance: 0, tempo: 1 },
     defaultEquipment: { weapon: 'scythe_soulreaper', armor: 'duskveil_shroud', offhand: 'graveglass_lantern' },
-    defaultLoadout: {
+    defaultLoadout: { 1: 'whisper_of_the_void' },
+    legacyDefaultLoadout: {
       1: 'whisper_of_the_void', 2: 'unmake', 3: 'soul_tithe', 4: 'nightfall_plague',
       9: 'veil_of_dusk', 10: 'siphon_soul', 11: 'graveglass_ward', 12: 'shadow_step',
     },
@@ -450,7 +455,8 @@ export const CLASSES_CATALOG = {
     desc: 'Sepulcher mystic draining life-force via Siphon Soul, Soul Tithe, and Nightfall Plague.',
     bonusStats: { power: 1, bastion: 0, resonance: 2, tempo: 0 },
     defaultEquipment: { weapon: 'scythe_soulreaper', armor: 'duskveil_shroud', offhand: 'graveglass_lantern' },
-    defaultLoadout: {
+    defaultLoadout: { 1: 'whisper_of_the_void' },
+    legacyDefaultLoadout: {
       1: 'whisper_of_the_void', 2: 'siphon_soul', 3: 'soul_tithe', 4: 'nightfall_plague',
       9: 'graveglass_ward', 10: 'veil_of_dusk', 11: 'unmake', 12: 'shadow_step',
     },
@@ -463,7 +469,8 @@ export const CLASSES_CATALOG = {
     desc: 'Guardian of Glimmer Orchard snaring enemies in Briar Snare and charging with Wildshape Surge.',
     bonusStats: { power: 1, bastion: 1, resonance: 0, tempo: 1 },
     defaultEquipment: { weapon: 'ironwood_maul', armor: 'ironwood_armor', offhand: 'bramble_buckler' },
-    defaultLoadout: {
+    defaultLoadout: { 1: 'tectonic_slam' },
+    legacyDefaultLoadout: {
       1: 'tectonic_slam', 2: 'earthshatter', 3: 'ancient_boulder', 4: 'briar_snare',
       9: 'barkskin_infusion', 10: 'verdant_renewal', 11: 'overwhelm_roar', 12: 'wildshape_surge',
     },
@@ -476,7 +483,8 @@ export const CLASSES_CATALOG = {
     desc: 'Ancient Rootdeep juggernaut encased in Barkskin Infusion, shattering battlefields with Tectonic Slam.',
     bonusStats: { power: 1, bastion: 2, resonance: 0, tempo: 0 },
     defaultEquipment: { weapon: 'ironwood_maul', armor: 'ironwood_armor', offhand: 'bramble_buckler' },
-    defaultLoadout: {
+    defaultLoadout: { 1: 'tectonic_slam' },
+    legacyDefaultLoadout: {
       1: 'tectonic_slam', 2: 'ancient_boulder', 3: 'earthshatter', 4: 'briar_snare',
       9: 'barkskin_infusion', 10: 'verdant_renewal', 11: 'overwhelm_roar', 12: 'wildshape_surge',
     },
@@ -489,7 +497,8 @@ export const CLASSES_CATALOG = {
     desc: 'Mirrorgate scholar bending spacetime with Chrono Shift, Gravity Well, and Time Loop Paradox.',
     bonusStats: { power: 1, bastion: 0, resonance: 1, tempo: 1 },
     defaultEquipment: { weapon: 'chronocore_staff', armor: 'starweave_robe', offhand: 'mirror_shield' },
-    defaultLoadout: {
+    defaultLoadout: { 1: 'reality_fracture' },
+    legacyDefaultLoadout: {
       1: 'reality_fracture', 2: 'astral_convergence', 3: 'arcane_bolt', 4: 'gravity_well',
       9: 'mirror_barrier', 10: 'time_loop_paradox', 11: 'frost_nova', 12: 'chrono_shift',
     },
@@ -502,12 +511,37 @@ export const CLASSES_CATALOG = {
     desc: 'Weaver of cosmic leylines freezing foes with Frost Nova and calling down Astral Convergence.',
     bonusStats: { power: 1, bastion: 0, resonance: 2, tempo: 0 },
     defaultEquipment: { weapon: 'chronocore_staff', armor: 'starweave_robe', offhand: 'mirror_shield' },
-    defaultLoadout: {
+    defaultLoadout: { 1: 'reality_fracture' },
+    legacyDefaultLoadout: {
       1: 'reality_fracture', 2: 'arcane_bolt', 3: 'astral_convergence', 4: 'gravity_well',
       9: 'mirror_barrier', 10: 'time_loop_paradox', 11: 'frost_nova', 12: 'chrono_shift',
     },
   },
 };
+
+// Normalizes a stored loadout. Characters still carrying an old eight-ability
+// default are reset to the single starting Rite/Flash, and cleared slots stay
+// cleared instead of silently falling back to the class default.
+export function sanitizeLoadout(rawLoadout, classId) {
+  const cls = CLASSES_CATALOG[classId] || CLASSES_CATALOG.solari_vanguard;
+  const raw = rawLoadout && typeof rawLoadout === 'object' ? rawLoadout : null;
+  const legacy = cls.legacyDefaultLoadout;
+  const isLegacyDefault = Boolean(raw && legacy) &&
+    ACTION_SLOTS.every((slot) => raw[slot] === legacy[slot]);
+  if (isLegacyDefault) return { ...cls.defaultLoadout };
+
+  const out = {};
+  let hasExplicitSlotOne = false;
+  if (raw) {
+    if ('1' in raw) hasExplicitSlotOne = true;
+    for (const slot of ACTION_SLOTS) {
+      const candidate = raw[slot];
+      if (candidate && ABILITIES_CATALOG[candidate]) out[slot] = candidate;
+    }
+  }
+  if (!hasExplicitSlotOne && cls.defaultLoadout[1]) out[1] = cls.defaultLoadout[1];
+  return out;
+}
 
 // Equipment & Pixel Paperdoll Catalog (visibly rendered on 24x26 character sprites!)
 export const EQUIPMENT_CATALOG = {
@@ -1941,8 +1975,8 @@ export const ABILITIES_CATALOG = {
 // Backwards-compatible slot map helper
 export function getSlotAbilitySpec(loadout, slot) {
   if (slot === 'harvest') return ABILITIES_CATALOG.harvest;
-  const abilId = loadout?.[slot] || CLASSES_CATALOG.solari_vanguard.defaultLoadout[slot];
-  return ABILITIES_CATALOG[abilId] || ABILITIES_CATALOG.flare_strike;
+  const abilId = loadout?.[slot];
+  return abilId ? ABILITIES_CATALOG[abilId] || null : null;
 }
 
 export const ORDER_PRESETS = [
@@ -2044,8 +2078,8 @@ export function calcLifeLeechPct(prog, faction) {
 
 export function calcHpRegenPerSec(prog) {
   const terraPts = prog?.paragon?.terra_bulwark || 0;
-  // Baseline natural vitality regeneration (+2.5 HP/s) plus 0.5 HP/s per Terra Bulwark paragon point
-  return 2.5 + terraPts * 0.5;
+  // Slow innate recovery: 1 HP every 3 seconds, plus 0.5 HP/s per Terra Bulwark point.
+  return 1 / 3 + terraPts * 0.5;
 }
 
 export function calcHolyRadianceBurstDmg(prog) {

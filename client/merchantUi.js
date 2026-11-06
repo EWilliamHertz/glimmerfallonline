@@ -104,7 +104,7 @@ export function getMerchantDialoguePages(merchantId) {
       text: `Here is a breakdown of my current stock:\n\n` +
         cat.wares.map((w) => {
           const it = EQUIPMENT_CATALOG[w.itemId];
-          return `• ${it?.name || w.itemId} (🪙 ${w.price} Gold): ${w.note}`;
+          return `• ${it?.name || w.itemId} (${w.price} Gold): ${w.note}`;
         }).join('\n\n'),
       actions: [
         { label: '🛒 BROWSE WARES & BUY', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
@@ -138,6 +138,8 @@ export function renderMerchantModal(merchantId = null) {
     ? window.getArtisanTrainingQuote(cat.id)
     : null;
 
+  const coinGlyph = '<span class="coin-glyph" aria-label="Gold"></span>';
+
   body.innerHTML = `
     <div style="display:flex; flex-direction:column; gap:12px; font-family:var(--font-body); color:#e2e8f0;">
       <!-- Merchant Lore Banner -->
@@ -153,7 +155,7 @@ export function renderMerchantModal(merchantId = null) {
         <div style="display:flex; gap:12px; align-items:center;">
           <div style="background:#090d16; border:1px solid #ca8a04; border-radius:4px; padding:6px 12px; text-align:center;">
             <div style="font-size:8px; color:#94a3b8; text-transform:uppercase; font-weight:700;">YOUR PURSE</div>
-            <div style="font-size:13px; font-weight:800; color:#fde047;">🪙 ${gold.toLocaleString()} <span style="font-size:9px; color:#cbd5e1;">Gold</span></div>
+            <div style="font-size:13px; font-weight:800; color:#fde047;">${coinGlyph} ${gold.toLocaleString()} <span style="font-size:9px; color:#cbd5e1;">Gold</span></div>
           </div>
           <div style="background:#090d16; border:1px solid #475569; border-radius:4px; padding:6px 12px; text-align:center;">
             <div style="font-size:8px; color:#94a3b8; text-transform:uppercase; font-weight:700;">BACKPACK</div>
@@ -206,14 +208,14 @@ export function renderMerchantModal(merchantId = null) {
                       style="font-size:9.5px; padding:5px 12px; border-color:${gold >= training.cost ? training.color : '#475569'}; color:${gold >= training.cost ? '#f8fafc' : '#64748b'}; background:${gold >= training.cost ? '#0f172a' : '#0b1120'}; font-weight:800;"
                       ${gold < training.cost ? 'disabled' : ''}
                       onclick="window.trainArtisanProfession('${cat.id}', 1)">
-                🛠️ TRAIN — 🪙 ${training.cost}
+                🛠️ TRAIN — ${coinGlyph} ${training.cost}
               </button>
               ${training.bulk ? `
                 <button class="util-btn"
                         style="font-size:9.5px; padding:5px 12px; border-color:${gold >= training.bulk.cost ? '#facc15' : '#475569'}; color:${gold >= training.bulk.cost ? '#fde047' : '#64748b'}; background:${gold >= training.bulk.cost ? '#1e1b4b' : '#0b1120'}; font-weight:800;"
                         ${gold < training.bulk.cost ? 'disabled' : ''}
                         onclick="window.trainArtisanProfession('${cat.id}', ${training.bulk.count})">
-                  ⏩ TRAIN ×${training.bulk.count} — 🪙 ${training.bulk.cost}
+                  ⏩ TRAIN ×${training.bulk.count} — ${coinGlyph} ${training.bulk.cost}
                 </button>
               ` : ''}
             </div>
@@ -253,7 +255,7 @@ export function renderMerchantModal(merchantId = null) {
               <!-- Price & Buy Buttons -->
               <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #1e293b; padding-top:6px; margin-top:4px;">
                 <div style="font-size:11px; font-weight:800; color:#fde047;">
-                  🪙 ${w.price} <span style="font-size:8px; color:#94a3b8;">Gold</span>
+                  ${coinGlyph} ${w.price} <span style="font-size:8px; color:#94a3b8;">Gold</span>
                 </div>
                 <div style="display:flex; gap:6px;">
                   <button class="util-btn"
@@ -267,7 +269,7 @@ export function renderMerchantModal(merchantId = null) {
                             style="font-size:9px; padding:4px 8px; border-color:${canAfford5 && hasSpace ? '#38bdf8' : '#475569'}; color:${canAfford5 && hasSpace ? '#7dd3fc' : '#64748b'}; background:${canAfford5 && hasSpace ? '#0c4a6e' : '#0f172a'};"
                             ${!canAfford5 || !hasSpace ? 'disabled' : ''}
                             onclick="window.buyMerchantItem('${cat.id}', '${item.id}', 5)">
-                      BUY 5 (🪙 ${w.price * 5})
+                      BUY 5 <span style="font-size:8px;">(${w.price * 5})</span>
                     </button>
                   ` : ''}
                 </div>
@@ -298,7 +300,7 @@ export function buyMerchantItem(merchantId, itemId, qty = 1) {
   const currentGold = getPlayerGold(profile);
   if (currentGold < totalCost) {
     if (typeof window.spawnFCT === 'function' && window.player) {
-      window.spawnFCT(window.player.x, window.player.y - 14, `NOT ENOUGH GOLD (NEED 🪙 ${totalCost})!`, '#ef4444');
+      window.spawnFCT(window.player.x, window.player.y - 14, `NOT ENOUGH GOLD (NEED ${totalCost} GOLD)!`, '#ef4444');
     }
     if (window.audio?.playHurt) window.audio.playHurt();
     return;
@@ -339,7 +341,7 @@ export function buyMerchantItem(merchantId, itemId, qty = 1) {
   if (window.audio?.playPickup) window.audio.playPickup();
   if (window.audio?.playChime) window.audio.playChime();
   if (typeof window.spawnFCT === 'function' && window.player) {
-    window.spawnFCT(window.player.x, window.player.y - 14, `+${qty}x ${item.name.toUpperCase()} (-🪙 ${totalCost})`, '#4ade80', true);
+    window.spawnFCT(window.player.x, window.player.y - 14, `+${qty}x ${item.name.toUpperCase()} (-${totalCost} GOLD)`, '#4ade80', true);
   }
   if (typeof window.logMessage === 'function') {
     window.logMessage(`🛒 Purchased ${qty}x ${item.name} from ${cat.name} for ${totalCost} Solar Gold.`, 'log-gain', 'combat');
