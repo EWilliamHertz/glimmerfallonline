@@ -338,6 +338,36 @@ export class PixelSoundEngine {
     });
   }
 
+  playQuestCompleteFanfare() {
+    this.init();
+    if (!this.ctx || this.muted) return;
+    // Iconic RuneScape Quest Complete Fanfare (C4 - E4 - G4 - C5 - E5 - G5 - C6)
+    const leadNotes = [261.63, 329.63, 392.0, 523.25, 659.25, 783.99, 1046.5];
+    const bassNotes = [130.81, 164.81, 196.0, 261.63, 329.63, 392.0, 523.25];
+    this.playTone({
+      type: 'square',
+      freqs: leadNotes,
+      stepTime: 0.085,
+      gainVal: 0.2,
+    });
+    this.playTone({
+      type: 'triangle',
+      freqs: bassNotes,
+      stepTime: 0.085,
+      gainVal: 0.22,
+    });
+    // Add a final ringing harmonic chord
+    setTimeout(() => {
+      if (!this.ctx || this.muted) return;
+      this.playTone({
+        type: 'triangle',
+        freqs: [1046.5, 1318.51, 1567.98],
+        stepTime: 0.28,
+        gainVal: 0.17,
+      });
+    }, 600);
+  }
+
   playDialogue() {
     this.playTone({ type: 'square', freqs: [620, 740], stepTime: 0.025, gainVal: 0.08 });
   }

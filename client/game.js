@@ -741,7 +741,23 @@ export function initGame() {
   window.turnInQuestRemote = function (questId) {
     const q = QUEST_CATALOG[questId];
     if (!q || !q.isComplete()) return;
-    const fakeNpc = { id: q.turnInId, name: getNpcName(q.turnInId), spriteKey: 'heraldNpc' };
+    const targetNpcId = q.turnInId || q.giverId || 'npc_aurora';
+    const foundNpc = npcs.find((n) => n.id === targetNpcId);
+    const spriteMap = {
+      npc_aurora: 'heraldNpc',
+      npc_archon: 'warzoneArchonNpc',
+      npc_atlas: 'cartographerNpc',
+      npc_aurelia: 'celestialArbiterNpc',
+      merchant_smith: 'merchantSmithNpc',
+      merchant_apothecary: 'merchantApothecaryNpc',
+      merchant_provisions: 'merchantProvisionsNpc',
+      merchant_relics: 'merchantRelicsNpc',
+    };
+    const fakeNpc = {
+      id: targetNpcId,
+      name: getNpcName(targetNpcId),
+      spriteKey: foundNpc?.spriteKey || spriteMap[targetNpcId] || 'heraldNpc'
+    };
     completeQuest(q, fakeNpc);
   };
 
@@ -823,6 +839,8 @@ export function initGame() {
       title: 'Awakening from Stasis',
       giverId: 'npc_aurora',
       turnInId: 'npc_aurora',
+      questPoints: 1,
+      unlocks: ['Next Quest: Vanguard Orders', 'Sanctuary Gateway Portals'],
       description: 'Break stasis by moving [WASD], strike the training dummy [1], and channel the Glimmer Node [E].',
       isComplete: () => Boolean(questState.stasisBroken && questState.dummyDamaged && questState.nodeHarvested),
       tasks: [
@@ -830,7 +848,7 @@ export function initGame() {
         { text: 'Cast Flare Strike [1] on Dummy', done: () => Boolean(questState.dummyDamaged) },
         { text: 'Channel Glimmer Node [E]', done: () => Boolean(questState.nodeHarvested) },
       ],
-      rewards: { xp: 120, glimmer: 60 },
+      rewards: { xp: 120, glimmer: 60, gold: 50 },
       acceptDialogue: [
         {
           speaker: 'HERALD LYRA • SUNSPIRE HERALD',
@@ -871,12 +889,14 @@ export function initGame() {
       giverId: 'npc_aurora',
       turnInId: 'npc_archon',
       prereqQuestId: 'quest_awakening',
+      questPoints: 1,
+      unlocks: ['Next Quest: Banish Void Invaders', 'North Vanguard Command Post Access'],
       description: 'Report to Commander Valerius at the North Vanguard Post.',
       isComplete: () => Boolean(questState.talkedNpcs?.npc_archon || questState.completedQuests?.quest_into_the_warzone),
       tasks: [
         { text: 'Report to Commander Valerius', done: () => Boolean(questState.talkedNpcs?.npc_archon || questState.completedQuests?.quest_into_the_warzone) },
       ],
-      rewards: { xp: 160, glimmer: 80 },
+      rewards: { xp: 160, glimmer: 80, gold: 50 },
       acceptDialogue: [
         {
           speaker: 'HERALD LYRA • SUNSPIRE HERALD',
@@ -912,6 +932,8 @@ export function initGame() {
       giverId: 'npc_archon',
       turnInId: 'npc_archon',
       prereqQuestId: 'quest_into_the_warzone',
+      questPoints: 1,
+      unlocks: ['Next Quest: First Nexus Secrets', 'Vanguard Frontline Cache'],
       description: 'Banish 3 Void foes roaming outside the Sanctuary.',
       isComplete: () => (questState.warzoneKills || 0) >= 3,
       tasks: [
@@ -921,7 +943,7 @@ export function initGame() {
           counter: () => `${Math.min(3, questState.warzoneKills || 0)} / 3`,
         },
       ],
-      rewards: { xp: 320, glimmer: 150 },
+      rewards: { xp: 320, glimmer: 150, gold: 100 },
       acceptDialogue: [
         {
           speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
@@ -956,6 +978,8 @@ export function initGame() {
       title: 'First Nexus Secrets',
       giverId: 'npc_atlas',
       turnInId: 'npc_atlas',
+      questPoints: 1,
+      unlocks: ['Next Quest: Ascent to the Empyrean', 'Quadrant Waystone Secrets'],
       description: 'Banish 2 ruin horrors in the Forgotten First Nexus Ruins.',
       isComplete: () => (questState.ruinsKills || 0) >= 2,
       tasks: [
@@ -965,7 +989,7 @@ export function initGame() {
           counter: () => `${Math.min(2, questState.ruinsKills || 0)} / 2`,
         },
       ],
-      rewards: { xp: 450, glimmer: 200 },
+      rewards: { xp: 450, glimmer: 200, gold: 120 },
       acceptDialogue: [
         {
           speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
@@ -996,6 +1020,8 @@ export function initGame() {
       giverId: 'npc_archon',
       turnInId: 'npc_archon',
       prereqQuestId: 'quest_void_banish',
+      questPoints: 2,
+      unlocks: ['Grand Vanguard Cache', 'Continental Caldera Outpost Access'],
       description: 'Venture into the Continental Nexus Caldera and vanquish a Caldera foe or contest an Outpost.',
       isComplete: () => Boolean((questState.calderaKills || 0) >= 1 || (questState.warzoneKills || 0) >= 4),
       tasks: [
@@ -1005,7 +1031,7 @@ export function initGame() {
           counter: () => `${Math.min(1, (questState.calderaKills || 0) + ((questState.warzoneKills || 0) >= 4 ? 1 : 0))} / 1`,
         },
       ],
-      rewards: { xp: 600, glimmer: 300 },
+      rewards: { xp: 600, glimmer: 300, gold: 150 },
       acceptDialogue: [
         {
           speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
@@ -1035,15 +1061,17 @@ export function initGame() {
       giverId: 'npc_atlas',
       turnInId: 'npc_aurelia',
       prereqQuestId: 'quest_first_nexus',
+      questPoints: 2,
+      unlocks: ['Next Quest: The Slumbering Sovereign', 'Empyrean Summit Colonnade'],
       description: 'Climb past the northern boundary of the Continental Caldera and seek Grand Arbiter Aurelia at the Celestial Ascent.',
-      isComplete: () => Boolean(questState.ascentReached || currentRoomType === ROOM_TYPES.CELESTIAL_ASCENT),
+      isComplete: () => Boolean(questState.ascentReached || currentRoomType === ROOM_TYPES.CELESTIAL_ASCENT || questState.talkedNpcs?.npc_aurelia),
       tasks: [
         {
           text: 'Reach the Celestial Ascent Summit',
-          done: () => Boolean(questState.ascentReached || currentRoomType === ROOM_TYPES.CELESTIAL_ASCENT),
+          done: () => Boolean(questState.ascentReached || currentRoomType === ROOM_TYPES.CELESTIAL_ASCENT || questState.talkedNpcs?.npc_aurelia),
         },
       ],
-      rewards: { xp: 750, glimmer: 350 },
+      rewards: { xp: 750, glimmer: 350, gold: 200 },
       acceptDialogue: [
         {
           speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
@@ -1074,6 +1102,8 @@ export function initGame() {
       giverId: 'npc_aurelia',
       turnInId: 'npc_aurelia',
       prereqQuestId: 'quest_celestial_ascent',
+      questPoints: 3,
+      unlocks: ['Titan Sovereign Favor', 'Apex Starlight Champion Title'],
       description: 'Challenge Aurelius the Empyrean Sovereign at the Northern Summit Throne.',
       isComplete: () => Boolean(questState.titanChallenged),
       tasks: [
@@ -1082,7 +1112,7 @@ export function initGame() {
           done: () => Boolean(questState.titanChallenged),
         },
       ],
-      rewards: { xp: 1200, glimmer: 500 },
+      rewards: { xp: 1200, glimmer: 500, gold: 350 },
       acceptDialogue: [
         {
           speaker: 'GRAND ARBITER AURELIA • TITAN KEEPER',
@@ -1112,6 +1142,8 @@ export function initGame() {
       giverId: 'npc_aurora',
       turnInId: 'npc_aurora',
       prereqQuestId: 'quest_awakening',
+      questPoints: 2,
+      unlocks: ['Elemental Quad-Attunement', 'Cross-Domain Travel Mastery'],
       description: 'Attune to the leylines of all 4 elemental domains: Solari, Umbri, Terra, and Aether.',
       isComplete: () => Boolean(
         questState.visitedBiomes?.solari &&
@@ -1125,7 +1157,7 @@ export function initGame() {
         { text: 'Visit Terra Ironwood Wilds (South)', done: () => Boolean(questState.visitedBiomes?.terra) },
         { text: 'Visit Aether Astral Spire (North)', done: () => Boolean(questState.visitedBiomes?.aether) },
       ],
-      rewards: { xp: 500, glimmer: 250 },
+      rewards: { xp: 500, glimmer: 250, gold: 150 },
       acceptDialogue: [
         {
           speaker: 'HERALD LYRA • SUNSPIRE HERALD',
@@ -1154,6 +1186,8 @@ export function initGame() {
       title: 'Resonance: First Extraction',
       giverId: 'merchant_relics',
       turnInId: 'merchant_relics',
+      questPoints: 1,
+      unlocks: ['Resonance Extraction Lv. 2 Recipes', 'Moira\'s Curio & Relic Trade'],
       description: 'Channel 2 Glimmer or Leyline Nodes around Sanctuary to harvest raw resonant crystals.',
       isComplete: () => Boolean((questState.extractionNodesHarvested || 0) >= 2 || (prog?.professions?.resonance_extraction?.level || 1) >= 2),
       tasks: [
@@ -1209,6 +1243,8 @@ export function initGame() {
       title: 'Forging: The Anvil\'s Spark',
       giverId: 'merchant_smith',
       turnInId: 'merchant_smith',
+      questPoints: 1,
+      unlocks: ['Relic-Forging Lv. 2 Recipes', 'Great Anvil Smelting Access'],
       description: 'Speak with Blacksmith Torvin and inspect his smithy or acquire iron wares to learn Relic-Forging.',
       isComplete: () => Boolean(questState.smithInspected || profileHasAnyItem(['iron_ore', 'bronze_bar', 'iron_broadsword', 'iron_heater_shield']) || (prog?.professions?.relic_forging?.level || 1) >= 2),
       tasks: [
@@ -1267,6 +1303,8 @@ export function initGame() {
       title: 'Binding: The Alchemical Draught',
       giverId: 'merchant_apothecary',
       turnInId: 'merchant_apothecary',
+      questPoints: 1,
+      unlocks: ['Rite-Binding Lv. 2 Formulas', 'Apothecary Solvent Crafting'],
       description: 'Speak with Alchemist Faye and inspect her apothecary formulas or acquire a healing salve to learn Rite-Binding.',
       isComplete: () => Boolean(questState.apothecaryInspected || profileHasAnyItem(['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir']) || (prog?.professions?.rite_binding?.level || 1) >= 2),
       tasks: [
@@ -1325,6 +1363,8 @@ export function initGame() {
       title: 'Weaving: The Luminescent Thread',
       giverId: 'merchant_provisions',
       turnInId: 'merchant_provisions',
+      questPoints: 1,
+      unlocks: ['Glimmerweaving Lv. 2 Patterns', 'High-Capacity Satchel Crafting'],
       description: 'Speak with Farmer Bran and acquire field provisions or inspect his provisions to learn Glimmerweaving.',
       isComplete: () => Boolean(questState.provisionsInspected || profileHasAnyItem(['sweet_apple', 'fresh_crusty_bread', 'field_rations']) || (prog?.professions?.glimmerweaving?.level || 1) >= 2),
       tasks: [
@@ -1401,6 +1441,47 @@ export function initGame() {
     return map[npcId] || 'Quest Giver';
   }
 
+  function formatProfessionName(profId) {
+    const map = {
+      resonance_extraction: 'Resonance Extraction',
+      relic_forging: 'Relic-Forging',
+      rite_binding: 'Rite-Binding',
+      glimmerweaving: 'Glimmerweaving',
+      combat_mastery: 'Combat Mastery',
+    };
+    return map[profId] || profId;
+  }
+
+  function getTotalCompletedQuestPoints() {
+    let total = 0;
+    for (const qId of Object.keys(questState.completedQuests || {})) {
+      if (questState.completedQuests[qId] && QUEST_CATALOG[qId]) {
+        total += (QUEST_CATALOG[qId].questPoints || 1);
+      }
+    }
+    return total;
+  }
+
+  function getMaxQuestPoints() {
+    let total = 0;
+    for (const qId of Object.keys(QUEST_CATALOG)) {
+      total += (QUEST_CATALOG[qId].questPoints || 1);
+    }
+    return total;
+  }
+
+  function isClickOnNpc(npc, wx, wy) {
+    if (!npc) return false;
+    // Horizontal distance from NPC center: up to 34px
+    const dx = Math.abs(wx - npc.x);
+    // Vertical offset relative to npc feet (npc.y):
+    // Feet: dy = 0. Upper body: dy = -16. Head: dy = -30.
+    // Nameplate: dy = -42. Quest icon: dy = -56.
+    // Allow from 14px below feet up to 74px above feet (covers entire sprite, nameplate & quest glyph)
+    const dy = wy - npc.y;
+    return (dx <= 34 && dy >= -74 && dy <= 14);
+  }
+
   function getNpcQuestStatus(npc) {
     if (!npc) return 'none';
     // Bankers and exchange brokers do not have quests
@@ -1412,12 +1493,13 @@ export function initGame() {
     // 1. Check for ANY finished quest ready to turn in to THIS npc
     for (const qId of Object.keys(QUEST_CATALOG)) {
       const q = QUEST_CATALOG[qId];
-      if (q.turnInId === npcId) {
+      if (q.turnInId === npcId || q.giverId === npcId) {
         const isCompleted = Boolean(questState.completedQuests[qId]);
         const isActive = Boolean(questState.activeQuests[qId]);
         if (!isCompleted) {
           if (isActive && q.isComplete()) return 'finished';
           if (qId === 'quest_awakening' && q.isComplete()) return 'finished';
+          if (q.turnInId === npcId && q.isComplete()) return 'finished';
         }
       }
     }
@@ -1458,12 +1540,13 @@ export function initGame() {
   function getFinishedQuestForNpc(npcId) {
     for (const qId of Object.keys(QUEST_CATALOG)) {
       const q = QUEST_CATALOG[qId];
-      if (q.turnInId === npcId) {
+      if (q.turnInId === npcId || q.giverId === npcId) {
         const isCompleted = Boolean(questState.completedQuests[qId]);
         const isActive = Boolean(questState.activeQuests[qId]);
         if (!isCompleted) {
           if (isActive && q.isComplete()) return q;
           if (qId === 'quest_awakening' && q.isComplete()) return q;
+          if (q.turnInId === npcId && q.isComplete()) return q;
         }
       }
     }
@@ -1497,10 +1580,125 @@ export function initGame() {
     return null;
   }
 
+  let pendingQuestCompleteDialogue = null;
+  let pendingQuestCompleteNpc = null;
+
+  function showRunescapeQuestCompleteScroll(quest, npc, nextQuest) {
+    const modal = document.getElementById('quest-complete-modal');
+    if (!modal) return;
+
+    const titleEl = document.getElementById('qc-scroll-title');
+    const subtitleEl = document.getElementById('qc-scroll-subtitle');
+    const rewardsListEl = document.getElementById('qc-scroll-rewards-list');
+    const qpEl = document.getElementById('qc-scroll-qp');
+
+    const qpAwarded = quest.questPoints || 1;
+    const totalQP = getTotalCompletedQuestPoints();
+    const maxQP = getMaxQuestPoints();
+
+    if (titleEl) titleEl.innerText = quest.title.toUpperCase();
+    if (subtitleEl) subtitleEl.innerText = `Congratulations! You have completed ${quest.title}!`;
+    if (qpEl) qpEl.innerText = `Quest Points: ${totalQP} / ${maxQP}`;
+
+    if (rewardsListEl) {
+      const items = [];
+      // 1. Quest Points
+      items.push(`
+        <div class="rs-reward-row">
+          <span class="rs-reward-badge">🛡️</span>
+          <span><b>${qpAwarded} Quest Point${qpAwarded > 1 ? 's' : ''}</b></span>
+        </div>
+      `);
+      // 2. Combat XP
+      if (quest.rewards?.xp) {
+        items.push(`
+          <div class="rs-reward-row">
+            <span class="rs-reward-badge">⚔️</span>
+            <span><b>+${quest.rewards.xp} Combat Experience</b></span>
+          </div>
+        `);
+      }
+      // 3. Glimmer
+      if (quest.rewards?.glimmer) {
+        items.push(`
+          <div class="rs-reward-row">
+            <span class="rs-reward-badge">🔮</span>
+            <span><b>+${quest.rewards.glimmer} Glimmer Energy</b></span>
+          </div>
+        `);
+      }
+      // 4. Gold
+      if (quest.rewards?.gold) {
+        items.push(`
+          <div class="rs-reward-row">
+            <span class="rs-reward-badge">💰</span>
+            <span><b>+${quest.rewards.gold} Solar Gold</b></span>
+          </div>
+        `);
+      }
+      // 5. Profession XP
+      if (quest.rewards?.professionXp) {
+        for (const [profId, pAmt] of Object.entries(quest.rewards.professionXp)) {
+          items.push(`
+            <div class="rs-reward-row">
+              <span class="rs-reward-badge">✨</span>
+              <span><b>+${pAmt} ${formatProfessionName(profId)} Experience</b></span>
+            </div>
+          `);
+        }
+      }
+      // 6. Unlocks & Next Quest
+      if (quest.unlocks && quest.unlocks.length > 0) {
+        for (const unl of quest.unlocks) {
+          items.push(`
+            <div class="rs-reward-row">
+              <span class="rs-reward-badge">🔓</span>
+              <span>${unl}</span>
+            </div>
+          `);
+        }
+      } else if (nextQuest) {
+        items.push(`
+          <div class="rs-reward-row">
+            <span class="rs-reward-badge">🔓</span>
+            <span>Unlocked Next Quest: <b>${nextQuest.title}</b></span>
+          </div>
+        `);
+      }
+
+      rewardsListEl.innerHTML = items.join('');
+    }
+
+    modal.style.display = 'flex';
+  }
+
+  window.closeQuestCompleteModal = function () {
+    const modal = document.getElementById('quest-complete-modal');
+    if (modal) modal.style.display = 'none';
+
+    if (audio && audio.playDialogue) {
+      audio.playDialogue();
+    }
+
+    if (pendingQuestCompleteDialogue) {
+      const dlg = pendingQuestCompleteDialogue;
+      const spKey = pendingQuestCompleteNpc?.spriteKey || 'heraldNpc';
+      const nId = pendingQuestCompleteNpc?.id || null;
+      pendingQuestCompleteDialogue = null;
+      pendingQuestCompleteNpc = null;
+      openDialogue(dlg, spKey, nId);
+    }
+  };
+
   function completeQuest(quest, npc) {
+    if (!quest) return;
     questState.completedQuests[quest.id] = true;
     delete questState.activeQuests[quest.id];
-    questState.talkedNpcs[npc.id] = true;
+    if (npc && npc.id) {
+      questState.talkedNpcs[npc.id] = true;
+    }
+
+    const qpAwarded = quest.questPoints || 1;
 
     if (quest.rewards?.xp) awardXP(quest.rewards.xp, quest.title);
     if (quest.rewards?.glimmer) {
@@ -1515,18 +1713,32 @@ export function initGame() {
       addPlayerGold(localProfile, quest.rewards.gold);
     }
 
-    spawnSparkBurst(player.x, player.y - 10, ['#fde047', '#ffffff', '#38bdf8', '#86efac'], 20);
-    spawnFCT(player.x, player.y - 16, `✨ QUEST COMPLETE: ${quest.title.toUpperCase()}!`, '#facc15', true);
-    logMessage(`[Quest Complete] ${quest.title} finished! Received +${quest.rewards.xp} XP and +${quest.rewards.glimmer || 0} Glimmer!`, 'log-quest');
+    spawnSparkBurst(player.x, player.y - 12, ['#fde047', '#ffffff', '#38bdf8', '#86efac', '#ec4899', '#f97316'], 36);
+    spawnFCT(player.x, player.y - 18, `★ QUEST COMPLETE: ${quest.title.toUpperCase()}! ★`, '#facc15', true);
+    logMessage(`[Quest Complete] Congratulations! You have completed "${quest.title}"! (+${quest.rewards?.xp || 0} XP, +${quest.rewards?.glimmer || 0} Glimmer, +${qpAwarded} QP)`, 'log-quest');
 
+    let nextQuest = null;
     if (quest.nextQuestId && QUEST_CATALOG[quest.nextQuestId]) {
-      const nextQ = QUEST_CATALOG[quest.nextQuestId];
-      questState.activeQuests[nextQ.id] = { accepted: true, acceptedAt: Date.now() };
+      nextQuest = QUEST_CATALOG[quest.nextQuestId];
+      questState.activeQuests[nextQuest.id] = { accepted: true, acceptedAt: Date.now() };
     }
 
     saveQuestState();
     updateQuestTrackerHUD();
-    openDialogue(quest.completeDialogue || npc.dialogue, npc.spriteKey, npc.id);
+
+    // Play iconic RuneScape Quest Complete Fanfare sound!
+    if (audio && audio.playQuestCompleteFanfare) {
+      audio.playQuestCompleteFanfare();
+    } else if (audio && audio.playLevelUp) {
+      audio.playLevelUp();
+    }
+
+    // Save pending completion dialogue to open when modal is dismissed
+    pendingQuestCompleteDialogue = quest.completeDialogue || (npc ? npc.dialogue : null);
+    pendingQuestCompleteNpc = npc;
+
+    // Show authentic Old School RuneScape Quest Complete Scroll modal!
+    showRunescapeQuestCompleteScroll(quest, npc, nextQuest);
   }
 
   function acceptQuest(quest, npc) {
@@ -1556,47 +1768,93 @@ export function initGame() {
       window.toggleModal('exchange-modal');
       return;
     }
+
+    // 1. Immediately register talking/conferring with this NPC
+    questState.talkedNpcs[npc.id] = true;
+    if (npc.id === 'merchant_smith') questState.smithInspected = true;
+    if (npc.id === 'merchant_apothecary') questState.apothecaryInspected = true;
+    if (npc.id === 'merchant_provisions') questState.provisionsInspected = true;
+    if (npc.id === 'merchant_relics') questState.relicsInspected = true;
+    if (npc.id === 'npc_archon') questState.talkedNpcs.npc_archon = true;
+    if (npc.id === 'npc_atlas') questState.talkedNpcs.npc_atlas = true;
+    if (npc.id === 'npc_aurelia') questState.talkedNpcs.npc_aurelia = true;
+    saveQuestState();
+
     audio.playDialogue();
 
-    const status = getNpcQuestStatus(npc);
+    // 2. Check for ANY finished quest ready to turn in to THIS npc
+    let finishedQ = getFinishedQuestForNpc(npc.id);
+    if (!finishedQ) {
+      for (const qId of Object.keys(questState.activeQuests || {})) {
+        const q = QUEST_CATALOG[qId];
+        if (q && (q.turnInId === npc.id || q.giverId === npc.id) && q.isComplete()) {
+          finishedQ = q;
+          break;
+        }
+      }
+    }
 
-    if (status === 'finished') {
-      const q = getFinishedQuestForNpc(npc.id);
-      if (q) {
-        completeQuest(q, npc);
+    if (finishedQ) {
+      completeQuest(finishedQ, npc);
+      return;
+    }
+
+    // 3. Check for available quests that THIS npc gives
+    const availQ = getAvailableQuestForNpc(npc.id);
+    if (availQ) {
+      acceptQuest(availQ, npc);
+      return;
+    }
+
+    // 4. Check for ongoing quests with THIS npc
+    const ongoingQ = getOngoingQuestForNpc(npc.id);
+    if (ongoingQ) {
+      if (ongoingQ.isComplete()) {
+        completeQuest(ongoingQ, npc);
+        return;
+      }
+      if (ongoingQ.ongoingDialogue) {
+        openDialogue(ongoingQ.ongoingDialogue, npc.spriteKey, npc.id);
         return;
       }
     }
 
-    if (status === 'available') {
-      const q = getAvailableQuestForNpc(npc.id);
-      if (q) {
-        acceptQuest(q, npc);
-        return;
+    // 5. Check if the player has ANY other quest that is ready to turn in elsewhere
+    let otherReadyQ = null;
+    for (const qId of Object.keys(questState.activeQuests || {})) {
+      const q = QUEST_CATALOG[qId];
+      if (q && q.isComplete()) {
+        otherReadyQ = q;
+        break;
       }
     }
-
-    if (status === 'ongoing') {
-      const q = getOngoingQuestForNpc(npc.id);
-      if (q && q.ongoingDialogue) {
-        openDialogue(q.ongoingDialogue, npc.spriteKey, npc.id);
-        return;
+    if (otherReadyQ) {
+      const targetNpcName = getNpcName(otherReadyQ.turnInId);
+      const advicePage = [{
+        speaker: `${(npc.name || 'SANCTUARY ADVISOR').toUpperCase()}`,
+        spriteKey: npc.spriteKey || 'heraldNpc',
+        text: `Greetings, Champion! You have completed your objectives for "${otherReadyQ.title}". Return to ${targetNpcName} to turn in your quest and claim your rewards!`,
+        actions: [
+          { label: `✨ TURN IN "${otherReadyQ.title.toUpperCase()}" NOW`, action: `remoteTurnIn_${otherReadyQ.id}`, style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+          { label: 'CONTINUE TALKING', action: 'advance' },
+        ],
+      }];
+      if (npc.dialogue && npc.dialogue.length > 0) {
+        advicePage.push(...npc.dialogue);
       }
+      openDialogue(advicePage, npc.spriteKey, npc.id);
+      return;
     }
 
-    // Market Stall Merchant interaction (when no quest is active/available/finished)
+    // 6. Market Stall Merchant interaction (when no quest is active/available/finished)
     if (npc.isMerchant || npc.merchantType || MERCHANT_CATALOGS[npc.id]) {
-      questState.talkedNpcs[npc.id] = true;
-      saveQuestState();
       const mId = npc.merchantType || npc.id;
       const pages = getMerchantDialoguePages(mId);
       openDialogue(pages, npc.spriteKey, npc.id);
       return;
     }
 
-    // Lore / Standard dialogue
-    questState.talkedNpcs[npc.id] = true;
-    saveQuestState();
+    // 7. Lore / Standard dialogue
     openDialogue(npc.dialogue, npc.spriteKey, npc.id);
     updateQuestTrackerHUD();
   }
@@ -2452,7 +2710,7 @@ export function initGame() {
             📜 SUMMONER QUEST JOURNAL
           </span>
           <span style="font-size:10px; color:#94a3b8; margin-left:8px;">
-            Active: <b style="color:#38bdf8;">${activeList.length}</b> | Available: <b style="color:#fde047;">${availableList.length}</b> | Completed: <b style="color:#4ade80;">${completedList.length}</b>
+            Active: <b style="color:#38bdf8;">${activeList.length}</b> | Available: <b style="color:#fde047;">${availableList.length}</b> | Completed: <b style="color:#4ade80;">${completedList.length}</b> | 🛡️ Quest Points: <b style="color:#facc15;">${getTotalCompletedQuestPoints()} / ${getMaxQuestPoints()}</b>
           </span>
         </div>
         <div style="display:flex; gap:6px;">
@@ -3739,6 +3997,10 @@ export function initGame() {
         dialogueIdx--;
         renderDialogueBox();
       }
+    } else if (act.action && act.action.startsWith('remoteTurnIn_')) {
+      const qId = act.action.replace('remoteTurnIn_', '');
+      window.closeDialogue();
+      window.turnInQuestRemote(qId);
     } else if (act.action === 'close') {
       window.closeDialogue();
     }
@@ -8483,18 +8745,30 @@ export function initGame() {
     audio.init();
     const { wx, wy } = screenToWorld(e.clientX, e.clientY);
 
+    // Direct click on any NPC (covering head, nameplate, body, feet, and overhead quest glyph)
+    let clickedNpc = null;
+    let closestNpcDist = Infinity;
     for (const npc of npcs) {
-      if (Math.hypot(npc.x - wx, npc.y - 12 - wy) < 22) {
-        interactWithNpc(npc);
-        return;
+      if (isClickOnNpc(npc, wx, wy)) {
+        const dist = Math.hypot(npc.x - wx, (npc.y - 25) - wy);
+        if (dist < closestNpcDist) {
+          closestNpcDist = dist;
+          clickedNpc = npc;
+        }
       }
+    }
+    if (clickedNpc) {
+      interactWithNpc(clickedNpc);
+      return;
     }
 
     // Direct click on any Market Stall prop starts conversation with its merchant
     for (const pr of props) {
       if (pr.type.startsWith('marketStall')) {
-        if (Math.hypot(pr.x - wx, pr.y - 10 - wy) < 24) {
-          const merchant = npcs.find((n) => n.stallId === pr.id || Math.hypot(n.x - pr.x, n.y - pr.y) < 36);
+        const dx = Math.abs(pr.x - wx);
+        const dy = wy - pr.y;
+        if (dx <= 36 && dy >= -48 && dy <= 20) {
+          const merchant = npcs.find((n) => n.stallId === pr.id || Math.hypot(n.x - pr.x, n.y - pr.y) < 44);
           if (merchant) {
             interactWithNpc(merchant);
             return;
@@ -8622,6 +8896,16 @@ export function initGame() {
         }
       }
       return;
+    }
+
+    // Dismiss RuneScape Quest Complete scroll modal on Space, Enter, or Escape
+    const qcModal = document.getElementById('quest-complete-modal');
+    if (qcModal && qcModal.style.display === 'flex') {
+      if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        window.closeQuestCompleteModal();
+        return;
+      }
     }
 
     const activeTag = document.activeElement?.tagName;
