@@ -2566,29 +2566,98 @@ export function initGame() {
     };
   }
 
-  let fctLastTime = 0;
-  let fctStackCount = 0;
+  const recentFcts = [];
+
+  function shortenFctText(raw) {
+    if (!raw) return '';
+    let str = String(raw).trim();
+    // Common long phrases replacement to keep combat text concise and punchy
+    str = str.replace(/RESONANCE EXTRACTION/gi, 'Resonance');
+    str = str.replace(/COMBAT MASTERY/gi, 'Combat');
+    str = str.replace(/GLIMMERWEAVING/gi, 'Weaving');
+    str = str.replace(/RELIC FORGING/gi, 'Forging');
+    str = str.replace(/RITE BINDING/gi, 'Binding');
+    str = str.replace(/EXPERIENCE/gi, 'XP');
+    str = str.replace(/OBJECTIVE COMPLETE/gi, 'Complete');
+    str = str.replace(/COMBAT TRIAL COMPLETE/gi, 'Trial Complete');
+    str = str.replace(/CONSTRUCTS SHATTERED/gi, 'Constructs Done');
+    str = str.replace(/RIFT HORRORS BANISHED/gi, 'Horrors Banished');
+    str = str.replace(/ASTRAL VEINS MINED/gi, 'Veins Mined');
+    str = str.replace(/HEALTH ALREADY FULL/gi, 'HP Full');
+    str = str.replace(/GLIMMER ALREADY FULL/gi, 'Glimmer Full');
+    str = str.replace(/BACKPACK IS FULL/gi, 'Bag Full');
+    str = str.replace(/BACKPACK FULL/gi, 'Bag Full');
+    str = str.replace(/SOVEREIGNS/gi, 'Coins');
+    str = str.replace(/CHRONO STASIS APEX/gi, 'Chrono Stasis');
+    str = str.replace(/VOID ANNIHILATION APEX/gi, 'Void Annihilate');
+    str = str.replace(/SOLAR ASCENSION APEX ARCHON/gi, 'Solar Ascension');
+    str = str.replace(/TEMPORAL APOTHEOSIS/gi, 'Temporal Apotheosis');
+    str = str.replace(/AVATAR OF THE IRONWOOD/gi, 'Ironwood Avatar');
+    str = str.replace(/AVATAR OF THE VOID/gi, 'Void Avatar');
+    str = str.replace(/ROOTED BASTION \(-40% DMG \/ CC IMMUNE\)/gi, 'Rooted Bastion');
+    str = str.replace(/ABYSSAL SHROUD \(100% DODGE\)/gi, 'Abyssal Shroud');
+    str = str.replace(/AURORA STRIDE \(\+50% SPD\)/gi, 'Aurora Stride');
+    if (str.length > 25) {
+      str = str.slice(0, 23).trim() + '…';
+    }
+    return str;
+  }
 
   function spawnFCT(wx, wy, text, color = '#facc15', isCrit = false) {
     if (!fctContainer) return;
     const now = performance.now();
-    if (now - fctLastTime < 450) {
-      fctStackCount++;
-    } else {
-      fctStackCount = 0;
+    // Clear out expired FCT records (> 850ms)
+    while (recentFcts.length > 0 && now - recentFcts[0].time > 850) {
+      recentFcts.shift();
     }
-    fctLastTime = now;
-    const stackY = Math.min(80, fctStackCount * 18);
 
     const { sx, sy } = worldToScreen(wx, wy - 14);
+
+    // Find overlapping FCTs nearby in screen space
+    const nearby = recentFcts.filter((f) => Math.hypot(f.sx - sx, f.sy - sy) < 64);
+    const stackIndex = nearby.length;
+
+    // One text is flat line (0deg), subsequent overlapping text rotates ~20deg downwards and lifts slightly above
+    let rotDeg = 0;
+    let stackOffsetY = 0;
+    let stackOffsetX = 0;
+
+    if (stackIndex === 1) {
+      rotDeg = 20; // rotated 20 degrees downwards
+      stackOffsetY = 21; // slightly above so it never overlaps
+      stackOffsetX = 6;
+    } else if (stackIndex === 2) {
+      rotDeg = -18; // fanned in opposite direction above
+      stackOffsetY = 39;
+      stackOffsetX = -6;
+    } else if (stackIndex >= 3) {
+      rotDeg = stackIndex % 2 === 1 ? 16 : -16;
+      stackOffsetY = 18 + stackIndex * 18;
+      stackOffsetX = stackIndex % 2 === 1 ? 8 : -8;
+    }
+
+    recentFcts.push({ sx, sy, time: now, rotDeg });
+
+    const cleanText = shortenFctText(text);
+    const labelText = isCrit ? `★ ${cleanText}!` : cleanText;
+
     const el = document.createElement('div');
     el.className = isCrit ? 'fct-text fct-crit' : 'fct-text';
-    el.style.left = `${sx}px`;
-    el.style.top = `${sy - stackY}px`;
+    el.style.left = `${sx + stackOffsetX}px`;
+    el.style.top = `${sy - stackOffsetY}px`;
     el.style.color = color;
-    el.innerText = isCrit ? `★${text}!` : text;
+    el.style.setProperty('--fct-rot', `${rotDeg}deg`);
+
+    const inner = document.createElement('span');
+    inner.className = 'fct-inner';
+    if (rotDeg !== 0) {
+      inner.style.transform = `rotate(${rotDeg}deg)`;
+    }
+    inner.innerText = labelText;
+    el.appendChild(inner);
+
     fctContainer.appendChild(el);
-    setTimeout(() => el.remove(), 1100);
+    setTimeout(() => el.remove(), 1050);
   }
   window.spawnFCT = spawnFCT;
 
@@ -11805,16 +11874,17 @@ export function initGame() {
 
           // Portal destination badge & interact prompt
           if (ent.type === 'portal') {
-            ctx.font = '700 11px "Outfit", system-ui, sans-serif';
-            ctx.textAlign = 'center';
             const nameStr = ent.name;
             const subStr = ent.sub || 'Step In [W]';
+            ctx.font = '700 10.5px "Outfit", system-ui, sans-serif';
             const nw = Math.ceil(ctx.measureText(nameStr).width);
-            const badgeW = Math.max(nw + 14, 70);
-            const badgeH = 19;
+            ctx.font = '600 9px "Outfit", system-ui, sans-serif';
+            const sw = Math.ceil(ctx.measureText(subStr).width);
+            const badgeW = Math.max(Math.max(nw, sw) + 14, 72);
+            const badgeH = 25;
             const rx = Math.round(sx);
             const bx = Math.round(rx - badgeW / 2);
-            const by = Math.round(sy - img.height - 19);
+            const by = Math.round(sy - img.height - 24);
 
             // Dark plaque with cyan cybernetic border
             ctx.fillStyle = 'rgba(5, 9, 24, 0.92)';
@@ -11825,18 +11895,20 @@ export function initGame() {
             ctx.fillRect(bx, by, 1, badgeH);
             ctx.fillRect(bx + badgeW - 1, by, 1, badgeH);
 
-            // Nameplate text with crisp 1px shadow
+            // Nameplate text with crisp 1px shadow (separated cleanly so lines never overlap)
+            ctx.font = '700 10.5px "Outfit", system-ui, sans-serif';
+            ctx.textAlign = 'center';
             ctx.fillStyle = '#05070f';
             ctx.fillText(nameStr, rx + 1, by + 11);
             ctx.fillStyle = '#7dd3fc';
             ctx.fillText(nameStr, rx, by + 10);
 
             // Subtitle prompt
-            ctx.font = '600 10px "Outfit", system-ui, sans-serif';
+            ctx.font = '600 9px "Outfit", system-ui, sans-serif';
             ctx.fillStyle = '#05070f';
-            ctx.fillText(subStr, rx + 1, by + 18);
+            ctx.fillText(subStr, rx + 1, by + 21);
             ctx.fillStyle = '#fde047';
-            ctx.fillText(subStr, rx, by + 17);
+            ctx.fillText(subStr, rx, by + 20);
           } else if (!ent.isDying) {
             const val = ent.hp ?? ent.charges ?? 0;
             const max = ent.maxHp ?? ent.maxCharges ?? 1;
@@ -11867,14 +11939,14 @@ export function initGame() {
             const showName = isBossOrCore || Boolean(eliteSpecDraw) || isTargeted || dPlayer < 95 || ent.type === 'dummy' || (ent.type === 'node' && dPlayer < (isGrandNode ? 220 : 125));
 
             if (showName) {
-              ctx.font = isBossOrCore ? '700 11px "Outfit", system-ui, sans-serif' : '600 10px "Outfit", system-ui, sans-serif';
+              ctx.font = isBossOrCore ? '700 10.5px "Outfit", system-ui, sans-serif' : '600 9.5px "Outfit", system-ui, sans-serif';
               ctx.textAlign = 'center';
               const label = ent.type === 'dummy'
                 ? 'Training Dummy'
                 : ent.type === 'shrine'
                   ? (ent.charges > 0 ? `${ent.name} [${getHarvestKeyLabel()}]` : `${ent.name} (Depleted)`)
                   : ent.type === 'node'
-                    ? (ent.charges > 0 ? `${ent.name} [${getHarvestKeyLabel()}] • ${ent.charges}/${ent.maxCharges}` : `Depleted ${skSpecDraw ? ent.name : ent.isGrand ? 'Grand Font' : 'Node'}`)
+                    ? (ent.charges > 0 ? `${ent.isGrand ? 'Grand Font' : ent.name.replace(/Awakening |East /i, '')} [${getHarvestKeyLabel()}] (${ent.charges}/${ent.maxCharges})` : `Depleted ${skSpecDraw ? ent.name.replace(/Awakening |East /i, '') : ent.isGrand ? 'Grand Font' : 'Node'}`)
                     : ent.isBoss
                       ? (isEnraged ? `★ ${ent.name} 🔥 ENRAGED` : `★ ${ent.name}`)
                       : ent.name;
