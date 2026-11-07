@@ -4466,12 +4466,8 @@ export function initGame() {
       // COZY, VIBRANT SANCTUARY HOMETOWN & HAVEN PROPS
       // ==========================================
       props.push(
-        // 1. Awakening Homecoming Hearth & Spawn Courtyard (Right around spawn 0, 96)
-        { type: 'campfire', x: -52, y: 102, label: '🔥 Sanctuary Homecoming Hearth' },
-        { type: 'stoneBench', x: -52, y: 80 },
-        { type: 'stoneBench', x: -52, y: 124 },
+        // 1. Awakening Homecoming Plaza & Spawn Courtyard (Right around spawn 0, 96)
         { type: 'ancientWell', x: 64, y: 112 },
-        { type: 'woodenSign', x: 28, y: 122, label: '🪧 N: Bank & Exchange • W: Artisans & Market • E: Training Yard' },
         { type: 'solariSundial', x: 0, y: 152 },
         { type: 'flowerBed', x: -92, y: 72 },
         { type: 'flowerBed', x: 92, y: 72 },
@@ -4545,7 +4541,6 @@ export function initGame() {
         { type: 'brazier', x: 145, y: 75 },
         { type: 'brazier', x: 235, y: 75 },
         { type: 'stoneBench', x: 190, y: -52 },
-        { type: 'woodenSign', x: 135, y: 42, label: '🪧 Combat Trial Yard (Lv.1, Lv.5 & Lv.50 Dummies)' },
 
         // 7. South Memorial Gardens & Starter Skilling Groves
         { type: 'monument', x: 0, y: 245 },
@@ -4586,25 +4581,6 @@ export function initGame() {
           x: 38,
           y: 82,
           dialogue: AWAKENING_DIALOGUE,
-        },
-        {
-          id: 'npc_hearth_mira',
-          name: 'Hearth-Keeper Mira',
-          role: 'Sanctuary Innkeeper [Click / T]',
-          spriteKey: 'terraHerbalistNpc',
-          x: -78,
-          y: 102,
-          dialogue: [
-            {
-              speaker: 'HEARTH-KEEPER MIRA • SANCTUARY HOMECOMING HEARTH',
-              spriteKey: 'terraHerbalistNpc',
-              text: 'Welcome home, champion! Warm your hands by the Sanctuary Hearth. Everything you need to start your legend is right here in our town square:\n\n• North of the fountain stand the Grand AetherSwap Exchange and AetherVault Bank.\n• Just to the west are Farmer Bran\'s Provisions Stall and the three Cosmic Artisan Stations.\n• To the south lie the starter Copper Veins, Sunbloom Herbs, and Starlight Flax gardens!',
-              actions: [
-                { label: '🧵 OPEN CELESTIAL LOOM & HEARTH', action: 'openStation_celestial_loom', style: 'border-color:#4ade80; color:#dcfce7; font-weight:bold;' },
-                { label: '👋 THANK YOU, MIRA', action: 'close' },
-              ],
-            },
-          ],
         },
         {
           id: 'npc_exchange_caelum',
@@ -4661,7 +4637,7 @@ export function initGame() {
           role: 'Sunspire Warlord [Click / T]',
           spriteKey: 'warzoneArchonNpc',
           x: 0,
-          y: -68,
+          y: -48,
           dialogue: WARZONE_DIALOGUE,
         }
       );
@@ -6946,24 +6922,29 @@ export function initGame() {
       });
     }
 
-    // Sort badges by screen X so neighbor comparisons are sequential
-    overheadBadges.sort((a, b) => a.sx - b.sx);
+    // Sort badges by geographical location:
+    // Entities that are geographically higher up (further north / smaller wy, then smaller wx)
+    // are sorted first so their labels sit on top of the vertical stack.
+    overheadBadges.sort((a, b) => (a.wy - b.wy) || (a.wx - b.wx));
 
-    // Collision detection:
-    // When two badges overlap, one remains flat (0 deg) and the other tilts ~20 deg downwards,
-    // shifted slightly above (-15px) so they never collide!
+    // Non-overlapping vertical stacking:
+    // When two or more labels collide horizontally, the geographically higher entity's label
+    // stays above, and the lower entity's label stacks directly beneath it. No rotation!
     const placed = [];
     for (const badge of overheadBadges) {
+      let targetY = badge.sy;
       for (const p of placed) {
-        const overlapX = Math.abs(badge.sx - p.sx) < (badge.tw / 2 + p.tw / 2 + 10);
-        const overlapY = Math.abs((badge.sy + badge.offsetY) - (p.sy + p.offsetY)) < 18;
-        if (overlapX && overlapY) {
-          const dir = badge.sx >= p.sx ? 20 : -20;
-          badge.rotDeg = dir;
-          badge.offsetY = p.offsetY - 15;
-          break;
+        const xDist = Math.abs(badge.sx - p.sx);
+        const minXDist = (badge.tw + p.tw) / 2 + 8;
+        if (xDist < minXDist) {
+          // Horizontal collision! Since badge is geographically lower than p,
+          // badge must sit cleanly below p.
+          if (targetY < p.renderY + 16) {
+            targetY = p.renderY + 16;
+          }
         }
       }
+      badge.renderY = Math.round(targetY);
       placed.push(badge);
     }
   }
@@ -6975,17 +6956,14 @@ export function initGame() {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    const bx = b.sx;
-    const by = b.sy + b.offsetY;
+    const bx = Math.round(b.sx);
+    const by = Math.round(b.renderY !== undefined ? b.renderY : b.sy);
 
     ctx.translate(bx, by);
-    if (b.rotDeg !== 0) {
-      ctx.rotate((b.rotDeg * Math.PI) / 180);
-    }
 
     const padX = 5;
     const boxW = b.tw + padX * 2;
-    const boxH = 14;
+    const boxH = 15;
 
     ctx.fillStyle = b.bg;
     ctx.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
