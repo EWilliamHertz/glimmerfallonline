@@ -5,6 +5,7 @@ import { RoomManager } from '../server/roomManager.js';
 import { AccountsStore } from '../server/accountsStore.js';
 import { FrontpageController, FRONTPAGE_STATES } from '../client/frontpage.js';
 import { SKILL_ICON_SVGS, getSkillIconSvg } from '../client/ui/skillIcons.js';
+import { UNLOCK_ICON_SVGS, getUnlockIconSvg } from '../client/ui/unlockIcons.js';
 import { setupSkillGuidesUi } from '../client/game/skillGuidesUi.js';
 
 test('tick constants match the authoritative 20 Hz loop', () => {
@@ -680,6 +681,44 @@ test('Skill guide and skill training guide modals open and render without Refere
   } finally {
     globalThis.document = prevDoc;
     globalThis.window = prevWin;
+  }
+});
+
+test('UNLOCK_ICON_SVGS provides high grade vector icons for all 69 skill guide acquirements', () => {
+  const all69Keys = [
+    // Resonance Extraction (14)
+    'font_channeling', 'copper_vein', 'sunbloom_herb', 'leyline_shrine', 'tin_outcrop',
+    'umbral_coal', 'void_lily', 'mithril_vein', 'terra_clover', 'adamant_vein',
+    'aether_lotus', 'runite_asteroid', 'empyrean_starleaf', 'cape_extractor',
+    // Relic Forging (11)
+    'bronze_bar', 'star_scimitar', 'bronze_breastplate', 'umbral_bar', 'umbral_platebody',
+    'mithril_bar', 'mithril_greatsword', 'adamant_shield', 'runite_bar', 'cosmos_set', 'cape_smith',
+    // Rite Binding (9)
+    'healing_salve', 'glimmer_draught', 'cut_ruby_sapphire', 'vitality_elixir', 'cut_emerald_diamond',
+    'battle_tonic', 'chrono_draught', 'leyline_rune', 'cape_binder',
+    // Glimmerweaving (8)
+    'fiber_yarn', 'acolyte_robes', 'wanderer_cloak', 'duskveil_silk', 'duskveil_hood',
+    'mystic_vestments', 'gossamer_cloak', 'cape_weaver',
+    // Combat Mastery (9)
+    'training_dummy', 'faction_patrol', 'dungeon_boss', 'nexus_siege', 'elite_champion',
+    'world_boss', 'mythic_keystone', 'void_singularity', 'cape_champion',
+    // Rites (9)
+    'smite_rite', 'channel_focus', 'radiant_cascade', 'resonance_amp', 'terra_quake',
+    'channel_cadence', 'solar_nova', 'overchannel_surge', 'cape_hierophant',
+    // Flashes (9)
+    'flare_strike', 'fleetfoot', 'phantom_blink', 'counter_deflect', 'tempest_flurry',
+    'chrono_snap', 'horizon_blitz', 'hyper_reflex', 'cape_tempest',
+  ];
+
+  assert.equal(all69Keys.length, 69, 'Must have exactly 69 acquirement keys');
+
+  for (const k of all69Keys) {
+    assert.ok(k in UNLOCK_ICON_SVGS, `UNLOCK_ICON_SVGS must contain key ${k}`);
+    const svgStr = getUnlockIconSvg(k, 24);
+    assert.ok(svgStr.includes('<svg'), `${k} must return an SVG string`);
+    assert.ok(svgStr.includes('width="24"'), `${k} must have explicit width="24"`);
+    assert.ok(svgStr.includes('height="24"'), `${k} must have explicit height="24"`);
+    assert.ok(svgStr.includes('gf-unlock-svg-wrap'), `${k} must have wrapper gf-unlock-svg-wrap`);
   }
 });
 

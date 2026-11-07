@@ -219,7 +219,39 @@
   color: #f8fafc;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+}
+.skill-unlock-icon-wrap {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 4px;
+  background: #080e1e;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 2px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.8);
+}
+.gf-unlock-svg-wrap {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  line-height: 0 !important;
+}
+.gf-unlock-svg-wrap svg {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  display: block !important;
+  flex-shrink: 0 !important;
+  pointer-events: none;
 }
 .skill-unlock-desc {
   font-size: 10px;
