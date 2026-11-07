@@ -986,13 +986,17 @@
       <div class="modal-header" style="border-bottom: 1px solid rgba(56,189,248,0.25); padding-bottom: 8px;">
         <div style="flex: 1;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div id="skill-guide-title" class="modal-title" style="font-size: 14px; color: #facc15; font-family: var(--font-header); letter-spacing: 0.5px;">
-              ⚡ RESONANCE EXTRACTION — SKILL GUIDE &amp; UNLOCKS
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div id="skill-guide-icon" style="display: inline-flex; align-items: center; justify-content: center;"></div>
+              <div id="skill-guide-title" class="modal-title" style="font-size: 14px; color: #facc15; font-family: var(--font-header); letter-spacing: 0.5px;">
+                RESONANCE EXTRACTION — SKILL GUIDE &amp; UNLOCKS
+              </div>
             </div>
             <div class="modal-close" onclick="toggleModal('skill-guide-modal')">✕</div>
           </div>
           <div id="skill-guide-status-bar" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 6px; font-size: 10px; color: #cbd5e1;">
-            <!-- Populated dynamically by renderSkillGuide() -->
+            <span id="skill-guide-level" style="font-weight: bold; color: #fde047;">LEVEL 1 / 99</span>
+            <span id="skill-guide-xp" style="color: #94a3b8;">0 TOTAL XP</span>
           </div>
         </div>
       </div>
@@ -1003,7 +1007,7 @@
 
       <!-- Skill Selection Tabs -->
       <div class="skill-guide-tabs" style="display: flex; gap: 4px; padding: 8px 0; border-bottom: 1px solid #1e293b; flex-wrap: wrap;">
-        <button class="sg-tab-btn" id="sg-tab-resonance_extraction" onclick="openSkillGuide('resonance_extraction')">⚡ EXTRACTION</button>
+        <button class="sg-tab-btn" id="sg-tab-resonance_extraction" onclick="openSkillGuide('resonance_extraction')">⛏️ EXTRACTION</button>
         <button class="sg-tab-btn" id="sg-tab-relic_forging" onclick="openSkillGuide('relic_forging')">🔨 FORGING</button>
         <button class="sg-tab-btn" id="sg-tab-rite_binding" onclick="openSkillGuide('rite_binding')">📜 BINDING</button>
         <button class="sg-tab-btn" id="sg-tab-glimmerweaving" onclick="openSkillGuide('glimmerweaving')">🧵 WEAVING</button>

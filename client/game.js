@@ -362,6 +362,8 @@ export function initGame() {
   let currentTarget = null;
   let isQueueing = false;
   let queueTimer = null;
+  let preArenaSpot = null;
+  let offlineArenaEnded = false;
   let isCasting = false;
   let castProgress = 0;
   let castDuration = 0;
@@ -6180,11 +6182,17 @@ export function initGame() {
         }
 
         case 'arena_result':
-          audio.playLevelUp();
+          if (msg.won) {
+            if (audio && audio.playQuestCompleteFanfare) audio.playQuestCompleteFanfare();
+            else if (audio && audio.playLevelUp) audio.playLevelUp();
+          } else {
+            audio.playHurt?.();
+          }
+          spawnFCT(player.x, player.y - 20, msg.won ? '🏆 3v3 ARENA VICTORY!' : '💀 3v3 ARENA DEFEAT', msg.won ? '#facc15' : '#ef4444', true);
           logMessage(
             msg.won
-              ? '[3v3 VICTORY!] Enemy Nexus shattered! +1 Ranked Arena Win!'
-              : '[3v3 DEFEAT] Your Sanctuary Nexus fell — regroup in the Warzone!',
+              ? '🏆 [3v3 VICTORY!] Enemy Nexus shattered! +1 Ranked Arena Win! Teleporting back in 3 seconds...'
+              : '💀 [3v3 DEFEAT] Your Sanctuary Nexus fell! Teleporting back in 3 seconds...',
             msg.won ? 'log-solari' : 'log-combat',
             'combat'
           );
@@ -7058,6 +7066,41 @@ export function initGame() {
     }
   }
 
+  function handleOfflineArenaEnd(won, winningTeam = 'blue') {
+    if (offlineArenaEnded) return;
+    offlineArenaEnded = true;
+
+    if (won) {
+      if (audio && audio.playQuestCompleteFanfare) audio.playQuestCompleteFanfare();
+      else if (audio && audio.playLevelUp) audio.playLevelUp();
+      awardXP(120, '3v3 Arena Victory');
+      if (localProfile?.statsMeta) {
+        localProfile.statsMeta.arenaWins = (localProfile.statsMeta.arenaWins || 0) + 1;
+      }
+      saveProgressionLocal();
+      spawnFCT(player.x, player.y - 20, '🏆 3v3 ARENA VICTORY!', '#facc15', true);
+      logMessage('🏆 [3v3 VICTORY!] Enemy Nexus shattered! +1 Ranked Arena Win! Teleporting back in 3 seconds...', 'log-solari', 'combat');
+    } else {
+      audio.playHurt?.();
+      spawnFCT(player.x, player.y - 20, '💀 3v3 ARENA DEFEAT', '#ef4444', true);
+      logMessage('💀 [3v3 DEFEAT] Your Sanctuary Nexus fell! Teleporting back in 3 seconds...', 'log-danger', 'combat');
+    }
+
+    setTimeout(() => {
+      if (currentRoomType !== ROOM_TYPES.ARENA_3V3) return;
+      offlineArenaEnded = false;
+      const returnSpot = preArenaSpot || { roomType: ROOM_TYPES.SANCTUARY_HUB, x: 0, y: 0 };
+      preArenaSpot = null;
+      buildOfflineZone(returnSpot.roomType, returnSpot.x, returnSpot.y);
+      player.hp = player.maxHp;
+      updatePlayerUI();
+      spawnFCT(player.x, player.y - 18, '✨ RETURNED FROM ARENA', '#38bdf8', true);
+      const zoneTitle = ROOM_CONFIGS[returnSpot.roomType]?.shortTitle || returnSpot.roomType;
+      logMessage(`✨ [3v3 Arena] Teleported back to your previous location (${zoneTitle.toUpperCase()})!`, 'log-gain', 'chat');
+      if (audio && audio.playPortal) audio.playPortal();
+    }, 3000);
+  }
+
   function killOfflineEntity(ent) {
     if (!ent || ent.isDying) return;
     ent.isDying = true;
@@ -7065,6 +7108,29 @@ export function initGame() {
 
     if (currentTarget && currentTarget.id === ent.id) {
       setTarget(null);
+    }
+
+    if (currentRoomType === ROOM_TYPES.ARENA_3V3) {
+      if (ent.id === 'red_nexus') {
+        handleOfflineArenaEnd(true, 'blue');
+        return;
+      }
+      if (ent.id === 'blue_nexus') {
+        handleOfflineArenaEnd(false, 'red');
+        return;
+      }
+      if (ent.type === 'mob') {
+        const remainingFoes = entities.filter((e) => e.type === 'mob' && !e.isDying && e.id !== ent.id);
+        if (remainingFoes.length === 0) {
+          const redN = entities.find((e) => e.id === 'red_nexus');
+          if (redN) {
+            redN.hp = 0;
+            redN.isDying = true;
+          }
+          handleOfflineArenaEnd(true, 'blue');
+          return;
+        }
+      }
     }
 
     triggerEntityDeathEffect(ent.x, ent.y, ent.isBoss);
@@ -7309,6 +7375,26 @@ export function initGame() {
       if (player.hp <= 0) {
         player.isDead = true;
         triggerEntityDeathEffect(player.x, player.y, true);
+        if (currentRoomType === ROOM_TYPES.ARENA_3V3) {
+          logMessage(`[3v3 DEFEAT] Slain in the Arena! Teleporting back to your previous location in 3s...`, 'log-danger', 'combat');
+          showDeathScreen(3);
+          setTimeout(() => {
+            player.isDead = false;
+            player.hp = player.maxHp;
+            player.shield = 0;
+            player.solarCharge = 0;
+            hideDeathScreen();
+            const returnSpot = preArenaSpot || { roomType: ROOM_TYPES.SANCTUARY_HUB, x: 0, y: 0 };
+            preArenaSpot = null;
+            offlineArenaEnded = false;
+            buildOfflineZone(returnSpot.roomType, returnSpot.x, returnSpot.y);
+            updatePlayerUI();
+            spawnFCT(player.x, player.y - 18, '✨ RETURNED FROM ARENA', '#38bdf8', true);
+            logMessage(`✨ [3v3 Arena] Teleported back to your previous location!`, 'log-gain', 'chat');
+            if (audio && audio.playPortal) audio.playPortal();
+          }, 3000);
+          return;
+        }
         logMessage(`[Defeat] Slain by ${attackerName}! Re-anchoring at Sanctuary...`, 'log-danger', 'combat');
         showDeathScreen(3);
         setTimeout(() => {
@@ -8268,12 +8354,32 @@ export function initGame() {
 
   window.arenaOpenLobby = function () {
     audio.playChime();
-    net.send({ type: 'queue_arena', join: true, mode: 'wait' });
+    if (!preArenaSpot && currentRoomType !== ROOM_TYPES.ARENA_3V3) {
+      preArenaSpot = { roomType: currentRoomType, x: Math.round(player.x), y: Math.round(player.y) };
+    }
+    net.send({
+      type: 'queue_arena',
+      join: true,
+      mode: 'wait',
+      returnRoom: preArenaSpot?.roomType || currentRoomType,
+      returnX: preArenaSpot?.x ?? Math.round(player.x),
+      returnY: preArenaSpot?.y ?? Math.round(player.y),
+    });
   };
   window.arenaPlayWithComputer = function () {
     audio.playPortal();
+    if (!preArenaSpot && currentRoomType !== ROOM_TYPES.ARENA_3V3) {
+      preArenaSpot = { roomType: currentRoomType, x: Math.round(player.x), y: Math.round(player.y) };
+    }
     if (net.connected) {
-      net.send({ type: 'queue_arena', join: true, mode: 'bots' });
+      net.send({
+        type: 'queue_arena',
+        join: true,
+        mode: 'bots',
+        returnRoom: preArenaSpot?.roomType || currentRoomType,
+        returnX: preArenaSpot?.x ?? Math.round(player.x),
+        returnY: preArenaSpot?.y ?? Math.round(player.y),
+      });
       return;
     }
     const btn = document.getElementById('btn-queue');
@@ -8299,6 +8405,9 @@ export function initGame() {
     net.send({ type: 'queue_arena', join: false });
   };
   window.joinArenaFromInvite = function () {
+    if (!preArenaSpot && currentRoomType !== ROOM_TYPES.ARENA_3V3) {
+      preArenaSpot = { roomType: currentRoomType, x: Math.round(player.x), y: Math.round(player.y) };
+    }
     window.dismissArenaInvite();
     if (document.getElementById('arena-modal')?.style.display !== 'block') window.toggleModal('arena-modal');
   };
@@ -8309,6 +8418,9 @@ export function initGame() {
   };
 
   window.toggleMatchmaking = function () {
+    if (!preArenaSpot && currentRoomType !== ROOM_TYPES.ARENA_3V3) {
+      preArenaSpot = { roomType: currentRoomType, x: Math.round(player.x), y: Math.round(player.y) };
+    }
     if (net.connected) net.send({ type: 'arena_lobby_info' });
     window.toggleModal('arena-modal');
   };

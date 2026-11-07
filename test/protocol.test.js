@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as protocol from '../shared/protocol.js';
 import { RoomManager } from '../server/roomManager.js';
 import { FrontpageController, FRONTPAGE_STATES } from '../client/frontpage.js';
+import { SKILL_ICON_SVGS, getSkillIconSvg } from '../client/ui/skillIcons.js';
 
 test('tick constants match the authoritative 20 Hz loop', () => {
   assert.equal(protocol.TICK_RATE, 20);
@@ -488,3 +489,102 @@ test('Ancient Runes and Runewords are valid, complete, and activate 3-socket syn
   assert.equal(active.name, 'Sovereign Trinity');
   assert.ok(active.dmgMult >= 1.10, 'Runeword should provide damage multiplier');
 });
+
+test('SKILL_ICON_SVGS defines crisp vector SVG icons for all 7 skills and 3 crests', () => {
+  const expectedKeys = [
+    'skills_medallion',
+    'entity_crest',
+    'total_crest',
+    'combat_mastery',
+    'rites',
+    'flashes',
+    'resonance_extraction',
+    'relic_forging',
+    'rite_binding',
+    'glimmerweaving',
+  ];
+
+  for (const k of expectedKeys) {
+    const raw = SKILL_ICON_SVGS[k];
+    assert.ok(raw, `Missing SVG icon for ${k}`);
+    assert.ok(raw.includes('<svg'), `Icon ${k} must contain <svg`);
+    assert.ok(raw.includes('</svg>'), `Icon ${k} must close with </svg>`);
+    assert.ok(raw.includes('viewBox="0 0 36 36"'), `Icon ${k} must have standard 36x36 viewBox`);
+
+    const wrapped = getSkillIconSvg(k, 32);
+    assert.ok(wrapped.includes('width:32px'), `Wrapped SVG for ${k} should set width 32px`);
+    assert.ok(wrapped.includes('height:32px'), `Wrapped SVG for ${k} should set height 32px`);
+  }
+});
+
+test('RoomManager arena queue and match conclusion preserves player pre-arena return spot', () => {
+  const rm = new RoomManager({
+    accountsStore: {
+      saveProgression: () => {},
+      patchStatsMeta: () => {},
+      persist: () => {},
+    },
+    partyManager: {
+      getPartyForPlayer: () => null,
+      getPartyForMember: () => null,
+      syncPlayerVitals: () => {},
+    },
+  });
+  try {
+    const mockClient = {
+      id: 'test_player_1',
+      displayName: 'Aurelia',
+      faction: 'Solari',
+      classId: 'solari_vanguard',
+      roomType: protocol.ROOM_TYPES.SANCTUARY_HUB,
+      roomId: protocol.ROOM_TYPES.SANCTUARY_HUB,
+      x: 42,
+      y: 84,
+      hp: 40,
+      maxHp: 40,
+      prog: protocol.createDefaultProgression(),
+      messages: [],
+      send(data) {
+        this.messages.push(data);
+      },
+    };
+    rm.clients.set(mockClient.id, mockClient);
+
+    // Send queue_arena packet with specific return coordinates
+    rm.handlePacket(mockClient, {
+      type: 'queue_arena',
+      join: true,
+      mode: 'bots',
+      returnRoom: protocol.ROOM_TYPES.SANCTUARY_HUB,
+      returnX: 42,
+      returnY: 84,
+    });
+
+    assert.ok(mockClient.preArenaSpot, 'Client must have preArenaSpot recorded');
+    assert.equal(mockClient.preArenaSpot.roomType, protocol.ROOM_TYPES.SANCTUARY_HUB);
+    assert.equal(mockClient.preArenaSpot.x, 42);
+    assert.equal(mockClient.preArenaSpot.y, 84);
+
+    // Process matchmaking to launch match
+    rm.processMatchmaking();
+    assert.equal(mockClient.roomType, protocol.ROOM_TYPES.ARENA_3V3);
+
+    // Find arena room
+    const arenaRoom = Array.from(rm.rooms.values()).find((r) => r.type === protocol.ROOM_TYPES.ARENA_3V3);
+    assert.ok(arenaRoom, 'Arena room must be created');
+
+    // Kill red nexus to trigger Blue team victory
+    const redNexus = arenaRoom.entities.find((e) => e.id === 'red_nexus');
+    assert.ok(redNexus, 'Red nexus must exist in arena');
+    redNexus.hp = 0;
+    rm.handleEntityDeath(arenaRoom, redNexus);
+
+    assert.equal(arenaRoom.matchEnded, true, 'Match must be marked ended');
+    const winMsg = mockClient.messages.find((m) => m.type === 'arena_result');
+    assert.ok(winMsg, 'Client must receive arena_result message');
+    assert.equal(winMsg.won, true, 'Blue team client must win when red nexus falls');
+  } finally {
+    rm.stop();
+  }
+});
+

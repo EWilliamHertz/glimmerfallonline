@@ -288,7 +288,7 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
         <div class="skill-training-card" style="border-left: 4px solid ${meta.color};">
           <div class="skill-training-head">
             <div class="skill-training-identity">
-              <span class="skill-training-icon" style="background:${meta.color}22; border-color:${meta.color}66;">${meta.icon}</span>
+              <span class="skill-training-icon" style="background:${meta.color}22; border-color:${meta.color}66; display:inline-flex; align-items:center; justify-content:center; padding:2px;">${getSkillIconSvg(profId, 28)}</span>
               <div>
                 <div class="skill-training-name" style="color:${meta.color};">${meta.name}</div>
                 <div class="skill-training-role">${meta.role}</div>

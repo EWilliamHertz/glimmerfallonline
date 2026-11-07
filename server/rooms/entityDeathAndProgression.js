@@ -226,12 +226,20 @@ export const entityDeathAndProgressionMethods = {
         if (won) this.awardPlayerXP(p, 120, '3v3 Arena Victory', { addArenaWins: 1 });
       }
 
-      setTimeout(() => {
+      const arenaExitTimer = setTimeout(() => {
         for (const p of Array.from(room.players.values())) {
-          this.joinRoom(p, ROOM_TYPES.NEXUS_WARZONE);
+          const returnSpot = p.preArenaSpot || { roomType: ROOM_TYPES.SANCTUARY_HUB, x: 0, y: 0 };
+          p.preArenaSpot = null;
+          this.joinRoom(p, returnSpot.roomId || returnSpot.roomType || ROOM_TYPES.SANCTUARY_HUB, null, returnSpot.x, returnSpot.y);
+          p.send({
+            type: 'sys_msg',
+            category: 'zone',
+            text: `✨ [3v3 Arena] Teleported back to your previous location!`,
+          });
         }
         this.rooms.delete(room.id);
       }, 3000);
+      if (typeof arenaExitTimer?.unref === 'function') arenaExitTimer.unref();
       return;
     }
 

@@ -293,12 +293,18 @@ export const arenaAndPacketsMethods = {
       ` vs Red: ${redPlayers.length} champion(s)${redBots ? ` + ${redBots} computer foe` : ''}.`;
 
     for (const p of bluePlayers) {
+      if (!p.preArenaSpot && p.roomType !== ROOM_TYPES.ARENA_3V3) {
+        p.preArenaSpot = { roomId: p.roomId, roomType: p.roomType, x: p.x, y: p.y };
+      }
       p.hp = p.maxHp;
       p.send({ type: 'queue_state', queueing: false });
       this.joinRoom(p, room.id, 'blue');
       p.send({ type: 'sys_msg', category: 'zone', text: summary });
     }
     for (const p of redPlayers) {
+      if (!p.preArenaSpot && p.roomType !== ROOM_TYPES.ARENA_3V3) {
+        p.preArenaSpot = { roomId: p.roomId, roomType: p.roomType, x: p.x, y: p.y };
+      }
       p.hp = p.maxHp;
       p.send({ type: 'queue_state', queueing: false });
       this.joinRoom(p, room.id, 'red');
@@ -416,8 +422,26 @@ export const arenaAndPacketsMethods = {
       }
 
       case 'queue_arena':
-        if (msg.join) this.queueForArena(client, msg.mode === 'bots' ? 'bots' : 'wait');
-        else this.leaveArenaQueue(client);
+        if (msg.join) {
+          if (msg.returnRoom && Number.isFinite(Number(msg.returnX)) && Number.isFinite(Number(msg.returnY))) {
+            client.preArenaSpot = {
+              roomId: msg.returnRoom,
+              roomType: msg.returnRoom,
+              x: Number(msg.returnX),
+              y: Number(msg.returnY),
+            };
+          } else if (client.roomType !== ROOM_TYPES.ARENA_3V3) {
+            client.preArenaSpot = {
+              roomId: client.roomId,
+              roomType: client.roomType,
+              x: client.x,
+              y: client.y,
+            };
+          }
+          this.queueForArena(client, msg.mode === 'bots' ? 'bots' : 'wait');
+        } else {
+          this.leaveArenaQueue(client);
+        }
         break;
 
       case 'arena_fill':
