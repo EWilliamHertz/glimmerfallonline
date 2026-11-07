@@ -670,6 +670,12 @@ test('Skill guide and skill training guide modals open and render without Refere
     const guideModal = elements.get('skill-guide-modal');
     assert.equal(guideModal.style.display, 'block', 'skill-guide-modal must display as block');
     assert.ok(elements.get('skill-guide-title').innerText.includes('RESONANCE EXTRACTION'), 'guide title must update');
+    const unlocksContainer = elements.get('skill-guide-unlocks-container');
+    assert.ok(unlocksContainer.innerHTML.includes('skill-unlock-emblem-box'), 'must render emblem box in unlock cards');
+    assert.ok(unlocksContainer.innerHTML.includes('skill-unlock-icon-stage'), 'must render icon stage in emblem box');
+    assert.ok(unlocksContainer.innerHTML.includes('skill-unlock-level-tag'), 'must render level tag at bottom of emblem box');
+    assert.ok(unlocksContainer.innerHTML.includes('LVL 1'), 'must display level text');
+    assert.ok(unlocksContainer.innerHTML.includes('width="36"'), 'must render vector icon scaled to 36px');
 
     // Test openSkillTrainingGuide
     globalThis.window.openSkillTrainingGuide();

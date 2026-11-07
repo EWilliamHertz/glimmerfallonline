@@ -537,12 +537,18 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
         const isUnlocked = curLevel >= u.level;
         return `
           <div class="skill-unlock-card ${isUnlocked ? 'skill-unlocked' : 'skill-locked'}" style="border-left: 3px solid ${isUnlocked ? pDef.color : '#334155'};">
-            <div class="skill-level-badge ${isUnlocked ? 'skill-badge-unlocked' : 'skill-badge-locked'}" style="${isUnlocked ? `background:${pDef.color}; border-color:#fef08a;` : ''}">
-              ${u.level}
+            <div class="skill-unlock-badge-col">
+              <div class="skill-unlock-emblem-box ${isUnlocked ? 'is-unlocked' : 'is-locked'}" style="border-color:${isUnlocked ? pDef.color + 'aa' : '#334155'};">
+                <div class="skill-unlock-icon-stage">
+                  ${getUnlockIconSvg(u.iconKey || u.title, 36)}
+                </div>
+                <div class="skill-unlock-level-tag ${isUnlocked ? 'is-unlocked' : 'is-locked'}" style="${isUnlocked ? `background:${pDef.color}; color:#050811; border-top:1px solid #fef08a;` : ''}">
+                  LVL ${u.level}
+                </div>
+              </div>
             </div>
-            <div style="flex: 1;">
+            <div style="flex: 1; min-width: 0;">
               <div class="skill-unlock-title">
-                <span class="skill-unlock-icon-wrap" style="border-color:${isUnlocked ? pDef.color + '77' : '#334155'};">${getUnlockIconSvg(u.iconKey || u.title, 20)}</span>
                 <span style="${isUnlocked ? 'color:#f8fafc;' : 'color:#cbd5e1;'}">${u.title}</span>
               </div>
               <div class="skill-unlock-desc">${u.desc}</div>
