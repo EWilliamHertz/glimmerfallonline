@@ -462,7 +462,7 @@ export const ABILITIES_CATALOG = {
 // Backwards-compatible slot map helper
 export function getSlotAbilitySpec(loadout, slot) {
   if (slot === 'harvest') return ABILITIES_CATALOG.harvest;
-  const abilId = loadout?.[slot];
+  const abilId = loadout?.[slot] ?? loadout?.[String(slot)];
   return abilId ? ABILITIES_CATALOG[abilId] || null : null;
 }
 

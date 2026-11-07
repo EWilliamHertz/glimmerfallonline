@@ -32,14 +32,14 @@ export const EMOTES_CATALOG = {
 };
 
 export const SLOT_UNLOCK_LEVELS = {
-  1: 1,  // Primary Basic Strike (Lv. 1)
-  9: 2,  // Primary Flash / Mobility (Lv. 2)
-  2: 3,  // Secondary Rite / Cast (Lv. 3)
-  10: 4, // Secondary Flash / Utility (Lv. 4)
-  3: 5,  // Signature Rite / Heavy AoE (Lv. 5)
-  11: 6, // Signature Flash / Control (Lv. 6)
-  4: 7,  // Ultimate Rite / Finisher (Lv. 7)
-  12: 8, // Ultimate Flash / Apex (Lv. 8)
+  1: 1,
+  2: 1,
+  3: 1,
+  4: 1,
+  9: 1,
+  10: 1,
+  11: 1,
+  12: 1,
 };
 
 export function isSlotUnlocked(prog, slot) {

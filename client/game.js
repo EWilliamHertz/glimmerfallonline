@@ -2503,9 +2503,19 @@ export function initGame() {
       ...(prof.progression || {}),
       stats: { ...createDefaultProgression().stats, ...(prof.progression?.stats || {}) },
       ranks: { ...createDefaultProgression().ranks, ...(prof.progression?.ranks || {}) },
+      skills: { ...createDefaultProgression().skills, ...(prof.progression?.skills || {}) },
       professions: { ...createDefaultProgression().professions, ...(prof.progression?.professions || {}) },
       paragon: { ...(prof.progression?.paragon || {}) },
     };
+    // Ensure starter ability in loadout is registered at least Rank 1 in prog.skills
+    for (const [slotKey, abId] of Object.entries(localProfile.loadout || {})) {
+      if (abId && ABILITIES_CATALOG[abId] && !prog.skills[abId]) {
+        prog.skills[abId] = Math.max(1, getAbilityRank(prog, abId));
+      }
+      if (abId && prog.ranks) {
+        prog.ranks[slotKey] = getAbilityRank(prog, abId);
+      }
+    }
     saveProgressionLocal();
 
     isApplyingProfile = true;
@@ -3372,11 +3382,15 @@ export function initGame() {
   window.hideHoveredEquipmentTooltip = hideFloatingGearTooltip;
 
   window.assignSlotAbilityInGame = function (slot, abilityId) {
+    const numericSlot = Number(slot);
+    if (!ACTION_SLOTS.includes(numericSlot)) return;
+    if (!abilityId) {
+      window.clearActionSlot(numericSlot);
+      return;
+    }
     const ab = ABILITIES_CATALOG[abilityId];
     if (!ab) return;
-    const numericSlot = Number(slot);
-    if (ACTION_SLOTS.includes(numericSlot) && !slotAcceptsAbility(numericSlot, ab.id)) {
-      logMessage(`[Action Bar] ${ab.name} is a ${(ab.tree || 'rites') === 'flashes' ? 'Flash — it belongs in slots 9–12.' : 'Rite — it belongs in slots 1–4.'}`, 'log-combat');
+    if (!slotAcceptsAbility(numericSlot, ab.id)) {
       audio.playHurt();
       return;
     }
@@ -3387,10 +3401,41 @@ export function initGame() {
       return;
     }
     pendingAssign = null;
-    localProfile.loadout = { ...(localProfile.loadout || {}), [slot]: ab.id };
-    if (prog.ranks) {
-      prog.ranks[slot] = rank;
+    quickPickSlot = null;
+
+    const nextLoadout = { ...(localProfile.loadout || {}) };
+    const displacedAbId = nextLoadout[numericSlot] ?? nextLoadout[String(numericSlot)] ?? null;
+
+    // Find if this ability was already equipped in another slot so we move/swap instead of duplicating
+    let prevSlot = null;
+    for (const s of ACTION_SLOTS) {
+      const curId = nextLoadout[s] ?? nextLoadout[String(s)];
+      if (curId === ab.id && s !== numericSlot) {
+        prevSlot = s;
+        break;
+      }
     }
+
+    if (prevSlot !== null) {
+      delete nextLoadout[prevSlot];
+      delete nextLoadout[String(prevSlot)];
+      if (displacedAbId && displacedAbId !== ab.id) {
+        nextLoadout[prevSlot] = displacedAbId;
+        if (prog.ranks) prog.ranks[prevSlot] = getAbilityRank(prog, displacedAbId);
+      } else if (prog.ranks) {
+        delete prog.ranks[prevSlot];
+      }
+    }
+
+    delete nextLoadout[String(numericSlot)];
+    nextLoadout[numericSlot] = ab.id;
+    localProfile.loadout = nextLoadout;
+    if (!prog.skills) prog.skills = {};
+    if (!prog.skills[ab.id]) prog.skills[ab.id] = rank;
+    if (prog.ranks) {
+      prog.ranks[numericSlot] = rank;
+    }
+    actionBarSignature = '';
     audio.playSpell();
     updateActionBarBadges();
     renderKeybindUI();
@@ -3398,6 +3443,12 @@ export function initGame() {
     saveProgressionLocal();
     if (net.connected) {
       net.send({ type: 'update_loadout', loadout: localProfile.loadout });
+    }
+    const keyTxt = formatKeyLabel(keybinds[numericSlot]);
+    if (prevSlot !== null) {
+      logMessage(`[Action Bar] Moved ${ab.name} from [${formatKeyLabel(keybinds[prevSlot])}] → Slot ${numericSlot} [${keyTxt}].`, 'log-gain');
+    } else {
+      logMessage(`[Action Bar] Equipped ${ab.name} in Slot ${numericSlot} [${keyTxt}].`, 'log-gain');
     }
   };
 
@@ -8175,26 +8226,37 @@ export function initGame() {
 
   loadActionBarItems();
 
+  let quickPickSlot = null;
+
   function abilityTreeForSlot(slot) {
     return Number(slot) >= 9 ? 'flashes' : 'rites';
   }
 
   function slotAcceptsAbility(slot, abilityId) {
     const ab = ABILITIES_CATALOG[abilityId];
-    if (!ab) return false;
-    return (ab.tree || 'rites') === abilityTreeForSlot(slot);
+    if (!ab || ab.id === 'harvest') return false;
+    return ACTION_SLOTS.includes(Number(slot));
+  }
+
+  function findEquippedSlotForAbility(abilityId) {
+    if (!abilityId || !localProfile?.loadout) return null;
+    for (const s of ACTION_SLOTS) {
+      const cur = localProfile.loadout[s] ?? localProfile.loadout[String(s)];
+      if (cur === abilityId) return s;
+    }
+    return null;
   }
 
   function buildActionBarSignature() {
-    const loadout = ACTION_SLOTS.map((s) => `${s}=${localProfile.loadout?.[s] || ''}`).join(',');
-    const ranks = ACTION_SLOTS.map((s) => getAbilityRank(prog, localProfile.loadout?.[s])).join(',');
+    const loadout = ACTION_SLOTS.map((s) => `${s}=${localProfile.loadout?.[s] ?? localProfile.loadout?.[String(s)] ?? ''}`).join(',');
+    const ranks = ACTION_SLOTS.map((s) => getAbilityRank(prog, localProfile.loadout?.[s] ?? localProfile.loadout?.[String(s)])).join(',');
     const keys = [...ACTION_SLOTS, 'harvest', ...ITEM_ACTION_SLOTS]
       .map((s) => `${s}=${formatKeyLabel(keybinds[s])}`)
       .join(',');
     const items = ITEM_ACTION_SLOTS
       .map((s) => `${s}=${actionBarItems[s] || ''}:${countInventoryItem(actionBarItems[s])}`)
       .join(',');
-    return `${loadout}|${ranks}|${keys}|${items}|LV${prog.level}|P:${pendingAssign?.id || ''}|B:${listeningSlot ?? ''}`;
+    return `${loadout}|${ranks}|${keys}|${items}|LV${prog.level}|P:${pendingAssign?.id || ''}|Q:${quickPickSlot ?? ''}|B:${listeningSlot ?? ''}`;
   }
 
   function renderActionSlotButton(slot) {
@@ -8205,7 +8267,7 @@ export function initGame() {
     const keyLabel = formatKeyLabel(keybinds[slot]);
     let cls = 'action-button';
     let icon = '＋';
-    let name = 'Empty';
+    let name = 'Assign';
     let nameColor = '#64748b';
     let title = '';
 
@@ -8214,22 +8276,23 @@ export function initGame() {
       cls += ' slot-locked';
       icon = '🔒';
       name = `LV.${reqLvl}`;
-      title = `Slot locked — reach Level ${reqLvl}. Press [${keyLabel}] to try anyway.`;
+      title = `Slot locked — reach Level ${reqLvl}.`;
     } else if (spec && learned) {
       cls += spec.tcgType?.includes('Flash') ? ' flash-card' : ' rite-card';
       icon = spec.icon || '⚔️';
-      name = spec.short || 'Rite';
+      name = spec.short || 'Skill';
       nameColor = spec.color || '#e2e8f0';
-      title = `${spec.name} — Rank ${rank}/5 • [${keyLabel}] to cast • Right-click to clear`;
+      title = `${spec.name} (Rank ${rank}/5) • Press [${keyLabel}] or click to cast • Drag to move slot • Right-click to clear • Shift+click to rebind`;
     } else if (spec) {
       cls += ' slot-locked';
       icon = spec.icon || '⚔️';
-      name = spec.short || 'Rite';
+      name = spec.short || 'Skill';
       nameColor = '#ef4444';
       title = `${spec.name} is unlearned — allocate a skill point in the Skill Tree or Spellbook first.`;
     } else {
       cls += ' slot-empty';
-      title = `Empty slot — drag a Rite or Flash here from the Skill Tree or Spellbook. [${keyLabel}]`;
+      if (quickPickSlot === slot) cls += ' pick-target';
+      title = `Empty Slot [${keyLabel}] — Click to choose an ability for this slot, or drag a Rite/Flash here!`;
     }
 
     const pickTarget = Boolean(pendingAssign) && unlocked && ACTION_SLOTS.includes(slot) && slotAcceptsAbility(slot, pendingAssign.id);
@@ -8237,6 +8300,7 @@ export function initGame() {
     const pickTitle = pickTarget ? ` • Click to place ${ABILITIES_CATALOG[pendingAssign.id]?.name || 'this ability'} here` : '';
     const draggable = spec && learned ? 'true' : 'false';
     return `<div class="${cls}" id="btn-slot-${slot}" data-slot-kind="ability" data-slot="${slot}" draggable="${draggable}" title="${title}${pickTitle}">
+      ${spec && learned ? `<span class="slot-rank-pip">R${rank}</span>` : ''}
       <span class="key-badge">${keyLabel}</span>
       <span class="action-icon">${icon}</span>
       <span class="action-name" style="color:${nameColor};">${name}</span>
@@ -8274,7 +8338,7 @@ export function initGame() {
 
   function findFirstFreeAbilitySlot() {
     for (const s of ACTION_SLOTS) {
-      if (!localProfile.loadout?.[s]) return s;
+      if (!(localProfile.loadout?.[s] ?? localProfile.loadout?.[String(s)])) return s;
     }
     return null;
   }
@@ -8286,7 +8350,7 @@ export function initGame() {
     return ITEM_ACTION_SLOTS[0];
   }
 
-  // Fills empty Rite (1–4) and Flash (9–12) slots with learned abilities of this character's faction.
+  // Fills empty action bar slots with learned abilities of this character's faction.
   function autoFillLearnedSlots() {
     const resolved = resolveFactionAndClass({
       faction: localProfile.faction,
@@ -8294,37 +8358,33 @@ export function initGame() {
       loadout: localProfile.loadout,
       orderTag: localProfile.orderTag,
     });
-    const next = { ...(localProfile.loadout || {}) };
+    const next = sanitizeLoadout(localProfile.loadout, resolved.classId);
     const equipped = new Set(Object.values(next).filter(Boolean));
     let added = 0;
 
-    for (const family of ['rites', 'flashes']) {
-      const slots = family === 'rites' ? [1, 2, 3, 4] : [9, 10, 11, 12];
-      const pool = Object.values(ABILITIES_CATALOG)
-        .filter((ab) => ab.id !== 'harvest' && ab.faction !== 'All')
-        .filter((ab) => (ab.tree || 'rites') === family)
-        .filter((ab) => ab.faction === resolved.faction)
-        .filter((ab) => getAbilityRank(prog, ab.id) >= 1 && !equipped.has(ab.id))
-        .sort((a, b) => (getAbilityRank(prog, b.id) - getAbilityRank(prog, a.id)) || ((a.tier || 1) - (b.tier || 1)));
+    const pool = Object.values(ABILITIES_CATALOG)
+      .filter((ab) => ab.id !== 'harvest' && ab.faction === resolved.faction)
+      .filter((ab) => getAbilityRank(prog, ab.id) >= 1 && !equipped.has(ab.id))
+      .sort((a, b) => (a.tier || 1) - (b.tier || 1) || (getAbilityRank(prog, b.id) - getAbilityRank(prog, a.id)));
 
-      for (const slot of slots) {
-        if (next[slot] || !isSlotUnlocked(prog, slot)) continue;
-        const ab = pool.shift();
-        if (!ab) break;
-        next[slot] = ab.id;
-        if (!prog.ranks) prog.ranks = {};
-        prog.ranks[slot] = getAbilityRank(prog, ab.id);
-        equipped.add(ab.id);
-        added += 1;
-      }
+    for (const slot of ACTION_SLOTS) {
+      if (next[slot] || !isSlotUnlocked(prog, slot)) continue;
+      const ab = pool.shift();
+      if (!ab) break;
+      next[slot] = ab.id;
+      if (!prog.ranks) prog.ranks = {};
+      prog.ranks[slot] = getAbilityRank(prog, ab.id);
+      equipped.add(ab.id);
+      added += 1;
     }
 
+    localProfile.loadout = next;
     if (added > 0) {
-      localProfile.loadout = next;
       saveProgressionLocal();
       if (net.connected) net.send({ type: 'update_loadout', loadout: next });
       actionBarSignature = '';
       updateActionBarBadges();
+      if (typeof renderSkillTreeUI === 'function') renderSkillTreeUI();
       if (document.getElementById('keybind-list-container')?.style.display === 'block') renderKeybindUI();
     }
     return added;
@@ -8401,6 +8461,57 @@ export function initGame() {
     }
   }
 
+  window.closeQuickSlotPicker = function () {
+    if (quickPickSlot === null) return;
+    quickPickSlot = null;
+    actionBarSignature = '';
+    updateActionBarBadges();
+  };
+
+  function renderQuickSlotPickerPopover(targetSlot) {
+    const resolved = resolveFactionAndClass({
+      faction: localProfile.faction,
+      classId: localProfile.classId,
+      loadout: localProfile.loadout,
+      orderTag: localProfile.orderTag,
+    });
+    const myFaction = resolved.faction;
+    const keyLabel = formatKeyLabel(keybinds[targetSlot]);
+    const learnedSkills = Object.values(ABILITIES_CATALOG)
+      .filter((ab) => ab.id !== 'harvest' && ab.faction === myFaction && getAbilityRank(prog, ab.id) >= 1)
+      .sort((a, b) => (a.tier || 1) - (b.tier || 1));
+
+    const buttonsHtml = learnedSkills
+      .map((ab) => {
+        const curSlot = findEquippedSlotForAbility(ab.id);
+        const curSlotKey = curSlot ? formatKeyLabel(keybinds[curSlot]) : null;
+        const r = getAbilityRank(prog, ab.id);
+        return `<button type="button" class="quick-pick-ability-btn ${curSlot ? 'is-equipped' : ''}" onclick="assignSlotAbilityInGame(${targetSlot}, '${ab.id}')">
+          <span class="qp-icon">${ab.icon}</span>
+          <span class="qp-info">
+            <span class="qp-name" style="color:${ab.color || '#facc15'};">${ab.name} <small style="color:#94a3b8;">(R${r}/5)</small></span>
+            <span class="qp-status">${curSlot ? `✓ In Slot [${curSlotKey}] — Click to move to [${keyLabel}]` : `Click to equip in [${keyLabel}]`}</span>
+          </span>
+        </button>`;
+      })
+      .join('');
+
+    return `
+      <div class="bar-quick-picker" onclick="event.stopPropagation()">
+        <div class="bqp-header">
+          <span>⚡ CHOOSE ABILITY FOR SLOT ${targetSlot} <b>[${keyLabel}]</b></span>
+          <div style="display:flex; gap:4px;">
+            <button type="button" class="util-btn" style="padding:2px 6px; font-size:8.5px; border-color:#38bdf8; color:#7dd3fc;" onclick="closeQuickSlotPicker(); toggleModal('spellbook-modal')">📖 SPELLBOOK [P]</button>
+            <button type="button" class="util-btn" style="padding:2px 6px; font-size:8.5px;" onclick="closeQuickSlotPicker()">✕</button>
+          </div>
+        </div>
+        <div class="bqp-list">
+          ${buttonsHtml || `<div style="font-size:10px; color:#94a3b8; padding:6px;">No abilities learned yet — open Spellbook [P] to invest points!</div>`}
+        </div>
+      </div>
+    `;
+  }
+
   function renderActionBar() {
     const cluster = document.getElementById('action-bar-cluster');
     if (!cluster) return;
@@ -8409,24 +8520,43 @@ export function initGame() {
     const listeningSpec = listeningSlot !== null ? getSlotAbilitySpec(localProfile.loadout, listeningSlot) : null;
     let pickHint = '';
     if (pickedSpec) {
-      pickHint = `<div class="bar-pick-hint">PLACING <b>${pickedSpec.name.toUpperCase()}</b> — click a glowing ${pickedSpec.tree === 'flashes' ? 'Flash (9–12)' : 'Rite (1–4)'} slot • ESC cancels</div>`;
+      const curSlot = findEquippedSlotForAbility(pickedSpec.id);
+      const curText = curSlot ? ` (currently in [${formatKeyLabel(keybinds[curSlot])}])` : '';
+      pickHint = `<div class="bar-pick-hint">PLACING <b>${pickedSpec.name.toUpperCase()}</b>${curText} — click any glowing ability slot ([1]–[4] or [Q]/[R]/[F]/[C]) • ESC cancels</div>`;
     } else if (listeningSlot !== null) {
       const bindName = listeningSpec?.name || (ITEM_ACTION_SLOTS.includes(Number(listeningSlot)) ? `Item Slot ${listeningSlot}` : `Slot ${listeningSlot}`);
       pickHint = `<div class="bar-pick-hint">PRESS ANY KEY TO BIND <b>${bindName.toUpperCase()}</b> • ESC cancels</div>`;
+    } else if (quickPickSlot !== null && ACTION_SLOTS.includes(Number(quickPickSlot))) {
+      pickHint = renderQuickSlotPickerPopover(Number(quickPickSlot));
     }
     cluster.innerHTML = `${pickHint}
-      <div class="action-group">
-        ${[1, 2, 3, 4].map(renderActionSlotButton).join('')}
-        <div class="action-button harvest-card" id="btn-slot-harvest" data-slot-kind="harvest" title="Channel the nearest Glimmer node or Grand Font [${harvestKey}]">
-          <span class="key-badge">${harvestKey}</span>
-          <span class="action-icon">🔮</span>
-          <span class="action-name">Glimmer</span>
+      <div class="action-section">
+        <div class="action-section-label">PRIMARY SLOTS [1–4]</div>
+        <div class="action-group">
+          ${[1, 2, 3, 4].map(renderActionSlotButton).join('')}
         </div>
       </div>
       <div class="action-divider"></div>
-      <div class="action-group">${[9, 10, 11, 12].map(renderActionSlotButton).join('')}</div>
+      <div class="action-section">
+        <div class="action-section-label">TACTICAL SLOTS [Q·R·F·C]</div>
+        <div class="action-group">${[9, 10, 11, 12].map(renderActionSlotButton).join('')}</div>
+      </div>
       <div class="action-divider"></div>
-      <div class="action-group">${ITEM_ACTION_SLOTS.map(renderActionItemSlot).join('')}</div>
+      <div class="action-section">
+        <div class="action-section-label">LEYLINE</div>
+        <div class="action-group">
+          <div class="action-button harvest-card" id="btn-slot-harvest" data-slot-kind="harvest" title="Channel the nearest Glimmer node or Grand Font [${harvestKey}]">
+            <span class="key-badge">${harvestKey}</span>
+            <span class="action-icon">🔮</span>
+            <span class="action-name">Glimmer</span>
+          </div>
+        </div>
+      </div>
+      <div class="action-divider"></div>
+      <div class="action-section">
+        <div class="action-section-label">BELT ITEMS [5–8]</div>
+        <div class="action-group">${ITEM_ACTION_SLOTS.map(renderActionItemSlot).join('')}</div>
+      </div>
     `;
 
     for (const el of cluster.querySelectorAll('[data-slot-kind]')) {
@@ -8447,6 +8577,13 @@ export function initGame() {
           window.placePendingInSlot(kind, slot);
           return;
         }
+        if (kind === 'ability' && !getSlotAbilitySpec(localProfile.loadout, slot)) {
+          quickPickSlot = quickPickSlot === slot ? null : slot;
+          actionBarSignature = '';
+          updateActionBarBadges();
+          return;
+        }
+        quickPickSlot = null;
         window.activateActionSlot(slot);
       });
       el.addEventListener('contextmenu', (ev) => {
@@ -8454,7 +8591,7 @@ export function initGame() {
         window.clearActionSlot(slot);
       });
       el.addEventListener('dragstart', (ev) => {
-        const id = kind === 'ability' ? localProfile.loadout?.[slot] : actionBarItems[slot];
+        const id = kind === 'ability' ? (localProfile.loadout?.[slot] ?? localProfile.loadout?.[String(slot)]) : actionBarItems[slot];
         if (id) window.beginActionDrag(ev, kind, id);
       });
       el.addEventListener('dragover', (ev) => {
@@ -8488,12 +8625,15 @@ export function initGame() {
       audio.playHurt?.();
       return;
     }
+    quickPickSlot = null;
     if (pendingAssign?.id === abilityId) {
       pendingAssign = null;
       logMessage(`[Action Bar] Cancelled placement of ${ab.name}.`, 'log-combat');
     } else {
       pendingAssign = { kind: 'ability', id: abilityId };
-      logMessage(`[Action Bar] Picked ${ab.name} (Rank ${getAbilityRank(prog, ab.id)}/5) — click a ${ab.tree === 'flashes' ? 'Flash slot (9–12)' : 'Rite slot (1–4)'} on the action bar, or press ESC to cancel.`, 'log-combat');
+      const curSlot = findEquippedSlotForAbility(abilityId);
+      const curNote = curSlot ? ` (currently in Slot ${curSlot} [${formatKeyLabel(keybinds[curSlot])}])` : '';
+      logMessage(`[Action Bar] Picked ${ab.name}${curNote} — click any ability slot ([1]–[4] or [Q]/[R]/[F]/[C]) on the action bar to place or move it, or press ESC to cancel.`, 'log-combat');
       // The Spellbook covers the bottom dock — close it so the action bar is clickable.
       const spellbookEl = document.getElementById('spellbook-modal');
       if (spellbookEl && spellbookEl.style.display === 'block') window.toggleModal('spellbook-modal');
@@ -8513,7 +8653,7 @@ export function initGame() {
     }
     const s = Number(slot);
     if (slotKind !== 'ability' || !ACTION_SLOTS.includes(s)) {
-      logMessage(`[Action Bar] Item slots 5–8 hold potions and gear — place ${ab.name} in Rite slots 1–4 or Flash slots 9–12.`, 'log-combat');
+      logMessage(`[Action Bar] Item slots 5–8 hold potions and gear — place ${ab.name} in any ability slot ([1]–[4] or [Q]/[R]/[F]/[C]).`, 'log-combat');
       audio.playHurt?.();
       return;
     }
@@ -8522,19 +8662,19 @@ export function initGame() {
       audio.playHurt?.();
       return;
     }
-    if (!slotAcceptsAbility(s, ab.id)) {
-      logMessage(`[Action Bar] ${ab.name} is a ${ab.tree === 'flashes' ? 'Flash — use slots 9–12' : 'Rite — use slots 1–4'}.`, 'log-combat');
-      audio.playHurt?.();
-      return;
-    }
     pendingAssign = null;
     window.assignSlotAbilityInGame(s, ab.id);
     actionBarSignature = '';
     updateActionBarBadges();
-    logMessage(`[Action Bar] Placed ${ab.name} in slot ${s} [${formatKeyLabel(keybinds[s])}].`, 'log-gain');
   };
 
   window.cancelPendingAssign = function () {
+    if (quickPickSlot !== null) {
+      quickPickSlot = null;
+      actionBarSignature = '';
+      updateActionBarBadges();
+      return true;
+    }
     if (!pendingAssign) return false;
     const ab = ABILITIES_CATALOG[pendingAssign.id];
     pendingAssign = null;
@@ -8548,14 +8688,18 @@ export function initGame() {
   window.clearActionSlot = function (slot) {
     const s = Number(slot);
     if (ACTION_SLOTS.includes(s)) {
-      if (!localProfile.loadout?.[s]) return;
+      const curId = localProfile.loadout?.[s] ?? localProfile.loadout?.[String(s)];
+      if (!curId) return;
       const next = { ...(localProfile.loadout || {}) };
       delete next[s];
+      delete next[String(s)];
       localProfile.loadout = next;
       if (prog.ranks) delete prog.ranks[s];
       saveProgressionLocal();
       if (net.connected) net.send({ type: 'update_loadout', loadout: next });
-      logMessage(`[Action Bar] Cleared slot ${s} — drag a Rite or Flash back in whenever you like.`, 'log-combat');
+      logMessage(`[Action Bar] Cleared slot ${s} [${formatKeyLabel(keybinds[s])}].`, 'log-combat');
+      if (typeof renderSkillTreeUI === 'function') renderSkillTreeUI();
+      if (document.getElementById('keybind-list-container')?.style.display === 'block') renderKeybindUI();
     } else if (ITEM_ACTION_SLOTS.includes(s)) {
       if (!actionBarItems[s]) return;
       delete actionBarItems[s];
@@ -8656,7 +8800,8 @@ export function initGame() {
 
     prog.skillPoints = Math.max(0, (prog.skillPoints || 0) - 1);
     if (!prog.skills) prog.skills = {};
-    const newRank = Math.min(spec.maxRank || 5, (prog.skills[abilityId] || 0) + 1);
+    const curRank = getAbilityRank(prog, abilityId);
+    const newRank = Math.min(spec.maxRank || 5, curRank + 1);
     prog.skills[abilityId] = newRank;
 
     for (const [slotStr, abId] of Object.entries(localProfile.loadout || {})) {
@@ -8780,20 +8925,15 @@ export function initGame() {
           prereqMet = getAbilityRank(prog, ab.prereq) >= 1;
         }
 
-        // Check if currently equipped in loadout
-        let equippedSlot = null;
-        for (const [s, id] of Object.entries(localProfile.loadout || {})) {
-          if (id === ab.id) {
-            equippedSlot = s;
-            break;
-          }
-        }
+        // Check if currently equipped in loadout across ALL 8 ability slots
+        const equippedSlot = findEquippedSlotForAbility(ab.id);
+        const equippedKeyLabel = equippedSlot ? formatKeyLabel(keybinds[equippedSlot]) : null;
 
-        // Available slots for quick equipping
-        const equipSlots = isFlashesTab ? [9, 10, 11, 12] : [1, 2, 3, 4];
+        // Allow choosing ANY of the 8 ability slots ([1, 2, 3, 4, 9, 10, 11, 12]) on any learned ability
+        const equipSlots = ACTION_SLOTS;
 
         html += `
-          <div class="${cardClass}" data-ability-id="${ab.id}" draggable="${isLearned}" ondragstart="window.beginActionDrag(event, 'ability', '${ab.id}')" title="${isLearned ? 'Click to pick, then click an action-bar slot — or drag it there' : 'Unlearned'}${equippedSlot ? ` • Currently in slot ${equippedSlot}` : ''}">
+          <div class="${cardClass}" data-ability-id="${ab.id}" draggable="${isLearned}" ondragstart="window.beginActionDrag(event, 'ability', '${ab.id}')" title="${isLearned ? 'Click a slot button below, click to pick, or drag to the action bar' : 'Unlearned'}${equippedSlot ? ` • Equipped in Slot ${equippedSlot} [${equippedKeyLabel}]` : ''}">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
               <div style="display:flex; align-items:center; gap:6px;">
                 <span style="font-size:18px;">${ab.icon}</span>
@@ -8802,8 +8942,11 @@ export function initGame() {
                   <div style="font-size:9.5px; color:#38bdf8;">${castTimeTxt}</div>
                 </div>
               </div>
-              <div class="d2-rank-badge ${isMax ? 'is-max' : curRank > 0 ? 'has-points' : ''}">
-                ${isMax ? 'MAX RANK (5/5)' : `RANK ${curRank}/5`}
+              <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end;">
+                ${equippedSlot ? `<span class="d2-equipped-badge" title="Currently active on your Action Bar in Slot ${equippedSlot} [${equippedKeyLabel}]">✓ ADDED [${equippedKeyLabel}]</span>` : ''}
+                <div class="d2-rank-badge ${isMax ? 'is-max' : curRank > 0 ? 'has-points' : ''}">
+                  ${isMax ? 'MAX RANK (5/5)' : `RANK ${curRank}/5`}
+                </div>
               </div>
             </div>
 
@@ -8825,7 +8968,7 @@ export function initGame() {
 
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; gap:6px; flex-wrap:wrap;">
               <div style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
-                ${isLearned ? `<button type="button" class="util-btn" style="padding:2px 6px; font-size:9px; border-color:#facc15; color:#fde047;" onclick="pickAbilityForBar('${ab.id}')">🎯 ${pendingAssign?.id === ab.id ? 'PICKED…' : 'PLACE IN BAR'}</button>` : ''}
+                ${isLearned ? `<button type="button" class="util-btn" style="padding:2px 6px; font-size:9px; border-color:${equippedSlot ? '#4ade80' : '#facc15'}; color:${equippedSlot ? '#86efac' : '#fde047'};" onclick="pickAbilityForBar('${ab.id}')">🎯 ${pendingAssign?.id === ab.id ? 'PICKED…' : equippedSlot ? `MOVE SLOT (IN [${equippedKeyLabel}])` : 'PLACE IN BAR'}</button>` : ''}
                 ${canUp
                   ? `<button type="button" class="d2-alloc-btn can-alloc" onclick="upgradeAbilityInTree('${ab.id}')">+ INVEST 1 POINT</button>`
                   : isMax
@@ -8838,14 +8981,14 @@ export function initGame() {
               </div>
 
               ${isLearned ? `
-                <div style="display:flex; align-items:center; gap:4px;">
-                  <span style="font-size:9.5px; color:#94a3b8;">EQUIP:</span>
+                <div style="display:flex; align-items:center; gap:3px; flex-wrap:wrap;">
+                  <span style="font-size:9px; color:#94a3b8; font-weight:700;">SLOT:</span>
                   ${equipSlots.map((s) => {
-                    const isCur = equippedSlot == s;
+                    const isCur = Number(equippedSlot) === Number(s);
                     const keyLabel = formatKeyLabel(keybinds[s]);
                     return `
-                      <button type="button" class="util-btn" style="padding:2px 5px; font-size:9px; ${isCur ? 'border-color:#4ade80; color:#4ade80; background:#14532d;' : 'border-color:#334155; color:#cbd5e1;'}"
-                        onclick="assignSlotAbilityInGame(${s}, '${ab.id}')" title="Equip to Slot ${s} [${keyLabel}]">
+                      <button type="button" class="util-btn" style="padding:2px 5px; font-size:8.5px; ${isCur ? 'border-color:#4ade80; color:#4ade80; background:#14532d; font-weight:800;' : 'border-color:#334155; color:#cbd5e1;'}"
+                        onclick="assignSlotAbilityInGame(${s}, '${ab.id}')" title="${isCur ? `Currently in Slot ${s} [${keyLabel}]` : `Move/Equip ${ab.name} to Slot ${s} [${keyLabel}]`}">
                         ${isCur ? `✓ [${keyLabel}]` : `[${keyLabel}]`}
                       </button>
                     `;
@@ -8964,17 +9107,14 @@ export function initGame() {
       const isLearned = isRankable ? curRank >= 1 : true;
       const canUpgrade = isRankable && canUpgradeAbility(prog, spec.id);
 
-      // Available choices for this slot: only learned spells matching tree type!
-      const isFlashSlot = typeof slot === 'number' && slot >= 9;
+      // Available choices for this slot: all learned abilities of the player's faction!
       const allowedChoices = isItemSlot
         ? Array.from(new Set((localProfile.inventory || []).map((it) => (typeof it === 'string' ? it : it?.id))))
             .map((id) => EQUIPMENT_CATALOG[id])
             .filter((it) => it && it.slot !== 'currency')
-        : Object.values(ABILITIES_CATALOG).filter(
-            (ab) => ab.faction !== 'All' &&
-              (isFlashSlot ? ab.tree === 'flashes' : ab.tree === 'rites') &&
-              getAbilityRank(prog, ab.id) >= 1
-          );
+        : Object.values(ABILITIES_CATALOG)
+            .filter((ab) => ab.id !== 'harvest' && ab.faction === myFaction && getAbilityRank(prog, ab.id) >= 1)
+            .sort((a, b) => (a.tier || 1) - (b.tier || 1));
 
       const castTimeTxt = spec.castTime > 0 ? `${spec.castTime.toFixed(1)}s Cast` : 'Instant';
 
@@ -8997,10 +9137,12 @@ export function initGame() {
                   ? `<option value="" ${(isItemSlot ? slotItemId : spec.id) ? '' : 'selected'}>— EMPTY SLOT —</option>` +
                     allowedChoices.map((choice) => {
                       const selected = isItemSlot ? slotItemId === choice.id : spec.id === choice.id;
-                      const label = isItemSlot ? choice.name : `${choice.icon} ${choice.name} (Rank ${getAbilityRank(prog, choice.id)}/5)`;
+                      const existingSlot = !isItemSlot ? findEquippedSlotForAbility(choice.id) : null;
+                      const slotNote = existingSlot ? (Number(existingSlot) === Number(slot) ? ` • ✓ Active Here` : ` • In [${formatKeyLabel(keybinds[existingSlot])}]`) : '';
+                      const label = isItemSlot ? choice.name : `${choice.icon} ${choice.name} (Rank ${getAbilityRank(prog, choice.id)}/5${slotNote})`;
                       return `<option value="${choice.id}" ${selected ? 'selected' : ''}>${label}</option>`;
                     }).join('')
-                  : `<option disabled selected>${isItemSlot ? '🎒 Bag is empty — buy potions or gear first!' : `🔒 No ${isFlashSlot ? 'Flashes' : 'Rites'} learned yet — allocate points in Spellbook [P]!`}</option>`}
+                  : `<option disabled selected>${isItemSlot ? '🎒 Bag is empty — buy potions or gear first!' : `🔒 No abilities learned yet — allocate points in Spellbook [P]!`}</option>`}
               </select>
             </div>
           ` : ''}

@@ -164,11 +164,24 @@ test('ability catalog entries are faction-scoped and ranked', () => {
   }
 });
 
-test('action slots unlock on their authored levels', () => {
-  assert.equal(protocol.isSlotUnlocked({ level: 1 }, 1), true);
-  assert.equal(protocol.isSlotUnlocked({ level: 1 }, 2), false);
-  assert.equal(protocol.isSlotUnlocked({ level: 8 }, 12), true);
-  assert.equal(protocol.isSlotUnlocked({ level: 7 }, 12), false);
+test('action slots are all unlocked at level 1 and sanitizeLoadout preserves custom slot choices', () => {
+  for (const slot of protocol.ACTION_SLOTS) {
+    assert.equal(protocol.isSlotUnlocked({ level: 1 }, slot), true, `slot ${slot} should be unlocked at level 1`);
+  }
+  const prog = protocol.createDefaultProgression();
+  assert.equal(protocol.getAbilityRank(prog, 'flare_strike'), 1);
+  assert.equal(prog.skills.flare_strike, 1);
+
+  // Moving Flare Strike to slot 2 or slot 9 [Q] must not duplicate it back into slot 1
+  const movedToTwo = protocol.sanitizeLoadout({ 2: 'flare_strike' }, 'solari_vanguard');
+  assert.deepEqual(movedToTwo, { 2: 'flare_strike' });
+
+  const movedToNine = protocol.sanitizeLoadout({ 9: 'flare_strike' }, 'solari_vanguard');
+  assert.deepEqual(movedToNine, { 9: 'flare_strike' });
+
+  // Empty loadout seeds slot 1 with the class starter ability
+  const seeded = protocol.sanitizeLoadout({}, 'solari_vanguard');
+  assert.deepEqual(seeded, { 1: 'flare_strike' });
 });
 
 test('paragon bonuses stay inside their designed caps', () => {

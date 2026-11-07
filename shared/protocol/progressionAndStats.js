@@ -163,8 +163,13 @@ export function createDefaultProgression() {
     statPoints: 2,
     skillPoints: 1, // Starts with 1 unallocated Skill Point for the level 1 dopamine hit!
     stats: { power: 2, bastion: 2, resonance: 1, tempo: 1 },
-    ranks: { 1: 0, 2: 0, 3: 0, 4: 0, 9: 0, 10: 0, 11: 0, 12: 0 },
-    skills: {}, // abilityId -> rank (0 to 5)
+    ranks: { 1: 1, 2: 0, 3: 0, 4: 0, 9: 0, 10: 0, 11: 0, 12: 0 },
+    skills: {
+      flare_strike: 1,
+      whisper_of_the_void: 1,
+      tectonic_slam: 1,
+      reality_fracture: 1,
+    }, // abilityId -> rank (0 to 5); Tier 1 starter abilities start at Rank 1
     professions: {
       resonance_extraction: { xp: 0, level: 1 },
       relic_forging: { xp: 0, level: 1 },

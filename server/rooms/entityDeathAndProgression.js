@@ -387,7 +387,8 @@ export const entityDeathAndProgressionMethods = {
 
     player.prog.skillPoints = Math.max(0, (player.prog.skillPoints || 0) - 1);
     if (!player.prog.skills) player.prog.skills = {};
-    player.prog.skills[abilityId] = Math.min(spec.maxRank || 5, (player.prog.skills[abilityId] || 0) + 1);
+    const curRank = getAbilityRank(player.prog, abilityId);
+    player.prog.skills[abilityId] = Math.min(spec.maxRank || 5, curRank + 1);
 
     for (const [slotStr, abId] of Object.entries(player.loadout || {})) {
       if (abId === abilityId) {

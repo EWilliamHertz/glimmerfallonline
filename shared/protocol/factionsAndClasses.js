@@ -176,26 +176,30 @@ export const CLASSES_CATALOG = {
 };
 
 // Normalizes a stored loadout. Characters still carrying an old eight-ability
-// default are reset to the single starting Rite/Flash, and cleared slots stay
-// cleared instead of silently falling back to the class default.
+// default are reset to the single starting Rite/Flash, and custom slot choices
+// (such as moving Flare Strike to another slot) are preserved without duplication.
 export function sanitizeLoadout(rawLoadout, classId) {
   const cls = CLASSES_CATALOG[classId] || CLASSES_CATALOG.solari_vanguard;
   const raw = rawLoadout && typeof rawLoadout === 'object' ? rawLoadout : null;
   const legacy = cls.legacyDefaultLoadout;
   const isLegacyDefault = Boolean(raw && legacy) &&
-    ACTION_SLOTS.every((slot) => raw[slot] === legacy[slot]);
+    ACTION_SLOTS.every((slot) => (raw[slot] ?? raw[String(slot)]) === legacy[slot]);
   if (isLegacyDefault) return { ...cls.defaultLoadout };
 
   const out = {};
-  let hasExplicitSlotOne = false;
+  const seen = new Set();
   if (raw) {
-    if ('1' in raw) hasExplicitSlotOne = true;
     for (const slot of ACTION_SLOTS) {
-      const candidate = raw[slot];
-      if (candidate && ABILITIES_CATALOG[candidate]) out[slot] = candidate;
+      const candidate = raw[slot] ?? raw[String(slot)];
+      if (candidate && ABILITIES_CATALOG[candidate] && !seen.has(candidate)) {
+        out[slot] = candidate;
+        seen.add(candidate);
+      }
     }
   }
-  if (!hasExplicitSlotOne && cls.defaultLoadout[1]) out[1] = cls.defaultLoadout[1];
+  if (Object.keys(out).length === 0 && cls.defaultLoadout[1]) {
+    out[1] = cls.defaultLoadout[1];
+  }
   return out;
 }
 
@@ -203,10 +207,19 @@ export function sanitizeLoadout(rawLoadout, classId) {
 // Canonical Faction & Archetype Resolution
 // ==========================================
 export function resolveFactionAndClass({ faction = null, classId = null, loadout = null, orderTag = null } = {}) {
-  // If slot 1 is an explicit canonical ability, that determines the true faction
-  const s1 = loadout?.[1] || loadout?.['1'];
-  if (s1 && ABILITIES_CATALOG[s1]?.faction && ABILITIES_CATALOG[s1].faction !== 'All') {
-    const abFac = ABILITIES_CATALOG[s1].faction;
+  // Check any equipped canonical ability across the action bar to determine faction
+  let firstEquipped = null;
+  if (loadout && typeof loadout === 'object') {
+    for (const slot of ACTION_SLOTS) {
+      const cand = loadout[slot] ?? loadout[String(slot)];
+      if (cand && ABILITIES_CATALOG[cand]?.faction && ABILITIES_CATALOG[cand].faction !== 'All') {
+        firstEquipped = cand;
+        break;
+      }
+    }
+  }
+  if (firstEquipped) {
+    const abFac = ABILITIES_CATALOG[firstEquipped].faction;
     if (classId && CLASSES_CATALOG[classId] && CLASSES_CATALOG[classId].faction === abFac) {
       return { faction: abFac, classId };
     }
