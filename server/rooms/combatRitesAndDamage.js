@@ -555,6 +555,15 @@ export const combatRitesAndDamageMethods = {
     if (targetPlayer.hp <= 0) {
       targetPlayer.isDead = true;
       targetPlayer.respawnTimer = 3.0;
+      for (const ent of room.entities) {
+        if (ent.type === 'mob') {
+          if (ent.dammers) ent.dammers.delete(targetPlayer.id);
+          if (ent.targetPlayerId === targetPlayer.id) {
+            ent.targetPlayerId = null;
+            ent.inCombat = false;
+          }
+        }
+      }
       room.fxQueue.push({ kind: 'smoke', x: targetPlayer.x, y: targetPlayer.y, count: 32, isDeath: true });
       room.fxQueue.push({ kind: 'fct', x: targetPlayer.x, y: targetPlayer.y, text: 'FALLEN', color: '#ef4444', isCrit: true });
       this.broadcastToRoom(room, {

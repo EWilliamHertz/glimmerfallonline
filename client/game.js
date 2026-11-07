@@ -295,12 +295,56 @@ export function initGame() {
           roster[idx].loadout = localProfile.loadout;
           roster[idx].inventory = localProfile.inventory;
           roster[idx].bank = localProfile.bank || [];
+          roster[idx].hp = player.isDead ? player.maxHp : Math.max(1, Math.round(player.hp));
+          roster[idx].solarCharge = Math.max(0, Math.round(player.solarCharge || 0));
+          if (currentRoomType && currentRoomType !== ROOM_TYPES.ARENA_3V3) {
+            roster[idx].lastPosition = {
+              roomType: currentRoomType,
+              x: Math.round(player.x),
+              y: Math.round(player.y),
+            };
+          } else if (preArenaSpot) {
+            roster[idx].lastPosition = {
+              roomType: preArenaSpot.roomType || ROOM_TYPES.SANCTUARY_HUB,
+              x: Math.round(preArenaSpot.x || 0),
+              y: Math.round(preArenaSpot.y || 96),
+            };
+          }
           localStorage.setItem('glimmerfall_sp_roster_v2', JSON.stringify(roster));
         }
       }
     } catch (_) {}
   }
   window.saveProgressionLocal = saveProgressionLocal;
+
+  function saveCurrentVitals() {
+    try {
+      if (isSinglePlayer && localProfile?.id) {
+        saveProgressionLocal();
+      } else if (!isSinglePlayer && window.net?.connected) {
+        const safeRoom = (currentRoomType && currentRoomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[currentRoomType])
+          ? currentRoomType
+          : (preArenaSpot?.roomType || ROOM_TYPES.SANCTUARY_HUB);
+        const safeX = (currentRoomType === ROOM_TYPES.ARENA_3V3 && preArenaSpot?.x != null)
+          ? preArenaSpot.x
+          : Math.round(Number(player.x) || 0);
+        const safeY = (currentRoomType === ROOM_TYPES.ARENA_3V3 && preArenaSpot?.y != null)
+          ? preArenaSpot.y
+          : Math.round(Number(player.y) || 0);
+        window.net.send({
+          type: 'sync_vitals',
+          hp: player.isDead ? player.maxHp : Math.max(1, Math.round(player.hp)),
+          solarCharge: Math.max(0, Math.round(player.solarCharge || 0)),
+          lastPosition: { roomType: safeRoom, x: safeX, y: safeY },
+        });
+      }
+    } catch (_) {}
+  }
+  window.saveCurrentVitals = saveCurrentVitals;
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', () => saveCurrentVitals());
+    window.addEventListener('pagehide', () => saveCurrentVitals());
+  }
 
   // Single Player (Offline Local Realm) vs Multiplayer (Online Authoritative Realm)
   let isSinglePlayer = false;
@@ -2451,10 +2495,23 @@ export function initGame() {
     pctx.drawImage(heroSet.down[0], 2, 1);
   }
 
-  function recalcVitalsFromProfile() {
+  function recalcVitalsFromProfile(initialProf = null) {
     player.maxHp = calcMaxHp(prog, localProfile.equipment, localProfile.classId);
-    player.hp = Math.min(player.maxHp, player.hp);
     player.maxSolarCharge = calcMaxGlimmer(prog, localProfile.equipment, localProfile.classId);
+
+    const targetHp = initialProf && typeof initialProf.hp === 'number' && initialProf.hp > 0
+      ? initialProf.hp
+      : typeof localProfile.hp === 'number' && localProfile.hp > 0
+      ? localProfile.hp
+      : player.hp > 0 ? player.hp : player.maxHp;
+    player.hp = Math.min(player.maxHp, Math.max(1, targetHp));
+
+    const targetGlimmer = initialProf && typeof initialProf.solarCharge === 'number' && initialProf.solarCharge >= 0
+      ? initialProf.solarCharge
+      : typeof localProfile.solarCharge === 'number' && localProfile.solarCharge >= 0
+      ? localProfile.solarCharge
+      : player.solarCharge >= 0 ? player.solarCharge : 0;
+    player.solarCharge = Math.min(player.maxSolarCharge, Math.max(0, targetGlimmer));
   }
 
   function applyProfile(prof) {
@@ -2495,6 +2552,9 @@ export function initGame() {
       bank: resolvedBank,
       // Do not leak the previous character's quest state into this profile.
       questState: prof.questState || null,
+      hp: typeof prof.hp === 'number' ? prof.hp : localProfile.hp,
+      solarCharge: typeof prof.solarCharge === 'number' ? prof.solarCharge : localProfile.solarCharge,
+      lastPosition: prof.lastPosition || localProfile.lastPosition || null,
     };
     window.localProfile = localProfile;
     loadActionBarItems();
@@ -2526,7 +2586,7 @@ export function initGame() {
     } finally {
       isApplyingProfile = false;
     }
-    recalcVitalsFromProfile();
+    recalcVitalsFromProfile(prof);
     refreshHeroPortrait();
     updatePlayerUI();
     updateActionBarBadges();
@@ -4523,16 +4583,21 @@ export function initGame() {
         { type: 'streetLantern', x: 0, y: -215 },
         { type: 'streetLantern', x: 120, y: -215 },
 
-        // 5. West Artisan Workshop & Market Courtyard (Right beside Central Plaza!)
-        { type: 'marketStallProvisions', id: 'stall_provisions', x: -165, y: -42, label: '🍎 Sanctuary Provisions Stall' },
-        { type: 'celestialLoom', stationId: 'celestial_loom', x: -225, y: -42, label: '🧵 Celestial Loom & Hearth [Click / E]' },
-        { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: -165, y: 24, label: '🔨 Cosmic Star-Anvil [Click / E]' },
-        { type: 'marketStallSmith', x: -225, y: 24, label: '⚒️ Sanctuary Forge Workbench' },
-        { type: 'aetherCrucible', stationId: 'aether_crucible', x: -195, y: 78, label: '⚗️ Aetherial Crucible [Click / E]' },
-        { type: 'brazier', x: -138, y: 24 },
-        { type: 'brazier', x: -255, y: 24 },
-        { type: 'streetLantern', x: -138, y: -42 },
-        { type: 'streetLantern', x: -138, y: 78 },
+        // 5. West Artisan Workshop & Market Courtyard (Spacious bays with paired crafting partners)
+        // 5A. Textile & Provisions Bay (Loom & Pantry grouped together)
+        { type: 'celestialLoom', stationId: 'celestial_loom', x: -225, y: -54, label: '🧵 Celestial Loom [Click / E]' },
+        { type: 'marketStallProvisions', id: 'stall_provisions', x: -170, y: -54 },
+        { type: 'streetLantern', x: -135, y: -54 },
+
+        // 5B. Blacksmithing & Foundry Bay (Forge workbench & Cosmic Star-Anvil grouped together)
+        { type: 'marketStallSmith', x: -225, y: 28 },
+        { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: -170, y: 28, label: '🔨 Cosmic Star-Anvil [Click / E]' },
+        { type: 'brazier', x: -260, y: 28 },
+
+        // 5C. Alchemy & Crucible Terrace (Dedicated elixir station)
+        { type: 'aetherCrucible', stationId: 'aether_crucible', x: -198, y: 110, label: '⚗️ Aetherial Crucible [Click / E]' },
+        { type: 'streetLantern', x: -135, y: 110 },
+        { type: 'brazier', x: -250, y: 110 },
 
         // 6. East Combat Trial Courtyard (Right beside Central Plaza!)
         { type: 'pillar', x: 145, y: -35 },
@@ -4607,16 +4672,16 @@ export function initGame() {
           stallId: 'stall_provisions',
           merchantType: 'merchant_provisions',
           isMerchant: true,
-          x: -165,
-          y: -8,
+          x: -170,
+          y: -24,
         },
         {
           id: 'npc_artisan_aldric',
           name: 'Artisan Master Aldric',
           role: 'Guild Forgemaster [Click / T]',
           spriteKey: 'merchantSmithNpc',
-          x: -195,
-          y: 48,
+          x: -198,
+          y: 52,
           dialogue: [
             {
               speaker: 'ARTISAN MASTER ALDRIC • SANCTUARY WORKSHOP',
@@ -6255,7 +6320,7 @@ export function initGame() {
   const frontpage = new FrontpageController({
     net,
     audio,
-    onEnterWorld({ profile, startingRealm, playMode }) {
+    onEnterWorld({ profile, startingRealm, playMode, startX, startY }) {
       isSinglePlayer = playMode === 'singleplayer';
       if (profile) applyProfile(profile);
       audio.setBgmTheme(ROOM_CONFIGS[startingRealm]?.bgm || 'sanctuary');
@@ -6267,7 +6332,7 @@ export function initGame() {
         inputs.up = inputs.down = inputs.left = inputs.right = false;
         player.isMoving = false;
         moveSyncAccum = 0;
-        buildOfflineZone(startingRealm);
+        buildOfflineZone(startingRealm, startX, startY);
         updateNetStatusPill();
         logMessage('[Realm] Entered Single Player Realm (Offline • 0ms). Instant local response!', 'log-solari', 'chat');
       } else {
@@ -6277,7 +6342,7 @@ export function initGame() {
           inputs.up = inputs.down = inputs.left = inputs.right = false;
           player.isMoving = false;
           moveSyncAccum = 0;
-          net.send({ type: 'switch_room', roomType: startingRealm, epoch: currentEpoch });
+          net.send({ type: 'switch_room', roomType: startingRealm, epoch: currentEpoch, x: startX, y: startY });
         } else if (!net.connected) {
           net.bootstrapAndConnect(prog);
         }
@@ -6294,6 +6359,7 @@ export function initGame() {
   });
   window._fp = frontpage;
   window.openFrontpage = function () {
+    saveCurrentVitals();
     document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
     frontpage.open();
   };
@@ -7180,6 +7246,10 @@ export function initGame() {
       onPlayerKilledMob(currentRoomType, ent.name, ent.isBoss, ent.id, ent.type);
     }
 
+    ent.inCombat = false;
+    ent.target = null;
+    ent.targetPlayerId = null;
+
     if (ent.isMinion) return;
 
     const deathRoom = currentRoomType;
@@ -7191,6 +7261,13 @@ export function initGame() {
       frozen: false,
       freezeTimer: 0,
       hitFlash: 0,
+      inCombat: false,
+      target: null,
+      targetPlayerId: null,
+      spawnAggroGrace: 2.0,
+      phase: 1,
+      enraged: false,
+      damage: ent.baseDamage || ent.damage,
       x: ent.origX ?? ent.x,
       y: ent.origY ?? ent.y,
     };
@@ -7371,6 +7448,13 @@ export function initGame() {
 
       if (player.hp <= 0) {
         player.isDead = true;
+        for (const e of entities) {
+          if (e.type === 'mob') {
+            e.inCombat = false;
+            e.target = null;
+            e.targetPlayerId = null;
+          }
+        }
         triggerEntityDeathEffect(player.x, player.y, true);
         if (currentRoomType === ROOM_TYPES.ARENA_3V3) {
           logMessage(`[3v3 DEFEAT] Slain in the Arena! Teleporting back to your previous location in 3s...`, 'log-danger', 'combat');
@@ -10411,6 +10495,10 @@ export function initGame() {
       // Offline Mob AI: Aggro detection, pursuit, and combat attacks against the player
       if (!net.connected && e.type === 'mob' && e.hp > 0) {
         if (e.freezeTimer > 0) continue; // Frozen by Frost Nova
+        if (e.spawnAggroGrace > 0) {
+          e.spawnAggroGrace = Math.max(0, e.spawnAggroGrace - dt);
+          continue;
+        }
 
         const dist = Math.hypot(player.x - e.x, player.y - e.y);
         const aggroRange = e.aggroRange || (e.isBoss ? 130 : 110);

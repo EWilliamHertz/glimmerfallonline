@@ -635,6 +635,20 @@ export const arenaAndPacketsMethods = {
         break;
       }
 
+      case 'sync_vitals': {
+        if (typeof msg.hp === 'number' && msg.hp > 0) {
+          client.hp = Math.min(client.maxHp, Math.max(1, msg.hp));
+        }
+        if (typeof msg.solarCharge === 'number' && msg.solarCharge >= 0) {
+          client.solarCharge = Math.min(client.maxSolarCharge, Math.max(0, msg.solarCharge));
+        }
+        if (msg.lastPosition && typeof msg.lastPosition === 'object') {
+          client.lastPosition = msg.lastPosition;
+        }
+        this.saveClientState(client);
+        break;
+      }
+
       case 'update_loadout': {
         if (msg.loadout && typeof msg.loadout === 'object') {
           this.accounts.updateProfile(client.id, { loadout: msg.loadout });
@@ -749,11 +763,14 @@ export const arenaAndPacketsMethods = {
     }
 
     if (action === 'save_character') {
+      this.saveClientState(client);
       await this.accounts.ensureFreshFromPostgres({ id: client.id });
       const charObj = this.accounts.createOrSelectCharacter(client.id, payload);
       await this.accounts.flushToPostgres();
       this.refreshClientFromAccount(client.id);
-      if (payload.enterRealm) {
+      if (charObj.lastPosition?.roomType && ROOM_CONFIGS[charObj.lastPosition.roomType]) {
+        this.joinRoom(client, charObj.lastPosition.roomType, null, charObj.lastPosition.x, charObj.lastPosition.y);
+      } else if (payload.enterRealm) {
         this.joinRoom(client, payload.enterRealm);
       }
       const acc = this.accounts.accountsById.get(client.id);

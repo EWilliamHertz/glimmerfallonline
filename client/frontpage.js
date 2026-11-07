@@ -6,6 +6,7 @@
 
 import {
   ROOM_TYPES,
+  ROOM_CONFIGS,
   FACTIONS_META,
   CLASSES_CATALOG,
   EQUIPMENT_CATALOG,
@@ -43,7 +44,16 @@ export class FrontpageController {
     // Realm Mode: 'singleplayer' (zero lag / local) or 'multiplayer' (online authoritative)
     let savedMode = 'singleplayer';
     try {
-      savedMode = localStorage.getItem('glimmerfall_play_mode') || 'singleplayer';
+      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const paramMode = urlParams?.get('mode');
+      if (paramMode === 'singleplayer' || paramMode === 'multiplayer') {
+        savedMode = paramMode;
+      } else {
+        savedMode = localStorage.getItem('glimmerfall_play_mode') || 'singleplayer';
+      }
+      if (urlParams?.get('autostart') === '1') {
+        window._pendingPlayOnBoot = true;
+      }
     } catch (_) {}
     this.playMode = savedMode;
 
@@ -425,6 +435,13 @@ export class FrontpageController {
         localStorage.setItem(SP_ACTIVE_KEY, activeChar.id);
       } catch (_) {}
 
+      const lastPos = activeChar.lastPosition;
+      const startRealm = (lastPos?.roomType && lastPos.roomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[lastPos.roomType])
+        ? lastPos.roomType
+        : (activeChar.homeBiome || ROOM_TYPES.SANCTUARY_HUB);
+      const startX = typeof lastPos?.x === 'number' && Number.isFinite(lastPos.x) ? lastPos.x : 0;
+      const startY = typeof lastPos?.y === 'number' && Number.isFinite(lastPos.y) ? lastPos.y : 96;
+
       // Strictly read-only copy passed to world runner without mutating existing character
       const singlePlayerProfile = {
         id: activeChar.id,
@@ -439,6 +456,9 @@ export class FrontpageController {
         bank: activeChar.bank || [],
         progression: activeChar.progression || createDefaultProgression(),
         questState: activeChar.questState || null,
+        hp: typeof activeChar.hp === 'number' ? activeChar.hp : null,
+        solarCharge: typeof activeChar.solarCharge === 'number' ? activeChar.solarCharge : null,
+        lastPosition: lastPos || null,
         characters: spRoster,
         activeCharacterId: activeChar.id,
         isGuest: true,
@@ -448,8 +468,10 @@ export class FrontpageController {
       if (this.onEnterWorld) {
         this.onEnterWorld({
           profile: singlePlayerProfile,
-          startingRealm: activeChar.homeBiome || ROOM_TYPES.SANCTUARY_HUB,
+          startingRealm: startRealm,
           playMode: 'singleplayer',
+          startX,
+          startY,
         });
       }
       return;
@@ -457,12 +479,21 @@ export class FrontpageController {
 
     // === MULTIPLAYER (ONLINE REALM) ===
     let updatedProfile = this.net?.profile;
+    const lastPos = chosenChar.lastPosition;
+    const startRealm = (lastPos?.roomType && lastPos.roomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[lastPos.roomType])
+      ? lastPos.roomType
+      : (chosenChar.homeBiome || ROOM_TYPES.SANCTUARY_HUB);
+    const startX = typeof lastPos?.x === 'number' && Number.isFinite(lastPos.x) ? lastPos.x : null;
+    const startY = typeof lastPos?.y === 'number' && Number.isFinite(lastPos.y) ? lastPos.y : null;
+
     // Dispatch character selection without locking the UI:
     if (this.net?.connected) {
       // Use lightning-fast WebSocket RPC to authoritative server
       this.net.wsRpc('save_character', {
         characterId: chosenChar.id,
-        enterRealm: chosenChar.homeBiome || ROOM_TYPES.SANCTUARY_HUB,
+        enterRealm: startRealm,
+        x: startX,
+        y: startY,
       }, 1500).then((res) => {
         if (res?.profile) {
           this.net.profile = res.profile;
@@ -477,7 +508,9 @@ export class FrontpageController {
       // Trigger background character sync / connect
       this.net?.saveOrSelectCharacter({
         characterId: chosenChar.id,
-        enterRealm: chosenChar.homeBiome || ROOM_TYPES.SANCTUARY_HUB,
+        enterRealm: startRealm,
+        x: startX,
+        y: startY,
       }).catch(() => {});
       this.net?.connectWebSocket();
     }
@@ -498,9 +531,14 @@ export class FrontpageController {
           bank: chosenChar.bank || [],
           progression: chosenChar.progression || createDefaultProgression(),
           activeCharacterId: chosenChar.id,
+          hp: typeof chosenChar.hp === 'number' ? chosenChar.hp : null,
+          solarCharge: typeof chosenChar.solarCharge === 'number' ? chosenChar.solarCharge : null,
+          lastPosition: lastPos || null,
         },
-        startingRealm: chosenChar.homeBiome || ROOM_TYPES.SANCTUARY_HUB,
+        startingRealm: startRealm,
         playMode: 'multiplayer',
+        startX,
+        startY,
       });
     }
   }
@@ -1079,6 +1117,8 @@ export class FrontpageController {
                           <span style="color:${cf.color}; font-weight:600;">${ch.faction}</span>
                           <span>•</span>
                           <span style="color:#cbd5e1;"><b>${cCls.name}</b> (${cCls.role})</span>
+                          ${ch.hp != null ? `<span>•</span><span style="color:#4ade80;">❤️ ${ch.hp}</span>` : ''}
+                          ${ch.solarCharge != null ? `<span style="color:#38bdf8;">🔮 ${ch.solarCharge}</span>` : ''}
                         </div>
                       </div>
                     </div>
@@ -1160,9 +1200,14 @@ export class FrontpageController {
                     ${selectedCls.desc}
                   </div>
 
+                  <div style="font-size:10px; display:flex; gap:10px; align-items:center; background:#080e1c; padding:4px 8px; border:1px solid #1e293b; border-radius:2px;">
+                    <span style="color:#4ade80; font-weight:700;">❤️ ${selectedChar.hp != null ? selectedChar.hp : 'FULL'} HP</span>
+                    <span style="color:#38bdf8; font-weight:700;">🔮 ${selectedChar.solarCharge != null ? selectedChar.solarCharge : 0} Glimmer</span>
+                  </div>
+
                   <div style="font-size:9.5px; color:#38bdf8; display:flex; align-items:center; gap:5px;">
-                    <span>🏛️ Current Leyline Anchor:</span>
-                    <b style="color:#f8fafc;">${selectedChar.homeBiome || 'Awakening Sanctuary Hub'}</b>
+                    <span>🏛️ Saved Realm Spot:</span>
+                    <b style="color:#f8fafc;">${ROOM_CONFIGS[selectedChar.lastPosition?.roomType]?.title || ROOM_CONFIGS[selectedChar.homeBiome]?.title || 'Awakening Sanctuary Hub'}</b>
                   </div>
                 </div>
               </div>
@@ -1331,16 +1376,6 @@ export class FrontpageController {
               <div style="font-size:10px; color:${fm.color}; font-weight:600;">
                 ${fm.icon} ${draft.faction} Faction • ${cls.role}
               </div>
-            </div>
-
-            <!-- Starting Biome Selection -->
-            <div style="margin-bottom:10px;">
-              <label style="font-size:10px; color:#94a3b8; font-weight:bold;">STARTING BIOME</label>
-              <select class="pixel-input" style="width:100%; margin-top:3px; padding:6px; font-size:10.5px;" onchange="window._fp.setCreationStartingRealm(this.value)">
-                <option value="${ROOM_TYPES.SANCTUARY_HUB}" ${draft.startingRealm === ROOM_TYPES.SANCTUARY_HUB ? 'selected' : ''}>🏛️ Awakening Sanctuary Hub (Safe Hub)</option>
-                <option value="${fm.homeBiome}" ${draft.startingRealm === fm.homeBiome ? 'selected' : ''}>${fm.icon} ${fm.id} Home Biome</option>
-                <option value="${ROOM_TYPES.NEXUS_WARZONE}" ${draft.startingRealm === ROOM_TYPES.NEXUS_WARZONE ? 'selected' : ''}>⚔️ Nexus Warzone (Open World)</option>
-              </select>
             </div>
           </div>
 

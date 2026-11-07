@@ -292,8 +292,37 @@ export class RoomManager {
     const maxHp = calcMaxHp(prog, equipment, classId);
     const maxGlimmer = calcMaxGlimmer(prog, equipment, classId);
 
+    const lastPos = ch?.lastPosition || account.lastPosition;
+    const spawnRoom = (preferredRoom && preferredRoom !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[preferredRoom])
+      ? preferredRoom
+      : (lastPos?.roomType && lastPos.roomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[lastPos.roomType])
+      ? lastPos.roomType
+      : ROOM_TYPES.SANCTUARY_HUB;
+    const spawnX = reqX !== null && Number.isFinite(reqX)
+      ? Number(reqX)
+      : (typeof lastPos?.x === 'number' && Number.isFinite(lastPos.x))
+      ? lastPos.x
+      : 0;
+    const spawnY = reqY !== null && Number.isFinite(reqY)
+      ? Number(reqY)
+      : (typeof lastPos?.y === 'number' && Number.isFinite(lastPos.y))
+      ? lastPos.y
+      : 96;
+
+    const initialHp = (typeof ch?.hp === 'number' && !ch.isDead && ch.hp > 0)
+      ? Math.min(maxHp, Math.max(1, ch.hp))
+      : (typeof account.hp === 'number' && !account.isDead && account.hp > 0)
+      ? Math.min(maxHp, Math.max(1, account.hp))
+      : maxHp;
+    const initialGlimmer = (typeof ch?.solarCharge === 'number' && ch.solarCharge >= 0)
+      ? Math.min(maxGlimmer, Math.max(0, ch.solarCharge))
+      : (typeof account.solarCharge === 'number' && account.solarCharge >= 0)
+      ? Math.min(maxGlimmer, Math.max(0, account.solarCharge))
+      : 0;
+
     const client = {
       id: account.id,
+      activeCharacterId: account.activeCharacterId,
       ws,
       username: account.username,
       displayName: ch?.name || account.displayName,
@@ -311,16 +340,16 @@ export class RoomManager {
       orderColor: ch?.orderColor || account.orderColor || '#facc15',
       prog,
       questState: ch?.questState || account.questState || {},
-      x: 0,
-      y: 96,
+      x: spawnX,
+      y: spawnY,
       z: 0,
       dir: 'up',
       isMoving: false,
-      hp: maxHp,
+      hp: initialHp,
       maxHp,
       shield: 0,
       shieldTimer: 0,
-      solarCharge: 0,
+      solarCharge: initialGlimmer,
       maxSolarCharge: maxGlimmer,
       isDead: false,
       respawnTimer: 0,
@@ -358,14 +387,35 @@ export class RoomManager {
       rooms: this.listPublicRooms(),
     });
 
-    this.joinRoom(client, preferredRoom || ROOM_TYPES.SANCTUARY_HUB, null, reqX, reqY);
+    this.joinRoom(client, spawnRoom, null, spawnX, spawnY);
     return client;
+  }
+
+  saveClientState(client) {
+    if (!client || !client.id) return;
+    const safeRoom = (client.roomType && client.roomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[client.roomType])
+      ? client.roomType
+      : (client.preArenaSpot?.roomType || ROOM_TYPES.SANCTUARY_HUB);
+    const safeX = (client.roomType === ROOM_TYPES.ARENA_3V3 && client.preArenaSpot?.x != null)
+      ? client.preArenaSpot.x
+      : Math.round(Number(client.x) || 0);
+    const safeY = (client.roomType === ROOM_TYPES.ARENA_3V3 && client.preArenaSpot?.y != null)
+      ? client.preArenaSpot.y
+      : Math.round(Number(client.y) || 0);
+
+    this.accounts.saveCharacterState(client.id, client.activeCharacterId, {
+      hp: client.hp,
+      solarCharge: client.solarCharge,
+      isDead: client.isDead,
+      lastPosition: { roomType: safeRoom, x: safeX, y: safeY },
+    });
   }
 
   refreshClientFromAccount(accountId) {
     const client = this.clients.get(accountId);
     const acc = this.accounts.accountsById.get(accountId);
     if (!client || !acc) return;
+    this.saveClientState(client);
     this.accounts.ensureDefaultCharacter(acc);
     this.accounts.syncAccountFromActiveChar(acc);
     const ch = this.accounts.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
@@ -392,8 +442,15 @@ export class RoomManager {
     client.prog = ch?.progression || acc.progression;
     client.questState = ch?.questState || acc.questState || {};
     client.maxHp = calcMaxHp(client.prog, client.equipment, client.classId);
-    client.hp = Math.min(client.maxHp, client.hp);
     client.maxSolarCharge = calcMaxGlimmer(client.prog, client.equipment, client.classId);
+
+    if (client.activeCharacterId !== acc.activeCharacterId) {
+      client.activeCharacterId = acc.activeCharacterId;
+      client.hp = (typeof ch?.hp === 'number' && !ch.isDead && ch.hp > 0) ? Math.min(client.maxHp, ch.hp) : client.maxHp;
+      client.solarCharge = (typeof ch?.solarCharge === 'number' && ch.solarCharge >= 0) ? Math.min(client.maxSolarCharge, ch.solarCharge) : 0;
+    } else {
+      client.hp = Math.min(client.maxHp, client.hp);
+    }
 
     client.send({
       type: 'profile_updated',
@@ -404,6 +461,7 @@ export class RoomManager {
 
   removeClient(client) {
     if (!client) return;
+    this.saveClientState(client);
     this.leaveArenaQueue(client);
     this.parties.leaveParty(client);
     if (client.roomId && this.rooms.has(client.roomId)) {

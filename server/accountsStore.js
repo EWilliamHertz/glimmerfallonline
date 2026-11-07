@@ -311,6 +311,9 @@ export class AccountsStore {
       progression: this.mergeValidProgression(createDefaultProgression(), row.progression),
       statsMeta: row.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
       activeCharacterId: row.active_character_id || null,
+      hp: row.hp != null ? Number(row.hp) : null,
+      solarCharge: row.solar_charge != null ? Number(row.solar_charge) : null,
+      lastPosition: row.last_position || null,
       createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
       lastLoginAt: row.last_login_at ? new Date(row.last_login_at).toISOString() : new Date().toISOString(),
     };
@@ -365,6 +368,9 @@ export class AccountsStore {
             unlockedGear: Array.isArray(r.unlocked_gear) ? r.unlocked_gear : Object.keys(EQUIPMENT_CATALOG),
             progression: this.mergeValidProgression(createDefaultProgression(), r.progression),
             statsMeta: r.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
+            hp: r.hp != null ? Number(r.hp) : null,
+            solarCharge: r.solar_charge != null ? Number(r.solar_charge) : null,
+            lastPosition: r.last_position || null,
           });
         }
         this.ensureDefaultCharacter(acc);
@@ -416,9 +422,9 @@ export class AccountsStore {
           id, username, username_lower, display_name, password_hash, is_guest, sso_subject,
           tcg_linked, tcg_handle, tcg_email, tcg_synced_at, faction, class_id,
           order_tag, order_name, order_color, loadout, equipment, progression, stats_meta,
-          active_character_id, created_at, last_login_at, inventory, bank, quest_state
+          active_character_id, created_at, last_login_at, inventory, bank, quest_state, hp, solar_charge, last_position
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29
         )
         ON CONFLICT (id) DO UPDATE SET
           username = EXCLUDED.username,
@@ -444,7 +450,10 @@ export class AccountsStore {
           last_login_at = EXCLUDED.last_login_at,
           inventory = EXCLUDED.inventory,
           bank = EXCLUDED.bank,
-          quest_state = EXCLUDED.quest_state`,
+          quest_state = EXCLUDED.quest_state,
+          hp = EXCLUDED.hp,
+          solar_charge = EXCLUDED.solar_charge,
+          last_position = EXCLUDED.last_position`,
         [
           a.id, a.username, a.usernameLower, a.displayName, a.passwordHash, a.isGuest, a.ssoSubject,
           a.tcgLinked, a.tcgHandle, a.tcgEmail, a.tcgSyncedAt, a.faction, a.classId,
@@ -459,6 +468,9 @@ export class AccountsStore {
           JSON.stringify(a.inventory || []),
           JSON.stringify(a.bank || []),
           JSON.stringify(a.questState || {}),
+          a.hp != null ? a.hp : null,
+          a.solarCharge != null ? a.solarCharge : null,
+          JSON.stringify(a.lastPosition || null),
         ]
       );
     }
@@ -475,8 +487,8 @@ export class AccountsStore {
       await this.db.query(
         `INSERT INTO glimmerfall_characters (
           id, account_id, name, faction, class_id, order_tag, order_name, order_color,
-          home_biome, loadout, equipment, unlocked_gear, progression, stats_meta, updated_at, inventory, bank, quest_state
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW(),$15,$16,$17)
+          home_biome, loadout, equipment, unlocked_gear, progression, stats_meta, updated_at, inventory, bank, quest_state, hp, solar_charge, last_position
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW(),$15,$16,$17,$18,$19,$20)
         ON CONFLICT (id) DO UPDATE SET
           name = EXCLUDED.name,
           faction = EXCLUDED.faction,
@@ -493,6 +505,9 @@ export class AccountsStore {
           inventory = EXCLUDED.inventory,
           bank = EXCLUDED.bank,
           quest_state = EXCLUDED.quest_state,
+          hp = EXCLUDED.hp,
+          solar_charge = EXCLUDED.solar_charge,
+          last_position = EXCLUDED.last_position,
           updated_at = NOW()`,
         [
           found.id, found.accountId, found.name, found.faction, found.classId,
@@ -505,6 +520,9 @@ export class AccountsStore {
           JSON.stringify(found.inventory || []),
           JSON.stringify(found.bank || []),
           JSON.stringify(found.questState || {}),
+          found.hp != null ? found.hp : null,
+          found.solarCharge != null ? found.solarCharge : null,
+          JSON.stringify(found.lastPosition || null),
         ]
       );
     }
@@ -586,6 +604,9 @@ export class AccountsStore {
         progression: acc.progression,
         questState: acc.questState || {},
         statsMeta: acc.statsMeta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
+        hp: acc.hp != null ? acc.hp : null,
+        solarCharge: acc.solarCharge != null ? acc.solarCharge : 0,
+        lastPosition: acc.lastPosition || null,
       };
       cmap.set(chId, ch);
       acc.activeCharacterId = chId;
@@ -613,6 +634,9 @@ export class AccountsStore {
     acc.progression = ch.progression;
     acc.statsMeta = ch.statsMeta;
     acc.questState = ch.questState || {};
+    acc.hp = ch.hp != null ? ch.hp : null;
+    acc.solarCharge = ch.solarCharge != null ? ch.solarCharge : 0;
+    acc.lastPosition = ch.lastPosition || null;
   }
 
   listCharacters(accountId) {
@@ -1403,8 +1427,36 @@ export class AccountsStore {
       progression: activeChar?.progression || acc.progression || {},
       statsMeta: activeChar?.statsMeta || acc.statsMeta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
       activeCharacterId: acc.activeCharacterId,
+      hp: typeof activeChar?.hp === 'number' ? activeChar.hp : (typeof acc.hp === 'number' ? acc.hp : null),
+      solarCharge: typeof activeChar?.solarCharge === 'number' ? activeChar.solarCharge : (typeof acc.solarCharge === 'number' ? acc.solarCharge : null),
+      lastPosition: activeChar?.lastPosition || acc.lastPosition || null,
       characters: this.listCharacters(acc.id),
       dbConnected: this.dbConnected,
     };
+  }
+
+  saveCharacterState(accountId, characterId = null, { hp, solarCharge, isDead = false, lastPosition = null } = {}) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc) return;
+    const targetCharId = characterId || acc.activeCharacterId;
+    const cmap = this.charactersByAccount.get(acc.id);
+    const ch = cmap?.get(targetCharId);
+
+    const safeHp = isDead ? null : (typeof hp === 'number' && hp > 0 ? Math.round(hp) : null);
+    const safeGlimmer = typeof solarCharge === 'number' && solarCharge >= 0 ? Math.round(solarCharge) : 0;
+    const safePos = (lastPosition && typeof lastPosition === 'object' && lastPosition.roomType)
+      ? { roomType: String(lastPosition.roomType), x: Math.round(Number(lastPosition.x) || 0), y: Math.round(Number(lastPosition.y) || 0) }
+      : null;
+
+    if (ch) {
+      if (safeHp !== undefined) ch.hp = safeHp;
+      if (safeGlimmer !== undefined) ch.solarCharge = safeGlimmer;
+      if (safePos !== null) ch.lastPosition = safePos;
+      ch.isDead = Boolean(isDead);
+    }
+    if (safeHp !== undefined) acc.hp = safeHp;
+    if (safeGlimmer !== undefined) acc.solarCharge = safeGlimmer;
+    if (safePos !== null) acc.lastPosition = safePos;
+    this.schedulePersist(acc.id, targetCharId);
   }
 }

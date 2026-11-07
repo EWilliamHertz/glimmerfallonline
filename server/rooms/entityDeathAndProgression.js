@@ -263,12 +263,23 @@ export const entityDeathAndProgressionMethods = {
     if (ent.isBoss && room.mythic?.active) this.completeMythicRun(room, ent);
 
     // Standard Mob / Dummy / Dungeon Boss Respawn
+    ent.inCombat = false;
+    ent.targetPlayerId = null;
+    ent.dammers = new Set();
+
     const template = {
       ...ent,
       hp: ent.maxHp,
       isDying: false,
       deathAge: 0,
       inCombat: false,
+      phase: 1,
+      enraged: false,
+      damage: ent.baseDamage || ent.damage,
+      speed: ent.baseSpeed || ent.speed,
+      abilityCooldown: 5.8,
+      targetPlayerId: null,
+      spawnAggroGrace: 2.0,
       weakenTimer: 0,
       slowTimer: 0,
       snareTimer: 0,
@@ -281,6 +292,10 @@ export const entityDeathAndProgressionMethods = {
     setTimeout(() => {
       if (!this.rooms.has(room.id)) return;
       if ((template.type === 'dummy' || template.type === 'mob') && !template.isMinion) {
+        template.inCombat = false;
+        template.targetPlayerId = null;
+        template.dammers = new Set();
+        template.spawnAggroGrace = 2.0;
         room.entities.push(template);
         room.fxQueue.push({ kind: 'smoke', x: template.x, y: template.y, count: 16 });
       }

@@ -398,6 +398,11 @@ export const socialAndTickMethods = {
       if (e.type === 'mob') {
         if (e.freezeTimer > 0) continue; // Frozen by Frost Nova!
 
+        if (e.spawnAggroGrace > 0) {
+          e.spawnAggroGrace = Math.max(0, e.spawnAggroGrace - dt);
+          continue; // Grace period after respawn: completely peaceful
+        }
+
         let nearestPlayer = null;
         let bestD = Infinity;
         for (const p of room.players.values()) {
@@ -410,10 +415,20 @@ export const socialAndTickMethods = {
           }
         }
 
+        const origX = e.origX ?? e.x;
+        const origY = e.origY ?? e.y;
+        const distHome = Math.hypot(origX - e.x, origY - e.y);
+
         if (!nearestPlayer && e.inCombat) {
           e.inCombat = false;
-        } else if (nearestPlayer && !e.inCombat && bestD <= e.aggroRange) {
+          e.targetPlayerId = null;
+        } else if (e.inCombat && nearestPlayer && bestD > (e.aggroRange || 110) * 1.8 && distHome > 120) {
+          // Player broke pursuit tether — drop aggro
+          e.inCombat = false;
+          e.targetPlayerId = null;
+        } else if (nearestPlayer && !e.inCombat && bestD <= (e.aggroRange || 110)) {
           e.inCombat = true;
+          e.targetPlayerId = nearestPlayer.id;
           room.fxQueue.push({ kind: 'fct', x: e.x, y: e.y - 12, text: 'AGGRO!', color: '#ef4444' });
         }
 

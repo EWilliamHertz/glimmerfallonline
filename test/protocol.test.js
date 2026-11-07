@@ -747,4 +747,45 @@ test('Action bar abilities do not render R1-R5 rank pips and item slots show 1 a
   assert.ok(hudCss.includes('.action-qty {'), 'hud.css should style .action-qty');
 });
 
+test('Health, Glimmer, and lastPosition persistence across login and character saves', () => {
+  const store = new AccountsStore();
+  const { account: acc } = store.createGuestAccount('PersistedHero', 'Solari', 'solari_vanguard');
+  store.ensureDefaultCharacter(acc);
+
+  // Save character vitals and position
+  store.saveCharacterState(acc.id, acc.activeCharacterId, {
+    hp: 27,
+    solarCharge: 45,
+    isDead: false,
+    lastPosition: { roomType: protocol.ROOM_TYPES.SOLARI_CITADEL, x: 120, y: -40 },
+  });
+
+  const updatedAcc = store.accountsById.get(acc.id);
+  const activeChar = store.charactersByAccount.get(acc.id).get(acc.activeCharacterId);
+  assert.equal(activeChar.hp, 27, 'Character hp must be persisted to 27');
+  assert.equal(activeChar.solarCharge, 45, 'Character solarCharge must be persisted to 45');
+  assert.deepEqual(activeChar.lastPosition, { roomType: protocol.ROOM_TYPES.SOLARI_CITADEL, x: 120, y: -40 });
+  assert.equal(updatedAcc.hp, 27, 'Account hp must sync with active character');
+  assert.equal(updatedAcc.solarCharge, 45, 'Account solarCharge must sync with active character');
+
+  // Verify frontpage character creation does not contain starting location selector
+  const frontpageSrc = fs.readFileSync(new URL('../client/frontpage.js', import.meta.url), 'utf-8');
+  assert.ok(!frontpageSrc.includes('STARTING BIOME'), 'Character loadout creation must not allow changing starting location');
+});
+
+test('Monster respawn wipes aggro state and enforces spawnAggroGrace', () => {
+  const gameSrc = fs.readFileSync(new URL('../client/game.js', import.meta.url), 'utf-8');
+  const serverDeathSrc = fs.readFileSync(new URL('../server/rooms/entityDeathAndProgression.js', import.meta.url), 'utf-8');
+
+  // Client-side offline mob death / respawn wipes aggro
+  assert.ok(gameSrc.includes('spawnAggroGrace: 2.0'), 'Client respawnTemplate must specify spawnAggroGrace: 2.0');
+  assert.ok(gameSrc.includes('if (e.spawnAggroGrace > 0)'), 'Client mob update loop must respect spawnAggroGrace');
+
+  // Server-side entity death / respawn wipes aggro
+  assert.ok(serverDeathSrc.includes('spawnAggroGrace: 2.0'), 'Server respawn must enforce spawnAggroGrace: 2.0');
+  assert.ok(serverDeathSrc.includes('inCombat: false'), 'Server mob death must set inCombat: false');
+  assert.ok(serverDeathSrc.includes('targetPlayerId: null'), 'Server mob death must clear targetPlayerId');
+});
+
+
 

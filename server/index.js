@@ -528,6 +528,9 @@ export function createGlimmerFallServer() {
   });
 
   const shutdown = async () => {
+    for (const client of rooms.clients.values()) {
+      rooms.saveClientState(client);
+    }
     rooms.stop();
     await accounts.flushToPostgres().catch(() => {});
   };

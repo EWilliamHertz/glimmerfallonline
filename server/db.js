@@ -126,6 +126,12 @@ export async function initDatabaseSchema() {
     ALTER TABLE glimmerfall_characters ADD COLUMN IF NOT EXISTS bank JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE glimmerfall_accounts ADD COLUMN IF NOT EXISTS quest_state JSONB NOT NULL DEFAULT '{}'::jsonb;
     ALTER TABLE glimmerfall_characters ADD COLUMN IF NOT EXISTS quest_state JSONB NOT NULL DEFAULT '{}'::jsonb;
+    ALTER TABLE glimmerfall_accounts ADD COLUMN IF NOT EXISTS hp INTEGER;
+    ALTER TABLE glimmerfall_characters ADD COLUMN IF NOT EXISTS hp INTEGER;
+    ALTER TABLE glimmerfall_accounts ADD COLUMN IF NOT EXISTS solar_charge NUMERIC;
+    ALTER TABLE glimmerfall_characters ADD COLUMN IF NOT EXISTS solar_charge NUMERIC;
+    ALTER TABLE glimmerfall_accounts ADD COLUMN IF NOT EXISTS last_position JSONB;
+    ALTER TABLE glimmerfall_characters ADD COLUMN IF NOT EXISTS last_position JSONB;
   `);
 
   await db.query(`
