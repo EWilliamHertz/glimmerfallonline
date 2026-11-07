@@ -861,25 +861,25 @@ export class FrontpageController {
 
   startPreviewLoop() {
     clearInterval(this.previewAnimTimer);
-    const dirs = ['down', 'right', 'up', 'left'];
     this.previewAnimTimer = setInterval(() => {
       if (!this.isOpen) return;
       this.previewFrame = (this.previewFrame + 1) % 12;
-      if (this.previewFrame % 4 === 0) {
-        this.previewDirIdx = (this.previewDirIdx + 1) % dirs.length;
-      }
-      this.drawPaperdollPreviewCanvas('fp-paperdoll-canvas', dirs[this.previewDirIdx], (this.previewFrame % 2) + 1);
-    }, 300);
+      // Heroic stance: facing camera (down) in neutral stance (frame 0) matching in-game idle
+      this.drawPaperdollPreviewCanvas('fp-paperdoll-canvas', 'down', 0);
+    }, 500);
   }
 
   drawPaperdollPreviewCanvas(canvasId, dir = 'down', frameIdx = 0) {
     try {
+      if (typeof document === 'undefined') return;
       const cv = document.getElementById(canvasId);
       if (!cv || typeof cv.getContext !== 'function') return;
       const ctx = cv.getContext('2d');
       if (!ctx) return;
       ctx.imageSmoothingEnabled = false;
-      ctx.fillStyle = '#090f20';
+
+      // Dark radial sanctuary pedestal background
+      ctx.fillStyle = '#070c1a';
       ctx.fillRect(0, 0, cv.width, cv.height);
 
       let targetFaction = 'Solari';
@@ -899,24 +899,113 @@ export class FrontpageController {
         }
       }
 
-      // Subtle faction floor sigil
       const fm = FACTIONS_META[targetFaction] || FACTIONS_META.Solari;
-      ctx.strokeStyle = fm.color;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(4, 4, cv.width - 8, cv.height - 8);
+      const cx = Math.floor(cv.width / 2);
+      const cy = 92;
 
+      // 1. Authentic stone pedestal dais with faction glow ring
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 36, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = fm.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 36, 11, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Inner rune ring
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 28, 8, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // 2. In-game character shadow
+      ctx.fillStyle = 'rgba(4, 6, 14, 0.65)';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - 2, 22, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 3. Exact in-game character sprite (down/front-facing, integer 3x scale)
       const set = getCharacterSprites(targetFaction, targetClassId, targetEquipment);
       if (!set) return;
       const dirFrames = set[dir] || set.down;
       if (!dirFrames || !dirFrames.length) return;
       const img = dirFrames[frameIdx % dirFrames.length];
       if (!img) return;
+
       const scale = 3;
-      const dw = (img.width || 24) * scale;
-      const dh = (img.height || 26) * scale;
-      ctx.drawImage(img, Math.round((cv.width - dw) / 2), Math.round((cv.height - dh) / 2) + 2, dw, dh);
+      const dw = 24 * scale;
+      const dh = 26 * scale;
+      const dx = Math.round(cx - dw / 2);
+      const dy = Math.round(cy - dh + 3);
+
+      ctx.drawImage(img, dx, dy, dw, dh);
     } catch (err) {
       console.warn('[Frontpage] Paperdoll preview draw warning:', err);
+    }
+  }
+
+  drawRosterAvatars() {
+    try {
+      if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
+      const roster = this.getActiveRoster();
+      const canvases = document.querySelectorAll('.fp-roster-avatar-cv');
+      canvases.forEach((cv) => {
+        const charId = cv.getAttribute('data-char-id');
+        const ch = roster.find((c) => c.id === charId);
+        if (!ch) return;
+        const ctx = cv.getContext ? cv.getContext('2d') : null;
+        if (!ctx) return;
+        ctx.imageSmoothingEnabled = false;
+        ctx.fillStyle = '#080e1c';
+        ctx.fillRect(0, 0, cv.width, cv.height);
+
+        // Ground shadow
+        ctx.fillStyle = 'rgba(4, 6, 14, 0.65)';
+        ctx.beginPath();
+        ctx.ellipse(17, 28, 11, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const set = getCharacterSprites(ch.faction || 'Solari', ch.classId || 'solari_vanguard', ch.equipment || {});
+        if (set && set.down && set.down[0]) {
+          ctx.drawImage(set.down[0], 5, 3, 24, 26);
+        }
+      });
+    } catch (err) {
+      console.warn('[Frontpage] Roster avatar draw error:', err);
+    }
+  }
+
+  drawClassAvatars() {
+    try {
+      if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
+      const canvases = document.querySelectorAll('.fp-class-avatar-cv');
+      canvases.forEach((cv) => {
+        const classId = cv.getAttribute('data-class-id');
+        const faction = cv.getAttribute('data-faction') || 'Solari';
+        const cls = CLASSES_CATALOG[classId];
+        const ctx = cv.getContext ? cv.getContext('2d') : null;
+        if (!ctx) return;
+        ctx.imageSmoothingEnabled = false;
+        ctx.fillStyle = '#080e1c';
+        ctx.fillRect(0, 0, cv.width, cv.height);
+
+        // Ground shadow
+        ctx.fillStyle = 'rgba(4, 6, 14, 0.65)';
+        ctx.beginPath();
+        ctx.ellipse(17, 28, 11, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const set = getCharacterSprites(faction, classId, cls?.defaultEquipment || {});
+        if (set && set.down && set.down[0]) {
+          ctx.drawImage(set.down[0], 5, 3, 24, 26);
+        }
+      });
+    } catch (err) {
+      console.warn('[Frontpage] Class avatar draw error:', err);
     }
   }
 
@@ -929,14 +1018,15 @@ export class FrontpageController {
 
     if (this.state === FRONTPAGE_STATES.CHARACTER_CREATE) {
       root.innerHTML = this.renderCreationView();
+      this.drawClassAvatars();
     } else {
       root.innerHTML = this.renderSelectionView();
+      this.drawRosterAvatars();
     }
 
     this._lastRenderSig = this.buildRenderSignature();
 
-    const dirs = ['down', 'right', 'up', 'left'];
-    this.drawPaperdollPreviewCanvas('fp-paperdoll-canvas', dirs[this.previewDirIdx % dirs.length], (this.previewFrame % 2) + 1);
+    this.drawPaperdollPreviewCanvas('fp-paperdoll-canvas', 'down', 0);
   }
 
   // ==========================================
@@ -1027,20 +1117,26 @@ export class FrontpageController {
                   <div class="fp-roster-item ${isSelected ? 'active' : ''}"
                        style="border:2px solid ${isSelected ? '#facc15' : '#334155'}; background:${isSelected ? '#172554' : '#0a1024'}; padding:8px 10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;"
                        onclick="window._fp.selectCharacter('${ch.id}')">
-                    <div style="flex:1;">
-                      <div style="display:flex; align-items:center; gap:6px;">
-                        <img src="${cf.logo}" alt="${cf.id}" style="width:18px; height:18px; object-fit:contain; filter:drop-shadow(0 0 3px ${cf.color}); flex-shrink:0;" />
-                        <span style="font-size:12.5px; font-weight:bold; color:${isSelected ? '#fde047' : cf.color}; font-family:var(--font-header);">
-                          ${ch.name}
-                        </span>
-                        <span style="background:#091224; border:1px solid #ca8a04; color:#fde047; font-size:9px; padding:1px 5px; font-weight:bold; border-radius:2px;">
-                          Lv. ${lvl}
-                        </span>
+                    <div style="display:flex; align-items:center; gap:8px; flex:1;">
+                      <div style="position:relative; width:34px; height:34px; flex-shrink:0;">
+                        <canvas class="fp-roster-avatar-cv" data-char-id="${ch.id}" width="34" height="34"
+                                style="width:34px; height:34px; border:1px solid ${isSelected ? '#facc15' : cf.color}; background:#080e1c; image-rendering:pixelated; border-radius:3px; display:block;"></canvas>
+                        <img src="${cf.logo}" alt="${cf.id}" style="position:absolute; bottom:-2px; right:-2px; width:12px; height:12px; object-fit:contain; filter:drop-shadow(0 0 2px #000);" />
                       </div>
-                      <div style="display:flex; gap:8px; align-items:center; margin-top:3px; font-size:10px; color:#94a3b8;">
-                        <span style="color:${cf.color}; font-weight:600;">${ch.faction}</span>
-                        <span>•</span>
-                        <span style="color:#cbd5e1;">Role: <b>${cCls.role}</b></span>
+                      <div style="flex:1;">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                          <span style="font-size:12.5px; font-weight:bold; color:${isSelected ? '#fde047' : cf.color}; font-family:var(--font-header);">
+                            ${ch.name}
+                          </span>
+                          <span style="background:#091224; border:1px solid #ca8a04; color:#fde047; font-size:9px; padding:1px 5px; font-weight:bold; border-radius:2px;">
+                            Lv. ${lvl}
+                          </span>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; margin-top:3px; font-size:10px; color:#94a3b8;">
+                          <span style="color:${cf.color}; font-weight:600;">${ch.faction}</span>
+                          <span>•</span>
+                          <span style="color:#cbd5e1;"><b>${cCls.name}</b> (${cCls.role})</span>
+                        </div>
                       </div>
                     </div>
 
@@ -1270,16 +1366,20 @@ export class FrontpageController {
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
             ${factionClasses.map((c) => `
               <div class="fp-class-card ${draft.classId === c.id ? 'selected' : ''}"
-                   style="cursor:pointer; border:2px solid ${draft.classId === c.id ? '#38bdf8' : '#1e293b'}; background:${draft.classId === c.id ? '#172554' : '#090e1f'}; padding:8px 10px;"
+                   style="cursor:pointer; border:2px solid ${draft.classId === c.id ? '#38bdf8' : '#1e293b'}; background:${draft.classId === c.id ? '#172554' : '#090e1f'}; padding:8px 10px; display:flex; gap:10px; align-items:center;"
                    onclick="window._fp.setCreationClass('${c.id}')">
-                <div style="display:flex; justify-content:space-between; align-items:baseline;">
-                  <div style="color:${fm.color}; font-weight:bold; font-size:11.5px; font-family:var(--font-header);">
-                    ${c.name}
+                <canvas class="fp-class-avatar-cv" data-class-id="${c.id}" data-faction="${c.faction}" width="34" height="34"
+                        style="width:34px; height:34px; border:1px solid ${draft.classId === c.id ? '#38bdf8' : '#334155'}; background:#080e1c; image-rendering:pixelated; border-radius:3px; flex-shrink:0;"></canvas>
+                <div style="flex:1;">
+                  <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                    <div style="color:${fm.color}; font-weight:bold; font-size:11.5px; font-family:var(--font-header);">
+                      ${c.name}
+                    </div>
+                    <span style="color:#38bdf8; font-size:9.5px; font-weight:bold;">[${c.role}]</span>
                   </div>
-                  <span style="color:#38bdf8; font-size:9.5px; font-weight:bold;">[${c.role}]</span>
-                </div>
-                <div style="color:#94a3b8; font-size:10px; margin-top:3px; line-height:1.35;">
-                  ${c.desc}
+                  <div style="color:#94a3b8; font-size:10px; margin-top:3px; line-height:1.35;">
+                    ${c.desc}
+                  </div>
                 </div>
               </div>
             `).join('')}

@@ -88,16 +88,21 @@
               var cLogo = facLogos[c.faction] || '/solari_nobg.png';
               var cLvl = c.progression ? (c.progression.level || 1) : (c.level || 1);
               return '<div class="fp-roster-item ' + (isSel ? 'active' : '') + '" style="border:2px solid ' + (isSel ? '#facc15' : '#334155') + '; background:' + (isSel ? '#172554' : '#0a1024') + '; padding:8px 10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="if(window._fp){window._fp.selectCharacter(\'' + c.id + '\');}else{try{localStorage.setItem(\'glimmerfall_sp_active_id\',\'' + c.id + '\');location.reload();}catch(_){}}">' +
-                '<div style="flex:1;">' +
-                  '<div style="display:flex; align-items:center; gap:6px;">' +
-                    '<img src="' + cLogo + '" alt="' + c.faction + '" style="width:18px; height:18px; object-fit:contain; flex-shrink:0;" />' +
-                    '<span style="font-size:12.5px; font-weight:bold; color:' + (isSel ? '#fde047' : cColor) + '; font-family:var(--font-header);">' + c.name + '</span>' +
-                    '<span style="background:#091224; border:1px solid #ca8a04; color:#fde047; font-size:9px; padding:1px 5px; font-weight:bold; border-radius:2px;">Lv. ' + cLvl + '</span>' +
+                '<div style="display:flex; align-items:center; gap:8px; flex:1;">' +
+                  '<div style="position:relative; width:34px; height:34px; flex-shrink:0;">' +
+                    '<canvas class="fp-roster-avatar-cv" data-char-id="' + c.id + '" width="34" height="34" style="width:34px; height:34px; border:1px solid ' + (isSel ? '#facc15' : cColor) + '; background:#080e1c; image-rendering:pixelated; border-radius:3px; display:block;"></canvas>' +
+                    '<img src="' + cLogo + '" alt="' + c.faction + '" style="position:absolute; bottom:-2px; right:-2px; width:12px; height:12px; object-fit:contain; filter:drop-shadow(0 0 2px #000);" />' +
                   '</div>' +
-                  '<div style="display:flex; gap:8px; align-items:center; margin-top:3px; font-size:10px; color:#94a3b8;">' +
-                    '<span style="color:' + cColor + '; font-weight:600;">' + c.faction + '</span>' +
-                    '<span>•</span>' +
-                    '<span style="color:#cbd5e1;">Champion</span>' +
+                  '<div style="flex:1;">' +
+                    '<div style="display:flex; align-items:center; gap:6px;">' +
+                      '<span style="font-size:12.5px; font-weight:bold; color:' + (isSel ? '#fde047' : cColor) + '; font-family:var(--font-header);">' + c.name + '</span>' +
+                      '<span style="background:#091224; border:1px solid #ca8a04; color:#fde047; font-size:9px; padding:1px 5px; font-weight:bold; border-radius:2px;">Lv. ' + cLvl + '</span>' +
+                    '</div>' +
+                    '<div style="display:flex; gap:8px; align-items:center; margin-top:3px; font-size:10px; color:#94a3b8;">' +
+                      '<span style="color:' + cColor + '; font-weight:600;">' + c.faction + '</span>' +
+                      '<span>•</span>' +
+                      '<span style="color:#cbd5e1;">Champion</span>' +
+                    '</div>' +
                   '</div>' +
                 '</div>' +
               '</div>';
@@ -167,66 +172,218 @@
                 '</div>' +
               '</div>';
 
+            function renderCompactHero(destCtx, dx, dy, scale, faction, classId) {
+              try {
+                var sc = document.createElement('canvas');
+                sc.width = 24;
+                sc.height = 26;
+                var sctx = sc.getContext('2d');
+                sctx.imageSmoothingEnabled = false;
+
+                var palettes = {
+                  Solari: {
+                    capeDark: '#991b1b', capeMid: '#dc2626',
+                    bootDark: '#92400e', armorDark: '#d97706', armorHi: '#facc15',
+                    pauldronHi: '#fef08a', helmDark: '#ca8a04', helmHi: '#fde047',
+                    plume: '#ef4444', plumeHi: '#fca5a5', eye: '#38bdf8'
+                  },
+                  Umbri: {
+                    capeDark: '#2e1065', capeMid: '#581c87',
+                    bootDark: '#1e1b4b', armorDark: '#312e81', armorHi: '#7c3aed',
+                    pauldronHi: '#d8b4fe', helmDark: '#3b0764', helmHi: '#9333ea',
+                    plume: '#e11d48', plumeHi: '#fda4af', eye: '#f43f5e'
+                  },
+                  Terra: {
+                    capeDark: '#14532d', capeMid: '#15803d',
+                    bootDark: '#422006', armorDark: '#3f6212', armorHi: '#4ade80',
+                    pauldronHi: '#bef264', helmDark: '#365314', helmHi: '#84cc16',
+                    plume: '#f59e0b', plumeHi: '#fef08a', eye: '#fde047'
+                  },
+                  Aether: {
+                    capeDark: '#1e3a8a', capeMid: '#1d4ed8',
+                    bootDark: '#0c4a6e', armorDark: '#0369a1', armorHi: '#38bdf8',
+                    pauldronHi: '#bae6fd', helmDark: '#075985', helmHi: '#7dd3fc',
+                    plume: '#c084fc', plumeHi: '#f5d0fe', eye: '#fef08a'
+                  }
+                };
+                var pal = palettes[faction] || palettes.Solari;
+
+                // Cape
+                sctx.fillStyle = pal.capeDark; sctx.fillRect(7, 11, 10, 10);
+                sctx.fillStyle = pal.capeMid; sctx.fillRect(8, 12, 8, 8);
+
+                // Boots
+                sctx.fillStyle = pal.bootDark;
+                sctx.fillRect(8, 21, 3, 4);
+                sctx.fillRect(13, 21, 3, 4);
+                sctx.fillStyle = pal.armorHi;
+                sctx.fillRect(8, 21, 2, 2);
+                sctx.fillRect(13, 21, 2, 2);
+
+                // Armor Chestplate
+                sctx.fillStyle = pal.armorDark; sctx.fillRect(7, 12, 10, 9);
+                sctx.fillStyle = pal.armorHi; sctx.fillRect(8, 13, 8, 7);
+                sctx.fillStyle = pal.eye; sctx.fillRect(11, 15, 2, 2);
+                sctx.fillStyle = pal.bootDark; sctx.fillRect(9, 19, 6, 2);
+
+                // Pauldrons
+                sctx.fillStyle = pal.armorDark; sctx.fillRect(5, 11, 4, 4);
+                sctx.fillStyle = pal.pauldronHi; sctx.fillRect(6, 11, 2, 2);
+                sctx.fillStyle = pal.armorDark; sctx.fillRect(15, 11, 4, 4);
+                sctx.fillStyle = pal.pauldronHi; sctx.fillRect(16, 11, 2, 2);
+
+                // Helmet / Headgear
+                sctx.fillStyle = pal.helmDark; sctx.fillRect(7, 4, 10, 8);
+                sctx.fillStyle = pal.helmHi; sctx.fillRect(8, 5, 8, 6);
+
+                // Class distinctive headgear
+                if (classId === 'aurora_marshal') {
+                  sctx.fillStyle = '#fef08a'; sctx.fillRect(9, 1, 6, 2);
+                  sctx.fillStyle = '#ffffff'; sctx.fillRect(5, 5, 2, 4); sctx.fillRect(17, 5, 2, 4);
+                } else if (classId === 'umbral_assassin') {
+                  sctx.fillStyle = '#3b0764'; sctx.fillRect(8, 2, 8, 3);
+                  sctx.fillStyle = '#581c87'; sctx.fillRect(10, 1, 4, 2);
+                } else if (classId === 'graveglass_oracle') {
+                  sctx.fillStyle = '#e879f9'; sctx.fillRect(6, 1, 2, 4); sctx.fillRect(16, 1, 2, 4);
+                } else if (classId === 'forest_warden') {
+                  sctx.fillStyle = '#a3e635'; sctx.fillRect(5, 1, 2, 4); sctx.fillRect(17, 1, 2, 4);
+                  sctx.fillStyle = '#bef264'; sctx.fillRect(7, 2, 1, 1); sctx.fillRect(16, 2, 1, 1);
+                } else if (classId === 'stonekin_elder') {
+                  sctx.fillStyle = '#64748b'; sctx.fillRect(7, 2, 10, 3);
+                  sctx.fillStyle = '#4ade80'; sctx.fillRect(9, 1, 6, 2);
+                } else if (classId === 'chronomancer_sage') {
+                  sctx.fillStyle = '#1e3a8a'; sctx.fillRect(6, 4, 12, 2);
+                  sctx.fillStyle = '#0284c7'; sctx.fillRect(9, 1, 6, 3);
+                  sctx.fillStyle = '#7dd3fc'; sctx.fillRect(11, 0, 2, 2);
+                } else if (classId === 'nexus_weaver') {
+                  sctx.fillStyle = '#38bdf8'; sctx.fillRect(9, 2, 6, 2);
+                  sctx.fillStyle = '#ffffff'; sctx.fillRect(11, 0, 1, 1);
+                } else {
+                  // Solari Vanguard
+                  sctx.fillStyle = pal.plume; sctx.fillRect(10, 1, 4, 3);
+                  sctx.fillStyle = pal.plumeHi; sctx.fillRect(11, 0, 2, 2);
+                }
+
+                // Eyes / Visor
+                sctx.fillStyle = '#0f172a'; sctx.fillRect(9, 7, 6, 2);
+                sctx.fillStyle = pal.eye; sctx.fillRect(9, 7, 1, 1); sctx.fillRect(14, 7, 1, 1);
+
+                // Weapon
+                var wCol = faction === 'Umbri' ? '#e879f9' : (faction === 'Terra' ? '#84cc16' : (faction === 'Aether' ? '#38bdf8' : '#fde047'));
+                var hCol = faction === 'Umbri' ? '#3b0764' : (faction === 'Terra' ? '#78350f' : (faction === 'Aether' ? '#1e3a8a' : '#92400e'));
+                if (classId === 'umbral_assassin' || classId === 'graveglass_oracle') {
+                  sctx.fillStyle = hCol; sctx.fillRect(19, 3, 2, 14);
+                  sctx.fillStyle = wCol; sctx.fillRect(15, 2, 6, 3);
+                  sctx.fillStyle = '#ffffff'; sctx.fillRect(14, 4, 2, 3);
+                } else if (classId === 'forest_warden' || classId === 'stonekin_elder') {
+                  sctx.fillStyle = hCol; sctx.fillRect(19, 6, 2, 11);
+                  sctx.fillStyle = '#475569'; sctx.fillRect(17, 3, 6, 5);
+                  sctx.fillStyle = wCol; sctx.fillRect(18, 4, 4, 3);
+                } else if (classId === 'chronomancer_sage' || classId === 'nexus_weaver') {
+                  sctx.fillStyle = hCol; sctx.fillRect(19, 5, 2, 13);
+                  sctx.fillStyle = wCol; sctx.fillRect(18, 2, 4, 4);
+                  sctx.fillStyle = '#ffffff'; sctx.fillRect(20, 3, 2, 2);
+                } else {
+                  sctx.fillStyle = wCol; sctx.fillRect(19, 4, 2, 11);
+                  sctx.fillStyle = '#ffffff'; sctx.fillRect(19, 3, 1, 9);
+                  sctx.fillStyle = hCol; sctx.fillRect(18, 14, 4, 1);
+                }
+
+                // Offhand / Shield
+                var oMain = faction === 'Solari' ? '#0284c7' : (faction === 'Umbri' ? '#6b21a8' : (faction === 'Terra' ? '#15803d' : '#0369a1'));
+                var oTrim = faction === 'Solari' ? '#facc15' : (faction === 'Umbri' ? '#d8b4fe' : (faction === 'Terra' ? '#bef264' : '#bae6fd'));
+                sctx.fillStyle = oMain; sctx.fillRect(3, 13, 4, 6);
+                sctx.fillStyle = oTrim; sctx.fillRect(4, 14, 2, 4);
+
+                // Add 1px dark outline (#070a12)
+                var img = sctx.getImageData(0, 0, 24, 26);
+                var d = img.data;
+                var out = new Uint8ClampedArray(d);
+                var isSolid = function (x, y) {
+                  if (x < 0 || y < 0 || x >= 24 || y >= 26) return false;
+                  return d[(y * 24 + x) * 4 + 3] > 20;
+                };
+                for (var y = 0; y < 26; y++) {
+                  for (var x = 0; x < 24; x++) {
+                    var idx = (y * 24 + x) * 4;
+                    if (d[idx + 3] === 0) {
+                      if (isSolid(x - 1, y) || isSolid(x + 1, y) || isSolid(x, y - 1) || isSolid(x, y + 1)) {
+                        out[idx] = 7; out[idx + 1] = 10; out[idx + 2] = 18; out[idx + 3] = 255;
+                      }
+                    }
+                  }
+                }
+                img.data.set(out);
+                sctx.putImageData(img, 0, 0);
+
+                destCtx.imageSmoothingEnabled = false;
+                destCtx.drawImage(sc, dx, dy, 24 * scale, 26 * scale);
+              } catch (_) {}
+            }
+
+            // 1. Draw Pedestal Hero
             try {
               var cv = document.getElementById('fp-paperdoll-canvas');
               if (cv && cv.getContext) {
                 var ctx = cv.getContext('2d');
                 ctx.imageSmoothingEnabled = false;
-                ctx.fillStyle = '#090f20';
+                ctx.fillStyle = '#070c1a';
                 ctx.fillRect(0, 0, cv.width, cv.height);
-                ctx.strokeStyle = fColor;
-                ctx.lineWidth = 1;
-                ctx.strokeRect(4, 4, cv.width - 8, cv.height - 8);
 
                 var cx = Math.floor(cv.width / 2);
-                var cy = Math.floor(cv.height / 2) - 6;
+                var cy = 92;
 
-                // Shadow
-                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                // Pedestal Dais & Faction Ring
+                ctx.fillStyle = '#0f172a';
                 ctx.beginPath();
-                ctx.ellipse(cx, cy + 32, 22, 6, 0, 0, Math.PI * 2);
+                ctx.ellipse(cx, cy, 36, 11, 0, 0, Math.PI * 2);
                 ctx.fill();
 
-                var helmColor = selected.faction === 'Solari' ? '#fde047' : (selected.faction === 'Umbri' ? '#c084fc' : (selected.faction === 'Terra' ? '#4ade80' : '#38bdf8'));
-                var armorColor = selected.faction === 'Solari' ? '#b45309' : (selected.faction === 'Umbri' ? '#4c1d95' : (selected.faction === 'Terra' ? '#14532d' : '#0369a1'));
+                ctx.strokeStyle = fColor;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, 36, 11, 0, 0, Math.PI * 2);
+                ctx.stroke();
 
-                // Cloak/Back
-                ctx.fillStyle = fColor;
-                ctx.fillRect(cx - 15, cy - 2, 30, 30);
+                // Inner rune ring
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, 28, 8, 0, 0, Math.PI * 2);
+                ctx.stroke();
 
-                // Body Armor
-                ctx.fillStyle = armorColor;
-                ctx.fillRect(cx - 12, cy, 24, 25);
+                // Character Shadow
+                ctx.fillStyle = 'rgba(4, 6, 14, 0.65)';
+                ctx.beginPath();
+                ctx.ellipse(cx, cy - 2, 22, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
 
-                // Gold Plate Inlay
-                ctx.fillStyle = '#fef08a';
-                ctx.fillRect(cx - 6, cy + 4, 12, 14);
+                // 24x26 exact in-game sprite at 3x integer scale
+                renderCompactHero(ctx, 19, 17, 3, selected.faction, selected.classId);
+              }
+            } catch (_) {}
 
-                // Belt & Boots
-                ctx.fillStyle = '#1e293b';
-                ctx.fillRect(cx - 10, cy + 20, 20, 5);
-                ctx.fillRect(cx - 9, cy + 25, 7, 9);
-                ctx.fillRect(cx + 2, cy + 25, 7, 9);
+            // 2. Draw Roster Avatars
+            try {
+              var rCanvases = document.querySelectorAll('.fp-roster-avatar-cv');
+              for (var i = 0; i < rCanvases.length; i++) {
+                var rcv = rCanvases[i];
+                var rcharId = rcv.getAttribute('data-char-id');
+                var rch = roster.find(function (r) { return r.id === rcharId; });
+                if (!rch) continue;
+                var rctx = rcv.getContext('2d');
+                if (!rctx) continue;
+                rctx.imageSmoothingEnabled = false;
+                rctx.fillStyle = '#080e1c';
+                rctx.fillRect(0, 0, rcv.width, rcv.height);
 
-                // Head & Helm
-                ctx.fillStyle = '#fde68a';
-                ctx.fillRect(cx - 9, cy - 18, 18, 16);
-                ctx.fillStyle = helmColor;
-                ctx.fillRect(cx - 11, cy - 22, 22, 10);
+                // Ground shadow
+                rctx.fillStyle = 'rgba(4, 6, 14, 0.65)';
+                rctx.beginPath();
+                rctx.ellipse(17, 28, 11, 3, 0, 0, Math.PI * 2);
+                rctx.fill();
 
-                // Eyes / Visor
-                ctx.fillStyle = '#0f172a';
-                ctx.fillRect(cx - 6, cy - 11, 4, 3);
-                ctx.fillRect(cx + 2, cy - 11, 4, 3);
-                ctx.fillStyle = '#38bdf8';
-                ctx.fillRect(cx - 5, cy - 10, 2, 2);
-                ctx.fillRect(cx + 3, cy - 10, 2, 2);
-
-                // Weapon Blade
-                ctx.fillStyle = '#cbd5e1';
-                ctx.fillRect(cx + 14, cy - 14, 4, 34);
-                ctx.fillStyle = fColor;
-                ctx.fillRect(cx + 13, cy + 10, 6, 3);
+                renderCompactHero(rctx, 5, 3, 1, rch.faction || 'Solari', rch.classId || 'solari_vanguard');
               }
             } catch (_) {}
           } catch (err) {
