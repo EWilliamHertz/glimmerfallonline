@@ -962,14 +962,14 @@ export const PROFESSION_MASTERY_CAPES = {
 // Spatially spread-out skilling node coordinates across all continental zones & peaceful cities
 export const SKILLING_LAYOUTS = {
   [ROOM_TYPES.SANCTUARY_HUB]: [
-    ['copper_tin_vein', -260, 210],
-    ['copper_tin_vein', -295, 180],
-    ['copper_tin_vein', 260, 210],
-    ['copper_tin_vein', 295, 180],
-    ['herb_cluster_low', -195, 275],
-    ['herb_cluster_low', -240, 310],
-    ['fiber_bloom_low', 195, 275],
-    ['fiber_bloom_low', 240, 310],
+    ['copper_tin_vein', -215, 175],
+    ['copper_tin_vein', -255, 205],
+    ['copper_tin_vein', 215, 175],
+    ['copper_tin_vein', 255, 205],
+    ['herb_cluster_low', -145, 215],
+    ['herb_cluster_low', -185, 255],
+    ['fiber_bloom_low', 145, 215],
+    ['fiber_bloom_low', 185, 255],
   ],
   [ROOM_TYPES.SOLARI_CITADEL]: [
     // Sunfire Quarry (North-East cliffs)

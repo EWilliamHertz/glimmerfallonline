@@ -4360,103 +4360,118 @@ export function initGame() {
       arenaBanner.style.display = 'none';
 
       // ==========================================
-      // SPRAWLING SANCTUARY METROPOLIS PROPS
+      // COZY, VIBRANT SANCTUARY HOMETOWN & HAVEN PROPS
       // ==========================================
       props.push(
-        // 1. Grand Central Plaza
-        { type: 'grandFountain', x: 0, y: -10 },
-        { type: 'stoneBench', x: -48, y: -35 },
-        { type: 'stoneBench', x: 48, y: -35 },
-        { type: 'stoneBench', x: -48, y: 20 },
-        { type: 'stoneBench', x: 48, y: 20 },
-        { type: 'streetLantern', x: -72, y: -60 },
-        { type: 'streetLantern', x: 72, y: -60 },
-        { type: 'streetLantern', x: -72, y: 60 },
-        { type: 'streetLantern', x: 72, y: 60 },
-        { type: 'brazier', x: -36, y: -65 },
-        { type: 'brazier', x: 36, y: -65 },
-        { type: 'blossomTree', x: -95, y: -30 },
-        { type: 'blossomTree', x: 95, y: -30 },
+        // 1. Awakening Homecoming Hearth & Spawn Courtyard (Right around spawn 0, 96)
+        { type: 'campfire', x: -52, y: 102, label: '🔥 Sanctuary Homecoming Hearth' },
+        { type: 'stoneBench', x: -52, y: 80 },
+        { type: 'stoneBench', x: -52, y: 124 },
+        { type: 'ancientWell', x: 64, y: 112, label: '💧 Sanctuary Home Wellspring' },
+        { type: 'woodenSign', x: 28, y: 122, label: '🪧 N: Bank & Exchange • W: Artisans & Market • E: Training Yard' },
+        { type: 'solariSundial', x: 0, y: 152, label: '☀️ Sanctuary Sundial' },
+        { type: 'flowerBed', x: -92, y: 72 },
+        { type: 'flowerBed', x: 92, y: 72 },
+        { type: 'flowerBed', x: -92, y: 138 },
+        { type: 'flowerBed', x: 92, y: 138 },
+        { type: 'streetLantern', x: -34, y: 62 },
+        { type: 'streetLantern', x: 34, y: 62 },
+        { type: 'streetLantern', x: -34, y: 142 },
+        { type: 'streetLantern', x: 34, y: 142 },
+        { type: 'blossomTree', x: -118, y: 58 },
+        { type: 'blossomTree', x: 118, y: 58 },
+        { type: 'blossomTree', x: -118, y: 152 },
+        { type: 'blossomTree', x: 118, y: 152 },
 
-        // 2. The Grand AetherVault Bank District (North-East)
-        { type: 'bankBuilding', x: 280, y: -220, label: '🏛️ The Grand AetherVault Bank' },
-        { type: 'bankCounter', x: 280, y: -165 },
-        { type: 'streetLantern', x: 205, y: -165 },
-        { type: 'streetLantern', x: 355, y: -165 },
-        { type: 'streetLantern', x: 280, y: -115 },
-        { type: 'stoneBench', x: 235, y: -115 },
-        { type: 'stoneBench', x: 325, y: -115 },
-        { type: 'blossomTree', x: 360, y: -220 },
+        // 2. Grand Central Starlight Fountain Plaza (Center 0, -10)
+        { type: 'grandFountain', x: 0, y: -10, label: '⛲ Sanctuary Starlight Fountain' },
+        { type: 'stoneBench', x: -46, y: -32 },
+        { type: 'stoneBench', x: 46, y: -32 },
+        { type: 'stoneBench', x: -46, y: 16 },
+        { type: 'stoneBench', x: 46, y: 16 },
+        { type: 'brazier', x: -34, y: -58 },
+        { type: 'brazier', x: 34, y: -58 },
+        { type: 'brazier', x: -68, y: -10 },
+        { type: 'brazier', x: 68, y: -10 },
+        { type: 'streetLantern', x: -72, y: -52 },
+        { type: 'streetLantern', x: 72, y: -52 },
+        { type: 'bountyBoard', isBountyBoard: true, x: -54, y: -72, label: '📜 Vanguard Bounty Board [Click / E]' },
+        { type: 'flowerBed', x: -108, y: -52 },
+        { type: 'flowerBed', x: 108, y: -52 },
 
-        // 3. The Grand AetherSwap Exchange Pavilion (North-Center Physical Grand Exchange)
-        { type: 'bankBuilding', x: 60, y: -220, label: '🏛️ The Grand AetherSwap Exchange' },
-        { type: 'bankCounter', x: 60, y: -165 },
-        { type: 'streetLantern', x: 10, y: -165 },
-        { type: 'streetLantern', x: 110, y: -165 },
+        // 3. North Civic Terrace: Grand AetherSwap Exchange & Grand AetherVault Bank
+        { type: 'bankBuilding', x: -115, y: -155, label: '🏛️ The Grand AetherSwap Exchange' },
+        { type: 'bankCounter', x: -115, y: -105 },
+        { type: 'streetLantern', x: -155, y: -105 },
+        { type: 'streetLantern', x: -75, y: -105 },
+        { type: 'bankBuilding', x: 115, y: -155, label: '🏛️ The Grand AetherVault Bank' },
+        { type: 'bankCounter', x: 115, y: -105 },
+        { type: 'streetLantern', x: 75, y: -105 },
+        { type: 'streetLantern', x: 155, y: -105 },
+        { type: 'stoneBench', x: 0, y: -125 },
+        { type: 'blossomTree', x: -185, y: -155 },
+        { type: 'blossomTree', x: 185, y: -155 },
 
-        // 4. Grand Continental Market Square (North-West) - Provisions Stall, Ancient Well, Sundial & Flowerbeds
-        { type: 'marketStallProvisions', id: 'stall_provisions', x: -360, y: -210 },
-        { type: 'ancientWell', x: -180, y: -210, label: '💧 Sanctuary Wellspring' },
-        { type: 'solariSundial', x: -270, y: -210, label: '☀️ Continental Sundial' },
-        { type: 'flowerBed', x: -360, y: -90 },
-        { type: 'flowerBed', x: -180, y: -90 },
-        { type: 'streetLantern', x: -270, y: -150 },
-        { type: 'streetLantern', x: -410, y: -150 },
-        { type: 'streetLantern', x: -130, y: -150 },
-        { type: 'stoneBench', x: -270, y: -90 },
-        { type: 'ancientOak', x: -420, y: -120 },
+        // 4. Cozy Hometown Cottages & Guildhalls Framing the Town Square
+        { type: 'cityHouseA', x: -255, y: -135, label: '🏠 Artisan Guild Cottage' },
+        { type: 'cityHouseB', x: 255, y: -135, label: '🏠 Vanguard Barracks Hall' },
+        { type: 'cityHouseA', x: -275, y: 95, label: '🏠 Homestead Hearth Cottage' },
+        { type: 'cityHouseB', x: 275, y: 95, label: '🏠 Sentinel Watchhouse' },
+        { type: 'cityHouseA', x: -175, y: -255 },
+        { type: 'cityHouseB', x: -65, y: -255 },
+        { type: 'cityHouseA', x: 65, y: -255 },
+        { type: 'cityHouseB', x: 175, y: -255 },
+        { type: 'streetLantern', x: -120, y: -215 },
+        { type: 'streetLantern', x: 0, y: -215 },
+        { type: 'streetLantern', x: 120, y: -215 },
 
-        // 5. Northern Residential & Guild Avenues
-        { type: 'cityHouseA', x: -160, y: -320 },
-        { type: 'cityHouseB', x: -320, y: -320 },
-        { type: 'cityHouseA', x: 160, y: -320 },
-        { type: 'cityHouseB', x: 320, y: -320 },
-        { type: 'cityHouseA', x: -480, y: -320 },
-        { type: 'cityHouseB', x: 480, y: -320 },
-        { type: 'streetLantern', x: -240, y: -280 },
-        { type: 'streetLantern', x: -80, y: -280 },
-        { type: 'streetLantern', x: 80, y: -280 },
-        { type: 'streetLantern', x: 240, y: -280 },
-        { type: 'blossomTree', x: -400, y: -300 },
-        { type: 'blossomTree', x: 400, y: -300 },
-        { type: 'stoneBench', x: 0, y: -280 },
+        // 5. West Artisan Workshop & Market Courtyard (Right beside Central Plaza!)
+        { type: 'marketStallProvisions', id: 'stall_provisions', x: -165, y: -42, label: '🍎 Sanctuary Provisions Stall' },
+        { type: 'celestialLoom', stationId: 'celestial_loom', x: -225, y: -42, label: '🧵 Celestial Loom & Hearth [Click / E]' },
+        { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: -165, y: 24, label: '🔨 Cosmic Star-Anvil [Click / E]' },
+        { type: 'marketStallSmith', x: -225, y: 24, label: '⚒️ Sanctuary Forge Workbench' },
+        { type: 'aetherCrucible', stationId: 'aether_crucible', x: -195, y: 78, label: '⚗️ Aetherial Crucible [Click / E]' },
+        { type: 'brazier', x: -138, y: 24 },
+        { type: 'brazier', x: -255, y: 24 },
+        { type: 'streetLantern', x: -138, y: -42 },
+        { type: 'streetLantern', x: -138, y: 78 },
 
-        // 6. Southern Botanical Park & Memorial Gardens
-        { type: 'monument', x: 0, y: 320, label: '✨ Monument to the Fallen Knights' },
-        { type: 'blossomTree', x: -80, y: 260 },
-        { type: 'blossomTree', x: 80, y: 260 },
-        { type: 'blossomTree', x: -160, y: 320 },
-        { type: 'blossomTree', x: 160, y: 320 },
-        { type: 'blossomTree', x: -90, y: 390 },
-        { type: 'blossomTree', x: 90, y: 390 },
-        { type: 'blossomTree', x: 0, y: 440 },
-        { type: 'ancientOak', x: -240, y: 340 },
-        { type: 'ancientOak', x: 240, y: 340 },
-        { type: 'stoneBench', x: -50, y: 320 },
-        { type: 'stoneBench', x: 50, y: 320 },
-        { type: 'streetLantern', x: -40, y: 220 },
-        { type: 'streetLantern', x: 40, y: 220 },
-        { type: 'streetLantern', x: -120, y: 340 },
-        { type: 'streetLantern', x: 120, y: 340 },
+        // 6. East Combat Trial Courtyard (Right beside Central Plaza!)
+        { type: 'pillar', x: 145, y: -35 },
+        { type: 'pillar', x: 235, y: -35 },
+        { type: 'brazier', x: 145, y: 75 },
+        { type: 'brazier', x: 235, y: 75 },
+        { type: 'stoneBench', x: 190, y: -52 },
+        { type: 'woodenSign', x: 135, y: 42, label: '🪧 Combat Trial Yard (Lv.1, Lv.5 & Lv.50 Dummies)' },
 
-        // 7. Training Grounds (South-East)
-        { type: 'pillar', x: 270, y: 160 },
-        { type: 'pillar', x: 370, y: 160 },
-        { type: 'brazier', x: 270, y: 240 },
-        { type: 'brazier', x: 370, y: 240 },
-        { type: 'stoneBench', x: 320, y: 260 },
+        // 7. South Memorial Gardens & Starter Skilling Groves
+        { type: 'monument', x: 0, y: 245, label: '✨ Monument to the First Champions' },
+        { type: 'stoneBench', x: -45, y: 245 },
+        { type: 'stoneBench', x: 45, y: 245 },
+        { type: 'blossomTree', x: -85, y: 215 },
+        { type: 'blossomTree', x: 85, y: 215 },
+        { type: 'ancientOak', x: -185, y: 235 },
+        { type: 'ancientOak', x: 185, y: 235 },
+        { type: 'mountainCrag', x: -245, y: 185 },
+        { type: 'mountainCrag', x: 245, y: 185 },
+        { type: 'flowerBed', x: -145, y: 245 },
+        { type: 'flowerBed', x: 145, y: 245 },
+        { type: 'streetLantern', x: -42, y: 205 },
+        { type: 'streetLantern', x: 42, y: 205 },
 
-        // 8. Leyline Spire District (South-West)
-        { type: 'crystalPillar', x: -270, y: 160 },
-        { type: 'crystalPillar', x: -370, y: 160 },
-        { type: 'crystalPillar', x: -270, y: 240 },
-        { type: 'crystalPillar', x: -370, y: 240 },
-
-        // 9. Interactive Cosmic Artisan Stations & Vanguard Bounty Board
-        { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: -298, y: -55, label: '🔨 Cosmic Star-Anvil [Click / E]' },
-        { type: 'aetherCrucible', stationId: 'aether_crucible', x: -118, y: -175, label: '⚗️ Aetherial Crucible [Click / E]' },
-        { type: 'celestialLoom', stationId: 'celestial_loom', x: -298, y: -175, label: '🧵 Celestial Loom [Click / E]' },
-        { type: 'bountyBoard', isBountyBoard: true, x: -58, y: -75, label: '📜 Vanguard Bounty Board [Click / E]' }
+        // 8. Four Cardinal City Gateways
+        { type: 'ruinedArch', x: 0, y: -375, label: '🌌 North Gate: To Mirrorgate Spire' },
+        { type: 'crystalPillar', x: -55, y: -375 },
+        { type: 'crystalPillar', x: 55, y: -375 },
+        { type: 'ruinedArch', x: 0, y: 375, label: '🌿 South Gate: To Glimmer Orchard' },
+        { type: 'ancientOak', x: -65, y: 375 },
+        { type: 'ancientOak', x: 65, y: 375 },
+        { type: 'ruinedArch', x: -410, y: 0, label: '☀️ West Gate: To Golden Citadel' },
+        { type: 'brazier', x: -410, y: -42 },
+        { type: 'brazier', x: -410, y: 42 },
+        { type: 'ruinedArch', x: 410, y: 0, label: '🌑 East Gate: To Duskveil Undercity' },
+        { type: 'umbriBrazierAltar', x: 410, y: -42 },
+        { type: 'umbriBrazierAltar', x: 410, y: 42 }
       );
 
       npcs.push(
@@ -4470,12 +4485,31 @@ export function initGame() {
           dialogue: AWAKENING_DIALOGUE,
         },
         {
+          id: 'npc_hearth_mira',
+          name: 'Hearth-Keeper Mira',
+          role: 'Sanctuary Innkeeper [Click / T]',
+          spriteKey: 'terraHerbalistNpc',
+          x: -78,
+          y: 102,
+          dialogue: [
+            {
+              speaker: 'HEARTH-KEEPER MIRA • SANCTUARY HOMECOMING HEARTH',
+              spriteKey: 'terraHerbalistNpc',
+              text: 'Welcome home, champion! Warm your hands by the Sanctuary Hearth. Everything you need to start your legend is right here in our town square:\n\n• North of the fountain stand the Grand AetherSwap Exchange and AetherVault Bank.\n• Just to the west are Farmer Bran\'s Provisions Stall and the three Cosmic Artisan Stations.\n• To the south lie the starter Copper Veins, Sunbloom Herbs, and Starlight Flax gardens!',
+              actions: [
+                { label: '🧵 OPEN CELESTIAL LOOM & HEARTH', action: 'openStation_celestial_loom', style: 'border-color:#4ade80; color:#dcfce7; font-weight:bold;' },
+                { label: '👋 THANK YOU, MIRA', action: 'close' },
+              ],
+            },
+          ],
+        },
+        {
           id: 'npc_exchange_caelum',
           name: 'Broker Caelum',
           role: 'Grand Exchange Broker [Click / T]',
           spriteKey: 'bankerNpc',
-          x: 60,
-          y: -165,
+          x: -115,
+          y: -105,
           isExchange: true,
         },
         {
@@ -4483,8 +4517,8 @@ export function initGame() {
           name: 'Trove-Master Orin',
           role: 'AetherVault Chief Banker [Click / T]',
           spriteKey: 'bankerNpc',
-          x: 280,
-          y: -165,
+          x: 115,
+          y: -105,
           isBank: true,
         },
         {
@@ -4495,8 +4529,28 @@ export function initGame() {
           stallId: 'stall_provisions',
           merchantType: 'merchant_provisions',
           isMerchant: true,
-          x: -360,
-          y: -175,
+          x: -165,
+          y: -8,
+        },
+        {
+          id: 'npc_artisan_aldric',
+          name: 'Artisan Master Aldric',
+          role: 'Guild Forgemaster [Click / T]',
+          spriteKey: 'merchantSmithNpc',
+          x: -195,
+          y: 48,
+          dialogue: [
+            {
+              speaker: 'ARTISAN MASTER ALDRIC • SANCTUARY WORKSHOP',
+              spriteKey: 'merchantSmithNpc',
+              text: 'Hail, adventurer! Right here in the Sanctuary Workshop you can train all three crafting professions: smelt ores at the Cosmic Star-Anvil, brew elixirs at the Aetherial Crucible, or spin cloaks at the Celestial Loom.\n\nWhen you travel the four cardinal roads to the peaceful faction capitals, seek out our regional guild merchants—Blacksmith Torvin in the Golden Citadel, Alchemist Faye in Glimmer Orchard, Shadow Stitcher Silvan in the Undercity, and Relic-Seeker Moira at Mirrorgate Spire!',
+              actions: [
+                { label: '🔨 OPEN COSMIC STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
+                { label: '⚗️ OPEN AETHERIAL CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#c084fc; color:#f3e8ff;' },
+                { label: '👋 FAREWELL', action: 'close' },
+              ],
+            },
+          ],
         },
         {
           id: 'npc_archon',
@@ -4504,7 +4558,7 @@ export function initGame() {
           role: 'Sunspire Warlord [Click / T]',
           spriteKey: 'warzoneArchonNpc',
           x: 0,
-          y: -75,
+          y: -68,
           dialogue: WARZONE_DIALOGUE,
         }
       );
@@ -4534,6 +4588,9 @@ export function initGame() {
 
       props.push(
         { type: 'monument', x: 0, y: -30 },
+        { type: 'campfire', x: -38, y: 145, label: '🔥 Expedition Waystation Hearth' },
+        { type: 'woodenSign', x: 78, y: 145, label: '🪧 N: Continental Caldera | S: Sanctuary Haven' },
+        { type: 'ancientWell', x: -95, y: 135, label: '💧 Ancient Nexus Cistern' },
         { type: 'crystalPillar', x: -140, y: 60 },
         { type: 'crystalPillar', x: 140, y: 60 },
         { type: 'brazier', x: -70, y: 140 },
@@ -4542,6 +4599,10 @@ export function initGame() {
         { type: 'brazier', x: 70, y: -140 },
         { type: 'pillar', x: -160, y: -90 },
         { type: 'pillar', x: 160, y: -90 },
+        { type: 'mountainCrag', x: -240, y: 130 },
+        { type: 'mountainCrag', x: 240, y: 130 },
+        { type: 'ancientOak', x: -250, y: -140 },
+        { type: 'ancientOak', x: 250, y: -140 },
         // Grand North Waygate to Continental Caldera Realm
         { type: 'ruinedArch', x: 0, y: -380 },
         { type: 'crystalPillar', x: -80, y: -380 },
@@ -4718,6 +4779,8 @@ export function initGame() {
       props.push(
         { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: 56, y: 185, label: '🔨 Astral Star-Anvil [Click / E]' },
         { type: 'bountyBoard', isBountyBoard: true, x: -62, y: 185, label: '📜 Crater Bounty Board [Click / E]' },
+        { type: 'campfire', x: -28, y: 205, label: '🔥 Astral Outpost Hearth' },
+        { type: 'woodenSign', x: 95, y: 205, label: '🪧 N: Meteorite Impact Basin | S: Solari Citadel' },
         { type: 'mountainCrag', x: -180, y: 80 },
         { type: 'mountainCrag', x: 180, y: 80 },
         { type: 'mountainCrag', x: -210, y: -120 },
@@ -4757,6 +4820,8 @@ export function initGame() {
       props.push(
         { type: 'aetherCrucible', stationId: 'aether_crucible', x: -58, y: 235, label: '⚗️ Abyssal Crucible [Click / E]' },
         { type: 'celestialLoom', stationId: 'celestial_loom', x: 58, y: 235, label: '🧵 Voidstar Loom [Click / E]' },
+        { type: 'bountyBoard', isBountyBoard: true, x: -105, y: 235, label: '📜 Rift Bounty Board [Click / E]' },
+        { type: 'campfire', x: 0, y: 268, label: '🔥 Void-Warden Vigil Fire' },
         { type: 'ruinedArch', x: 0, y: 260 },
         { type: 'ruinedArch', x: 0, y: -260 },
         { type: 'crystalPillar', x: -160, y: 90 },
@@ -4927,26 +4992,32 @@ export function initGame() {
 
       if (resolvedRoomType === ROOM_TYPES.SOLARI_CITADEL) {
         props.push(
-          { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: -210, y: 40, label: '🔨 Citadel Star-Anvil [Click / E]' },
-          { type: 'marketStallSmith', id: 'stall_smith', x: -160, y: 40, label: '⚒️ Sunforged Weaponry Stall' },
+          { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: -200, y: 40, label: '🔨 Citadel Star-Anvil [Click / E]' },
+          { type: 'marketStallSmith', id: 'stall_smith', x: -145, y: 40, label: '⚒️ Sunforged Weaponry Stall' },
+          { type: 'bountyBoard', isBountyBoard: true, x: 95, y: 115, label: '📜 Citadel Bounty Board [Click / E]' },
+          { type: 'campfire', x: -85, y: 125, label: '🔥 Sunspire Brazier Hearth' },
+          { type: 'woodenSign', x: 38, y: 128, label: '🪧 W: Smithy & Quarry | E: Citadel Bank | S: Starfall Crater' },
           { type: 'solariSundial', x: 0, y: -70, label: '☀️ Citadel Solar Chronometer' },
-          { type: 'flowerBed', x: -110, y: -50 },
-          { type: 'flowerBed', x: 110, y: -50 },
-          { type: 'flowerBed', x: -110, y: 15 },
-          { type: 'flowerBed', x: 110, y: 15 },
-          { type: 'bankBuilding', x: 220, y: -160, label: '🏛️ Solari Citadel Depository' },
-          { type: 'bankCounter', x: 220, y: -110 },
+          { type: 'flowerBed', x: -105, y: -50 },
+          { type: 'flowerBed', x: 105, y: -50 },
+          { type: 'flowerBed', x: -105, y: 15 },
+          { type: 'flowerBed', x: 105, y: 15 },
+          { type: 'bankBuilding', x: 185, y: -135, label: '🏛️ Solari Citadel Depository' },
+          { type: 'bankCounter', x: 185, y: -90 },
           { type: 'grandFountain', x: 0, y: 0, label: '☀️ Solari Sun Fountain' },
-          { type: 'cityHouseB', x: -160, y: -180 },
-          { type: 'cityHouseB', x: -280, y: -180 },
-          { type: 'streetLantern', x: -60, y: 80 },
-          { type: 'streetLantern', x: 60, y: 80 },
-          { type: 'streetLantern', x: -60, y: -60 },
-          { type: 'streetLantern', x: 60, y: -60 },
-          { type: 'stoneBench', x: -35, y: -15 },
-          { type: 'stoneBench', x: 35, y: -15 },
-          { type: 'blossomTree', x: -120, y: -80 },
-          { type: 'blossomTree', x: 120, y: -80 }
+          { type: 'cityHouseB', x: -175, y: -145, label: '🏠 Sunforge Guildhouse' },
+          { type: 'cityHouseA', x: -85, y: -155, label: '🏠 Dawnwatch Residence' },
+          { type: 'cityHouseB', x: 85, y: -155, label: '🏠 Templar Barracks' },
+          { type: 'mountainCrag', x: -340, y: -110 },
+          { type: 'mountainCrag', x: 340, y: -110 },
+          { type: 'streetLantern', x: -58, y: 80 },
+          { type: 'streetLantern', x: 58, y: 80 },
+          { type: 'streetLantern', x: -58, y: -60 },
+          { type: 'streetLantern', x: 58, y: -60 },
+          { type: 'stoneBench', x: -38, y: -12 },
+          { type: 'stoneBench', x: 38, y: -12 },
+          { type: 'blossomTree', x: -125, y: -85 },
+          { type: 'blossomTree', x: 125, y: -85 }
         );
         npcs.push(
           {
@@ -4957,7 +5028,7 @@ export function initGame() {
             stallId: 'stall_smith',
             merchantType: 'merchant_smith',
             isMerchant: true,
-            x: -160,
+            x: -145,
             y: 75,
           },
           {
@@ -4965,8 +5036,8 @@ export function initGame() {
             name: 'Solari Vault-Master',
             role: 'Citadel Banker [Click / T]',
             spriteKey: 'bankerNpc',
-            x: 220,
-            y: -110,
+            x: 185,
+            y: -90,
             isBank: true,
           },
           {
@@ -4974,27 +5045,32 @@ export function initGame() {
             name: 'Captain Vaelen',
             role: 'Lantern District Templar [Click / T]',
             spriteKey: 'solariCaptainNpc',
-            x: -45,
+            x: -38,
             y: 125,
             dialogue: SOLARI_CITADEL_DIALOGUE,
           }
         );
       } else if (resolvedRoomType === ROOM_TYPES.UMBRI_UNDERCITY) {
         props.push(
-          { type: 'celestialLoom', stationId: 'celestial_loom', x: -210, y: 40, label: '🧵 Undercity Shadow Loom [Click / E]' },
-          { type: 'marketStallTailor', id: 'stall_tailor', x: -160, y: 40, label: '🕸️ Duskveil Silk Stall' },
+          { type: 'celestialLoom', stationId: 'celestial_loom', x: -200, y: 40, label: '🧵 Undercity Shadow Loom [Click / E]' },
+          { type: 'marketStallTailor', id: 'stall_tailor', x: -145, y: 40, label: '🕸️ Duskveil Silk Stall' },
+          { type: 'bountyBoard', isBountyBoard: true, x: -95, y: 115, label: '📜 Undercity Bounty Board [Click / E]' },
+          { type: 'campfire', x: 0, y: 78, label: '🔥 Duskveil Smuggler Hearth' },
+          { type: 'woodenSign', x: -38, y: 128, label: '🪧 W: Shadow Loom | E: Undercity Vault | N: Shadow Labyrinth' },
           { type: 'umbriBrazierAltar', x: -90, y: -50 },
           { type: 'umbriBrazierAltar', x: 90, y: -50 },
           { type: 'umbriBrazierAltar', x: -60, y: 110 },
           { type: 'umbriBrazierAltar', x: 60, y: 110 },
-          { type: 'bankBuilding', x: 220, y: -160, label: '🏛️ Umbri Shadow Depository' },
-          { type: 'bankCounter', x: 220, y: -110 },
+          { type: 'bankBuilding', x: 185, y: -135, label: '🏛️ Umbri Shadow Depository' },
+          { type: 'bankCounter', x: 185, y: -90 },
+          { type: 'cityHouseA', x: -175, y: -145, label: '🏠 Weaver Syndicate Hall' },
+          { type: 'cityHouseB', x: 0, y: -155, label: '🏠 Nightblade Sanctum' },
           { type: 'pillar', x: -140, y: 0 },
           { type: 'pillar', x: 140, y: 0 },
-          { type: 'streetLantern', x: -50, y: 75 },
-          { type: 'streetLantern', x: 50, y: 75 },
-          { type: 'stoneBench', x: -35, y: -15 },
-          { type: 'stoneBench', x: 35, y: -15 }
+          { type: 'streetLantern', x: -52, y: 75 },
+          { type: 'streetLantern', x: 52, y: 75 },
+          { type: 'stoneBench', x: -38, y: -12 },
+          { type: 'stoneBench', x: 38, y: -12 }
         );
         npcs.push(
           {
@@ -5005,7 +5081,7 @@ export function initGame() {
             stallId: 'stall_tailor',
             merchantType: 'merchant_tailor',
             isMerchant: true,
-            x: -160,
+            x: -145,
             y: 75,
           },
           {
@@ -5013,8 +5089,8 @@ export function initGame() {
             name: 'Undercity Vault-Keeper',
             role: 'Duskveil Vault Banker [Click / T]',
             spriteKey: 'bankerNpc',
-            x: 220,
-            y: -110,
+            x: 185,
+            y: -90,
             isBank: true,
           },
           {
@@ -5022,28 +5098,35 @@ export function initGame() {
             name: 'Shadow Broker Nyx',
             role: 'Duskveil Smuggler [Click / T]',
             spriteKey: 'shadowBrokerNpc',
-            x: 45,
+            x: 42,
             y: 125,
             dialogue: UMBRI_UNDERCITY_DIALOGUE,
           }
         );
       } else if (resolvedRoomType === ROOM_TYPES.TERRA_ORCHARD) {
         props.push(
-          { type: 'aetherCrucible', stationId: 'aether_crucible', x: -210, y: 40, label: '⚗️ Orchard Herbal Crucible [Click / E]' },
-          { type: 'marketStallPotions', id: 'stall_potions', x: -160, y: 40, label: '🌿 Rootdeep Apothecary Stall' },
+          { type: 'aetherCrucible', stationId: 'aether_crucible', x: -200, y: 40, label: '⚗️ Orchard Herbal Crucible [Click / E]' },
+          { type: 'marketStallPotions', id: 'stall_potions', x: -145, y: 40, label: '🌿 Rootdeep Apothecary Stall' },
+          { type: 'bankBuilding', x: 185, y: -135, label: '🏛️ Rootdeep Grove Depository' },
+          { type: 'bankCounter', x: 185, y: -90 },
+          { type: 'bountyBoard', isBountyBoard: true, x: 95, y: 115, label: '📜 Orchard Bounty Board [Click / E]' },
+          { type: 'campfire', x: -85, y: 125, label: '🔥 Druid Circle Hearth' },
+          { type: 'woodenSign', x: 38, y: 128, label: '🪧 W: Apothecary & Crucible | E: Orchard Bank & Spring' },
           { type: 'terraMenhir', x: 0, y: -80, label: '🗿 Ancient Mossy Menhir' },
-          { type: 'ancientWell', x: 160, y: 40, label: '💧 Pure Blossom Spring' },
-          { type: 'flowerBed', x: -110, y: -50 },
-          { type: 'flowerBed', x: 110, y: -50 },
+          { type: 'ancientWell', x: 155, y: 45, label: '💧 Pure Blossom Spring' },
+          { type: 'cityHouseA', x: -175, y: -145, label: '🏠 Herbalist Conservatory' },
+          { type: 'cityHouseB', x: -75, y: -155, label: '🏠 Grove-Keeper Cottage' },
+          { type: 'flowerBed', x: -105, y: -50 },
+          { type: 'flowerBed', x: 105, y: -50 },
           { type: 'flowerBed', x: 0, y: 25 },
-          { type: 'ancientOak', x: -260, y: -160 },
-          { type: 'ancientOak', x: 260, y: -160 },
+          { type: 'ancientOak', x: -250, y: -155 },
+          { type: 'ancientOak', x: 265, y: -155 },
           { type: 'blossomTree', x: -120, y: -70 },
           { type: 'blossomTree', x: 120, y: -70 },
-          { type: 'blossomTree', x: -80, y: 130 },
-          { type: 'blossomTree', x: 80, y: 130 },
-          { type: 'stoneBench', x: -35, y: -15 },
-          { type: 'stoneBench', x: 35, y: -15 }
+          { type: 'blossomTree', x: -85, y: 155 },
+          { type: 'blossomTree', x: 85, y: 155 },
+          { type: 'stoneBench', x: -38, y: -12 },
+          { type: 'stoneBench', x: 38, y: -12 }
         );
         npcs.push(
           {
@@ -5054,15 +5137,24 @@ export function initGame() {
             stallId: 'stall_potions',
             merchantType: 'merchant_apothecary',
             isMerchant: true,
-            x: -160,
+            x: -145,
             y: 75,
+          },
+          {
+            id: 'npc_terra_bank',
+            name: 'Orchard Vault-Keeper',
+            role: 'Rootdeep Grove Banker [Click / T]',
+            spriteKey: 'bankerNpc',
+            x: 185,
+            y: -90,
+            isBank: true,
           },
           {
             id: 'npc_rowan',
             name: 'Grove Tender Rowan',
             role: 'Rootdeep Herbalist [Click / T]',
             spriteKey: 'terraHerbalistNpc',
-            x: -45,
+            x: -38,
             y: 125,
             dialogue: TERRA_ORCHARD_DIALOGUE,
           }
@@ -5070,18 +5162,25 @@ export function initGame() {
       } else if (resolvedRoomType === ROOM_TYPES.AETHER_SPIRE) {
         props.push(
           { type: 'aetherArmillary', x: 0, y: -80, label: '🌟 Floating Chrono-Armillary' },
-          { type: 'marketStallRelics', id: 'stall_relics', x: -160, y: 40, label: '🔮 Mirrorgate Relic Stall' },
-          { type: 'aetherCrucible', stationId: 'aether_crucible', x: -210, y: 40, label: '⚗️ Mirrorgate Transmuter [Click / E]' },
+          { type: 'marketStallRelics', id: 'stall_relics', x: -145, y: 40, label: '🔮 Mirrorgate Relic Stall' },
+          { type: 'aetherCrucible', stationId: 'aether_crucible', x: -200, y: 40, label: '⚗️ Mirrorgate Transmuter [Click / E]' },
+          { type: 'bankBuilding', x: 185, y: -135, label: '🏛️ Mirrorgate Astral Depository' },
+          { type: 'bankCounter', x: 185, y: -90 },
+          { type: 'bountyBoard', isBountyBoard: true, x: -95, y: 115, label: '📜 Mirrorgate Bounty Board [Click / E]' },
+          { type: 'campfire', x: 0, y: 78, label: '🔥 Starlight Conduit Hearth' },
+          { type: 'woodenSign', x: -38, y: 128, label: '🪧 W: Relic Stall & Transmuter | E: Astral Vault' },
+          { type: 'cityHouseB', x: -175, y: -145, label: '🏠 Astromancer Athenaeum' },
+          { type: 'cityHouseA', x: 85, y: -155, label: '🏠 Chronos Scholar Lodge' },
           { type: 'crystalPillar', x: -130, y: 90 },
           { type: 'crystalPillar', x: 130, y: 90 },
           { type: 'crystalPillar', x: -130, y: -90 },
           { type: 'crystalPillar', x: 130, y: -90 },
-          { type: 'flowerBed', x: -110, y: -50 },
-          { type: 'flowerBed', x: 110, y: -50 },
-          { type: 'streetLantern', x: -60, y: 75 },
-          { type: 'streetLantern', x: 60, y: 75 },
-          { type: 'stoneBench', x: -35, y: -15 },
-          { type: 'stoneBench', x: 35, y: -15 }
+          { type: 'flowerBed', x: -105, y: -50 },
+          { type: 'flowerBed', x: 105, y: -50 },
+          { type: 'streetLantern', x: -58, y: 75 },
+          { type: 'streetLantern', x: 58, y: 75 },
+          { type: 'stoneBench', x: -38, y: -12 },
+          { type: 'stoneBench', x: 38, y: -12 }
         );
         npcs.push(
           {
@@ -5092,15 +5191,24 @@ export function initGame() {
             stallId: 'stall_relics',
             merchantType: 'merchant_relics',
             isMerchant: true,
-            x: -160,
+            x: -145,
             y: 75,
+          },
+          {
+            id: 'npc_aether_bank',
+            name: 'Mirrorgate Vault-Keeper',
+            role: 'Astral Spire Banker [Click / T]',
+            spriteKey: 'bankerNpc',
+            x: 185,
+            y: -90,
+            isBank: true,
           },
           {
             id: 'npc_kaelen',
             name: 'Astromancer Kaelen',
             role: 'Mirrorgate Stargazer [Click / T]',
             spriteKey: 'aetherAstromancerNpc',
-            x: 45,
+            x: 42,
             y: 125,
             dialogue: AETHER_SPIRE_DIALOGUE,
           }
@@ -5131,8 +5239,8 @@ export function initGame() {
       }
       entities.push(
         { id: 'dummy_1', name: 'Sanctuary Dummy', sub: 'Lv.1 Awakening Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: 52, origX: 0, origY: 52, hp: 30, maxHp: 30, xpReward: 30, radius: 14, hitFlash: 0 },
-        { id: 'dummy_2', name: 'Armored Training Post', sub: 'Lv.5 Resilient Training Post', type: 'dummy', spriteKey: 'dummy', x: 320, y: 200, origX: 320, origY: 200, hp: 120, maxHp: 120, xpReward: 65, radius: 15, hitFlash: 0 },
-        { id: 'dummy_titan', name: 'Titan Training Dummy', sub: 'Lv.50 Endless Damage Trial (No XP)', type: 'dummy', spriteKey: 'dummy', x: 160, y: 200, origX: 160, origY: 200, hp: 25000, maxHp: 25000, xpReward: 0, noHitXp: true, radius: 20, hitFlash: 0 },
+        { id: 'dummy_2', name: 'Armored Training Post', sub: 'Lv.5 Resilient Training Post', type: 'dummy', spriteKey: 'dummy', x: 165, y: 20, origX: 165, origY: 20, hp: 120, maxHp: 120, xpReward: 65, radius: 15, hitFlash: 0 },
+        { id: 'dummy_titan', name: 'Titan Training Dummy', sub: 'Lv.50 Endless Damage Trial (No XP)', type: 'dummy', spriteKey: 'dummy', x: 225, y: 20, origX: 225, origY: 20, hp: 25000, maxHp: 25000, xpReward: 0, noHitXp: true, radius: 20, hitFlash: 0 },
         { id: 'tut_font', name: 'Awakening Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
         { id: 'tut_font_2', name: 'East Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
       );
@@ -10194,28 +10302,24 @@ export function initGame() {
     }
 
     if (currentBiomeTheme === 'sanctuary') {
-      // Grand Central Plaza paved in flagstone (around fountain)
-      if (Math.abs(tx) <= 7 && Math.abs(ty) <= 7) {
+      // Homecoming Town Square & Grand Central Fountain Plaza paved in flagstone
+      if (Math.abs(tx) <= 7 && ty >= -6 && ty <= 9) {
         return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
       }
-      // Bank District Courtyard paved in flagstone
-      if (tx >= 11 && tx <= 25 && ty >= -18 && ty <= -7) {
+      // North Civic Terrace (Grand Exchange & Bank Plaza)
+      if (Math.abs(tx) <= 11 && ty >= -12 && ty <= -6) {
         return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
       }
-      // Market Square paved in flagstone
-      if (tx >= -26 && tx <= -11 && ty >= -18 && ty <= -7) {
+      // West Artisan & Homestead Courtyard
+      if (tx >= -16 && tx <= -7 && ty >= -5 && ty <= 6) {
+        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
+      }
+      // East Combat Trial Courtyard
+      if (tx >= 7 && tx <= 16 && ty >= -4 && ty <= 5) {
         return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
       }
       // Grand North-South and East-West Crossroads connecting gates to center
-      if (Math.abs(tx) <= 3 || Math.abs(ty) <= 3) {
-        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
-      }
-      // Northern Residential Avenue
-      if (ty >= -22 && ty <= -19 && Math.abs(tx) <= 35) {
-        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
-      }
-      // Training District flagstones
-      if (tx >= 14 && tx <= 28 && ty >= 10 && ty <= 18) {
+      if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) {
         return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
       }
       return sprites.tiles[`sanctuary_grass_${Math.abs(tx * 7 + ty * 13) % 4}`];
@@ -10306,7 +10410,16 @@ export function initGame() {
     }
 
     if (['solari', 'umbri', 'terra', 'aether'].includes(currentBiomeTheme)) {
-      if (Math.abs(tx) <= 1) return sprites.tiles[`flagstone_${Math.abs(ty) % 2}`] || sprites.tiles.flagstone_0;
+      // Central city plaza, artisan market square (west), and depository terrace (northeast)
+      if (
+        (Math.abs(tx) <= 5 && Math.abs(ty) <= 5) ||
+        (tx >= -14 && tx <= -6 && ty >= 0 && ty <= 6) ||
+        (tx >= 9 && tx <= 14 && ty >= -10 && ty <= -4) ||
+        Math.abs(tx) <= 1 ||
+        Math.abs(ty) <= 1
+      ) {
+        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
+      }
       return sprites.tiles[`${currentBiomeTheme}_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.warzone_0 || sprites.tiles.flagstone_0;
     }
 

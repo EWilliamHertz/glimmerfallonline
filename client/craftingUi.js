@@ -170,23 +170,6 @@ export function renderCraftingModal(stationOverride = null) {
 
   body.innerHTML = `
     <div style="display:flex; flex-direction:column; gap:10px; font-family:var(--font-body); color:#e2e8f0;">
-      <!-- Station Switcher Tabs -->
-      <div style="display:flex; gap:6px; flex-wrap:wrap; border-bottom:1px solid #1e293b; padding-bottom:6px;">
-        ${Object.values(CRAFTING_STATIONS).map((st) => {
-          const isAct = st.id === station.id;
-          return `
-            <button class="util-btn"
-                    style="font-size:9.5px; padding:5px 11px; border-color:${isAct ? st.color : '#334155'}; color:${isAct ? '#fff' : '#94a3b8'}; background:${isAct ? 'rgba(30,41,59,0.92)' : '#090f1d'}; font-weight:${isAct ? '800' : '600'};"
-                    onclick="window.selectCraftingStation('${st.id}')">
-              ${st.icon} ${st.shortName}
-            </button>
-          `;
-        }).join('')}
-        <div style="margin-left:auto; display:flex; align-items:center; gap:8px; font-size:9.5px; color:#94a3b8;">
-          <span>🎒 Backpack: <b style="color:${inv.length >= 28 ? '#ef4444' : '#38bdf8'};">${inv.length}/28</b></span>
-        </div>
-      </div>
-
       <!-- Live Skill Progress Bar -->
       <div style="background:#090d18; border:1px solid ${station.color}; border-left:4px solid ${station.color}; border-radius:5px; padding:8px 12px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
@@ -202,8 +185,8 @@ export function renderCraftingModal(stationOverride = null) {
         </div>
       </div>
 
-      <!-- Category Filter Pills -->
-      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+      <!-- Category Filter Pills & Backpack Counter -->
+      <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
         ${station.categories.map((cat) => {
           const isCat = activeCategory === cat.id;
           return `
@@ -214,6 +197,9 @@ export function renderCraftingModal(stationOverride = null) {
             </button>
           `;
         }).join('')}
+        <div style="margin-left:auto; display:flex; align-items:center; gap:8px; font-size:9.5px; color:#94a3b8;">
+          <span>🎒 Backpack: <b style="color:${inv.length >= 28 ? '#ef4444' : '#38bdf8'};">${inv.length}/28</b></span>
+        </div>
       </div>
 
       <!-- Two-Column Split: Recipe Grid (Left) + Selected Recipe Anvil Inspector (Right) -->

@@ -190,20 +190,6 @@ export function renderMerchantModal(merchantId = null) {
         </div>
       </div>
 
-      <!-- Merchant Tabs to switch easily between Sanctuary market stands -->
-      <div style="display:flex; gap:6px; border-bottom:1px solid #1e293b; padding-bottom:6px; flex-wrap:wrap;">
-        ${Object.values(MERCHANT_CATALOGS).map((m) => {
-          const isActive = m.id === cat.id;
-          return `
-            <button class="util-btn"
-                    style="font-size:9.5px; padding:4px 10px; border-color:${isActive ? m.badgeColor : '#334155'}; color:${isActive ? '#fff' : '#94a3b8'}; background:${isActive ? 'rgba(30, 41, 59, 0.85)' : '#0d1527'}; font-weight:${isActive ? '800' : '600'};"
-                    onclick="window.openMerchantShop('${m.id}')">
-              ${m.icon} ${m.name.split(' ')[0]} (${m.title.split(' ')[0]})
-            </button>
-          `;
-        }).join('')}
-      </div>
-
       <!-- Nearby World Artisan Station Callout (Replaces Shop Gold-Training) -->
       ${cat.stationId ? `
         <div style="background:#090d16; border:1px solid ${cat.badgeColor}; border-left:4px solid ${cat.badgeColor}; border-radius:5px; padding:9px 12px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
