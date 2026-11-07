@@ -14,6 +14,7 @@ import {
 import { MultiplayerClient } from './network.js';
 import { initTouchControls, updateTouchUiButtons, toggleTouchControls } from './touch.js';
 import { FrontpageController, renderInGamePaperdollModal } from './frontpage.js';
+import { LandingPageController } from './landing.js';
 import {
   renderEquipmentModal,
   renderInventoryModal,
@@ -2495,26 +2496,31 @@ export function initGame() {
     pctx.drawImage(heroSet.down[0], 2, 1);
   }
 
-  function recalcVitalsFromProfile(initialProf = null) {
+  function recalcVitalsFromProfile(initialProf = null, isInitialSpawn = false) {
     player.maxHp = calcMaxHp(prog, localProfile.equipment, localProfile.classId);
     player.maxSolarCharge = calcMaxGlimmer(prog, localProfile.equipment, localProfile.classId);
 
-    const targetHp = initialProf && typeof initialProf.hp === 'number' && initialProf.hp > 0
-      ? initialProf.hp
-      : typeof localProfile.hp === 'number' && localProfile.hp > 0
-      ? localProfile.hp
-      : player.hp > 0 ? player.hp : player.maxHp;
-    player.hp = Math.min(player.maxHp, Math.max(1, targetHp));
+    if (isInitialSpawn && initialProf) {
+      if (typeof initialProf.hp === 'number' && initialProf.hp > 0) {
+        player.hp = Math.min(player.maxHp, Math.max(1, initialProf.hp));
+      } else {
+        player.hp = player.maxHp;
+      }
+      if (typeof initialProf.solarCharge === 'number' && initialProf.solarCharge >= 0) {
+        player.solarCharge = Math.min(player.maxSolarCharge, Math.max(0, initialProf.solarCharge));
+      } else {
+        player.solarCharge = 0;
+      }
+    } else {
+      player.hp = Math.min(player.maxHp, Math.max(1, player.hp || player.maxHp));
+      player.solarCharge = Math.min(player.maxSolarCharge, Math.max(0, player.solarCharge || 0));
+    }
 
-    const targetGlimmer = initialProf && typeof initialProf.solarCharge === 'number' && initialProf.solarCharge >= 0
-      ? initialProf.solarCharge
-      : typeof localProfile.solarCharge === 'number' && localProfile.solarCharge >= 0
-      ? localProfile.solarCharge
-      : player.solarCharge >= 0 ? player.solarCharge : 0;
-    player.solarCharge = Math.min(player.maxSolarCharge, Math.max(0, targetGlimmer));
+    localProfile.hp = Math.round(player.hp);
+    localProfile.solarCharge = Math.round(player.solarCharge);
   }
 
-  function applyProfile(prof) {
+  function applyProfile(prof, isInitialSpawn = false) {
     if (!prof) return;
     const resolved = resolveFactionAndClass({
       faction: prof.faction,
@@ -2586,7 +2592,7 @@ export function initGame() {
     } finally {
       isApplyingProfile = false;
     }
-    recalcVitalsFromProfile(prof);
+    recalcVitalsFromProfile(prof, isInitialSpawn);
     refreshHeroPortrait();
     updatePlayerUI();
     updateActionBarBadges();
@@ -6062,13 +6068,13 @@ export function initGame() {
     onPacket(msg) {
       switch (msg.type) {
         case 'welcome':
-          applyProfile(msg.profile);
+          applyProfile(msg.profile, false);
           frontpage.syncFromProfile(msg.profile);
           publicRoomsList = msg.rooms || [];
           break;
 
         case 'profile_updated':
-          applyProfile(msg.profile);
+          applyProfile(msg.profile, false);
           frontpage.syncFromProfile(msg.profile);
           break;
 
@@ -6322,7 +6328,7 @@ export function initGame() {
     audio,
     onEnterWorld({ profile, startingRealm, playMode, startX, startY }) {
       isSinglePlayer = playMode === 'singleplayer';
-      if (profile) applyProfile(profile);
+      if (profile) applyProfile(profile, true);
       audio.setBgmTheme(ROOM_CONFIGS[startingRealm]?.bgm || 'sanctuary');
 
       if (isSinglePlayer) {
@@ -6361,14 +6367,41 @@ export function initGame() {
   window.openFrontpage = function () {
     saveCurrentVitals();
     document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
+    if (window._landing && window._landing.isOpen) window._landing.close();
     frontpage.open();
   };
 
-  // Open Character Select / Loadout Frontpage IMMEDIATELY on boot
-  try {
-    frontpage.open();
-  } catch (err) {
-    console.error('[Frontpage] Failed to open on startup:', err);
+  const landingPage = new LandingPageController({
+    frontpage,
+    onEnterWorld: frontpage.onEnterWorld,
+  });
+  window._landing = landingPage;
+  window.openLandingPage = function (initialTab = null) {
+    saveCurrentVitals();
+    document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
+    frontpage.close();
+    landingPage.open(initialTab);
+  };
+
+  // Route to either Loadout or Landing Page on boot:
+  // Default is Landing Page unless user toggles "Start on this site" (glimmerfall_start_on_loadout)
+  const startOnLoadout = localStorage.getItem('glimmerfall_start_on_loadout') === 'true';
+  const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const forceLanding = urlParams?.get('landing') === '1';
+  const forceLoadout = urlParams?.get('loadout') === '1' || urlParams?.get('autostart') === '1' || (typeof window !== 'undefined' && window._pendingPlayOnBoot);
+
+  if (forceLoadout || (startOnLoadout && !forceLanding)) {
+    try {
+      frontpage.open();
+    } catch (err) {
+      console.error('[Frontpage] Failed to open on startup:', err);
+    }
+  } else {
+    try {
+      landingPage.open();
+    } catch (err) {
+      console.error('[Landing] Failed to open on startup:', err);
+    }
   }
 
   // Handle instant enter click if triggered before engine mount
@@ -8170,9 +8203,10 @@ export function initGame() {
     // 2. Otherwise harvest World Skilling Vein / Herb / Fiber or Glimmer Node
     let node = currentTarget && currentTarget.type === 'node' ? currentTarget : null;
     if (!node) {
-      node = entities.find((e) => e.type === 'node' && Math.hypot(e.x - player.x, e.y - player.y) <= 6.8 * YARD_PX);
+      node = entities.find((e) => e.type === 'node' && Math.hypot(e.x - player.x, e.y - player.y) <= (e.isGrand ? 160 : 6.8 * YARD_PX));
     }
-    if (!node || Math.hypot(node.x - player.x, node.y - player.y) > 7.0 * YARD_PX) {
+    const maxHarvestDist = node?.isGrand ? 160 : 7.0 * YARD_PX;
+    if (!node || Math.hypot(node.x - player.x, node.y - player.y) > maxHarvestDist) {
       logMessage('[Gathering] Step near an Ore Vein, Herb Cluster, Glimmer Node, or Artisan Station first!', 'log-combat');
       return;
     }
@@ -8284,13 +8318,15 @@ export function initGame() {
     }
     saveQuestState();
     updateQuestTrackerHUD();
+    player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + gain);
+    localProfile.solarCharge = player.solarCharge;
+    spawnFCT(player.x, player.y - 14, `+${gain} GLIMMER`, isGrand ? '#fde047' : '#c084fc', isGrand);
+    awardXP(charXp, isGrand ? 'Grand Glimmer Font' : 'Glimmer Node');
+    awardProfessionXP('resonance_extraction', profXp, isGrand ? 'Grand Glimmer Font' : 'Channeling Leyline Node');
+
     if (net.connected) {
       net.send({ type: 'harvest_node', nodeId: node.id });
     } else {
-      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + gain);
-      spawnFCT(player.x, player.y - 14, `+${gain} GLIMMER`, isGrand ? '#fde047' : '#c084fc', isGrand);
-      awardXP(charXp, isGrand ? 'Grand Glimmer Font' : 'Glimmer Node');
-      awardProfessionXP('resonance_extraction', profXp, isGrand ? 'Grand Glimmer Font' : 'Channeling Leyline Node');
       if (isGrand || Math.random() < 0.45) {
         const bonusMat = Math.random() < 0.5 ? 'glimmer_shard' : 'astral_mineral_dust';
         if (addItemToBackpack(localProfile, bonusMat, 1)) {
@@ -9952,6 +9988,13 @@ export function initGame() {
       return;
     }
 
+    if (landingPage && landingPage.isOpen) {
+      if (e.key === 'Escape') {
+        landingPage.close();
+      }
+      return;
+    }
+
     if (frontpage.isOpen) {
       if (e.key === 'Escape') {
         if (frontpage.state === 'CHARACTER_CREATE') {
@@ -10081,6 +10124,8 @@ export function initGame() {
     if (key === 'c') window.toggleModal('char-modal');
     if (key === 'o') window.toggleModal('social-modal');
     if (key === 'l') window.openQuestLog();
+    if (key === 'h') window.openFrontpage();
+    if (key === 'j') window.openLandingPage ? window.openLandingPage() : null;
   }, true);
 
   window.addEventListener('keyup', (e) => {

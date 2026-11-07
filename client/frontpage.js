@@ -812,11 +812,31 @@ export class FrontpageController {
     }
   }
 
+  getStartOnSite() {
+    try {
+      return localStorage.getItem('glimmerfall_start_on_loadout') === 'true';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  setStartOnSite(checked) {
+    try {
+      localStorage.setItem('glimmerfall_start_on_loadout', checked ? 'true' : 'false');
+    } catch (_) {}
+    if (window._landing) {
+      window._landing.setStartOnLoadout(checked);
+    }
+  }
+
   // ==========================================
   // Window Visibility & Preview Loop
   // ==========================================
   open() {
     this.isOpen = true;
+    if (typeof window !== 'undefined' && window._landing && window._landing.isOpen) {
+      window._landing.close();
+    }
     this.state = FRONTPAGE_STATES.CHARACTER_SELECT;
     this.creationDraft = null;
     const el = document.getElementById('frontpage-overlay');
@@ -1046,6 +1066,17 @@ export class FrontpageController {
                   style="font-size:10px; padding:4px 10px; ${!isSingle ? 'border-color:#4ade80; background:#14532d; color:#bbf7d0;' : 'opacity:0.65;'}"
                   onclick="window._fp.setPlayMode('multiplayer')">
             🌐 MULTIPLAYER (ONLINE)
+          </button>
+        </div>
+
+        <!-- Start on this site toggle & Landing Link -->
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <label style="display:inline-flex; align-items:center; gap:5px; font-size:10px; color:#cbd5e1; cursor:pointer; background:#080e1c; padding:3px 8px; border:1px solid #334155; border-radius:3px;" title="When checked, visits go directly to this loadout. When unchecked, you start at the landing page.">
+            <input type="checkbox" class="start-on-site-cb" ${this.getStartOnSite() ? 'checked' : ''} onchange="window._fp.setStartOnSite(this.checked)">
+            <span>Start on this site</span>
+          </label>
+          <button type="button" class="util-btn" style="font-size:10px; padding:3px 8px; border-color:#38bdf8; color:#7dd3fc; font-weight:bold;" onclick="window.openLandingPage ? window.openLandingPage() : null">
+            📖 LANDING &amp; ENCYCLOPEDIAS
           </button>
         </div>
 

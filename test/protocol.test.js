@@ -5,6 +5,7 @@ import * as protocol from '../shared/protocol.js';
 import { RoomManager } from '../server/roomManager.js';
 import { AccountsStore } from '../server/accountsStore.js';
 import { FrontpageController, FRONTPAGE_STATES } from '../client/frontpage.js';
+import { LandingPageController } from '../client/landing.js';
 import { SKILL_ICON_SVGS, getSkillIconSvg } from '../client/ui/skillIcons.js';
 import { UNLOCK_ICON_SVGS, getUnlockIconSvg } from '../client/ui/unlockIcons.js';
 import { setupSkillGuidesUi } from '../client/game/skillGuidesUi.js';
@@ -786,6 +787,79 @@ test('Monster respawn wipes aggro state and enforces spawnAggroGrace', () => {
   assert.ok(serverDeathSrc.includes('inCombat: false'), 'Server mob death must set inCombat: false');
   assert.ok(serverDeathSrc.includes('targetPlayerId: null'), 'Server mob death must clear targetPlayerId');
 });
+
+test('LandingPageController initializes, toggles Start on this site, and renders Encyclopedias with TCG material', () => {
+  const memoryStore = {};
+  global.localStorage = {
+    getItem: (k) => (Object.prototype.hasOwnProperty.call(memoryStore, k) ? memoryStore[k] : null),
+    setItem: (k, v) => { memoryStore[k] = String(v); },
+    removeItem: (k) => { delete memoryStore[k]; },
+  };
+
+  const landing = new LandingPageController({ frontpage: null, onEnterWorld: null });
+  assert.equal(landing.activeTab, 'forge');
+  assert.equal(landing.getStartOnLoadout(), false, 'Default start on loadout should be false');
+
+  // Toggle Start on this site
+  landing.setStartOnLoadout(true);
+  assert.equal(landing.getStartOnLoadout(), true);
+  assert.equal(global.localStorage.getItem('glimmerfall_start_on_loadout'), 'true');
+  landing.setStartOnLoadout(false);
+  assert.equal(landing.getStartOnLoadout(), false);
+
+  // Test Game Systems Encyclopedia content
+  landing.setGameEncSection('combat');
+  const combatHtml = landing.renderGameEncSection();
+  assert.ok(combatHtml.includes('Action Combat System &amp; Damage Formulas'));
+  assert.ok(combatHtml.includes('1.5s Global Cooldown'));
+
+  landing.setGameEncSection('persistence');
+  const persistHtml = landing.renderGameEncSection();
+  assert.ok(persistHtml.includes('Exact Health &amp; Glimmer Persistence'));
+  assert.ok(persistHtml.includes('Exact World Coordinate Resuming'));
+  assert.ok(persistHtml.includes('Clean Monster Respawn &amp; Aggro Reset'));
+
+  // Test Cosmic Lore & TCG Encyclopedia content from glimmerfalltcg.com
+  landing.setLoreEncSection('creeds');
+  const creedsHtml = landing.renderLoreEncSection();
+  assert.ok(creedsHtml.includes('The Sunspire Dominion'));
+  assert.ok(creedsHtml.includes('The Astral Conclave'));
+  assert.ok(creedsHtml.includes('The Rootdeep Collective'));
+  assert.ok(creedsHtml.includes('The Duskveil Syndicate'));
+
+  landing.setLoreEncSection('cards');
+  const cardsHtml = landing.renderLoreEncSection();
+  assert.ok(cardsHtml.includes('glimmerfalltcg.com'));
+  assert.ok(cardsHtml.includes('Solari Vanguard'));
+  assert.ok(cardsHtml.includes('Dawnblade Templar'));
+  assert.ok(cardsHtml.includes('Mana Crystal'));
+  assert.ok(cardsHtml.includes('Chronocore Prism'));
+
+  // Verify index.html and frontpage.js integration
+  const indexHtml = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf-8');
+  assert.ok(indexHtml.includes('Start on this site'), 'index.html must include Start on this site label');
+  assert.ok(indexHtml.includes('LANDING &amp; ENCYCLOPEDIAS'), 'index.html must include LANDING & ENCYCLOPEDIAS button');
+  assert.ok(indexHtml.includes('id="frontpage-overlay" style="display:none;"'), 'index.html must keep frontpage overlay hidden on initial load if not toggled');
+
+  const fpSrc = fs.readFileSync(new URL('../client/frontpage.js', import.meta.url), 'utf-8');
+  assert.ok(fpSrc.includes('getStartOnSite()'), 'frontpage.js must implement getStartOnSite');
+  assert.ok(fpSrc.includes('setStartOnSite('), 'frontpage.js must implement setStartOnSite');
+  assert.ok(fpSrc.includes('LANDING &amp; ENCYCLOPEDIAS'), 'frontpage.js must include LANDING & ENCYCLOPEDIAS button');
+});
+
+test('Glimmer harvesting preserves active solarCharge and does not revert to cached profile value', () => {
+  const gameSrc = fs.readFileSync(new URL('../client/game.js', import.meta.url), 'utf-8');
+  const roomManagerSrc = fs.readFileSync(new URL('../server/roomManager.js', import.meta.url), 'utf-8');
+
+  // Client vitals recalculation must guard live gameplay from being overwritten
+  assert.ok(gameSrc.includes('recalcVitalsFromProfile(initialProf = null, isInitialSpawn = false)'), 'recalcVitalsFromProfile must distinguish isInitialSpawn');
+  assert.ok(gameSrc.includes('if (isInitialSpawn && initialProf) {'), 'Only initial spawn sets vitals from initial profile');
+  assert.ok(gameSrc.includes('player.solarCharge = Math.min(player.maxSolarCharge, Math.max(0, player.solarCharge || 0));'), 'Live solarCharge must not be overwritten by profile_updated');
+
+  // Server client refresh must preserve live solarCharge
+  assert.ok(roomManagerSrc.includes('client.solarCharge = Math.min(client.maxSolarCharge, client.solarCharge);'), 'Server refreshClientFromAccount must preserve live client.solarCharge');
+});
+
 
 
 

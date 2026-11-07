@@ -450,6 +450,9 @@ export class RoomManager {
       client.solarCharge = (typeof ch?.solarCharge === 'number' && ch.solarCharge >= 0) ? Math.min(client.maxSolarCharge, ch.solarCharge) : 0;
     } else {
       client.hp = Math.min(client.maxHp, client.hp);
+      client.solarCharge = Math.min(client.maxSolarCharge, client.solarCharge);
+      if (ch) ch.solarCharge = client.solarCharge;
+      acc.solarCharge = client.solarCharge;
     }
 
     client.send({

@@ -1,6 +1,7 @@
 @import "./base.css";
 @import "./hud.css";
 @import "./modals.css";
+@import "./landing.css";
 
 /* Universal Vector SVG Skill Emblems */
 .gf-skill-svg-wrap {

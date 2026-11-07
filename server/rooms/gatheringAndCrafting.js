@@ -96,9 +96,10 @@ export const gatheringAndCraftingMethods = {
     // 2. Otherwise harvest World Skilling Vein / Herb / Fiber or Glimmer Node
     let node = nodeId ? room.entities.find((e) => e.id === nodeId && e.type === 'node') : null;
     if (!node) {
-      node = room.entities.find((e) => e.type === 'node' && Math.hypot(e.x - player.x, e.y - player.y) <= 7.2 * YARD_PX);
+      node = room.entities.find((e) => e.type === 'node' && Math.hypot(e.x - player.x, e.y - player.y) <= (e.isGrand ? 160 : 7.2 * YARD_PX));
     }
-    if (!node || Math.hypot(node.x - player.x, node.y - player.y) > 7.5 * YARD_PX) return;
+    const maxNodeDist = node?.isGrand ? 160 : 7.5 * YARD_PX;
+    if (!node || Math.hypot(node.x - player.x, node.y - player.y) > maxNodeDist) return;
     if (node.charges <= 0) return;
 
     const now = Date.now();

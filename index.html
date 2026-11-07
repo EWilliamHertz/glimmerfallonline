@@ -18,14 +18,21 @@
   <div id="fct-container"></div>
 
   <!-- GAME FRONTPAGE: Character Roster, Faction, Class, Name, Paperdoll & Loadout -->
-  <div id="frontpage-overlay">
+  <div id="frontpage-overlay" style="display:none;">
     <div class="fp-shell panel">
       <div class="fp-header">
         <div>
           <div class="fp-logo">⚔️ GLIMMERFALL ONLINE — 2D PIXEL MMORPG</div>
           <div class="fp-sub">4 Canonical Factions • 8 Archetypes • Seamless World Traversal</div>
         </div>
-        <div style="display:flex; gap:8px; align-items:center;">
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <label style="display:inline-flex; align-items:center; gap:5px; font-size:10px; color:#cbd5e1; cursor:pointer; background:#080e1c; padding:3px 8px; border:1px solid #334155; border-radius:3px;" title="When checked, visits go directly to this loadout. When unchecked, you start at the landing page.">
+            <input type="checkbox" id="fp-start-on-site-cb" class="start-on-site-cb" onchange="if(window._fp){window._fp.setStartOnSite(this.checked);}else{try{localStorage.setItem('glimmerfall_start_on_loadout', this.checked?'true':'false');}catch(_){}}" />
+            <span>Start on this site</span>
+          </label>
+          <button type="button" class="util-btn" style="font-size:10px; padding:3px 8px; border-color:#38bdf8; color:#7dd3fc; font-weight:bold;" onclick="if(window.openLandingPage){window.openLandingPage();}else if(window._landing){window._landing.open();}">
+            📖 LANDING &amp; ENCYCLOPEDIAS
+          </button>
           <a href="https://www.glimmerfalltcg.com" target="_blank" rel="noreferrer" class="util-btn" style="text-decoration:none; border-color:#facc15; color:#fde047;">
             🃏 GLIMMERFALLTCG.COM ↗
           </a>
@@ -39,6 +46,24 @@
       <script>
         (function () {
           try {
+            var startOnSite = false;
+            try { startOnSite = localStorage.getItem('glimmerfall_start_on_loadout') === 'true'; } catch (_) {}
+            var params = (typeof URLSearchParams !== 'undefined') ? new URLSearchParams(window.location.search) : null;
+            var forceLanding = params?.get('landing') === '1';
+            var forceLoadout = params?.get('loadout') === '1' || params?.get('autostart') === '1';
+            var shouldShowLoadout = forceLoadout || (startOnSite && !forceLanding);
+
+            var overlayEl = document.getElementById('frontpage-overlay');
+            if (overlayEl) {
+              overlayEl.style.display = shouldShowLoadout ? 'flex' : 'none';
+            }
+            var cb = document.getElementById('fp-start-on-site-cb');
+            if (cb) cb.checked = startOnSite;
+
+            if (!shouldShowLoadout) {
+              return;
+            }
+
             var root = document.getElementById('frontpage-body');
             if (!root) return;
             var SP_KEY_V2 = 'glimmerfall_sp_roster_v2';
