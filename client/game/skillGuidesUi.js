@@ -7,13 +7,31 @@ import {
   PROFESSION_MASTERY_CAPES,
   getTotalProfessionLevel,
   getXpForProfessionLevel,
+  calcEntityLevel,
+  getEntityCombatArchetype,
 } from '../../shared/protocol.js';
+import { getSkillIconSvg, SKILL_ICON_SVGS } from '../ui/skillIcons.js';
 
 export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
   let currentSkillGuideId = 'resonance_extraction';
   let currentSkillGuideFilter = 'all';
+  let currentSkillsModalFilter = 'all';
 
   window.toggleSkillsTab = function () {
+    const modal = document.getElementById('skills-modal');
+    if (modal) {
+      const isVisible = modal.style.display !== 'none';
+      if (isVisible) {
+        modal.style.display = 'none';
+      } else {
+        window.renderSkillsModal();
+        toggleModal('skills-modal');
+        audio.playChime?.();
+      }
+      return;
+    }
+
+    // Fallback to popup if modal not in DOM
     const el = document.getElementById('skills-tab-popup');
     if (!el) return;
     const isVisible = el.style.display !== 'none' && el.classList.contains('active');
@@ -28,7 +46,158 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
     }
   };
 
+  window.openSkillsModal = function () {
+    window.renderSkillsModal();
+    toggleModal('skills-modal');
+  };
+
+  window.filterSkillsModal = function (category = 'all') {
+    currentSkillsModalFilter = category;
+    const tabs = document.querySelectorAll('.skills-filter-tab');
+    tabs.forEach((tab) => {
+      const f = tab.getAttribute('data-filter') || 'all';
+      if (f === category) tab.classList.add('active');
+      else tab.classList.remove('active');
+    });
+    window.renderSkillsModal();
+  };
+
+  window.renderSkillsModal = function () {
+    const gridEl = document.getElementById('skills-modal-grid');
+    const prog = getProg();
+    if (!prog.professions) {
+      prog.professions = {
+        resonance_extraction: { xp: 0, level: 1 },
+        relic_forging: { xp: 0, level: 1 },
+        rite_binding: { xp: 0, level: 1 },
+        glimmerweaving: { xp: 0, level: 1 },
+        combat_mastery: { xp: 0, level: 1 },
+        rites: { xp: 0, level: 1 },
+        flashes: { xp: 0, level: 1 },
+      };
+    }
+
+    // Header Medallion
+    const iconHeader = document.getElementById('skills-modal-icon');
+    if (iconHeader && !iconHeader.innerHTML.trim()) {
+      iconHeader.innerHTML = getSkillIconSvg('skills_medallion', 30);
+    }
+
+    // 1. Entity Level Box (RuneScape Combat Level Algorithm)
+    const entLvl = calcEntityLevel(prog);
+    const archetype = getEntityCombatArchetype(prog);
+    const entValEl = document.getElementById('skills-entity-level-val');
+    const entArchEl = document.getElementById('skills-entity-archetype');
+    const entCrestWrap = document.getElementById('entity-crest-wrap');
+    const entBreakdownEl = document.getElementById('skills-entity-breakdown');
+
+    if (entValEl) entValEl.innerText = `${entLvl}`;
+    if (entArchEl) entArchEl.innerText = archetype;
+    if (entCrestWrap && !entCrestWrap.innerHTML.trim()) {
+      entCrestWrap.innerHTML = getSkillIconSvg('entity_crest', 44);
+    }
+    if (entBreakdownEl) {
+      const profs = prog.professions;
+      const combatMax = Math.max(
+        profs.combat_mastery?.level || 1,
+        profs.rites?.level || 1,
+        profs.flashes?.level || 1
+      );
+      const baseArm = Math.floor((prog.level || 1) * 3.25) + (profs.relic_forging?.level || 1) + (profs.resonance_extraction?.level || 1);
+      const artSyn = (profs.rite_binding?.level || 1) + (profs.glimmerweaving?.level || 1);
+      entBreakdownEl.innerText = `Defense: ${baseArm} • Offense Max: ${combatMax} • Synergy: ${artSyn}`;
+    }
+
+    // 2. Total Level Box
+    const totalLevel = getTotalProfessionLevel(prog.professions);
+    const maxTotalLevel = Object.keys(PROFESSIONS_CATALOG).length * 99; // 7 * 99 = 693
+    const totalValEl = document.getElementById('skills-total-level-val');
+    const totalCrestWrap = document.getElementById('total-crest-wrap');
+    const totalFillEl = document.getElementById('skills-total-bar-fill');
+    const totalXpEl = document.getElementById('skills-total-xp-txt');
+
+    if (totalValEl) {
+      totalValEl.innerHTML = `${totalLevel} <span class="skills-total-max">/ ${maxTotalLevel}</span>`;
+    }
+    if (totalCrestWrap && !totalCrestWrap.innerHTML.trim()) {
+      totalCrestWrap.innerHTML = getSkillIconSvg('total_crest', 44);
+    }
+
+    let sumXp = 0;
+    for (const p of Object.values(prog.professions)) {
+      sumXp += p.xp || 0;
+    }
+    if (totalXpEl) totalXpEl.innerText = `${sumXp.toLocaleString()} TOTAL XP`;
+    if (totalFillEl) {
+      const totalPct = Math.min(100, Math.max(1, (totalLevel / maxTotalLevel) * 100));
+      totalFillEl.style.width = `${totalPct.toFixed(1)}%`;
+    }
+
+    // 3. Grid of 7 Skills
+    if (gridEl) {
+      let html = '';
+      for (const [profId, meta] of Object.entries(PROFESSIONS_CATALOG)) {
+        const isCombat = ['combat_mastery', 'rites', 'flashes'].includes(profId);
+        if (currentSkillsModalFilter === 'combat' && !isCombat) continue;
+        if (currentSkillsModalFilter === 'artisan' && isCombat) continue;
+
+        const state = prog.professions[profId] || { xp: 0, level: 1 };
+        const curLvl = state.level || 1;
+        const isMaxed = curLvl >= 99;
+        const curLvlXp = getXpForProfessionLevel(curLvl);
+        const nextLvlXp = isMaxed ? curLvlXp : getXpForProfessionLevel(curLvl + 1);
+        const xpInLevel = Math.max(0, state.xp - curLvlXp);
+        const xpNeededForLevel = Math.max(1, nextLvlXp - curLvlXp);
+        const pct = isMaxed ? 100 : Math.min(100, Math.floor((xpInLevel / xpNeededForLevel) * 100));
+        const cape = PROFESSION_MASTERY_CAPES[profId];
+        const iconSvg = getSkillIconSvg(profId, 36);
+
+        html += `
+          <div class="skills-card ${isMaxed ? 'skills-card-mastered' : ''}" style="--skill-color: ${meta.color}; border-left-color: ${meta.color};" onclick="window.openSkillGuide('${profId}')">
+            <div class="skills-card-left">
+              <div class="skills-card-crest-frame" style="border-color:${meta.color}55; background:${meta.color}18;">
+                ${iconSvg}
+              </div>
+            </div>
+            <div class="skills-card-main">
+              <div class="skills-card-header">
+                <div class="skills-card-name-group">
+                  <span class="skills-card-name" style="color:${meta.color};">${meta.name}</span>
+                  <span class="skills-card-category-badge">${isCombat ? 'COMBAT & MAGIC' : 'ARTISAN & HARVEST'}</span>
+                </div>
+                <div class="skills-card-level-badge ${isMaxed ? 'mastered' : ''}">
+                  ${isMaxed ? '👑 MASTERY 99' : `LVL ${curLvl} <span style="font-size:9.5px; opacity:0.65;">/ 99</span>`}
+                </div>
+              </div>
+              <div class="skills-card-role">${meta.role || ''}</div>
+              <div class="skills-card-bar-wrap">
+                <div class="skills-card-bar-fill" style="width:${pct}%; background:linear-gradient(90deg, ${meta.color}aa, ${meta.color});"></div>
+              </div>
+              <div class="skills-card-stats-row">
+                <span class="skills-card-xp-cur">${state.xp.toLocaleString()} XP</span>
+                <span class="skills-card-xp-next">${isMaxed ? '👑 MAXED' : `${pct}% • ${(nextLvlXp - state.xp).toLocaleString()} XP to Lv.${curLvl + 1}`}</span>
+              </div>
+              ${isMaxed && cape ? `
+                <div class="skills-card-cape-banner">
+                  ✨ Skillcape: <b>${cape.name}</b> (${cape.perk})
+                </div>
+              ` : ''}
+              <div class="skills-card-actions">
+                <button class="skills-card-guide-btn" onclick="event.stopPropagation(); window.openSkillGuide('${profId}')">
+                  📖 View ${meta.name} Unlocks →
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      gridEl.innerHTML = html;
+    }
+  };
+
   window.renderSkillsTabUI = function () {
+    window.renderSkillsModal();
+
     const container = document.getElementById('skills-list-container');
     const totalBadge = document.getElementById('skills-total-badge');
     if (!container) return;
@@ -41,6 +210,8 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
         rite_binding: { xp: 0, level: 1 },
         glimmerweaving: { xp: 0, level: 1 },
         combat_mastery: { xp: 0, level: 1 },
+        rites: { xp: 0, level: 1 },
+        flashes: { xp: 0, level: 1 },
       };
     }
 
@@ -58,11 +229,12 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
       const xpNeededForLevel = Math.max(1, nextLvlXp - curLvlXp);
       const pct = isMaxed ? 100 : Math.min(100, Math.floor((xpInLevel / xpNeededForLevel) * 100));
       const cape = PROFESSION_MASTERY_CAPES[profId];
+      const iconSvg = getSkillIconSvg(profId, 24);
 
       html += `
         <div class="skill-row" onclick="window.openSkillGuide('${profId}')" title="Click to view full OSRS-style milestone unlocks for ${pDef.name}">
           <div class="skill-icon-cell" style="background:${pDef.color}22; border:1px solid ${pDef.color}66;">
-            ${pDef.icon}
+            ${iconSvg}
           </div>
           <div class="skill-meta-cell">
             <div class="skill-meta-header">
@@ -240,20 +412,49 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
         { level: 99, cat: 'Skillcape', title: 'Skillcape of the Continental Champion', desc: 'Equip the legendary 99 Combat Mastery Cape. Grants +25 Attack Power, +15 Bastion, and +5% Life Leech.', method: 'Mastery Vendor / Auto-awarded', xp: 'Level 99 Mastery', icon: '👑' },
       ],
     },
+    rites: {
+      categories: ['All', 'Channeled Rites', 'Invocations', 'Ritual Mastery', 'Skillcape'],
+      unlocks: [
+        { level: 1, cat: 'Channeled Rites', title: 'Solar Smite & Umbral Ruin Rites', desc: 'Channel focused radiant energy or shadow threads against enemies. Earns XP whenever a Rite is channeled.', method: 'Cast Rites in Combat', xp: '+25 XP / cast', icon: '☀️' },
+        { level: 10, cat: 'Channeled Rites', title: 'Channeled Focus: Pushback Resistance', desc: 'Reduces cast-time pushback when sustaining enemy damage by 20%.', method: 'Passive Mastery', xp: 'Level 10 Unlock', icon: '🛡️' },
+        { level: 25, cat: 'Invocations', title: 'Radiant Cascade & Void Eruption', desc: 'Channel devastating multi-strike area-of-effect rites that overwhelm target clusters.', method: 'Equip Tier 2 Rites', xp: '+45 XP / cast', icon: '✨' },
+        { level: 40, cat: 'Invocations', title: 'Astral Resonance Amplification', desc: 'Increases all spell damage from channeled rites by 12%.', method: 'Passive Mastery', xp: 'Level 40 Unlock', icon: '⚡' },
+        { level: 55, cat: 'Channeled Rites', title: 'Terra Quake & Chrono Singularity Rites', desc: 'Channel seismic fissures and temporal gravitational vortexes in dungeon boss battles.', method: 'High-Tier Evocations', xp: '+85 XP / cast', icon: '🌀' },
+        { level: 70, cat: 'Ritual Mastery', title: 'Arch-Hierophant Channeling Cadence', desc: 'Drastically accelerates rite channel time by 15%, speeding up heavy damage cycles.', method: 'Passive Mastery', xp: 'Level 70 Unlock', icon: '⏳' },
+        { level: 85, cat: 'Invocations', title: 'Cataclysmic Solar Nova & Void Collapse', desc: 'Summon continental-tier celestial flares incinerating high-level bosses.', method: 'Mythic Raids / Outer Biomes', xp: '+160 XP / cast', icon: '🌌' },
+        { level: 92, cat: 'Ritual Mastery', title: 'Prismatic Overchanneling Surge', desc: 'Grants +25% Critical Strike Chance to fully channeled Rites.', method: 'Apex Spellcraft', xp: 'Level 92 Unlock', icon: '🔮' },
+        { level: 99, cat: 'Skillcape', title: 'Skillcape of the Arch-Hierophant', desc: 'Equip the legendary 99 Rites Cape. Grants +5 All Stats, -20% Rite channel time, and makes channeled spells immune to interrupt.', method: 'Mastery Vendor / Auto-awarded', xp: 'Level 99 Mastery', icon: '👑' },
+      ],
+    },
+    flashes: {
+      categories: ['All', 'Instant Strikes', 'Mobility & Escapes', 'Counter-Reflexes', 'Skillcape'],
+      unlocks: [
+        { level: 1, cat: 'Instant Strikes', title: 'Flare Strike & Quick Strikes', desc: 'Trigger instant flash abilities during weapon swings and spell cooldowns.', method: 'Use Flashes in Combat', xp: '+20 XP / flash', icon: '⚡' },
+        { level: 10, cat: 'Mobility & Escapes', title: 'Fleetfoot Reaction Stance', desc: 'Gain +6% Movement Speed for 2.5s immediately after activating any Flash.', method: 'Passive Mastery', xp: 'Level 10 Unlock', icon: '💨' },
+        { level: 25, cat: 'Mobility & Escapes', title: 'Phantom Blink & Shadow Step', desc: 'Instantly warp short distances through enemies or ground hazards to reposition.', method: 'Equip Mobility Flashes', xp: '+40 XP / flash', icon: '✨' },
+        { level: 40, cat: 'Counter-Reflexes', title: 'Counter-Ward Deflection', desc: 'Deflect incoming spells if a flash ability is activated within 0.3s of impact.', method: 'Combat Reflex Timing', xp: 'Level 40 Unlock', icon: '🛡️' },
+        { level: 55, cat: 'Instant Strikes', title: 'Tempest Flurry & Whirlwind Blitz', desc: 'Unleash rapid consecutive flash strikes that critically strike bleeding foes.', method: 'High-Speed Rotations', xp: '+75 XP / flash', icon: '🌪️' },
+        { level: 70, cat: 'Counter-Reflexes', title: 'Chrono-Snap Cooldown Recovery', desc: 'Reduces all Flash ability cooldowns across your entire action bar by 20%.', method: 'Passive Mastery', xp: 'Level 70 Unlock', icon: '⏱️' },
+        { level: 85, cat: 'Instant Strikes', title: 'Horizon Blitz Behind Striking', desc: 'Instantly dash behind a target and land a guaranteed critical strike.', method: 'Outer Continent / Dungeons', xp: '+140 XP / flash', icon: '🗡️' },
+        { level: 92, cat: 'Counter-Reflexes', title: 'Hyper-Reflex Surge Reset', desc: 'Defeating an enemy or successfully dodging a boss mechanic resets Flash cooldowns.', method: 'Apex Reflex Mastery', xp: 'Level 92 Unlock', icon: '⚡' },
+        { level: 99, cat: 'Skillcape', title: 'Skillcape of the Tempest Flash', desc: 'Equip the legendary 99 Flashes Cape. Grants +5 All Stats, +1 Flash charge, and 15% flash CDR.', method: 'Mastery Vendor / Auto-awarded', xp: 'Level 99 Mastery', icon: '👑' },
+      ],
+    },
   };
 
   window.openSkillGuide = function (skillId = 'resonance_extraction', filter = 'all') {
     currentSkillGuideId = skillId;
     currentSkillGuideFilter = filter;
     window.renderSkillGuide(skillId, filter);
-    toggleModal('osrs-skill-guide-modal');
+    const targetModal = document.getElementById('skill-guide-modal') ? 'skill-guide-modal' : 'osrs-skill-guide-modal';
+    toggleModal(targetModal);
   };
 
   window.renderSkillGuide = function (skillId = currentSkillGuideId, filter = currentSkillGuideFilter) {
     currentSkillGuideId = skillId;
     currentSkillGuideFilter = filter;
 
-    const modal = document.getElementById('osrs-skill-guide-modal');
+    const modal = document.getElementById('skill-guide-modal') || document.getElementById('osrs-skill-guide-modal');
     if (!modal) return;
 
     const prog = getProg();
@@ -263,26 +464,38 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
     const guideData = SKILL_TRAINING_GUIDES[skillId];
     if (!pDef || !guideData) return;
 
-    const iconEl = document.getElementById('osrs-guide-icon');
-    const titleEl = document.getElementById('osrs-guide-title');
-    const levelEl = document.getElementById('osrs-guide-level');
-    const xpEl = document.getElementById('osrs-guide-xp');
-    const navEl = document.getElementById('osrs-guide-nav');
-    const listEl = document.getElementById('osrs-guide-list');
+    const iconEl = document.getElementById('osrs-guide-icon') || document.getElementById('skill-guide-icon');
+    const titleEl = document.getElementById('osrs-guide-title') || document.getElementById('skill-guide-title');
+    const levelEl = document.getElementById('osrs-guide-level') || document.getElementById('skill-guide-level');
+    const xpEl = document.getElementById('osrs-guide-xp') || document.getElementById('skill-guide-xp');
+    const navEl = document.getElementById('osrs-guide-nav') || document.getElementById('skill-guide-filters');
+    const listEl = document.getElementById('osrs-guide-list') || document.getElementById('skill-guide-unlocks-container');
 
-    if (iconEl) iconEl.innerText = pDef.icon;
+    if (iconEl) iconEl.innerHTML = getSkillIconSvg(skillId, 28);
     if (titleEl) {
-      titleEl.innerText = pDef.name.toUpperCase();
+      titleEl.innerText = `${pDef.name.toUpperCase()} — SKILL GUIDE & UNLOCKS`;
       titleEl.style.color = pDef.color;
     }
     if (levelEl) levelEl.innerText = `LEVEL ${curLevel} / 99`;
     if (xpEl) xpEl.innerText = `${prof.xp.toLocaleString()} TOTAL XP`;
 
+    // Active tab in skill selection header
+    const tabBtns = document.querySelectorAll('.sg-tab-btn');
+    tabBtns.forEach((btn) => {
+      if (btn.id === `sg-tab-${skillId}`) {
+        btn.classList.add('active');
+        btn.style.borderColor = pDef.color;
+      } else {
+        btn.classList.remove('active');
+        btn.style.borderColor = '';
+      }
+    });
+
     if (navEl) {
       navEl.innerHTML = guideData.categories.map((cat) => {
         const isActive = cat.toLowerCase() === filter.toLowerCase();
         return `
-          <button class="osrs-filter-btn ${isActive ? 'active' : ''}" onclick="window.renderSkillGuide('${skillId}', '${cat.toLowerCase()}')">
+          <button class="osrs-filter-btn ${isActive ? 'active' : ''}" style="${isActive ? `border-color:${pDef.color}; color:${pDef.color}; font-weight:bold;` : ''}" onclick="window.renderSkillGuide('${skillId}', '${cat.toLowerCase()}')">
             ${cat}
           </button>
         `;
@@ -298,18 +511,18 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
       listEl.innerHTML = filteredUnlocks.map((u) => {
         const isUnlocked = curLevel >= u.level;
         return `
-          <div class="osrs-unlock-card ${isUnlocked ? 'osrs-unlocked' : 'osrs-locked'}">
-            <div class="osrs-level-badge ${isUnlocked ? 'osrs-badge-unlocked' : 'osrs-badge-locked'}">
+          <div class="osrs-unlock-card ${isUnlocked ? 'osrs-unlocked' : 'osrs-locked'}" style="border-left: 3px solid ${isUnlocked ? pDef.color : '#334155'};">
+            <div class="osrs-level-badge ${isUnlocked ? 'osrs-badge-unlocked' : 'osrs-badge-locked'}" style="${isUnlocked ? `background:${pDef.color}; border-color:#fef08a;` : ''}">
               ${u.level}
             </div>
-            <div>
+            <div style="flex: 1;">
               <div class="osrs-unlock-title">
                 <span>${u.icon}</span>
                 <span style="${isUnlocked ? 'color:#f8fafc;' : 'color:#cbd5e1;'}">${u.title}</span>
               </div>
               <div class="osrs-unlock-desc">${u.desc}</div>
               <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:4px;">
-                <span class="osrs-xp-badge">${u.xp}</span>
+                <span class="osrs-xp-badge" style="color:${pDef.color};">${u.xp}</span>
                 <span style="font-size:9px; color:#94a3b8;">Station / Method: <b style="color:#e2e8f0;">${u.method}</b></span>
               </div>
             </div>

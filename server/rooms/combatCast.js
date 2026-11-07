@@ -249,10 +249,14 @@ export const combatCastMethods = {
         duration: effectiveCastTime,
         color: spec.color,
       });
+      this.awardProfessionXP(player, 'rites', Math.max(12, 10 + rank * 4), spec.name);
       return;
     }
 
     // FLASHES EXECUTE INSTANTLY (castTime === 0)
+    if (isFlash) {
+      this.awardProfessionXP(player, 'flashes', Math.max(8, 6 + rank * 2), spec.name);
+    }
     const wasStealthed = player.stealthedTimer > 0;
     if (spec.kind !== 'stealth' && spec.kind !== 'stealth_burst') {
       player.stealthedTimer = 0; // Attacking breaks stealth

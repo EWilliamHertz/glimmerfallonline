@@ -2613,46 +2613,24 @@ export function initGame() {
 
     const { sx, sy } = worldToScreen(wx, wy - 14);
 
-    // Find overlapping FCTs nearby in screen space
-    const nearby = recentFcts.filter((f) => Math.hypot(f.sx - sx, f.sy - sy) < 64);
+    // Stagger overlapping FCTs vertically so text remains clear and flat
+    const nearby = recentFcts.filter((f) => Math.hypot(f.sx - sx, f.sy - sy) < 48);
     const stackIndex = nearby.length;
+    const stackOffsetY = stackIndex * 18;
 
-    // One text is flat line (0deg), subsequent overlapping text rotates ~20deg downwards and lifts slightly above
-    let rotDeg = 0;
-    let stackOffsetY = 0;
-    let stackOffsetX = 0;
-
-    if (stackIndex === 1) {
-      rotDeg = 20; // rotated 20 degrees downwards
-      stackOffsetY = 21; // slightly above so it never overlaps
-      stackOffsetX = 6;
-    } else if (stackIndex === 2) {
-      rotDeg = -18; // fanned in opposite direction above
-      stackOffsetY = 39;
-      stackOffsetX = -6;
-    } else if (stackIndex >= 3) {
-      rotDeg = stackIndex % 2 === 1 ? 16 : -16;
-      stackOffsetY = 18 + stackIndex * 18;
-      stackOffsetX = stackIndex % 2 === 1 ? 8 : -8;
-    }
-
-    recentFcts.push({ sx, sy, time: now, rotDeg });
+    recentFcts.push({ sx, sy, time: now });
 
     const cleanText = shortenFctText(text);
     const labelText = isCrit ? `★ ${cleanText}!` : cleanText;
 
     const el = document.createElement('div');
     el.className = isCrit ? 'fct-text fct-crit' : 'fct-text';
-    el.style.left = `${sx + stackOffsetX}px`;
+    el.style.left = `${sx}px`;
     el.style.top = `${sy - stackOffsetY}px`;
     el.style.color = color;
-    el.style.setProperty('--fct-rot', `${rotDeg}deg`);
 
     const inner = document.createElement('span');
     inner.className = 'fct-inner';
-    if (rotDeg !== 0) {
-      inner.style.transform = `rotate(${rotDeg}deg)`;
-    }
     inner.innerText = labelText;
     el.appendChild(inner);
 
@@ -3968,7 +3946,12 @@ export function initGame() {
         rite_binding: { xp: 0, level: 1 },
         glimmerweaving: { xp: 0, level: 1 },
         combat_mastery: { xp: 0, level: 1 },
+        rites: { xp: 0, level: 1 },
+        flashes: { xp: 0, level: 1 },
       };
+    }
+    if (!prog.professions[professionId]) {
+      prog.professions[professionId] = { xp: 0, level: 1 };
     }
     const prof = prog.professions[professionId];
     if (!prof) return;
@@ -4487,9 +4470,9 @@ export function initGame() {
         { type: 'campfire', x: -52, y: 102, label: '🔥 Sanctuary Homecoming Hearth' },
         { type: 'stoneBench', x: -52, y: 80 },
         { type: 'stoneBench', x: -52, y: 124 },
-        { type: 'ancientWell', x: 64, y: 112, label: '💧 Sanctuary Home Wellspring' },
+        { type: 'ancientWell', x: 64, y: 112 },
         { type: 'woodenSign', x: 28, y: 122, label: '🪧 N: Bank & Exchange • W: Artisans & Market • E: Training Yard' },
-        { type: 'solariSundial', x: 0, y: 152, label: '☀️ Sanctuary Sundial' },
+        { type: 'solariSundial', x: 0, y: 152 },
         { type: 'flowerBed', x: -92, y: 72 },
         { type: 'flowerBed', x: 92, y: 72 },
         { type: 'flowerBed', x: -92, y: 138 },
@@ -4504,7 +4487,7 @@ export function initGame() {
         { type: 'blossomTree', x: 118, y: 152 },
 
         // 2. Grand Central Starlight Fountain Plaza (Center 0, -10)
-        { type: 'grandFountain', x: 0, y: -10, label: '⛲ Sanctuary Starlight Fountain' },
+        { type: 'grandFountain', x: 0, y: -10 },
         { type: 'stoneBench', x: -46, y: -32 },
         { type: 'stoneBench', x: 46, y: -32 },
         { type: 'stoneBench', x: -46, y: 16 },
@@ -4533,10 +4516,10 @@ export function initGame() {
         { type: 'blossomTree', x: 185, y: -155 },
 
         // 4. Cozy Hometown Cottages & Guildhalls Framing the Town Square
-        { type: 'cityHouseA', x: -255, y: -135, label: '🏠 Artisan Guild Cottage' },
-        { type: 'cityHouseB', x: 255, y: -135, label: '🏠 Vanguard Barracks Hall' },
-        { type: 'cityHouseA', x: -275, y: 95, label: '🏠 Homestead Hearth Cottage' },
-        { type: 'cityHouseB', x: 275, y: 95, label: '🏠 Sentinel Watchhouse' },
+        { type: 'cityHouseA', x: -255, y: -135 },
+        { type: 'cityHouseB', x: 255, y: -135 },
+        { type: 'cityHouseA', x: -275, y: 95 },
+        { type: 'cityHouseB', x: 275, y: 95 },
         { type: 'cityHouseA', x: -175, y: -255 },
         { type: 'cityHouseB', x: -65, y: -255 },
         { type: 'cityHouseA', x: 65, y: -255 },
@@ -4565,7 +4548,7 @@ export function initGame() {
         { type: 'woodenSign', x: 135, y: 42, label: '🪧 Combat Trial Yard (Lv.1, Lv.5 & Lv.50 Dummies)' },
 
         // 7. South Memorial Gardens & Starter Skilling Groves
-        { type: 'monument', x: 0, y: 245, label: '✨ Monument to the First Champions' },
+        { type: 'monument', x: 0, y: 245 },
         { type: 'stoneBench', x: -45, y: 245 },
         { type: 'stoneBench', x: 45, y: 245 },
         { type: 'blossomTree', x: -85, y: 215 },
@@ -4580,16 +4563,16 @@ export function initGame() {
         { type: 'streetLantern', x: 42, y: 205 },
 
         // 8. Four Cardinal City Gateways
-        { type: 'ruinedArch', x: 0, y: -375, label: '🌌 North Gate: To Mirrorgate Spire' },
+        { type: 'ruinedArch', x: 0, y: -375 },
         { type: 'crystalPillar', x: -55, y: -375 },
         { type: 'crystalPillar', x: 55, y: -375 },
-        { type: 'ruinedArch', x: 0, y: 375, label: '🌿 South Gate: To Glimmer Orchard' },
+        { type: 'ruinedArch', x: 0, y: 375 },
         { type: 'ancientOak', x: -65, y: 375 },
         { type: 'ancientOak', x: 65, y: 375 },
-        { type: 'ruinedArch', x: -410, y: 0, label: '☀️ West Gate: To Golden Citadel' },
+        { type: 'ruinedArch', x: -410, y: 0 },
         { type: 'brazier', x: -410, y: -42 },
         { type: 'brazier', x: -410, y: 42 },
-        { type: 'ruinedArch', x: 410, y: 0, label: '🌑 East Gate: To Duskveil Undercity' },
+        { type: 'ruinedArch', x: 410, y: 0 },
         { type: 'umbriBrazierAltar', x: 410, y: -42 },
         { type: 'umbriBrazierAltar', x: 410, y: 42 }
       );
@@ -4710,7 +4693,7 @@ export function initGame() {
         { type: 'monument', x: 0, y: -30 },
         { type: 'campfire', x: -38, y: 145, label: '🔥 Expedition Waystation Hearth' },
         { type: 'woodenSign', x: 78, y: 145, label: '🪧 N: Continental Caldera | S: Sanctuary Haven' },
-        { type: 'ancientWell', x: -95, y: 135, label: '💧 Ancient Nexus Cistern' },
+        { type: 'ancientWell', x: -95, y: 135 },
         { type: 'crystalPillar', x: -140, y: 60 },
         { type: 'crystalPillar', x: 140, y: 60 },
         { type: 'brazier', x: -70, y: 140 },
@@ -5117,17 +5100,17 @@ export function initGame() {
           { type: 'bountyBoard', isBountyBoard: true, x: 95, y: 115, label: '📜 Citadel Bounty Board [Click / E]' },
           { type: 'campfire', x: -85, y: 125, label: '🔥 Sunspire Brazier Hearth' },
           { type: 'woodenSign', x: 38, y: 128, label: '🪧 W: Smithy & Quarry | E: Citadel Bank | S: Starfall Crater' },
-          { type: 'solariSundial', x: 0, y: -70, label: '☀️ Citadel Solar Chronometer' },
+          { type: 'solariSundial', x: 0, y: -70 },
           { type: 'flowerBed', x: -105, y: -50 },
           { type: 'flowerBed', x: 105, y: -50 },
           { type: 'flowerBed', x: -105, y: 15 },
           { type: 'flowerBed', x: 105, y: 15 },
           { type: 'bankBuilding', x: 185, y: -135, label: '🏛️ Solari Citadel Depository' },
           { type: 'bankCounter', x: 185, y: -90 },
-          { type: 'grandFountain', x: 0, y: 0, label: '☀️ Solari Sun Fountain' },
-          { type: 'cityHouseB', x: -175, y: -145, label: '🏠 Sunforge Guildhouse' },
-          { type: 'cityHouseA', x: -85, y: -155, label: '🏠 Dawnwatch Residence' },
-          { type: 'cityHouseB', x: 85, y: -155, label: '🏠 Templar Barracks' },
+          { type: 'grandFountain', x: 0, y: 0 },
+          { type: 'cityHouseB', x: -175, y: -145 },
+          { type: 'cityHouseA', x: -85, y: -155 },
+          { type: 'cityHouseB', x: 85, y: -155 },
           { type: 'mountainCrag', x: -340, y: -110 },
           { type: 'mountainCrag', x: 340, y: -110 },
           { type: 'streetLantern', x: -58, y: 80 },
@@ -5183,8 +5166,8 @@ export function initGame() {
           { type: 'umbriBrazierAltar', x: 60, y: 110 },
           { type: 'bankBuilding', x: 185, y: -135, label: '🏛️ Umbri Shadow Depository' },
           { type: 'bankCounter', x: 185, y: -90 },
-          { type: 'cityHouseA', x: -175, y: -145, label: '🏠 Weaver Syndicate Hall' },
-          { type: 'cityHouseB', x: 0, y: -155, label: '🏠 Nightblade Sanctum' },
+          { type: 'cityHouseA', x: -175, y: -145 },
+          { type: 'cityHouseB', x: 0, y: -155 },
           { type: 'pillar', x: -140, y: 0 },
           { type: 'pillar', x: 140, y: 0 },
           { type: 'streetLantern', x: -52, y: 75 },
@@ -5232,10 +5215,10 @@ export function initGame() {
           { type: 'bountyBoard', isBountyBoard: true, x: 95, y: 115, label: '📜 Orchard Bounty Board [Click / E]' },
           { type: 'campfire', x: -85, y: 125, label: '🔥 Druid Circle Hearth' },
           { type: 'woodenSign', x: 38, y: 128, label: '🪧 W: Apothecary & Crucible | E: Orchard Bank & Spring' },
-          { type: 'terraMenhir', x: 0, y: -80, label: '🗿 Ancient Mossy Menhir' },
-          { type: 'ancientWell', x: 155, y: 45, label: '💧 Pure Blossom Spring' },
-          { type: 'cityHouseA', x: -175, y: -145, label: '🏠 Herbalist Conservatory' },
-          { type: 'cityHouseB', x: -75, y: -155, label: '🏠 Grove-Keeper Cottage' },
+          { type: 'terraMenhir', x: 0, y: -80 },
+          { type: 'ancientWell', x: 155, y: 45 },
+          { type: 'cityHouseA', x: -175, y: -145 },
+          { type: 'cityHouseB', x: -75, y: -155 },
           { type: 'flowerBed', x: -105, y: -50 },
           { type: 'flowerBed', x: 105, y: -50 },
           { type: 'flowerBed', x: 0, y: 25 },
@@ -5281,7 +5264,7 @@ export function initGame() {
         );
       } else if (resolvedRoomType === ROOM_TYPES.AETHER_SPIRE) {
         props.push(
-          { type: 'aetherArmillary', x: 0, y: -80, label: '🌟 Floating Chrono-Armillary' },
+          { type: 'aetherArmillary', x: 0, y: -80 },
           { type: 'marketStallRelics', id: 'stall_relics', x: -145, y: 40, label: '🔮 Mirrorgate Relic Stall' },
           { type: 'aetherCrucible', stationId: 'aether_crucible', x: -200, y: 40, label: '⚗️ Mirrorgate Transmuter [Click / E]' },
           { type: 'bankBuilding', x: 185, y: -135, label: '🏛️ Mirrorgate Astral Depository' },
@@ -5289,8 +5272,8 @@ export function initGame() {
           { type: 'bountyBoard', isBountyBoard: true, x: -95, y: 115, label: '📜 Mirrorgate Bounty Board [Click / E]' },
           { type: 'campfire', x: 0, y: 78, label: '🔥 Starlight Conduit Hearth' },
           { type: 'woodenSign', x: -38, y: 128, label: '🪧 W: Relic Stall & Transmuter | E: Astral Vault' },
-          { type: 'cityHouseB', x: -175, y: -145, label: '🏠 Astromancer Athenaeum' },
-          { type: 'cityHouseA', x: 85, y: -155, label: '🏠 Chronos Scholar Lodge' },
+          { type: 'cityHouseB', x: -175, y: -145 },
+          { type: 'cityHouseA', x: 85, y: -155 },
           { type: 'crystalPillar', x: -130, y: 90 },
           { type: 'crystalPillar', x: 130, y: 90 },
           { type: 'crystalPillar', x: -130, y: -90 },
@@ -6870,6 +6853,155 @@ export function initGame() {
     }
   }
 
+  function shortenBadgeLabel(raw) {
+    if (!raw) return '';
+    return raw
+      .replace(' [Click / E]', ' [E]')
+      .replace(' [Click / T]', ' [T]')
+      .replace('The Grand AetherSwap Exchange', 'AetherSwap Exchange')
+      .replace('The Grand AetherVault Bank', 'AetherVault Bank')
+      .replace('Celestial Loom & Hearth', 'Celestial Loom')
+      .replace('Cosmic Star-Anvil', 'Star-Anvil')
+      .replace('Aetherial Crucible', 'Crucible')
+      .replace('Vanguard Bounty Board', 'Bounty Board')
+      .replace('Sanctuary Provisions Stall', 'Provisions Stall')
+      .replace('Sanctuary Forge Workbench', 'Forge Workbench')
+      .replace('Citadel Bounty Board', 'Bounty Board')
+      .replace('Undercity Bounty Board', 'Bounty Board')
+      .replace('Orchard Bounty Board', 'Bounty Board')
+      .replace('Mirrorgate Bounty Board', 'Bounty Board')
+      .replace('Crater Bounty Board', 'Bounty Board')
+      .replace('Rift Bounty Board', 'Bounty Board')
+      .replace('Caldera Bounty Board', 'Bounty Board')
+      .replace('Expedition Waystation Hearth', 'Waystation Hearth')
+      .replace('Sanctuary Homecoming Hearth', 'Sanctuary Hearth');
+  }
+
+  const overheadBadges = [];
+
+  function layoutOverheadBadges(camLeft, camTop) {
+    overheadBadges.length = 0;
+
+    // 1. Interactive Props with labels
+    for (const pr of props) {
+      if (!pr.label) continue;
+      const dist = Math.hypot(player.x - pr.x, player.y - pr.y);
+      if (dist >= 220) continue;
+      const alpha = Math.min(1, Math.max(0, (220 - dist) / 60));
+      const sx = Math.round(pr.x - camLeft);
+      const sy = Math.round(pr.y - camTop);
+      if (sx < -140 || sx > viewW + 140 || sy < -80 || sy > viewH + 80) continue;
+
+      const shortTxt = shortenBadgeLabel(pr.label);
+      ctx.save();
+      ctx.font = '700 9.5px "Outfit", system-ui, sans-serif';
+      const tw = Math.ceil(ctx.measureText(shortTxt).width);
+      ctx.restore();
+
+      overheadBadges.push({
+        id: 'prop_' + pr.x + '_' + pr.y,
+        kind: 'prop',
+        wx: pr.x,
+        wy: pr.y,
+        sx,
+        sy: sy - 36,
+        text: shortTxt,
+        tw,
+        alpha,
+        textColor: '#f0f9ff',
+        borderColor: '#38bdf8',
+        bg: 'rgba(7, 10, 20, 0.92)',
+        rotDeg: 0,
+        offsetY: 0,
+      });
+    }
+
+    // 2. NPCs with names
+    for (const npc of npcs) {
+      const sx = Math.round(npc.x - camLeft);
+      const sy = Math.round(npc.y - camTop);
+      if (sx < -140 || sx > viewW + 140 || sy < -80 || sy > viewH + 80) continue;
+
+      const npcName = npc.name || 'Herald Lyra';
+      ctx.save();
+      ctx.font = '700 9.5px "Outfit", system-ui, sans-serif';
+      const tw = Math.ceil(ctx.measureText(npcName).width);
+      ctx.restore();
+
+      overheadBadges.push({
+        id: npc.id || ('npc_' + npc.x + '_' + npc.y),
+        kind: 'npc',
+        wx: npc.x,
+        wy: npc.y,
+        sx,
+        sy: sy - 32,
+        text: npcName,
+        tw,
+        alpha: 1,
+        textColor: '#fde047',
+        borderColor: '#fde047',
+        bg: 'rgba(5, 7, 18, 0.92)',
+        rotDeg: 0,
+        offsetY: 0,
+      });
+    }
+
+    // Sort badges by screen X so neighbor comparisons are sequential
+    overheadBadges.sort((a, b) => a.sx - b.sx);
+
+    // Collision detection:
+    // When two badges overlap, one remains flat (0 deg) and the other tilts ~20 deg downwards,
+    // shifted slightly above (-15px) so they never collide!
+    const placed = [];
+    for (const badge of overheadBadges) {
+      for (const p of placed) {
+        const overlapX = Math.abs(badge.sx - p.sx) < (badge.tw / 2 + p.tw / 2 + 10);
+        const overlapY = Math.abs((badge.sy + badge.offsetY) - (p.sy + p.offsetY)) < 18;
+        if (overlapX && overlapY) {
+          const dir = badge.sx >= p.sx ? 20 : -20;
+          badge.rotDeg = dir;
+          badge.offsetY = p.offsetY - 15;
+          break;
+        }
+      }
+      placed.push(badge);
+    }
+  }
+
+  function drawOverheadBadge(b) {
+    ctx.save();
+    ctx.globalAlpha = b.alpha !== undefined ? b.alpha : 1;
+    ctx.font = '700 9.5px "Outfit", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const bx = b.sx;
+    const by = b.sy + b.offsetY;
+
+    ctx.translate(bx, by);
+    if (b.rotDeg !== 0) {
+      ctx.rotate((b.rotDeg * Math.PI) / 180);
+    }
+
+    const padX = 5;
+    const boxW = b.tw + padX * 2;
+    const boxH = 14;
+
+    ctx.fillStyle = b.bg;
+    ctx.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
+    ctx.strokeStyle = b.borderColor;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-boxW / 2, -boxH / 2, boxW, boxH);
+
+    // Text shadow and main text
+    ctx.fillStyle = '#05070f';
+    ctx.fillText(b.text, 0.8, 1);
+    ctx.fillStyle = b.textColor;
+    ctx.fillText(b.text, 0, 0.2);
+
+    ctx.restore();
+  }
+
   function drawLootShard(l, sx, sy) {
     const st = LOOT_STYLE[l.kind] || LOOT_STYLE.glimmer;
     const blink = l.ttl < 6 && Math.floor(globalTime * 8) % 2 === 0;
@@ -7359,6 +7491,12 @@ export function initGame() {
     }
     if (isFlash) {
       player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 8);
+    }
+
+    if (isRite) {
+      awardProfessionXP('rites', 18 + Math.round((spec.cost || 10) * 1.2), spec.name);
+    } else if (isFlash) {
+      awardProfessionXP('flashes', 14 + Math.round((spec.cost || 5) * 1.5), spec.name);
     }
 
     if (spec.kind === 'cast_beam' && acquiredTarget) {
@@ -11633,30 +11771,6 @@ export function initGame() {
           if (img) {
             drawPixelEllipseShadow(sx, sy, shadowRx, shadowRy);
             ctx.drawImage(img, Math.round(sx - img.width / 2), sy - img.height + 2);
-            if (pr.label) {
-              const dist = Math.hypot(player.x - pr.x, player.y - pr.y);
-              if (dist < 220) {
-                const alpha = Math.min(1, Math.max(0, (220 - dist) / 60));
-                ctx.save();
-                ctx.globalAlpha = alpha;
-                ctx.font = '700 11px "Outfit", system-ui, sans-serif';
-                ctx.textAlign = 'center';
-                const tw = Math.ceil(ctx.measureText(pr.label).width);
-                const rx = Math.round(sx);
-                const px = Math.round(rx - (tw + 12) / 2);
-                const py = Math.round(sy - img.height - 15);
-                ctx.fillStyle = 'rgba(7, 10, 20, 0.92)';
-                ctx.fillRect(px, py, tw + 12, 16);
-                ctx.strokeStyle = '#38bdf8';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(px, py, tw + 12, 16);
-                ctx.fillStyle = '#05070f';
-                ctx.fillText(pr.label, rx + 1, py + 13);
-                ctx.fillStyle = '#f0f9ff';
-                ctx.fillText(pr.label, rx, py + 12);
-                ctx.restore();
-              }
-            }
           }
         },
       });
@@ -11715,23 +11829,6 @@ export function initGame() {
             ctx.fillText(symbol, qx, qry);
             ctx.restore();
           }
-
-          // Overhead High-Contrast NPC Badge
-          ctx.font = '700 11px "Outfit", system-ui, sans-serif';
-          ctx.textAlign = 'center';
-          const npcName = npc.name || 'Herald Lyra';
-          const nw = Math.ceil(ctx.measureText(npcName).width);
-          const rx = Math.round(sx);
-          const npx = Math.round(rx - (nw + 10) / 2);
-          const npy = Math.round(sy - img.height - 11);
-          ctx.fillStyle = 'rgba(5, 7, 18, 0.92)';
-          ctx.fillRect(npx, npy - 1, nw + 10, 15);
-          ctx.fillStyle = '#fde047';
-          ctx.fillRect(npx, npy + 13, nw + 10, 1);
-          ctx.fillStyle = '#05070f';
-          ctx.fillText(npcName, rx + 1, npy + 11);
-          ctx.fillStyle = '#fde047';
-          ctx.fillText(npcName, rx, npy + 10);
         },
       });
     }
@@ -11769,6 +11866,14 @@ export function initGame() {
       renderables.push({
         y: l.y,
         draw: () => drawLootShard(l, Math.round(l.x - camLeft), Math.round(l.y - camTop)),
+      });
+    }
+
+    layoutOverheadBadges(camLeft, camTop);
+    for (const b of overheadBadges) {
+      renderables.push({
+        y: b.wy + 1500,
+        draw: () => drawOverheadBadge(b),
       });
     }
 

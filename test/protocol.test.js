@@ -55,7 +55,35 @@ test('default progression is complete and internally consistent', () => {
   for (const affinity of Object.keys(protocol.PARAGON_AFFINITIES)) {
     assert.equal(prog.paragon[affinity], 0, `missing paragon affinity ${affinity}`);
   }
-  assert.equal(protocol.getTotalProfessionLevel(prog.professions), 5);
+  assert.equal(protocol.getTotalProfessionLevel(prog.professions), 7);
+  assert.equal(protocol.calcEntityLevel(prog), 3);
+});
+
+test('entity level algorithm behaves like RuneScape combat level scaling', () => {
+  const starter = protocol.createDefaultProgression();
+  assert.equal(protocol.calcEntityLevel(starter), 3);
+  assert.equal(protocol.getEntityCombatArchetype(starter), 'Martial Vanguard');
+
+  // Maxed Level 99 skills without paragon reaches 126
+  const maxed = {
+    ...starter,
+    level: 30,
+    professions: {
+      combat_mastery: { xp: protocol.getXpForProfessionLevel(99), level: 99 },
+      rites: { xp: protocol.getXpForProfessionLevel(99), level: 99 },
+      flashes: { xp: protocol.getXpForProfessionLevel(99), level: 99 },
+      resonance_extraction: { xp: protocol.getXpForProfessionLevel(99), level: 99 },
+      relic_forging: { xp: protocol.getXpForProfessionLevel(99), level: 99 },
+      rite_binding: { xp: protocol.getXpForProfessionLevel(99), level: 99 },
+      glimmerweaving: { xp: protocol.getXpForProfessionLevel(99), level: 99 },
+    },
+  };
+  assert.equal(protocol.calcEntityLevel(maxed), 126);
+  assert.equal(protocol.getEntityCombatArchetype(maxed), 'Grandmaster Ascendant');
+
+  // Paragon resonance caps out at 138
+  const apotheosis = { ...maxed, paragonLevel: 100 };
+  assert.equal(protocol.calcEntityLevel(apotheosis), 138);
 });
 
 test('max HP and Glimmer are positive integers that scale with level', () => {

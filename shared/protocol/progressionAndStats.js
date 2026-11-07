@@ -146,7 +146,7 @@ export function getXpForProfessionLevel(lvl) {
 }
 
 export function getTotalProfessionLevel(professions) {
-  if (!professions || typeof professions !== 'object') return 5;
+  if (!professions || typeof professions !== 'object') return 7;
   let total = 0;
   for (const profId of Object.keys(PROFESSIONS_CATALOG)) {
     const prof = professions[profId];
@@ -154,6 +154,54 @@ export function getTotalProfessionLevel(professions) {
     total += Math.max(1, Math.min(99, Math.floor(Number(lvl) || 1)));
   }
   return total;
+}
+
+export function calcEntityLevel(progression) {
+  if (!progression) return 3;
+  const profs = progression.professions || {};
+  const getLvl = (id) => Math.max(1, Math.min(99, Math.floor(Number(profs[id]?.level) || getProfessionLevelFromXp(profs[id]?.xp || 0))));
+
+  const combat = getLvl('combat_mastery');
+  const rites = getLvl('rites');
+  const flashes = getLvl('flashes');
+  const extraction = getLvl('resonance_extraction');
+  const forging = getLvl('relic_forging');
+  const binding = getLvl('rite_binding');
+  const weaving = getLvl('glimmerweaving');
+  const baseLvl = Math.max(1, Math.min(30, Math.floor(Number(progression.level) || 1)));
+  const paragonLvl = Math.max(0, Math.floor(Number(progression.paragonLevel) || 0));
+
+  // RuneScape-inspired Entity Level Algorithm (Scales from 3 to 126, and up to 138 with Paragon):
+  // 1. Foundation Base: Armor forging, leyline resonance extraction, and core champion level
+  const base = 0.25 * (forging + extraction + Math.floor(baseLvl * 3.25));
+
+  // 2. Offense Specialization: Highest of Martial Combat, Channeled Rites, or Instant Flashes
+  const offense = 0.325 * (Math.max(combat, rites, flashes) * 1.35);
+
+  // 3. Artisan Support Synergy: Alchemy distillation & Glimmerweaving vestments
+  const synergy = 0.045 * (binding + weaving);
+
+  // 4. Late-game Paragon Resonance
+  const paragonBonus = Math.min(12, Math.floor(paragonLvl * 0.12));
+
+  const raw = Math.floor(base + offense + synergy + paragonBonus);
+  return Math.max(3, Math.min(138, raw));
+}
+
+export function getEntityCombatArchetype(progression) {
+  if (!progression) return 'Initiate';
+  const profs = progression.professions || {};
+  const getLvl = (id) => Math.max(1, Math.min(99, Math.floor(Number(profs[id]?.level) || getProfessionLevelFromXp(profs[id]?.xp || 0))));
+  const combat = getLvl('combat_mastery');
+  const rites = getLvl('rites');
+  const flashes = getLvl('flashes');
+  if (combat >= 99 && rites >= 99 && flashes >= 99) return 'Grandmaster Ascendant';
+  const max = Math.max(combat, rites, flashes);
+  const min = Math.min(combat, rites, flashes);
+  if (max - min <= 5 && max >= 10) return 'All-Rounder Paragon';
+  if (combat === max) return 'Martial Vanguard';
+  if (rites === max) return 'Cosmic Hierophant';
+  return 'Tempest Duelist';
 }
 
 export function createDefaultProgression() {
@@ -171,11 +219,13 @@ export function createDefaultProgression() {
       reality_fracture: 1,
     }, // abilityId -> rank (0 to 5); Tier 1 starter abilities start at Rank 1
     professions: {
+      combat_mastery: { xp: 0, level: 1 },
+      rites: { xp: 0, level: 1 },
+      flashes: { xp: 0, level: 1 },
       resonance_extraction: { xp: 0, level: 1 },
       relic_forging: { xp: 0, level: 1 },
       rite_binding: { xp: 0, level: 1 },
       glimmerweaving: { xp: 0, level: 1 },
-      combat_mastery: { xp: 0, level: 1 },
     },
     paragonLevel: 0,
     paragonXp: 0,

@@ -660,13 +660,17 @@ export function drawGearItemPixels(ctx, id, px, rect) {
     case 'skillcape_forging':
     case 'skillcape_binding':
     case 'skillcape_weaving':
-    case 'skillcape_combat': {
+    case 'skillcape_combat':
+    case 'skillcape_rites':
+    case 'skillcape_flashes': {
       const capeColors = {
         skillcape_extraction: '#38bdf8',
         skillcape_forging: '#f97316',
         skillcape_binding: '#a855f7',
         skillcape_weaving: '#22c55e',
         skillcape_combat: '#ef4444',
+        skillcape_rites: '#f59e0b',
+        skillcape_flashes: '#06b6d4',
       };
       const capeColor = capeColors[id] || '#facc15';
       rect(ctx, 8, 4, 8, 4, '#0f172a');

@@ -347,11 +347,13 @@ export const gatheringAndCraftingMethods = {
     if (!player || !player.prog || amount <= 0) return;
     if (!player.prog.professions) {
       player.prog.professions = {
+        combat_mastery: { xp: 0, level: 1 },
+        rites: { xp: 0, level: 1 },
+        flashes: { xp: 0, level: 1 },
         resonance_extraction: { xp: 0, level: 1 },
         relic_forging: { xp: 0, level: 1 },
         rite_binding: { xp: 0, level: 1 },
         glimmerweaving: { xp: 0, level: 1 },
-        combat_mastery: { xp: 0, level: 1 },
       };
     }
     const prof = player.prog.professions[professionId];

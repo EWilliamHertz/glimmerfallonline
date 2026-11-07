@@ -447,7 +447,41 @@
       </div>
     </div>
 
-    <!-- 2. TOP-CENTER: Dedicated Exclusively to Enemy / Player Target Bar, Siege Event & 3v3 Banner -->
+    <!-- TOP-OVERHEAD: Micro-Menu Dock Centered Between Avatar & Minimap -->
+    <div id="micro-menu" class="overhead-menu-dock">
+      <button class="util-btn" onclick="toggleModal('spellbook-modal')" title="Spells & Keybinds [P]">
+        📖 SPELLS [P] <span id="skill-pt-pip" class="pt-pip">+1</span>
+      </button>
+      <button class="util-btn" onclick="toggleModal('char-modal')" title="Character Stats & Attributes [C]">
+        📊 STATS [C] <span id="stat-pt-pip" class="pt-pip">+2</span>
+      </button>
+      <button class="util-btn" style="border-color:#fb923c; color:#fed7aa;" onclick="toggleModal('equipment-modal')" title="Equipped Gear [K]">
+        ⚔️ GEAR [K]
+      </button>
+      <button class="util-btn" style="border-color:#fde047;" onclick="toggleModal('account-modal')" title="Account & Identity [G]">
+        🆔 ID [G]
+      </button>
+      <button class="util-btn" style="border-color:#4ade80;" onclick="toggleModal('social-modal')" title="Online Players & Rooms [O]">
+        👥 SOCIAL [O]
+      </button>
+      <button class="util-btn" style="border-color:#38bdf8; color:#7dd3fc;" onclick="openWorldMap()" title="World Map [M]">
+        🗺️ MAP [M]
+      </button>
+      <button class="util-btn" onclick="openQuestLog()" title="Quests & Objectives [L]">
+        📜 QUESTS [L]
+      </button>
+      <button class="util-btn" id="btn-skills-tab" style="border-color:#38bdf8; color:#7dd3fc;" onclick="toggleSkillsTab()" title="Open Skill Progression & Entity Level [N]">
+        ✨ SKILLS [N]
+      </button>
+      <button class="util-btn" style="border-color:#f59e0b; color:#fef3c7;" onclick="toggleModal('inventory-modal')" title="Backpack Inventory [B]">
+        🎒 BAG [B] <span id="inv-count-pip" class="pt-pip" style="background:#b45309; display:none;">0</span>
+      </button>
+      <button class="util-btn" style="border-color:#94a3b8; color:#cbd5e1;" onclick="toggleModal('settings-modal')" title="System Menu [ESC]">
+        ⚙️ MENU [ESC]
+      </button>
+    </div>
+
+    <!-- 2. TOP-CENTER: Dedicated to Enemy / Player Target Bar, Siege Event & 3v3 Banner (Positioned beneath overhead menu) -->
     <div id="siege-banner" class="panel">
       <div style="font-family:var(--font-header); font-size:8px; color:#fde047;" id="siege-banner-title">⚡ NEXUS SIEGE: SHATTERED SHARD ACTIVE!</div>
       <div style="font-size:8.5px; color:#e2e8f0; margin-top:2px;" id="siege-banner-sub">All 4 Factions clash at Warzone Center • Defend your 25-HP Outpost Nexus!</div>
@@ -573,39 +607,6 @@
       </div>
     </div>
 
-    <!-- 6. BOTTOM-RIGHT: Clean Micro-Menu Dock -->
-    <div id="micro-menu" class="ui-draggable-panel">
-      <button class="util-btn" onclick="toggleModal('spellbook-modal')">
-        📖 SPELLS [P] <span id="skill-pt-pip" class="pt-pip">+1</span>
-      </button>
-      <button class="util-btn" onclick="toggleModal('char-modal')">
-        📊 STATS [C] <span id="stat-pt-pip" class="pt-pip">+2</span>
-      </button>
-      <button class="util-btn" style="border-color:#fb923c; color:#fed7aa;" onclick="toggleModal('equipment-modal')">
-        ⚔️ GEAR [K]
-      </button>
-      <button class="util-btn" style="border-color:#fde047;" onclick="toggleModal('account-modal')">
-        🆔 ID [G]
-      </button>
-      <button class="util-btn" style="border-color:#4ade80;" onclick="toggleModal('social-modal')">
-        👥 SOCIAL [O]
-      </button>
-      <button class="util-btn" style="border-color:#38bdf8; color:#7dd3fc;" onclick="openWorldMap()">
-        🗺️ MAP [M]
-      </button>
-      <button class="util-btn" onclick="openQuestLog()">
-        📜 QUESTS [L]
-      </button>
-      <button class="util-btn" id="btn-skills-tab" style="border-color:#38bdf8; color:#7dd3fc;" onclick="toggleSkillsTab()" title="Open Skill Progression [N]">
-        ✨ SKILLS [N]
-      </button>
-      <button class="util-btn" style="border-color:#f59e0b; color:#fef3c7;" onclick="toggleModal('inventory-modal')">
-        🎒 BAG [B] <span id="inv-count-pip" class="pt-pip" style="background:#b45309; display:none;">0</span>
-      </button>
-      <button class="util-btn" style="border-color:#94a3b8; color:#cbd5e1;" onclick="toggleModal('settings-modal')">
-        ⚙️ MENU [ESC]
-      </button>
-    </div>
 
     <!-- SKILL PROGRESSION POPUP TAB (Pops up upwards towards the 3v3 map / minimap) -->
     <div id="skills-tab-popup" class="panel">
@@ -632,6 +633,97 @@
         <div style="font-size:9px; color:#94a3b8; text-align:center;">
           <b style="color:#7dd3fc;">[N]</b> toggle • <b id="harvest-key-hint" style="color:#fde047;">[E]</b> harvest • Visit Sanctuary artisans
         </div>
+      </div>
+    </div>
+
+    <!-- MODAL 0: Realm Skills, Professions & Entity Combat Level [N] -->
+    <div id="skills-modal" class="modal panel" style="width: 860px; max-width: 96vw; max-height: 90vh; display: none;">
+      <div class="skills-modal-header">
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span id="skills-modal-icon"></span>
+            <div>
+              <div class="modal-title" style="font-size: 15px; color: #facc15; font-family: var(--font-header); letter-spacing: 0.5px;">
+                REALM SKILLS &amp; PROFESSIONS [N]
+              </div>
+              <div style="font-size: 10.5px; color: #94a3b8;">
+                Master the 7 disciplines of Glimmerfall • Automatic XP progression
+              </div>
+            </div>
+          </div>
+          <div class="modal-close" onclick="toggleModal('skills-modal')">✕</div>
+        </div>
+      </div>
+
+      <!-- Hero Progression Overview Banners: RuneScape Combat Level & Total Level -->
+      <div class="skills-hero-banner">
+        <!-- 1. Entity Level Box (RuneScape Combat Level Algorithm) -->
+        <div class="skills-entity-card" id="entity-level-card">
+          <div class="skills-crest-col" id="entity-crest-wrap"></div>
+          <div class="skills-entity-details">
+            <div class="skills-card-tag">RUNESCAPE COMBAT MATRIX</div>
+            <div class="skills-entity-level-title">
+              <span>ENTITY LEVEL</span>
+              <span class="skills-combat-num" id="skills-entity-level-val">3</span>
+            </div>
+            <div class="skills-archetype-pill" id="skills-entity-archetype">Martial Vanguard</div>
+            <div class="skills-entity-formula-tip" id="skills-entity-breakdown">
+              Base/Armor: 1 • Highest Offense: 1 • Artisan Synergy: 1
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Total Skill Level Box -->
+        <div class="skills-total-card" id="total-level-card">
+          <div class="skills-crest-col" id="total-crest-wrap"></div>
+          <div class="skills-total-details">
+            <div class="skills-card-tag">CONTINENTAL MASTERY</div>
+            <div class="skills-total-level-title">
+              <span>TOTAL LEVEL</span>
+              <span class="skills-total-num" id="skills-total-level-val">7 <span class="skills-total-max">/ 693</span></span>
+            </div>
+            <div class="skills-total-bar-wrap">
+              <div class="skills-total-bar-fill" id="skills-total-bar-fill" style="width: 1%;"></div>
+            </div>
+            <div class="skills-total-xp-row">
+              <span id="skills-total-xp-txt">0 TOTAL XP</span>
+              <span style="color: #fde047; font-weight: 700;">7 DISCIPLINES</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Category Filter Strip -->
+      <div class="skills-filter-strip">
+        <div class="skills-filter-tabs">
+          <button class="skills-filter-tab active" data-filter="all" onclick="window.filterSkillsModal('all')">
+            ALL PROFESSIONS (7)
+          </button>
+          <button class="skills-filter-tab" data-filter="combat" onclick="window.filterSkillsModal('combat')">
+            ⚔️ COMBAT &amp; SPELLCRAFT (3)
+          </button>
+          <button class="skills-filter-tab" data-filter="artisan" onclick="window.filterSkillsModal('artisan')">
+            ⛏️ GATHERING &amp; ARTISANS (4)
+          </button>
+        </div>
+        <button class="skills-guide-btn" onclick="openSkillTrainingGuide()">
+          📖 HOW TO TRAIN GUIDE →
+        </button>
+      </div>
+
+      <!-- 7 High-Quality Skill Cards Grid -->
+      <div id="skills-modal-grid" class="skills-modal-grid">
+        <!-- Populated dynamically by renderSkillsModal() -->
+      </div>
+
+      <!-- Footer Help Bar -->
+      <div class="skills-modal-footer">
+        <div>
+          <span style="color:#7dd3fc; font-weight:bold;">[N]</span> toggle • Click any skill card for milestone unlocks • Level 99 awards unique Skillcapes
+        </div>
+        <button class="id-mini-btn" onclick="toggleModal('skills-modal')" style="font-size: 10px; padding: 3px 10px;">
+          CLOSE [ESC]
+        </button>
       </div>
     </div>
 
@@ -914,6 +1006,8 @@
         <button class="sg-tab-btn" id="sg-tab-rite_binding" onclick="openSkillGuide('rite_binding')">📜 BINDING</button>
         <button class="sg-tab-btn" id="sg-tab-glimmerweaving" onclick="openSkillGuide('glimmerweaving')">🧵 WEAVING</button>
         <button class="sg-tab-btn" id="sg-tab-combat_mastery" onclick="openSkillGuide('combat_mastery')">⚔️ COMBAT</button>
+        <button class="sg-tab-btn" id="sg-tab-rites" onclick="openSkillGuide('rites')">☀️ RITES</button>
+        <button class="sg-tab-btn" id="sg-tab-flashes" onclick="openSkillGuide('flashes')">⚡ FLASHES</button>
       </div>
 
       <!-- Category Filter Tabs -->

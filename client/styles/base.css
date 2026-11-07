@@ -84,7 +84,7 @@ body {
 /* Day 3: Mythic Leyline Keystone run banner */
 #mythic-run-hud {
   position: absolute;
-  top: 12px;
+  top: 52px;
   left: 50%;
   transform: translateX(-50%);
   min-width: 280px;

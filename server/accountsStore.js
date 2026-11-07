@@ -1295,11 +1295,13 @@ export class AccountsStore {
       }
     }
     const professions = {
+      combat_mastery: { xp: 0, level: 1 },
+      rites: { xp: 0, level: 1 },
+      flashes: { xp: 0, level: 1 },
       resonance_extraction: { xp: 0, level: 1 },
       relic_forging: { xp: 0, level: 1 },
       rite_binding: { xp: 0, level: 1 },
       glimmerweaving: { xp: 0, level: 1 },
-      combat_mastery: { xp: 0, level: 1 },
       ...(base.professions || {}),
     };
     if (incoming.professions && typeof incoming.professions === 'object') {
