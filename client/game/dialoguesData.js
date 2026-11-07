@@ -1,6 +1,7 @@
 // ==========================================
 // GlimmerFall Online — Dialogues & Keybind Constants
 // ==========================================
+import { ROOM_TYPES } from "../../shared/protocol.js";
 
 const DEFAULT_KEYBINDS = {
   1: '1',

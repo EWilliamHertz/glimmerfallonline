@@ -465,10 +465,3 @@ export function setExchangeOrderDialog(dlg) {
 export function getActiveOrderDialog() {
   return activeOrderDialog;
 }
-
-if (typeof window !== 'undefined') {
-  window.setHoveredEquipment = setHoveredEquipment;
-  window.clearHoveredEquipment = clearHoveredEquipment;
-  window.updateHoveredEquipmentPos = updateFloatingGearTooltipPos;
-  window.hideHoveredEquipmentTooltip = hideFloatingGearTooltip;
-}

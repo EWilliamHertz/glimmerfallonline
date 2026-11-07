@@ -422,3 +422,10 @@ export function renderEquipmentModal({ profile }) {
     }
   }
 }
+
+if (typeof window !== 'undefined') {
+  window.setHoveredEquipment = setHoveredEquipment;
+  window.clearHoveredEquipment = clearHoveredEquipment;
+  window.updateHoveredEquipmentPos = updateFloatingGearTooltipPos;
+  window.hideHoveredEquipmentTooltip = hideFloatingGearTooltip;
+}
