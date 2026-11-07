@@ -77,13 +77,133 @@
               var fp = document.getElementById('frontpage-overlay');
               var lp = document.getElementById('landing-overlay');
               if (fp) fp.style.display = 'none';
-              if (lp) lp.style.display = 'block';
-              if (window._landing) {
-                window._landing.open(tab);
+              if (lp) {
+                lp.style.display = 'block';
+                if (window._landing) {
+                  window._landing.open(tab);
+                } else if (typeof preRenderLanding === 'function') {
+                  preRenderLanding();
+                }
               }
             };
 
+            function preRenderLanding() {
+              if (!landingEl || landingEl.children.length > 0) return;
+              landingEl.innerHTML = `
+                <div class="landing-shell-layout">
+                  <aside class="landing-sidebar">
+                    <div class="sidebar-header">
+                      <div class="sidebar-brand-row">
+                        <div class="sidebar-logo-box">
+                          <img src="/GlimmerFall_official_multicolor_logo.png" alt="GlimmerFall Logo" class="sidebar-logo-img" />
+                        </div>
+                        <div>
+                          <div class="sidebar-brand-name">GLIMMER<span class="text-gold">FALL</span></div>
+                          <div class="sidebar-server-pill"><span class="sidebar-dot"></span>20Hz Server &bull; 0ms Local</div>
+                        </div>
+                      </div>
+                      <div class="sidebar-mode-grid">
+                        <button type="button" class="sidebar-mode-btn active single" onclick="if(window._landing){window._landing.setPlayMode('singleplayer');}">🕹️ Offline 0ms</button>
+                        <button type="button" class="sidebar-mode-btn" onclick="if(window._landing){window._landing.setPlayMode('multiplayer');}">🌐 Online 20Hz</button>
+                      </div>
+                      <button type="button" class="sidebar-cta-btn" onclick="if(window._landing){window._landing.launchGame();}else{location.href='/?autostart=1';}">⚡ AWAKEN IN REALM</button>
+                    </div>
+                    <div class="sidebar-section">
+                      <div class="sidebar-section-title"><span>EXPLORE REALM</span></div>
+                      <div class="sidebar-nav-list">
+                        <a href="#forge" class="sidebar-nav-link" onclick="document.getElementById('forge')?.scrollIntoView({behavior:'smooth'})"><span>⚔️ Character Forge</span><span style="color:#facc15;">▸</span></a>
+                        <a href="#game-encyclopedia" class="sidebar-nav-link" onclick="document.getElementById('game-encyclopedia')?.scrollIntoView({behavior:'smooth'})"><span>🎮 Game Systems Enc.</span><span style="color:#38bdf8;">▸</span></a>
+                        <a href="#lore-tcg" class="sidebar-nav-link" onclick="document.getElementById('lore-tcg')?.scrollIntoView({behavior:'smooth'})"><span>📜 Cosmic Lore &amp; TCG</span><span style="color:#c084fc;">▸</span></a>
+                        <a href="#armory" class="sidebar-nav-link" onclick="document.getElementById('armory')?.scrollIntoView({behavior:'smooth'})"><span>🛡️ Continental Armory</span><span style="color:#4ade80;">▸</span></a>
+                        <a href="#arena" class="sidebar-nav-link" onclick="document.getElementById('arena')?.scrollIntoView({behavior:'smooth'})"><span>⚡ 3v3 Nexus Arena</span><span style="color:#f87171;">▸</span></a>
+                        <a href="#atlas" class="sidebar-nav-link" onclick="document.getElementById('atlas')?.scrollIntoView({behavior:'smooth'})"><span>🗺️ World Atlas</span><span style="color:#38bdf8;">▸</span></a>
+                        <button type="button" class="sidebar-nav-link special" onclick="if(window._landing){window._landing.openLoadout();}else if(window._fp){window._fp.open();}else{location.href='/?loadout=1';}"><span>👤 Open Hero Loadout</span><span>⚙️</span></button>
+                      </div>
+                    </div>
+                    <div class="sidebar-section">
+                      <div class="sidebar-section-title"><span>PIXEL ARMORY</span><span style="color:#facc15; font-size:9.5px;">HOVER INFO</span></div>
+                      <div class="pixel-gear-grid">
+                        <div class="pixel-gear-slot"><span>🗡️</span><span class="slot-corner-tag">W</span></div>
+                        <div class="pixel-gear-slot"><span>🛡️</span><span class="slot-corner-tag">S</span></div>
+                        <div class="pixel-gear-slot"><span>👑</span><span class="slot-corner-tag">H</span></div>
+                        <div class="pixel-gear-slot"><span>🦹</span><span class="slot-corner-tag">C</span></div>
+                        <div class="pixel-gear-slot"><span>🥾</span><span class="slot-corner-tag">B</span></div>
+                        <div class="pixel-gear-slot"><span>💍</span><span class="slot-corner-tag">R</span></div>
+                        <div class="pixel-gear-slot"><span>📜</span><span class="slot-corner-tag">U</span></div>
+                        <div class="pixel-gear-slot"><span>💎</span><span class="slot-corner-tag">P</span></div>
+                      </div>
+                    </div>
+                    <div class="sidebar-section">
+                      <div class="sidebar-section-title"><span style="color:#38bdf8;">CURRENCIES</span><span style="font-size:9px; color:#94a3b8;">TREASURY</span></div>
+                      <div class="sidebar-currency-list">
+                        <div class="sidebar-currency-item"><div class="currency-left"><span>🪙</span><span>Solar Gold</span></div><span class="currency-val" style="color:#F2A900">1,420,500</span></div>
+                        <div class="sidebar-currency-item"><div class="currency-left"><span>🔮</span><span>Glimmer Shards</span></div><span class="currency-val" style="color:#00BFFF">350</span></div>
+                        <div class="sidebar-currency-item"><div class="currency-left"><span>🌀</span><span>Chrono Cores</span></div><span class="currency-val" style="color:#38bdf8">28</span></div>
+                        <div class="sidebar-currency-item"><div class="currency-left"><span>🖤</span><span>Void Remnants</span></div><span class="currency-val" style="color:#9B30FF">115</span></div>
+                        <div class="sidebar-currency-item"><div class="currency-left"><span>🌿</span><span>Root Stones</span></div><span class="currency-val" style="color:#22E07B">42</span></div>
+                      </div>
+                    </div>
+                    <div class="sidebar-section">
+                      <div class="sidebar-section-title"><span style="color:#4ade80;">7 DISCIPLINES</span><span style="color:#facc15; font-size:9.5px;">MAX 99</span></div>
+                      <div class="sidebar-skills-list">
+                        <div class="sidebar-skill-item"><div class="sidebar-skill-header"><span>⛏️ Resonance Extraction</span><span style="color:#00BFFF">Lv. 48/99</span></div><div class="sidebar-skill-bar-wrap"><div class="sidebar-skill-bar-fill" style="width:48%; background:#00BFFF;"></div></div></div>
+                        <div class="sidebar-skill-item"><div class="sidebar-skill-header"><span>🔨 Star-Forging</span><span style="color:#F2A900">Lv. 35/99</span></div><div class="sidebar-skill-bar-wrap"><div class="sidebar-skill-bar-fill" style="width:35%; background:#F2A900;"></div></div></div>
+                        <div class="sidebar-skill-item"><div class="sidebar-skill-header"><span>🧵 Leyline Weaving</span><span style="color:#22E07B">Lv. 42/99</span></div><div class="sidebar-skill-bar-wrap"><div class="sidebar-skill-bar-fill" style="width:42%; background:#22E07B;"></div></div></div>
+                        <div class="sidebar-skill-item"><div class="sidebar-skill-header"><span>📜 Void Inscription</span><span style="color:#9B30FF">Lv. 29/99</span></div><div class="sidebar-skill-bar-wrap"><div class="sidebar-skill-bar-fill" style="width:29%; background:#9B30FF;"></div></div></div>
+                        <div class="sidebar-skill-item"><div class="sidebar-skill-header"><span>🧪 Celestial Alchemy</span><span style="color:#ec4899">Lv. 51/99</span></div><div class="sidebar-skill-bar-wrap"><div class="sidebar-skill-bar-fill" style="width:51%; background:#ec4899;"></div></div></div>
+                        <div class="sidebar-skill-item"><div class="sidebar-skill-header"><span>⚔️ Rites Mastery</span><span style="color:#facc15">Lv. 64/99</span></div><div class="sidebar-skill-bar-wrap"><div class="sidebar-skill-bar-fill" style="width:64%; background:#facc15;"></div></div></div>
+                        <div class="sidebar-skill-item"><div class="sidebar-skill-header"><span>⚡ Flashes Mastery</span><span style="color:#38bdf8">Lv. 58/99</span></div><div class="sidebar-skill-bar-wrap"><div class="sidebar-skill-bar-fill" style="width:58%; background:#38bdf8;"></div></div></div>
+                      </div>
+                    </div>
+                    <div class="sidebar-footer">
+                      <label class="sidebar-pref-toggle">
+                        <input type="checkbox" class="start-on-site-cb" onchange="if(window._landing){window._landing.setStartOnLoadout(this.checked);}else{localStorage.setItem('glimmerfall_start_on_loadout', this.checked?'true':'false');}" />
+                        <span>Start on Loadout view</span>
+                      </label>
+                      <div class="sidebar-footer-links">
+                        <span>&copy; 2026 GlimmerFall</span>
+                        <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer">glimmerfalltcg.com ↗</a>
+                      </div>
+                    </div>
+                  </aside>
+
+                  <main class="landing-main-scroll">
+                    <section class="landing-hero-card">
+                      <div class="hero-content-wrap">
+                        <div class="hero-logo-row">
+                          <div class="hero-logo-badge">
+                            <img src="/GlimmerFall_official_multicolor_logo.png" alt="GlimmerFall Logo" class="hero-logo-img" />
+                          </div>
+                          <div>
+                            <span class="hero-chip-badge">✨ OFFICIAL 2D PIXEL MMORPG</span>
+                            <h1 class="hero-title">AWAKEN YOUR <span style="color:#facc15;">CHAMPION</span> IN THE REALM OF GLIMMER</h1>
+                          </div>
+                        </div>
+                        <p class="hero-desc">
+                          Step into an authentic top-down action MMORPG inspired by classic 16-bit RPG masterworks.
+                          Harvest cosmic Glimmer leylines, socket authentic trading card relics from
+                          <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" style="color:#38bdf8; text-decoration:underline; font-weight:bold;">glimmerfalltcg.com</a>,
+                          master 7 disciplines to Level 99, and battle in 3v3 Outpost Nexus destruction arenas.
+                        </p>
+                        <div class="hero-specs-row">
+                          <div class="hero-spec-pill"><div class="spec-val" style="color:#38bdf8;">0ms</div><div class="spec-lbl">Single Player</div></div>
+                          <div class="hero-spec-pill"><div class="spec-val" style="color:#4ade80;">20 Hz</div><div class="spec-lbl">Server MMO</div></div>
+                          <div class="hero-spec-pill"><div class="spec-val" style="color:#facc15;">Lv. 99</div><div class="spec-lbl">Max Mastery</div></div>
+                          <div class="hero-spec-pill"><div class="spec-val" style="color:#f87171;">25 HP</div><div class="spec-lbl">Nexus Rule</div></div>
+                        </div>
+                        <div class="hero-cta-row">
+                          <button type="button" class="hero-btn-primary" onclick="if(window._landing){window._landing.launchGame();}else{location.href='/?autostart=1';}"><span>⚡</span> AWAKEN CHAMPION NOW</button>
+                          <button type="button" class="hero-btn-secondary" onclick="if(window._landing){window._landing.openLoadout();}else if(window._fp){window._fp.open();}else{location.href='/?loadout=1';}"><span>👤</span> OPEN HERO LOADOUT</button>
+                        </div>
+                      </div>
+                    </section>
+                  </main>
+                </div>
+              `;
+            }
+
             if (!shouldShowLoadout) {
+              preRenderLanding();
               return;
             }
 

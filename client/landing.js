@@ -1,15 +1,7 @@
 // ==========================================
 // GlimmerFall Online 2D — Premier Landing Page & Interactive Encyclopedias
-// Features:
-//   - Full-Screen Pixelated Heaven with Sticky Left Sidebar Nav
-//   - Pixelated Items, Armor, Relics, Currencies & 7 Skills to Lv. 99
-//   - Official Multicolor Logo (/GlimmerFall_official_multicolor_logo.png)
-//   - Massive Modern CSS Inputs for Immediate Character Forging
-//   - Dual-Mode Toggle (Single Player 0ms vs Multiplayer 20Hz)
-//   - "Start on this site" (Character Loadout vs Landing Page) Persistence
-//   - Game Systems Encyclopedia (Combat Formulas, 4 Resources, 8 Classes, 7 Skills, Atlas, 3v3 Arena)
-//   - Cosmic Lore & TCG Encyclopedia (Authentic lore & Card Oracle from glimmerfalltcg.com)
-//   - Full Smooth Scrolling from Top to Bottom
+// Pixelated Heaven • Sticky Sidebar Navigation • Gear & Currencies
+// 7 Disciplines to Lv. 99 • Official Logo • Smooth Scrolling
 // ==========================================
 
 import {
@@ -22,11 +14,11 @@ import {
   createDefaultProgression,
 } from '../shared/protocol.js';
 
-const LOGO_PATH = '/GlimmerFall_official_multicolor_logo.png';
 const START_ON_LOADOUT_KEY = 'glimmerfall_start_on_loadout';
 const SP_ROSTER_KEY = 'glimmerfall_sp_roster_v2';
 const SP_ACTIVE_KEY = 'glimmerfall_sp_active_id';
 const PLAY_MODE_KEY = 'glimmerfall_play_mode';
+const LOGO_SRC = '/GlimmerFall_official_multicolor_logo.png';
 
 const RANDOM_NAMES = [
   'Aurelia', 'Valen', 'Seraphina', 'Kaelen', 'Zephyr',
@@ -34,7 +26,7 @@ const RANDOM_NAMES = [
   'Solomon', 'Nyx', 'Ignis', 'Elowen', 'Corvus'
 ];
 
-const PIXEL_ITEMS = [
+export const PIXEL_ITEMS = [
   { id: 'dawnblade', name: 'Dawnblade Greatsword', slot: 'Weapon', rarity: 'Legendary', icon: '🗡️', stat: '+24 Radiant Dmg • +8% Holy Crit', color: '#F2A900', desc: 'Forged from Starfall meteorite and quenched in the solar well.' },
   { id: 'sun_shield', name: 'Sunforged Radiance Aegis', slot: 'Shield', rarity: 'Epic', icon: '🛡️', stat: '+45 Armor • +60 Block Value', color: '#F2A900', desc: 'Imbued with the Zenith core. Emits blinding retaliation flashes.' },
   { id: 'astral_crown', name: 'Chronomancer Crown', slot: 'Head', rarity: 'Legendary', icon: '👑', stat: '+18 Arcane • +20 Max Glimmer', color: '#00BFFF', desc: 'Allows the wearer to perceive 3 seconds into adjacent timelines.' },
@@ -45,15 +37,15 @@ const PIXEL_ITEMS = [
   { id: 'chronocore', name: 'Chronocore Prism', slot: 'Relic', rarity: 'Cosmic', icon: '💎', stat: 'World Nexus Anchor (25 HP Rule)', color: '#00BFFF', desc: 'Authentic TCG relic from glimmerfalltcg.com. Protects your Outpost Nexus.' },
 ];
 
-const CURRENCIES = [
-  { id: 'solar_gold', name: 'Solar Gold', val: '1,420,500', icon: '🪙', color: '#F2A900', desc: 'Universal trade currency of Sanctuary Haven pavilion.' },
-  { id: 'glimmer_shards', name: 'Glimmer Shards', val: '350', icon: '🔮', color: '#00BFFF', desc: 'Crystallized leyline resonance extracted from Grand Fonts.' },
-  { id: 'chrono_cores', name: 'Chrono Cores', val: '28', icon: '🌀', color: '#38bdf8', desc: 'Pulsing temporal fragments dropped from Mirrorgate bosses.' },
-  { id: 'void_remnants', name: 'Void Remnants', val: '115', icon: '🖤', color: '#9B30FF', desc: 'Reaped shadowy essence from the Undercity depths.' },
-  { id: 'root_stones', name: 'Root Stones', val: '42', icon: '🌿', color: '#22E07B', desc: 'Ancient stone heart seeds blessed by the canopy elders.' },
+export const LEYLINE_CURRENCIES = [
+  { id: 'solar_gold', name: 'Solar Gold', val: '1,420,500', icon: '🪙', color: '#F2A900' },
+  { id: 'glimmer_shards', name: 'Glimmer Shards', val: '350', icon: '🔮', color: '#00BFFF' },
+  { id: 'chrono_cores', name: 'Chrono Cores', val: '28', icon: '🌀', color: '#38bdf8' },
+  { id: 'void_remnants', name: 'Void Remnants', val: '115', icon: '🖤', color: '#9B30FF' },
+  { id: 'root_stones', name: 'Root Stones', val: '42', icon: '🌿', color: '#22E07B' },
 ];
 
-const PROFESSIONS = [
+export const DISCIPLINES = [
   { id: 'mining', name: 'Resonance Extraction', lvl: 48, icon: '⛏️', color: '#00BFFF' },
   { id: 'smithing', name: 'Star-Forging', lvl: 35, icon: '🔨', color: '#F2A900' },
   { id: 'weaving', name: 'Leyline Weaving', lvl: 42, icon: '🧵', color: '#22E07B' },
@@ -69,11 +61,10 @@ export class LandingPageController {
     this.onEnterWorld = onEnterWorld;
     this.isOpen = false;
 
-    // Active View / Sub-sections
     this.activeTab = 'forge';
     this.gameEncSection = 'combat';
     this.loreEncSection = 'shattering';
-    this.hoveredItem = null;
+    this.hoveredItemId = null;
 
     // Character Forge State
     this.characterName = 'Aurelia';
@@ -83,7 +74,6 @@ export class LandingPageController {
     this.selectedOrderTag = 'SUN';
     this.soundEnabled = true;
 
-    // Load initial playMode
     try {
       const savedMode = localStorage.getItem(PLAY_MODE_KEY);
       if (savedMode === 'multiplayer' || savedMode === 'singleplayer') {
@@ -91,7 +81,6 @@ export class LandingPageController {
       }
     } catch (_) {}
 
-    // Expose globally for inline event handlers
     if (typeof window !== 'undefined') {
       window._landing = this;
       window.openLandingPage = (initialTab = null) => this.open(initialTab);
@@ -112,7 +101,6 @@ export class LandingPageController {
       localStorage.setItem(START_ON_LOADOUT_KEY, checked ? 'true' : 'false');
     } catch (_) {}
 
-    // Sync all checkboxes on page
     if (typeof document !== 'undefined') {
       const cbs = document.querySelectorAll('.start-on-site-cb');
       cbs.forEach((cb) => {
@@ -141,20 +129,21 @@ export class LandingPageController {
       } else if (type === 'launch') {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(260, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(780, ctx.currentTime + 0.4);
+        osc.frequency.exponentialRampToValueAtTime(780, ctx.currentTime + 0.45);
         gain.gain.setValueAtTime(0.18, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.45);
         osc.start();
-        osc.stop(ctx.currentTime + 0.4);
+        osc.stop(ctx.currentTime + 0.45);
       }
     } catch (_) {}
   }
 
   open(initialTab = null) {
     this.isOpen = true;
-    if (initialTab) this.activeTab = initialTab;
+    if (initialTab) {
+      this.activeTab = initialTab;
+    }
 
-    // Close in-game character loadout overlay if open
     const fpOverlay = document.getElementById('frontpage-overlay');
     if (fpOverlay) fpOverlay.style.display = 'none';
 
@@ -169,14 +158,11 @@ export class LandingPageController {
 
     this.render();
 
-    // Smooth scroll to requested section if provided
     if (initialTab && typeof document !== 'undefined') {
-      setTimeout(() => {
-        const target = document.getElementById(`landing-section-${initialTab}`);
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth' });
-        }
-      }, 50);
+      const targetEl = document.getElementById(initialTab);
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth' });
+      }
     }
   }
 
@@ -191,19 +177,8 @@ export class LandingPageController {
     this.close();
     if (this.frontpage) {
       this.frontpage.open();
-    } else {
-      const fp = document.getElementById('frontpage-overlay');
-      if (fp) fp.style.display = 'flex';
-    }
-  }
-
-  scrollToSection(sectionId) {
-    this.playSfx('click');
-    if (typeof document !== 'undefined') {
-      const el = document.getElementById(sectionId);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth' });
-      }
+    } else if (typeof window !== 'undefined' && window.openFrontpage) {
+      window.openFrontpage();
     }
   }
 
@@ -219,25 +194,9 @@ export class LandingPageController {
     this.render();
   }
 
-  setHoveredItem(item) {
-    this.hoveredItem = item;
-    const box = document.getElementById('sidebar-item-tooltip');
-    if (box) {
-      if (item) {
-        box.innerHTML = `
-          <div class="pixel-gear-tooltip">
-            <div class="pixel-gear-tooltip-head">
-              <span style="color:${item.color}">${item.name}</span>
-              <span style="color:#94a3b8; font-size:9px;">${item.rarity}</span>
-            </div>
-            <div class="pixel-gear-tooltip-stat">${item.stat}</div>
-            <div class="pixel-gear-tooltip-desc">${item.desc}</div>
-          </div>
-        `;
-      } else {
-        box.innerHTML = `<div style="text-align:center; font-size:10px; color:rgba(255,255,255,0.3); font-style:italic; margin-top:6px;">Hover item to inspect stats</div>`;
-      }
-    }
+  setHoveredItem(itemId) {
+    this.hoveredItemId = itemId;
+    this.render();
   }
 
   setFaction(fac) {
@@ -350,11 +309,22 @@ export class LandingPageController {
         this.frontpage.selectedCharacterId = localStorage.getItem(SP_ACTIVE_KEY);
         this.frontpage.playSelectedCharacter();
       }
+    } else if (typeof window !== 'undefined') {
+      window.location.href = `/?mode=${this.playMode}&autostart=1`;
     }
   }
 
+  escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   // ==========================================
-  // RENDER COMPLETE PIXELATED HEAVEN
+  // Render Function
   // ==========================================
   render() {
     if (typeof document === 'undefined') return '';
@@ -367,18 +337,19 @@ export class LandingPageController {
     const cls = CLASSES_CATALOG[this.selectedClassId] || CLASSES_CATALOG.solari_vanguard;
     const order = ORDER_PRESETS.find((o) => o.tag === this.selectedOrderTag) || ORDER_PRESETS[0];
     const factionClasses = Object.values(CLASSES_CATALOG).filter((c) => c.faction === this.selectedFaction);
+    const hoveredItemObj = PIXEL_ITEMS.find((it) => it.id === this.hoveredItemId);
 
     overlay.innerHTML = `
       <div class="landing-shell-layout">
-        <!-- ======================================================== -->
+        <!-- ========================================== -->
         <!-- 1. LEFT STICKY PIXEL SIDEBAR NAVIGATION -->
-        <!-- ======================================================== -->
+        <!-- ========================================== -->
         <aside class="landing-sidebar">
-          <!-- Brand Header with Official Logo -->
+          <!-- Sidebar Header & Logo -->
           <div class="sidebar-header">
             <div class="sidebar-brand-row">
               <div class="sidebar-logo-box">
-                <img src="${LOGO_PATH}" alt="GlimmerFall Logo" class="sidebar-logo-img" />
+                <img src="${LOGO_SRC}" alt="GlimmerFall Official Logo" class="sidebar-logo-img" />
               </div>
               <div>
                 <div class="sidebar-brand-name">
@@ -386,17 +357,21 @@ export class LandingPageController {
                 </div>
                 <div class="sidebar-server-pill">
                   <span class="sidebar-dot"></span>
-                  20Hz MMO &bull; 0ms Offline
+                  20Hz Server &bull; 0ms Local
                 </div>
               </div>
             </div>
 
-            <!-- Mode Selector -->
+            <!-- Single vs Multiplayer Mode -->
             <div class="sidebar-mode-grid">
-              <button type="button" class="sidebar-mode-btn ${isSingle ? 'active single' : ''}" onclick="window._landing.setPlayMode('singleplayer')">
+              <button type="button"
+                      class="sidebar-mode-btn ${isSingle ? 'active single' : ''}"
+                      onclick="window._landing.setPlayMode('singleplayer')">
                 🕹️ Offline 0ms
               </button>
-              <button type="button" class="sidebar-mode-btn ${!isSingle ? 'active' : ''}" onclick="window._landing.setPlayMode('multiplayer')">
+              <button type="button"
+                      class="sidebar-mode-btn ${!isSingle ? 'active' : ''}"
+                      onclick="window._landing.setPlayMode('multiplayer')">
                 🌐 Online 20Hz
               </button>
             </div>
@@ -407,108 +382,125 @@ export class LandingPageController {
             </button>
           </div>
 
-          <!-- Section Nav Links -->
+          <!-- Navigation Links -->
           <div class="sidebar-section">
+            <div class="sidebar-section-title">
+              <span>EXPLORE REALM</span>
+            </div>
             <div class="sidebar-nav-list">
-              <button type="button" class="sidebar-nav-link" onclick="window._landing.scrollToSection('landing-section-forge')">
+              <a href="#forge" class="sidebar-nav-link" onclick="document.getElementById('forge')?.scrollIntoView({behavior:'smooth'})">
                 <span>⚔️ Character Forge</span>
-                <span style="color:#64748b;">▸</span>
-              </button>
-              <button type="button" class="sidebar-nav-link" onclick="window._landing.scrollToSection('landing-section-game-enc')">
-                <span>🎮 Game Encyclopedia</span>
-                <span style="color:#64748b;">▸</span>
-              </button>
-              <button type="button" class="sidebar-nav-link" onclick="window._landing.scrollToSection('landing-section-lore-enc')">
-                <span>📜 Lore &amp; TCG Oracle</span>
-                <span style="color:#64748b;">▸</span>
-              </button>
-              <button type="button" class="sidebar-nav-link" onclick="window._landing.scrollToSection('landing-section-armory')">
+                <span style="color:#facc15;">▸</span>
+              </a>
+              <a href="#game-encyclopedia" class="sidebar-nav-link" onclick="document.getElementById('game-encyclopedia')?.scrollIntoView({behavior:'smooth'})">
+                <span>🎮 Game Systems Enc.</span>
+                <span style="color:#38bdf8;">▸</span>
+              </a>
+              <a href="#lore-tcg" class="sidebar-nav-link" onclick="document.getElementById('lore-tcg')?.scrollIntoView({behavior:'smooth'})">
+                <span>📜 Cosmic Lore &amp; TCG</span>
+                <span style="color:#c084fc;">▸</span>
+              </a>
+              <a href="#armory" class="sidebar-nav-link" onclick="document.getElementById('armory')?.scrollIntoView({behavior:'smooth'})">
                 <span>🛡️ Continental Armory</span>
-                <span style="color:#64748b;">▸</span>
-              </button>
-              <button type="button" class="sidebar-nav-link" onclick="window._landing.scrollToSection('landing-section-arena')">
-                <span>⚡ 3v3 Nexus Destruction</span>
-                <span style="color:#64748b;">▸</span>
-              </button>
-              <button type="button" class="sidebar-nav-link" onclick="window._landing.scrollToSection('landing-section-atlas')">
-                <span>🗺️ Continental World Atlas</span>
-                <span style="color:#64748b;">▸</span>
-              </button>
+                <span style="color:#4ade80;">▸</span>
+              </a>
+              <a href="#arena" class="sidebar-nav-link" onclick="document.getElementById('arena')?.scrollIntoView({behavior:'smooth'})">
+                <span>⚡ 3v3 Nexus Arena</span>
+                <span style="color:#f87171;">▸</span>
+              </a>
+              <a href="#atlas" class="sidebar-nav-link" onclick="document.getElementById('atlas')?.scrollIntoView({behavior:'smooth'})">
+                <span>🗺️ World Atlas</span>
+                <span style="color:#38bdf8;">▸</span>
+              </a>
               <button type="button" class="sidebar-nav-link special" onclick="window._landing.openLoadout()">
                 <span>👤 Open Hero Loadout</span>
-                <span>➔</span>
+                <span>⚙️</span>
               </button>
             </div>
           </div>
 
-          <!-- Pixel Gear Showcase -->
+          <!-- Pixel Items Showcase -->
           <div class="sidebar-section">
             <div class="sidebar-section-title">
-              <span style="color:#facc15;">🛡️ PIXEL ARMORY PREVIEW</span>
-              <span style="font-size:9px; color:#64748b;">Hover slot</span>
+              <span>PIXEL ARMORY</span>
+              <span style="color:#facc15; font-size:9.5px;">HOVER INFO</span>
             </div>
             <div class="pixel-gear-grid">
-              ${PIXEL_ITEMS.map((item, idx) => `
+              ${PIXEL_ITEMS.map((item) => `
                 <div class="pixel-gear-slot"
-                     style="border-color:${item.color};"
-                     onmouseenter="window._landing.setHoveredItem(window._landing_pixel_items[${idx}])"
+                     style="${this.hoveredItemId === item.id ? `border-color:${item.color}; transform:scale(1.08);` : ''}"
+                     onmouseenter="window._landing.setHoveredItem('${item.id}')"
                      onmouseleave="window._landing.setHoveredItem(null)">
                   <span>${item.icon}</span>
                   <span class="slot-corner-tag">${item.slot[0]}</span>
                 </div>
               `).join('')}
             </div>
-            <div id="sidebar-item-tooltip">
-              <div style="text-align:center; font-size:10px; color:rgba(255,255,255,0.3); font-style:italic; margin-top:6px;">
-                Hover slot to inspect stats
+
+            ${hoveredItemObj ? `
+              <div class="pixel-gear-tooltip">
+                <div class="pixel-gear-tooltip-head" style="color:${hoveredItemObj.color}">
+                  <span>${hoveredItemObj.name}</span>
+                  <span style="font-size:8.5px; padding:1px 4px; background:rgba(255,255,255,0.1); border-radius:3px;">${hoveredItemObj.rarity}</span>
+                </div>
+                <div class="pixel-gear-tooltip-stat">${hoveredItemObj.stat}</div>
+                <div class="pixel-gear-tooltip-desc">${hoveredItemObj.desc}</div>
               </div>
-            </div>
+            ` : `
+              <div style="font-size:9.5px; color:#64748b; text-align:center; margin-top:8px; font-style:italic;">
+                Hover over slots to inspect stats
+              </div>
+            `}
           </div>
 
-          <!-- Currencies Mini-Vault -->
+          <!-- Currencies Vault -->
           <div class="sidebar-section">
             <div class="sidebar-section-title">
-              <span style="color:#38bdf8;">🪙 LEYLINE VAULT</span>
+              <span style="color:#38bdf8;">CURRENCIES</span>
+              <span style="font-size:9px; color:#94a3b8;">TREASURY</span>
             </div>
             <div class="sidebar-currency-list">
-              ${CURRENCIES.map((curr) => `
+              ${LEYLINE_CURRENCIES.map((c) => `
                 <div class="sidebar-currency-item">
                   <div class="currency-left">
-                    <span>${curr.icon}</span>
-                    <span>${curr.name}</span>
+                    <span>${c.icon}</span>
+                    <span>${c.name}</span>
                   </div>
-                  <span class="currency-val" style="color:${curr.color};">${curr.val}</span>
+                  <span class="currency-val" style="color:${c.color}">${c.val}</span>
                 </div>
               `).join('')}
             </div>
           </div>
 
-          <!-- 7 Disciplines Progress -->
+          <!-- 7 Disciplines Tracker -->
           <div class="sidebar-section">
             <div class="sidebar-section-title">
-              <span style="color:#22e07b;">✨ 7 DISCIPLINES</span>
-              <span style="font-size:9.5px; color:#facc15; font-weight:bold;">MAX 99</span>
+              <span style="color:#4ade80;">7 DISCIPLINES</span>
+              <span style="color:#facc15; font-size:9.5px;">MAX 99</span>
             </div>
             <div class="sidebar-skills-list">
-              ${PROFESSIONS.map((p) => `
+              ${DISCIPLINES.map((d) => `
                 <div class="sidebar-skill-item">
                   <div class="sidebar-skill-header">
-                    <span>${p.icon} ${p.name}</span>
-                    <span style="color:${p.color};">Lv. ${p.lvl}/99</span>
+                    <span>${d.icon} ${d.name}</span>
+                    <span style="color:${d.color}">Lv. ${d.lvl}/99</span>
                   </div>
                   <div class="sidebar-skill-bar-wrap">
-                    <div class="sidebar-skill-bar-fill" style="width:${(p.lvl / 99) * 100}%; background-color:${p.color};"></div>
+                    <div class="sidebar-skill-bar-fill" style="width:${(d.lvl / 99) * 100}%; background:${d.color};"></div>
                   </div>
                 </div>
               `).join('')}
             </div>
           </div>
 
-          <!-- Footer & Preferences -->
+          <!-- Sidebar Footer -->
           <div class="sidebar-footer">
-            <label class="sidebar-pref-toggle" title="When checked, visits go directly to this loadout. When unchecked, you start at the landing page.">
-              <input type="checkbox" class="start-on-site-cb" ${startOnLoadout ? 'checked' : ''} onchange="window._landing.setStartOnLoadout(this.checked)">
-              <span>Start on Loadout view</span>
+            <label class="sidebar-pref-toggle">
+              <input type="checkbox"
+                     class="start-on-site-cb"
+                     ${startOnLoadout ? 'checked' : ''}
+                     onchange="window._landing.setStartOnLoadout(this.checked)" />
+              <span>Start on this site</span>
             </label>
             <div class="sidebar-footer-links">
               <span>&copy; 2026 GlimmerFall</span>
@@ -517,27 +509,30 @@ export class LandingPageController {
           </div>
         </aside>
 
-        <!-- ======================================================== -->
-        <!-- 2. MAIN SCROLLABLE PIXEL HEAVEN CONTENT -->
-        <!-- ======================================================== -->
+        <!-- ========================================== -->
+        <!-- 2. MAIN SCROLLABLE CONTENT AREA -->
+        <!-- ========================================== -->
         <main class="landing-main-scroll">
-          <!-- HERO CARD -->
+          <!-- HERO BANNER -->
           <section class="landing-hero-card">
             <div class="hero-content-wrap">
               <div class="hero-logo-row">
                 <div class="hero-logo-badge">
-                  <img src="${LOGO_PATH}" alt="GlimmerFall Official Logo" class="hero-logo-img" />
+                  <img src="${LOGO_SRC}" alt="GlimmerFall Logo" class="hero-logo-img" />
                 </div>
                 <div>
-                  <span class="hero-chip-badge">✨ Official 16-Bit Action MMORPG</span>
+                  <span class="hero-chip-badge">✨ OFFICIAL 2D PIXEL MMORPG</span>
                   <h1 class="hero-title">
-                    GLIMMER<span style="color:#facc15;">FALL</span> ONLINE
+                    AWAKEN YOUR <span style="color:#facc15;">CHAMPION</span> IN THE REALM OF GLIMMER
                   </h1>
                 </div>
               </div>
 
               <p class="hero-desc">
-                Awaken your champion in a living 16-bit action universe. Harvest celestial Glimmer leylines, socket authentic trading card relics from <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" style="color:#38bdf8; text-decoration:underline; font-weight:bold;">glimmerfalltcg.com</a>, master 7 disciplines to Level 99, and battle in 3v3 Nexus Destruction arenas.
+                Step into an authentic top-down action MMORPG inspired by classic 16-bit RPG masterworks.
+                Harvest cosmic Glimmer leylines, socket authentic trading card relics from
+                <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" style="color:#38bdf8; text-decoration:underline; font-weight:bold;">glimmerfalltcg.com</a>,
+                master 7 disciplines to Level 99, and battle in 3v3 Outpost Nexus destruction arenas.
               </p>
 
               <div class="hero-specs-row">
@@ -564,31 +559,36 @@ export class LandingPageController {
                   <span>⚡</span> AWAKEN CHAMPION NOW
                 </button>
                 <button type="button" class="hero-btn-secondary" onclick="window._landing.openLoadout()">
-                  👤 OPEN IN-GAME LOADOUT
+                  <span>👤</span> OPEN HERO LOADOUT
                 </button>
               </div>
             </div>
           </section>
 
-          <!-- CHARACTER FORGE -->
-          <section id="landing-section-forge" class="landing-section-box">
+          <!-- CHARACTER FORGE SECTION -->
+          <section id="forge" class="landing-section-box">
             <div class="section-header-row">
               <div>
-                <span class="section-tag" style="background:#facc1522; color:#facc15; border:1px solid #facc1555;">Forge Your Identity</span>
+                <span class="section-tag" style="background:rgba(242,169,0,0.15); color:#facc15; border:1px solid rgba(242,169,0,0.3);">
+                  FORGE IDENTITY
+                </span>
                 <h2 class="section-heading">⚔️ CHAMPION LOADOUT FORGE</h2>
               </div>
-              <button type="button" class="btn-dice" onclick="window._landing.randomizeName()">
-                🎲 Random Moniker
-              </button>
+              <div style="font-size:11px; color:#94a3b8;">
+                Customize moniker, faction allegiance &amp; archetype
+              </div>
             </div>
 
             <div class="forge-layout-grid">
-              <!-- Controls Column -->
               <div class="forge-controls-col">
+                <!-- Moniker Input -->
                 <div>
-                  <label style="display:block; font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">
-                    1. CHAMPION MONIKER &amp; TITLE
-                  </label>
+                  <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                    <label style="font-size:11px; font-weight:bold; color:#cbd5e1; text-transform:uppercase;">
+                      1. CHAMPION MONIKER &amp; COGNOMEN
+                    </label>
+                    <span style="font-size:10px; color:#64748b;">${this.characterName.length}/18</span>
+                  </div>
                   <div class="massive-input-wrap">
                     <input
                       type="text"
@@ -596,13 +596,17 @@ export class LandingPageController {
                       maxlength="18"
                       value="${this.escapeHtml(this.characterName)}"
                       placeholder="Enter champion moniker..."
-                      oninput="window._landing.characterName = this.value; const d = document.getElementById('pedestal-display-name'); if (d) d.textContent = this.value || 'Vanguard';"
+                      oninput="window._landing.characterName = this.value; const d = document.getElementById('pedestal-name-display'); if(d) d.textContent = this.value || 'Vanguard';"
                     />
+                    <button type="button" class="btn-dice" onclick="window._landing.randomizeName()">
+                      🎲 Random
+                    </button>
                   </div>
                 </div>
 
+                <!-- Factions -->
                 <div>
-                  <label style="display:block; font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">
+                  <label style="font-size:11px; font-weight:bold; color:#cbd5e1; text-transform:uppercase; margin-bottom:8px; display:block;">
                     2. CANONICAL FACTION ALLEGIANCE
                   </label>
                   <div class="factions-cards-grid">
@@ -611,9 +615,11 @@ export class LandingPageController {
                       const isSel = this.selectedFaction === facKey;
                       return `
                         <div class="faction-select-card ${isSel ? 'active' : ''}"
-                             style="border-color:${isSel ? f.color : '#1e293b'}; ${isSel ? `background:${f.color}15;` : ''}"
+                             style="${isSel ? `border-color:${f.color}; background:${f.color}18;` : ''}"
                              onclick="window._landing.setFaction('${facKey}')">
-                          <div style="font-family:var(--font-header); font-size:13px; font-weight:bold; color:${f.color};">${facKey}</div>
+                          <div style="font-family:var(--font-header); font-size:13px; font-weight:bold; color:${f.color};">
+                            ${facKey}
+                          </div>
                           <div style="font-size:10px; color:#94a3b8; margin-top:2px;">${f.name}</div>
                         </div>
                       `;
@@ -621,43 +627,46 @@ export class LandingPageController {
                   </div>
                 </div>
 
+                <!-- Classes -->
                 <div>
-                  <label style="display:block; font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">
-                    3. PLAYABLE ARCHETYPE &amp; ROLE (${this.selectedFaction})
+                  <label style="font-size:11px; font-weight:bold; color:#cbd5e1; text-transform:uppercase; margin-bottom:8px; display:block;">
+                    3. PLAYABLE ARCHETYPE (${this.selectedFaction})
                   </label>
                   <div class="classes-cards-grid">
                     ${factionClasses.map((c) => {
                       const isSel = this.selectedClassId === c.id;
                       return `
                         <div class="class-select-card ${isSel ? 'active' : ''}"
-                             style="border-color:${isSel ? fm.color : '#1e293b'}; ${isSel ? `background:${fm.color}15;` : ''}"
+                             style="${isSel ? `border-color:${fm.color}; background:${fm.color}15;` : ''}"
                              onclick="window._landing.setClass('${c.id}')">
-                          <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-family:var(--font-header); font-size:13.5px; font-weight:bold; color:#fff;">${c.name}</span>
-                            <span style="font-size:9.5px; background:rgba(0,0,0,0.5); padding:1px 6px; border-radius:3px; color:#cbd5e1;">${c.defaultEquipment?.armor?.replace('_', ' ') || 'Armor'}</span>
+                          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <span style="font-family:var(--font-header); font-size:13px; font-weight:bold; color:#fff;">${c.name}</span>
+                            <span style="font-size:9.5px; padding:1px 6px; border-radius:4px; background:#080e1c; border:1px solid #1e293b; color:#94a3b8;">${c.defaultEquipment?.armor?.replace('_', ' ') || 'Armor'}</span>
                           </div>
-                          <div style="font-size:11px; font-weight:600; color:${fm.color}; margin-top:3px;">${c.role}</div>
-                          <p style="font-size:10.5px; color:#94a3b8; margin-top:4px; line-height:1.4;">${c.desc}</p>
+                          <div style="font-size:10.5px; font-weight:600; color:${fm.color}; margin-top:3px;">${c.role}</div>
+                          <p style="font-size:10.5px; color:#94a3b8; margin-top:6px; line-height:1.4;">${c.desc}</p>
                         </div>
                       `;
                     }).join('')}
                   </div>
                 </div>
 
+                <!-- Order Heraldry -->
                 <div>
-                  <label style="display:block; font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">
-                    4. ORDER CREST &bull; HERALDRY TAG
+                  <label style="font-size:11px; font-weight:bold; color:#cbd5e1; text-transform:uppercase; margin-bottom:8px; display:block;">
+                    4. ORDER CREST &bull; HERALDRY
                   </label>
                   <div class="order-tags-row">
                     ${ORDER_PRESETS.map((o) => {
                       const isSel = this.selectedOrderTag === o.tag;
                       return `
-                        <div class="order-select-btn ${isSel ? 'active' : ''}"
-                             style="border-color:${isSel ? o.color : '#1e293b'}; color:${isSel ? o.color : '#cbd5e1'}; ${isSel ? `background:${o.color}18;` : ''}"
-                             onclick="window._landing.setOrder('${o.tag}')">
-                          <b>[${o.tag}]</b>
-                          <div style="font-size:9.5px; opacity:0.8;">${o.name}</div>
-                        </div>
+                        <button type="button"
+                                class="order-select-btn ${isSel ? 'active' : ''}"
+                                style="${isSel ? `border-color:${o.color}; color:${o.color};` : ''}"
+                                onclick="window._landing.setOrder('${o.tag}')">
+                          <div style="font-family:monospace; font-weight:900; font-size:11px;">[${o.tag}]</div>
+                          <div style="font-size:9.5px; color:#94a3b8;">${o.name}</div>
+                        </button>
                       `;
                     }).join('')}
                   </div>
@@ -667,39 +676,35 @@ export class LandingPageController {
               <!-- Pedestal Column -->
               <div class="forge-pedestal-col">
                 <div class="pedestal-sticky-card">
-                  <span style="font-size:9.5px; color:#64748b; font-family:monospace; text-transform:uppercase;">Visage Pedestal Preview</span>
+                  <div style="font-size:9.5px; color:#64748b; font-weight:bold; text-transform:uppercase; letter-spacing:0.6px;">
+                    VISAGE PREVIEW
+                  </div>
                   <div class="pedestal-avatar-circle">
                     ⚔️
                   </div>
-                  <div id="pedestal-display-name" class="pedestal-name-txt">
+                  <div id="pedestal-name-display" class="pedestal-name-txt">
                     ${this.escapeHtml(this.characterName || 'Vanguard')}
                   </div>
-                  <div style="font-size:11.5px; color:#38bdf8; font-weight:600; margin-top:2px;">
+                  <div style="font-size:11px; color:#38bdf8; font-weight:600; margin-top:2px;">
                     [${order.tag}] &bull; ${cls.name}
                   </div>
-                  <div style="font-size:11px; font-weight:bold; color:${fm.color}; margin-top:2px;">
+                  <div style="font-size:10.5px; color:${fm.color}; font-weight:bold; margin-top:2px;">
                     ${fm.name}
                   </div>
 
                   <div class="pedestal-vitals-grid">
                     <div class="pedestal-vital-box">
                       <div style="font-size:9.5px; color:#64748b; font-weight:bold;">HEALTH</div>
-                      <div style="font-family:monospace; font-weight:bold; font-size:13px; color:#4ade80;">❤️ 40 / 40 HP</div>
+                      <div style="color:#4ade80; font-weight:bold; font-size:12px;">❤️ 40 / 40 HP</div>
                     </div>
                     <div class="pedestal-vital-box">
                       <div style="font-size:9.5px; color:#64748b; font-weight:bold;">GLIMMER</div>
-                      <div style="font-family:monospace; font-weight:bold; font-size:13px; color:#38bdf8;">🔮 100 Glimmer</div>
+                      <div style="color:#38bdf8; font-weight:bold; font-size:12px;">🔮 100 Glimmer</div>
                     </div>
                   </div>
 
-                  <div style="background:#091224; border:1px solid #1e293b; border-radius:10px; padding:10px; font-size:11px; color:#cbd5e1; text-align:left; margin-bottom:14px; line-height:1.5;">
-                    <div style="display:flex; justify-content:space-between;"><span>Starting Leyline:</span><b>Sanctuary Haven</b></div>
-                    <div style="display:flex; justify-content:space-between;"><span>Armor Class:</span><b style="color:#facc15;">${cls.defaultEquipment?.armor?.replace('_', ' ') || 'Plate'}</b></div>
-                    <div style="display:flex; justify-content:space-between;"><span>Starter Rite:</span><b style="color:#38bdf8;">${Object.values(cls.defaultLoadout || {})[0]?.replace('_', ' ') || 'Strike'}</b></div>
-                  </div>
-
-                  <button type="button" class="sidebar-cta-btn" style="padding:14px; font-size:13px;" onclick="window._landing.launchGame()">
-                    ⚡ ENTER GLIMMERFALL
+                  <button type="button" class="sidebar-cta-btn" style="padding:14px; font-size:12px;" onclick="window._landing.launchGame()">
+                    ⚡ AWAKEN IN GLIMMERFALL
                   </button>
                 </div>
               </div>
@@ -707,18 +712,20 @@ export class LandingPageController {
           </section>
 
           <!-- GAME SYSTEMS ENCYCLOPEDIA -->
-          <section id="landing-section-game-enc" class="landing-section-box">
+          <section id="game-encyclopedia" class="landing-section-box">
             <div class="section-header-row">
               <div>
-                <span class="section-tag" style="background:#38bdf822; color:#38bdf8; border:1px solid #38bdf855;">Official Reference Manual</span>
+                <span class="section-tag" style="background:rgba(56,189,248,0.15); color:#38bdf8; border:1px solid rgba(56,189,248,0.3);">
+                  GAME SYSTEMS
+                </span>
                 <h2 class="section-heading">🎮 GAME SYSTEMS ENCYCLOPEDIA</h2>
               </div>
               <div class="enc-tab-strip">
                 <button type="button" class="enc-switch-btn ${this.gameEncSection === 'combat' ? 'active' : ''}" onclick="window._landing.setGameEncSection('combat')">
-                  ⚔️ Combat Formulas
+                  ⚔️ Combat Dynamics
                 </button>
                 <button type="button" class="enc-switch-btn ${this.gameEncSection === 'resources' ? 'active' : ''}" onclick="window._landing.setGameEncSection('resources')">
-                  ⚡ Faction Resources
+                  ⚡ 4 Faction Resources
                 </button>
                 <button type="button" class="enc-switch-btn ${this.gameEncSection === 'persistence' ? 'active' : ''}" onclick="window._landing.setGameEncSection('persistence')">
                   💾 State Persistence
@@ -732,24 +739,23 @@ export class LandingPageController {
           </section>
 
           <!-- COSMIC LORE & TCG ORACLE -->
-          <section id="landing-section-lore-enc" class="landing-section-box">
+          <section id="lore-tcg" class="landing-section-box">
             <div class="section-header-row">
               <div>
-                <span class="section-tag" style="background:#9b30ff22; color:#c084fc; border:1px solid #9b30ff55;">glimmerfalltcg.com Canonical Lore</span>
+                <span class="section-tag" style="background:rgba(155,48,255,0.15); color:#c084fc; border:1px solid rgba(155,48,255,0.3);">
+                  glimmerfalltcg.com LORE
+                </span>
                 <h2 class="section-heading">📜 COSMIC LORE &amp; TCG ORACLE</h2>
               </div>
               <div class="enc-tab-strip">
-                <button type="button" class="enc-switch-btn ${this.loreEncSection === 'shattering' ? 'active lore' : ''}" onclick="window._landing.setLoreEncSection('shattering')">
+                <button type="button" class="enc-switch-btn lore ${this.loreEncSection === 'shattering' ? 'active' : ''}" onclick="window._landing.setLoreEncSection('shattering')">
                   🌌 The Great Shattering
                 </button>
-                <button type="button" class="enc-switch-btn ${this.loreEncSection === 'creeds' ? 'active lore' : ''}" onclick="window._landing.setLoreEncSection('creeds')">
+                <button type="button" class="enc-switch-btn lore ${this.loreEncSection === 'creeds' ? 'active' : ''}" onclick="window._landing.setLoreEncSection('creeds')">
                   🏛️ 4 Faction Creeds
                 </button>
-                <button type="button" class="enc-switch-btn ${this.loreEncSection === 'cards' ? 'active lore' : ''}" onclick="window._landing.setLoreEncSection('cards')">
+                <button type="button" class="enc-switch-btn lore ${this.loreEncSection === 'cards' ? 'active' : ''}" onclick="window._landing.setLoreEncSection('cards')">
                   🃏 TCG Card Relics
-                </button>
-                <button type="button" class="enc-switch-btn ${this.loreEncSection === 'legends' ? 'active lore' : ''}" onclick="window._landing.setLoreEncSection('legends')">
-                  👑 Sanctuary Legends
                 </button>
               </div>
             </div>
@@ -760,103 +766,104 @@ export class LandingPageController {
           </section>
 
           <!-- CONTINENTAL ARMORY -->
-          <section id="landing-section-armory" class="landing-section-box">
+          <section id="armory" class="landing-section-box">
             <div class="section-header-row">
               <div>
-                <span class="section-tag" style="background:#22e07b22; color:#4ade80; border:1px solid #22e07b55;">16-Bit Equipment Catalog</span>
-                <h2 class="section-heading">🛡️ PIXEL ARMORY &amp; CRAFTING VAULT</h2>
+                <span class="section-tag" style="background:rgba(74,222,128,0.15); color:#4ade80; border:1px solid rgba(74,222,128,0.3);">
+                  EQUIPMENT CATALOG
+                </span>
+                <h2 class="section-heading">🛡️ CONTINENTAL ARMORY &amp; RELICS</h2>
               </div>
-              <span style="font-size:12px; color:#94a3b8;">8 Slots &bull; Socketable Runewords</span>
+              <span style="font-size:11px; color:#94a3b8;">8 Item Slots &bull; Runeword Synergy</span>
             </div>
 
             <div class="armory-items-catalog">
               ${PIXEL_ITEMS.map((item) => `
                 <div class="armory-catalog-card">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:24px;">${item.icon}</span>
-                    <span style="font-size:9.5px; padding:2px 6px; border-radius:4px; font-weight:bold; background:${item.color}20; color:${item.color};">${item.rarity}</span>
+                    <span style="font-size:24px; padding:6px; background:#080e1c; border-radius:8px; border:1px solid #1e293b;">${item.icon}</span>
+                    <span style="font-size:9px; padding:2px 6px; border-radius:4px; font-weight:bold; background:${item.color}20; color:${item.color};">${item.rarity}</span>
                   </div>
-                  <div style="font-family:var(--font-header); font-size:13.5px; font-weight:bold; color:#fff; margin-top:8px;">${item.name}</div>
-                  <div style="font-size:11px; color:#38bdf8; font-weight:600; margin-top:3px;">${item.stat}</div>
-                  <p style="font-size:10.5px; color:#94a3b8; margin-top:6px; line-height:1.4;">${item.desc}</p>
+                  <div style="font-family:var(--font-header); font-weight:bold; font-size:12.5px; color:#fff; margin-top:10px;">${item.name}</div>
+                  <div style="font-size:10.5px; font-weight:bold; color:#38bdf8; margin-top:2px;">${item.stat}</div>
+                  <p style="font-size:10px; color:#94a3b8; margin-top:6px; line-height:1.4;">${item.desc}</p>
                 </div>
               `).join('')}
             </div>
           </section>
 
           <!-- 3v3 ARENA -->
-          <section id="landing-section-arena" class="landing-section-box" style="border-color:rgba(248,113,113,0.3); background:radial-gradient(circle at 50% 20%, rgba(30,16,16,0.9), #050404);">
-            <div class="section-header-row">
+          <section id="arena" class="landing-section-box" style="border-color:rgba(248,113,113,0.3); background:radial-gradient(circle at 50% 50%, #150a0a, #070404);">
+            <div class="section-header-row" style="border-color:rgba(248,113,113,0.2);">
               <div>
-                <span class="section-tag" style="background:rgba(248,113,113,0.15); color:#f87171; border:1px solid rgba(248,113,113,0.4);">Competitive Rated PvP</span>
+                <span class="section-tag" style="background:rgba(248,113,113,0.15); color:#f87171; border:1px solid rgba(248,113,113,0.3);">
+                  RATED COMPETITIVE
+                </span>
                 <h2 class="section-heading">⚡ 3v3 OUTPOST NEXUS DESTRUCTION</h2>
               </div>
               <span style="font-family:monospace; font-weight:bold; color:#f87171; font-size:12px;">25-HP MONOLITH RULE</span>
             </div>
 
-            <div class="enc-cards-grid">
+            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">
               <div class="enc-article-card">
-                <h4 style="color:#f87171;">⚔️ Rated Coliseums &amp; Team Synergies</h4>
-                <p>Teams of 3 clash in mirror-symmetric coliseums. Coordination between Frontline Bulwarks, Support Marshals, and Burst Assassins dictates lane control and monolith safety.</p>
+                <h4 style="color:#f87171;">1. Squad Lineups</h4>
+                <p>Clash in mirror-symmetric coliseums. Frontline tanks guard the lane while marshals provide radiance shields.</p>
               </div>
               <div class="enc-article-card">
-                <h4 style="color:#f87171;">🛡️ Safe Return Teleport Guarantee</h4>
-                <p>Match conclusion automatically teleports players back to their exact pre-arena coordinates, depositing bounty trophies and rated MMR straight into their profiles.</p>
+                <h4 style="color:#f87171;">2. 25-HP Monolith Rule</h4>
+                <p>Every team defends their 25-HP Outpost Nexus. Direct strikes deal 1 damage per hit. Destroy the opposing nexus to claim victory.</p>
+              </div>
+              <div class="enc-article-card">
+                <h4 style="color:#f87171;">3. Safe Return Teleport</h4>
+                <p>Upon match completion, you are automatically returned to your exact pre-arena world position with all bounties preserved.</p>
               </div>
             </div>
           </section>
 
           <!-- WORLD ATLAS -->
-          <section id="landing-section-atlas" class="landing-section-box">
+          <section id="atlas" class="landing-section-box">
             <div class="section-header-row">
               <div>
-                <span class="section-tag" style="background:#38bdf822; color:#38bdf8; border:1px solid #38bdf855;">Seamless Continental Traversal</span>
+                <span class="section-tag" style="background:rgba(56,189,248,0.15); color:#38bdf8; border:1px solid rgba(56,189,248,0.3);">
+                  SEAMLESS TRAVERSAL
+                </span>
                 <h2 class="section-heading">🗺️ CONTINENTAL REALMS ATLAS</h2>
               </div>
-              <span style="font-size:12px; color:#94a3b8;">7 Continental Biomes</span>
+              <span style="font-size:11px; color:#94a3b8;">7 Continental Zones</span>
             </div>
 
-            <div class="enc-cards-grid">
-              <div class="enc-article-card" style="border-left:4px solid #facc15;">
-                <h4 style="color:#facc15;">Sanctuary Haven &bull; Neutral Hub</h4>
-                <p>The bustling city hub housing the Grand Exchange pavilion, AetherVault banks, Celestial Loom, and master crafting artisans.</p>
-              </div>
-              <div class="enc-article-card" style="border-left:4px solid #facc15;">
-                <h4 style="color:#facc15;">Solari Citadel &bull; Sunspire Territory</h4>
-                <p>Golden marble towers and sun-temples harvesting celestial dawn radiation to protect against encroaching shadow abominations.</p>
-              </div>
-              <div class="enc-article-card" style="border-left:4px solid #c084fc;">
-                <h4 style="color:#c084fc;">Umbri Undercity &bull; Duskveil Syndicate</h4>
-                <p>Subterranean obsidian caverns lit by glowing violet graveglass lanterns, where void resonance is reaped in silence.</p>
-              </div>
-              <div class="enc-article-card" style="border-left:4px solid #4ade80;">
-                <h4 style="color:#4ade80;">Glimmer Orchard &bull; Rootdeep Collective</h4>
-                <p>Towering ancient canopy trees with sentient moss, stonekin elders, and pristine untouched planetary leylines.</p>
-              </div>
+            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:14px;">
+              ${[
+                { name: 'Sanctuary Haven', tag: 'Neutral Hub', color: '#facc15', desc: 'Central city housing the Grand Exchange pavilion, AetherVault banks, and artisans.' },
+                { name: 'Solari Citadel', tag: 'Sunspire Territory', color: '#facc15', desc: 'Marble sun-temples harvesting celestial dawn radiation.' },
+                { name: 'Umbri Undercity', tag: 'Duskveil Syndicate', color: '#c084fc', desc: 'Subterranean obsidian caverns lit by violet graveglass lanterns.' },
+                { name: 'Glimmer Orchard', tag: 'Rootdeep Collective', color: '#4ade80', desc: 'Towering ancient trees with sentient moss and stonekin elders.' },
+                { name: 'Mirrorgate Spire', tag: 'Astral Conclave', color: '#38bdf8', desc: 'Floating crystal pinnacles bending temporal currents.' },
+                { name: 'Starfall Crater', tag: 'Warzone PvPvE', color: '#f87171', desc: 'Impact site where all 4 factions clash over primal leyline shards.' },
+              ].map((r) => `
+                <div class="enc-article-card">
+                  <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <b style="color:#fff;">${r.name}</b>
+                    <span style="color:${r.color}; font-size:9.5px; font-weight:bold;">${r.tag}</span>
+                  </div>
+                  <p style="color:#94a3b8; font-size:11px;">${r.desc}</p>
+                </div>
+              `).join('')}
             </div>
           </section>
 
           <!-- FOOTER -->
-          <footer style="text-align:center; padding-top:20px; border-top:1px solid #1e293b; color:#64748b; font-size:11px; line-height:1.6;">
-            <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-bottom:6px;">
-              <img src="${LOGO_PATH}" alt="GlimmerFall" style="height:24px; object-fit:contain;" />
-              <b style="color:#fff;">GLIMMERFALL ONLINE</b>
+          <footer style="text-align:center; padding:30px 0; border-top:1px solid #1e293b; color:#64748b; font-size:11px;">
+            <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:8px;">
+              <img src="${LOGO_SRC}" alt="GlimmerFall" style="height:24px; object-fit:contain;" />
+              <b style="color:#fff; font-family:var(--font-header);">GLIMMERFALL ONLINE</b>
             </div>
-            <div>Official 2D Pixel Action MMORPG based on the GlimmerFall Trading Card Game universe.</div>
-            <div style="margin-top:4px;">
-              <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" style="color:#38bdf8; text-decoration:none;">glimmerfalltcg.com</a> &bull;
-              <a href="https://glimmerfalltcg.com/cards" target="_blank" rel="noreferrer" style="color:#38bdf8; text-decoration:none; margin:0 6px;">TCG Card Oracle</a> &bull;
-              <a href="https://glimmerfalltcg.com/rules" target="_blank" rel="noreferrer" style="color:#38bdf8; text-decoration:none;">Rulebook</a>
-            </div>
+            <p>Official 2D Pixel Action MMORPG based on the GlimmerFall Trading Card Game universe &bull; glimmerfalltcg.com</p>
+            <div style="margin-top:6px;">&copy; 2026 GlimmerFall. All rights reserved.</div>
           </footer>
         </main>
       </div>
     `;
-
-    // Expose pixel items to window for hover lookup
-    if (typeof window !== 'undefined') {
-      window._landing_pixel_items = PIXEL_ITEMS;
-    }
   }
 
   renderGameEncSection() {
@@ -865,20 +872,20 @@ export class LandingPageController {
         return `
           <div class="enc-cards-grid">
             <div class="enc-article-card" style="border-left:4px solid #facc15;">
-              <h4 style="color:#facc15;">☀️ Solari: Solar Charge &amp; Zenith State</h4>
-              <p>Striking enemies accumulates Solar Charge (0-100). Reaching 100 unlocks the blinding Zenith State, boosting movespeed by +25%, generating holy radiance pulses, and resetting Solar Flare cooldown.</p>
+              <h4 style="color:#facc15;">☀️ Solari: Solar Charge &bull; Zenith State</h4>
+              <p>Striking targets builds Solar Charge (0-100). Reaching 100 unlocks the blinding Zenith State, boosting movement speed, granting holy radiance bursts, and resetting Solar Flare cooldowns.</p>
             </div>
             <div class="enc-article-card" style="border-left:4px solid #c084fc;">
-              <h4 style="color:#c084fc;">🌙 Umbri: Void Resonance &amp; Dusk Shroud</h4>
-              <p>Channeling shadow arts reaps Void Resonance. Spending resonance triggers Dusk Shroud, cloaking the champion from enemy unit frames and guaranteeing lethal critical strikes.</p>
+              <h4 style="color:#c084fc;">🌙 Umbri: Void Resonance &bull; Dusk Shroud</h4>
+              <p>Harnessing nether spells builds Void Resonance. Consuming resonance cloaks the assassin in Dusk Shroud, dropping enemy targeting and granting guaranteed critical strikes.</p>
             </div>
             <div class="enc-article-card" style="border-left:4px solid #4ade80;">
-              <h4 style="color:#4ade80;">🌿 Terra: Root Armor &amp; Bramble Retaliation</h4>
-              <p>Absorbing physical damage strengthens Root Armor. When shattered by heavy blows, it releases a thorn shockwave that roots all adjacent assailants for 2.5 seconds.</p>
+              <h4 style="color:#4ade80;">🌿 Terra: Root Armor &bull; Bramble Retaliation</h4>
+              <p>Absorbing damage weaves living root bark around the champion. Shattering Root Armor roots surrounding enemies and releases thorn shockwaves.</p>
             </div>
             <div class="enc-article-card" style="border-left:4px solid #38bdf8;">
-              <h4 style="color:#38bdf8;">🌀 Aether: Chronoflux &amp; Reality Rifts</h4>
-              <p>Chronoflux dynamically fluctuates across the lattice. Harnessing flux enables the sage to bend projectile paths, reverse ally positioning, and rewrite temporal damage.</p>
+              <h4 style="color:#38bdf8;">🌀 Aether: Chronoflux &bull; Temporal Acceleration</h4>
+              <p>Chronoflux bends the dimensional lattice. Manipulating flux accelerates cooldown recovery, warps projectile vectors, and rewinds positioning.</p>
             </div>
           </div>
         `;
@@ -888,7 +895,7 @@ export class LandingPageController {
           <div class="enc-cards-grid">
             <div class="enc-article-card">
               <h4 style="color:#4ade80;">❤️ Exact Health &amp; Glimmer Persistence</h4>
-              <p>Logging out, disconnecting, or opening the character loadout preserves your exact current HP and Glimmer reservoir down to the single integer. Re-logging returns you with identical charges.</p>
+              <p>Logging out or disconnecting preserves your exact current HP and Glimmer (Solar Charge) down to the single integer. Returning to the realm never resets your vitals.</p>
             </div>
             <div class="enc-article-card">
               <h4 style="color:#38bdf8;">🏛️ Exact World Coordinate Resuming</h4>
@@ -896,11 +903,11 @@ export class LandingPageController {
             </div>
             <div class="enc-article-card">
               <h4 style="color:#facc15;">🛡️ Clean Monster Respawn &amp; Aggro Wipe</h4>
-              <p>Respawned monsters enforce a 2.0-second spawn grace period. Aggro tethers, dammer lists, and combat targets are wiped completely clean upon respawn.</p>
+              <p>Respawning creatures enforce a 2.0-second spawn grace period. Aggro tethers, dammer lists, and combat targets are wiped completely clean upon respawn.</p>
             </div>
             <div class="enc-article-card">
               <h4 style="color:#c084fc;">⚡ 3v3 Arena Safe Return Teleport</h4>
-              <p>Upon winning or losing a 3v3 match, champions are teleported safely back to their exact pre-arena coordinates, retaining all trophies, bounties, and rewards.</p>
+              <p>Match conclusion automatically teleports players back to their exact pre-arena coordinates, depositing bounty trophies straight into their inventory.</p>
             </div>
           </div>
         `;
@@ -911,19 +918,19 @@ export class LandingPageController {
           <div class="enc-cards-grid">
             <div class="enc-article-card">
               <h4 style="color:#facc15;">🗡️ Attack Cleave Arcs &amp; Hitboxes</h4>
-              <p>Melee strikes cover a 90-degree frontal cleave arc spanning 34 pixels. Projectiles travel along omni-directional vectors with 16px radius hit detection.</p>
+              <p>Melee strikes cover a 90-degree front arc extending 34 pixels. Projectiles track directional vectors with 16px radius hit detection, fully client-predicted.</p>
             </div>
             <div class="enc-article-card">
               <h4 style="color:#38bdf8;">⏱️ 1.5s Global Cooldown &amp; Spell Queuing</h4>
-              <p>All casted Rites and instant Flashes obey a 1.5s GCD. Inputs registered within 0.3s of GCD completion are queued automatically, enabling butter-smooth combo chains.</p>
+              <p>All casted Rites and instant Flashes obey a 1.5s GCD. If an ability is pressed within 0.3s of GCD completion, it is queued automatically for zero-lag combos.</p>
             </div>
             <div class="enc-article-card">
               <h4 style="color:#4ade80;">🛡️ Hyperbolic Armor Mitigation</h4>
-              <p>Incoming damage undergoes hyperbolic reduction: <code>Reduction = Armor / (Armor + 100)</code>. Heavy plate wearers achieve up to 65% passive physical mitigation.</p>
+              <p>Physical attacks undergo hyperbolic reduction: <code>Damage Reduction = Armor / (Armor + 100)</code>. Heavy plate achieves up to 65% passive mitigation.</p>
             </div>
             <div class="enc-article-card">
-              <h4 style="color:#c084fc;">💥 Critical Strike Scaling</h4>
-              <p>Base critical strikes inflict 150% damage. Investing in the Flashes skill and socketing TCG relics elevates critical chance by up to +12% and damage multipliers beyond 220%.</p>
+              <h4 style="color:#c084fc;">💥 Critical Multipliers &amp; Flashes</h4>
+              <p>Base critical strikes inflict 150% damage. Investing in the Flashes skill and socketing TCG relics elevates critical chance by up to +12% and damage beyond 220%.</p>
             </div>
           </div>
         `;
@@ -937,79 +944,46 @@ export class LandingPageController {
           <div class="enc-cards-grid">
             <div class="enc-article-card" style="border-left:4px solid #facc15;">
               <h4 style="color:#facc15;">The Sunspire Dominion &bull; "May the Sunspire illuminate the darkness"</h4>
-              <p>Sentinels of the eternal Daystar. Construct soaring gilded spires to capture raw solar leylines, burning away shadow taint with unyielding martial discipline.</p>
+              <p>Devout sentinels worshipping the Daystar. Constructing golden Sunspires to channel pure radiant energy, they burn away void corruption with steadfast faith.</p>
             </div>
             <div class="enc-article-card" style="border-left:4px solid #c084fc;">
               <h4 style="color:#c084fc;">The Duskveil Syndicate &bull; "In shadows we weave, in silence we strike"</h4>
-              <p>Operating in the subterranean Undercity, they wield void resonance and graveglass lanterns, maintaining that shadow is the ultimate truth and protection.</p>
+              <p>Subterranean reapers operating from the Umbri Undercity. Reaping void resonance through Graveglass Lanterns, they capture escaping souls as dark weapons.</p>
             </div>
             <div class="enc-article-card" style="border-left:4px solid #4ade80;">
               <h4 style="color:#4ade80;">The Rootdeep Collective &bull; "Stand unyielding as ancient stone"</h4>
-              <p>Guardians of the giant canopy in Glimmer Orchard. They defend ancient stone bedrock and oppose reckless technological mining of planetary leylines.</p>
+              <p>Dwelling beneath the giant canopies of Glimmer Orchard, they commune with ancient stone and defend planetary leylines from technological exploitation.</p>
             </div>
             <div class="enc-article-card" style="border-left:4px solid #38bdf8;">
               <h4 style="color:#38bdf8;">The Astral Conclave &bull; "Time and space bend to the arcane truth"</h4>
-              <p>Scholars of the Mirrorgate Spire. Viewing all history as an intricate tapestry of threads, they accelerate time and tear reality rifts to rewrite battle outcomes.</p>
+              <p>Scholars of the Mirrorgate Spire. Viewing all moments as a vast harmonic lattice, they manipulate temporal frequencies to rewrite cause and effect.</p>
             </div>
           </div>
         `;
 
       case 'cards':
         return `
-          <div class="enc-cards-grid">
-            <div class="tcg-card-item">
-              <img src="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/solari_vanguard-YFbhwOPGHYNEmDfQQm2CZfBk9fZJBI.webp" class="tcg-card-img" />
-              <div>
-                <div style="font-family:var(--font-header); font-weight:bold; font-size:12px; color:#facc15;">Solari Vanguard</div>
-                <div style="font-size:10px; color:#38bdf8; font-weight:bold;">+15% Radiant Slash Damage</div>
-                <div style="font-size:9.5px; color:#94a3b8; margin-top:3px;">Socketable TCG Relic (glimmerfalltcg.com)</div>
-              </div>
-            </div>
-
-            <div class="tcg-card-item">
-              <img src="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/dawnblade_templar-JSNrQIidGZhWg88RUeUCqOWBRcaAUy.webp" class="tcg-card-img" />
-              <div>
-                <div style="font-family:var(--font-header); font-weight:bold; font-size:12px; color:#facc15;">Dawnblade Templar</div>
-                <div style="font-size:10px; color:#38bdf8; font-weight:bold;">+10% Critical Strike Chance</div>
-                <div style="font-size:9.5px; color:#94a3b8; margin-top:3px;">Socketable TCG Relic (glimmerfalltcg.com)</div>
-              </div>
-            </div>
-
-            <div class="tcg-card-item">
-              <img src="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/mana_crystal_85d4da2e-150onQbusVx2hyQEu7HfosXCqX0Ktc.webp" class="tcg-card-img" />
-              <div>
-                <div style="font-family:var(--font-header); font-weight:bold; font-size:12px; color:#38bdf8;">Mana Crystal</div>
-                <div style="font-size:10px; color:#38bdf8; font-weight:bold;">+25 Max Glimmer &amp; Rapid Regen</div>
-                <div style="font-size:9.5px; color:#94a3b8; margin-top:3px;">Socketable TCG Relic (glimmerfalltcg.com)</div>
-              </div>
-            </div>
-
-            <div class="tcg-card-item">
-              <img src="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/chronocore_prism_6eca2de9-tghtsdxz1Tl6oMafBny57jAs96P1Ki.webp" class="tcg-card-img" />
-              <div>
-                <div style="font-family:var(--font-header); font-weight:bold; font-size:12px; color:#38bdf8;">Chronocore Prism</div>
-                <div style="font-size:10px; color:#38bdf8; font-weight:bold;">World Nexus Monolith (25 HP Rule)</div>
-                <div style="font-size:9.5px; color:#94a3b8; margin-top:3px;">Socketable TCG Relic (glimmerfalltcg.com)</div>
-              </div>
-            </div>
+          <div style="margin-bottom:10px; font-size:11px; color:#94a3b8;">
+            Authentic trading card relics sourced from <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" style="color:#38bdf8; text-decoration:underline; font-weight:bold;">glimmerfalltcg.com</a>. Socket these into your champion's gear for passive traits.
           </div>
-        `;
-
-      case 'legends':
-        return `
-          <div class="enc-cards-grid">
-            <div class="enc-article-card">
-              <h4 style="color:#facc15;">✨ Herald Aurora &bull; Voice of the Leylines</h4>
-              <p>Celestial emissary standing at Sanctuary Haven spawn. Guides new champions through their first Rite awakenings and Awakening Isle quests.</p>
-            </div>
-            <div class="enc-article-card">
-              <h4 style="color:#38bdf8;">💎 Moira the Relic-Seeker</h4>
-              <p>Grandmaster of Resonance Extraction. Stationed beside the mineral seams south of Sanctuary Haven, teaching extraction from Grand Fonts.</p>
-            </div>
-            <div class="enc-article-card">
-              <h4 style="color:#4ade80;">🔨 Blacksmith Torvin</h4>
-              <p>Master of the Cosmic Star-Anvil. Smelts celestial ores into alloy ingots and hammers masterwork platebodies, blades, and socketed armor.</p>
-            </div>
+          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;">
+            ${[
+              { name: 'Solari Vanguard', stat: '+15% Radiant Slash Dmg', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/solari_vanguard-YFbhwOPGHYNEmDfQQm2CZfBk9fZJBI.webp' },
+              { name: 'Dawnblade Templar', stat: '+10% Critical Strike Chance', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/dawnblade_templar-JSNrQIidGZhWg88RUeUCqOWBRcaAUy.webp' },
+              { name: 'Mana Crystal', stat: '+25 Max Glimmer & Rapid Regen', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/mana_crystal_85d4da2e-150onQbusVx2hyQEu7HfosXCqX0Ktc.webp' },
+              { name: 'Granite Behemoth', stat: '+350 Max Armor & Threat', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/granite_behemoth-YUFhjjGdiBlGqBINNmSW7tRa37JsSB.webp' },
+              { name: 'Void Stalker', stat: '+25% Stealth Opener Damage', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/void_stalker-mdTofDRCVGbCIGSduoJbUcOKWcclJN.webp' },
+              { name: 'Chronocore Prism', stat: 'World Nexus Monolith (25 HP Rule)', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/chronocore_prism_6eca2de9-tghtsdxz1Tl6oMafBny57jAs96P1Ki.webp' },
+            ].map((c) => `
+              <div class="tcg-card-item">
+                <img src="${c.img}" alt="${c.name}" class="tcg-card-img" />
+                <div>
+                  <div style="font-family:var(--font-header); font-weight:bold; font-size:12px; color:#fff;">${c.name}</div>
+                  <div style="font-size:10px; font-weight:bold; color:#38bdf8; margin-top:2px;">${c.stat}</div>
+                  <span style="font-size:9px; color:#64748b; display:block; margin-top:2px;">Socketable TCG Relic</span>
+                </div>
+              </div>
+            `).join('')}
           </div>
         `;
 
@@ -1017,24 +991,14 @@ export class LandingPageController {
       default:
         return `
           <div class="enc-article-card" style="padding:22px;">
-            <h4 style="color:#facc15; font-size:15px;">The Cataclysm of the Shattered Leylines</h4>
-            <p style="margin-top:8px; line-height:1.6; color:#cbd5e1;">
-              In the First Age of the continent, the celestial Starfall tore through the astral canopy, embedding cosmic Glimmer veins into the bedrock of the world.
-              The leyline harmonic split into four distinct frequencies: radiant Solar fire, subterranean Void resonance, enduring Living Root, and fluid Chronoflux.
-              Sanctuary Haven stands as the sacred neutral haven where mortal champions master these cosmic powers to hold back the encroaching Abyssal Rift.
+            <h4 style="color:#facc15; font-size:15px; margin-bottom:8px;">The Cataclysm of the Shattered Leylines</h4>
+            <p style="font-size:12.5px; line-height:1.6; color:#cbd5e1;">
+              In the First Age of the continent, the celestial Starfall ripped across the firmament, embedding primal Glimmer crystals into the deep bedrock of the world.
+              The planetary harmony fractured into four opposing resonances: the blinding fire of the Daystar, the bottomless void of the Undercity, the unbending bedrock of the Orchard, and the flux of Mirrorgate Spire.
+              Awakening Sanctuary stands as the eternal crossroads where champions master these cosmic arts before daring the horrors of the Abyssal Rift.
             </p>
           </div>
         `;
     }
-  }
-
-  escapeHtml(str) {
-    if (typeof str !== 'string') return '';
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
   }
 }
