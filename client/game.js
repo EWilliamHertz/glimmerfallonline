@@ -1211,7 +1211,7 @@ export function initGame() {
   let pendingQuestCompleteNpc = null;
   let questCompleteModalOpenedAt = 0;
 
-  function showRunescapeQuestCompleteScroll(quest, npc, nextQuest) {
+  function showQuestCompleteScroll(quest, npc, nextQuest) {
     const modal = document.getElementById('quest-complete-modal');
     if (!modal) return;
     questCompleteModalOpenedAt = Date.now();
@@ -1374,7 +1374,7 @@ export function initGame() {
     saveQuestState();
     updateQuestTrackerHUD();
 
-    // Play iconic RuneScape Quest Complete Fanfare sound!
+    // Play iconic Quest Complete Fanfare sound!
     try {
       if (audio && audio.playQuestCompleteFanfare) {
         audio.playQuestCompleteFanfare();
@@ -1387,11 +1387,11 @@ export function initGame() {
     pendingQuestCompleteDialogue = quest.completeDialogue || (npc ? npc.dialogue : null);
     pendingQuestCompleteNpc = npc;
 
-    // Show authentic Old School RuneScape Quest Complete Scroll modal!
+    // Show authentic Quest Complete Scroll modal!
     try {
-      showRunescapeQuestCompleteScroll(quest, npc, nextQuest);
+      showQuestCompleteScroll(quest, npc, nextQuest);
     } catch (err) {
-      console.error('[Quest] Error showing RuneScape quest complete scroll:', err);
+      console.error('[Quest] Error showing quest complete scroll:', err);
     }
   }
 
@@ -1440,7 +1440,7 @@ export function initGame() {
       questState.elementalPilgrimageAcknowledged = true;
       saveQuestState();
       if (audio && audio.playQuestCompleteFanfare) audio.playQuestCompleteFanfare();
-      showRunescapeQuestCompleteScroll(QUEST_CATALOG.quest_elemental_pilgrimage, npc, null);
+      showQuestCompleteScroll(QUEST_CATALOG.quest_elemental_pilgrimage, npc, null);
       pendingQuestCompleteDialogue = QUEST_CATALOG.quest_elemental_pilgrimage.completeDialogue;
       pendingQuestCompleteNpc = npc;
       return;
@@ -3987,7 +3987,7 @@ export function initGame() {
   window.getLocalProgression = () => prog;
 
   // ==========================================
-  // Cosmic Artisan Stations & Crafting Loop (OSRS-Inspired)
+  // Cosmic Artisan Stations & Crafting Loop
   // ==========================================
   window.openCraftingModal = function (stationId = 'cosmic_anvil') {
     stopCraftingQueue();
@@ -5560,7 +5560,7 @@ export function initGame() {
       });
     }
 
-    // Populate OSRS-inspired Cosmic Skilling Veins, Herb Clusters & Silk Blooms + Elite Monster Champions
+    // Populate Cosmic Skilling Veins, Herb Clusters & Silk Blooms + Elite Monster Champions
     populateWorldSkillingNodes(currentRoomType, entities);
     applyEliteChampionsToZone(currentRoomType, entities);
 
@@ -7028,7 +7028,7 @@ export function initGame() {
       }
     }
 
-    // OSRS-Style Ground Items Label. The Y position is computed once per frame
+    // Ground Items Label. The Y position is computed once per frame
     // by layoutLootLabels() so nearby labels stack instead of overlapping.
     const label = getLootLabel(l);
     if (label) {
@@ -7344,7 +7344,7 @@ export function initGame() {
       return;
     }
 
-    // Diablo 2 Requirement: Abilities with 0 points allocated cannot be cast!
+    // Ability Requirement: Abilities with 0 points allocated cannot be cast!
     const abilityRank = getAbilityRank(prog, spec.id);
     if (abilityRank < 1) {
       logMessage(`🔒 ${spec.name} is not learned yet! Open Spellbook [P] to allocate your Skill Point!`, 'log-combat');
@@ -8014,7 +8014,7 @@ export function initGame() {
       return;
     }
 
-    // 2A. World Skilling Vein / Herb Cluster / Silk Bloom (OSRS-style cosmic gathering)
+    // 2A. World Skilling Vein / Herb Cluster / Silk Bloom (cosmic gathering)
     if (node.skillingType && SKILLING_NODE_TYPES[node.skillingType]) {
       const skSpec = SKILLING_NODE_TYPES[node.skillingType];
       const profXpCur = Number(prog?.professions?.[skSpec.profession]?.xp) || 0;
@@ -9768,7 +9768,7 @@ export function initGame() {
       return;
     }
 
-    // Dismiss RuneScape Quest Complete scroll modal on Space, Enter, or Escape
+    // Dismiss Quest Complete scroll modal on Space, Enter, or Escape
     const qcModal = document.getElementById('quest-complete-modal');
     if (qcModal && qcModal.style.display === 'flex') {
       if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') {

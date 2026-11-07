@@ -46,7 +46,7 @@ export function formatItemStatsHtml(item, showSet = true) {
 
 export function getRarityColor(rarity = '') {
   if (rarity.includes('Skill Mastery')) return '#fde047';
-  if (rarity.includes('Continental Set') || rarity.includes('Barrows') || rarity.includes('Ancient Set')) return '#facc15';
+  if (rarity.includes('Continental Set') || rarity.includes('Continental Relic') || rarity.includes('Ancient Set')) return '#facc15';
   if (rarity.includes('Mythic') || rarity.includes('Apex')) return '#f59e0b';
   if (rarity.includes('Epic')) return '#c084fc';
   if (rarity.includes('Rare')) return '#38bdf8';
@@ -54,7 +54,7 @@ export function getRarityColor(rarity = '') {
 }
 
 // ==========================================
-// 2. RUNESCAPE 28-SLOT INVENTORY BACKPACK [B]
+// 2. CONTINENTAL 28-SLOT INVENTORY BACKPACK [B]
 // ==========================================
 export function renderInventoryModal({ profile }) {
   const container = document.getElementById('inventory-modal-body');
@@ -78,7 +78,7 @@ export function renderInventoryModal({ profile }) {
       </span>
     </div>
 
-    <!-- 4x7 RuneScape Grid = 28 Slots -->
+    <!-- 4x7 Continental Grid = 28 Slots -->
     <div class="rs-inv-grid">
       ${Array.from({ length: capacity }).map((_, i) => {
         const itemObj = inv[i];

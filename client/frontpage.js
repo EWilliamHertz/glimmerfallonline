@@ -1,6 +1,6 @@
 // ==========================================
 // GlimmerFall Online 2D — Game Frontpage & Character Management
-// Diablo 2 Style Loading Screen & Strict State Machine (Select vs Create)
+// Vanguard Character Selection & Strict State Machine (Select vs Create)
 // 4 Canonical Factions • 8 Archetypes • Live Pedestal Visage Preview
 // ==========================================
 
@@ -19,7 +19,7 @@ const SP_STORAGE_KEY = 'glimmerfall_sp_roster_v2';
 const SP_ACTIVE_KEY = 'glimmerfall_sp_active_id';
 
 export const FRONTPAGE_STATES = {
-  CHARACTER_SELECT: 'CHARACTER_SELECT', // Default View: Diablo 2 Character Loadout & Pedestal
+  CHARACTER_SELECT: 'CHARACTER_SELECT', // Default View: Vanguard Character Loadout & Pedestal
   CHARACTER_CREATE: 'CHARACTER_CREATE', // Distinct View: Champion Forge & Archetype Picker
 };
 
@@ -1030,7 +1030,7 @@ export class FrontpageController {
   }
 
   // ==========================================
-  // VIEW 1: Character Selection State (Default View - Diablo 2 Flow)
+  // VIEW 1: Character Selection State (Default View - Vanguard Loadout Flow)
   // ==========================================
   renderSelectionView() {
     const prof = this.net?.profile;
@@ -1094,7 +1094,7 @@ export class FrontpageController {
 
       ${this.authMessage ? `<div style="font-size:10.5px; color:#fde047; margin-bottom:8px; text-align:center;">${this.authMessage}</div>` : ''}
 
-      <!-- DIABLO 2 CHARACTER LOADOUT & PEDESTAL GRID -->
+      <!-- VANGUARD CHARACTER LOADOUT & PEDESTAL GRID -->
       <div class="fp-grid" style="grid-template-columns: 360px 1fr; gap: 14px;">
         <!-- LEFT COLUMN: Character Loadout List (Strictly Read-Only) -->
         <div class="fp-col" style="display:flex; flex-direction:column; justify-content:space-between;">
@@ -1176,7 +1176,7 @@ export class FrontpageController {
             </div>
 
             ${selectedChar ? `
-              <!-- Diablo 2 Pedestal Canvas Area -->
+              <!-- Vanguard Pedestal Canvas Area -->
               <div style="display:flex; gap:14px; align-items:center; background:#060a15; border:2px solid ${selectedFm.color}; padding:12px; margin-bottom:12px; box-shadow:0 0 15px rgba(0,0,0,0.8) inset;">
                 <div style="text-align:center;">
                   <div style="position:relative; display:inline-block;">

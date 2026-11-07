@@ -1,6 +1,6 @@
 // ==========================================
 // GlimmerFall Online 2D — Cosmic Artisan Stations & Sanctuary Bounty Board UI
-// Interactive OSRS-inspired Smelting, Smithing, Rite-Binding, Glimmerweaving & Bounties
+// Interactive Artisan Smelting, Smithing, Rite-Binding, Glimmerweaving & Bounties
 // ==========================================
 
 import {
@@ -81,7 +81,7 @@ export function startCraftingBatch(recipeId, count = 1) {
 
   craftQueueRecipeId = recipe.id;
   craftQueueRemaining = Math.max(1, Math.min(28, Math.floor(Number(count) || 1)));
-  // Perform the first craft immediately for snappy OSRS-like responsiveness, then tick every 550ms!
+  // Perform the first craft immediately for snappy responsiveness, then tick every 550ms!
   stepCraft();
   if (craftQueueRemaining > 0) {
     craftQueueTimer = setInterval(() => {
@@ -204,7 +204,7 @@ export function renderCraftingModal(stationOverride = null) {
 
       <!-- Two-Column Split: Recipe Grid (Left) + Selected Recipe Anvil Inspector (Right) -->
       <div style="display:grid; grid-template-columns: 1.35fr 1fr; gap:12px; align-items:start;">
-        <!-- LEFT: OSRS-Style Recipe Grid -->
+        <!-- LEFT: Artisan Recipe Grid -->
         <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(195px, 1fr)); gap:8px; max-height:46vh; overflow-y:auto; padding-right:4px;">
           ${recipes.map((r) => {
             const outItem = EQUIPMENT_CATALOG[r.outputId];

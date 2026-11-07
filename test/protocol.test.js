@@ -59,7 +59,7 @@ test('default progression is complete and internally consistent', () => {
   assert.equal(protocol.calcEntityLevel(prog), 3);
 });
 
-test('entity level algorithm behaves like RuneScape combat level scaling', () => {
+test('entity level algorithm behaves with combat matrix level scaling', () => {
   const starter = protocol.createDefaultProgression();
   assert.equal(protocol.calcEntityLevel(starter), 3);
   assert.equal(protocol.getEntityCombatArchetype(starter), 'Martial Vanguard');

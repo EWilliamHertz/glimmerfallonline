@@ -1,5 +1,5 @@
 /* ==========================================
-   6c. OLD SCHOOL RUNESCAPE STYLE SKILL GUIDE
+   6c. CONTINENTAL MASTERY SKILL GUIDE
    ========================================== */
 .sg-tab-btn {
   background: #090e1d;
@@ -164,7 +164,7 @@
   line-height: 1.45;
   color: #bae6fd;
 }
-.osrs-unlock-card {
+.skill-unlock-card {
   background: rgba(15, 23, 42, 0.85);
   border: 1px solid #1e293b;
   border-radius: 4px;
@@ -175,18 +175,18 @@
   align-items: center;
   transition: all 0.15s;
 }
-.osrs-unlock-card:hover {
+.skill-unlock-card:hover {
   background: rgba(30, 41, 59, 0.95);
   border-color: rgba(56,189,248,0.5);
 }
-.osrs-unlock-card.is-unlocked {
+.skill-unlock-card.is-unlocked {
   border-left: 4px solid #22c55e;
 }
-.osrs-unlock-card.is-locked {
+.skill-unlock-card.is-locked {
   border-left: 4px solid #475569;
   opacity: 0.82;
 }
-.osrs-lvl-box {
+.skill-lvl-box {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -197,14 +197,14 @@
   padding: 4px 6px;
   text-align: center;
 }
-.osrs-lvl-num {
+.skill-lvl-num {
   font-family: var(--font-header);
   font-size: 16px;
   font-weight: 800;
   color: #fde047;
   line-height: 1;
 }
-.osrs-lvl-lbl {
+.skill-lvl-lbl {
   font-size: 8px;
   color: #94a3b8;
   font-weight: 700;
@@ -212,7 +212,7 @@
   letter-spacing: 0.5px;
   margin-top: 2px;
 }
-.osrs-unlock-title {
+.skill-unlock-title {
   font-family: var(--font-header);
   font-size: 12px;
   font-weight: 700;
@@ -221,13 +221,13 @@
   align-items: center;
   gap: 6px;
 }
-.osrs-unlock-desc {
+.skill-unlock-desc {
   font-size: 10px;
   color: #cbd5e1;
   margin-top: 3px;
   line-height: 1.4;
 }
-.osrs-status-badge {
+.skill-status-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -238,17 +238,17 @@
   padding: 3px 8px;
   border-radius: 3px;
 }
-.osrs-status-unlocked {
+.skill-status-unlocked {
   background: rgba(34, 197, 94, 0.18);
   border: 1px solid #22c55e;
   color: #4ade80;
 }
-.osrs-status-locked {
+.skill-status-locked {
   background: rgba(100, 116, 139, 0.18);
   border: 1px solid #475569;
   color: #94a3b8;
 }
-.osrs-xp-badge {
+.skill-xp-badge {
   font-size: 8.5px;
   color: #38bdf8;
   background: rgba(56, 189, 248, 0.12);
@@ -259,7 +259,7 @@
   margin-top: 4px;
 }
 
-/* RuneScape Equipment Paperdoll Grid */
+/* Continental Equipment Paperdoll Grid */
 .rs-paperdoll-wrapper {
   display: grid;
   grid-template-columns: 240px 1fr;
@@ -317,7 +317,7 @@
   text-transform: uppercase;
 }
 
-/* RuneScape 28-Slot Inventory Grid (4 cols x 7 rows) */
+/* Continental 28-Slot Inventory Grid (4 cols x 7 rows) */
 .rs-inv-grid {
   display: grid;
   grid-template-columns: repeat(4, 54px);
@@ -564,7 +564,7 @@
   color: #fff;
 }
 
-/* Diablo 2 Skill Tree Styles & Sticky Header */
+/* Continental Spellbook & Skill Tree Styles */
 #spellbook-modal {
   overflow-y: auto;
   padding-top: 0 !important;
@@ -919,7 +919,7 @@
 }
 
 /* ==========================================
-   OSRS-STYLE QUEST COMPLETE SCROLL MODAL
+   LEGENDARY QUEST COMPLETE SCROLL MODAL
    ========================================== */
 @keyframes rsScrollDrop {
   0% {
@@ -1100,7 +1100,7 @@
 
 /* ==========================================
    REALM SKILLS & PROFESSIONS MODAL [N]
-   RuneScape-inspired Entity Combat Level & Total Level Showcase
+   Continental Entity Combat Level & Total Level Showcase
    ========================================== */
 #skills-modal {
   background: rgba(6, 10, 22, 0.96);

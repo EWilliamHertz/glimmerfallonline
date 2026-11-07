@@ -657,13 +657,13 @@
         </div>
       </div>
 
-      <!-- Hero Progression Overview Banners: RuneScape Combat Level & Total Level -->
+      <!-- Hero Progression Overview Banners: Entity Combat Matrix & Continental Total Level -->
       <div class="skills-hero-banner">
-        <!-- 1. Entity Level Box (RuneScape Combat Level Algorithm) -->
+        <!-- 1. Entity Level Box (Astral Entity Combat Matrix Algorithm) -->
         <div class="skills-entity-card" id="entity-level-card">
           <div class="skills-crest-col" id="entity-crest-wrap"></div>
           <div class="skills-entity-details">
-            <div class="skills-card-tag">RUNESCAPE COMBAT MATRIX</div>
+            <div class="skills-card-tag">ASTRAL COMBAT MATRIX</div>
             <div class="skills-entity-level-title">
               <span>ENTITY LEVEL</span>
               <span class="skills-combat-num" id="skills-entity-level-val">3</span>
@@ -981,7 +981,7 @@
       </div>
     </div>
 
-    <!-- MODAL 7: Old School RuneScape-Style Skill Guide & Milestone Unlocks -->
+    <!-- MODAL 7: Continental Skill Guide & Milestone Progression Unlocks -->
     <div id="skill-guide-modal" class="modal panel" style="width: 780px; max-width: 96vw; max-height: 88vh; display: none;">
       <div class="modal-header" style="border-bottom: 1px solid rgba(56,189,248,0.25); padding-bottom: 8px;">
         <div style="flex: 1;">
@@ -1001,7 +1001,7 @@
         <!-- Populated dynamically: exact steps for training this skill -->
       </div>
 
-      <!-- Skill Selection Tabs (OSRS Style quick switch) -->
+      <!-- Skill Selection Tabs -->
       <div class="skill-guide-tabs" style="display: flex; gap: 4px; padding: 8px 0; border-bottom: 1px solid #1e293b; flex-wrap: wrap;">
         <button class="sg-tab-btn" id="sg-tab-resonance_extraction" onclick="openSkillGuide('resonance_extraction')">⚡ EXTRACTION</button>
         <button class="sg-tab-btn" id="sg-tab-relic_forging" onclick="openSkillGuide('relic_forging')">🔨 FORGING</button>
@@ -1017,8 +1017,8 @@
         <!-- Filter pills dynamically generated -->
       </div>
 
-      <!-- Unlock Milestones List (OSRS Style) -->
-      <div id="skill-guide-unlocks-container" class="osrs-unlocks-grid" style="overflow-y: auto; max-height: calc(88vh - 310px); padding: 8px 4px; display: flex; flex-direction: column; gap: 8px;">
+      <!-- Unlock Milestones List -->
+      <div id="skill-guide-unlocks-container" class="skill-unlocks-grid" style="overflow-y: auto; max-height: calc(88vh - 310px); padding: 8px 4px; display: flex; flex-direction: column; gap: 8px;">
         <!-- Rendered by renderSkillGuide() in client/game.js -->
       </div>
 
@@ -1085,7 +1085,7 @@
     </div>
   </div>
 
-  <!-- Old School RuneScape (OSRS) Quest Complete Scroll Modal -->
+  <!-- Glimmerfall Legendary Quest Complete Scroll Modal -->
   <div id="quest-complete-modal" onclick="if (event.target === this) window.closeQuestCompleteModal()">
     <div id="quest-complete-scroll" class="rs-quest-scroll">
       <!-- Ornate Crimson & Gold Ribbon Header -->
@@ -1109,7 +1109,7 @@
         </div>
       </div>
 
-      <!-- Total Quest Points Counter (RuneScape style) -->
+      <!-- Total Quest Points Counter -->
       <div id="qc-scroll-qp" class="rs-scroll-qp">
         Quest Points: 0 / 22
       </div>

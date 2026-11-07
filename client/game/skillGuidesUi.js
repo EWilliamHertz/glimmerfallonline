@@ -1,5 +1,5 @@
 // ==========================================
-// GlimmerFall Online — OSRS-Style Milestone Skill Guides & How-to-Train Modals
+// GlimmerFall Online — Milestone Skill Guides & How-to-Train Modals
 // ==========================================
 
 import {
@@ -83,7 +83,7 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
       iconHeader.innerHTML = getSkillIconSvg('skills_medallion', 30);
     }
 
-    // 1. Entity Level Box (RuneScape Combat Level Algorithm)
+    // 1. Entity Level Box (Entity Combat Level Matrix)
     const entLvl = calcEntityLevel(prog);
     const archetype = getEntityCombatArchetype(prog);
     const entValEl = document.getElementById('skills-entity-level-val');
@@ -232,7 +232,7 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
       const iconSvg = getSkillIconSvg(profId, 24);
 
       html += `
-        <div class="skill-row" onclick="window.openSkillGuide('${profId}')" title="Click to view full OSRS-style milestone unlocks for ${pDef.name}">
+        <div class="skill-row" onclick="window.openSkillGuide('${profId}')" title="Click to view progression milestone unlocks for ${pDef.name}">
           <div class="skill-icon-cell" style="background:${pDef.color}22; border:1px solid ${pDef.color}66;">
             ${iconSvg}
           </div>
@@ -297,7 +297,7 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
             <div class="skill-training-stats">
               <span class="skill-training-level">Lv. ${curLvl} <span style="font-size:10px; color:#78716c;">/ 99</span></span>
               <span class="skill-training-xp">${state.xp.toLocaleString()} XP</span>
-              <button class="osrs-view-guide-btn" onclick="window.openSkillGuide('${profId}')">
+              <button class="skill-view-guide-btn" onclick="window.openSkillGuide('${profId}')">
                 📖 View Unlock Table
               </button>
             </div>
@@ -446,7 +446,7 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
     currentSkillGuideId = skillId;
     currentSkillGuideFilter = filter;
     window.renderSkillGuide(skillId, filter);
-    const targetModal = document.getElementById('skill-guide-modal') ? 'skill-guide-modal' : 'osrs-skill-guide-modal';
+    const targetModal = 'skill-guide-modal';
     toggleModal(targetModal);
   };
 
@@ -454,7 +454,7 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
     currentSkillGuideId = skillId;
     currentSkillGuideFilter = filter;
 
-    const modal = document.getElementById('skill-guide-modal') || document.getElementById('osrs-skill-guide-modal');
+    const modal = document.getElementById('skill-guide-modal');
     if (!modal) return;
 
     const prog = getProg();
@@ -464,12 +464,12 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
     const guideData = SKILL_TRAINING_GUIDES[skillId];
     if (!pDef || !guideData) return;
 
-    const iconEl = document.getElementById('osrs-guide-icon') || document.getElementById('skill-guide-icon');
-    const titleEl = document.getElementById('osrs-guide-title') || document.getElementById('skill-guide-title');
-    const levelEl = document.getElementById('osrs-guide-level') || document.getElementById('skill-guide-level');
-    const xpEl = document.getElementById('osrs-guide-xp') || document.getElementById('skill-guide-xp');
-    const navEl = document.getElementById('osrs-guide-nav') || document.getElementById('skill-guide-filters');
-    const listEl = document.getElementById('osrs-guide-list') || document.getElementById('skill-guide-unlocks-container');
+    const iconEl = document.getElementById('skill-guide-icon');
+    const titleEl = document.getElementById('skill-guide-title');
+    const levelEl = document.getElementById('skill-guide-level');
+    const xpEl = document.getElementById('skill-guide-xp');
+    const navEl = document.getElementById('skill-guide-filters');
+    const listEl = document.getElementById('skill-guide-unlocks-container');
 
     if (iconEl) iconEl.innerHTML = getSkillIconSvg(skillId, 28);
     if (titleEl) {
@@ -495,7 +495,7 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
       navEl.innerHTML = guideData.categories.map((cat) => {
         const isActive = cat.toLowerCase() === filter.toLowerCase();
         return `
-          <button class="osrs-filter-btn ${isActive ? 'active' : ''}" style="${isActive ? `border-color:${pDef.color}; color:${pDef.color}; font-weight:bold;` : ''}" onclick="window.renderSkillGuide('${skillId}', '${cat.toLowerCase()}')">
+          <button class="skill-filter-btn ${isActive ? 'active' : ''}" style="${isActive ? `border-color:${pDef.color}; color:${pDef.color}; font-weight:bold;` : ''}" onclick="window.renderSkillGuide('${skillId}', '${cat.toLowerCase()}')">
             ${cat}
           </button>
         `;
@@ -511,23 +511,23 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
       listEl.innerHTML = filteredUnlocks.map((u) => {
         const isUnlocked = curLevel >= u.level;
         return `
-          <div class="osrs-unlock-card ${isUnlocked ? 'osrs-unlocked' : 'osrs-locked'}" style="border-left: 3px solid ${isUnlocked ? pDef.color : '#334155'};">
-            <div class="osrs-level-badge ${isUnlocked ? 'osrs-badge-unlocked' : 'osrs-badge-locked'}" style="${isUnlocked ? `background:${pDef.color}; border-color:#fef08a;` : ''}">
+          <div class="skill-unlock-card ${isUnlocked ? 'skill-unlocked' : 'skill-locked'}" style="border-left: 3px solid ${isUnlocked ? pDef.color : '#334155'};">
+            <div class="skill-level-badge ${isUnlocked ? 'skill-badge-unlocked' : 'skill-badge-locked'}" style="${isUnlocked ? `background:${pDef.color}; border-color:#fef08a;` : ''}">
               ${u.level}
             </div>
             <div style="flex: 1;">
-              <div class="osrs-unlock-title">
+              <div class="skill-unlock-title">
                 <span>${u.icon}</span>
                 <span style="${isUnlocked ? 'color:#f8fafc;' : 'color:#cbd5e1;'}">${u.title}</span>
               </div>
-              <div class="osrs-unlock-desc">${u.desc}</div>
+              <div class="skill-unlock-desc">${u.desc}</div>
               <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:4px;">
-                <span class="osrs-xp-badge" style="color:${pDef.color};">${u.xp}</span>
+                <span class="skill-xp-badge" style="color:${pDef.color};">${u.xp}</span>
                 <span style="font-size:9px; color:#94a3b8;">Station / Method: <b style="color:#e2e8f0;">${u.method}</b></span>
               </div>
             </div>
             <div style="text-align:right;">
-              <span class="osrs-status-badge ${isUnlocked ? 'osrs-status-unlocked' : 'osrs-status-locked'}">
+              <span class="skill-status-badge ${isUnlocked ? 'skill-status-unlocked' : 'skill-status-locked'}">
                 ${isUnlocked ? '✓ UNLOCKED' : `🔒 REQ. LV. ${u.level}`}
               </span>
             </div>

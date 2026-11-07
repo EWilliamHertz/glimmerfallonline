@@ -177,7 +177,7 @@ export const combatCastMethods = {
     if (!spec) return;
     if ((player.cooldowns[slot] || 0) > 0.05) return;
 
-    // Diablo 2 requirement: Unlearned spells (rank 0) cannot be cast!
+    // Ability requirement: Unlearned spells (rank 0) cannot be cast!
     const rank = getAbilityRank(player.prog, spec.id);
     if (rank < 1) return;
 

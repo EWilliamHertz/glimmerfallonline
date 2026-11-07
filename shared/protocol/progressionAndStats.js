@@ -171,7 +171,7 @@ export function calcEntityLevel(progression) {
   const baseLvl = Math.max(1, Math.min(30, Math.floor(Number(progression.level) || 1)));
   const paragonLvl = Math.max(0, Math.floor(Number(progression.paragonLevel) || 0));
 
-  // RuneScape-inspired Entity Level Algorithm (Scales from 3 to 126, and up to 138 with Paragon):
+  // Continental Entity Level Algorithm (Scales from 3 to 126, and up to 138 with Paragon):
   // 1. Foundation Base: Armor forging, leyline resonance extraction, and core champion level
   const base = 0.25 * (forging + extraction + Math.floor(baseLvl * 3.25));
 

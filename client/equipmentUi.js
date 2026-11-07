@@ -163,7 +163,7 @@ export const RS_SLOTS_LAYOUT = [
 ];
 
 // ==========================================
-// 1. RUNESCAPE WORN EQUIPMENT MODAL [K]
+// 1. CONTINENTAL WORN EQUIPMENT MODAL [K]
 // ==========================================
 export function renderEquipmentModal({ profile }) {
   const container = document.getElementById('equipment-modal-body');
@@ -182,7 +182,7 @@ export function renderEquipmentModal({ profile }) {
 
   container.innerHTML = `
     <div class="rs-paperdoll-wrapper">
-      <!-- LEFT: RuneScape Paperdoll 11-Slot Grid -->
+      <!-- LEFT: Continental Paperdoll 11-Slot Grid -->
       <div>
         <div style="font-family:var(--font-header); font-size:10px; color:#d97706; text-align:center; margin-bottom:8px; letter-spacing:0.5px;">
           ✦ WORN EQUIPMENT SLOTS ✦

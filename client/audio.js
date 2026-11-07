@@ -401,7 +401,7 @@ export class PixelSoundEngine {
   playQuestCompleteFanfare() {
     this.init();
     if (!this.ctx || this.muted) return;
-    // Iconic RuneScape Quest Complete Fanfare (C4 - E4 - G4 - C5 - E5 - G5 - C6)
+    // Continental Quest Complete Fanfare (C4 - E4 - G4 - C5 - E5 - G5 - C6)
     const leadNotes = [261.63, 329.63, 392.0, 523.25, 659.25, 783.99, 1046.5];
     const bassNotes = [130.81, 164.81, 196.0, 261.63, 329.63, 392.0, 523.25];
     this.playTone({

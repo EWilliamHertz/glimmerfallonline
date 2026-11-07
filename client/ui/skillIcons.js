@@ -40,7 +40,7 @@ export const SKILL_ICON_SVGS = {
     </svg>
   `,
 
-  // Entity Level Crest — RuneScape-Inspired Crossed Vanguard Blades & Crimson-Gold Crown Shield
+  // Entity Level Crest — Crossed Vanguard Blades & Crimson-Gold Crown Shield
   entity_crest: `
     <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
