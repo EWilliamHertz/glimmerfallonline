@@ -226,7 +226,43 @@ export class FrontpageController {
         homeBiome: ROOM_TYPES.SANCTUARY_HUB,
       }];
     }
-    return [];
+    // Fallback: Check cached network profile
+    const cachedProfile = this.net?.loadCachedProfile?.();
+    if (cachedProfile) {
+      const cChars = cachedProfile.characters;
+      if (Array.isArray(cChars) && cChars.length > 0) return cChars;
+      return [{
+        id: cachedProfile.activeCharacterId || cachedProfile.id || 'mp_char_cached',
+        name: cachedProfile.displayName || cachedProfile.username || 'Realm Champion',
+        faction: cachedProfile.faction || 'Solari',
+        classId: cachedProfile.classId || 'solari_vanguard',
+        orderTag: cachedProfile.orderTag || 'SUN',
+        equipment: cachedProfile.equipment || {},
+        loadout: cachedProfile.loadout || {},
+        inventory: cachedProfile.inventory || [],
+        bank: cachedProfile.bank || [],
+        progression: cachedProfile.progression || createDefaultProgression(),
+        homeBiome: ROOM_TYPES.SANCTUARY_HUB,
+      }];
+    }
+    // Fallback to offline singleplayer roster so buttons are ALWAYS clickable
+    const spFallback = this.getSinglePlayerRoster();
+    if (Array.isArray(spFallback) && spFallback.length > 0) {
+      return spFallback;
+    }
+    return [{
+      id: 'sp_char_starter',
+      name: 'Solari Vanguard',
+      faction: 'Solari',
+      classId: 'solari_vanguard',
+      orderTag: 'SUN',
+      equipment: { ...CLASSES_CATALOG.solari_vanguard.defaultEquipment },
+      loadout: { ...CLASSES_CATALOG.solari_vanguard.defaultLoadout },
+      inventory: [],
+      bank: [],
+      progression: createDefaultProgression(),
+      homeBiome: ROOM_TYPES.SANCTUARY_HUB,
+    }];
   }
 
   getSelectedCharacter() {

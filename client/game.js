@@ -6106,6 +6106,21 @@ export function initGame() {
     frontpage.open();
   };
 
+  // Open Character Select / Loadout Frontpage IMMEDIATELY on boot
+  try {
+    frontpage.open();
+  } catch (err) {
+    console.error('[Frontpage] Failed to open on startup:', err);
+  }
+
+  // Handle instant enter click if triggered before engine mount
+  if (typeof window !== 'undefined' && window._pendingPlayOnBoot) {
+    window._pendingPlayOnBoot = false;
+    setTimeout(() => {
+      frontpage.playSelectedCharacter();
+    }, 10);
+  }
+
   // ==========================================
   // Targeting & UI Updates
   // ==========================================
@@ -7667,8 +7682,9 @@ export function initGame() {
         audio.playHurt();
         return;
       }
-      if (globalTime - lastNodeHarvestAt < 0.45) return;
-      lastNodeHarvestAt = globalTime;
+      const harvestNow = performance.now();
+      if (harvestNow - lastNodeHarvestAt < 450) return;
+      lastNodeHarvestAt = harvestNow;
       if (currentTarget !== node) setTarget(node);
       audio.playChime();
       node.charges--;
@@ -7729,9 +7745,10 @@ export function initGame() {
     }
 
     const isGrand = Boolean(node.isGrand);
-    const cooldown = (isGrand ? HARVEST_COOLDOWN_MS.grand : HARVEST_COOLDOWN_MS.normal) / 1000;
-    if (globalTime - lastNodeHarvestAt < cooldown) return;
-    lastNodeHarvestAt = globalTime;
+    const cooldownMs = isGrand ? HARVEST_COOLDOWN_MS.grand : HARVEST_COOLDOWN_MS.normal;
+    const harvestNow = performance.now();
+    if (harvestNow - lastNodeHarvestAt < cooldownMs) return;
+    lastNodeHarvestAt = harvestNow;
     if (currentTarget !== node) setTarget(node);
     audio.playChime();
     const eff = getEffectiveStats(prog, localProfile.equipment, localProfile.classId);
@@ -12050,7 +12067,9 @@ export function initGame() {
   }
 
   loadQuestState();
-  buildOfflineZone(ROOM_TYPES.SANCTUARY_HUB);
+  if (!frontpage.isOpen) {
+    buildOfflineZone(ROOM_TYPES.SANCTUARY_HUB);
+  }
   refreshHeroPortrait();
   updatePlayerUI();
   updateActionBarBadges();
@@ -12059,12 +12078,6 @@ export function initGame() {
   renderPartyHud(null, localProfile.id);
   updateQuestTrackerHUD();
 
-  // Open Character Select / Loadout Frontpage
-  try {
-    frontpage.open();
-  } catch (err) {
-    console.error('[Frontpage] Failed to open on startup:', err);
-  }
   if (frontpage.playMode === 'multiplayer') {
     net.bootstrapAndConnect(prog).then((prof) => {
       if (prof) frontpage.syncFromProfile(prof);
@@ -12080,6 +12093,11 @@ export function initGame() {
   const MIN_RENDER_MS = 1000 / 60;
   function frame(now) {
     requestAnimationFrame(frame);
+    if (frontpage.isOpen) {
+      // While at character selection, do not burn 60 FPS CPU/GPU simulating world physics & rendering
+      lastTs = now;
+      return;
+    }
     const dt = Math.min(0.08, Math.max(0.001, (now - lastTs) / 1000));
     lastTs = now;
     try {

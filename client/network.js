@@ -158,7 +158,7 @@ export class MultiplayerClient {
       try {
         const gBase = this.getServerBase();
         const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-        const abortTimer = ctrl ? setTimeout(() => ctrl.abort(), 7000) : null;
+        const abortTimer = ctrl ? setTimeout(() => ctrl.abort(), 2500) : null;
         const res = await fetch(`${gBase}/api/auth/guest`, {
           signal: ctrl ? ctrl.signal : undefined,
           method: 'POST',

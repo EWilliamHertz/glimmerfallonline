@@ -36,6 +36,141 @@
           ⚔️ INITIALIZING REALM CHAMPION SELECTION...
         </div>
       </div>
+      <script>
+        (function () {
+          try {
+            var root = document.getElementById('frontpage-body');
+            if (!root) return;
+            var SP_KEY_V2 = 'glimmerfall_sp_roster_v2';
+            var SP_KEY_V1 = 'glimmerfall_sp_roster_v1';
+            var SP_ACTIVE = 'glimmerfall_sp_active_id';
+            var roster = [];
+            try {
+              var raw = localStorage.getItem(SP_KEY_V2) || localStorage.getItem(SP_KEY_V1);
+              if (raw) roster = JSON.parse(raw);
+            } catch (_) {}
+            if (!Array.isArray(roster) || roster.length === 0) {
+              roster = [{
+                id: 'sp_char_starter',
+                name: 'Solari Vanguard',
+                faction: 'Solari',
+                classId: 'solari_vanguard',
+                orderTag: 'SUN',
+                level: 1,
+                role: 'Radiant Bulwark & Frontline Tank'
+              }];
+              try {
+                localStorage.setItem(SP_KEY_V2, JSON.stringify(roster));
+                localStorage.setItem(SP_ACTIVE, 'sp_char_starter');
+              } catch (_) {}
+            }
+            var mode = 'singleplayer';
+            try { mode = localStorage.getItem('glimmerfall_play_mode') || 'singleplayer'; } catch (_) {}
+            var isSingle = mode !== 'multiplayer';
+            var activeId = '';
+            try { activeId = localStorage.getItem(SP_ACTIVE) || ''; } catch (_) {}
+            var selected = (activeId && roster.find(function (c) { return c.id === activeId; })) || roster[0];
+            var facColors = { Solari: '#facc15', Umbri: '#c084fc', Terra: '#4ade80', Aether: '#38bdf8' };
+            var facLogos = {
+              Solari: '/assets/crests/solari.png',
+              Umbri: '/assets/crests/umbri.png',
+              Terra: '/assets/crests/terra.png',
+              Aether: '/assets/crests/aether.png'
+            };
+            var fColor = facColors[selected.faction] || '#facc15';
+            var fLogo = facLogos[selected.faction] || '/assets/crests/solari.png';
+            var sLvl = selected.progression ? (selected.progression.level || 1) : (selected.level || 1);
+            var charName = selected.name || 'Solari Vanguard';
+
+            var rosterHtml = roster.map(function (c) {
+              var isSel = c.id === selected.id;
+              var cColor = facColors[c.faction] || '#facc15';
+              var cLogo = facLogos[c.faction] || '/assets/crests/solari.png';
+              var cLvl = c.progression ? (c.progression.level || 1) : (c.level || 1);
+              return '<div class="fp-roster-item ' + (isSel ? 'active' : '') + '" style="border:2px solid ' + (isSel ? '#facc15' : '#334155') + '; background:' + (isSel ? '#172554' : '#0a1024') + '; padding:8px 10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="if(window._fp){window._fp.selectCharacter(\'' + c.id + '\');}else{try{localStorage.setItem(\'glimmerfall_sp_active_id\',\'' + c.id + '\');location.reload();}catch(_){}}">' +
+                '<div style="flex:1;">' +
+                  '<div style="display:flex; align-items:center; gap:6px;">' +
+                    '<img src="' + cLogo + '" alt="' + c.faction + '" style="width:18px; height:18px; object-fit:contain; flex-shrink:0;" />' +
+                    '<span style="font-size:12.5px; font-weight:bold; color:' + (isSel ? '#fde047' : cColor) + '; font-family:var(--font-header);">' + c.name + '</span>' +
+                    '<span style="background:#091224; border:1px solid #ca8a04; color:#fde047; font-size:9px; padding:1px 5px; font-weight:bold; border-radius:2px;">Lv. ' + cLvl + '</span>' +
+                  '</div>' +
+                  '<div style="display:flex; gap:8px; align-items:center; margin-top:3px; font-size:10px; color:#94a3b8;">' +
+                    '<span style="color:' + cColor + '; font-weight:600;">' + c.faction + '</span>' +
+                    '<span>•</span>' +
+                    '<span style="color:#cbd5e1;">Champion</span>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+            }).join('');
+
+            root.innerHTML = '' +
+              '<div style="background:#060a16; border:1px solid #1e293b; border-bottom:2px solid #ca8a04; padding:8px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">' +
+                '<div style="display:flex; align-items:center; gap:10px;">' +
+                  '<div style="font-family:var(--font-header); font-size:12px; color:#facc15; font-weight:bold; letter-spacing:0.5px;">⚔️ CHARACTER SELECTION</div>' +
+                  '<div style="font-size:10px; color:#94a3b8;">(' + roster.length + '/8 Champions in ' + (isSingle ? 'Offline Realm' : 'Online Realm') + ')</div>' +
+                '</div>' +
+                '<div style="display:flex; gap:6px; align-items:center;">' +
+                  '<button class="util-btn ' + (isSingle ? 'active' : '') + '" style="font-size:10px; padding:4px 10px; ' + (isSingle ? 'border-color:#38bdf8; background:#172554; color:#bae6fd;' : 'opacity:0.65;') + '" onclick="if(window._fp){window._fp.setPlayMode(\'singleplayer\');}else{try{localStorage.setItem(\'glimmerfall_play_mode\',\'singleplayer\');location.reload();}catch(_){}}">🕹️ SINGLE PLAYER (OFFLINE)</button>' +
+                  '<button class="util-btn ' + (!isSingle ? 'active' : '') + '" style="font-size:10px; padding:4px 10px; ' + (!isSingle ? 'border-color:#4ade80; background:#14532d; color:#bbf7d0;' : 'opacity:0.65;') + '" onclick="if(window._fp){window._fp.setPlayMode(\'multiplayer\');}else{try{localStorage.setItem(\'glimmerfall_play_mode\',\'multiplayer\');location.reload();}catch(_){}}">🌐 MULTIPLAYER (ONLINE)</button>' +
+                '</div>' +
+              '</div>' +
+              '<div class="fp-grid" style="grid-template-columns: 360px 1fr; gap: 14px;">' +
+                '<div class="fp-col" style="display:flex; flex-direction:column; justify-content:space-between;">' +
+                  '<div>' +
+                    '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #1e293b; padding-bottom:6px;">' +
+                      '<div class="fp-section-title" style="margin-bottom:0; font-size:11.5px;">1. SELECT HERO LOADOUT</div>' +
+                    '</div>' +
+                    '<div class="fp-roster-list" style="max-height: 290px; overflow-y:auto; gap:6px; margin-bottom:10px;">' + rosterHtml + '</div>' +
+                  '</div>' +
+                  '<div style="border-top:1px solid #1e293b; padding-top:10px; margin-top:6px;">' +
+                    '<button class="util-btn" style="width:100%; border-color:#facc15; background:linear-gradient(180deg, #1e1b4b, #0f172a); color:#fde047; font-size:11.5px; font-weight:bold; padding:9px; display:flex; justify-content:center; align-items:center; gap:6px;" onclick="if(window._fp){window._fp.transitionTo(\'CHARACTER_CREATE\');}">' +
+                      '<span>➕</span> CREATE NEW CHARACTER' +
+                    '</button>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="fp-col" style="display:flex; flex-direction:column; justify-content:space-between;">' +
+                  '<div>' +
+                    '<div class="fp-section-title" style="margin-bottom:8px; font-size:11.5px;">2. CHAMPION PEDESTAL &amp; DEPLOYMENT</div>' +
+                    '<div style="display:flex; gap:14px; align-items:center; background:#060a15; border:2px solid ' + fColor + '; padding:12px; margin-bottom:12px; box-shadow:0 0 15px rgba(0,0,0,0.8) inset;">' +
+                      '<div style="text-align:center;">' +
+                        '<div style="position:relative; display:inline-block;">' +
+                          '<canvas id="fp-paperdoll-canvas" width="110" height="116" style="border:2px solid #ca8a04; background:radial-gradient(circle at 50% 60%, rgba(202,138,4,0.18), #070d1e); image-rendering:pixelated;"></canvas>' +
+                        '</div>' +
+                        '<div style="font-size:9.5px; color:#ca8a04; margin-top:4px; font-weight:bold; letter-spacing:0.5px;">PEDESTAL VISAGE</div>' +
+                      '</div>' +
+                      '<div style="flex:1; display:flex; flex-direction:column; gap:6px;">' +
+                        '<div style="display:flex; justify-content:space-between; align-items:baseline;">' +
+                          '<div style="font-family:var(--font-header); font-size:16px; color:#facc15; font-weight:800; text-shadow:2px 2px 0 #000;">' + charName + '</div>' +
+                          '<div style="font-size:11px; color:#fde047; font-weight:bold; background:#1e293b; padding:2px 7px; border:1px solid #ca8a04;">Level ' + sLvl + '</div>' +
+                        '</div>' +
+                        '<div style="font-size:11px; color:' + fColor + '; font-weight:bold; display:flex; gap:6px; align-items:center;">' +
+                          '<img src="' + fLogo + '" alt="' + selected.faction + '" style="width:18px; height:18px; object-fit:contain; flex-shrink:0;" />' +
+                          '<span>Faction: ' + selected.faction + '</span><span>•</span>' +
+                          '<span style="color:#cbd5e1;">Order &lt;' + (selected.orderTag || 'SUN') + '&gt;</span>' +
+                        '</div>' +
+                        '<div style="font-size:10px; color:#94a3b8; line-height:1.4; background:#0a1024; border:1px solid #1e293b; padding:6px 8px;">Select your champion to enter the realm. Zero delay offline play and authoritative multiplayer.</div>' +
+                        '<div style="font-size:9.5px; color:#38bdf8; display:flex; align-items:center; gap:5px;"><span>🏛️ Current Leyline Anchor:</span> <b style="color:#f8fafc;">Awakening Sanctuary Hub</b></div>' +
+                      '</div>' +
+                    '</div>' +
+                    '<div style="background:#091224; border-left:3px solid #38bdf8; padding:8px 10px; margin-bottom:12px; font-size:10px; color:#cbd5e1; line-height:1.4;">' +
+                      '⚡ <b>Instant Launch:</b> Single Player engine runs locally at 0ms. Select your hero and enter the realm immediately.' +
+                    '</div>' +
+                  '</div>' +
+                  '<div style="border-top:1px solid #1e293b; padding-top:12px; margin-top:8px;">' +
+                    '<button id="fp-instant-enter-btn" class="fp-enter-btn" style="padding:14px; font-size:13px; font-weight:800; letter-spacing:0.8px; cursor:pointer;" onclick="if(window._fp){window._fp.playSelectedCharacter();}else{window._pendingPlayOnBoot=true;this.innerText=\'⏳ ENTERING REALM...\';}">' +
+                      '⚔️ SELECT &amp; ENTER REALM (' + charName + ') ▸' +
+                    '</button>' +
+                    '<div style="font-size:9.5px; color:#94a3b8; text-align:center; margin-top:5px;">' +
+                      (isSingle ? '⚡ Offline Engine • Local Execution • Zero Server Latency' : '🌐 Authoritative Realm • Co-Op &amp; PvPvE Multiplayer') +
+                    '</div>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+          } catch (err) {
+            console.warn('[Instant Frontpage Pre-render]:', err);
+          }
+        })();
+      </script>
     </div>
   </div>
 
