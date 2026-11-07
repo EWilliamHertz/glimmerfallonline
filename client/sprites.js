@@ -636,6 +636,50 @@ export function buildSpriteSheet() {
     sprites.tiles[`celestial_road_${v}`] = c;
   }
 
+  // Starfall Meteorite Crater Tiles (Scorched Basalt & Glowing Starfire Veins)
+  for (let v = 0; v < 4; v++) {
+    const { c, ctx } = makeCanvas(16, 16);
+    rect(ctx, 0, 0, 16, 16, '#171324');
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const r = hash2d(x, y, 410 + v);
+        if (r < 0.24) px(ctx, x, y, '#0f0c19');
+        else if (r < 0.44) px(ctx, x, y, '#251e38');
+        else if (r > 0.92) px(ctx, x, y, '#38bdf8');
+      }
+    }
+    if (v === 1) {
+      rect(ctx, 3, 6, 5, 1, '#ea580c');
+      px(ctx, 5, 6, '#fde047');
+    } else if (v === 2) {
+      rect(ctx, 8, 10, 4, 1, '#0284c7');
+      px(ctx, 9, 10, '#bae6fd');
+    }
+    sprites.tiles[`starfall_${v}`] = c;
+  }
+
+  // Abyssal Rift Tiles (Dimensional Void-Slate & Teal/Violet Ley-Cracks)
+  for (let v = 0; v < 4; v++) {
+    const { c, ctx } = makeCanvas(16, 16);
+    rect(ctx, 0, 0, 16, 16, '#0d091c');
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const r = hash2d(x, y, 510 + v);
+        if (r < 0.26) px(ctx, x, y, '#070510');
+        else if (r < 0.46) px(ctx, x, y, '#1c1236');
+        else if (r > 0.92) px(ctx, x, y, '#a855f7');
+      }
+    }
+    if (v === 1) {
+      rect(ctx, 2, 8, 6, 1, '#7e22ce');
+      px(ctx, 4, 8, '#e879f9');
+    } else if (v === 3) {
+      rect(ctx, 9, 4, 4, 1, '#0d9488');
+      px(ctx, 10, 4, '#5eead4');
+    }
+    sprites.tiles[`abyssal_${v}`] = c;
+  }
+
   // ==========================================
   // 2. WORLD PROPS (Gentle Warm Brazier & Pillar)
   // ==========================================
@@ -811,6 +855,108 @@ export function buildSpriteSheet() {
     px(ctx, 4, 14, '#166534');
     px(ctx, 5, 13, '#4ade80');
     sprites.props.ruinedArch = addPixelOutline(c);
+  }
+
+  // Cosmic Star-Anvil & Astral Smeltery (30x32 px, 2-frame animation)
+  sprites.props.cosmicAnvil = [];
+  for (let f = 0; f < 2; f++) {
+    const pulse = f === 1 ? -1 : 0;
+    const { c, ctx } = makeCanvas(30, 32);
+    // Obsidian & gold rune dais
+    rect(ctx, 2, 25, 26, 5, '#1e1b4b');
+    rect(ctx, 4, 23, 22, 3, '#312e81');
+    rect(ctx, 6, 24, 18, 1, '#f59e0b');
+    // Left mini star-furnace column
+    rect(ctx, 3, 11, 9, 13, '#334155');
+    rect(ctx, 4, 12, 7, 10, '#1e293b');
+    rect(ctx, 5, 15, 5, 6, '#ea580c');
+    rect(ctx, 6, 16 + pulse, 3, 4, '#fde047');
+    px(ctx, 7, 17 + pulse, '#ffffff');
+    // Heavy Starmetal Anvil (center-right)
+    rect(ctx, 15, 20, 9, 4, '#334155');
+    rect(ctx, 17, 16, 5, 4, '#475569');
+    rect(ctx, 12, 13, 15, 4, '#64748b');
+    rect(ctx, 13, 13, 12, 2, '#bae6fd'); // Starlight anvil face
+    rect(ctx, 10, 14, 3, 2, '#94a3b8');  // Anvil horn
+    // Floating cosmic star-spark above anvil
+    rect(ctx, 18, 6 + pulse, 4, 4, '#38bdf8');
+    rect(ctx, 19, 7 + pulse, 2, 2, '#ffffff');
+    px(ctx, 16, 9, f === 0 ? '#facc15' : '#fb923c');
+    px(ctx, 23, 8, f === 0 ? '#38bdf8' : '#fde047');
+    sprites.props.cosmicAnvil.push(addPixelOutline(c));
+  }
+
+  // Aetherial Crucible & Rite Altar (28x32 px, 2-frame animation)
+  sprites.props.aetherCrucible = [];
+  for (let f = 0; f < 2; f++) {
+    const bob = f === 1 ? -1 : 0;
+    const { c, ctx } = makeCanvas(28, 32);
+    // Arcane stone plinth
+    rect(ctx, 4, 25, 20, 5, '#1e1b4b');
+    rect(ctx, 6, 23, 16, 3, '#4c1d95');
+    // Ornate cauldron body
+    rect(ctx, 6, 13, 16, 10, '#334155');
+    rect(ctx, 5, 12, 18, 3, '#64748b');
+    rect(ctx, 7, 15, 14, 6, '#1e293b');
+    rect(ctx, 9, 17, 10, 2, '#a855f7');
+    // Bubbling luminous brew
+    rect(ctx, 7, 11, 14, 3, '#9333ea');
+    rect(ctx, 9, 11, 10, 2, '#e879f9');
+    px(ctx, 10 + (f * 3), 10, '#ffffff');
+    px(ctx, 15 - (f * 2), 9, '#38bdf8');
+    // Floating arcane focus crystal above brew
+    rect(ctx, 12, 3 + bob, 4, 6, '#38bdf8');
+    rect(ctx, 13, 4 + bob, 2, 4, '#ffffff');
+    sprites.props.aetherCrucible.push(addPixelOutline(c));
+  }
+
+  // Celestial Loom & Sanctuary Hearth (30x32 px, 2-frame animation)
+  sprites.props.celestialLoom = [];
+  for (let f = 0; f < 2; f++) {
+    const shimmer = f === 1 ? 1 : 0;
+    const { c, ctx } = makeCanvas(30, 32);
+    // Warm ironwood base
+    rect(ctx, 3, 25, 24, 5, '#451a03');
+    rect(ctx, 5, 23, 20, 3, '#78350f');
+    // Upright carved golden-wood loom frame
+    rect(ctx, 6, 6, 3, 18, '#92400e');
+    rect(ctx, 21, 6, 3, 18, '#92400e');
+    rect(ctx, 5, 5, 20, 3, '#d97706');
+    rect(ctx, 7, 6, 16, 1, '#fde047');
+    // Shimmering vertical starlight warp threads
+    for (let tx = 10; tx <= 19; tx += 2) {
+      rect(ctx, tx, 8, 1, 15, (tx + shimmer) % 4 === 0 ? '#bae6fd' : '#4ade80');
+    }
+    // Woven celestial cloth banner in middle
+    rect(ctx, 9, 12, 12, 6, '#15803d');
+    rect(ctx, 10, 13, 10, 4, '#22c55e');
+    rect(ctx, 12, 14, 6, 2, '#fef08a');
+    sprites.props.celestialLoom.push(addPixelOutline(c));
+  }
+
+  // Sanctuary Bounty Board (28x32 px, 2-frame animation)
+  sprites.props.bountyBoard = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(28, 32);
+    // Twin oak posts
+    rect(ctx, 4, 10, 3, 20, '#451a03');
+    rect(ctx, 21, 10, 3, 20, '#451a03');
+    // Slanted royal blue & gold roof
+    rect(ctx, 2, 6, 24, 5, '#1e3a8a');
+    rect(ctx, 4, 4, 20, 3, '#2563eb');
+    rect(ctx, 3, 10, 22, 2, '#facc15');
+    // Cork & timber backing
+    rect(ctx, 6, 12, 16, 12, '#78350f');
+    rect(ctx, 7, 13, 14, 10, '#92400e');
+    // Pinned parchment contracts with crimson wax seals
+    rect(ctx, 8, 14, 5, 6, '#fef3c7');
+    px(ctx, 11, 18, '#ef4444');
+    rect(ctx, 15, 14, 5, 7, '#fde68a');
+    px(ctx, 17, 19, '#a855f7');
+    if (f === 1) {
+      px(ctx, 13, 3, '#ffffff');
+    }
+    sprites.props.bountyBoard.push(addPixelOutline(c));
   }
 
   // Wooden Trail Guide Signpost (16x22 px)
@@ -2206,6 +2352,82 @@ export function buildSpriteSheet() {
   sprites.grandNode = sprites.node.map((frame) => scaleNodeFrame(frame));
   sprites.grandNodeEmpty = scaleNodeFrame(sprites.nodeEmpty);
 
+  // World Skilling Ore Veins, Herb Clusters & Luminescent Fiber Blooms
+  const buildOreVein = (crystalDark, crystalMid, crystalHi) => {
+    const frames = [];
+    for (let f = 0; f < 2; f++) {
+      const glint = f === 1 ? -1 : 0;
+      const { c, ctx } = makeCanvas(24, 26);
+      rect(ctx, 3, 14, 18, 9, '#1e293b');
+      rect(ctx, 5, 10, 14, 11, '#334155');
+      rect(ctx, 7, 8, 10, 9, '#475569');
+      // Protruding ore seams & mineral crystals
+      rect(ctx, 6, 11, 4, 6, crystalDark);
+      rect(ctx, 7, 10, 3, 5, crystalMid);
+      rect(ctx, 13, 7 + glint, 5, 8, crystalDark);
+      rect(ctx, 14, 6 + glint, 3, 7, crystalMid);
+      px(ctx, 15, 7 + glint, crystalHi);
+      px(ctx, 8, 11, crystalHi);
+      frames.push(addPixelOutline(c));
+    }
+    return frames;
+  };
+  sprites.oreCopper = buildOreVein('#9a3412', '#f97316', '#fed7aa');
+  sprites.oreIron = buildOreVein('#374151', '#94a3b8', '#e0f2fe');
+  sprites.oreMithril = buildOreVein('#1e3a8a', '#38bdf8', '#ffffff');
+  sprites.oreRunite = buildOreVein('#065f46', '#2dd4bf', '#f0abfc');
+  {
+    const { c, ctx } = makeCanvas(24, 26);
+    rect(ctx, 3, 15, 18, 8, '#1e293b');
+    rect(ctx, 6, 12, 12, 9, '#334155');
+    rect(ctx, 8, 14, 8, 5, '#475569');
+    sprites.oreEmpty = addPixelOutline(c);
+  }
+
+  sprites.herbNode = [];
+  for (let f = 0; f < 2; f++) {
+    const sway = f === 1 ? 1 : 0;
+    const { c, ctx } = makeCanvas(22, 24);
+    rect(ctx, 4, 17, 14, 4, '#14532d');
+    rect(ctx, 6, 13, 10, 6, '#15803d');
+    rect(ctx, 5 + sway, 10, 4, 5, '#22c55e');
+    rect(ctx, 12 + sway, 9, 5, 6, '#22c55e');
+    // Glowing Sunbloom & Chrono-Lotus petals
+    rect(ctx, 6 + sway, 7, 4, 4, '#facc15');
+    px(ctx, 7 + sway, 8, '#ffffff');
+    rect(ctx, 13 + sway, 6, 4, 4, '#c084fc');
+    px(ctx, 14 + sway, 7, '#bae6fd');
+    sprites.herbNode.push(addPixelOutline(c));
+  }
+  {
+    const { c, ctx } = makeCanvas(22, 24);
+    rect(ctx, 5, 18, 12, 3, '#14532d');
+    rect(ctx, 8, 16, 6, 3, '#166534');
+    sprites.herbEmpty = addPixelOutline(c);
+  }
+
+  sprites.fiberNode = [];
+  for (let f = 0; f < 2; f++) {
+    const sway = f === 1 ? -1 : 0;
+    const { c, ctx } = makeCanvas(22, 24);
+    rect(ctx, 5, 17, 12, 4, '#1e293b');
+    rect(ctx, 7, 11, 2, 8, '#16a34a');
+    rect(ctx, 11, 9, 2, 10, '#16a34a');
+    rect(ctx, 14, 12, 2, 7, '#16a34a');
+    // Silky silver-cyan Starlight Flax plumes
+    rect(ctx, 5 + sway, 7, 4, 5, '#bae6fd');
+    rect(ctx, 10 + sway, 5, 4, 5, '#e0f2fe');
+    rect(ctx, 13 + sway, 8, 4, 5, '#ddd6fe');
+    px(ctx, 11 + sway, 6, '#ffffff');
+    sprites.fiberNode.push(addPixelOutline(c));
+  }
+  {
+    const { c, ctx } = makeCanvas(22, 24);
+    rect(ctx, 6, 18, 10, 3, '#1e293b');
+    rect(ctx, 8, 15, 6, 3, '#334155');
+    sprites.fiberEmpty = addPixelOutline(c);
+  }
+
   // ==========================================
   // 6. CALM ASTRAL WAYGATE PORTAL (Smooth, Zero Strobe!)
   // ==========================================
@@ -2384,6 +2606,106 @@ export function buildSpriteSheet() {
   sprites.bossUmbri = buildColossusBoss('#3b0764', '#9333ea', '#f43f5e', '#fde047');   // Crypt Lord Malakor
   sprites.bossAether = buildColossusBoss('#1e3a8a', '#38bdf8', '#c084fc', '#ffffff');  // Rift Titan
   sprites.celestialTitanBoss = buildColossusBoss('#1e1b4b', '#facc15', '#ffffff', '#38bdf8'); // Empyrean Sovereign
+  sprites.starfallBoss = buildColossusBoss('#431407', '#fb923c', '#38bdf8', '#fde047'); // Ignis-Core, Fallen Star Construct
+  sprites.abyssalArchitectBoss = buildColossusBoss('#1e1b4b', '#c084fc', '#2dd4bf', '#ffffff'); // Xal'Korath, Rift-Weaver
+
+  // Dedicated Pixel Art Mobs: Void Annihilator (mobUmbri), Starforged Automaton, Meteor Elemental, Gloam-Widow & Paradox Sentinel
+  sprites.mobUmbri = [];
+  for (let f = 0; f < 3; f++) {
+    const hover = f === 1 ? -2 : f === 2 ? 1 : 0;
+    const { c, ctx } = makeCanvas(26, 28);
+    rect(ctx, 7, 9 + hover, 12, 13, '#2e1065');
+    rect(ctx, 9, 10 + hover, 8, 10, '#581c87');
+    rect(ctx, 8, 3 + hover, 10, 7, '#1e1b4b');
+    rect(ctx, 10, 6 + hover, 2, 2, '#f43f5e');
+    rect(ctx, 14, 6 + hover, 2, 2, '#f43f5e');
+    // Twin void scythe-claws
+    rect(ctx, 2, 10 + hover, 5, 3, '#a855f7');
+    rect(ctx, 1, 12 + hover, 3, 6, '#e879f9');
+    rect(ctx, 19, 10 + hover, 5, 3, '#a855f7');
+    rect(ctx, 22, 12 + hover, 3, 6, '#e879f9');
+    rect(ctx, 9, 22 + hover, 3, 4, '#4c1d95');
+    rect(ctx, 14, 22 + hover, 3, 4, '#4c1d95');
+    sprites.mobUmbri.push(addPixelOutline(c));
+  }
+
+  sprites.starforgedAutomaton = [];
+  for (let f = 0; f < 3; f++) {
+    const step = f === 1 ? -1 : f === 2 ? 1 : 0;
+    const { c, ctx } = makeCanvas(28, 30);
+    rect(ctx, 7, 21 + step, 5, 7, '#475569');
+    rect(ctx, 16, 21 - step, 5, 7, '#475569');
+    rect(ctx, 6, 9, 16, 13, '#78350f');
+    rect(ctx, 8, 11, 12, 9, '#d97706');
+    // Glowing cyan star-core chest
+    rect(ctx, 11, 13, 6, 5, '#0284c7');
+    rect(ctx, 12, 14, 4, 3, '#bae6fd');
+    rect(ctx, 9, 3, 10, 7, '#92400e');
+    rect(ctx, 11, 5, 6, 2, '#38bdf8');
+    rect(ctx, 2, 11 - step, 4, 10, '#64748b');
+    rect(ctx, 22, 11 + step, 4, 10, '#64748b');
+    sprites.starforgedAutomaton.push(addPixelOutline(c));
+  }
+
+  sprites.meteorElemental = [];
+  for (let f = 0; f < 3; f++) {
+    const pulse = f === 1 ? -1 : 0;
+    const { c, ctx } = makeCanvas(28, 28);
+    rect(ctx, 6, 6 + pulse, 16, 16, '#271b12');
+    rect(ctx, 8, 8 + pulse, 12, 12, '#7c2d12');
+    rect(ctx, 10, 10 + pulse, 8, 8, '#f97316');
+    rect(ctx, 12, 12 + pulse, 4, 4, '#fde047');
+    px(ctx, 10, 9 + pulse, '#ffffff');
+    px(ctx, 16, 9 + pulse, '#ffffff');
+    // Orbiting meteor shards
+    rect(ctx, 2, 11 - pulse, 3, 5, '#ea580c');
+    rect(ctx, 23, 11 + pulse, 3, 5, '#38bdf8');
+    sprites.meteorElemental.push(addPixelOutline(c));
+  }
+
+  sprites.gloamWidow = [];
+  for (let f = 0; f < 3; f++) {
+    const skitter = f === 1 ? 1 : f === 2 ? -1 : 0;
+    const { c, ctx } = makeCanvas(28, 24);
+    // Abdomen & thorax
+    rect(ctx, 8, 6, 12, 9, '#3b0764');
+    rect(ctx, 10, 7, 8, 6, '#6b21a8');
+    rect(ctx, 12, 8, 4, 3, '#c084fc');
+    rect(ctx, 9, 13, 10, 6, '#1e1b4b');
+    // Glowing violet arachnid eyes
+    px(ctx, 11, 16, '#f43f5e');
+    px(ctx, 13, 17, '#e879f9');
+    px(ctx, 15, 17, '#e879f9');
+    px(ctx, 17, 16, '#f43f5e');
+    // 8 jointed legs
+    rect(ctx, 3, 9 + skitter, 5, 2, '#4c1d95');
+    rect(ctx, 2, 13 - skitter, 6, 2, '#4c1d95');
+    rect(ctx, 3, 17 + skitter, 5, 2, '#4c1d95');
+    rect(ctx, 20, 9 - skitter, 5, 2, '#4c1d95');
+    rect(ctx, 20, 13 + skitter, 6, 2, '#4c1d95');
+    rect(ctx, 20, 17 - skitter, 5, 2, '#4c1d95');
+    sprites.gloamWidow.push(addPixelOutline(c));
+  }
+
+  sprites.paradoxSentinel = [];
+  for (let f = 0; f < 3; f++) {
+    const wing = f === 1 ? -2 : 0;
+    const { c, ctx } = makeCanvas(30, 30);
+    // Astral wings
+    rect(ctx, 2, 6 + wing, 7, 12, '#0284c7');
+    rect(ctx, 4, 8 + wing, 4, 8, '#7dd3fc');
+    rect(ctx, 21, 6 + wing, 7, 12, '#7e22ce');
+    rect(ctx, 22, 8 + wing, 4, 8, '#e879f9');
+    // Armored rift knight body
+    rect(ctx, 10, 9, 10, 12, '#1e1b4b');
+    rect(ctx, 11, 10, 8, 9, '#312e81');
+    rect(ctx, 13, 12, 4, 5, '#2dd4bf');
+    rect(ctx, 11, 3, 8, 6, '#0f172a');
+    rect(ctx, 12, 5, 6, 2, '#5eead4');
+    rect(ctx, 11, 21, 3, 6, '#1e293b');
+    rect(ctx, 16, 21, 3, 6, '#1e293b');
+    sprites.paradoxSentinel.push(addPixelOutline(c));
+  }
 
   // Seamless Aliases for Mobs & Bosses (Both offline and server authoritative names)
   sprites.solariSentinel = sprites.mobSolari;

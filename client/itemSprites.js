@@ -954,8 +954,207 @@ function drawItemPixels(ctx, id) {
       break;
     }
 
-    // Default Fallback
+    // --- COSMIC ORES & MINERALS ---
+    case 'sun_copper_ore':
+    case 'star_tin_mineral':
+    case 'umbral_coal':
+    case 'mithril_astral_ore':
+    case 'adamant_terra_ore':
+    case 'celestial_runite_ore': {
+      const pal = {
+        sun_copper_ore: ['#451a03', '#ea580c', '#fdba74'],
+        star_tin_mineral: ['#334155', '#cbd5e1', '#ffffff'],
+        umbral_coal: ['#0f172a', '#312e81', '#a855f7'],
+        mithril_astral_ore: ['#1e3a8a', '#38bdf8', '#ffffff'],
+        adamant_terra_ore: ['#064e3b', '#22c55e', '#bef264'],
+        celestial_runite_ore: ['#3b0764', '#2dd4bf', '#f0abfc'],
+      }[id];
+      rect(ctx, 5, 8, 14, 10, '#334155');
+      rect(ctx, 7, 6, 10, 11, '#475569');
+      rect(ctx, 6, 10, 5, 5, pal[0]);
+      rect(ctx, 7, 9, 4, 4, pal[1]);
+      rect(ctx, 12, 7, 5, 7, pal[0]);
+      rect(ctx, 13, 6, 3, 6, pal[1]);
+      px(ctx, 14, 7, pal[2]);
+      px(ctx, 8, 10, pal[2]);
+      break;
+    }
+
+    case 'astral_mineral_dust': {
+      rect(ctx, 6, 13, 12, 5, '#1e3a8a');
+      rect(ctx, 8, 10, 8, 6, '#38bdf8');
+      rect(ctx, 10, 8, 4, 4, '#bae6fd');
+      px(ctx, 7, 8, '#fde047');
+      px(ctx, 15, 7, '#e879f9');
+      px(ctx, 11, 9, '#ffffff');
+      break;
+    }
+
+    // --- SMELTED COSMIC INGOTS ---
+    case 'star_iron_bar':
+    case 'umbral_steel_bar':
+    case 'astral_mithril_bar':
+    case 'prismatic_adamant_bar':
+    case 'celestial_starmetal_bar': {
+      const barPal = {
+        star_iron_bar: ['#334155', '#94a3b8', '#e0f2fe'],
+        umbral_steel_bar: ['#1e1b4b', '#6366f1', '#c4b5fd'],
+        astral_mithril_bar: ['#1e3a8a', '#0ea5e9', '#bae6fd'],
+        prismatic_adamant_bar: ['#065f46', '#10b981', '#fde047'],
+        celestial_starmetal_bar: ['#4c1d95', '#e879f9', '#67e8f9'],
+      }[id];
+      rect(ctx, 4, 11, 16, 6, barPal[0]);
+      rect(ctx, 5, 9, 14, 6, barPal[1]);
+      rect(ctx, 6, 8, 12, 3, barPal[2]);
+      px(ctx, 8, 9, '#ffffff');
+      break;
+    }
+
+    // --- BOTANICAL HERBS & LUMINESCENT FIBERS ---
+    case 'sunbloom_herb':
+    case 'chrono_lotus':
+    case 'empyrean_starleaf': {
+      const herbColor = id === 'sunbloom_herb' ? '#facc15' : id === 'chrono_lotus' ? '#38bdf8' : '#e879f9';
+      rect(ctx, 11, 11, 2, 8, '#16a34a');
+      rect(ctx, 7, 13, 4, 2, '#22c55e');
+      rect(ctx, 13, 14, 4, 2, '#22c55e');
+      rect(ctx, 8, 6, 8, 6, herbColor);
+      rect(ctx, 10, 5, 4, 7, '#ffffff');
+      px(ctx, 11, 8, herbColor);
+      break;
+    }
+
+    case 'gloomcap_spore': {
+      rect(ctx, 10, 12, 4, 7, '#cbd5e1');
+      rect(ctx, 6, 7, 12, 6, '#6b21a8');
+      rect(ctx, 8, 5, 8, 4, '#a855f7');
+      px(ctx, 8, 9, '#5eead4');
+      px(ctx, 14, 8, '#5eead4');
+      px(ctx, 11, 6, '#f0abfc');
+      break;
+    }
+
+    case 'starlight_flax':
+    case 'shadow_silk':
+    case 'celestial_gossamer': {
+      const skein = id === 'starlight_flax' ? ['#0284c7', '#bae6fd'] : id === 'shadow_silk' ? ['#581c87', '#c084fc'] : ['#0d9488', '#fef08a'];
+      rect(ctx, 6, 6, 12, 12, skein[0]);
+      rect(ctx, 7, 8, 10, 8, skein[1]);
+      rect(ctx, 9, 10, 6, 4, '#f59e0b'); // Gold band wrap
+      px(ctx, 8, 9, '#ffffff');
+      break;
+    }
+
+    // --- LEYLINE SOCKET GEMS ---
+    case 'gem_solar_ruby':
+    case 'gem_void_sapphire':
+    case 'gem_terra_emerald':
+    case 'gem_aether_diamond': {
+      const gemPal = {
+        gem_solar_ruby: ['#991b1b', '#ef4444', '#fde047'],
+        gem_void_sapphire: ['#3b0764', '#8b5cf6', '#38bdf8'],
+        gem_terra_emerald: ['#065f46', '#10b981', '#bef264'],
+        gem_aether_diamond: ['#0c4a6e', '#38bdf8', '#ffffff'],
+      }[id];
+      rect(ctx, 8, 5, 8, 14, gemPal[0]);
+      rect(ctx, 6, 7, 12, 10, gemPal[0]);
+      rect(ctx, 8, 7, 8, 10, gemPal[1]);
+      rect(ctx, 10, 8, 4, 6, gemPal[2]);
+      px(ctx, 10, 8, '#ffffff');
+      break;
+    }
+
+    // --- ARTISAN CONSUMABLES & FEASTS ---
+    case 'astral_battle_tonic':
+    case 'chrono_overdrive_draught':
+    case 'empyrean_nectar': {
+      const liq = id === 'astral_battle_tonic' ? '#a855f7' : id === 'chrono_overdrive_draught' ? '#38bdf8' : '#facc15';
+      rect(ctx, 9, 4, 6, 3, '#d97706');
+      rect(ctx, 10, 7, 4, 3, '#cbd5e1');
+      rect(ctx, 6, 10, 12, 9, '#1e293b');
+      rect(ctx, 7, 11, 10, 7, liq);
+      rect(ctx, 9, 12, 4, 4, '#ffffff');
+      break;
+    }
+
+    case 'spiced_orchard_pie':
+    case 'starfire_banquet_feast': {
+      rect(ctx, 4, 12, 16, 6, '#78350f');
+      rect(ctx, 5, 9, 14, 6, id === 'spiced_orchard_pie' ? '#f59e0b' : '#dc2626');
+      rect(ctx, 7, 8, 10, 3, '#fde047');
+      px(ctx, 9, 6, '#ffffff');
+      px(ctx, 14, 5, '#bae6fd');
+      break;
+    }
+
+    // --- CRAFTED & LATE-GAME WEAPONS, ARMOR & CLOAKS ---
+    case 'star_iron_scimitar':
+    case 'astral_mithril_greatsword':
+    case 'starmetal_cosmos_blade':
+    case 'starmetal_meteor_hammer':
+    case 'abyssal_voidstar_scythe': {
+      const bladeC = id === 'star_iron_scimitar' ? '#bae6fd'
+        : id === 'astral_mithril_greatsword' ? '#38bdf8'
+        : id === 'starmetal_meteor_hammer' ? '#fb923c'
+        : id === 'abyssal_voidstar_scythe' ? '#c084fc' : '#f0abfc';
+      rect(ctx, 5, 16, 4, 4, '#78350f');
+      rect(ctx, 7, 13, 6, 3, '#facc15');
+      for (let i = 0; i < 9; i++) {
+        rect(ctx, 9 + i, 12 - i, 3, 3, bladeC);
+        px(ctx, 10 + i, 12 - i, '#ffffff');
+      }
+      if (id === 'starmetal_meteor_hammer') {
+        rect(ctx, 12, 4, 7, 6, '#ea580c');
+        rect(ctx, 14, 5, 4, 4, '#fde047');
+      } else if (id === 'abyssal_voidstar_scythe') {
+        rect(ctx, 10, 4, 8, 3, '#a855f7');
+        rect(ctx, 8, 5, 4, 2, '#5eead4');
+      }
+      break;
+    }
+
+    case 'umbral_steel_platebody':
+    case 'starmetal_cosmos_plate':
+    case 'mystic_leystrand_robes': {
+      const cDark = id === 'mystic_leystrand_robes' ? '#0f172a' : '#1e1b4b';
+      const cMid = id === 'umbral_steel_platebody' ? '#6366f1' : id === 'starmetal_cosmos_plate' ? '#e879f9' : '#2dd4bf';
+      rect(ctx, 5, 5, 14, 14, cDark);
+      rect(ctx, 7, 6, 10, 12, cMid);
+      rect(ctx, 10, 8, 4, 6, '#38bdf8');
+      px(ctx, 11, 9, '#ffffff');
+      break;
+    }
+
+    case 'adamant_bulwark_shield': {
+      rect(ctx, 5, 4, 14, 15, '#064e3b');
+      rect(ctx, 6, 5, 12, 12, '#10b981');
+      rect(ctx, 9, 7, 6, 8, '#facc15');
+      rect(ctx, 11, 9, 2, 4, '#ffffff');
+      break;
+    }
+
+    case 'duskveil_silk_mantle':
+    case 'celestial_gossamer_cloak': {
+      const cCol = id === 'duskveil_silk_mantle' ? '#7e22ce' : '#38bdf8';
+      rect(ctx, 6, 5, 12, 14, '#1e1b4b');
+      rect(ctx, 7, 6, 10, 12, cCol);
+      rect(ctx, 8, 5, 8, 2, '#facc15');
+      px(ctx, 11, 9, '#ffffff');
+      break;
+    }
+
+    // Default Fallback (including Mythic Leyline Keystones)
     default: {
+      if (String(id).startsWith('keystone_')) {
+        const kc = id.includes('solari') ? '#facc15' : id.includes('umbri') ? '#c084fc' : id.includes('terra') ? '#4ade80' : '#38bdf8';
+        rect(ctx, 8, 4, 8, 7, kc);
+        rect(ctx, 10, 6, 4, 3, '#0f172a');
+        rect(ctx, 11, 11, 2, 9, kc);
+        rect(ctx, 13, 15, 3, 2, kc);
+        rect(ctx, 13, 18, 3, 2, kc);
+        px(ctx, 9, 5, '#ffffff');
+        break;
+      }
       rect(ctx, 6, 6, 12, 12, '#ca8a04');
       rect(ctx, 7, 7, 10, 10, '#facc15');
       px(ctx, 11, 11, '#ffffff');

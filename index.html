@@ -91,6 +91,53 @@
     }
     #crt-overlay.active { display: block; }
 
+    /* Day 3: Mythic Leyline Keystone run banner */
+    #mythic-run-hud {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      min-width: 280px;
+      padding: 6px 12px;
+      z-index: 45;
+      text-align: center;
+      border: 1px solid #f97316;
+      background: rgba(8, 10, 20, 0.9);
+      display: none;
+    }
+    #mythic-run-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      font-family: var(--font-header);
+      font-size: 10px;
+      letter-spacing: 0.4px;
+    }
+    #mythic-run-timer {
+      color: #fde047;
+      font-weight: 800;
+    }
+    #mythic-run-affixes {
+      font-size: 8.5px;
+      color: #cbd5e1;
+      margin-top: 2px;
+      letter-spacing: 0.3px;
+    }
+    #mythic-run-bar {
+      height: 4px;
+      background: #1c1917;
+      border: 1px solid #7c2d12;
+      margin-top: 5px;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    #mythic-run-bar-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #f97316, #fde047);
+      transition: width 0.3s linear;
+    }
+
     #hud {
       position: absolute;
       inset: 0;
@@ -799,6 +846,7 @@
     }
 
     #action-bar-cluster {
+      position: relative;
       display: flex;
       align-items: center;
       gap: 6px;
@@ -906,6 +954,40 @@
       border-color: #fde047 !important;
       background: #1e1b4b !important;
       box-shadow: 0 0 10px rgba(250, 204, 21, 0.55) !important;
+    }
+    /* Click-to-place: picked spell waiting for a slot */
+    .action-button.pick-target {
+      border-color: #fde047 !important;
+      background: #1e1b4b !important;
+      animation: pickPulse 0.9s ease-in-out infinite alternate;
+    }
+    @keyframes pickPulse {
+      from { box-shadow: 0 0 4px rgba(250, 204, 21, 0.35), inset 0 0 6px rgba(250, 204, 21, 0.08); }
+      to { box-shadow: 0 0 16px rgba(250, 204, 21, 0.85), inset 0 0 10px rgba(250, 204, 21, 0.2); }
+    }
+    .bar-pick-hint {
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 8px);
+      transform: translateX(-50%);
+      white-space: nowrap;
+      background: #0b1020;
+      border: 2px solid #facc15;
+      color: #e2e8f0;
+      padding: 3px 10px;
+      font-family: var(--font-clean);
+      font-size: 10.5px;
+      letter-spacing: 0.02em;
+      box-shadow: 0 0 12px rgba(250, 204, 21, 0.4);
+      pointer-events: none;
+      z-index: 6;
+    }
+    .bar-pick-hint b { color: #fde047; }
+    .d2-skill-card { cursor: pointer; }
+    .d2-skill-card.locked { cursor: not-allowed; }
+    .d2-skill-card.picked {
+      outline: 2px solid #fde047;
+      box-shadow: 0 0 16px rgba(250, 204, 21, 0.55) !important;
     }
     .action-button.item-card { border-bottom-color: #f97316; width: 42px; }
     .action-button .action-item-icon {
@@ -2362,6 +2444,16 @@
       </div>
     </div>
 
+    <!-- Day 3: Mythic Leyline Keystone run timer & affix banner -->
+    <div id="mythic-run-hud" class="panel">
+      <div id="mythic-run-head">
+        <span id="mythic-run-title">🗝️ TIER 1 MYTHIC</span>
+        <span id="mythic-run-timer">07:30</span>
+      </div>
+      <div id="mythic-run-affixes"></div>
+      <div id="mythic-run-bar"><div id="mythic-run-bar-fill"></div></div>
+    </div>
+
     <div id="target-unit-frame" class="panel">
       <div id="target-name">SANCTUARY DUMMY</div>
       <div id="target-sub">Lv.1 Solari Training Post</div>
@@ -2841,6 +2933,38 @@
           <button class="id-mini-btn" onclick="toggleModal('skill-training-modal')" style="font-size: 9.5px; padding: 3px 9px;">CLOSE</button>
         </div>
       </div>
+    </div>
+
+    <!-- MODAL 9: Cosmic Artisan Station (Star-Anvil • Aetherial Crucible • Celestial Loom) -->
+    <div id="crafting-modal" class="modal panel" style="width: 820px; max-width: 96vw; max-height: 90vh; display: none;">
+      <div class="modal-header" style="border-bottom: 1px solid rgba(249, 115, 22, 0.35); padding-bottom: 8px;">
+        <div style="flex: 1;">
+          <div id="crafting-modal-title" class="modal-title" style="font-size: 14px; color: #fb923c; font-family: var(--font-header); letter-spacing: 0.5px;">
+            🔨 COSMIC STAR-ANVIL &amp; ASTRAL SMELTERY
+          </div>
+          <div id="crafting-modal-subtitle" style="font-size: 10px; color: #cbd5e1; margin-top: 3px;">
+            Smelt cosmic ores + star-minerals into ingots, then forge enchanted weapons, armor &amp; Leyline Gems.
+          </div>
+        </div>
+        <div class="modal-close" onclick="window.closeCraftingModal ? window.closeCraftingModal() : toggleModal('crafting-modal')">✕</div>
+      </div>
+      <div id="crafting-modal-body" style="margin-top: 8px; overflow-y: auto; max-height: calc(90vh - 105px); padding-right: 4px;"></div>
+    </div>
+
+    <!-- MODAL 10: Sanctuary Bounty Board -->
+    <div id="bounty-modal" class="modal panel" style="width: 760px; max-width: 96vw; max-height: 88vh; display: none;">
+      <div class="modal-header" style="border-bottom: 1px solid rgba(250, 204, 21, 0.35); padding-bottom: 8px;">
+        <div style="flex: 1;">
+          <div class="modal-title" style="font-size: 14px; color: #fde047; font-family: var(--font-header); letter-spacing: 0.5px;">
+            📜 SANCTUARY VANGUARD BOUNTY BOARD
+          </div>
+          <div style="font-size: 10px; color: #cbd5e1; margin-top: 3px;">
+            Repeatable combat, gathering, artisan &amp; late-game contracts awarding Gold, XP, Skill XP &amp; Cosmic Materials!
+          </div>
+        </div>
+        <div class="modal-close" onclick="toggleModal('bounty-modal')">✕</div>
+      </div>
+      <div id="bounty-modal-body" style="margin-top: 8px; overflow-y: auto; max-height: calc(88vh - 105px); padding-right: 4px;"></div>
     </div>
   </div>
 

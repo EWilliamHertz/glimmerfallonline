@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as protocol from '../shared/protocol.js';
+import { RoomManager } from '../server/roomManager.js';
 
 test('tick constants match the authoritative 20 Hz loop', () => {
   assert.equal(protocol.TICK_RATE, 20);
@@ -197,4 +198,116 @@ test('faction and class resolution preserves valid loadouts', () => {
   const fallback = protocol.resolveFactionAndClass({});
   assert.ok(protocol.FACTIONS_META[fallback.faction]);
   assert.ok(protocol.CLASSES_CATALOG[fallback.classId]);
+});
+
+test('cosmic crafting stations and recipes reference valid professions and catalog items', () => {
+  assert.ok(Object.keys(protocol.CRAFTING_STATIONS).length >= 3);
+  assert.ok(Array.isArray(protocol.CRAFTING_RECIPES) && protocol.CRAFTING_RECIPES.length >= 30);
+  const seenIds = new Set();
+  for (const recipe of protocol.CRAFTING_RECIPES) {
+    assert.ok(!seenIds.has(recipe.id), `duplicate recipe id ${recipe.id}`);
+    seenIds.add(recipe.id);
+    assert.ok(protocol.CRAFTING_STATIONS[recipe.station], `${recipe.id} unknown station ${recipe.station}`);
+    assert.ok(protocol.PROFESSIONS_CATALOG[recipe.profession], `${recipe.id} unknown profession ${recipe.profession}`);
+    assert.ok(Number.isInteger(recipe.reqLevel) && recipe.reqLevel >= 1 && recipe.reqLevel <= 99, `${recipe.id} invalid reqLevel`);
+    assert.ok(Number.isFinite(recipe.xp) && recipe.xp > 0, `${recipe.id} invalid xp`);
+    assert.ok(protocol.EQUIPMENT_CATALOG[recipe.outputId], `${recipe.id} missing output item ${recipe.outputId}`);
+    assert.ok(Array.isArray(recipe.ingredients) && recipe.ingredients.length >= 1, `${recipe.id} needs ingredients`);
+    for (const ing of recipe.ingredients) {
+      assert.ok(protocol.EQUIPMENT_CATALOG[ing.id], `${recipe.id} missing ingredient ${ing.id}`);
+      assert.ok(Number.isInteger(ing.qty) && ing.qty >= 1, `${recipe.id} invalid qty for ${ing.id}`);
+    }
+  }
+});
+
+test('world skilling nodes and bounty contracts reference valid professions and rewards', () => {
+  const nodeEntries = Object.entries(protocol.SKILLING_NODE_TYPES);
+  assert.ok(nodeEntries.length >= 8);
+  for (const [id, spec] of nodeEntries) {
+    assert.equal(spec.id, id);
+    assert.ok(protocol.PROFESSIONS_CATALOG[spec.profession], `${id} invalid profession`);
+    assert.ok(Array.isArray(spec.yields) && spec.yields.length >= 1, `${id} needs yields`);
+    for (const y of spec.yields) {
+      assert.ok(protocol.EQUIPMENT_CATALOG[y.id], `${id} references missing yield ${y.id}`);
+      assert.ok(y.chance > 0 && y.chance <= 1, `${id} invalid yield chance`);
+    }
+  }
+
+  assert.ok(Array.isArray(protocol.BOUNTY_CONTRACTS) && protocol.BOUNTY_CONTRACTS.length >= 6);
+  for (const b of protocol.BOUNTY_CONTRACTS) {
+    assert.ok(b.id && b.title && b.kind);
+    assert.ok(b.targetCount >= 1);
+    assert.ok(b.rewardGold > 0 && b.rewardXp > 0);
+    if (b.rewardProf) {
+      assert.ok(protocol.PROFESSIONS_CATALOG[b.rewardProf.id], `${b.id} unknown reward profession`);
+    }
+    for (const item of b.rewardItems || []) {
+      assert.ok(protocol.EQUIPMENT_CATALOG[item.id], `${b.id} missing reward item ${item.id}`);
+    }
+  }
+});
+
+test('Starfall Crater and Abyssal Rift are configured with reciprocal seamless edge transitions', () => {
+  const starfall = protocol.ROOM_TYPES.STARFALL_CRATER;
+  const abyssal = protocol.ROOM_TYPES.ABYSSAL_RIFT;
+  assert.ok(protocol.ROOM_CONFIGS[starfall], 'missing Starfall Crater config');
+  assert.ok(protocol.ROOM_CONFIGS[abyssal], 'missing Abyssal Rift config');
+  assert.ok(protocol.GRAND_FONT_POSITIONS[starfall], 'missing Starfall Crater Grand Font');
+  assert.ok(protocol.GRAND_FONT_POSITIONS[abyssal], 'missing Abyssal Rift Grand Font');
+
+  assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.SOLARI_CITADEL].edgeTransitions.west, starfall);
+  assert.equal(protocol.ROOM_CONFIGS[starfall].edgeTransitions.east, protocol.ROOM_TYPES.SOLARI_CITADEL);
+  assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.NEXUS_FORGOTTEN_RUINS].edgeTransitions.east, starfall);
+  assert.equal(protocol.ROOM_CONFIGS[starfall].edgeTransitions.west, protocol.ROOM_TYPES.NEXUS_FORGOTTEN_RUINS);
+
+  assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.NEXUS_WARZONE].edgeTransitions.east, abyssal);
+  assert.equal(protocol.ROOM_CONFIGS[abyssal].edgeTransitions.west, protocol.ROOM_TYPES.NEXUS_WARZONE);
+  assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.CELESTIAL_ASCENT].edgeTransitions.north, abyssal);
+  assert.equal(protocol.ROOM_CONFIGS[abyssal].edgeTransitions.south, protocol.ROOM_TYPES.CELESTIAL_ASCENT);
+});
+
+test('Leyline socket gems grant flat HP, Glimmer, and combat stats in socket slots', () => {
+  const prog = protocol.createDefaultProgression();
+  const baseHp = protocol.calcMaxHp(prog, {}, 'solari_vanguard');
+  const baseGlimmer = protocol.calcMaxGlimmer(prog, {}, 'solari_vanguard');
+  const baseStats = protocol.getEffectiveStats(prog, {});
+
+  const socketed = {
+    socket_head: 'gem_terra_emerald',
+    socket_body: 'gem_aether_diamond',
+    socket_weapon: 'gem_solar_ruby',
+  };
+  const boostedHp = protocol.calcMaxHp(prog, socketed, 'solari_vanguard');
+  const boostedGlimmer = protocol.calcMaxGlimmer(prog, socketed, 'solari_vanguard');
+  const boostedStats = protocol.getEffectiveStats(prog, socketed);
+
+  assert.ok(boostedHp > baseHp, 'socketed Terra Emerald should raise Max HP');
+  assert.ok(boostedGlimmer > baseGlimmer, 'socketed Aether Diamond should raise Max Glimmer');
+  assert.ok(boostedStats.power > baseStats.power, 'socketed Solar Ruby should raise Power');
+});
+
+test('RoomManager initializes Starfall Crater, Abyssal Rift, skilling veins, and Elite Champions', () => {
+  const rm = new RoomManager({
+    accountsStore: {},
+    partyManager: { getPartyForMember: () => null },
+  });
+  try {
+    assert.equal(rm.rooms.size, 14);
+    const starfall = rm.rooms.get('starfall_crater_1');
+    const abyssal = rm.rooms.get('abyssal_rift_1');
+    const hub = rm.rooms.get('sanctuary_hub_1');
+    assert.ok(starfall && abyssal && hub);
+
+    assert.ok(starfall.entities.some((e) => e.id === 'sf_boss' && e.isBoss));
+    assert.ok(abyssal.entities.some((e) => e.id === 'aby_boss' && e.isBoss));
+    assert.ok(starfall.entities.filter((e) => e.skillingType).length >= 5);
+    assert.ok(abyssal.entities.filter((e) => e.skillingType).length >= 5);
+    assert.ok(hub.entities.filter((e) => e.skillingType).length >= 4);
+    assert.equal(starfall.entities.filter((e) => e.eliteAffix).length, 2);
+    assert.equal(abyssal.entities.filter((e) => e.eliteAffix).length, 2);
+
+    rm.tickAllRooms();
+  } finally {
+    rm.stop();
+  }
 });

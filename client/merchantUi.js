@@ -19,7 +19,11 @@ export const MERCHANT_CATALOGS = {
     badgeColor: '#38bdf8',
     greeting: 'Welcome to my Apothecary stall! Here I distill mountain roots and concentrated aether into restorative elixirs.',
     loreIntro: 'Vitality salves mend flesh wounds and heal HP, while Leyline Glimmer Draughts restore ability charge. You can drink them directly from your 28-slot backpack during battle.',
+    stationId: 'aether_crucible',
+    stationHint: 'Train Rite-Binding at the bubbling Aetherial Crucible right beside my apothecary stall using herbs + essences!',
     wares: [
+      { itemId: 'sunbloom_herb', price: 7, note: 'Fresh golden herb for Rite-Binding at the Aetherial Crucible.' },
+      { itemId: 'astral_mineral_dust', price: 12, note: 'Leyline mineral flux for draughts & Star-Iron smelting.' },
       { itemId: 'minor_healing_salve', price: 10, note: 'Mends wounds immediately. Restores +35 HP on use.' },
       { itemId: 'glimmer_draught', price: 12, note: 'Effervescent tonic. Restores +40 Glimmer Charge.' },
       { itemId: 'major_vitality_elixir', price: 25, note: 'Concentrated brew. Restores +80 HP on use.' },
@@ -34,8 +38,11 @@ export const MERCHANT_CATALOGS = {
     badgeColor: '#4ade80',
     greeting: 'Hail and well met! An adventurer cannot venture into the ruins on an empty stomach. Stock up on hearty sustenance!',
     loreIntro: 'Eating baked bread loaves, fresh orchard apples, or smoked trail rations recovers your Health between skirmishes. Click any food in your backpack to consume it.',
+    stationId: 'celestial_loom',
+    stationHint: 'Train Glimmerweaving at the Celestial Loom & Hearth right beside my stall using Starlight Flax, Shadow-Silk & orchard fruit!',
     wares: [
-      { itemId: 'sweet_apple', price: 3, note: 'Crisp orchard fruit. Restores +15 HP on use.' },
+      { itemId: 'starlight_flax', price: 7, note: 'Silky grove fiber spun into cloaks & tunics on the Celestial Loom.' },
+      { itemId: 'sweet_apple', price: 3, note: 'Crisp orchard fruit. Restores +15 HP or bakes into pies & rations.' },
       { itemId: 'fresh_crusty_bread', price: 6, note: 'Warm crusty loaf. Restores +25 HP on use.' },
       { itemId: 'field_rations', price: 10, note: 'Smoked jerky and trail fruits. Restores +35 HP on use.' },
     ],
@@ -48,10 +55,13 @@ export const MERCHANT_CATALOGS = {
     spriteKey: 'merchantSmithNpc',
     badgeColor: '#fb923c',
     greeting: 'Ho there! Blacksmith Torvin at your service. Reliable metalwork is what separates champions from fallen recruits!',
-    loreIntro: 'I supply raw iron ore, smelted bronze bars, and tempered beginner weapons and shields. Equip gear from your backpack to boost your Power and Bastion.',
+    loreIntro: 'I supply raw ores and beginner blades. To train Relic-Forging, smelt ores + cosmic minerals and hammer gear at the Cosmic Star-Anvil right beside my forge!',
+    stationId: 'cosmic_anvil',
+    stationHint: 'Train Relic-Forging at the glowing Cosmic Star-Anvil right beside my stall — combine Ores + Minerals into bars, blades & gems!',
     wares: [
-      { itemId: 'iron_ore', price: 6, note: 'Quarried iron ore rock ready for smelting.' },
-      { itemId: 'bronze_bar', price: 14, note: 'Smelted bronze ingot for smithing and crafting.' },
+      { itemId: 'sun_copper_ore', price: 6, note: 'Warm copper ore — alloy with Star-Tin at the Cosmic Star-Anvil.' },
+      { itemId: 'star_tin_mineral', price: 6, note: 'Crystalline star-tin mineral for smelting Bronze Bars.' },
+      { itemId: 'iron_ore', price: 8, note: 'Quarried iron ore rock ready for Star-Iron & Steel smelting.' },
       { itemId: 'iron_broadsword', price: 28, note: 'Forged combat blade (+2 Power).' },
       { itemId: 'iron_heater_shield', price: 24, note: 'Reinforced defense shield (+2 Bastion).' },
     ],
@@ -134,9 +144,6 @@ export function renderMerchantModal(merchantId = null) {
   const gold = getPlayerGold(profile);
   const inv = Array.isArray(profile.inventory) ? profile.inventory : [];
   const invCount = inv.length;
-  const training = typeof window.getArtisanTrainingQuote === 'function'
-    ? window.getArtisanTrainingQuote(cat.id)
-    : null;
 
   const coinGlyph = '<span class="coin-glyph" aria-label="Gold"></span>';
 
@@ -178,48 +185,22 @@ export function renderMerchantModal(merchantId = null) {
         }).join('')}
       </div>
 
-      <!-- Repeatable Artisan Training -->
-      ${training ? `
-        <div style="background:#090d16; border:1px solid ${training.color}; border-left:4px solid ${training.color}; border-radius:5px; padding:10px 12px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-            <div>
-              <div style="font-size:11px; font-weight:800; color:${training.color}; font-family:var(--font-header); letter-spacing:0.4px;">
-                ${training.icon} ARTISAN TRAINING — ${training.name.toUpperCase()}
-              </div>
-              <div style="font-size:9.5px; color:#94a3b8; margin-top:2px;">
-                Lv. ${training.level} / 99 • ${training.xp.toLocaleString()} XP • Practice ${training.verb.toLowerCase()} for repeatable skill XP.
-              </div>
+      <!-- Nearby World Artisan Station Callout (Replaces Shop Gold-Training) -->
+      ${cat.stationId ? `
+        <div style="background:#090d16; border:1px solid ${cat.badgeColor}; border-left:4px solid ${cat.badgeColor}; border-radius:5px; padding:9px 12px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:220px;">
+            <div style="font-size:10.5px; font-weight:800; color:${cat.badgeColor}; font-family:var(--font-header); letter-spacing:0.4px;">
+              ✨ WORLD ARTISAN STATION NEARBY
             </div>
-            <div style="text-align:right;">
-              <div style="font-size:12px; font-weight:800; color:${training.color};">+${training.gain} ${training.name} XP</div>
-              <div style="font-size:8.5px; color:#64748b;">per training session</div>
-              ${training.bulk ? `<div style="font-size:8.5px; color:#94a3b8; margin-top:2px;">×${training.bulk.count}: +${training.bulk.gain} XP • ends Lv. ${training.bulk.endLevel}</div>` : ''}
+            <div style="font-size:9.5px; color:#cbd5e1; margin-top:2px;">
+              ${cat.stationHint}
             </div>
           </div>
-          <div class="skill-bar-wrap" style="margin:7px 0 6px; height:7px; background:#050811; border:1px solid #1e293b; border-radius:2px; overflow:hidden;">
-            <div class="skill-bar-fill" style="width:${training.pct}%; height:100%; background:${training.color};"></div>
-          </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-            <span style="font-size:9px; color:#94a3b8;">
-              ${training.level >= 99 ? 'Mastery reached — the skillcape is awarded automatically.' : `${(training.nextXp - training.xp).toLocaleString()} XP to next level`}
-            </span>
-            <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
-              <button class="util-btn"
-                      style="font-size:9.5px; padding:5px 12px; border-color:${gold >= training.cost ? training.color : '#475569'}; color:${gold >= training.cost ? '#f8fafc' : '#64748b'}; background:${gold >= training.cost ? '#0f172a' : '#0b1120'}; font-weight:800;"
-                      ${gold < training.cost ? 'disabled' : ''}
-                      onclick="window.trainArtisanProfession('${cat.id}', 1)">
-                🛠️ TRAIN — ${coinGlyph} ${training.cost}
-              </button>
-              ${training.bulk ? `
-                <button class="util-btn"
-                        style="font-size:9.5px; padding:5px 12px; border-color:${gold >= training.bulk.cost ? '#facc15' : '#475569'}; color:${gold >= training.bulk.cost ? '#fde047' : '#64748b'}; background:${gold >= training.bulk.cost ? '#1e1b4b' : '#0b1120'}; font-weight:800;"
-                        ${gold < training.bulk.cost ? 'disabled' : ''}
-                        onclick="window.trainArtisanProfession('${cat.id}', ${training.bulk.count})">
-                  ⏩ TRAIN ×${training.bulk.count} — ${coinGlyph} ${training.bulk.cost}
-                </button>
-              ` : ''}
-            </div>
-          </div>
+          <button class="util-btn"
+                  style="font-size:9.5px; padding:6px 12px; border-color:${cat.badgeColor}; color:#fff; background:#1e293b; font-weight:800;"
+                  onclick="document.getElementById('merchant-modal').style.display='none'; if (window.openCraftingModal) window.openCraftingModal('${cat.stationId}');">
+            🔨 USE NEARBY STATION
+          </button>
         </div>
       ` : ''}
 
@@ -347,22 +328,14 @@ export function buyMerchantItem(merchantId, itemId, qty = 1) {
     window.logMessage(`🛒 Purchased ${qty}x ${item.name} from ${cat.name} for ${totalCost} Solar Gold.`, 'log-gain', 'combat');
   }
 
-  // Award respective artisan profession XP & update quest inspection flags
-  if (typeof window !== 'undefined') {
-    if (window.questState) {
-      if (cat.id === 'merchant_smith') window.questState.smithInspected = true;
-      if (cat.id === 'merchant_apothecary') window.questState.apothecaryInspected = true;
-      if (cat.id === 'merchant_provisions') window.questState.provisionsInspected = true;
-      if (cat.id === 'merchant_relics') window.questState.relicsInspected = true;
-      if (typeof window.saveQuestState === 'function') window.saveQuestState();
-      if (typeof window.updateQuestTrackerHUD === 'function') window.updateQuestTrackerHUD();
-    }
-    if (typeof window.awardProfessionXP === 'function') {
-      if (cat.id === 'merchant_smith') window.awardProfessionXP('relic_forging', 35, 'Smithing Craft', true);
-      if (cat.id === 'merchant_apothecary') window.awardProfessionXP('rite_binding', 35, 'Alchemy & Draught Craft', true);
-      if (cat.id === 'merchant_provisions') window.awardProfessionXP('glimmerweaving', 35, 'Provisions & Weaving', true);
-      if (cat.id === 'merchant_relics') window.awardProfessionXP('resonance_extraction', 35, 'Relic Resonance', true);
-    }
+  // Update quest inspection flags when browsing/purchasing starter supplies
+  if (typeof window !== 'undefined' && window.questState) {
+    if (cat.id === 'merchant_smith') window.questState.smithInspected = true;
+    if (cat.id === 'merchant_apothecary') window.questState.apothecaryInspected = true;
+    if (cat.id === 'merchant_provisions') window.questState.provisionsInspected = true;
+    if (cat.id === 'merchant_relics') window.questState.relicsInspected = true;
+    if (typeof window.saveQuestState === 'function') window.saveQuestState();
+    if (typeof window.updateQuestTrackerHUD === 'function') window.updateQuestTrackerHUD();
   }
 
   // Update UI

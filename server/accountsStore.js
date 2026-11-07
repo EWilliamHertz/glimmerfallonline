@@ -91,6 +91,9 @@ export const VALID_EQUIP_SLOTS = [
   'hands',
   'feet',
   'ring',
+  'socket_head',
+  'socket_body',
+  'socket_weapon',
 ];
 
 export function normalizeEquipment(rawEquip, classId) {
@@ -108,7 +111,8 @@ export function normalizeEquipment(rawEquip, classId) {
         const matches =
           itemSlot === slot ||
           (slot === 'body' && itemSlot === 'armor') ||
-          (slot === 'shield' && itemSlot === 'offhand');
+          (slot === 'shield' && itemSlot === 'offhand') ||
+          (slot.startsWith('socket_') && itemSlot === 'socket_gem');
         if (matches) {
           out[slot] = candidate;
         }
@@ -1140,7 +1144,7 @@ export class AccountsStore {
     return { success: true, item: itemDef, remainingGold: availableGold - totalCost };
   }
 
-  equipFromInventory(accountId, slotIndex) {
+  equipFromInventory(accountId, slotIndex, preferredSocket = null) {
     const acc = this.accountsById.get(accountId);
     if (!acc || !acc.inventory) return { success: false, reason: 'Account or inventory missing' };
     if (slotIndex < 0 || slotIndex >= acc.inventory.length) return { success: false, reason: 'Invalid slot' };
@@ -1149,9 +1153,23 @@ export class AccountsStore {
     const itemDef = EQUIPMENT_CATALOG[invItem.id];
     if (!itemDef) return { success: false, reason: 'Invalid item data' };
 
-    const targetSlot = itemDef.slot === 'armor' ? 'body' : itemDef.slot === 'offhand' ? 'shield' : itemDef.slot;
     const currentEquip = { ...(acc.equipment || {}) };
+    let targetSlot = itemDef.slot === 'armor' ? 'body' : itemDef.slot === 'offhand' ? 'shield' : itemDef.slot;
+    if (itemDef.slot === 'socket_gem') {
+      const socketCandidates = ['socket_weapon', 'socket_body', 'socket_head'];
+      if (preferredSocket && socketCandidates.includes(preferredSocket)) {
+        targetSlot = preferredSocket;
+      } else {
+        targetSlot = socketCandidates.find((sk) => !currentEquip[sk]) || 'socket_weapon';
+      }
+    }
+    if (!VALID_EQUIP_SLOTS.includes(targetSlot)) {
+      return { success: false, reason: 'Item cannot be equipped' };
+    }
     const oldEquippedId = currentEquip[targetSlot] || (targetSlot === 'body' ? currentEquip.armor : targetSlot === 'shield' ? currentEquip.offhand : null);
+    if (oldEquippedId === invItem.id) {
+      return { success: false, reason: 'Already equipped in that slot' };
+    }
 
     currentEquip[targetSlot] = invItem.id;
     if (targetSlot === 'body') currentEquip.armor = invItem.id;

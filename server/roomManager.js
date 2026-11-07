@@ -54,6 +54,18 @@ import {
   PROFESSION_MASTERY_CAPES,
   getProfessionLevelFromXp,
   getTotalProfessionLevel,
+  MYTHIC_DUNGEONS,
+  MYTHIC_AFFIXES,
+  MYTHIC_KEYSTONE_MAX_TIER,
+  getMythicRunDuration,
+  getMythicEnemyScale,
+  getMythicXpScale,
+  getMythicAffixesForTier,
+  CRAFTING_STATIONS,
+  CRAFTING_RECIPES,
+  SKILLING_NODE_TYPES,
+  ELITE_AFFIXES,
+  BOUNTY_CONTRACTS,
 } from '../shared/protocol.js';
 
 const SIEGE_INTERVAL_MS = 30 * 60 * 1000; // Every 30 minutes per roadmap spec
@@ -84,6 +96,8 @@ export class RoomManager {
     this.getOrCreatePublicRoom(ROOM_TYPES.UMBRI_SHADOW_LABYRINTH);
     this.getOrCreatePublicRoom(ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY);
     this.getOrCreatePublicRoom(ROOM_TYPES.AETHER_FRACTURED_ARCHIVE);
+    this.getOrCreatePublicRoom(ROOM_TYPES.STARFALL_CRATER);
+    this.getOrCreatePublicRoom(ROOM_TYPES.ABYSSAL_RIFT);
     this.getOrCreatePublicRoom(ROOM_TYPES.CELESTIAL_ASCENT);
 
     this.tickInterval = setInterval(() => this.tickAllRooms(), TICK_MS);
@@ -138,6 +152,7 @@ export class RoomManager {
       fxQueue: [],
       createdAt: Date.now(),
       matchEnded: false,
+      mythic: null,
       siege: roomType === ROOM_TYPES.NEXUS_WARZONE
         ? {
             active: false,
@@ -150,6 +165,8 @@ export class RoomManager {
 
     this.populateRoomEntities(room);
     this.populateGrandGlimmerFont(room);
+    this.populateWorldSkillingNodes(room);
+    this.applyEliteChampionsToRoom(room);
     if (room.type === ROOM_TYPES.NEXUS_WARZONE) {
       // Spawn opening Shattered Nexus Shard Siege so Warzone is immediately alive,
       // then follow the recurring 30-minute wall-clock siege schedule!
@@ -279,6 +296,25 @@ export class RoomManager {
           maxHp: 120,
           xpReward: 65,
           radius: 15,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          // The strongest training dummy: a 25,000 HP damage-test post that never feeds progression.
+          id: 'dummy_titan',
+          name: 'Titan Training Dummy',
+          sub: 'Lv.50 Endless Damage Trial (No XP)',
+          type: 'dummy',
+          spriteKey: 'dummy',
+          x: 160,
+          y: 200,
+          origX: 160,
+          origY: 200,
+          hp: 25000,
+          maxHp: 25000,
+          xpReward: 0,
+          noHitXp: true,
+          radius: 20,
           hitFlash: 0,
           dammers: new Set(),
         }
@@ -555,7 +591,9 @@ export class RoomManager {
       room.type === ROOM_TYPES.UMBRI_SHADOW_LABYRINTH ||
       room.type === ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY ||
       room.type === ROOM_TYPES.AETHER_FRACTURED_ARCHIVE ||
-      room.type === ROOM_TYPES.CELESTIAL_ASCENT
+      room.type === ROOM_TYPES.CELESTIAL_ASCENT ||
+      room.type === ROOM_TYPES.STARFALL_CRATER ||
+      room.type === ROOM_TYPES.ABYSSAL_RIFT
     ) {
       this.populateSubZoneDungeon(room);
     } else if (room.type === ROOM_TYPES.ARENA_3V3) {
@@ -1562,6 +1600,388 @@ export class RoomManager {
           dammers: new Set(),
         }
       );
+    } else if (room.type === ROOM_TYPES.STARFALL_CRATER) {
+      room.entities.push(
+        {
+          id: 'sf_mob_1',
+          name: 'Starforged Automaton',
+          sub: 'Lv.22 Astral Construct',
+          type: 'mob',
+          spriteKey: 'starforgedAutomaton',
+          x: -135,
+          y: 55,
+          origX: -135,
+          origY: 55,
+          hp: 190,
+          maxHp: 190,
+          damage: 13,
+          xpReward: 220,
+          speed: 50,
+          aggroRange: 120,
+          attackRange: 30,
+          radius: 16,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          id: 'sf_mob_2',
+          name: 'Starforged Automaton',
+          sub: 'Lv.22 Astral Construct',
+          type: 'mob',
+          spriteKey: 'starforgedAutomaton',
+          x: 135,
+          y: 55,
+          origX: 135,
+          origY: 55,
+          hp: 190,
+          maxHp: 190,
+          damage: 13,
+          xpReward: 220,
+          speed: 50,
+          aggroRange: 120,
+          attackRange: 30,
+          radius: 16,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          id: 'sf_mob_3',
+          name: 'Molten Meteor Elemental',
+          sub: 'Lv.25 Crater Elemental',
+          type: 'mob',
+          spriteKey: 'meteorElemental',
+          x: -155,
+          y: -95,
+          origX: -155,
+          origY: -95,
+          hp: 230,
+          maxHp: 230,
+          damage: 15,
+          xpReward: 265,
+          speed: 54,
+          aggroRange: 125,
+          attackRange: 30,
+          radius: 16,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          id: 'sf_mob_4',
+          name: 'Molten Meteor Elemental',
+          sub: 'Lv.25 Crater Elemental',
+          type: 'mob',
+          spriteKey: 'meteorElemental',
+          x: 155,
+          y: -95,
+          origX: 155,
+          origY: -95,
+          hp: 230,
+          maxHp: 230,
+          damage: 15,
+          xpReward: 265,
+          speed: 54,
+          aggroRange: 125,
+          attackRange: 30,
+          radius: 16,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          id: 'sf_node_1',
+          name: 'Starfall Impact Conduit',
+          sub: 'Astral Glimmer Spire [E]',
+          type: 'node',
+          spriteKey: 'node',
+          x: 0,
+          y: -40,
+          charges: 5,
+          maxCharges: 5,
+          rechargeTimer: 0,
+          radius: 16,
+          hitFlash: 0,
+        },
+        {
+          id: 'sf_boss',
+          name: 'Ignis-Core the Starfall Colossus',
+          sub: '★ Lv.28 Molten Starmetal Boss',
+          type: 'mob',
+          isBoss: true,
+          dropGear: 'starmetal_meteor_hammer',
+          spriteKey: 'starfallBoss',
+          x: 0,
+          y: -260,
+          origX: 0,
+          origY: -260,
+          hp: 980,
+          maxHp: 980,
+          damage: 24,
+          xpReward: 950,
+          speed: 42,
+          aggroRange: 150,
+          attackRange: 38,
+          radius: 24,
+          hitFlash: 0,
+          dammers: new Set(),
+        }
+      );
+    } else if (room.type === ROOM_TYPES.ABYSSAL_RIFT) {
+      room.entities.push(
+        {
+          id: 'aby_mob_1',
+          name: 'Gloam-Silk Widow',
+          sub: 'Lv.34 Rift Arachnid',
+          type: 'mob',
+          spriteKey: 'gloamWidow',
+          x: -150,
+          y: 80,
+          origX: -150,
+          origY: 80,
+          hp: 340,
+          maxHp: 340,
+          damage: 20,
+          xpReward: 390,
+          speed: 58,
+          aggroRange: 128,
+          attackRange: 30,
+          radius: 16,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          id: 'aby_mob_2',
+          name: 'Gloam-Silk Widow',
+          sub: 'Lv.34 Rift Arachnid',
+          type: 'mob',
+          spriteKey: 'gloamWidow',
+          x: 150,
+          y: 80,
+          origX: 150,
+          origY: 80,
+          hp: 340,
+          maxHp: 340,
+          damage: 20,
+          xpReward: 390,
+          speed: 58,
+          aggroRange: 128,
+          attackRange: 30,
+          radius: 16,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          id: 'aby_mob_3',
+          name: 'Paradox Sentinel',
+          sub: 'Lv.37 Singularity Guard',
+          type: 'mob',
+          spriteKey: 'paradoxSentinel',
+          x: -165,
+          y: -90,
+          origX: -165,
+          origY: -90,
+          hp: 430,
+          maxHp: 430,
+          damage: 24,
+          xpReward: 460,
+          speed: 52,
+          aggroRange: 132,
+          attackRange: 32,
+          radius: 17,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          id: 'aby_mob_4',
+          name: 'Paradox Sentinel',
+          sub: 'Lv.37 Singularity Guard',
+          type: 'mob',
+          spriteKey: 'paradoxSentinel',
+          x: 165,
+          y: -90,
+          origX: 165,
+          origY: -90,
+          hp: 430,
+          maxHp: 430,
+          damage: 24,
+          xpReward: 460,
+          speed: 52,
+          aggroRange: 132,
+          attackRange: 32,
+          radius: 17,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          id: 'aby_mob_5',
+          name: 'Voidborne Harbinger',
+          sub: 'Lv.39 Architect Vanguard',
+          type: 'mob',
+          spriteKey: 'mobUmbri',
+          x: 0,
+          y: -155,
+          origX: 0,
+          origY: -155,
+          hp: 480,
+          maxHp: 480,
+          damage: 26,
+          xpReward: 520,
+          speed: 54,
+          aggroRange: 135,
+          attackRange: 32,
+          radius: 18,
+          hitFlash: 0,
+          dammers: new Set(),
+        },
+        {
+          id: 'aby_node_1',
+          name: 'Abyssal Singularity Font',
+          sub: 'Voidstar Glimmer Spire [E]',
+          type: 'node',
+          spriteKey: 'node',
+          x: 0,
+          y: -30,
+          charges: 6,
+          maxCharges: 6,
+          rechargeTimer: 0,
+          radius: 18,
+          hitFlash: 0,
+        },
+        {
+          id: 'aby_boss',
+          name: 'Xal\'Korath the Void Architect',
+          sub: '★ Lv.42 Sovereign of the Rift',
+          type: 'mob',
+          isBoss: true,
+          dropGear: 'abyssal_voidstar_scythe',
+          spriteKey: 'abyssalArchitectBoss',
+          x: 0,
+          y: -340,
+          origX: 0,
+          origY: -340,
+          hp: 3800,
+          maxHp: 3800,
+          damage: 38,
+          xpReward: 2200,
+          speed: 45,
+          aggroRange: 175,
+          attackRange: 42,
+          radius: 28,
+          hitFlash: 0,
+          dammers: new Set(),
+        }
+      );
+    }
+  }
+
+  populateWorldSkillingNodes(room) {
+    if (!room || room.type === ROOM_TYPES.ARENA_3V3) return;
+    if (room.entities.some((e) => e.skillingType)) return;
+    const layouts = {
+      [ROOM_TYPES.SANCTUARY_HUB]: [
+        ['copper_tin_vein', -245, 195],
+        ['copper_tin_vein', 245, 195],
+        ['herb_cluster_low', -195, 255],
+        ['fiber_bloom_low', 195, 255],
+      ],
+      [ROOM_TYPES.SOLARI_CITADEL]: [
+        ['copper_tin_vein', -175, 115],
+        ['iron_coal_vein', 165, 65],
+        ['herb_cluster_low', 145, -95],
+      ],
+      [ROOM_TYPES.UMBRI_UNDERCITY]: [
+        ['iron_coal_vein', -165, 85],
+        ['herb_cluster_low', 155, 95],
+        ['fiber_bloom_low', 145, -85],
+      ],
+      [ROOM_TYPES.TERRA_ORCHARD]: [
+        ['herb_cluster_low', -155, 95],
+        ['herb_cluster_low', 155, 95],
+        ['fiber_bloom_low', -145, -85],
+        ['copper_tin_vein', 145, -85],
+      ],
+      [ROOM_TYPES.AETHER_SPIRE]: [
+        ['iron_coal_vein', -160, 95],
+        ['mithril_vein', 160, -75],
+        ['fiber_bloom_low', 150, 95],
+      ],
+      [ROOM_TYPES.NEXUS_FORGOTTEN_RUINS]: [
+        ['iron_coal_vein', -195, 95],
+        ['mithril_vein', 195, -95],
+        ['herb_cluster_high', -185, -135],
+        ['fiber_bloom_high', 185, 115],
+      ],
+      [ROOM_TYPES.STARFALL_CRATER]: [
+        ['mithril_vein', -235, 120],
+        ['mithril_vein', 235, 120],
+        ['starmetal_vein', -255, -140],
+        ['starmetal_vein', 255, -140],
+        ['herb_cluster_high', 0, 110],
+      ],
+      [ROOM_TYPES.NEXUS_WARZONE]: [
+        ['iron_coal_vein', -320, 1280],
+        ['iron_coal_vein', 320, 1280],
+        ['mithril_vein', -620, 360],
+        ['mithril_vein', 620, 360],
+        ['starmetal_vein', -380, -1080],
+        ['starmetal_vein', 380, -1080],
+        ['herb_cluster_high', -760, -440],
+        ['fiber_bloom_high', 760, -440],
+      ],
+      [ROOM_TYPES.ABYSSAL_RIFT]: [
+        ['starmetal_vein', -270, 55],
+        ['starmetal_vein', 270, -115],
+        ['herb_cluster_high', -245, -175],
+        ['fiber_bloom_high', 245, 115],
+        ['fiber_bloom_high', -180, 205],
+      ],
+      [ROOM_TYPES.CELESTIAL_ASCENT]: [
+        ['starmetal_vein', -185, 340],
+        ['starmetal_vein', 185, -180],
+        ['herb_cluster_high', 185, 340],
+        ['fiber_bloom_high', -185, -180],
+      ],
+    };
+    const entries = layouts[room.type] || [];
+    entries.forEach(([skKey, x, y], idx) => {
+      const spec = SKILLING_NODE_TYPES[skKey];
+      if (!spec) return;
+      room.entities.push({
+        id: `sknode_${room.type}_${idx + 1}`,
+        name: spec.name,
+        sub: `${spec.sub || 'Cosmic Skilling Vein [E]'} • Req Lv.${spec.reqLevel}`,
+        type: 'node',
+        skillingType: skKey,
+        spriteKey: spec.spriteReady,
+        x,
+        y,
+        charges: spec.charges || 3,
+        maxCharges: spec.charges || 3,
+        rechargeTimer: 0,
+        radius: 16,
+        hitFlash: 0,
+      });
+    });
+  }
+
+  applyEliteChampionsToRoom(room) {
+    if (!room || room.type === ROOM_TYPES.SANCTUARY_HUB || room.type === ROOM_TYPES.ARENA_3V3) return;
+    const affixKeys = Object.keys(ELITE_AFFIXES);
+    if (!affixKeys.length) return;
+    const candidates = room.entities.filter((e) => e.type === 'mob' && !e.isBoss);
+    if (!candidates.length) return;
+    const maxElites = (room.type === ROOM_TYPES.NEXUS_WARZONE || room.type === ROOM_TYPES.ABYSSAL_RIFT || room.type === ROOM_TYPES.STARFALL_CRATER) ? 2 : 1;
+    for (let i = 0; i < Math.min(maxElites, candidates.length); i++) {
+      const mob = candidates[candidates.length - 1 - i];
+      if (!mob || mob.eliteAffix) continue;
+      const afKey = affixKeys[(i + room.type.length) % affixKeys.length];
+      const af = ELITE_AFFIXES[afKey];
+      if (!af) continue;
+      mob.eliteAffix = afKey;
+      mob.name = `${af.label || 'Elite'} ${mob.name}`;
+      mob.sub = `★ ELITE CHAMPION • ${mob.sub}`;
+      mob.maxHp = Math.round(mob.maxHp * af.hpMult);
+      mob.hp = mob.maxHp;
+      mob.damage = Math.max(2, Math.round((mob.damage || 4) * af.dmgMult));
+      mob.xpReward = Math.round((mob.xpReward || 65) * af.xpMult);
     }
   }
 
@@ -2243,14 +2663,19 @@ export class RoomManager {
         if (room) this.handleHarvestNode(room, client, msg.nodeId);
         break;
 
-      case 'train_artisan_profession':
-        this.handleTrainArtisanProfession(client, msg.merchantId, msg.count);
+      case 'craft_recipe':
+        this.handleCraftRecipe(room, client, String(msg.recipeId || '').trim());
+        break;
+
+      case 'claim_bounty':
+        this.handleClaimBounty(room, client, String(msg.bountyId || '').trim());
         break;
 
       case 'equip_item': {
         let item = null;
+        const preferredSocket = msg.preferredSocket ? String(msg.preferredSocket).trim() : null;
         if (msg.slotIndex !== undefined) {
-          const res = this.accounts.equipFromInventory(client.id, Number(msg.slotIndex));
+          const res = this.accounts.equipFromInventory(client.id, Number(msg.slotIndex), preferredSocket);
           if (res.success) {
             item = res.item;
             this.refreshClientFromAccount(client.id);
@@ -2261,7 +2686,7 @@ export class RoomManager {
             const inv = client.inventory || [];
             const idx = inv.findIndex((it) => (typeof it === 'string' ? it : it?.id) === item.id);
             if (idx !== -1) {
-              this.accounts.equipFromInventory(client.id, idx);
+              this.accounts.equipFromInventory(client.id, idx, preferredSocket);
             } else {
               const targetSlot = item.slot === 'armor' ? 'body' : item.slot === 'offhand' ? 'shield' : item.slot;
               const nextEquip = { ...(client.equipment || {}), [targetSlot]: item.id };
@@ -2309,6 +2734,10 @@ export class RoomManager {
         }
         break;
       }
+
+      case 'use_keystone':
+        if (room) this.handleUseKeystone(room, client, String(msg.itemId || '').trim());
+        break;
 
       case 'drop_inventory_item': {
         const slotIdx = Number(msg.slotIndex);
@@ -2381,7 +2810,8 @@ export class RoomManager {
         if (msg.questState && typeof msg.questState === 'object') {
           this.accounts.saveQuestState(client.id, msg.questState);
           client.questState = msg.questState;
-          this.refreshClientFromAccount(client.id);
+          // Do NOT echo refreshClientFromAccount(client.id) here — echoing profile_updated
+          // on every quest state save triggers an infinite client<->server profile loop!
         }
         break;
       }
@@ -3487,7 +3917,7 @@ export class RoomManager {
       return;
     }
 
-    // 2. Otherwise harvest Glimmer Node
+    // 2. Otherwise harvest World Skilling Vein / Herb / Fiber or Glimmer Node
     let node = nodeId ? room.entities.find((e) => e.id === nodeId && e.type === 'node') : null;
     if (!node) {
       node = room.entities.find((e) => e.type === 'node' && Math.hypot(e.x - player.x, e.y - player.y) <= 7.2 * YARD_PX);
@@ -3495,9 +3925,77 @@ export class RoomManager {
     if (!node || Math.hypot(node.x - player.x, node.y - player.y) > 7.5 * YARD_PX) return;
     if (node.charges <= 0) return;
 
-    const isGrand = Boolean(node.isGrand);
     const now = Date.now();
     if (now < (player.harvestReadyAt || 0)) return;
+
+    // 2A. Authoritative World Skilling Vein / Herb Cluster / Silk Bloom
+    if (node.skillingType && SKILLING_NODE_TYPES[node.skillingType]) {
+      const skSpec = SKILLING_NODE_TYPES[node.skillingType];
+      const profXpCur = Number(player.prog?.professions?.[skSpec.profession]?.xp) || 0;
+      const profLvl = getProfessionLevelFromXp(profXpCur);
+      if (profLvl < (skSpec.reqLevel || 1)) {
+        const profName = PROFESSIONS_CATALOG[skSpec.profession]?.name || skSpec.profession;
+        player.send({
+          type: 'sys_msg',
+          category: 'combat',
+          text: `🔒 Requires Lv.${skSpec.reqLevel} ${profName} to harvest ${skSpec.name} (Current: Lv.${profLvl})!`,
+        });
+        return;
+      }
+      player.harvestReadyAt = now + 450;
+      node.charges--;
+      if (node.charges === 0) node.rechargeTimer = skSpec.respawnSec || 12.0;
+
+      const yields = skSpec.yields || [];
+      const totalChance = yields.reduce((sum, y) => sum + (y.chance || 1), 0) || 1;
+      let roll = Math.random() * totalChance;
+      let chosen = yields[0] || { id: 'sun_copper_ore', qty: 1 };
+      for (const y of yields) {
+        roll -= (y.chance || 1);
+        if (roll <= 0) {
+          chosen = y;
+          break;
+        }
+      }
+      const chosenId = chosen.id || 'sun_copper_ore';
+      const qty = chosen.qty || 1;
+
+      this.addPlayerGlimmer(room, player, skSpec.glimmer || 12);
+      const added = this.accounts.addItemToInventory(player.id, chosenId, qty);
+      const itemDef = EQUIPMENT_CATALOG[chosenId];
+
+      room.fxQueue.push({
+        kind: 'spark',
+        x: node.x,
+        y: node.y - 10,
+        colors: skSpec.sparkColors || ['#fde047', '#38bdf8', '#ffffff'],
+      });
+      room.fxQueue.push({
+        kind: 'fct',
+        x: node.x,
+        y: node.y - 6,
+        text: added ? `+${qty}x ${itemDef?.name || chosenId}` : 'BACKPACK FULL (28/28)',
+        color: added ? ((skSpec.sparkColors && skSpec.sparkColors[0]) || '#fde047') : '#ef4444',
+        isCrit: added,
+      });
+
+      this.awardPlayerXP(player, 4, skSpec.name);
+      this.awardProfessionXP(player, skSpec.profession, skSpec.xp || 25, skSpec.name);
+      if (skSpec.secondaryProfession) {
+        this.awardProfessionXP(player, skSpec.secondaryProfession, Math.max(8, Math.round((skSpec.xp || 25) * 0.35)), skSpec.name);
+      }
+
+      player.questState = player.questState || {};
+      player.questState.extractionNodesHarvested = (player.questState.extractionNodesHarvested || 0) + 1;
+      if (room.type === ROOM_TYPES.STARFALL_CRATER && (node.skillingType === 'mithril_vein' || node.skillingType === 'starmetal_vein')) {
+        player.questState.starfallVeins = (player.questState.starfallVeins || 0) + 1;
+      }
+      this.accounts.saveQuestState(player.id, player.questState);
+      this.refreshClientFromAccount(player.id);
+      return;
+    }
+
+    const isGrand = Boolean(node.isGrand);
     player.harvestReadyAt = now + (isGrand ? HARVEST_COOLDOWN_MS.grand : HARVEST_COOLDOWN_MS.normal);
 
     node.charges--;
@@ -3512,6 +4010,13 @@ export class RoomManager {
     this.awardPlayerXP(player, isGrand ? 7 : 3, isGrand ? 'Grand Glimmer Font' : 'Glimmer Node');
     this.awardProfessionXP(player, 'resonance_extraction', isGrand ? 100 : 25, isGrand ? 'Grand Glimmer Font Channeling' : 'Glimmer Node Channeling');
 
+    if (isGrand || Math.random() < 0.45) {
+      const bonusMat = Math.random() < 0.5 ? 'glimmer_shard' : 'astral_mineral_dust';
+      if (this.accounts.addItemToInventory(player.id, bonusMat, 1)) {
+        this.refreshClientFromAccount(player.id);
+      }
+    }
+
     player.questState = player.questState || {};
     player.questState.extractionNodesHarvested = (player.questState.extractionNodesHarvested || 0) + 1;
     if (room.type === ROOM_TYPES.AETHER_SPIRE || node.id === 'aeth_node_1') {
@@ -3520,52 +4025,147 @@ export class RoomManager {
     this.accounts.saveQuestState(player.id, player.questState);
   }
 
-  handleTrainArtisanProfession(player, merchantId, count = 1) {
-    if (!player || !player.prog) return;
-    const training = {
-      merchant_smith: { professionId: 'relic_forging', baseCost: 8, baseXp: 35 },
-      merchant_apothecary: { professionId: 'rite_binding', baseCost: 8, baseXp: 35 },
-      merchant_provisions: { professionId: 'glimmerweaving', baseCost: 8, baseXp: 35 },
-      merchant_relics: { professionId: 'resonance_extraction', baseCost: 8, baseXp: 35 },
-    }[merchantId];
-    if (!training) return;
+  handleCraftRecipe(room, player, recipeId) {
+    if (!player || !player.prog || !recipeId) return;
+    const recipe = CRAFTING_RECIPES.find((r) => r.id === recipeId);
+    if (!recipe) return;
+    const outItem = EQUIPMENT_CATALOG[recipe.outputId];
+    if (!outItem) return;
 
-    const sessions = Math.max(1, Math.min(25, Math.floor(Number(count) || 1)));
-    const profession = player.prog.professions?.[training.professionId];
-    let xp = Math.max(0, Math.floor(Number(profession?.xp) || 0));
-    let cost = 0;
-    let gain = 0;
-    for (let i = 0; i < sessions; i++) {
-      const level = getProfessionLevelFromXp(xp);
-      cost += training.baseCost + Math.floor(level * 1.5);
-      const stepGain = training.baseXp + level * 2;
-      gain += stepGain;
-      xp += stepGain;
-    }
+    const acc = this.accounts.accountsById.get(player.id);
+    if (!acc) return;
+    this.accounts.ensureDefaultCharacter(acc);
+    if (!Array.isArray(acc.inventory)) acc.inventory = [];
 
-    const payment = this.accounts.spendGold(player.id, cost);
-    if (!payment.success) {
+    const profXp = Math.max(0, Math.floor(Number(player.prog?.professions?.[recipe.profession]?.xp) || 0));
+    const profLvl = getProfessionLevelFromXp(profXp);
+    if (profLvl < (recipe.reqLevel || 1)) {
+      const pName = PROFESSIONS_CATALOG[recipe.profession]?.name || recipe.profession;
       player.send({
         type: 'sys_msg',
-        category: 'chat',
-        text: `[Artisan Training] You need ${cost} Solar Gold for ${sessions} training session${sessions === 1 ? '' : 's'} with this artisan.`,
+        category: 'combat',
+        text: `🔒 Requires Lv.${recipe.reqLevel} ${pName} to craft ${outItem.name}!`,
       });
       return;
     }
 
+    // Verify all ingredients exist in acc.inventory
+    let freedSlots = 0;
+    for (const ing of recipe.ingredients) {
+      let have = 0;
+      for (const slot of acc.inventory) {
+        const id = typeof slot === 'string' ? slot : slot?.id;
+        if (id === ing.id) have += typeof slot === 'object' && slot.qty ? slot.qty : 1;
+      }
+      if (have < ing.qty) {
+        player.send({
+          type: 'sys_msg',
+          category: 'combat',
+          text: `[Artisan Station] Missing ${EQUIPMENT_CATALOG[ing.id]?.name || ing.id} (${have}/${ing.qty}).`,
+        });
+        return;
+      }
+      if (have === ing.qty) freedSlots++;
+    }
+
+    const outQty = recipe.outputQty || 1;
+    const existingOut = outItem.stackable
+      ? acc.inventory.find((s) => (typeof s === 'string' ? s : s?.id) === recipe.outputId)
+      : null;
+    const neededSlots = existingOut ? 0 : (outItem.stackable ? 1 : outQty);
+    if (acc.inventory.length - freedSlots + neededSlots > 28) {
+      player.send({
+        type: 'sys_msg',
+        category: 'combat',
+        text: '🎒 Backpack is full (28/28)! Clear space before crafting.',
+      });
+      return;
+    }
+
+    // Deduct ingredients
+    for (const ing of recipe.ingredients) {
+      let rem = ing.qty;
+      for (let i = acc.inventory.length - 1; i >= 0 && rem > 0; i--) {
+        const slot = acc.inventory[i];
+        const id = typeof slot === 'string' ? slot : slot?.id;
+        if (id !== ing.id) continue;
+        const curQty = typeof slot === 'object' && slot.qty ? slot.qty : 1;
+        if (curQty > rem) {
+          if (typeof slot === 'string') acc.inventory[i] = { id, qty: curQty - rem };
+          else slot.qty = curQty - rem;
+          rem = 0;
+        } else {
+          rem -= curQty;
+          acc.inventory.splice(i, 1);
+        }
+      }
+    }
+
+    // Grant crafted output
+    if (outItem.stackable) {
+      const existing = acc.inventory.find((s) => (typeof s === 'string' ? s : s?.id) === recipe.outputId);
+      if (existing) {
+        if (typeof existing === 'string') {
+          const idx = acc.inventory.indexOf(existing);
+          acc.inventory[idx] = { id: recipe.outputId, qty: 1 + outQty };
+        } else {
+          existing.qty = (existing.qty || 1) + outQty;
+        }
+      } else {
+        acc.inventory.push({ id: recipe.outputId, qty: outQty });
+      }
+    } else {
+      for (let k = 0; k < outQty && acc.inventory.length < 28; k++) {
+        acc.inventory.push({ id: recipe.outputId, qty: 1 });
+      }
+    }
+
+    const ch = this.accounts.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+    if (ch) ch.inventory = acc.inventory;
+    this.accounts.schedulePersist(acc.id, ch?.id);
+
     player.questState = player.questState || {};
-    if (merchantId === 'merchant_smith') player.questState.smithInspected = true;
-    if (merchantId === 'merchant_apothecary') player.questState.apothecaryInspected = true;
-    if (merchantId === 'merchant_provisions') player.questState.provisionsInspected = true;
-    if (merchantId === 'merchant_relics') player.questState.relicsInspected = true;
+    player.questState.craftsCompleted = (player.questState.craftsCompleted || 0) + 1;
+    if (recipe.station === 'cosmic_anvil') player.questState.smithInspected = true;
+    if (recipe.station === 'aether_crucible') player.questState.apothecaryInspected = true;
+    if (recipe.station === 'celestial_loom') player.questState.provisionsInspected = true;
     this.accounts.saveQuestState(player.id, player.questState);
 
-    this.awardProfessionXP(player, training.professionId, gain, sessions > 1 ? `${sessions} training sessions` : '');
+    this.awardProfessionXP(player, recipe.profession, recipe.xp || 30, outItem.name);
     this.refreshClientFromAccount(player.id);
 
-    const room = this.rooms.get(player.roomId);
     if (room) {
-      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 20, text: `-${cost} SOLAR GOLD`, color: '#facc15' });
+      const stColor = CRAFTING_STATIONS[recipe.station]?.color || '#fde047';
+      room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 10, colors: [stColor, '#fde047', '#ffffff'], count: 14 });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 20, text: `✦ +${outQty}x ${outItem.name.toUpperCase()}`, color: stColor, isCrit: true });
+    }
+  }
+
+  handleClaimBounty(room, player, bountyId) {
+    if (!player || !player.prog || !bountyId) return;
+    const contract = BOUNTY_CONTRACTS.find((b) => b.id === bountyId);
+    if (!contract) return;
+    const now = Date.now();
+    if (now < (player.nextBountyClaimAt || 0)) return;
+    player.nextBountyClaimAt = now + 1500;
+
+    if (contract.rewardGold > 0) {
+      this.accounts.addItemToInventory(player.id, 'solar_gold', contract.rewardGold);
+    }
+    for (const ri of (contract.rewardItems || [])) {
+      if (ri?.id && EQUIPMENT_CATALOG[ri.id]) {
+        this.accounts.addItemToInventory(player.id, ri.id, ri.qty || 1);
+      }
+    }
+    this.awardPlayerXP(player, contract.rewardXp || 50, `Bounty: ${contract.title}`);
+    if (contract.rewardProf?.id && contract.rewardProf?.xp) {
+      this.awardProfessionXP(player, contract.rewardProf.id, contract.rewardProf.xp, contract.title);
+    }
+    this.refreshClientFromAccount(player.id);
+
+    if (room) {
+      room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 12, colors: ['#fde047', '#4ade80', '#38bdf8'], count: 24 });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 18, text: `🏆 BOUNTY CLAIMED! +${contract.rewardGold} GOLD`, color: '#fde047', isCrit: true });
     }
   }
 
@@ -3679,7 +4279,7 @@ export class RoomManager {
         targetId: t.id,
       });
 
-      if (attackerPlayer && t.type === 'dummy' && t.hp > 0) {
+      if (attackerPlayer && t.type === 'dummy' && t.hp > 0 && !t.noHitXp) {
         this.awardPlayerXP(attackerPlayer, 8, '');
         attackerPlayer.questState = attackerPlayer.questState || {};
         attackerPlayer.questState.combatTrainingHits = (attackerPlayer.questState.combatTrainingHits || 0) + 1;
@@ -3819,8 +4419,17 @@ export class RoomManager {
   }
 
   getFactionBossSetDrop(room, ent) {
+    if (ent?.dropGear && EQUIPMENT_CATALOG[ent.dropGear]) {
+      return ent.dropGear;
+    }
     const rType = String(room?.type || '').toLowerCase();
     const spKey = ent?.spriteKey || '';
+    if (spKey === 'starfallBoss' || rType.includes('starfall')) {
+      return 'starmetal_meteor_hammer';
+    }
+    if (spKey === 'abyssalArchitectBoss' || rType.includes('abyssal')) {
+      return 'abyssal_voidstar_scythe';
+    }
     if (spKey === 'solariBoss' || rType.includes('solari')) {
       return ['sunforged_greathelm', 'sunforged_hauberk', 'sunforged_greaves', 'sunforged_warhammer'][Math.floor(Math.random() * 4)];
     }
@@ -3866,31 +4475,68 @@ export class RoomManager {
     return beginnerPool[Math.floor(Math.random() * beginnerPool.length)];
   }
 
+  getZoneCosmicMaterialDrop(room) {
+    const rType = String(room?.type || '').toLowerCase();
+    let pool = ['sun_copper_ore', 'star_tin_mineral', 'sunbloom_herb', 'starlight_flax', 'astral_mineral_dust'];
+    if (rType.includes('abyssal') || rType.includes('celestial')) {
+      pool = ['celestial_runite_ore', 'empyrean_starleaf', 'celestial_gossamer', 'adamant_terra_ore', 'chrono_lotus'];
+    } else if (rType.includes('starfall') || rType.includes('ruins') || rType.includes('vault') || rType.includes('labyrinth') || rType.includes('grove') || rType.includes('archive')) {
+      pool = ['mithril_astral_ore', 'adamant_terra_ore', 'chrono_lotus', 'shadow_silk', 'umbral_coal', 'astral_mineral_dust'];
+    } else if (rType.includes('solari')) {
+      pool = ['iron_ore', 'sun_copper_ore', 'umbral_coal', 'sunbloom_herb', 'astral_mineral_dust'];
+    } else if (rType.includes('umbri')) {
+      pool = ['iron_ore', 'umbral_coal', 'gloomcap_spore', 'shadow_silk', 'astral_mineral_dust'];
+    } else if (rType.includes('terra')) {
+      pool = ['iron_ore', 'adamant_terra_ore', 'sunbloom_herb', 'gloomcap_spore', 'starlight_flax'];
+    } else if (rType.includes('aether')) {
+      pool = ['mithril_astral_ore', 'chrono_lotus', 'astral_mineral_dust', 'shadow_silk'];
+    } else if (rType.includes('warzone')) {
+      pool = ['sun_copper_ore', 'star_tin_mineral', 'iron_ore', 'umbral_coal', 'sunbloom_herb', 'starlight_flax'];
+    }
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
   spawnLootDrops(room, ent) {
     if (!room.loot) room.loot = [];
     const drops = [];
 
     // Vital / Glimmer recovery orbs (cleaner battlefield with reduced clutter)
-    const count = ent.isBoss ? 2 : Math.random() < 0.20 ? 1 : 0;
+    const count = ent.isBoss ? 2 : ent.eliteAffix ? 1 : Math.random() < 0.20 ? 1 : 0;
     for (let i = 0; i < count; i++) {
       let kind = Math.random() < 0.5 ? 'vital' : 'glimmer';
       if (ent.isBoss && i === 0) kind = 'relic';
       drops.push({ kind, itemId: null, qty: 1 });
     }
 
-    // 1. Stackable Currency: Solar Gold Sovereigns (all mobs drop gold!)
-    const goldQty = ent.isBoss ? (150 + Math.floor(Math.random() * 200)) : (8 + Math.floor(Math.random() * 25));
+    // 1. Stackable Currency: Solar Gold Sovereigns (all mobs drop gold; Elite Champions grant bonus bounty!)
+    const eliteBonusGold = ent.eliteAffix ? 25 + Math.floor(Math.random() * 32) : 0;
+    const goldQty = (ent.isBoss ? (150 + Math.floor(Math.random() * 200)) : (8 + Math.floor(Math.random() * 25))) + eliteBonusGold;
     drops.push({ kind: 'item', itemId: 'solar_gold', qty: goldQty });
 
-    // 2. Faction elemental currency (40% mob chance or 100% boss to reduce ground item spam)
-    if (ent.isBoss || Math.random() < 0.40) {
+    // 2. Faction elemental currency (40% mob chance or 100% boss/elite)
+    if (ent.isBoss || ent.eliteAffix || Math.random() < 0.40) {
       const rType = String(room?.type || '').toLowerCase();
       let factionCurr = 'glimmer_shard';
-      let factionCurrQty = ent.isBoss ? 15 + Math.floor(Math.random() * 20) : 1 + Math.floor(Math.random() * 2);
-      if (rType.includes('aether')) factionCurr = 'chrono_gem';
+      let factionCurrQty = ent.isBoss ? 15 + Math.floor(Math.random() * 20) : ent.eliteAffix ? 3 + Math.floor(Math.random() * 3) : 1 + Math.floor(Math.random() * 2);
+      if (rType.includes('aether') || rType.includes('starfall')) factionCurr = 'chrono_gem';
       else if (rType.includes('terra')) factionCurr = 'verdant_amber';
-      else if (rType.includes('umbri')) factionCurr = 'void_essence';
+      else if (rType.includes('umbri') || rType.includes('abyssal')) factionCurr = 'void_essence';
       drops.push({ kind: 'item', itemId: factionCurr, qty: factionCurrQty });
+    }
+
+    // 2b. Cosmic Artisan Crafting Materials (30% on mobs, 100% on Elites & Bosses)
+    if (ent.isBoss || ent.eliteAffix || Math.random() < 0.30) {
+      const matId = this.getZoneCosmicMaterialDrop(room);
+      const matQty = ent.isBoss ? 2 + Math.floor(Math.random() * 2) : ent.eliteAffix ? 2 : 1;
+      if (matId && EQUIPMENT_CATALOG[matId]) {
+        drops.push({ kind: 'item', itemId: matId, qty: matQty });
+      }
+    }
+
+    // 2c. Elite Champion Bonus: 15% chance at a cut Leyline Socket Gem!
+    if (ent.eliteAffix && Math.random() < 0.15) {
+      const gemPool = ['gem_solar_ruby', 'gem_void_sapphire', 'gem_terra_emerald', 'gem_aether_diamond'];
+      drops.push({ kind: 'item', itemId: gemPool[Math.floor(Math.random() * gemPool.length)], qty: 1 });
     }
 
     // 3. Consumables (healing salves / glimmer draughts - 12% on mobs, 100% on boss)
@@ -3902,9 +4548,13 @@ export class RoomManager {
     // 4. Equipment Drops:
     // Set pieces drop ONLY on faction bosses (15%), non-bosses get beginner gear (6%)
     if (ent.isBoss) {
-      const isRareSet = Math.random() < 0.15;
-      const dropId = isRareSet ? this.getFactionBossSetDrop(room, ent) : this.getBossAccessoryDrop(room, ent);
-      if (dropId) drops.push({ kind: 'item', itemId: dropId, qty: 1 });
+      // Day 2: every Continental boss guarantees a Legendary cache — one faction set piece + one relic.
+      const setPieceId = this.getFactionBossSetDrop(room, ent);
+      const accessoryId = this.getBossAccessoryDrop(room, ent);
+      if (setPieceId) drops.push({ kind: 'item', itemId: setPieceId, qty: 1 });
+      if (accessoryId) drops.push({ kind: 'item', itemId: accessoryId, qty: 1 });
+      const keystoneId = this.getKeystoneDrop(room, ent);
+      if (keystoneId) drops.push({ kind: 'item', itemId: keystoneId, qty: 1 });
     } else {
       if (Math.random() < 0.06) {
         const dropId = this.getBeginnerMobDrop(room);
@@ -4013,12 +4663,283 @@ export class RoomManager {
     }
   }
 
+  // ==========================================
+  // Day 3 — Mythic Leyline Keystone Runs
+  // ==========================================
+  getMythicDungeonForRoom(room) {
+    if (!room) return null;
+    return Object.values(MYTHIC_DUNGEONS).find((d) => d.roomType === room.type) || null;
+  }
+
+  getKeystoneDrop(room, ent) {
+    if (!ent?.isBoss) return null;
+    const cryptDungeon = this.getMythicDungeonForRoom(room);
+    let dungeon = cryptDungeon;
+    let tier;
+    if (cryptDungeon) {
+      // Crypt bosses drop entrance-tier keys so the loop can always restart.
+      tier = 1 + Math.floor(Math.random() * 3);
+    } else {
+      const pool = Object.values(MYTHIC_DUNGEONS);
+      dungeon = pool[Math.floor(Math.random() * pool.length)];
+      const apex = String(room?.type || '').includes('celestial') || String(ent?.name || '').includes('Aurelius');
+      tier = apex ? 6 + Math.floor(Math.random() * 4) : 4 + Math.floor(Math.random() * 4);
+      if (apex && Math.random() < 0.25) tier = MYTHIC_KEYSTONE_MAX_TIER;
+    }
+    tier = Math.max(1, Math.min(MYTHIC_KEYSTONE_MAX_TIER, tier));
+    return `keystone_${dungeon.id}_${tier}`;
+  }
+
+  handleUseKeystone(room, player, itemId) {
+    if (!room || !player) return;
+    const item = EQUIPMENT_CATALOG[itemId];
+    const spec = item?.keystone;
+    if (!spec) return;
+    const dungeon = MYTHIC_DUNGEONS[spec.dungeonId];
+    if (!dungeon) return;
+
+    if (dungeon.roomType !== room.type) {
+      player.send({
+        type: 'sys_msg',
+        category: 'quest',
+        text: `🗝️ [MYTHIC] ${item.name} must be activated inside ${dungeon.name}.`,
+      });
+      return;
+    }
+    if (room.mythic?.active) {
+      player.send({
+        type: 'sys_msg',
+        category: 'quest',
+        text: '🗝️ [MYTHIC] A Mythic run is already active in this crypt. Finish it before activating another keystone.',
+      });
+      return;
+    }
+
+    const inv = player.inventory || [];
+    const idx = inv.findIndex((it) => (typeof it === 'string' ? it : it?.id) === itemId);
+    if (idx < 0) return;
+    if (!this.accounts.removeItemFromInventory(player.id, idx, 1)) return;
+    this.refreshClientFromAccount(player.id);
+
+    const tier = spec.tier;
+    const scale = getMythicEnemyScale(tier);
+    for (const e of room.entities) {
+      if (e.type !== 'mob' || e.isDying || e.mythicScaled) continue;
+      e.maxHp = Math.max(1, Math.round(e.maxHp * scale));
+      e.hp = e.maxHp;
+      e.damage = Math.max(1, Math.ceil((e.damage || 3) * scale));
+      e.xpReward = Math.round((e.xpReward || 30) * getMythicXpScale(tier));
+      e.mythicScaled = true;
+    }
+
+    const affixes = getMythicAffixesForTier(tier);
+    const duration = getMythicRunDuration(tier);
+    room.mythic = {
+      active: true,
+      dungeonId: dungeon.id,
+      tier,
+      affixes,
+      duration,
+      timeLeft: duration,
+      startedBy: player.displayName,
+      volcanicTimer: 3,
+      syncTimer: 0,
+      completed: false,
+      failed: false,
+    };
+
+    room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 16, text: `🗝️ TIER ${tier} MYTHIC RUN BEGINS!`, color: dungeon.color, isCrit: true });
+    room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y, colors: [dungeon.color, '#fde047', '#ffffff'], count: 30 });
+    this.broadcastMythicState(room);
+    this.broadcastToRoom(room, {
+      type: 'sys_msg',
+      category: 'quest',
+      text: `🗝️ [MYTHIC] ${player.displayName} activated a Tier ${tier} ${dungeon.name} Keystone! Affixes: ${affixes.map((a) => `${MYTHIC_AFFIXES[a].icon} ${MYTHIC_AFFIXES[a].name}`).join(', ')}. Clear the boss before the leyline timer expires!`,
+    });
+  }
+
+  broadcastMythicState(room) {
+    if (!room) return;
+    const m = room.mythic;
+    this.broadcastToRoom(room, {
+      type: 'mythic_state',
+      mythic: m ? {
+        active: Boolean(m.active),
+        dungeonId: m.dungeonId,
+        tier: m.tier,
+        affixes: m.affixes,
+        duration: m.duration,
+        timeLeft: Math.max(0, Math.round(m.timeLeft * 10) / 10),
+        completed: Boolean(m.completed),
+        failed: Boolean(m.failed),
+      } : null,
+    });
+  }
+
+  tickMythic(room, dt) {
+    const m = room.mythic;
+    if (!m?.active) return;
+    m.timeLeft -= dt;
+
+    if (m.timeLeft <= 0) {
+      m.active = false;
+      m.failed = true;
+      m.timeLeft = 0;
+      this.broadcastMythicState(room);
+      this.broadcastToRoom(room, {
+        type: 'sys_msg',
+        category: 'quest',
+        text: `⌛ [MYTHIC] The Tier ${m.tier} ${MYTHIC_DUNGEONS[m.dungeonId]?.name || 'crypt'} run has expired. The leyline cache faded into the void.`,
+      });
+      return;
+    }
+
+    if (m.affixes.includes('volcanic')) {
+      m.volcanicTimer = (m.volcanicTimer ?? 3) - dt;
+      if (m.volcanicTimer <= 0) {
+        m.volcanicTimer = Math.max(2.4, 4.4 - m.tier * 0.15);
+        const alive = [...room.players.values()].filter((p) => !p.isDead);
+        if (alive.length) {
+          const target = alive[Math.floor(Math.random() * alive.length)];
+          room.groundZones.push({
+            id: `gz_${crypto.randomUUID().slice(0, 6)}`,
+            type: 'telegraph',
+            color: '#f97316',
+            x: target.x,
+            y: target.y,
+            radius: 52,
+            age: 0,
+            maxAge: 1.15,
+            damage: 8 + m.tier * 3,
+            bossName: 'Volcanic Affix',
+            label: 'ERUPTION',
+            bossRef: null,
+          });
+        }
+      }
+    }
+
+    if (m.affixes.includes('sanguine')) {
+      for (const gz of room.groundZones) {
+        if (gz.type !== 'sanguine_pool') continue;
+        gz.tickTimer = (gz.tickTimer ?? 0) - dt;
+        if (gz.tickTimer > 0) continue;
+        gz.tickTimer = 1.2;
+        for (const mob of room.entities) {
+          if (mob.type !== 'mob' || mob.isDying) continue;
+          if (Math.hypot(mob.x - gz.x, mob.y - gz.y) > gz.radius) continue;
+          mob.hp = Math.min(mob.maxHp, mob.hp + mob.maxHp * 0.03);
+        }
+      }
+    }
+
+    m.syncTimer = (m.syncTimer || 0) + dt;
+    if (m.syncTimer >= 2) {
+      m.syncTimer = 0;
+      this.broadcastMythicState(room);
+    }
+  }
+
+  completeMythicRun(room, ent) {
+    const m = room.mythic;
+    if (!m?.active) return;
+    const dungeon = MYTHIC_DUNGEONS[m.dungeonId];
+    if (!dungeon || dungeon.roomType !== room.type) return;
+
+    const tier = m.tier;
+    const secondsLeft = Math.max(0, Math.ceil(m.timeLeft));
+    m.active = false;
+    m.completed = true;
+
+    const currency =
+      dungeon.faction === 'Solari' ? 'glimmer_shard' :
+      dungeon.faction === 'Umbri' ? 'void_essence' :
+      dungeon.faction === 'Terra' ? 'verdant_amber' : 'chrono_gem';
+
+    const cache = [
+      { itemId: 'solar_gold', qty: 400 + tier * 150 },
+      { itemId: currency, qty: 30 + tier * 8 },
+      { itemId: 'major_vitality_elixir', qty: 2 + Math.floor(tier / 2) },
+      { itemId: this.getFactionBossSetDrop(room, ent), qty: 1 },
+    ];
+    if (tier < MYTHIC_KEYSTONE_MAX_TIER) {
+      cache.push({ itemId: `keystone_${dungeon.id}_${tier + 1}`, qty: 1 });
+    } else {
+      cache.push({ itemId: this.getBossAccessoryDrop(room, ent), qty: 1 });
+    }
+
+    cache.forEach((d, i) => {
+      if (!d.itemId) return;
+      const ang = (Math.PI * 2 * i) / cache.length - Math.PI / 2;
+      const dist = 34 + (i % 3) * 9;
+      room.lootSeq = (room.lootSeq || 0) + 1;
+      room.loot.push({
+        id: `loot_${room.lootSeq}`,
+        kind: 'item',
+        itemId: d.itemId,
+        qty: d.qty || 1,
+        x: Math.round((ent.x + Math.cos(ang) * dist) * 10) / 10,
+        y: Math.round((ent.y + Math.sin(ang) * dist * 0.65) * 10) / 10,
+        ttl: 120,
+        maxTtl: 120,
+      });
+    });
+
+    for (const p of room.players.values()) {
+      if (p.isDead) continue;
+      this.awardPlayerXP(p, 120 + tier * 45, `Tier ${tier} Mythic Cache`);
+    }
+
+    this.broadcastMythicState(room);
+    this.broadcastToRoom(room, {
+      type: 'sys_msg',
+      category: 'quest',
+      text: `🏆 [MYTHIC COMPLETE] Tier ${tier} ${dungeon.name} cleared with ${secondsLeft}s remaining! A Mythic cache crystallized — ${tier < MYTHIC_KEYSTONE_MAX_TIER ? `a Tier ${tier + 1} keystone is inside.` : 'an apex relic is inside.'}`,
+    });
+    for (const c of this.clients.values()) {
+      c.send({
+        type: 'sys_msg',
+        category: 'quest',
+        text: `🗝️ [MYTHIC] ${dungeon.name} Tier ${tier} was conquered by ${m.startedBy}!`,
+      });
+    }
+  }
+
   handleEntityDeath(room, ent, killerPlayer, killerSpell) {
     if (ent.isDying) return;
     ent.isDying = true;
     ent.deathAge = 0;
 
     room.fxQueue.push({ kind: 'smoke', x: ent.x, y: ent.y, count: ent.isBoss ? 44 : 28, isDeath: true });
+
+    // Day 3 Mythic affixes: Bolstering empowers survivors, Sanguine leaves healing blood pools.
+    if (room.mythic?.active && ent.type === 'mob' && !ent.isBoss) {
+      if (room.mythic.affixes.includes('bolstering')) {
+        for (const m of room.entities) {
+          if (m === ent || m.type !== 'mob' || m.isDying) continue;
+          if ((m.bolsterStacks || 0) >= 8) continue;
+          if (Math.hypot(m.x - ent.x, m.y - ent.y) > 420) continue;
+          const prevMax = m.maxHp;
+          m.maxHp = Math.max(1, Math.round(m.maxHp * 1.15));
+          m.hp = Math.min(m.maxHp, (m.hp || 0) + (m.maxHp - prevMax));
+          m.damage = Math.max(1, Math.ceil((m.damage || 3) * 1.15));
+          m.bolsterStacks = (m.bolsterStacks || 0) + 1;
+        }
+      }
+      if (room.mythic.affixes.includes('sanguine')) {
+        room.groundZones.push({
+          id: `gz_${crypto.randomUUID().slice(0, 6)}`,
+          type: 'sanguine_pool',
+          color: '#ef4444',
+          x: ent.x,
+          y: ent.y,
+          radius: 62,
+          age: 0,
+          maxAge: 8,
+          tickTimer: 0,
+        });
+      }
+    }
 
     if (killerPlayer && killerSpell === 'Judgement of the Sun') {
       this.addPlayerGlimmer(room, killerPlayer, 25);
@@ -4108,12 +5029,17 @@ export class RoomManager {
       }
 
       if (ent.isBoss) {
+        const victoryText = `🏆 CONTINENTAL VICTORY: ${ent.name} has been vanquished! The Leylines surge with an Ancient Paragon Cache!`;
         this.broadcastToRoom(room, {
           type: 'chat',
           channel: 'world',
           sender: 'WORLD EVENT',
-          text: `🏆 CONTINENTAL VICTORY: ${ent.name} has been vanquished! The Leylines surge with an Ancient Paragon Cache!`,
+          text: victoryText,
         });
+        // World-wide announcement across every realm, not just the boss room.
+        for (const c of this.clients.values()) {
+          c.send({ type: 'sys_msg', category: 'quest', text: victoryText });
+        }
         for (const pid of recipients) {
           const p = room.players.get(pid);
           if (p && p.prog && (p.prog.level || 1) >= 30) {
@@ -4167,6 +5093,9 @@ export class RoomManager {
 
     if (ent.type === 'mob') this.spawnLootDrops(room, ent);
 
+    // Day 3: clearing the crypt boss completes an active Mythic run and crystallizes the cache.
+    if (ent.isBoss && room.mythic?.active) this.completeMythicRun(room, ent);
+
     // Standard Mob / Dummy / Dungeon Boss Respawn
     const template = {
       ...ent,
@@ -4185,7 +5114,7 @@ export class RoomManager {
     };
     setTimeout(() => {
       if (!this.rooms.has(room.id)) return;
-      if (template.type === 'dummy' || template.type === 'mob') {
+      if ((template.type === 'dummy' || template.type === 'mob') && !template.isMinion) {
         room.entities.push(template);
         room.fxQueue.push({ kind: 'smoke', x: template.x, y: template.y, count: 16 });
       }
@@ -4476,6 +5405,9 @@ export class RoomManager {
       }
     }
 
+    // Day 3: timed Mythic keystone runs
+    if (room.mythic?.active) this.tickMythic(room, dt);
+
     for (const p of room.players.values()) {
       for (const k in p.cooldowns) {
         if (p.cooldowns[k] > 0) p.cooldowns[k] = Math.max(0, p.cooldowns[k] - dt);
@@ -4751,11 +5683,11 @@ export class RoomManager {
               }
             }
 
-            // Phase 3: Enrage & Area Shockwaves at 25% HP (Shattered Nexus cannot enrage)
+            // Phase 3: Enrage & Area Shockwaves at 40% HP (Shattered Nexus cannot enrage)
             const isNexusShard = e.type === 'siege_shard' || e.id === 'siege_shard' || (e.name && e.name.includes('Nexus'));
             if (isNexusShard) {
               e.enraged = false;
-            } else if (hpPercent <= 25 && e.phase === 2) {
+            } else if (hpPercent <= 40 && e.phase === 2) {
               e.phase = 3;
               e.enraged = true;
               e.baseDamage = e.baseDamage || e.damage || 7;
@@ -4798,6 +5730,16 @@ export class RoomManager {
                 telColor = '#38bdf8';
                 shockRadius = e.enraged ? 96 : 70;
                 warnDuration = 1.4;
+              } else if (e.spriteKey === 'starfallBoss') {
+                telLabel = e.enraged ? '☄️ SUPERMASSIVE METEOR IMPACT' : '🔥 STARFALL ORBITAL STRIKE';
+                telColor = '#fb923c';
+                shockRadius = e.enraged ? 108 : 80;
+                warnDuration = 1.55;
+              } else if (e.spriteKey === 'abyssalArchitectBoss') {
+                telLabel = e.enraged ? '🌌 ABYSSAL REALITY COLLAPSE' : '💀 VOIDSTAR ANNIHILATION';
+                telColor = '#e879f9';
+                shockRadius = e.enraged ? 112 : 84;
+                warnDuration = 1.5;
               }
 
               const shockDmg = Math.round((e.damage || 7) * (e.enraged ? 1.9 : 1.35));
@@ -4857,7 +5799,8 @@ export class RoomManager {
             }
           } else {
             e.atkTimer = (e.atkTimer || 0) + dt;
-            if (e.atkTimer >= 1.85) {
+            const bossAtkInterval = e.enraged ? 1.85 / 1.35 : 1.85; // Phase 3 enrage: +35% attack speed
+            if (e.atkTimer >= bossAtkInterval) {
               e.atkTimer = 0;
               const rawDmg = Math.max(1, (e.damage || 3) - (e.weakenTimer > 0 ? 2 : 0));
               this.damagePlayerSession(room, nearestPlayer, rawDmg, e.name, false, e);
@@ -5042,6 +5985,8 @@ export class RoomManager {
       name: e.name,
       sub: e.sub,
       type: e.type,
+      skillingType: e.skillingType || null,
+      eliteAffix: e.eliteAffix || null,
       targetRoom: e.targetRoom,
       faction: e.faction,
       team: e.team,

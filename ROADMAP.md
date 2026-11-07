@@ -128,25 +128,47 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
   - Action bar badges dynamically update with ability names, keybinds, rank indicators, and cooldown overlays.
   - Full server-authoritative validation preventing unlearned (Rank 0) abilities from executing.
 
-#### Day 2 — Multi-Phase Continental World Bosses
-- [ ] Add dynamic AoE telegraph rings (solar bursts, void pools, earth tremors) to the 4 Continental World Bosses.
-- [ ] Implement Phase 2 Enrage mechanics (<40% HP: +35% attack speed, summoning faction minions).
-- [ ] Add world-wide boss kill announcements and guaranteed Legendary drop chests.
-- [ ] *Sprint Target*: High Sunfire Juggernaut (Solari) and Malakor the Soulreaper (Umbri) multi-phase encounters.
+#### Day 1E — Action Bar Overhaul, Rites/Flash Placement & Combat Polish *(COMPLETED)*
+- [x] **Clean-Slate Action Bar**: New champions start with only their basic attack in slot 1 (plus `E` for extraction); the old eight-slot auto-fill is gone.
+- [x] **Click-to-Place Assignment**: Click a learned Rite or Flash card (or its `🎯 PLACE IN BAR` button), the Spellbook closes, matching slots pulse gold, then click a slot (or press its key) to place it. `ESC` cancels, and wrong-family placements (Rite → 9–12, Flash → 1–4) are refused.
+- [x] **Legacy Champion Rescue**: Level 5+ characters receive a one-time restore from their old slot-keyed progression, recovering every ability they had instead of showing only two.
+- [x] **Manual & Automatic Filling**: `⚡ AUTO-EQUIP LEARNED` fills empty Rite (1–4) / Flash (9–12) slots with the highest-rank learned abilities, persists locally, and syncs authoritatively.
+- [x] **Real Rank-Up Telemetry**: Skill cards show the actual `NEXT RANK n/5` power gain and cooldown drop instead of a hardcoded line.
+- [x] **Full Keybinding Coverage**: The Keybinds tab lists all 13 slots, including item slots 5–8 with bag dropdowns; `SHIFT+click` any action-bar slot rebinds straight from the HUD; empty slots are bindable; `ESC` cancels; defaults reset.
+- [x] **Item Action Slots**: Potions, food, and gear on 5–8 are stored per character, usable by keypress, draggable from the bag, and cleared by right-click.
+- [x] **Combat & UI Polish**: Umbral Assassin regeneration corrected to 1 HP per 3 seconds (+Terra Bulwark scaling), Grand Font positions pulled inward in every zone, merchant coin glyph replaced with crisp CSS, and the quest-banner pulse removed.
+- [x] **Titan Training Dummy**: Restored the strongest training dummy — a Lv.50 / 25,000 HP damage-test post in Sanctuary Haven beside the training grounds. It awards no XP per hit or on death, so it cannot be farmed.
 
-#### Day 3 — Mythic Leyline Keystones & Dungeon Modifiers
-- [ ] Introduce Keystone items (Tier 1 to 10) for faction crypts (Sunken Vault, Shadow Labyrinth, Overgrowth Sanctuary, Fractured Archive).
-- [ ] Implement dynamic dungeon affixes:
-  * **Volcanic**: Erupting lava plumes spawn beneath players standing still.
-  * **Bolstering**: Slaying regular monsters empowers nearby enemies by +15% HP and Damage.
-  * **Sanguine**: Defeated enemies leave pools of blood that heal remaining foes.
-- [ ] Add Keystone timer and completion reward cache.
+#### Day 2 — Multi-Phase Continental World Bosses *(COMPLETE)*
+- [x] Add dynamic AoE telegraph rings (solar bursts, void pools, earth tremors) to the 4 Continental World Bosses.
+  - Faction-themed `telegraph` zones warn for 1.4–1.7s, then detonate into a shockwave with knockback (Terra slams also snare). Enrage shortens the cadence to 3.5s.
+- [x] Implement Phase 2 Enrage mechanics (<40% HP: +35% attack speed, summoning faction minions).
+  - Phase 2 at 65% HP summons three faction guardians. Phase 3 at 40% HP enrages the boss: +35% attack speed, +60% damage, and a faster cataclysm cycle. The Shattered Nexus Shard is exempt.
+- [x] Add world-wide boss kill announcements and guaranteed Legendary drop chests.
+  - Continental Victory now broadcasts to every connected champion, not just the boss room. Every world boss guarantees a faction set piece plus a relic accessory from its cache.
+- [x] *Sprint Target*: High Sunfire Juggernaut (Solari) and Malakor the Soulreaper (Umbri) multi-phase encounters.
+  - Both now run the full telegraph → guardian → enrage loop in online and offline realms.
 
-#### Day 4 — Legendary Relic Infusion & Leyline Socketing
-- [ ] Expand Hero Paperdoll (`[C]`) with Socket slots on Helm, Armor, and Weapon.
-- [ ] Add socketable Ancient Runes and Glimmer Gems dropped by World Bosses.
+#### Day 3 — Mythic Leyline Keystones & Dungeon Modifiers *(COMPLETE)*
+- [x] Introduce Keystone items (Tier 1 to 10) for faction crypts (Sunken Vault, Shadow Labyrinth, Overgrowth Sanctuary, Fractured Archive).
+  - Authored 40 canonical keystones (`keystone_<faction>_<tier>`), each tightly bound to its crypt. Crypt bosses drop entrance tiers (1–3); Continental and Apex world bosses drop Tier 4–9, with a 25% chance at Tier 10 from the Empyrean summit.
+  - Using a key from the backpack inside its crypt consumes it and raises the run for that room instance: enemies scale **+18% Health and damage per tier**, with XP scaling +12% per tier.
+  - A top-centre **Mythic Run HUD** shows the dungeon, tier, affixes, a live countdown and a draining leyline bar in both realms.
+- [x] Implement dynamic dungeon affixes:
+  * **Volcanic**: Erupting lava plumes spawn beneath players every few seconds, with a 1.15s telegraphed ring that must be dodged.
+  * **Bolstering**: Slaying regular monsters empowers nearby enemies by +15% HP and Damage (stacking up to 8 times).
+  * **Sanguine**: Defeated enemies leave blood pools that heal remaining foes for 3% max HP per 1.2s.
+  - Tier 1–6 rolls two affixes; Tier 7–10 rolls all three, so high keys demand movement, kill priority and sustain.
+- [x] Add Keystone timer and completion reward cache.
+  - Timer runs **7:30 at Tier 1 → 12:00 at Tier 10**; expiry broadcasts a realm-wide failure message and clears the run.
+  - Killing the crypt boss in time crystallizes a cache: tier-scaled Solar Gold, faction currency, Greater Vitality Elixirs, a guaranteed faction set piece, a bonus Apex relic at Tier 10, and the **next tier's keystone** (T1–T9) so the loop can continue.
+  - Completion awards bonus XP, announces the clear to every connected champion, and persists across the authoritative server and the offline realm.
+
+#### Day 4 — Legendary Relic Infusion & Leyline Socketing *(PARTIAL — SOCKETING LIVE)*
+- [x] Expand Hero Equipment (`[K]`) with Leyline Relic Socket slots on Helm (`socket_head`), Armor (`socket_body`), and Weapon (`socket_weapon`).
+- [x] Add socketable cut Leyline Gems (`gem_solar_ruby`, `gem_void_sapphire`, `gem_terra_emerald`, `gem_aether_diamond`) crafted at the Cosmic Star-Anvil / Aetherial Crucible and dropped by Elite Champions & World Bosses, granting Power, Crit, Max HP, Resonance, Tempo, and Max Glimmer.
 - [ ] Enable Runeword synergies (e.g. `DAWN + LIGHT = +25% Solar Flare Radius`).
-- [ ] Create socketing UI in the Sanctuary Hub Forge NPC.
+- [x] Integrated one-click Leyline Gem socketing & unsocketing UI directly in Equipment `[K]` and Backpack `[B]`.
 
 #### Day 5 — Faction Territory Control & Warzone Outpost Siege Battles
 - [ ] Expand the 4 Outpost Nexuses in Nexus Warzone into capturable faction strongholds.
@@ -199,13 +221,13 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
 - [ ] Mini-delve caves with randomized mob compositions and treasure chests.
 - [ ] Realm-wide map announcement when a dynamic event triggers.
 
-#### Day 13 — Elite Monster Affixes (Diablo 2 Champions)
-- [ ] Spawn rare Elite champions with gold/purple nameplates and random affix combos:
-  * **Fast**: +40% movement and attack speed.
-  * **Frozen**: Periodically casts frost novae that chill and slow nearby players.
-  * **Lightning-Enchanted**: Emits charged bolts in 8 directions when struck.
-  * **Fire-Enchanted**: Death explosion dealing heavy area damage.
-- [ ] Elite champions have 3x HP and drop 3x loot + rare crafting materials.
+#### Day 13 — Elite Monster Affixes (Diablo 2 Champions) *(COMPLETE)*
+- [x] Spawn rare Elite champions across hostile zones with glowing faction-tinted foot-auras, colored nameplates, and 4 cosmic affix archetypes:
+  * **Solar-Charged**: +120% HP, +40% damage, +140% XP, blazing golden aura.
+  * **Void-Touched**: +100% HP, +55% damage, +140% XP, umbral violet aura.
+  * **Ironbark Bulwark**: +190% HP, +25% damage, +155% XP, emerald bastion aura.
+  * **Chrono-Warped**: +110% HP, +45% damage, +150% XP, temporal cyan aura.
+- [x] Elite champions grant bonus Solar Gold, guaranteed cosmic crafting materials, and a 15% drop chance at cut Leyline Socket Gems.
 
 #### Day 14 — World Map Cartography, Fog of War & Discovery Waypoints
 - [ ] Add full-screen interactive World Map (`[M]`).
@@ -260,6 +282,23 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
   - Removed "Read-only roster" label from the hero selection header in `client/frontpage.js` for a clean presentation.
   - Added an integrated "Remember me" checkbox toggle immediately to the right of `LOGIN` / `REGISTER`.
   - Automatic credential and session persistence with background auto-login across sessions, so players never have to re-enter credentials every launch.
+
+#### Day 16C — Cosmic Artisan Skilling Overhaul, Bounty Board & Starfall/Abyssal Realms *(COMPLETE)*
+- [x] **Character Selection Loadout Freeze & Hyper-Spin Fix**:
+  - Eliminated the `sync_quest_state` -> `profile_updated` echo loop that trapped Lv. 2+ champions in a 20–50 Hz WebSocket feedback cycle, causing the frontpage preview sprite to spin rapidly while wiping DOM click listeners mid-click.
+  - Added signature-guarded DOM diffing (`buildRenderSignature`) in `client/frontpage.js`, preserved selected character state across background profile refreshes, and tuned paperdoll animation cadence.
+- [x] **Removed NPC Shop Gold-for-XP Training & Built Cosmic Artisan Stations**:
+  - Removed `TRAIN` gold-for-XP buttons and passive shop-purchase XP from NPC merchants (`client/merchantUi.js`).
+  - Added harvestable world **Ore & Mineral Veins** (*Copper-Glint*, *Iron-Shard*, *Solaris Mythril*, *Abyssal Starmetal*), **Luminescent Herb Clusters**, and **Astral Flax & Void-Silk Blooms** across Sanctuary and outer biomes (`[E]` or click).
+  - Built 3 interactive in-world pixel crafting stations (`client/craftingUi.js`) with **35 Cosmic Artisan Recipes** spanning Lv. 1–78:
+    * ⚒️ **Cosmic Star-Anvil** (*Relic-Forging*): Smelts raw ores + cosmic minerals into *Bronze-Glint*, *Star-Iron*, *Sun-Mythril*, and *Abyssal Starmetal* ingots, then forges blades, greataxes, warplate, wardshields, and cut *Solar Ruby* / *Terra Emerald* socket gems.
+    * ⚗️ **Aetherial Crucible** (*Rite-Binding*): Distills herbs, essences, and *Cosmic Stardust* into *Vitality*, *Chrono*, and *Sovereign Starlight* elixirs, *Spellscribed Focus Orbs*, *Void Sapphire* / *Aether Diamond* socket gems, and *Mythic Keystones*.
+    * 🧵 **Celestial Loom & Hearth** (*Glimmerweaving*): Spins *Astral Linen* and *Umbral Void-Silk* into cloaks, vestments, assassin hoods, and *Hearty Starfruit* / *Celestial Banquet* feasts.
+- [x] **Sanctuary & Caldera Vanguard Bounty Board**:
+  - Interactive in-world **Bounty Board** props issuing 6 repeatable combat, gathering, crafting, elite-hunting, and boss-slaying contracts awarding Solar Gold, Champion XP, Profession XP, and rare materials.
+- [x] **2 New Mid/Late-Game Seamless Biomes, Pixel Art Sprites & Quests**:
+  - **☄️ Starfall Crater (Lv. 20–32)**: Connected west of Solari Citadel and east of First Nexus Ruins; features scorched meteoric basalt tiles, *Starforged Automatons*, *Meteor Elementals*, rich mythril/starmetal veins, quest *Forge of the Fallen Star* (`Star-Smith Orion`), and multi-phase world boss **Ignis-Core, Starfall Colossus** (drops *Starmetal Meteor Hammer*).
+  - **🌌 The Abyssal Rift (Lv. 32–45)**: Connected east of Continental Caldera and north of Empyrean Summit; features fractured void-crystal tiles, *Gloam Widows*, *Paradox Sentinels*, high-tier starmetal/silk nodes, quest *Breach of the Void Architect* (`Rift-Watcher Nihilus`), and multi-phase apex boss **Xal'Korath, Void Architect** (drops *Abyssal Voidstar Scythe*).
 
 #### Day 17 — Player-to-Player Trading & Secure Trade Windows
 - [ ] Right-click another player -> `[Trade]` option.

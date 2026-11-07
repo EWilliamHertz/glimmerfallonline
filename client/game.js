@@ -38,7 +38,30 @@ import {
   hideFloatingGearTooltip,
 } from './equipmentUi.js';
 import { getItemCanvas, getItemIconDataUrl } from './itemSprites.js';
+import {
+  MYTHIC_DUNGEONS,
+  MYTHIC_AFFIXES,
+  MYTHIC_KEYSTONE_MAX_TIER,
+  getMythicRunDuration,
+  getMythicEnemyScale,
+  getMythicXpScale,
+  getMythicAffixesForTier,
+  CRAFTING_STATIONS,
+  CRAFTING_RECIPES,
+  SKILLING_NODE_TYPES,
+  ELITE_AFFIXES,
+  BOUNTY_CONTRACTS,
+} from '../shared/protocol.js';
 import { renderBankModal } from './bankUi.js';
+import {
+  renderCraftingModal,
+  selectCraftingStation,
+  selectCraftingCategory,
+  selectCraftingRecipe,
+  startCraftingBatch,
+  stopCraftingQueue,
+  renderBountyModal,
+} from './craftingUi.js';
 import {
   renderMerchantModal,
   MERCHANT_CATALOGS,
@@ -488,6 +511,8 @@ export function initGame() {
   let allies = [];
   let props = [];
   let projectiles = [];
+  let onlineMythic = null;
+  let offlineMythic = null;
   let groundZones = [];
   let lootDrops = [];
   let particles = [];
@@ -605,17 +630,22 @@ export function initGame() {
     return null;
   }
 
-  function saveQuestState() {
+  let isApplyingProfile = false;
+  let lastSyncedQuestSig = '';
+
+  function saveQuestState({ syncServer = true } = {}) {
     try {
       const charId = localProfile?.activeCharacterId || (localProfile?.id && localProfile.id !== 'default' && localProfile.id !== 'local_hero' ? localProfile.id : null);
+      const serialized = JSON.stringify(questState);
       if (charId) {
-        localStorage.setItem(`glimmerfall_quest_state_${charId}`, JSON.stringify(questState));
+        localStorage.setItem(`glimmerfall_quest_state_${charId}`, serialized);
+      } else {
+        localStorage.setItem('glimmerfall_quest_state_latest', serialized);
+        localStorage.setItem('glimmerfall_quest_state_default', serialized);
       }
-      localStorage.setItem('glimmerfall_quest_state_latest', JSON.stringify(questState));
-      localStorage.setItem('glimmerfall_quest_state_default', JSON.stringify(questState));
 
       if (localProfile) {
-        localProfile.questState = JSON.parse(JSON.stringify(questState));
+        localProfile.questState = JSON.parse(serialized);
       }
 
       if (isSinglePlayer && localProfile?.id) {
@@ -629,8 +659,12 @@ export function initGame() {
           }
         }
       }
-      if (window.net?.connected) {
-        window.net.send({ type: 'sync_quest_state', questState });
+      if (syncServer && !isApplyingProfile && window.net?.connected) {
+        const sig = `${charId || 'anon'}::${serialized}`;
+        if (sig !== lastSyncedQuestSig) {
+          lastSyncedQuestSig = sig;
+          window.net.send({ type: 'sync_quest_state', questState });
+        }
       }
     } catch (_) {}
   }
@@ -655,6 +689,10 @@ export function initGame() {
     'combatTrainingHits',
     'aetherFontChannels',
     'titanChallenges',
+    'starfallKills',
+    'starfallVeins',
+    'abyssalKills',
+    'craftsCompleted',
   ];
   const QUEST_RUN_FLAGS = [
     'stasisBroken',
@@ -800,7 +838,8 @@ export function initGame() {
     );
   }
 
-  function loadQuestState() {
+  function loadQuestState({ syncServer = true } = {}) {
+    let needsSave = false;
     try {
       const charId = localProfile?.activeCharacterId || (localProfile?.id && localProfile.id !== 'default' && localProfile.id !== 'local_hero' ? localProfile.id : null);
       const charKey = charId ? `glimmerfall_quest_state_${charId}` : null;
@@ -893,6 +932,11 @@ export function initGame() {
           chronoKills: Number(parsed.chronoKills || 0),
           combatKills: Number(parsed.combatKills || 0),
           combatTrainingHits: Number(parsed.combatTrainingHits || 0),
+          starfallKills: Number(parsed.starfallKills || 0),
+          starfallVeins: Number(parsed.starfallVeins || 0),
+          abyssalKills: Number(parsed.abyssalKills || 0),
+          craftsCompleted: Number(parsed.craftsCompleted || 0),
+          bounties: parsed.bounties && typeof parsed.bounties === 'object' ? parsed.bounties : {},
           aetherFontChanneled: Boolean(parsed.aetherFontChanneled),
           aetherFontChannels: Number(parsed.aetherFontChannels || 0),
           titanChallenged: Boolean(parsed.titanChallenged),
@@ -909,7 +953,7 @@ export function initGame() {
         };
       } else {
         questState = createDefaultQuestState();
-        saveQuestState();
+        needsSave = true;
       }
     } catch (_) {
       questState = createDefaultQuestState();
@@ -918,7 +962,7 @@ export function initGame() {
     // High-level or experienced characters (like EWACH) should never be stuck on the Awakening tutorial:
     const charName = String(localProfile?.displayName || localProfile?.name || '').toUpperCase();
     const isExperienced = (prog && (prog.level || 1) >= 2) || charName === 'EWACH';
-    if (isExperienced) {
+    if (isExperienced && !questState.completedQuests?.quest_awakening) {
       if (!questState.completedQuests) questState.completedQuests = {};
       questState.stasisBroken = true;
       questState.dummyDamaged = true;
@@ -926,12 +970,16 @@ export function initGame() {
       questState.completedQuests.quest_awakening = true;
       if (questState.activeQuests) delete questState.activeQuests.quest_awakening;
       if (questState.trackedQuests) delete questState.trackedQuests.quest_awakening;
-      saveQuestState();
+      needsSave = true;
     }
 
     // Legacy saves predate per-run baselines. Give every already-active quest a
     // fresh start so work done before this update cannot auto-complete it.
-    if (ensureQuestRuns()) saveQuestState();
+    if (ensureQuestRuns()) needsSave = true;
+
+    if (needsSave) {
+      saveQuestState({ syncServer });
+    }
 
     // Clean up any completed quests from active & tracked sets
     if (questState.completedQuests) {
@@ -1097,12 +1145,45 @@ export function initGame() {
       }
     }
 
-    // 5. Titan Summit:
+    // 5. Starfall Crater Quest:
+    if (roomType === ROOM_TYPES.STARFALL_CRATER || (mobName && (mobName.includes('Starforged') || mobName.includes('Meteor') || mobName.includes('Ignis-Core')))) {
+      questState.starfallKills = (questState.starfallKills || 0) + 1;
+      changed = true;
+      if (questCounter('quest_starfall_forge', 'starfallKills') === 4 && questState.activeQuests?.quest_starfall_forge) {
+        logMessage('📜 [Quest Objective] Starfall constructs shattered (4/4)!', 'log-quest', 'chat');
+        spawnFCT(player.x, player.y - 14, '✨ CONSTRUCTS SHATTERED (4/4)!', '#fb923c', true);
+        if (audio && audio.playChime) audio.playChime();
+      }
+    }
+
+    // 6. Abyssal Rift Quest:
+    if (roomType === ROOM_TYPES.ABYSSAL_RIFT || (mobName && (mobName.includes('Abyssal') || mobName.includes('Paradox') || mobName.includes('Gloam') || mobName.includes('Xal')))) {
+      questState.abyssalKills = (questState.abyssalKills || 0) + 1;
+      changed = true;
+      if (questCounter('quest_abyssal_breach', 'abyssalKills') === 5 && questState.activeQuests?.quest_abyssal_breach) {
+        logMessage('📜 [Quest Objective] Abyssal Rift horrors banished (5/5)! Return to Rift-Watcher Nihilus!', 'log-quest', 'chat');
+        spawnFCT(player.x, player.y - 14, '✨ RIFT HORRORS BANISHED (5/5)!', '#c084fc', true);
+        if (audio && audio.playChime) audio.playChime();
+      }
+    }
+
+    // 7. Titan Summit:
     if ((roomType === ROOM_TYPES.CELESTIAL_ASCENT && isBoss) || (mobName && mobName.includes('Aurelius'))) {
       questState.titanChallenges = (questState.titanChallenges || 0) + 1;
       if (!questState.titanChallenged) {
         questState.titanChallenged = true;
         changed = true;
+      }
+    }
+
+    // Advance active Vanguard Bounty Board contracts!
+    if (typeof advanceBountyProgress === 'function') {
+      advanceBountyProgress('kills', 1);
+      if (isBoss) advanceBountyProgress('bosses', 1);
+      if (roomType === ROOM_TYPES.STARFALL_CRATER) advanceBountyProgress('starfall_kills', 1);
+      const isEliteKill = Object.values(ELITE_AFFIXES).some((af) => mobName && mobName.includes(af.label));
+      if (roomType === ROOM_TYPES.ABYSSAL_RIFT || isEliteKill || isBoss) {
+        advanceBountyProgress('abyssal_or_elite_kills', 1);
       }
     }
 
@@ -1588,21 +1669,21 @@ export function initGame() {
 
     quest_skill_forging: {
       id: 'quest_skill_forging',
-      title: 'Forging: The Anvil\'s Spark',
+      title: 'Forging: The Cosmic Star-Anvil',
       giverId: 'merchant_smith',
       turnInId: 'merchant_smith',
       questPoints: 1,
-      unlocks: ['Relic-Forging Lv. 2 Recipes', 'Great Anvil Smelting Access'],
-      description: 'Speak with Blacksmith Torvin and inspect his smithy or acquire iron wares to learn Relic-Forging.',
-      isComplete: () => artisanQuestDone('quest_skill_forging', 'smithInspected', ['iron_ore', 'bronze_bar', 'iron_broadsword', 'iron_heater_shield'], 'relic_forging'),
+      unlocks: ['Cosmic Star-Anvil Alloy Recipes', 'Leyline Jewel Cutting'],
+      description: 'Mine Sun-Copper & Star-Tin from a world Ore Vein (or buy starter ore from Torvin), then smelt or forge an item at the Cosmic Star-Anvil!',
+      isComplete: () => artisanQuestDone('quest_skill_forging', 'smithInspected', ['bronze_bar', 'copper_ring', 'star_iron_bar', 'iron_broadsword', 'iron_heater_shield'], 'relic_forging'),
       tasks: [
         {
-          text: 'Inspect Smithy Wares or Acquire Metalwork',
-          done: () => artisanQuestDone('quest_skill_forging', 'smithInspected', ['iron_ore', 'bronze_bar', 'iron_broadsword', 'iron_heater_shield'], 'relic_forging'),
+          text: 'Smelt an Ingot or Forge Gear at the Cosmic Star-Anvil',
+          done: () => artisanQuestDone('quest_skill_forging', 'smithInspected', ['bronze_bar', 'copper_ring', 'star_iron_bar', 'iron_broadsword', 'iron_heater_shield'], 'relic_forging'),
         },
         {
           text: 'Confer with Blacksmith Torvin',
-          done: () => artisanQuestDone('quest_skill_forging', 'smithInspected', ['iron_ore', 'bronze_bar', 'iron_broadsword', 'iron_heater_shield'], 'relic_forging'),
+          done: () => artisanQuestDone('quest_skill_forging', 'smithInspected', ['bronze_bar', 'copper_ring', 'star_iron_bar', 'iron_broadsword', 'iron_heater_shield'], 'relic_forging'),
         },
       ],
       rewards: {
@@ -1613,33 +1694,35 @@ export function initGame() {
       },
       acceptDialogue: [
         {
-          speaker: 'BLACKSMITH TORVIN • SMITHING WARES',
+          speaker: 'BLACKSMITH TORVIN • SMITHING & ORE WARES',
           spriteKey: 'merchantSmithNpc',
-          text: 'Hmph! If you\'re going to fight in the Warzone, you need arms forged of true temper. In the old days, our order shaped armor right here at the Great Anvil. Inspect my smithy wares or purchase an arming piece to learn the balance of steel!',
+          text: 'Hmph! Real smiths don\'t pay coin to skip the hammer—they work the Cosmic Star-Anvil right beside my stall! Mine Sun-Copper and Star-Tin from ore veins around Sanctuary (or grab a starter pair from my shop), then smelt a Bronze Bar on the Cosmic Star-Anvil!',
           actions: [
-            { label: '🛒 INSPECT SMITHY & WARES', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
-            { label: '🔨 I WILL RETURN SHORTLY', action: 'close' },
+            { label: '🔨 OPEN COSMIC STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
+            { label: '🛒 BUY STARTER ORES', action: 'openShop', style: 'border-color:#38bdf8; color:#7dd3fc;' },
+            { label: '👋 I WILL SMELT IT', action: 'close' },
           ],
         },
       ],
       ongoingDialogue: [
         {
-          speaker: 'BLACKSMITH TORVIN • SMITHING WARES',
+          speaker: 'BLACKSMITH TORVIN • SMITHING & ORE WARES',
           spriteKey: 'merchantSmithNpc',
-          text: 'Look over my raw iron ore, smelted bronze, or blades to learn the smith\'s craft. You can check your progress in the Skills tab [N].',
+          text: 'Step to the glowing Cosmic Star-Anvil right next to my stall and smelt Sun-Copper + Star-Tin into a Bronze Bar (or forge any metal piece)!',
           actions: [
-            { label: '🛒 BROWSE SMITHY WARES', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '🔨 OPEN COSMIC STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
+            { label: '🛒 BROWSE RAW ORES', action: 'openShop' },
             { label: '👋 FAREWELL', action: 'close' },
           ],
         },
       ],
       completeDialogue: [
         {
-          speaker: 'BLACKSMITH TORVIN • SMITHING WARES',
+          speaker: 'BLACKSMITH TORVIN • SMITHING & ORE WARES',
           spriteKey: 'merchantSmithNpc',
-          text: 'Aye, now you feel the weight in the balance! That is the spark of Relic-Forging. As your skill levels up, you\'ll smelt rarer ores and forge mythic weapons that channel the elements themselves!',
+          text: 'Aye, hear the Cosmic Star-Anvil ring! Combine terrestrial ores with astral minerals to smelt Star-Iron, Umbral Steel, Astral Mithril, and Celestial Starmetal—and cut Leyline Socket Gems for your gear!',
           actions: [
-            { label: '🛒 WORK THE FORGE (BROWSE)', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '🔨 OPEN COSMIC STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
             { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
           ],
         },
@@ -1648,21 +1731,21 @@ export function initGame() {
 
     quest_skill_binding: {
       id: 'quest_skill_binding',
-      title: 'Binding: The Alchemical Draught',
+      title: 'Binding: The Aetherial Crucible',
       giverId: 'merchant_apothecary',
       turnInId: 'merchant_apothecary',
       questPoints: 1,
-      unlocks: ['Rite-Binding Lv. 2 Formulas', 'Apothecary Solvent Crafting'],
-      description: 'Speak with Alchemist Faye and inspect her apothecary formulas or acquire a healing salve to learn Rite-Binding.',
-      isComplete: () => artisanQuestDone('quest_skill_binding', 'apothecaryInspected', ['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir'], 'rite_binding'),
+      unlocks: ['Aetherial Crucible Elixir Formulas', 'Keystone & Focus Orb Binding'],
+      description: 'Forage Sunbloom Herbs (or buy starter herbs from Faye) and brew an elixir at the bubbling Aetherial Crucible!',
+      isComplete: () => artisanQuestDone('quest_skill_binding', 'apothecaryInspected', ['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir', 'astral_battle_tonic'], 'rite_binding'),
       tasks: [
         {
-          text: 'Inspect Apothecary Formulas or Acquire Salve',
-          done: () => artisanQuestDone('quest_skill_binding', 'apothecaryInspected', ['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir'], 'rite_binding'),
+          text: 'Distill a Salve or Draught at the Aetherial Crucible',
+          done: () => artisanQuestDone('quest_skill_binding', 'apothecaryInspected', ['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir', 'astral_battle_tonic'], 'rite_binding'),
         },
         {
           text: 'Confer with Alchemist Faye',
-          done: () => artisanQuestDone('quest_skill_binding', 'apothecaryInspected', ['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir'], 'rite_binding'),
+          done: () => artisanQuestDone('quest_skill_binding', 'apothecaryInspected', ['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir', 'astral_battle_tonic'], 'rite_binding'),
         },
       ],
       rewards: {
@@ -1675,10 +1758,11 @@ export function initGame() {
         {
           speaker: 'ALCHEMIST FAYE • APOTHECARY & POTIONS',
           spriteKey: 'merchantApothecaryNpc',
-          text: 'Ah, welcome seeker of mysteries! Rites and draughts are not mere superstition—they are distilled formulas of pure Aether. Inspect my apothecary wares or acquire a healing salve to understand how living energy binds to liquid glass!',
+          text: 'Welcome, seeker! True Rite-Binding happens at the bubbling Aetherial Crucible beside my stall. Forage Sunbloom Herbs in Sanctuary or Terra Orchard (or pick up starter herbs from my shelf), then brew a Minor Healing Salve in the Crucible!',
           actions: [
-            { label: '🛒 INSPECT APOTHECARY WARES', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
-            { label: '📜 I WILL STUDY THE CRAFT', action: 'close' },
+            { label: '⚗️ OPEN AETHERIAL CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#c084fc; color:#f3e8ff; font-weight:bold;' },
+            { label: '🛒 BUY STARTER HERBS', action: 'openShop', style: 'border-color:#38bdf8; color:#7dd3fc;' },
+            { label: '👋 I WILL BREW IT', action: 'close' },
           ],
         },
       ],
@@ -1686,9 +1770,10 @@ export function initGame() {
         {
           speaker: 'ALCHEMIST FAYE • APOTHECARY & POTIONS',
           spriteKey: 'merchantApothecaryNpc',
-          text: 'Inspect my remedies or take a minor healing salve to complete your introduction to Rite-Binding.',
+          text: 'Click the glowing purple Aetherial Crucible beside my stall to distill herbs and astral dust into salves, tonics, focus orbs, and Mythic Keystones!',
           actions: [
-            { label: '🛒 BROWSE POTIONS & SALVES', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '⚗️ OPEN AETHERIAL CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#c084fc; color:#f3e8ff; font-weight:bold;' },
+            { label: '🛒 BROWSE HERBS & POTIONS', action: 'openShop' },
             { label: '👋 FAREWELL', action: 'close' },
           ],
         },
@@ -1697,9 +1782,9 @@ export function initGame() {
         {
           speaker: 'ALCHEMIST FAYE • APOTHECARY & POTIONS',
           spriteKey: 'merchantApothecaryNpc',
-          text: 'Exquisite distillation! You feel how the Glimmer suspends within the solvent? That is the heart of Rite-Binding. Soon you shall bind scrolls, elixirs, and defensive wards that shield your allies in battle!',
+          text: 'Exquisite distillation! As your Rite-Binding ascends, you can compound Chrono Overdrive Draughts, Empyrean Nectar, Socket Sapphires, and Mythic Leyline Keystones!',
           actions: [
-            { label: '🛒 BROWSE APOTHECARY SHOP', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '⚗️ OPEN AETHERIAL CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#c084fc; color:#f3e8ff; font-weight:bold;' },
             { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
           ],
         },
@@ -1708,21 +1793,21 @@ export function initGame() {
 
     quest_skill_weaving: {
       id: 'quest_skill_weaving',
-      title: 'Weaving: The Luminescent Thread',
+      title: 'Weaving: The Celestial Loom',
       giverId: 'merchant_provisions',
       turnInId: 'merchant_provisions',
       questPoints: 1,
-      unlocks: ['Glimmerweaving Lv. 2 Patterns', 'High-Capacity Satchel Crafting'],
-      description: 'Speak with Farmer Bran and acquire field provisions or inspect his provisions to learn Glimmerweaving.',
-      isComplete: () => artisanQuestDone('quest_skill_weaving', 'provisionsInspected', ['sweet_apple', 'fresh_crusty_bread', 'field_rations'], 'glimmerweaving'),
+      unlocks: ['Celestial Loom Cloak & Robe Patterns', 'Artisan Banquet Hearth'],
+      description: 'Gather Starlight Flax or Sweet Apples and weave a cloak or bake rations at the Celestial Loom & Hearth!',
+      isComplete: () => artisanQuestDone('quest_skill_weaving', 'provisionsInspected', ['fresh_crusty_bread', 'linen_traveller_cloak', 'field_rations', 'spiced_orchard_pie'], 'glimmerweaving'),
       tasks: [
         {
-          text: 'Inspect Provisions or Acquire Sustenance',
-          done: () => artisanQuestDone('quest_skill_weaving', 'provisionsInspected', ['sweet_apple', 'fresh_crusty_bread', 'field_rations'], 'glimmerweaving'),
+          text: 'Weave Cloth or Bake Sustenance at the Celestial Loom',
+          done: () => artisanQuestDone('quest_skill_weaving', 'provisionsInspected', ['fresh_crusty_bread', 'linen_traveller_cloak', 'field_rations', 'spiced_orchard_pie'], 'glimmerweaving'),
         },
         {
           text: 'Confer with Farmer Bran',
-          done: () => artisanQuestDone('quest_skill_weaving', 'provisionsInspected', ['sweet_apple', 'fresh_crusty_bread', 'field_rations'], 'glimmerweaving'),
+          done: () => artisanQuestDone('quest_skill_weaving', 'provisionsInspected', ['fresh_crusty_bread', 'linen_traveller_cloak', 'field_rations', 'spiced_orchard_pie'], 'glimmerweaving'),
         },
       ],
       rewards: {
@@ -1735,10 +1820,11 @@ export function initGame() {
         {
           speaker: 'FARMER BRAN • PROVISIONS & RATIONS',
           spriteKey: 'merchantProvisionsNpc',
-          text: 'Good day to ye! An adventurer marches on their stomach and clothes their back in woven fiber. Glimmerweaving transforms raw flax, leystrand, and field grains into sustaining rations and satchels. Inspect my provisions to start your weaving journey!',
+          text: 'Good day to ye! Glimmerweaving turns Starlight Flax, Shadow-Silk, and orchard harvest into enchanted cloaks, robes, and hearty feasts right on the Celestial Loom & Hearth beside my stall!',
           actions: [
-            { label: '🛒 INSPECT PROVISIONS & RATIONS', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
-            { label: '🌾 I WILL INSPECT SHORTLY', action: 'close' },
+            { label: '🧵 OPEN CELESTIAL LOOM', action: 'openStation_celestial_loom', style: 'border-color:#4ade80; color:#dcfce7; font-weight:bold;' },
+            { label: '🛒 BUY STARTER FLAX & APPLES', action: 'openShop', style: 'border-color:#38bdf8; color:#7dd3fc;' },
+            { label: '👋 I WILL WEAVE IT', action: 'close' },
           ],
         },
       ],
@@ -1746,9 +1832,10 @@ export function initGame() {
         {
           speaker: 'FARMER BRAN • PROVISIONS & RATIONS',
           spriteKey: 'merchantProvisionsNpc',
-          text: 'Inspect my baked loaves, apples, or trail rations to understand Glimmerweaving fiber craft.',
+          text: 'Step to the golden Celestial Loom & Hearth next to my stall to weave a Traveller\'s Cloak or bake Fresh Crusty Bread!',
           actions: [
-            { label: '🛒 BROWSE PROVISIONS', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '🧵 OPEN CELESTIAL LOOM', action: 'openStation_celestial_loom', style: 'border-color:#4ade80; color:#dcfce7; font-weight:bold;' },
+            { label: '🛒 BROWSE FLAX & FRUIT', action: 'openShop' },
             { label: '👋 FAREWELL', action: 'close' },
           ],
         },
@@ -1757,9 +1844,9 @@ export function initGame() {
         {
           speaker: 'FARMER BRAN • PROVISIONS & RATIONS',
           spriteKey: 'merchantProvisionsNpc',
-          text: 'Well look at that! Properly woven, airtight and nourishing. That\'s true Glimmerweaving craft! Keep practicing and you\'ll weave greater bags, travel cloaks, and royal tabards.',
+          text: 'Well look at that stitchwork! Keep harvesting Shadow-Silk and Celestial Gossamer across the realms to weave Duskveil Mantles, Mystic Robes, and Starfire Banquets!',
           actions: [
-            { label: '🛒 BROWSE PROVISIONS SHOP', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+            { label: '🧵 OPEN CELESTIAL LOOM', action: 'openStation_celestial_loom', style: 'border-color:#4ade80; color:#dcfce7; font-weight:bold;' },
             { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
           ],
         },
@@ -1934,6 +2021,116 @@ export function initGame() {
         },
       ],
     },
+
+    quest_starfall_forge: {
+      id: 'quest_starfall_forge',
+      title: 'The Fallen Astral Forge',
+      giverId: 'npc_orion',
+      turnInId: 'npc_orion',
+      questPoints: 2,
+      unlocks: ['Starfall Astral Forge Mastery', 'Celestial Starmetal Smelting Lore'],
+      description: 'In Starfall Crater, shatter 4 Starforged Constructs or Meteor Elementals and mine 2 Astral Mithril or Starmetal veins.',
+      isComplete: () => questCounter('quest_starfall_forge', 'starfallKills') >= 4 && questCounter('quest_starfall_forge', 'starfallVeins') >= 2,
+      tasks: [
+        {
+          text: 'Shatter Starfall Constructs or Meteor Elementals',
+          done: () => questCounter('quest_starfall_forge', 'starfallKills') >= 4,
+          counter: () => `${Math.min(4, questCounter('quest_starfall_forge', 'starfallKills'))} / 4`,
+        },
+        {
+          text: 'Mine Astral Mithril or Starmetal Veins in Crater',
+          done: () => questCounter('quest_starfall_forge', 'starfallVeins') >= 2,
+          counter: () => `${Math.min(2, questCounter('quest_starfall_forge', 'starfallVeins'))} / 2`,
+        },
+      ],
+      rewards: {
+        xp: 850,
+        glimmer: 300,
+        gold: 360,
+        professionXp: { relic_forging: 220, resonance_extraction: 180 },
+      },
+      acceptDialogue: [
+        {
+          speaker: 'FORGE-KEEPER ORION • STARFALL CRATER',
+          spriteKey: 'solariFlamekeeperNpc',
+          text: 'Meteors of pure Celestial Starmetal tore this crater open west of the Golden Citadel! Rogue Starforged Automatons and molten Meteor Elementals guard the veins. Shatter 4 of them and mine 2 crater ore veins so we can reignite the Astral Forge!',
+          actions: [
+            { label: '🔨 INSPECT ASTRAL STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
+            { label: '⚔️ TO THE CRATER!', action: 'close' },
+          ],
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'FORGE-KEEPER ORION • STARFALL CRATER',
+          spriteKey: 'solariFlamekeeperNpc',
+          text: 'Shatter 4 Starfall constructs and mine 2 Mithril or Starmetal veins [E] around the molten basin!',
+          actions: [
+            { label: '🔨 OPEN COSMIC STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
+            { label: '👋 CONTINUE HUNT', action: 'close' },
+          ],
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'FORGE-KEEPER ORION • STARFALL CRATER',
+          spriteKey: 'solariFlamekeeperNpc',
+          text: 'By the Morning Star—feel the heat of that Starmetal! The Astral Forge roars anew! Challenge Ignis-Core at the crater heart if you dare claim the Starmetal Meteor Hammer!',
+          actions: [
+            { label: '🔨 WORK THE ASTRAL FORGE', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
+          ],
+        },
+      ],
+    },
+
+    quest_abyssal_breach: {
+      id: 'quest_abyssal_breach',
+      title: 'Breach of the Void Architect',
+      giverId: 'npc_nihilus',
+      turnInId: 'npc_nihilus',
+      questPoints: 3,
+      unlocks: ['Abyssal Rift Vanguard Honor', 'Voidstar Relic Mastery'],
+      description: 'Venture into the Abyssal Rift and banish 5 Gloam-Silk Widows, Paradox Sentinels, or Xal\'Korath\'s Voidborne.',
+      isComplete: () => questCounter('quest_abyssal_breach', 'abyssalKills') >= 5,
+      tasks: [
+        {
+          text: 'Banish Abyssal Rift Horrors',
+          done: () => questCounter('quest_abyssal_breach', 'abyssalKills') >= 5,
+          counter: () => `${Math.min(5, questCounter('quest_abyssal_breach', 'abyssalKills'))} / 5`,
+        },
+      ],
+      rewards: {
+        xp: 1350,
+        glimmer: 450,
+        gold: 520,
+        professionXp: { combat_mastery: 320, rite_binding: 200 },
+      },
+      acceptDialogue: [
+        {
+          speaker: 'RIFT-WATCHER NIHILUS • ABYSSAL RIFT',
+          spriteKey: 'shadowWraithmotherNpc',
+          text: 'You stand upon the fractured threshold where Xal\'Korath, the Void Architect, unravels reality itself! Banish 5 Rift horrors prowling these obsidian spires before the breach swallows the Caldera!',
+          actions: [
+            { label: '⚗️ OPEN ABYSSAL CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#c084fc; color:#f3e8ff; font-weight:bold;' },
+            { label: '⚔️ ENTER THE BREACH', action: 'close' },
+          ],
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'RIFT-WATCHER NIHILUS • ABYSSAL RIFT',
+          spriteKey: 'shadowWraithmotherNpc',
+          text: 'Banish 5 Gloam-Silk Widows or Paradox Sentinels across the Rift—and beware Xal\'Korath at the northern singularity!',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'RIFT-WATCHER NIHILUS • ABYSSAL RIFT',
+          spriteKey: 'shadowWraithmotherNpc',
+          text: 'The singularity recoils before your blade! Take this sovereign bounty—and when your squad is ready, strike down Xal\'Korath for the Abyssal Voidstar Scythe!',
+        },
+      ],
+    },
   };
 
   function getNpcName(npcId) {
@@ -1954,6 +2151,8 @@ export function initGame() {
       npc_nyx: 'Shadow Broker Nyx',
       npc_rowan: 'Grove Tender Rowan',
       npc_kaelen: 'Astromancer Kaelen',
+      npc_orion: 'Forge-Keeper Orion',
+      npc_nihilus: 'Rift-Watcher Nihilus',
     };
     return map[npcId] || 'Quest Giver';
   }
@@ -2438,9 +2637,9 @@ export function initGame() {
       desc: 'Towering golden parapets and solar obelisks basking in perpetual dawn. Daystar paladins channel burning solar wrath and unbreakable bulwark shields.',
       gridPos: { col: 0, row: 4 },
       neighbors: {
-        north: null,
+        north: 'SOLARI_SUNKEN_VAULT',
         south: null,
-        west: null,
+        west: 'STARFALL_CRATER',
         east: 'SANCTUARY_HUB'
       },
       landmarks: [
@@ -2568,7 +2767,7 @@ export function initGame() {
         north: 'NEXUS_WARZONE',
         south: 'AETHER_SPIRE',
         west: null,
-        east: null
+        east: 'STARFALL_CRATER'
       },
       landmarks: [
         { x: 50, y: 30, icon: '🗿', name: 'The Prismatic Golem', sub: '★ Lv.7 First Nexus Guardian', desc: 'Ancient megalith guarding quadrant runestones.' },
@@ -2601,7 +2800,7 @@ export function initGame() {
         north: 'CELESTIAL_ASCENT',
         south: 'NEXUS_FORGOTTEN_RUINS',
         west: null,
-        east: null
+        east: 'ABYSSAL_RIFT'
       },
       landmarks: [
         { x: 50, y: 45, icon: '🌋', name: 'Shattered Nexus Shard', sub: 'Continental Siege Objective', desc: '30-minute continental siege shard granting +250 XP.' },
@@ -2635,7 +2834,7 @@ export function initGame() {
       desc: 'Sacred starlight terraces towering above the continental clouds. The highest peak in Glimmerfall, where Grand Arbiter Aurelia guards the throne of the Empyrean Sovereign.',
       gridPos: { col: 1, row: 0 },
       neighbors: {
-        north: null,
+        north: 'ABYSSAL_RIFT',
         south: 'NEXUS_WARZONE',
         west: null,
         east: null
@@ -2654,6 +2853,68 @@ export function initGame() {
       ],
       objectives: 'Vanquish Aurelius the Empyrean Sovereign, claim the Crown of Dawn, attune Empyrean resonance.',
       travel: 'From the northernmost plateau of Continental Nexus Caldera (y: -1760), walk North through the Ascent Gate up the mountain stairs.'
+    },
+    STARFALL_CRATER: {
+      id: 'STARFALL_CRATER',
+      name: 'Starfall Meteorite Crater',
+      sub: 'Astral Impact Basin & Cosmic Forge',
+      level: 'Lv. 20 – 32',
+      dangerTag: 'STARFALL BASIN',
+      color: '#fb923c',
+      borderColor: '#fdba74',
+      faction: '☄️ Order of the Astral Forge',
+      desc: 'A glowing meteorite impact crater west of the Golden Citadel rich with Astral Mithril and Celestial Starmetal veins, guarded by Starforged Automatons and Ignis-Core.',
+      gridPos: { col: 0, row: 2 },
+      neighbors: {
+        north: null,
+        south: null,
+        west: 'NEXUS_FORGOTTEN_RUINS',
+        east: 'SOLARI_CITADEL'
+      },
+      landmarks: [
+        { x: 50, y: 30, icon: '☄️', name: 'Ignis-Core the Starfall Colossus', sub: '★ Lv.28 Crater World Boss', desc: 'Molten starmetal colossus guarding the Meteor Hammer.' },
+        { x: 55, y: 68, icon: '🔨', name: 'Forge-Keeper Orion & Astral Anvil', sub: 'Master Cosmic Smith', desc: 'Smelt Starmetal & Mithril right inside the crater.' },
+        { x: 26, y: 46, icon: '⛏️', name: 'Celestial Starmetal Veins', sub: 'High-Tier Ore Veins [E]', desc: 'Rich veins of Astral Mithril & Celestial Runite.' },
+        { x: 92, y: 50, icon: '▶', name: 'Citadel Canyon Pass', sub: 'To Solari Citadel [East]', desc: 'Walk East back to the Golden Citadel.' }
+      ],
+      entities: [
+        { name: 'Ignis-Core the Starfall Colossus', type: 'Crater Boss', hp: '980 HP', desc: 'Drops the Mythic Starmetal Meteor Hammer.' },
+        { name: 'Starforged Automatons & Meteor Elementals', type: 'Hostile Construct', hp: '190 – 230 HP', desc: 'Guard cosmic ore veins and drop Astral Mineral Dust.' },
+        { name: 'Forge-Keeper Orion', type: 'Astral Smith', hp: 'Immortal', desc: 'Keeper of The Fallen Astral Forge quest.' }
+      ],
+      objectives: 'Mine Astral Mithril & Starmetal, smelt cosmic alloys, defeat Ignis-Core for the Starmetal Meteor Hammer.',
+      travel: 'Walk West from Solari Sun-Citadel (or East from the Forgotten First Nexus Ruins).'
+    },
+    ABYSSAL_RIFT: {
+      id: 'ABYSSAL_RIFT',
+      name: 'The Abyssal Rift',
+      sub: 'Primeval Void Singularity & Late-Game Sanctum',
+      level: 'Lv. 32 – 45',
+      dangerTag: 'APEX VOID BREACH',
+      color: '#e879f9',
+      borderColor: '#f0abfc',
+      faction: '🌌 Rift-Watchers of the Edge',
+      desc: 'A shattered reality breach east of the Continental Caldera where obsidian islands float above the Fall, prowled by Gloam-Silk Widows, Paradox Sentinels, and Xal\'Korath the Void Architect.',
+      gridPos: { col: 2, row: 1 },
+      neighbors: {
+        north: null,
+        south: 'CELESTIAL_ASCENT',
+        west: 'NEXUS_WARZONE',
+        east: null
+      },
+      landmarks: [
+        { x: 50, y: 26, icon: '🌌', name: 'Xal\'Korath the Void Architect', sub: '★ Lv.42 Apex Raid Boss', desc: '3,800 HP Void Sovereign dropping the Abyssal Voidstar Scythe.' },
+        { x: 45, y: 72, icon: '⚗️', name: 'Rift-Watcher Nihilus & Crucible', sub: 'Abyssal Vanguard', desc: 'Oversees Breach quests & high-tier Rite-Binding.' },
+        { x: 74, y: 48, icon: '🕸️', name: 'Celestial Gossamer & Starleaf', sub: 'Endgame Skilling Nodes [E]', desc: 'Harvest Empyrean Starleaf & Celestial Gossamer.' },
+        { x: 8, y: 50, icon: '◀', name: 'Caldera Breach Gate', sub: 'To Nexus Caldera [West]', desc: 'Walk West back into the Continental Caldera.' }
+      ],
+      entities: [
+        { name: 'Xal\'Korath the Void Architect', type: 'Apex Raid Boss', hp: '3800 HP', desc: 'Lv. 42 Void Architect dropping Abyssal Voidstar Scythe!' },
+        { name: 'Paradox Sentinels & Gloam-Silk Widows', type: 'Endgame Rift Mob', hp: '340 – 460 HP', desc: 'Drop Celestial Gossamer, Void Essence & Empyrean Starleaf.' },
+        { name: 'Rift-Watcher Nihilus', type: 'Void Watcher', hp: 'Immortal', desc: 'Issues Breach of the Void Architect quest.' }
+      ],
+      objectives: 'Harvest Empyrean Starleaf & Celestial Gossamer, conquer Elite Rift Champions, vanquish Xal\'Korath.',
+      travel: 'Walk East across the eastern edge of the Continental Nexus Caldera (or North beyond the Celestial Ascent).'
     }
   };
 
@@ -2677,8 +2938,9 @@ export function initGame() {
 
   window.openWorldMap = function () {
     currentLoreTab = 'map';
-    if (WORLD_ATLAS_REGIONS[currentRoomType]) {
-      selectedMapRegionId = currentRoomType;
+    const curKey = String(currentRoomType || '').toUpperCase();
+    if (WORLD_ATLAS_REGIONS[curKey]) {
+      selectedMapRegionId = curKey;
     }
     if (document.getElementById('lore-modal')?.style.display !== 'block') {
       window.toggleModal('lore-modal');
@@ -2704,8 +2966,9 @@ export function initGame() {
   };
 
   window.centerMapOnPlayer = function () {
-    if (WORLD_ATLAS_REGIONS[currentRoomType]) {
-      window.selectMapRegion(currentRoomType, true);
+    const curKey = String(currentRoomType || '').toUpperCase();
+    if (WORLD_ATLAS_REGIONS[curKey]) {
+      window.selectMapRegion(curKey, true);
     }
   };
 
@@ -2763,7 +3026,7 @@ export function initGame() {
 
   function getRegionInspectorHtml(regId) {
     const reg = WORLD_ATLAS_REGIONS[regId] || WORLD_ATLAS_REGIONS.SANCTUARY_HUB;
-    const isPlayerHere = currentRoomType === reg.id;
+    const isPlayerHere = String(currentRoomType || '').toUpperCase() === reg.id;
     const n = reg.neighbors || {};
 
     return `
@@ -2854,7 +3117,7 @@ export function initGame() {
   }
 
   function renderSquareZoneView(reg) {
-    const isPlayerHere = currentRoomType === reg.id;
+    const isPlayerHere = String(currentRoomType || '').toUpperCase() === reg.id;
     const n = reg.neighbors || {};
     const northReg = n.north ? WORLD_ATLAS_REGIONS[n.north] : null;
     const southReg = n.south ? WORLD_ATLAS_REGIONS[n.south] : null;
@@ -3108,8 +3371,10 @@ export function initGame() {
 
   function renderContinentalGridView() {
     const realmOrder = [
+      'ABYSSAL_RIFT',
       'CELESTIAL_ASCENT',
       'NEXUS_WARZONE',
+      'STARFALL_CRATER',
       'NEXUS_FORGOTTEN_RUINS',
       'AETHER_SPIRE',
       'SANCTUARY_HUB',
@@ -3127,7 +3392,7 @@ export function initGame() {
           ${realmOrder.map((regId) => {
             const reg = WORLD_ATLAS_REGIONS[regId];
             if (!reg) return '';
-            const isHere = currentRoomType === regId;
+            const isHere = String(currentRoomType || '').toUpperCase() === regId;
             const isSelected = selectedMapRegionId === regId;
             return `
               <div onclick="selectMapRegion('${reg.id}', true); setAtlasViewMode('square');"
@@ -3526,6 +3791,7 @@ export function initGame() {
     if (savedKb) keybinds = { ...DEFAULT_KEYBINDS, ...JSON.parse(savedKb) };
   } catch (_) {}
   let listeningSlot = null;
+  let pendingAssign = null; // { kind: 'ability', id } picked from the Skill Tree, awaiting an action-bar slot click
 
   // ==========================================
   // Portrait, Paperdoll & Profile Sync
@@ -3661,11 +3927,17 @@ export function initGame() {
     };
     saveProgressionLocal();
 
-    loadQuestState();
+    isApplyingProfile = true;
+    try {
+      loadQuestState({ syncServer: false });
+    } finally {
+      isApplyingProfile = false;
+    }
     recalcVitalsFromProfile();
     refreshHeroPortrait();
     updatePlayerUI();
     updateActionBarBadges();
+    restoreLearnedBarOnce();
     if (document.getElementById('equipment-modal')?.style.display === 'block' || document.getElementById('paperdoll-modal')?.style.display === 'block') {
       renderEquipmentModal({ profile: localProfile });
     }
@@ -3821,7 +4093,9 @@ export function initGame() {
     if (idx < 0) return 'missing';
     const itemObj = inv[idx];
     const item = EQUIPMENT_CATALOG[itemId];
-    if (!item || item.slot !== 'consumable') return 'not-consumable';
+    if (!item) return 'not-usable';
+    if (item.slot === 'keystone') return useKeystoneItem(item, idx, inv);
+    if (item.slot !== 'consumable') return 'not-consumable';
 
     if (item.healHp) {
       if (player.hp >= player.maxHp) {
@@ -3860,6 +4134,222 @@ export function initGame() {
     return 'used';
   }
 
+  function useKeystoneItem(item, idx, inv) {
+    const spec = item?.keystone;
+    const dungeon = spec ? MYTHIC_DUNGEONS[spec.dungeonId] : null;
+    if (!dungeon) return 'not-usable';
+
+    if (currentRoomType !== dungeon.roomType) {
+      spawnFCT(player.x, player.y - 14, `USE INSIDE ${dungeon.name.toUpperCase()}!`, '#ef4444');
+      logMessage(`🗝️ [Mythic] ${item.name} must be activated inside ${dungeon.name}.`, 'log-quest', 'combat');
+      return 'blocked';
+    }
+
+    if (net.connected) {
+      net.send({ type: 'use_keystone', itemId: item.id });
+      return 'used';
+    }
+
+    if (offlineMythic?.active) {
+      spawnFCT(player.x, player.y - 14, 'MYTHIC RUN ALREADY ACTIVE!', '#ef4444');
+      return 'blocked';
+    }
+
+    startOfflineMythic(dungeon, spec.tier);
+
+    if (idx >= 0 && idx < inv.length) {
+      const itemObj = inv[idx];
+      if (typeof itemObj === 'object' && itemObj.qty > 1) itemObj.qty--;
+      else inv.splice(idx, 1);
+      localProfile.inventory = inv;
+      saveProgressionLocal();
+      updatePlayerUI();
+      if (document.getElementById('inventory-modal')?.style.display === 'block') {
+        renderInventoryModal({ profile: localProfile });
+      }
+    }
+    return 'used';
+  }
+
+  function startOfflineMythic(dungeon, tier) {
+    const scale = getMythicEnemyScale(tier);
+    for (const e of entities) {
+      if (e.type !== 'mob' || e.isDying || e.mythicScaled) continue;
+      e.maxHp = Math.max(1, Math.round(e.maxHp * scale));
+      e.hp = e.maxHp;
+      e.damage = Math.max(1, Math.ceil((e.damage || 3) * scale));
+      e.xpReward = Math.round((e.xpReward || 30) * getMythicXpScale(tier));
+      e.mythicScaled = true;
+    }
+
+    const affixes = getMythicAffixesForTier(tier);
+    const duration = getMythicRunDuration(tier);
+    offlineMythic = {
+      active: true,
+      dungeonId: dungeon.id,
+      tier,
+      affixes,
+      duration,
+      timeLeft: duration,
+      volcanicTimer: 3,
+      completed: false,
+      failed: false,
+    };
+
+    spawnFCT(player.x, player.y - 16, `🗝️ TIER ${tier} MYTHIC RUN BEGINS!`, dungeon.color, true);
+    spawnSparkBurst(player.x, player.y, [dungeon.color, '#fde047', '#ffffff'], 30);
+    audio.playChime?.();
+    logMessage(
+      `🗝️ [MYTHIC] Tier ${tier} ${dungeon.name} run started! Affixes: ${affixes.map((a) => `${MYTHIC_AFFIXES[a].icon} ${MYTHIC_AFFIXES[a].name}`).join(', ')}. Clear the boss in ${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')}.`,
+      'log-quest',
+      'combat'
+    );
+    updateMythicHud();
+  }
+
+  function tickOfflineMythic(dt) {
+    if (!offlineMythic?.active) return;
+    offlineMythic.timeLeft -= dt;
+
+    if (offlineMythic.timeLeft <= 0) {
+      offlineMythic.active = false;
+      offlineMythic.failed = true;
+      offlineMythic.timeLeft = 0;
+      spawnFCT(player.x, player.y - 14, 'MYTHIC RUN EXPIRED', '#94a3b8', true);
+      logMessage('⌛ [MYTHIC] The leyline cache faded into the void. The run has expired.', 'log-quest', 'combat');
+      updateMythicHud();
+      return;
+    }
+
+    if (offlineMythic.affixes.includes('volcanic')) {
+      offlineMythic.volcanicTimer = (offlineMythic.volcanicTimer ?? 3) - dt;
+      if (offlineMythic.volcanicTimer <= 0) {
+        offlineMythic.volcanicTimer = Math.max(2.4, 4.4 - offlineMythic.tier * 0.15);
+        groundZones.push({
+          id: `off_tel_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+          type: 'telegraph',
+          color: '#f97316',
+          label: 'ERUPTION',
+          x: player.x,
+          y: player.y,
+          radius: 52,
+          age: 0,
+          maxAge: 1.15,
+          damage: 8 + offlineMythic.tier * 3,
+          bossName: 'Volcanic Affix',
+        });
+        spawnFCT(player.x, player.y - 14, '⚠️ VOLCANIC ERUPTION!', '#f97316', true);
+      }
+    }
+
+    if (offlineMythic.affixes.includes('sanguine')) {
+      for (const gz of groundZones) {
+        if (gz.type !== 'sanguine_pool') continue;
+        gz.tickTimer = (gz.tickTimer ?? 0) - dt;
+        if (gz.tickTimer > 0) continue;
+        gz.tickTimer = 1.2;
+        for (const mob of entities) {
+          if (mob.type !== 'mob' || mob.isDying) continue;
+          if (Math.hypot(mob.x - gz.x, mob.y - gz.y) > gz.radius) continue;
+          mob.hp = Math.min(mob.maxHp, mob.hp + mob.maxHp * 0.03);
+        }
+      }
+    }
+
+    updateMythicHud();
+  }
+
+  function completeOfflineMythic(ent, dungeon) {
+    const run = offlineMythic;
+    if (!run?.active) return;
+    const tier = run.tier;
+    const secondsLeft = Math.max(0, Math.ceil(run.timeLeft));
+    run.active = false;
+    run.completed = true;
+
+    const currency =
+      dungeon.faction === 'Solari' ? 'glimmer_shard' :
+      dungeon.faction === 'Umbri' ? 'void_essence' :
+      dungeon.faction === 'Terra' ? 'verdant_amber' : 'chrono_gem';
+
+    const cache = [
+      { itemId: 'solar_gold', qty: 400 + tier * 150 },
+      { itemId: currency, qty: 30 + tier * 8 },
+      { itemId: 'major_vitality_elixir', qty: 2 + Math.floor(tier / 2) },
+      { itemId: getFactionBossSetDrop(ent, currentRoomType), qty: 1 },
+    ];
+    if (tier < MYTHIC_KEYSTONE_MAX_TIER) {
+      cache.push({ itemId: `keystone_${dungeon.id}_${tier + 1}`, qty: 1 });
+    } else {
+      cache.push({ itemId: getBossAccessoryDrop(ent, currentRoomType), qty: 1 });
+    }
+
+    cache.forEach((d, i) => {
+      if (!d.itemId) return;
+      const ang = (Math.PI * 2 * i) / cache.length - Math.PI / 2;
+      const dist = 34 + (i % 3) * 9;
+      lootSeq++;
+      lootDrops.push({
+        id: `loot_off_${lootSeq}`,
+        kind: 'item',
+        itemId: d.itemId,
+        qty: d.qty || 1,
+        x: Math.round(ent.x + Math.cos(ang) * dist),
+        y: Math.round(ent.y + Math.sin(ang) * dist * 0.65),
+        ttl: 120,
+        age: 0,
+      });
+    });
+
+    awardXP(120 + tier * 45, `Tier ${tier} Mythic Cache`);
+    spawnFCT(ent.x, ent.y - 18, `🏆 TIER ${tier} MYTHIC CACHE!`, dungeon.color, true);
+    spawnSparkBurst(ent.x, ent.y, [dungeon.color, '#fde047', '#ffffff'], 36);
+    audio.playChime?.();
+    logMessage(
+      `🏆 [MYTHIC COMPLETE] Tier ${tier} ${dungeon.name} cleared with ${secondsLeft}s remaining! A Mythic cache crystallized — ${tier < MYTHIC_KEYSTONE_MAX_TIER ? `a Tier ${tier + 1} keystone is inside.` : 'an apex relic is inside.'}`,
+      'log-quest',
+      'combat'
+    );
+    updateMythicHud();
+  }
+
+  function updateMythicHud() {
+    const el = document.getElementById('mythic-run-hud');
+    if (!el) return;
+    const raw = net.connected ? onlineMythic : offlineMythic;
+    const dungeon = raw?.dungeonId ? MYTHIC_DUNGEONS[raw.dungeonId] : null;
+
+    if (!raw?.active || !dungeon || dungeon.roomType !== currentRoomType) {
+      el.style.display = 'none';
+      return;
+    }
+
+    const elapsed = net.connected && Number.isFinite(raw._syncedAt) ? Math.max(0, globalTime - raw._syncedAt) : 0;
+    const remain = Math.max(0, (raw.timeLeft || 0) - elapsed);
+    el.style.display = 'block';
+
+    const title = document.getElementById('mythic-run-title');
+    if (title) {
+      title.textContent = `🗝️ TIER ${raw.tier} MYTHIC — ${dungeon.name.toUpperCase()}`;
+      title.style.color = dungeon.color;
+    }
+    const timer = document.getElementById('mythic-run-timer');
+    if (timer) {
+      timer.textContent = `${Math.floor(remain / 60)}:${String(Math.floor(remain % 60)).padStart(2, '0')}`;
+    }
+    const affixEl = document.getElementById('mythic-run-affixes');
+    if (affixEl) {
+      affixEl.innerHTML = (raw.affixes || [])
+        .map((a) => {
+          const af = MYTHIC_AFFIXES[a];
+          return af ? `<span style="color:${af.color};">${af.icon} ${af.name.toUpperCase()}</span>` : '';
+        })
+        .join('<span style="color:#475569;"> • </span>');
+    }
+    const fill = document.getElementById('mythic-run-bar-fill');
+    if (fill) fill.style.width = `${Math.max(0, Math.min(100, (remain / (raw.duration || 1)) * 100))}%`;
+  }
+
   window.equipInventorySlot = function (slotIndex) {
     const inv = localProfile.inventory || [];
     const idx = Number(slotIndex);
@@ -3869,27 +4359,49 @@ export function initGame() {
     const item = EQUIPMENT_CATALOG[itemId];
     if (!item) return;
 
+    // Mythic Leyline Keystones are activated in their crypt, never equipped.
+    if (item.slot === 'keystone') {
+      useKeystoneItem(item, idx, inv);
+      return;
+    }
+
     // Handle consumables!
     if (item.slot === 'consumable') {
       consumeInventoryItem(itemId);
       return;
     }
 
-    // Handle currency click: display info & current stack
-    if (item.slot === 'currency') {
+    // Handle currency or crafting material click: display helpful station hint!
+    if (item.slot === 'currency' || item.slot === 'material') {
       const count = typeof itemObj === 'object' && itemObj.qty ? itemObj.qty : 1;
-      logMessage(`🪙 ${item.name} (Count: ${count}): ${item.desc}`, 'log-solari', 'chat');
-      spawnFCT(player.x, player.y - 14, `${count}x ${item.name}`, '#fde047');
+      const hint = item.slot === 'material' ? ' • Craft at Cosmic Star-Anvil / Crucible / Loom!' : '';
+      logMessage(`${item.slot === 'material' ? '⛏️' : '🪙'} ${item.name} (Count: ${count}): ${item.desc}${hint}`, 'log-solari', 'chat');
+      spawnFCT(player.x, player.y - 14, `${count}x ${item.name}`, item.slot === 'material' ? '#38bdf8' : '#fde047');
+      return;
+    }
+
+    const currentEquip = { ...(localProfile.equipment || {}) };
+    let targetSlot = item.slot === 'armor' ? 'body' : item.slot === 'offhand' ? 'shield' : item.slot;
+    if (item.slot === 'socket_gem') {
+      const socketOrder = ['socket_weapon', 'socket_body', 'socket_head'];
+      const preferred = window._preferredGemSocket;
+      window._preferredGemSocket = null;
+      if (preferred && socketOrder.includes(preferred)) {
+        targetSlot = preferred;
+      } else {
+        targetSlot = socketOrder.find((sk) => !currentEquip[sk]) || 'socket_weapon';
+      }
+    }
+
+    const oldId = currentEquip[targetSlot] || (targetSlot === 'body' ? currentEquip.armor : targetSlot === 'shield' ? currentEquip.offhand : null);
+    if (oldId === item.id) {
+      spawnFCT(player.x, player.y - 14, 'ALREADY EQUIPPED!', '#94a3b8');
       return;
     }
 
     if (net.connected) {
-      net.send({ type: 'equip_item', slotIndex: idx });
+      net.send({ type: 'equip_item', slotIndex: idx, preferredSocket: item.slot === 'socket_gem' ? targetSlot : null });
     }
-
-    const targetSlot = item.slot === 'armor' ? 'body' : item.slot === 'offhand' ? 'shield' : item.slot;
-    const currentEquip = { ...(localProfile.equipment || {}) };
-    const oldId = currentEquip[targetSlot] || (targetSlot === 'body' ? currentEquip.armor : targetSlot === 'shield' ? currentEquip.offhand : null);
 
     currentEquip[targetSlot] = item.id;
     if (targetSlot === 'body') currentEquip.armor = item.id;
@@ -3979,6 +4491,21 @@ export function initGame() {
     if (document.getElementById('inventory-modal')?.style.display === 'block') {
       renderInventoryModal({ profile: localProfile });
     }
+  };
+
+  window.socketFirstAvailableGem = function (preferredSocket = 'socket_weapon') {
+    const inv = localProfile.inventory || [];
+    const gemIdx = inv.findIndex((it) => {
+      const id = typeof it === 'string' ? it : it?.id;
+      return EQUIPMENT_CATALOG[id]?.slot === 'socket_gem';
+    });
+    if (gemIdx === -1) {
+      logMessage('💎 No Leyline Socket Gems in backpack! Cut Solar Rubies, Void Sapphires, Terra Emeralds, or Aether Diamonds at the Cosmic Star-Anvil or Aetherial Crucible.', 'log-solari', 'chat');
+      spawnFCT(player.x, player.y - 14, '💎 CRAFT GEMS AT COSMIC ANVIL!', '#38bdf8');
+      return;
+    }
+    window._preferredGemSocket = preferredSocket;
+    window.equipInventorySlot(gemIdx);
   };
 
   window.dropInventorySlot = function (slotIndex) {
@@ -4266,12 +4793,19 @@ export function initGame() {
   window.assignSlotAbilityInGame = function (slot, abilityId) {
     const ab = ABILITIES_CATALOG[abilityId];
     if (!ab) return;
+    const numericSlot = Number(slot);
+    if (ACTION_SLOTS.includes(numericSlot) && !slotAcceptsAbility(numericSlot, ab.id)) {
+      logMessage(`[Action Bar] ${ab.name} is a ${(ab.tree || 'rites') === 'flashes' ? 'Flash — it belongs in slots 9–12.' : 'Rite — it belongs in slots 1–4.'}`, 'log-combat');
+      audio.playHurt();
+      return;
+    }
     const rank = getAbilityRank(prog, ab.id);
     if (rank < 1) {
       logMessage(`🔒 Must allocate a Skill Point in ${ab.name} in the Skill Tree [P] before equipping!`, 'log-combat');
       audio.playHurt();
       return;
     }
+    pendingAssign = null;
     localProfile.loadout = { ...(localProfile.loadout || {}), [slot]: ab.id };
     if (prog.ranks) {
       prog.ranks[slot] = rank;
@@ -4280,9 +4814,26 @@ export function initGame() {
     updateActionBarBadges();
     renderKeybindUI();
     if (typeof renderSkillTreeUI === 'function') renderSkillTreeUI();
+    saveProgressionLocal();
     if (net.connected) {
       net.send({ type: 'update_loadout', loadout: localProfile.loadout });
     }
+  };
+
+  window.assignItemToSlot = function (slot, itemId) {
+    const s = Number(slot);
+    if (!ITEM_ACTION_SLOTS.includes(s)) return;
+    if (!itemId) {
+      delete actionBarItems[s];
+    } else {
+      const item = EQUIPMENT_CATALOG[itemId];
+      if (!item || item.slot === 'currency') return;
+      actionBarItems[s] = itemId;
+    }
+    saveActionBarItems();
+    actionBarSignature = '';
+    updateActionBarBadges();
+    renderKeybindUI();
   };
 
   // ==========================================
@@ -4572,6 +5123,12 @@ export function initGame() {
       updateQuestTrackerHUD();
       window.closeDialogue();
       openMerchantShop(merchantId);
+    } else if (act.action && act.action.startsWith('openStation_')) {
+      const stId = act.action.replace('openStation_', '');
+      window.closeDialogue();
+      if (typeof window.openCraftingModal === 'function') {
+        window.openCraftingModal(stId);
+      }
     } else if (act.action === 'openSkills') {
       window.closeDialogue();
       window.toggleSkillsTab();
@@ -4743,99 +5300,260 @@ export function initGame() {
     renderSkillsTabUI();
   }
   window.awardProfessionXP = awardProfessionXP;
+  window.getLocalProgression = () => prog;
 
-  const ARTISAN_TRAINING = {
-    merchant_smith: { professionId: 'relic_forging', verb: 'SMELT & HAMMER', baseCost: 8, baseXp: 35 },
-    merchant_apothecary: { professionId: 'rite_binding', verb: 'DISTILL & BIND', baseCost: 8, baseXp: 35 },
-    merchant_provisions: { professionId: 'glimmerweaving', verb: 'WEAVE & BAKE', baseCost: 8, baseXp: 35 },
-    merchant_relics: { professionId: 'resonance_extraction', verb: 'ATTUNE A RELIC', baseCost: 8, baseXp: 35 },
+  // ==========================================
+  // Cosmic Artisan Stations & Crafting Loop (OSRS-Inspired)
+  // ==========================================
+  window.openCraftingModal = function (stationId = 'cosmic_anvil') {
+    stopCraftingQueue();
+    const modal = document.getElementById('crafting-modal');
+    if (!modal) return;
+    document.querySelectorAll('.modal').forEach((m) => {
+      if (m.id !== 'crafting-modal') m.style.display = 'none';
+    });
+    const backdrop = document.getElementById('modal-backdrop');
+    if (backdrop) backdrop.style.display = 'flex';
+    modal.style.display = 'block';
+    renderCraftingModal(stationId);
+    audio.playChime?.();
   };
 
-  // Cost and XP are recalculated after every session so bulk training cannot
-  // accidentally use the starting level's reward for all five sessions.
-  function getArtisanTrainingPlan(def, startXp, count = 1) {
-    const sessions = Math.max(1, Math.min(25, Math.floor(Number(count) || 1)));
-    let xp = Math.max(0, Math.floor(Number(startXp) || 0));
-    let cost = 0;
-    let gain = 0;
-    const startLevel = getProfessionLevelFromXp(xp);
-    let endLevel = startLevel;
-    for (let i = 0; i < sessions; i++) {
-      const level = getProfessionLevelFromXp(xp);
-      cost += def.baseCost + Math.floor(level * 1.5);
-      const stepGain = def.baseXp + level * 2;
-      gain += stepGain;
-      xp += stepGain;
-      endLevel = getProfessionLevelFromXp(xp);
-    }
-    return { count: sessions, cost, gain, startXp: startXp, endXp: xp, startLevel, endLevel, levelsGained: endLevel - startLevel };
-  }
+  window.closeCraftingModal = function () {
+    stopCraftingQueue();
+    const modal = document.getElementById('crafting-modal');
+    if (modal) modal.style.display = 'none';
+    const anyOpen = Array.from(document.querySelectorAll('.modal')).some((m) => m.style.display === 'block');
+    const backdrop = document.getElementById('modal-backdrop');
+    if (backdrop && !anyOpen) backdrop.style.display = 'none';
+  };
 
-  function getArtisanTrainingQuote(merchantId) {
-    const def = ARTISAN_TRAINING[merchantId];
-    if (!def) return null;
-    const pInfo = PROFESSIONS_CATALOG[def.professionId];
-    const xp = Math.max(0, Math.floor(Number(prog?.professions?.[def.professionId]?.xp) || 0));
-    const level = getProfessionLevelFromXp(xp);
-    const curXp = getXpForProfessionLevel(level);
-    const nextXp = level >= 99 ? curXp : getXpForProfessionLevel(level + 1);
-    const pct = level >= 99 ? 100 : Math.min(100, Math.floor(((xp - curXp) / Math.max(1, nextXp - curXp)) * 100));
-    const cost = def.baseCost + Math.floor(level * 1.5);
-    const gain = def.baseXp + level * 2;
-    return {
-      merchantId,
-      ...def,
-      name: pInfo?.name || formatProfessionName(def.professionId),
-      icon: pInfo?.icon || '✨',
-      color: pInfo?.color || '#38bdf8',
-      xp,
-      level,
-      nextXp,
-      pct,
-      cost,
-      gain,
-      bulk: getArtisanTrainingPlan(def, xp, 5),
-    };
-  }
-  window.getArtisanTrainingQuote = getArtisanTrainingQuote;
+  window.selectCraftingStation = selectCraftingStation;
+  window.selectCraftingCategory = selectCraftingCategory;
+  window.selectCraftingRecipe = selectCraftingRecipe;
+  window.startCraftingBatch = startCraftingBatch;
+  window.stopCraftingQueue = stopCraftingQueue;
 
-  window.trainArtisanProfession = function (merchantId, count = 1) {
-    const def = ARTISAN_TRAINING[merchantId];
-    const q = getArtisanTrainingQuote(merchantId);
-    if (!def || !q || !localProfile) return false;
-    const plan = getArtisanTrainingPlan(def, q.xp, count);
-    if (getPlayerGold(localProfile) < plan.cost) {
-      spawnFCT(player.x, player.y - 14, `NEED ${plan.cost} SOLAR GOLD TO TRAIN!`, '#ef4444');
+  window.performCraftRecipe = function (recipeId) {
+    const recipe = CRAFTING_RECIPES.find((r) => r.id === recipeId);
+    if (!recipe || !localProfile) return false;
+    const outItem = EQUIPMENT_CATALOG[recipe.outputId];
+    if (!outItem) return false;
+
+    const reqLvl = recipe.reqLevel || 1;
+    const profXp = Math.max(0, Math.floor(Number(prog?.professions?.[recipe.profession]?.xp) || 0));
+    const profLvl = getProfessionLevelFromXp(profXp);
+    if (profLvl < reqLvl) {
+      const pName = PROFESSIONS_CATALOG[recipe.profession]?.name || recipe.profession;
+      spawnFCT(player.x, player.y - 14, `NEED ${pName.toUpperCase()} LV.${reqLvl}!`, '#ef4444');
       audio.playHurt?.();
       return false;
     }
 
-    if (net.connected) {
-      net.send({ type: 'train_artisan_profession', merchantId, count: plan.count });
-      return true;
+    const inv = Array.isArray(localProfile.inventory) ? localProfile.inventory : [];
+    // Verify all ingredients exist
+    let freedSlots = 0;
+    for (const ing of recipe.ingredients) {
+      const ingId = ing.id || ing.itemId;
+      let have = 0;
+      for (const slot of inv) {
+        const id = typeof slot === 'string' ? slot : slot?.id;
+        if (id === ingId) have += typeof slot === 'object' && slot.qty ? slot.qty : 1;
+      }
+      if (have < ing.qty) {
+        const iname = EQUIPMENT_CATALOG[ingId]?.name || ingId;
+        spawnFCT(player.x, player.y - 14, `MISSING ${iname.toUpperCase()}!`, '#ef4444');
+        audio.playHurt?.();
+        return false;
+      }
+      if (have === ing.qty) freedSlots++;
     }
 
-    deductPlayerGold(localProfile, plan.cost);
-    if (merchantId === 'merchant_smith') questState.smithInspected = true;
-    if (merchantId === 'merchant_apothecary') questState.apothecaryInspected = true;
-    if (merchantId === 'merchant_provisions') questState.provisionsInspected = true;
-    if (merchantId === 'merchant_relics') questState.relicsInspected = true;
+    const outQty = recipe.outputQty || 1;
+    const existingOut = outItem.stackable && inv.some((s) => (typeof s === 'string' ? s : s?.id) === recipe.outputId);
+    const neededSlots = existingOut ? 0 : (outItem.stackable ? 1 : outQty);
+    if (inv.length - freedSlots + neededSlots > 28) {
+      spawnFCT(player.x, player.y - 14, '🎒 BACKPACK IS FULL (28/28)!', '#ef4444');
+      audio.playHurt?.();
+      return false;
+    }
 
-    awardProfessionXP(q.professionId, plan.gain, plan.count > 1 ? `${plan.count} training sessions` : '');
+    // Deduct ingredients from backpack
+    for (const ing of recipe.ingredients) {
+      const ingId = ing.id || ing.itemId;
+      let rem = ing.qty;
+      for (let i = inv.length - 1; i >= 0 && rem > 0; i--) {
+        const slot = inv[i];
+        const id = typeof slot === 'string' ? slot : slot?.id;
+        if (id !== ingId) continue;
+        const curQty = typeof slot === 'object' && slot.qty ? slot.qty : 1;
+        if (curQty > rem) {
+          if (typeof slot === 'string') inv[i] = { id, qty: curQty - rem };
+          else slot.qty = curQty - rem;
+          rem = 0;
+        } else {
+          rem -= curQty;
+          inv.splice(i, 1);
+        }
+      }
+    }
+
+    // Add output item(s)
+    addItemToBackpack(localProfile, recipe.outputId, outQty);
+
+    // Update quest & bounty state
+    questState.craftsCompleted = (questState.craftsCompleted || 0) + 1;
+    if (recipe.station === 'cosmic_anvil') questState.smithInspected = true;
+    if (recipe.station === 'aether_crucible') questState.apothecaryInspected = true;
+    if (recipe.station === 'celestial_loom') questState.provisionsInspected = true;
+    advanceBountyProgress('crafts', 1);
+
+    if (net.connected) {
+      net.send({ type: 'craft_recipe', recipeId: recipe.id });
+    } else {
+      awardProfessionXP(recipe.profession, recipe.xp, outItem.name, false);
+    }
+
     saveQuestState();
     saveProgressionLocal();
 
-    spawnFCT(player.x, player.y - 20, `-${plan.cost} SOLAR GOLD`, '#facc15');
-    const sessionLabel = plan.count > 1 ? `${plan.count} sessions` : 'one session';
-    logMessage(`[Artisan Training] Completed ${sessionLabel} with ${getNpcName(merchantId)}: +${plan.gain} ${q.name} XP for ${plan.cost} Solar Gold.`, 'log-gain', 'combat');
+    audio.playShield?.();
+    audio.playChime?.();
+    const stationColor = CRAFTING_STATIONS[recipe.station]?.color || '#fde047';
+    spawnSparkBurst(player.x, player.y - 10, [stationColor, '#fde047', '#ffffff'], 16);
+    spawnFCT(player.x, player.y - 22, `✦ +${outQty}x ${outItem.name.toUpperCase()}`, stationColor, true);
+    logMessage(`🔨 [Artisan Craft] Created ${outQty}x ${outItem.name}!`, 'log-gain', 'combat');
+
     updatePlayerUI();
     updateQuestTrackerHUD();
-    try {
-      if (document.getElementById('merchant-modal')?.style.display === 'block') {
-        renderMerchantModal(merchantId);
-      }
-    } catch (_) {}
+    if (document.getElementById('inventory-modal')?.style.display === 'block') {
+      renderInventoryModal({ profile: localProfile });
+    }
     return true;
+  };
+
+  // ==========================================
+  // Vanguard Bounty Board Contracts (Repeatable)
+  // ==========================================
+  function ensureBountyState() {
+    if (!questState.bounties || typeof questState.bounties !== 'object') {
+      questState.bounties = {};
+    }
+    return questState.bounties;
+  }
+
+  window.getBountyBoardState = function () {
+    return ensureBountyState();
+  };
+
+  window.openBountyBoard = function () {
+    const modal = document.getElementById('bounty-modal');
+    if (!modal) return;
+    document.querySelectorAll('.modal').forEach((m) => {
+      if (m.id !== 'bounty-modal') m.style.display = 'none';
+    });
+    const backdrop = document.getElementById('modal-backdrop');
+    if (backdrop) backdrop.style.display = 'flex';
+    modal.style.display = 'block';
+    renderBountyModal();
+    audio.playChime?.();
+  };
+
+  window.acceptBountyContract = function (bountyId) {
+    const contract = BOUNTY_CONTRACTS.find((c) => c.id === bountyId);
+    if (!contract) return;
+    const bs = ensureBountyState();
+    const prev = bs[contract.id] || {};
+    bs[contract.id] = {
+      active: true,
+      progress: 0,
+      completions: Number(prev.completions) || 0,
+    };
+    saveQuestState();
+    audio.playChime?.();
+    spawnFCT(player.x, player.y - 14, `📜 CONTRACT: ${contract.title.toUpperCase()}`, '#facc15', true);
+    logMessage(`📜 [Bounty Accepted] ${contract.title}: ${contract.desc}`, 'log-quest', 'chat');
+    renderBountyModal();
+  };
+
+  function advanceBountyProgress(kind, amount = 1) {
+    const bs = ensureBountyState();
+    let updatedAny = false;
+    for (const contract of BOUNTY_CONTRACTS) {
+      if (contract.kind !== kind) continue;
+      const entry = bs[contract.id];
+      if (!entry || !entry.active) continue;
+      const prev = Number(entry.progress) || 0;
+      if (prev >= contract.targetCount) continue;
+      entry.progress = Math.min(contract.targetCount, prev + amount);
+      updatedAny = true;
+      if (entry.progress >= contract.targetCount && prev < contract.targetCount) {
+        audio.playChime?.();
+        spawnFCT(player.x, player.y - 18, `🏆 BOUNTY READY: ${contract.title.toUpperCase()}!`, '#4ade80', true);
+        logMessage(`🏆 [Bounty Complete] "${contract.title}" (${entry.progress}/${contract.targetCount})! Claim your reward at the Vanguard Bounty Board!`, 'log-quest', 'chat');
+      }
+    }
+    if (updatedAny) {
+      saveQuestState();
+      if (document.getElementById('bounty-modal')?.style.display === 'block') {
+        renderBountyModal();
+      }
+    }
+  }
+
+  window.claimBountyContract = function (bountyId) {
+    const bs = ensureBountyState();
+    const contract = BOUNTY_CONTRACTS.find((c) => c.id === bountyId);
+    const entry = contract ? bs[contract.id] : null;
+    if (!contract || !entry || !entry.active || (entry.progress || 0) < contract.targetCount) return;
+
+    const inv = Array.isArray(localProfile?.inventory) ? localProfile.inventory : [];
+    const rewardItems = Array.isArray(contract.rewardItems) ? contract.rewardItems : [];
+    let newSlotsNeeded = 0;
+    for (const ri of rewardItems) {
+      const rDef = EQUIPMENT_CATALOG[ri.id];
+      if (!rDef) continue;
+      const hasStack = rDef.stackable && inv.some((s) => (typeof s === 'string' ? s : s?.id) === ri.id);
+      if (!hasStack) newSlotsNeeded += rDef.stackable ? 1 : (ri.qty || 1);
+    }
+    if (inv.length + newSlotsNeeded > 28) {
+      spawnFCT(player.x, player.y - 14, `🎒 FREE ${newSlotsNeeded} BACKPACK SLOT(S) TO CLAIM!`, '#ef4444');
+      audio.playHurt?.();
+      return;
+    }
+
+    entry.active = false;
+    entry.progress = 0;
+    entry.completions = (Number(entry.completions) || 0) + 1;
+    saveQuestState();
+
+    addPlayerGold(localProfile, contract.rewardGold || 0);
+    for (const ri of rewardItems) {
+      if (EQUIPMENT_CATALOG[ri.id]) {
+        addItemToBackpack(localProfile, ri.id, ri.qty || 1);
+      }
+    }
+
+    if (net.connected) {
+      net.send({ type: 'claim_bounty', bountyId: contract.id });
+    } else {
+      awardXP(contract.rewardXp || 50, `Bounty: ${contract.title}`);
+      if (contract.rewardProf?.id && contract.rewardProf?.xp) {
+        awardProfessionXP(contract.rewardProf.id, contract.rewardProf.xp, contract.title, false);
+      }
+    }
+
+    saveProgressionLocal();
+    audio.playQuestCompleteFanfare ? audio.playQuestCompleteFanfare() : audio.playLevelUp?.();
+    spawnSparkBurst(player.x, player.y - 12, ['#fde047', '#4ade80', '#38bdf8', '#ffffff'], 30);
+    spawnFCT(player.x, player.y - 18, `🏆 BOUNTY CLAIMED! +${contract.rewardGold} GOLD`, '#fde047', true);
+    const itemsSummary = rewardItems.map((ri) => `+${ri.qty}x ${EQUIPMENT_CATALOG[ri.id]?.name || ri.id}`).join(', ');
+    logMessage(`🏆 [Bounty Claimed] Completed "${contract.title}" (+${contract.rewardXp} XP, +${contract.rewardGold} Solar Gold${itemsSummary ? `, ${itemsSummary}` : ''})!`, 'log-quest', 'chat');
+    updatePlayerUI();
+    renderBountyModal();
+    if (document.getElementById('inventory-modal')?.style.display === 'block') {
+      renderInventoryModal({ profile: localProfile });
+    }
   };
 
   window.toggleSkillsTab = function () {
@@ -4941,15 +5659,15 @@ export function initGame() {
 
     body.innerHTML = `
       <div class="skill-training-lead">
-        <b style="color:#fde047;">Start with one skill.</b> There are no skill points to spend and no training unlocks to buy: do the activity and the bar fills automatically. Pick a card below, then open its guide for every Level 1–99 milestone.
+        <b style="color:#fde047;">Hands-on Cosmic Skilling — zero shop XP shortcuts!</b> Gather ores, astral minerals, herbs, and silks across the realms, then smelt, forge, brew, and weave at interactive world stations. Pick a skill below to view every Level 1–99 unlock.
       </div>
       <div class="skill-training-steps">
-        <div class="skill-training-step"><span class="skill-training-num">1</span><span><b>Open Skills [N]</b> and click any skill card. The green <b>HOW TO TRAIN</b> box at the top tells you exactly what to do.</span></div>
-        <div class="skill-training-step"><span class="skill-training-num">2</span><span><b>Do the activity.</b> Channel a node, train with an artisan, or fight monsters. XP is awarded automatically.</span></div>
-        <div class="skill-training-step"><span class="skill-training-num">3</span><span><b>Watch the bar.</b> Level 99 automatically awards that skill's mastery cape. Artisan training is repeatable and costs Solar Gold.</span></div>
+        <div class="skill-training-step"><span class="skill-training-num">1</span><span><b>Gather Materials [E]:</b> Mine Ore &amp; Mineral Veins, forage Herb Clusters, harvest Silk/Flax Blooms, and channel Glimmer Fonts across the continent.</span></div>
+        <div class="skill-training-step"><span class="skill-training-num">2</span><span><b>Work the Cosmic Stations:</b> Smelt ingots &amp; forge gear at the <b>Cosmic Star-Anvil</b>, brew draughts &amp; bind keystones at the <b>Aetherial Crucible</b>, and weave cloaks &amp; feasts at the <b>Celestial Loom</b>.</span></div>
+        <div class="skill-training-step"><span class="skill-training-num">3</span><span><b>Mastery &amp; Leyline Gems:</b> Cut socketable Leyline Gems for your Helm, Chest &amp; Weapon, and claim each skill's <b>Level 99 Mastery Skillcape</b>!</span></div>
       </div>
       <div class="skill-training-grid">${cards}</div>
-      <div class="skill-training-tip">💡 <b>Fastest first level:</b> press <b>[E]</b> at the purple Glimmer Node beside the Sanctuary Dummy. For artisan skills, walk to the Sanctuary market, talk to the artisan, then click <b>TRAIN</b> in their shop.</div>
+      <div class="skill-training-tip">💡 <b>Fastest start in Sanctuary Haven:</b> Mine a <b>Sun-Copper &amp; Star-Tin Vein [E]</b> on the grassy perimeter, then click the glowing <b>🔨 Cosmic Star-Anvil</b> in the NW Market Quarter to smelt Bronze Bars and forge gear!</div>
     `;
   };
 
@@ -5573,11 +6291,17 @@ export function initGame() {
     }
 
     if (howtoEl) {
+      const stationForSkill = skillId === 'relic_forging' ? 'cosmic_anvil' : skillId === 'rite_binding' ? 'aether_crucible' : skillId === 'glimmerweaving' ? 'celestial_loom' : null;
+      const stationObj = stationForSkill ? CRAFTING_STATIONS[stationForSkill] : null;
       howtoEl.innerHTML = `
         <div class="skill-guide-howto-title">🚀 HOW TO TRAIN ${meta.name.toUpperCase()}</div>
         <div class="skill-guide-howto-line"><b>1.</b> ${meta.quickStart || meta.activity}</div>
         <div class="skill-guide-howto-line"><b>2.</b> 📍 ${meta.trainerLocation || meta.instructor || 'Sanctuary Haven'} <span style="color:#64748b;">• Instructor: ${meta.instructor || 'Sanctuary Haven'}</span></div>
-        <div class="skill-guide-howto-line" style="color:#94a3b8; font-size:9px;">XP is automatic — no skill points needed. <button class="id-mini-btn" style="font-size:8.5px; padding:1px 6px;" onclick="openSkillTrainingGuide()">SEE ALL 5 TRAINING PATHS →</button></div>
+        <div class="skill-guide-howto-line" style="color:#94a3b8; font-size:9px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          <span>XP is automatic — gather materials &amp; craft directly at world stations!</span>
+          ${stationObj ? `<button class="id-mini-btn" style="font-size:8.5px; padding:2px 8px; border-color:${stationObj.color}; color:${stationObj.color}; font-weight:800;" onclick="openCraftingModal('${stationForSkill}')">${stationObj.icon} INSPECT ${stationObj.name.toUpperCase()} RECIPES →</button>` : ''}
+          <button class="id-mini-btn" style="font-size:8.5px; padding:1px 6px;" onclick="openSkillTrainingGuide()">SEE ALL 5 TRAINING PATHS →</button>
+        </div>
       `;
     }
 
@@ -5947,7 +6671,13 @@ export function initGame() {
         { type: 'crystalPillar', x: -270, y: 160 },
         { type: 'crystalPillar', x: -370, y: 160 },
         { type: 'crystalPillar', x: -270, y: 240 },
-        { type: 'crystalPillar', x: -370, y: 240 }
+        { type: 'crystalPillar', x: -370, y: 240 },
+
+        // 9. Interactive Cosmic Artisan Stations & Vanguard Bounty Board
+        { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: -298, y: -55, label: '🔨 Cosmic Star-Anvil [Click / E]' },
+        { type: 'aetherCrucible', stationId: 'aether_crucible', x: -118, y: -175, label: '⚗️ Aetherial Crucible [Click / E]' },
+        { type: 'celestialLoom', stationId: 'celestial_loom', x: -298, y: -175, label: '🧵 Celestial Loom [Click / E]' },
+        { type: 'bountyBoard', isBountyBoard: true, x: -58, y: -75, label: '📜 Vanguard Bounty Board [Click / E]' }
       );
 
       npcs.push(
@@ -6234,6 +6964,84 @@ export function initGame() {
         y: 130,
         dialogue: AETHER_ARCHIVE_DIALOGUE,
       });
+    } else if (resolvedRoomType === ROOM_TYPES.STARFALL_CRATER) {
+      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'STARFALL METEORITE CRATER & ASTRAL FORGE';
+      if (zoneLabel) zoneLabel.innerText = 'To Citadel';
+      arenaBanner.style.display = 'none';
+
+      props.push(
+        { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: 56, y: 185, label: '🔨 Astral Star-Anvil [Click / E]' },
+        { type: 'bountyBoard', isBountyBoard: true, x: -62, y: 185, label: '📜 Crater Bounty Board [Click / E]' },
+        { type: 'mountainCrag', x: -180, y: 80 },
+        { type: 'mountainCrag', x: 180, y: 80 },
+        { type: 'mountainCrag', x: -210, y: -120 },
+        { type: 'mountainCrag', x: 210, y: -120 },
+        { type: 'crystalPillar', x: -120, y: -40 },
+        { type: 'crystalPillar', x: 120, y: -40 },
+        { type: 'brazier', x: -70, y: 160 },
+        { type: 'brazier', x: 70, y: 160 },
+        { type: 'brazier', x: -90, y: -210 },
+        { type: 'brazier', x: 90, y: -210 },
+        { type: 'ruinedArch', x: 0, y: -240 }
+      );
+      npcs.push({
+        id: 'npc_orion',
+        name: 'Forge-Keeper Orion',
+        role: 'Master Astral Smith [Click / T]',
+        spriteKey: 'solariFlamekeeperNpc',
+        x: 0,
+        y: 185,
+        dialogue: [
+          {
+            speaker: 'FORGE-KEEPER ORION • STARFALL CRATER',
+            spriteKey: 'solariFlamekeeperNpc',
+            text: 'Welcome to the Starfall Impact Basin! Celestial Starmetal and Astral Mithril veins ring the molten crater. Smelt your cosmic ingots right here on the Astral Star-Anvil!',
+            actions: [
+              { label: '🔨 OPEN COSMIC STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
+              { label: '👋 FAREWELL', action: 'close' },
+            ],
+          },
+        ],
+      });
+    } else if (resolvedRoomType === ROOM_TYPES.ABYSSAL_RIFT) {
+      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'THE ABYSSAL RIFT & PRIMEVAL SANCTUM';
+      if (zoneLabel) zoneLabel.innerText = 'To Caldera';
+      arenaBanner.style.display = 'none';
+
+      props.push(
+        { type: 'aetherCrucible', stationId: 'aether_crucible', x: -58, y: 235, label: '⚗️ Abyssal Crucible [Click / E]' },
+        { type: 'celestialLoom', stationId: 'celestial_loom', x: 58, y: 235, label: '🧵 Voidstar Loom [Click / E]' },
+        { type: 'ruinedArch', x: 0, y: 260 },
+        { type: 'ruinedArch', x: 0, y: -260 },
+        { type: 'crystalPillar', x: -160, y: 90 },
+        { type: 'crystalPillar', x: 160, y: 90 },
+        { type: 'crystalPillar', x: -180, y: -150 },
+        { type: 'crystalPillar', x: 180, y: -150 },
+        { type: 'monument', x: 0, y: -60 },
+        { type: 'brazier', x: -85, y: 180 },
+        { type: 'brazier', x: 85, y: 180 },
+        { type: 'brazier', x: -110, y: -280 },
+        { type: 'brazier', x: 110, y: -280 }
+      );
+      npcs.push({
+        id: 'npc_nihilus',
+        name: 'Rift-Watcher Nihilus',
+        role: 'Void Singularity Warden [Click / T]',
+        spriteKey: 'shadowWraithmotherNpc',
+        x: 0,
+        y: 235,
+        dialogue: [
+          {
+            speaker: 'RIFT-WATCHER NIHILUS • ABYSSAL RIFT',
+            spriteKey: 'shadowWraithmotherNpc',
+            text: 'Beyond these fractured obsidian spires waits Xal\'Korath, the Void Architect. Harvest Celestial Gossamer and Empyrean Starleaf along the rift edge before challenging his singularity!',
+            actions: [
+              { label: '⚗️ OPEN ABYSSAL CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#c084fc; color:#f3e8ff; font-weight:bold;' },
+              { label: '👋 STAND VIGIL', action: 'close' },
+            ],
+          },
+        ],
+      });
     } else {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || cfg.shortTitle || 'NEXUS WARZONE';
       if (zoneLabel) zoneLabel.innerText = 'To Sanctuary';
@@ -6364,6 +7172,7 @@ export function initGame() {
           y: 1420, // Waystation in South Sanctuary Vale
           dialogue: WARZONE_DIALOGUE,
         });
+        props.push({ type: 'bountyBoard', isBountyBoard: true, x: -92, y: 1420, label: '📜 Caldera Bounty Board [Click / E]' });
       } else {
         [[-90, 95], [90, 95], [-145, -20], [145, -20], [-75, -135], [75, -135]].forEach(([pxX, pxY], idx) => {
           props.push({ type: idx % 2 === 0 ? 'pillar' : 'brazier', x: pxX, y: pxY });
@@ -6372,6 +7181,7 @@ export function initGame() {
 
       if (resolvedRoomType === ROOM_TYPES.SOLARI_CITADEL) {
         props.push(
+          { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: -195, y: 40, label: '🔨 Citadel Star-Anvil [Click / E]' },
           { type: 'bankBuilding', x: 220, y: -160, label: '🏛️ Solari Citadel Depository' },
           { type: 'bankCounter', x: 220, y: -110 },
           { type: 'grandFountain', x: 0, y: 0, label: '☀️ Solari Sun Fountain' },
@@ -6446,6 +7256,7 @@ export function initGame() {
     projectiles = [];
     groundZones = [];
     lootDrops = [];
+    offlineMythic = null;
 
     const hasCustomSpawn = spawnX !== null && spawnY !== null && Number.isFinite(Number(spawnX)) && Number.isFinite(Number(spawnY));
     if (hasCustomSpawn) {
@@ -6461,6 +7272,7 @@ export function initGame() {
       entities.push(
         { id: 'dummy_1', name: 'Sanctuary Dummy', sub: 'Lv.1 Awakening Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: 52, origX: 0, origY: 52, hp: 30, maxHp: 30, xpReward: 30, radius: 14, hitFlash: 0 },
         { id: 'dummy_2', name: 'Armored Training Post', sub: 'Lv.5 Resilient Training Post', type: 'dummy', spriteKey: 'dummy', x: 320, y: 200, origX: 320, origY: 200, hp: 120, maxHp: 120, xpReward: 65, radius: 15, hitFlash: 0 },
+        { id: 'dummy_titan', name: 'Titan Training Dummy', sub: 'Lv.50 Endless Damage Trial (No XP)', type: 'dummy', spriteKey: 'dummy', x: 160, y: 200, origX: 160, origY: 200, hp: 25000, maxHp: 25000, xpReward: 0, noHitXp: true, radius: 20, hitFlash: 0 },
         { id: 'tut_font', name: 'Awakening Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
         { id: 'tut_font_2', name: 'East Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
       );
@@ -6595,6 +7407,33 @@ export function initGame() {
         { id: 'cel_mob_5', name: 'Void Annihilator', sub: 'Lv.32 Apex Infiltrator', type: 'mob', spriteKey: 'mobUmbri', x: 0, y: -250, origX: 0, origY: -250, hp: 420, maxHp: 420, damage: 22, xpReward: 480, speed: 50, aggroRange: 140, attackRange: 32, radius: 18, hitFlash: 0 },
         { id: 'cel_titan_boss', name: 'Aurelius the Empyrean Sovereign', sub: '★ Lv.35 Ancient Titan of the Nexus', type: 'mob', isBoss: true, dropGear: 'crown_of_dawn', spriteKey: 'celestialTitanBoss', x: 0, y: -750, origX: 0, origY: -750, hp: 3200, maxHp: 3200, damage: 32, xpReward: 1600, speed: 46, aggroRange: 180, attackRange: 42, radius: 28, hitFlash: 0 }
       );
+    } else if (currentRoomType === ROOM_TYPES.STARFALL_CRATER) {
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 220;
+      }
+      entities.push(
+        { id: 'sf_mob_1', name: 'Starforged Automaton', sub: 'Lv.22 Astral Construct', type: 'mob', spriteKey: 'starforgedAutomaton', x: -135, y: 55, origX: -135, origY: 55, hp: 190, maxHp: 190, damage: 13, xpReward: 220, speed: 50, aggroRange: 120, attackRange: 30, radius: 16, hitFlash: 0 },
+        { id: 'sf_mob_2', name: 'Starforged Automaton', sub: 'Lv.22 Astral Construct', type: 'mob', spriteKey: 'starforgedAutomaton', x: 135, y: 55, origX: 135, origY: 55, hp: 190, maxHp: 190, damage: 13, xpReward: 220, speed: 50, aggroRange: 120, attackRange: 30, radius: 16, hitFlash: 0 },
+        { id: 'sf_mob_3', name: 'Molten Meteor Elemental', sub: 'Lv.25 Crater Elemental', type: 'mob', spriteKey: 'meteorElemental', x: -155, y: -95, origX: -155, origY: -95, hp: 230, maxHp: 230, damage: 15, xpReward: 265, speed: 54, aggroRange: 125, attackRange: 30, radius: 16, hitFlash: 0 },
+        { id: 'sf_mob_4', name: 'Molten Meteor Elemental', sub: 'Lv.25 Crater Elemental', type: 'mob', spriteKey: 'meteorElemental', x: 155, y: -95, origX: 155, origY: -95, hp: 230, maxHp: 230, damage: 15, xpReward: 265, speed: 54, aggroRange: 125, attackRange: 30, radius: 16, hitFlash: 0 },
+        { id: 'sf_node_1', name: 'Starfall Impact Conduit', sub: 'Astral Glimmer Spire [E]', type: 'node', spriteKey: 'node', x: 0, y: -40, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
+        { id: 'sf_boss', name: 'Ignis-Core the Starfall Colossus', sub: '★ Lv.28 Molten Starmetal Boss', type: 'mob', isBoss: true, dropGear: 'starmetal_meteor_hammer', spriteKey: 'starfallBoss', x: 0, y: -260, origX: 0, origY: -260, hp: 980, maxHp: 980, damage: 24, xpReward: 950, speed: 42, aggroRange: 150, attackRange: 38, radius: 24, hitFlash: 0 }
+      );
+    } else if (currentRoomType === ROOM_TYPES.ABYSSAL_RIFT) {
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 260;
+      }
+      entities.push(
+        { id: 'aby_mob_1', name: 'Gloam-Silk Widow', sub: 'Lv.34 Rift Arachnid', type: 'mob', spriteKey: 'gloamWidow', x: -150, y: 80, origX: -150, origY: 80, hp: 340, maxHp: 340, damage: 20, xpReward: 390, speed: 58, aggroRange: 128, attackRange: 30, radius: 16, hitFlash: 0 },
+        { id: 'aby_mob_2', name: 'Gloam-Silk Widow', sub: 'Lv.34 Rift Arachnid', type: 'mob', spriteKey: 'gloamWidow', x: 150, y: 80, origX: 150, origY: 80, hp: 340, maxHp: 340, damage: 20, xpReward: 390, speed: 58, aggroRange: 128, attackRange: 30, radius: 16, hitFlash: 0 },
+        { id: 'aby_mob_3', name: 'Paradox Sentinel', sub: 'Lv.37 Singularity Guard', type: 'mob', spriteKey: 'paradoxSentinel', x: -165, y: -90, origX: -165, origY: -90, hp: 430, maxHp: 430, damage: 24, xpReward: 460, speed: 52, aggroRange: 132, attackRange: 32, radius: 17, hitFlash: 0 },
+        { id: 'aby_mob_4', name: 'Paradox Sentinel', sub: 'Lv.37 Singularity Guard', type: 'mob', spriteKey: 'paradoxSentinel', x: 165, y: -90, origX: 165, origY: -90, hp: 430, maxHp: 430, damage: 24, xpReward: 460, speed: 52, aggroRange: 132, attackRange: 32, radius: 17, hitFlash: 0 },
+        { id: 'aby_mob_5', name: 'Voidborne Harbinger', sub: 'Lv.39 Architect Vanguard', type: 'mob', spriteKey: 'mobUmbri', x: 0, y: -155, origX: 0, origY: -155, hp: 480, maxHp: 480, damage: 26, xpReward: 520, speed: 54, aggroRange: 135, attackRange: 32, radius: 18, hitFlash: 0 },
+        { id: 'aby_node_1', name: 'Abyssal Singularity Font', sub: 'Voidstar Glimmer Spire [E]', type: 'node', spriteKey: 'node', x: 0, y: -30, charges: 6, maxCharges: 6, radius: 18, hitFlash: 0 },
+        { id: 'aby_boss', name: 'Xal\'Korath the Void Architect', sub: '★ Lv.42 Sovereign of the Rift', type: 'mob', isBoss: true, dropGear: 'abyssal_voidstar_scythe', spriteKey: 'abyssalArchitectBoss', x: 0, y: -340, origX: 0, origY: -340, hp: 3800, maxHp: 3800, damage: 38, xpReward: 2200, speed: 45, aggroRange: 175, attackRange: 42, radius: 28, hitFlash: 0 }
+      );
     } else {
       player.x = 0;
       player.y = 1740;
@@ -6674,8 +7513,123 @@ export function initGame() {
       });
     }
 
+    // Populate OSRS-inspired Cosmic Skilling Veins, Herb Clusters & Silk Blooms + Elite Monster Champions
+    populateWorldSkillingNodes(currentRoomType, entities);
+    applyEliteChampionsToZone(currentRoomType, entities);
+
     camera.x = player.x;
     camera.y = player.y;
+  }
+
+  function populateWorldSkillingNodes(roomType, targetList) {
+    const layouts = {
+      [ROOM_TYPES.SANCTUARY_HUB]: [
+        ['copper_tin_vein', -245, 195],
+        ['copper_tin_vein', 245, 195],
+        ['herb_cluster_low', -195, 255],
+        ['fiber_bloom_low', 195, 255],
+      ],
+      [ROOM_TYPES.SOLARI_CITADEL]: [
+        ['copper_tin_vein', -175, 115],
+        ['iron_coal_vein', 165, 65],
+        ['herb_cluster_low', 145, -95],
+      ],
+      [ROOM_TYPES.UMBRI_UNDERCITY]: [
+        ['iron_coal_vein', -165, 85],
+        ['herb_cluster_low', 155, 95],
+        ['fiber_bloom_low', 145, -85],
+      ],
+      [ROOM_TYPES.TERRA_ORCHARD]: [
+        ['herb_cluster_low', -155, 95],
+        ['herb_cluster_low', 155, 95],
+        ['fiber_bloom_low', -145, -85],
+        ['copper_tin_vein', 145, -85],
+      ],
+      [ROOM_TYPES.AETHER_SPIRE]: [
+        ['iron_coal_vein', -160, 95],
+        ['mithril_vein', 160, -75],
+        ['fiber_bloom_low', 150, 95],
+      ],
+      [ROOM_TYPES.NEXUS_FORGOTTEN_RUINS]: [
+        ['iron_coal_vein', -195, 95],
+        ['mithril_vein', 195, -95],
+        ['herb_cluster_high', -185, -135],
+        ['fiber_bloom_high', 185, 115],
+      ],
+      [ROOM_TYPES.STARFALL_CRATER]: [
+        ['mithril_vein', -235, 120],
+        ['mithril_vein', 235, 120],
+        ['starmetal_vein', -255, -140],
+        ['starmetal_vein', 255, -140],
+        ['herb_cluster_high', 0, 110],
+      ],
+      [ROOM_TYPES.NEXUS_WARZONE]: [
+        ['iron_coal_vein', -320, 1280],
+        ['iron_coal_vein', 320, 1280],
+        ['mithril_vein', -620, 360],
+        ['mithril_vein', 620, 360],
+        ['starmetal_vein', -380, -1080],
+        ['starmetal_vein', 380, -1080],
+        ['herb_cluster_high', -760, -440],
+        ['fiber_bloom_high', 760, -440],
+      ],
+      [ROOM_TYPES.ABYSSAL_RIFT]: [
+        ['starmetal_vein', -270, 55],
+        ['starmetal_vein', 270, -115],
+        ['herb_cluster_high', -245, -175],
+        ['fiber_bloom_high', 245, 115],
+        ['fiber_bloom_high', -180, 205],
+      ],
+      [ROOM_TYPES.CELESTIAL_ASCENT]: [
+        ['starmetal_vein', -185, 340],
+        ['starmetal_vein', 185, -180],
+        ['herb_cluster_high', 185, 340],
+        ['fiber_bloom_high', -185, -180],
+      ],
+    };
+    const entries = layouts[roomType] || [];
+    entries.forEach(([skKey, x, y], idx) => {
+      const spec = SKILLING_NODE_TYPES[skKey];
+      if (!spec) return;
+      targetList.push({
+        id: `sknode_${roomType}_${idx + 1}`,
+        name: spec.name,
+        sub: `${spec.sub || 'Cosmic Skilling Vein [E]'} • Req Lv.${spec.reqLevel}`,
+        type: 'node',
+        skillingType: skKey,
+        spriteKey: spec.spriteReady,
+        x,
+        y,
+        charges: spec.charges || 3,
+        maxCharges: spec.charges || 3,
+        radius: 16,
+        hitFlash: 0,
+      });
+    });
+  }
+
+  function applyEliteChampionsToZone(roomType, targetList) {
+    if (roomType === ROOM_TYPES.SANCTUARY_HUB || roomType === ROOM_TYPES.ARENA_3V3) return;
+    const affixKeys = Object.keys(ELITE_AFFIXES);
+    if (!affixKeys.length) return;
+    const candidates = targetList.filter((e) => e.type === 'mob' && !e.isBoss);
+    if (!candidates.length) return;
+    // Promote 1 deterministic / semi-random champion per dungeon/zone (2 in Warzone/Abyssal/Starfall)
+    const maxElites = (roomType === ROOM_TYPES.NEXUS_WARZONE || roomType === ROOM_TYPES.ABYSSAL_RIFT || roomType === ROOM_TYPES.STARFALL_CRATER) ? 2 : 1;
+    for (let i = 0; i < Math.min(maxElites, candidates.length); i++) {
+      const mob = candidates[candidates.length - 1 - i];
+      if (!mob || mob.eliteAffix) continue;
+      const afKey = affixKeys[(i + roomType.length) % affixKeys.length];
+      const af = ELITE_AFFIXES[afKey];
+      if (!af) continue;
+      mob.eliteAffix = afKey;
+      mob.name = `${af.label || af.prefix || 'Elite'} ${mob.name}`;
+      mob.sub = `★ ELITE CHAMPION • ${mob.sub}`;
+      mob.maxHp = Math.round(mob.maxHp * af.hpMult);
+      mob.hp = mob.maxHp;
+      mob.damage = Math.max(2, Math.round((mob.damage || 4) * af.dmgMult));
+      mob.xpReward = Math.round((mob.xpReward || 65) * af.xpMult);
+    }
   }
 
   // ==========================================
@@ -6684,6 +7638,12 @@ export function initGame() {
   function getZoneDangerTag() {
     if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB) {
       return ` • <span style="color:#4ade80; font-weight:800;">[SANCTUARY]</span>`;
+    }
+    if (currentRoomType === ROOM_TYPES.STARFALL_CRATER) {
+      return ` • <span style="color:#fb923c; font-weight:800;">[STARFALL FORGE]</span>`;
+    }
+    if (currentRoomType === ROOM_TYPES.ABYSSAL_RIFT) {
+      return ` • <span style="color:#e879f9; font-weight:800;">[ABYSSAL BREACH]</span>`;
     }
     if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
       return ` • <span style="color:#f97316; font-weight:800;">[OPEN WARZONE]</span>`;
@@ -6891,6 +7851,12 @@ export function initGame() {
         prev.maxCharges = se.maxCharges;
         prev.frozen = se.frozen;
         prev.inCombat = Boolean(se.inCombat);
+        if (se.skillingType) prev.skillingType = se.skillingType;
+        if (se.eliteAffix) {
+          prev.eliteAffix = se.eliteAffix;
+          prev.name = se.name;
+          prev.sub = se.sub;
+        }
         if (se.isDying && !prev.isDying && (se.type === 'mob' || se.type === 'nexus')) {
           triggerEntityDeathEffect(se.x, se.y, se.isBoss);
           const distToPlayer = Math.hypot(se.x - player.x, se.y - player.y);
@@ -7127,6 +8093,11 @@ export function initGame() {
           }
           break;
 
+        case 'mythic_state':
+          onlineMythic = msg.mythic ? { ...msg.mythic, _syncedAt: globalTime } : null;
+          updateMythicHud();
+          break;
+
         case 'progression_sync':
           prog = {
             ...prog,
@@ -7167,6 +8138,9 @@ export function initGame() {
           renderStatsModal();
           renderKeybindUI();
           renderSkillsTabUI();
+          if (document.getElementById('crafting-modal')?.style.display === 'block') {
+            renderCraftingModal();
+          }
           if (typeof renderSkillTreeUI === 'function') renderSkillTreeUI();
           break;
 
@@ -7525,8 +8499,17 @@ export function initGame() {
   // ==========================================
   let lootSeq = 0;
   function getFactionBossSetDrop(ent, roomType) {
+    if (ent?.dropGear && EQUIPMENT_CATALOG[ent.dropGear]) {
+      return ent.dropGear;
+    }
     const rType = String(roomType || '').toLowerCase();
     const spKey = ent?.spriteKey || '';
+    if (spKey === 'starfallBoss' || rType.includes('starfall')) {
+      return 'starmetal_meteor_hammer';
+    }
+    if (spKey === 'abyssalArchitectBoss' || rType.includes('abyssal')) {
+      return 'abyssal_voidstar_scythe';
+    }
     if (spKey === 'solariBoss' || rType.includes('solari')) {
       return ['sunforged_greathelm', 'sunforged_hauberk', 'sunforged_greaves', 'sunforged_warhammer'][Math.floor(Math.random() * 4)];
     }
@@ -7572,28 +8555,83 @@ export function initGame() {
     return beginnerPool[Math.floor(Math.random() * beginnerPool.length)];
   }
 
+  function getOfflineKeystoneDrop(ent) {
+    if (!ent?.isBoss) return null;
+    const cryptDungeon = Object.values(MYTHIC_DUNGEONS).find((d) => d.roomType === currentRoomType);
+    let dungeon = cryptDungeon;
+    let tier;
+    if (cryptDungeon) {
+      tier = 1 + Math.floor(Math.random() * 3);
+    } else {
+      const pool = Object.values(MYTHIC_DUNGEONS);
+      dungeon = pool[Math.floor(Math.random() * pool.length)];
+      const apex = String(currentRoomType || '').includes('celestial') || String(ent.name || '').includes('Aurelius');
+      tier = apex ? 6 + Math.floor(Math.random() * 4) : 4 + Math.floor(Math.random() * 4);
+      if (apex && Math.random() < 0.25) tier = MYTHIC_KEYSTONE_MAX_TIER;
+    }
+    tier = Math.max(1, Math.min(MYTHIC_KEYSTONE_MAX_TIER, tier));
+    return `keystone_${dungeon.id}_${tier}`;
+  }
+
+  function getZoneCosmicMaterialDrop(roomType) {
+    const rType = String(roomType || '').toLowerCase();
+    let pool = ['sun_copper_ore', 'star_tin_mineral', 'sunbloom_herb', 'starlight_flax', 'astral_mineral_dust'];
+    if (rType.includes('abyssal') || rType.includes('celestial')) {
+      pool = ['celestial_runite_ore', 'empyrean_starleaf', 'celestial_gossamer', 'adamant_terra_ore', 'chrono_lotus'];
+    } else if (rType.includes('starfall') || rType.includes('ruins') || rType.includes('vault') || rType.includes('labyrinth') || rType.includes('grove') || rType.includes('archive')) {
+      pool = ['mithril_astral_ore', 'adamant_terra_ore', 'chrono_lotus', 'shadow_silk', 'umbral_coal', 'astral_mineral_dust'];
+    } else if (rType.includes('solari')) {
+      pool = ['iron_ore', 'sun_copper_ore', 'umbral_coal', 'sunbloom_herb', 'astral_mineral_dust'];
+    } else if (rType.includes('umbri')) {
+      pool = ['iron_ore', 'umbral_coal', 'gloomcap_spore', 'shadow_silk', 'astral_mineral_dust'];
+    } else if (rType.includes('terra')) {
+      pool = ['iron_ore', 'adamant_terra_ore', 'sunbloom_herb', 'gloomcap_spore', 'starlight_flax'];
+    } else if (rType.includes('aether')) {
+      pool = ['mithril_astral_ore', 'chrono_lotus', 'astral_mineral_dust', 'shadow_silk'];
+    } else if (rType.includes('warzone')) {
+      pool = ['sun_copper_ore', 'star_tin_mineral', 'iron_ore', 'umbral_coal', 'sunbloom_herb', 'starlight_flax'];
+    }
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
   function spawnOfflineLoot(ent) {
     const pendingDrops = [];
-    const count = ent.isBoss ? 2 : Math.random() < 0.20 ? 1 : 0;
+    const count = ent.isBoss ? 2 : ent.eliteAffix ? 1 : Math.random() < 0.20 ? 1 : 0;
     for (let i = 0; i < count; i++) {
       let kind = Math.random() < 0.5 ? 'vital' : 'glimmer';
       if (ent.isBoss && i === 0) kind = 'relic';
       pendingDrops.push({ kind, itemId: null, qty: 1 });
     }
 
-    // 1. Stackable Currency: Solar Gold Sovereigns (all mobs drop gold!)
-    const goldQty = ent.isBoss ? (150 + Math.floor(Math.random() * 200)) : (8 + Math.floor(Math.random() * 25));
+    // 1. Stackable Currency: Solar Gold Sovereigns (all mobs drop gold; Elite Champions grant bonus bounty!)
+    const eliteBonusGold = ent.eliteAffix ? 25 + Math.floor(Math.random() * 32) : 0;
+    const goldQty = (ent.isBoss ? (150 + Math.floor(Math.random() * 200)) : (8 + Math.floor(Math.random() * 25))) + eliteBonusGold;
     pendingDrops.push({ kind: 'item', itemId: 'solar_gold', qty: goldQty });
 
-    // 2. Faction elemental currency (40% mob chance or 100% boss to reduce ground item spam)
-    if (ent.isBoss || Math.random() < 0.40) {
+    // 2. Faction elemental currency (40% mob chance or 100% boss/elite)
+    if (ent.isBoss || ent.eliteAffix || Math.random() < 0.40) {
       const rType = String(currentRoomType || '').toLowerCase();
       let factionCurr = 'glimmer_shard';
-      let factionCurrQty = ent.isBoss ? 15 + Math.floor(Math.random() * 20) : 1 + Math.floor(Math.random() * 2);
-      if (rType.includes('aether')) factionCurr = 'chrono_gem';
+      let factionCurrQty = ent.isBoss ? 15 + Math.floor(Math.random() * 20) : ent.eliteAffix ? 3 + Math.floor(Math.random() * 3) : 1 + Math.floor(Math.random() * 2);
+      if (rType.includes('aether') || rType.includes('starfall')) factionCurr = 'chrono_gem';
       else if (rType.includes('terra')) factionCurr = 'verdant_amber';
-      else if (rType.includes('umbri')) factionCurr = 'void_essence';
+      else if (rType.includes('umbri') || rType.includes('abyssal')) factionCurr = 'void_essence';
       pendingDrops.push({ kind: 'item', itemId: factionCurr, qty: factionCurrQty });
+    }
+
+    // 2b. Cosmic Artisan Crafting Materials (30% on mobs, 100% on Elites & Bosses)
+    if (ent.isBoss || ent.eliteAffix || Math.random() < 0.30) {
+      const matId = getZoneCosmicMaterialDrop(currentRoomType);
+      const matQty = ent.isBoss ? 2 + Math.floor(Math.random() * 2) : ent.eliteAffix ? 2 : 1;
+      if (matId && EQUIPMENT_CATALOG[matId]) {
+        pendingDrops.push({ kind: 'item', itemId: matId, qty: matQty });
+      }
+    }
+
+    // 2c. Elite Champion Bonus: 15% chance at a cut Leyline Socket Gem!
+    if (ent.eliteAffix && Math.random() < 0.15) {
+      const gemPool = ['gem_solar_ruby', 'gem_void_sapphire', 'gem_terra_emerald', 'gem_aether_diamond'];
+      pendingDrops.push({ kind: 'item', itemId: gemPool[Math.floor(Math.random() * gemPool.length)], qty: 1, ttl: 60 });
     }
 
     // 3. Consumables (healing salves / glimmer draughts - 12% on mobs, 100% on boss)
@@ -7605,11 +8643,13 @@ export function initGame() {
     // 4. Equipment Drops:
     // Set pieces drop ONLY on faction bosses (15%), non-bosses get beginner gear (6%)
     if (ent.isBoss) {
-      const isRareSet = Math.random() < 0.15;
-      const dropId = isRareSet ? getFactionBossSetDrop(ent, currentRoomType) : getBossAccessoryDrop(ent, currentRoomType);
-      if (dropId) {
-        pendingDrops.push({ kind: 'item', itemId: dropId, qty: 1, ttl: 60 });
-      }
+      // Day 2: every Continental boss guarantees a Legendary cache — one faction set piece + one relic.
+      const setPieceId = getFactionBossSetDrop(ent, currentRoomType);
+      const accessoryId = getBossAccessoryDrop(ent, currentRoomType);
+      if (setPieceId) pendingDrops.push({ kind: 'item', itemId: setPieceId, qty: 1, ttl: 60 });
+      if (accessoryId) pendingDrops.push({ kind: 'item', itemId: accessoryId, qty: 1, ttl: 60 });
+      const keystoneId = getOfflineKeystoneDrop(ent);
+      if (keystoneId) pendingDrops.push({ kind: 'item', itemId: keystoneId, qty: 1, ttl: 90 });
     } else {
       if (Math.random() < 0.06) {
         const dropId = getBeginnerMobDrop(currentRoomType);
@@ -7881,12 +8921,47 @@ export function initGame() {
 
     triggerEntityDeathEffect(ent.x, ent.y, ent.isBoss);
     logMessage(`[Void Banish] ${ent.name} was cast into the Void!`, 'log-gain', 'combat');
-    awardXP(ent.xpReward || 30, ent.name);
-    awardProfessionXP('combat_mastery', Math.max(20, Math.round((ent.xpReward || 30) * 0.75)), ent.name);
+
+    // Day 3 Mythic affixes (offline mirror of the authoritative server).
+    if (offlineMythic?.active && ent.type === 'mob' && !ent.isBoss) {
+      if (offlineMythic.affixes.includes('bolstering')) {
+        for (const m of entities) {
+          if (m === ent || m.type !== 'mob' || m.isDying) continue;
+          if ((m.bolsterStacks || 0) >= 8) continue;
+          if (Math.hypot(m.x - ent.x, m.y - ent.y) > 420) continue;
+          const prevMax = m.maxHp;
+          m.maxHp = Math.max(1, Math.round(m.maxHp * 1.15));
+          m.hp = Math.min(m.maxHp, (m.hp || 0) + (m.maxHp - prevMax));
+          m.damage = Math.max(1, Math.ceil((m.damage || 3) * 1.15));
+          m.bolsterStacks = (m.bolsterStacks || 0) + 1;
+        }
+      }
+      if (offlineMythic.affixes.includes('sanguine')) {
+        groundZones.push({
+          id: `off_sang_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+          type: 'sanguine_pool',
+          color: '#ef4444',
+          x: ent.x,
+          y: ent.y,
+          radius: 62,
+          age: 0,
+          maxAge: 8,
+          tickTimer: 0,
+        });
+      }
+    }
+    awardXP(ent.xpReward ?? 30, ent.name);
+    awardProfessionXP('combat_mastery', Math.max(20, Math.round((ent.xpReward ?? 30) * 0.75)), ent.name);
     if (ent.isBoss) {
       logMessage(`🏆 CONTINENTAL VICTORY: ${ent.name} has been vanquished! The Leylines surge with an Ancient Paragon Cache!`, 'log-solari', 'combat');
       if ((prog.level || 1) >= 30) {
         awardXP(450, 'Ancient Paragon Cache');
+      }
+      if (offlineMythic?.active) {
+        const runDungeon = MYTHIC_DUNGEONS[offlineMythic.dungeonId];
+        if (runDungeon && runDungeon.roomType === currentRoomType) {
+          completeOfflineMythic(ent, runDungeon);
+        }
       }
     }
     if (ent.type === 'mob') {
@@ -7961,7 +9036,7 @@ export function initGame() {
       updateTargetUI();
     }
 
-    if (ent.type === 'dummy' && ent.hp > 0) {
+    if (ent.type === 'dummy' && ent.hp > 0 && !ent.noHitXp) {
       awardXP(8, '');
       questState.combatTrainingHits = (questState.combatTrainingHits || 0) + 1;
       if (questState.combatTrainingHits % 5 === 0) {
@@ -8720,6 +9795,16 @@ export function initGame() {
   };
 
   window.harvestTarget = function () {
+    // 0. Check for nearby Artisan Crafting Station or Bounty Board when nothing closer is targeted
+    if (!currentTarget || (currentTarget.type !== 'shrine' && currentTarget.type !== 'node')) {
+      const nearStation = props.find((pr) => (pr.stationId || pr.isBountyBoard) && Math.hypot(pr.x - player.x, pr.y - player.y) <= 78);
+      if (nearStation) {
+        if (nearStation.stationId) window.openCraftingModal(nearStation.stationId);
+        else window.openBountyBoard();
+        return;
+      }
+    }
+
     // 1. Check for interactive Ancient Leyline Shrines first
     let shrine = currentTarget && currentTarget.type === 'shrine' ? currentTarget : null;
     if (!shrine) {
@@ -8740,6 +9825,7 @@ export function initGame() {
       spawnFCT(player.x, player.y - 14, `✨ ${shrine.buffName.toUpperCase()} BLESSING!`, '#facc15', true);
       logMessage(`✨ [LEYLINE BLESSING] ${shrine.name} granted ${shrine.buffName} (+Stats for 60s)!`, 'log-solari');
       questState.extractionNodesHarvested = (questState.extractionNodesHarvested || 0) + 1;
+      advanceBountyProgress('harvests', 1);
       awardProfessionXP('resonance_extraction', 45, `${shrine.name} Channeling`);
       if (currentRoomType === ROOM_TYPES.AETHER_SPIRE || shrine.id === 'aeth_node_1') {
         questState.aetherFontChannels = (questState.aetherFontChannels || 0) + 1;
@@ -8757,19 +9843,93 @@ export function initGame() {
       return;
     }
 
-    // 2. Otherwise harvest Glimmer Node
+    // 2. Otherwise harvest World Skilling Vein / Herb / Fiber or Glimmer Node
     let node = currentTarget && currentTarget.type === 'node' ? currentTarget : null;
     if (!node) {
       node = entities.find((e) => e.type === 'node' && Math.hypot(e.x - player.x, e.y - player.y) <= 6.8 * YARD_PX);
     }
     if (!node || Math.hypot(node.x - player.x, node.y - player.y) > 7.0 * YARD_PX) {
-      logMessage('[Glimmer Node] Step near a purple Glimmer Node or Ancient Shrine first!', 'log-combat');
+      logMessage('[Gathering] Step near an Ore Vein, Herb Cluster, Glimmer Node, or Artisan Station first!', 'log-combat');
       return;
     }
     if (node.charges <= 0) {
-      logMessage('[Glimmer Node] This node is depleted. Wait for it to recharge.', 'log-combat');
+      logMessage(`[Gathering] ${node.name || 'This node'} is depleted. Wait a moment for it to replenish.`, 'log-combat');
       return;
     }
+
+    // 2A. World Skilling Vein / Herb Cluster / Silk Bloom (OSRS-style cosmic gathering)
+    if (node.skillingType && SKILLING_NODE_TYPES[node.skillingType]) {
+      const skSpec = SKILLING_NODE_TYPES[node.skillingType];
+      const profXpCur = Number(prog?.professions?.[skSpec.profession]?.xp) || 0;
+      const profLvl = getProfessionLevelFromXp(profXpCur);
+      if (profLvl < (skSpec.reqLevel || 1)) {
+        const profName = PROFESSIONS_CATALOG[skSpec.profession]?.name || skSpec.profession;
+        logMessage(`🔒 Requires Lv.${skSpec.reqLevel} ${profName} to harvest ${skSpec.name} (Current: Lv.${profLvl})!`, 'log-combat');
+        spawnFCT(player.x, player.y - 14, `🔒 LV.${skSpec.reqLevel} ${profName.toUpperCase()}`, '#ef4444');
+        audio.playHurt();
+        return;
+      }
+      if (globalTime - lastNodeHarvestAt < 0.45) return;
+      lastNodeHarvestAt = globalTime;
+      if (currentTarget !== node) setTarget(node);
+      audio.playChime();
+      node.charges--;
+      if (node.charges === 0) node.rechargeTimer = skSpec.respawnSec || 14;
+      questState.extractionNodesHarvested = (questState.extractionNodesHarvested || 0) + 1;
+      if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !questState.nodeHarvested) {
+        questState.nodeHarvested = true;
+      }
+      if (currentRoomType === ROOM_TYPES.STARFALL_CRATER && (node.skillingType === 'mithril_vein' || node.skillingType === 'starmetal_vein')) {
+        questState.starfallVeins = (questState.starfallVeins || 0) + 1;
+        if (questState.activeQuests?.quest_starfall_forge && questCounter('quest_starfall_forge', 'starfallVeins') === 3) {
+          logMessage('📜 [Quest Objective] Starfall Astral Veins mined (3/3)!', 'log-quest', 'chat');
+          spawnFCT(player.x, player.y - 14, '✨ ASTRAL VEINS MINED (3/3)!', '#facc15', true);
+        }
+      }
+      advanceBountyProgress('harvests', 1);
+      saveQuestState();
+      updateQuestTrackerHUD();
+      spawnSparkBurst(node.x, node.y - 8, skSpec.sparkColors || ['#facc15', '#ffffff'], 16);
+
+      if (net.connected) {
+        net.send({ type: 'harvest_node', nodeId: node.id });
+      } else {
+        const yields = skSpec.yields || [];
+        const totalChance = yields.reduce((sum, y) => sum + (y.chance || 1), 0) || 1;
+        let roll = Math.random() * totalChance;
+        let chosen = yields[0] || { id: 'sun_copper_ore', qty: 1 };
+        for (const y of yields) {
+          roll -= (y.chance || 1);
+          if (roll <= 0) {
+            chosen = y;
+            break;
+          }
+        }
+        const chosenId = chosen.id || chosen.itemId || 'sun_copper_ore';
+        const qty = chosen.qty || 1;
+        player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + (skSpec.glimmer || 12));
+        const added = addItemToBackpack(localProfile, chosenId, qty);
+        if (added) {
+          saveProgressionLocal();
+          const itemDef = EQUIPMENT_CATALOG[chosenId];
+          spawnFCT(player.x, player.y - 14, `+${qty}x ${itemDef?.name || chosenId}`, (skSpec.sparkColors && skSpec.sparkColors[0]) || '#fde047', true);
+          logMessage(`⛏️ Harvested ${qty}x ${itemDef?.name || chosenId} (+${skSpec.glimmer || 12} Glimmer) from ${skSpec.name}!`, 'log-gain', 'combat');
+        } else {
+          spawnFCT(player.x, player.y - 14, 'BACKPACK FULL (28/28)', '#ef4444');
+          logMessage('🎒 Backpack is full (28/28)! Deposit materials in your Bank or smelt them at an Artisan Station.', 'log-combat');
+        }
+        awardProfessionXP(skSpec.profession, skSpec.xp || 25, skSpec.name, false);
+        if (skSpec.secondaryProfession) {
+          awardProfessionXP(skSpec.secondaryProfession, Math.max(8, Math.round((skSpec.xp || 25) * 0.35)), skSpec.name, false);
+        }
+        awardXP(4, skSpec.name);
+        if (document.getElementById('inventory-modal')?.style.display === 'block') {
+          renderInventoryModal({ profile: localProfile });
+        }
+      }
+      return;
+    }
+
     const isGrand = Boolean(node.isGrand);
     const cooldown = (isGrand ? HARVEST_COOLDOWN_MS.grand : HARVEST_COOLDOWN_MS.normal) / 1000;
     if (globalTime - lastNodeHarvestAt < cooldown) return;
@@ -8784,6 +9944,7 @@ export function initGame() {
     node.charges--;
     if (node.charges === 0) node.rechargeTimer = isGrand ? 45 : 11;
     questState.extractionNodesHarvested = (questState.extractionNodesHarvested || 0) + 1;
+    advanceBountyProgress('harvests', 1);
     awardProfessionXP('resonance_extraction', profXp, isGrand ? 'Grand Glimmer Font' : 'Channeling Leyline Node');
     if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !questState.nodeHarvested) {
       questState.nodeHarvested = true;
@@ -8804,6 +9965,13 @@ export function initGame() {
       player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + gain);
       spawnFCT(player.x, player.y - 14, `+${gain} GLIMMER`, isGrand ? '#fde047' : '#c084fc', isGrand);
       awardXP(charXp, isGrand ? 'Grand Glimmer Font' : 'Glimmer Node');
+      if (isGrand || Math.random() < 0.45) {
+        const bonusMat = Math.random() < 0.5 ? 'glimmer_shard' : 'astral_mineral_dust';
+        if (addItemToBackpack(localProfile, bonusMat, 1)) {
+          saveProgressionLocal();
+          logMessage(`✨ Extracted +1 ${EQUIPMENT_CATALOG[bonusMat]?.name || bonusMat} from Leyline resonance!`, 'log-gain', 'combat');
+        }
+      }
     }
   };
 
@@ -9084,6 +10252,16 @@ export function initGame() {
 
   loadActionBarItems();
 
+  function abilityTreeForSlot(slot) {
+    return Number(slot) >= 9 ? 'flashes' : 'rites';
+  }
+
+  function slotAcceptsAbility(slot, abilityId) {
+    const ab = ABILITIES_CATALOG[abilityId];
+    if (!ab) return false;
+    return (ab.tree || 'rites') === abilityTreeForSlot(slot);
+  }
+
   function buildActionBarSignature() {
     const loadout = ACTION_SLOTS.map((s) => `${s}=${localProfile.loadout?.[s] || ''}`).join(',');
     const ranks = ACTION_SLOTS.map((s) => getAbilityRank(prog, localProfile.loadout?.[s])).join(',');
@@ -9093,7 +10271,7 @@ export function initGame() {
     const items = ITEM_ACTION_SLOTS
       .map((s) => `${s}=${actionBarItems[s] || ''}:${countInventoryItem(actionBarItems[s])}`)
       .join(',');
-    return `${loadout}|${ranks}|${keys}|${items}|LV${prog.level}`;
+    return `${loadout}|${ranks}|${keys}|${items}|LV${prog.level}|P:${pendingAssign?.id || ''}|B:${listeningSlot ?? ''}`;
   }
 
   function renderActionSlotButton(slot) {
@@ -9131,8 +10309,11 @@ export function initGame() {
       title = `Empty slot — drag a Rite or Flash here from the Skill Tree or Spellbook. [${keyLabel}]`;
     }
 
+    const pickTarget = Boolean(pendingAssign) && unlocked && ACTION_SLOTS.includes(slot) && slotAcceptsAbility(slot, pendingAssign.id);
+    if (pickTarget) cls += ' pick-target';
+    const pickTitle = pickTarget ? ` • Click to place ${ABILITIES_CATALOG[pendingAssign.id]?.name || 'this ability'} here` : '';
     const draggable = spec && learned ? 'true' : 'false';
-    return `<div class="${cls}" id="btn-slot-${slot}" data-slot-kind="ability" data-slot="${slot}" draggable="${draggable}" title="${title}">
+    return `<div class="${cls}" id="btn-slot-${slot}" data-slot-kind="ability" data-slot="${slot}" draggable="${draggable}" title="${title}${pickTitle}">
       <span class="key-badge">${keyLabel}</span>
       <span class="action-icon">${icon}</span>
       <span class="action-name" style="color:${nameColor};">${name}</span>
@@ -9182,6 +10363,91 @@ export function initGame() {
     return ITEM_ACTION_SLOTS[0];
   }
 
+  // Fills empty Rite (1–4) and Flash (9–12) slots with learned abilities of this character's faction.
+  function autoFillLearnedSlots() {
+    const resolved = resolveFactionAndClass({
+      faction: localProfile.faction,
+      classId: localProfile.classId,
+      loadout: localProfile.loadout,
+      orderTag: localProfile.orderTag,
+    });
+    const next = { ...(localProfile.loadout || {}) };
+    const equipped = new Set(Object.values(next).filter(Boolean));
+    let added = 0;
+
+    for (const family of ['rites', 'flashes']) {
+      const slots = family === 'rites' ? [1, 2, 3, 4] : [9, 10, 11, 12];
+      const pool = Object.values(ABILITIES_CATALOG)
+        .filter((ab) => ab.id !== 'harvest' && ab.faction !== 'All')
+        .filter((ab) => (ab.tree || 'rites') === family)
+        .filter((ab) => ab.faction === resolved.faction)
+        .filter((ab) => getAbilityRank(prog, ab.id) >= 1 && !equipped.has(ab.id))
+        .sort((a, b) => (getAbilityRank(prog, b.id) - getAbilityRank(prog, a.id)) || ((a.tier || 1) - (b.tier || 1)));
+
+      for (const slot of slots) {
+        if (next[slot] || !isSlotUnlocked(prog, slot)) continue;
+        const ab = pool.shift();
+        if (!ab) break;
+        next[slot] = ab.id;
+        if (!prog.ranks) prog.ranks = {};
+        prog.ranks[slot] = getAbilityRank(prog, ab.id);
+        equipped.add(ab.id);
+        added += 1;
+      }
+    }
+
+    if (added > 0) {
+      localProfile.loadout = next;
+      saveProgressionLocal();
+      if (net.connected) net.send({ type: 'update_loadout', loadout: next });
+      actionBarSignature = '';
+      updateActionBarBadges();
+      if (document.getElementById('keybind-list-container')?.style.display === 'block') renderKeybindUI();
+    }
+    return added;
+  }
+
+  window.autoEquipLearnedAbilities = function () {
+    const added = autoFillLearnedSlots();
+    if (added > 0) {
+      audio.playChime?.();
+      logMessage(`[Action Bar] Auto-equipped ${added} learned Rite/Flash${added === 1 ? '' : 'es'} into empty slots.`, 'log-gain');
+    } else {
+      audio.playHurt?.();
+      logMessage('[Action Bar] Every learned Rite/Flash is already on the bar — nothing to auto-equip.', 'log-combat');
+    }
+  };
+
+  // One-time restore so characters created before the slot-1-only bar change get their learned kit back.
+  function restoreLearnedBarOnce() {
+    if (!localProfile || !prog) return;
+    if ((prog.level || 1) < 5) return;
+    const charKey = localProfile.activeCharacterId || localProfile.id || 'local_hero';
+    const flagKey = `glimmerfall_bar_restored_${charKey}`;
+    try {
+      if (localStorage.getItem(flagKey)) return;
+    } catch (_) {
+      return;
+    }
+    // Recover learned ranks from the pre-migration slot progression so old
+    // characters keep every ability they had, not just the ones they invested in.
+    const cls = CLASSES_CATALOG[localProfile.classId] || CLASSES_CATALOG.solari_vanguard;
+    const legacyMap = cls.legacyDefaultLoadout || {};
+    if (!prog.skills) prog.skills = {};
+    for (const [slotStr, abilityId] of Object.entries(legacyMap)) {
+      const slotRank = Number(prog.ranks?.[slotStr] || 0);
+      if (slotRank > 0) prog.skills[abilityId] = Math.max(prog.skills[abilityId] || 0, Math.min(5, slotRank));
+    }
+
+    const added = autoFillLearnedSlots();
+    try {
+      localStorage.setItem(flagKey, '1');
+    } catch (_) {}
+    if (added > 0) {
+      logMessage(`[Action Bar] Restored ${added} learned Rite/Flash${added === 1 ? '' : 'es'} to your bar. Click a slot or press its key to cast, right-click to clear, SHIFT+click to rebind.`, 'log-gain');
+    }
+  }
+
   function handleActionBarDrop(ev, slotKind, slot) {
     const raw = (ev.dataTransfer?.getData('application/x-glimmerfall') || ev.dataTransfer?.getData('text/plain') || '').trim();
     const sep = raw.indexOf(':');
@@ -9216,7 +10482,16 @@ export function initGame() {
     const cluster = document.getElementById('action-bar-cluster');
     if (!cluster) return;
     const harvestKey = getHarvestKeyLabel();
-    cluster.innerHTML = `
+    const pickedSpec = pendingAssign ? ABILITIES_CATALOG[pendingAssign.id] : null;
+    const listeningSpec = listeningSlot !== null ? getSlotAbilitySpec(localProfile.loadout, listeningSlot) : null;
+    let pickHint = '';
+    if (pickedSpec) {
+      pickHint = `<div class="bar-pick-hint">PLACING <b>${pickedSpec.name.toUpperCase()}</b> — click a glowing ${pickedSpec.tree === 'flashes' ? 'Flash (9–12)' : 'Rite (1–4)'} slot • ESC cancels</div>`;
+    } else if (listeningSlot !== null) {
+      const bindName = listeningSpec?.name || (ITEM_ACTION_SLOTS.includes(Number(listeningSlot)) ? `Item Slot ${listeningSlot}` : `Slot ${listeningSlot}`);
+      pickHint = `<div class="bar-pick-hint">PRESS ANY KEY TO BIND <b>${bindName.toUpperCase()}</b> • ESC cancels</div>`;
+    }
+    cluster.innerHTML = `${pickHint}
       <div class="action-group">
         ${[1, 2, 3, 4].map(renderActionSlotButton).join('')}
         <div class="action-button harvest-card" id="btn-slot-harvest" data-slot-kind="harvest" title="Channel the nearest Glimmer node or Grand Font [${harvestKey}]">
@@ -9240,7 +10515,17 @@ export function initGame() {
         continue;
       }
 
-      el.addEventListener('click', () => window.activateActionSlot(slot));
+      el.addEventListener('click', (ev) => {
+        if (ev.shiftKey) {
+          window.startRebinding(slot);
+          return;
+        }
+        if (pendingAssign) {
+          window.placePendingInSlot(kind, slot);
+          return;
+        }
+        window.activateActionSlot(slot);
+      });
       el.addEventListener('contextmenu', (ev) => {
         ev.preventDefault();
         window.clearActionSlot(slot);
@@ -9271,6 +10556,72 @@ export function initGame() {
     ev.dataTransfer.setData('text/plain', `${kind}:${id}`);
   };
 
+  // Click-to-place: pick a learned Rite/Flash, then click the slot that should hold it.
+  window.pickAbilityForBar = function (abilityId) {
+    const ab = ABILITIES_CATALOG[abilityId];
+    if (!ab) return;
+    if (getAbilityRank(prog, ab.id) < 1) {
+      logMessage(`🔒 ${ab.name} is unlearned — invest a skill point in the Skill Tree [P] first.`, 'log-combat');
+      audio.playHurt?.();
+      return;
+    }
+    if (pendingAssign?.id === abilityId) {
+      pendingAssign = null;
+      logMessage(`[Action Bar] Cancelled placement of ${ab.name}.`, 'log-combat');
+    } else {
+      pendingAssign = { kind: 'ability', id: abilityId };
+      logMessage(`[Action Bar] Picked ${ab.name} (Rank ${getAbilityRank(prog, ab.id)}/5) — click a ${ab.tree === 'flashes' ? 'Flash slot (9–12)' : 'Rite slot (1–4)'} on the action bar, or press ESC to cancel.`, 'log-combat');
+      // The Spellbook covers the bottom dock — close it so the action bar is clickable.
+      const spellbookEl = document.getElementById('spellbook-modal');
+      if (spellbookEl && spellbookEl.style.display === 'block') window.toggleModal('spellbook-modal');
+    }
+    actionBarSignature = '';
+    updateActionBarBadges();
+    renderSkillTreeUI();
+    if (document.getElementById('keybind-list-container')?.style.display === 'block') renderKeybindUI();
+  };
+
+  window.placePendingInSlot = function (slotKind, slot) {
+    if (!pendingAssign) return;
+    const ab = ABILITIES_CATALOG[pendingAssign.id];
+    if (!ab) {
+      pendingAssign = null;
+      return;
+    }
+    const s = Number(slot);
+    if (slotKind !== 'ability' || !ACTION_SLOTS.includes(s)) {
+      logMessage(`[Action Bar] Item slots 5–8 hold potions and gear — place ${ab.name} in Rite slots 1–4 or Flash slots 9–12.`, 'log-combat');
+      audio.playHurt?.();
+      return;
+    }
+    if (!isSlotUnlocked(prog, s)) {
+      logMessage(`[Action Bar] Slot ${s} unlocks at Level ${SLOT_UNLOCK_LEVELS[s] || 1}.`, 'log-combat');
+      audio.playHurt?.();
+      return;
+    }
+    if (!slotAcceptsAbility(s, ab.id)) {
+      logMessage(`[Action Bar] ${ab.name} is a ${ab.tree === 'flashes' ? 'Flash — use slots 9–12' : 'Rite — use slots 1–4'}.`, 'log-combat');
+      audio.playHurt?.();
+      return;
+    }
+    pendingAssign = null;
+    window.assignSlotAbilityInGame(s, ab.id);
+    actionBarSignature = '';
+    updateActionBarBadges();
+    logMessage(`[Action Bar] Placed ${ab.name} in slot ${s} [${formatKeyLabel(keybinds[s])}].`, 'log-gain');
+  };
+
+  window.cancelPendingAssign = function () {
+    if (!pendingAssign) return false;
+    const ab = ABILITIES_CATALOG[pendingAssign.id];
+    pendingAssign = null;
+    actionBarSignature = '';
+    updateActionBarBadges();
+    renderSkillTreeUI();
+    logMessage(`[Action Bar] Cancelled placement${ab ? ` of ${ab.name}` : ''}.`, 'log-combat');
+    return true;
+  };
+
   window.clearActionSlot = function (slot) {
     const s = Number(slot);
     if (ACTION_SLOTS.includes(s)) {
@@ -9279,6 +10630,7 @@ export function initGame() {
       delete next[s];
       localProfile.loadout = next;
       if (prog.ranks) delete prog.ranks[s];
+      saveProgressionLocal();
       if (net.connected) net.send({ type: 'update_loadout', loadout: next });
       logMessage(`[Action Bar] Cleared slot ${s} — drag a Rite or Flash back in whenever you like.`, 'log-combat');
     } else if (ITEM_ACTION_SLOTS.includes(s)) {
@@ -9295,6 +10647,10 @@ export function initGame() {
 
   window.activateActionSlot = function (slot) {
     const s = Number(slot);
+    if (pendingAssign) {
+      window.placePendingInSlot(ACTION_SLOTS.includes(s) ? 'ability' : 'item', s);
+      return;
+    }
     if (ACTION_SLOTS.includes(s)) {
       window.castAbility(s);
       return;
@@ -9303,7 +10659,7 @@ export function initGame() {
 
     const itemId = actionBarItems[s];
     if (!itemId) {
-      logMessage(`[Action Bar] Item slot ${s} is empty — drag a potion or gear piece here from your bag.`, 'log-combat');
+      logMessage(`[Action Bar] Item slot ${s} is empty — drag a potion or gear piece here from your bag, or assign it in Spellbook [P] → Keybinds.`, 'log-combat');
       return;
     }
     const item = EQUIPMENT_CATALOG[itemId];
@@ -9428,6 +10784,7 @@ export function initGame() {
           <div style="display:flex; align-items:center; gap:8px;">
             <span style="color:#fde047; font-size:12.5px; font-weight:800; letter-spacing:0.02em;">⚡ UNSPENT SKILL POINTS: <span id="sp-count-txt" class="skill-pts-badge" style="font-size:12px; padding:3px 9px;">${sp}</span></span>
             ${sp > 0 ? '<span style="color:#4ade80; font-weight:800; font-size:11px; animation:pulseAlloc 1.4s infinite alternate;">★ READY TO INVEST!</span>' : '<span style="color:#94a3b8; font-size:11px;">(Slay monsters or level up to earn +1 SP/level)</span>'}
+            <button type="button" class="util-btn" style="padding:3px 7px; font-size:9px; border-color:#a16207; color:#fde047;" onclick="autoEquipLearnedAbilities()" title="Fill every empty Rite/Flash slot with abilities you have learned">⚡ AUTO-EQUIP LEARNED</button>
           </div>
           <div style="font-size:11px; color:#cbd5e1; font-family:var(--font-clean);">
             CHAMPION LV. <b style="color:#facc15;">${prog.level || 1}</b> • <b style="color:${myFaction === 'Solari' ? '#facc15' : myFaction === 'Umbri' ? '#c084fc' : myFaction === 'Terra' ? '#4ade80' : '#38bdf8'};">${myFaction.toUpperCase()}</b>
@@ -9481,8 +10838,11 @@ export function initGame() {
         const canUp = canUpgradeAbility(prog, ab.id);
         const isMax = curRank >= (ab.maxRank || 5);
         const isLearned = curRank >= 1;
+        const rankNow = getRankStats(ab, Math.max(1, curRank));
+        const rankNext = getRankStats(ab, Math.min(5, Math.max(1, curRank) + 1));
 
         let cardClass = 'd2-skill-card';
+        if (pendingAssign?.id === ab.id) cardClass += ' picked';
         if (isMax) cardClass += ' maxed';
         else if (isLearned) cardClass += ' learned';
         else if (!tierUnlocked) cardClass += ' locked';
@@ -9510,7 +10870,7 @@ export function initGame() {
         const equipSlots = isFlashesTab ? [9, 10, 11, 12] : [1, 2, 3, 4];
 
         html += `
-          <div class="${cardClass}" data-ability-id="${ab.id}" draggable="${isLearned}" ondragstart="window.beginActionDrag(event, 'ability', '${ab.id}')" title="${isLearned ? 'Drag onto an empty action-bar slot' : 'Unlearned'}${equippedSlot ? ` • Currently in slot ${equippedSlot}` : ''}">
+          <div class="${cardClass}" data-ability-id="${ab.id}" draggable="${isLearned}" ondragstart="window.beginActionDrag(event, 'ability', '${ab.id}')" title="${isLearned ? 'Click to pick, then click an action-bar slot — or drag it there' : 'Unlearned'}${equippedSlot ? ` • Currently in slot ${equippedSlot}` : ''}">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
               <div style="display:flex; align-items:center; gap:6px;">
                 <span style="font-size:18px;">${ab.icon}</span>
@@ -9536,12 +10896,13 @@ export function initGame() {
 
             ${curRank < 5 ? `
               <div style="font-size:9.5px; color:#facc15; background:rgba(15,23,42,0.6); padding:3px 6px; border-radius:3px; border-left:2px solid #facc15;">
-                Next Rank: +3 Base DMG / Effect scaling, -0.35s Cooldown
+                NEXT RANK ${Math.min(5, Math.max(1, curRank) + 1)}/5: +3 Power • CD ${rankNow.effectiveBaseCd.toFixed(1)}s → ${rankNext.effectiveBaseCd.toFixed(1)}s
               </div>
             ` : ''}
 
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; gap:6px; flex-wrap:wrap;">
-              <div>
+              <div style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
+                ${isLearned ? `<button type="button" class="util-btn" style="padding:2px 6px; font-size:9px; border-color:#facc15; color:#fde047;" onclick="pickAbilityForBar('${ab.id}')">🎯 ${pendingAssign?.id === ab.id ? 'PICKED…' : 'PLACE IN BAR'}</button>` : ''}
                 ${canUp
                   ? `<button type="button" class="d2-alloc-btn can-alloc" onclick="upgradeAbilityInTree('${ab.id}')">+ INVEST 1 POINT</button>`
                   : isMax
@@ -9582,6 +10943,14 @@ export function initGame() {
     }
 
     container.innerHTML = html;
+
+    // Click-to-place: click a learned card, then click the action-bar slot that should hold it.
+    container.querySelectorAll('[data-ability-id]').forEach((card) => {
+      card.addEventListener('click', (ev) => {
+        if (ev.target.closest('button, select, input, a')) return;
+        window.pickAbilityForBar(card.dataset.abilityId);
+      });
+    });
   }
 
   function renderKeybindUI() {
@@ -9592,9 +10961,11 @@ export function initGame() {
       const sp = prog.skillPoints || 0;
       if (listeningSlot !== null) {
         const lSpec = getSlotAbilitySpec(localProfile.loadout, listeningSlot);
+        const lItemId = ITEM_ACTION_SLOTS.includes(Number(listeningSlot)) ? actionBarItems[listeningSlot] : null;
+        const lName = lSpec?.name || (lItemId ? EQUIPMENT_CATALOG[lItemId]?.name : null) || `Slot ${listeningSlot}`;
         ptsHeader.innerHTML = `
           <div style="color:#fde047; font-size:12px; font-weight:800;">
-            ⌨️ PRESS ANY KEY TO BIND "${(lSpec?.name || 'SLOT').toUpperCase()}" (OR [ESC] TO CANCEL)...
+            ⌨️ PRESS ANY KEY TO BIND "${lName.toUpperCase()}" (OR [ESC] TO CANCEL)...
           </div>
         `;
       } else if (rebindFeedbackMsg) {
@@ -9611,7 +10982,8 @@ export function initGame() {
               ${sp > 0 ? '<span style="color:#4ade80; font-weight:800; font-size:11px;">★ READY TO INVEST!</span>' : ''}
             </div>
             <div style="font-size:11px; color:#cbd5e1;">
-              CLICK ANY <b style="color:#38bdf8;">[KEY]</b> BUTTON BELOW TO REBIND ACTION BAR
+              <button type="button" class="util-btn" style="padding:3px 7px; font-size:9px; border-color:#a16207; color:#fde047;" onclick="autoEquipLearnedAbilities()" title="Fill every empty Rite/Flash slot with abilities you have learned">⚡ AUTO-EQUIP LEARNED</button>
+              CLICK ANY <b style="color:#38bdf8;">[KEY]</b> TO REBIND • SHIFT+CLICK A BAR SLOT TO REBIND FAST
             </div>
           </div>
         `;
@@ -9621,8 +10993,35 @@ export function initGame() {
     const cdMult = calcCdMult(prog, localProfile.equipment, localProfile.classId, localProfile.faction);
     const myFaction = localProfile.faction || 'Solari';
 
-    for (const slot of [1, 2, 3, 4, 'harvest', 9, 10, 11, 12]) {
-      const equippedSpec = getSlotAbilitySpec(localProfile.loadout, slot);
+    for (const slot of [1, 2, 3, 4, 'harvest', 5, 6, 7, 8, 9, 10, 11, 12]) {
+      const isItemSlot = typeof slot === 'number' && ITEM_ACTION_SLOTS.includes(slot);
+      const slotItemId = isItemSlot ? actionBarItems[slot] : null;
+      const slotItem = slotItemId ? EQUIPMENT_CATALOG[slotItemId] : null;
+      const equippedSpec = isItemSlot
+        ? (slotItem
+            ? {
+                id: null,
+                name: slotItem.name,
+                icon: slotItem.icon || '🎒',
+                color: '#fb923c',
+                tcgType: slotItem.slot === 'consumable' ? 'Consumable' : 'Gear',
+                castTime: 0,
+                baseCd: 0,
+                range: 'Item Slot',
+                desc: `Press the key to ${slotItem.slot === 'consumable' ? 'use this item' : 'equip this gear'}. Right-click the slot to clear it, or change it with the dropdown below.`,
+              }
+            : {
+                id: null,
+                name: `Empty Item Slot ${slot}`,
+                icon: '＋',
+                color: '#94a3b8',
+                tcgType: 'Item Slot',
+                castTime: 0,
+                baseCd: 0,
+                range: 'Item Slot',
+                desc: 'Assign a potion, food, or gear piece with the dropdown below, or drag one from your bag onto the slot.',
+              })
+        : getSlotAbilitySpec(localProfile.loadout, slot);
       const isEmptySlot = !equippedSpec && typeof slot === 'number';
       const spec = equippedSpec || {
         id: null,
@@ -9633,22 +11032,26 @@ export function initGame() {
         castTime: 0,
         baseCd: 0,
         range: '—',
-        desc: 'Drag a learned Rite or Flash onto this action-bar slot (or pick one from the dropdown below).',
+        desc: 'Pick a learned Rite or Flash in the Skill Tree and click this slot (or drag one here).',
       };
       const bound = formatKeyLabel(keybinds[slot]);
       const isListening = listeningSlot === slot;
-      const isRankable = typeof slot === 'number';
+      const isRankable = typeof slot === 'number' && !isItemSlot;
       const curRank = isRankable && equippedSpec ? getAbilityRank(prog, spec.id) : 0;
       const isLearned = isRankable ? curRank >= 1 : true;
       const canUpgrade = isRankable && canUpgradeAbility(prog, spec.id);
 
       // Available choices for this slot: only learned spells matching tree type!
       const isFlashSlot = typeof slot === 'number' && slot >= 9;
-      const allowedChoices = Object.values(ABILITIES_CATALOG).filter(
-        (ab) => ab.faction !== 'All' &&
-          (isFlashSlot ? ab.tree === 'flashes' : ab.tree === 'rites') &&
-          getAbilityRank(prog, ab.id) >= 1
-      );
+      const allowedChoices = isItemSlot
+        ? Array.from(new Set((localProfile.inventory || []).map((it) => (typeof it === 'string' ? it : it?.id))))
+            .map((id) => EQUIPMENT_CATALOG[id])
+            .filter((it) => it && it.slot !== 'currency')
+        : Object.values(ABILITIES_CATALOG).filter(
+            (ab) => ab.faction !== 'All' &&
+              (isFlashSlot ? ab.tree === 'flashes' : ab.tree === 'rites') &&
+              getAbilityRank(prog, ab.id) >= 1
+          );
 
       const castTimeTxt = spec.castTime > 0 ? `${spec.castTime.toFixed(1)}s Cast` : 'Instant';
 
@@ -9664,12 +11067,17 @@ export function initGame() {
             <span style="font-size:10px; color:#94a3b8;">${castTimeTxt} • CD: ${spec.baseCd > 0 ? (spec.baseCd * cdMult).toFixed(1) + 's' : '0s'} • ${spec.range}</span>
           </div>
           <div style="font-size:10.5px; color:#e2e8f0; margin-top:3px; line-height:1.4;">${spec.desc}</div>
-          ${isRankable ? `
+          ${isRankable || isItemSlot ? `
             <div style="margin-top:5px;">
-              <select class="pixel-input" style="width:auto; padding:3px 8px; font-size:10.5px;" onchange="assignSlotAbilityInGame(${slot}, this.value); this.blur();">
+              <select class="pixel-input" style="width:auto; padding:3px 8px; font-size:10.5px;" onchange="${isItemSlot ? `assignItemToSlot(${slot}, this.value)` : `assignSlotAbilityInGame(${slot}, this.value)`}; this.blur();">
                 ${allowedChoices.length > 0
-                  ? `<option value="" ${spec.id ? '' : 'selected'}>— EMPTY SLOT —</option>` + allowedChoices.map((ab) => `<option value="${ab.id}" ${spec.id === ab.id ? 'selected' : ''}>${ab.icon} ${ab.name} (Rank ${getAbilityRank(prog, ab.id)}/5)</option>`).join('')
-                  : `<option disabled selected>🔒 No ${isFlashSlot ? 'Flashes' : 'Rites'} learned yet — allocate points in Spellbook [P]!</option>`}
+                  ? `<option value="" ${(isItemSlot ? slotItemId : spec.id) ? '' : 'selected'}>— EMPTY SLOT —</option>` +
+                    allowedChoices.map((choice) => {
+                      const selected = isItemSlot ? slotItemId === choice.id : spec.id === choice.id;
+                      const label = isItemSlot ? choice.name : `${choice.icon} ${choice.name} (Rank ${getAbilityRank(prog, choice.id)}/5)`;
+                      return `<option value="${choice.id}" ${selected ? 'selected' : ''}>${label}</option>`;
+                    }).join('')
+                  : `<option disabled selected>${isItemSlot ? '🎒 Bag is empty — buy potions or gear first!' : `🔒 No ${isFlashSlot ? 'Flashes' : 'Rites'} learned yet — allocate points in Spellbook [P]!`}</option>`}
               </select>
             </div>
           ` : ''}
@@ -9805,6 +11213,8 @@ export function initGame() {
     if (listeningSlot === parsed) {
       listeningSlot = null;
       renderKeybindUI();
+      actionBarSignature = '';
+      updateActionBarBadges();
       return;
     }
     if (document.activeElement && typeof document.activeElement.blur === 'function') {
@@ -9812,6 +11222,8 @@ export function initGame() {
     }
     listeningSlot = parsed;
     renderKeybindUI();
+    actionBarSignature = '';
+    updateActionBarBadges();
     window.focus();
     const activeBtn = document.getElementById(`rebind-btn-${parsed}`);
     if (activeBtn) activeBtn.focus({ preventScroll: true });
@@ -9823,6 +11235,7 @@ export function initGame() {
     keybinds = { ...DEFAULT_KEYBINDS };
     try { localStorage.removeItem('glimmerfall_keybinds'); } catch (_) {}
     audio.playChime();
+    actionBarSignature = '';
     updateActionBarBadges();
     renderKeybindUI();
   };
@@ -9945,7 +11358,7 @@ export function initGame() {
       return;
     }
 
-    // Direct click on any Market Stall prop starts conversation with its merchant
+    // Direct click on any Market Stall, Cosmic Artisan Station, or Bounty Board prop
     for (const pr of props) {
       if (pr.type.startsWith('marketStall')) {
         const dx = Math.abs(pr.x - wx);
@@ -9956,6 +11369,20 @@ export function initGame() {
             interactWithNpc(merchant);
             return;
           }
+        }
+      } else if (pr.stationId || pr.isBountyBoard) {
+        const dx = Math.abs(pr.x - wx);
+        const dy = wy - pr.y;
+        if (dx <= 34 && dy >= -44 && dy <= 18) {
+          faceToward(pr.x, pr.y);
+          if (Math.hypot(player.x - pr.x, player.y - pr.y) <= 135) {
+            if (pr.stationId) window.openCraftingModal(pr.stationId);
+            else window.openBountyBoard();
+          } else {
+            logMessage(`[Artisan] Step closer to use ${pr.label || 'this station'}!`, 'log-solari', 'chat');
+            spawnFCT(pr.x, pr.y - 14, 'STEP CLOSER', '#38bdf8');
+          }
+          return;
         }
       }
     }
@@ -10067,6 +11494,16 @@ export function initGame() {
       }
       listeningSlot = null;
       renderKeybindUI();
+      actionBarSignature = '';
+      updateActionBarBadges();
+      return;
+    }
+
+    // Escape cancels a picked-but-not-yet-placed Rite/Flash.
+    if (e.key === 'Escape' && pendingAssign) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.cancelPendingAssign();
       return;
     }
 
@@ -10265,6 +11702,7 @@ export function initGame() {
       }
 
       updateVitalsUI();
+      updateMythicHud();
     }
 
     if (!net.connected) {
@@ -10685,11 +12123,11 @@ export function initGame() {
                 }
               }
 
-              // Phase 3: Enrage & Area Shockwaves at 25% HP (Shattered Nexus cannot enrage)
+              // Phase 3: Enrage & Area Shockwaves at 40% HP (Shattered Nexus cannot enrage)
               const isNexusShard = e.type === 'siege_shard' || e.id === 'siege_shard' || (e.name && e.name.includes('Nexus'));
               if (isNexusShard) {
                 e.enraged = false;
-              } else if (hpPercent <= 25 && e.phase === 2) {
+              } else if (hpPercent <= 40 && e.phase === 2) {
                 e.phase = 3;
                 e.enraged = true;
                 e.baseDamage = e.baseDamage || e.damage || 7;
@@ -10726,6 +12164,16 @@ export function initGame() {
                   telColor = '#38bdf8';
                   shockRad = e.enraged ? 96 : 70;
                   warnDuration = 1.4;
+                } else if (e.spriteKey === 'starfallBoss') {
+                  telLabel = e.enraged ? '☄️ SUPERMASSIVE METEOR IMPACT' : '🔥 STARFALL ORBITAL STRIKE';
+                  telColor = '#fb923c';
+                  shockRad = e.enraged ? 108 : 80;
+                  warnDuration = 1.55;
+                } else if (e.spriteKey === 'abyssalArchitectBoss') {
+                  telLabel = e.enraged ? '🌌 ABYSSAL REALITY COLLAPSE' : '💀 VOIDSTAR ANNIHILATION';
+                  telColor = '#e879f9';
+                  shockRad = e.enraged ? 112 : 84;
+                  warnDuration = 1.5;
                 }
 
                 const shockDmg = Math.round((e.damage || 7) * (e.enraged ? 1.9 : 1.35));
@@ -10760,7 +12208,8 @@ export function initGame() {
               e.y += ((player.y - e.y) / dist) * speed * speedMult * dt;
             } else {
               e.atkTimer = (e.atkTimer || 0) + dt;
-              if (e.atkTimer >= 1.85) {
+              const bossAtkInterval = e.enraged ? 1.85 / 1.35 : 1.85; // Phase 3 enrage: +35% attack speed
+              if (e.atkTimer >= bossAtkInterval) {
                 e.atkTimer = 0;
                 const rawDmg = Math.max(1, (e.damage || (e.isBoss ? 6 : 4)) - (e.weakenTimer > 0 ? 2 : 0));
                 damageOfflinePlayer(rawDmg, e.name, e);
@@ -10791,6 +12240,7 @@ export function initGame() {
     // Advance offline projectiles & ground zones when running in local fallback
     if (!net.connected) {
       updateOfflineLoot(dt);
+      tickOfflineMythic(dt);
       for (let i = projectiles.length - 1; i >= 0; i--) {
         const prj = projectiles[i];
         const tgt = entities.find((e) => e.id === prj.targetId && !e.isDying);
@@ -11018,6 +12468,26 @@ export function initGame() {
         return sprites.tiles[`void_sea_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
       }
       return sprites.tiles[`aether_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.flagstone_0;
+    }
+
+    if (currentBiomeTheme === 'starfall') {
+      // Impact caldera ring & east-west meteorite highway
+      const d2 = tx * tx + ty * ty;
+      if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2 || (d2 >= 64 && d2 <= 100)) {
+        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
+      }
+      return sprites.tiles[`starfall_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.solari_0 || sprites.tiles.flagstone_0;
+    }
+
+    if (currentBiomeTheme === 'abyssal') {
+      // Fractured reality causeways across deep void chasms
+      if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) {
+        return sprites.tiles.flagstone_1 || sprites.tiles.flagstone_0;
+      }
+      if (Math.abs(tx) % 8 === 4 && Math.abs(ty) % 8 === 4 && Math.abs(tx) > 5 && Math.abs(ty) > 5) {
+        return sprites.tiles[`void_sea_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
+      }
+      return sprites.tiles[`abyssal_${Math.abs(tx * 13 + ty * 19) % 4}`] || sprites.tiles.umbri_0 || sprites.tiles.flagstone_0;
     }
 
     if (['solari', 'umbri', 'terra', 'aether'].includes(currentBiomeTheme)) {
@@ -11419,8 +12889,10 @@ export function initGame() {
       case 'terra':
       case 'terra_grove': return 'grass';
       case 'umbri':
+      case 'abyssal':
       case 'umbri_labyrinth': return 'glowcap';
       case 'solari':
+      case 'starfall':
       case 'solari_vault': return 'sunleaf';
       case 'aether':
       case 'aether_archive': return 'crystal';
@@ -11453,7 +12925,9 @@ export function initGame() {
       case 'umbri':
       case 'solari':
       case 'aether':
-        return Math.abs(tx) > 2;
+      case 'starfall':
+      case 'abyssal':
+        return Math.abs(tx) > 2 && Math.abs(ty) > 2;
       case 'terra_grove': {
         const d2 = tx * tx + ty * ty;
         if ((d2 >= 25 && d2 <= 49) || (d2 >= 144 && d2 <= 196) || Math.abs(tx) <= 1) return false;
@@ -11642,8 +13116,10 @@ export function initGame() {
       case 'terra_grove': return ['#bef264', '#86efac'];
       case 'umbri':
       case 'umbri_labyrinth': return ['#c084fc', '#e9d5ff'];
+      case 'abyssal': return ['#e879f9', '#38bdf8'];
       case 'solari':
       case 'solari_vault': return ['#fbbf24', '#fef08a'];
+      case 'starfall': return ['#fb923c', '#fde047'];
       case 'aether':
       case 'aether_archive': return ['#7dd3fc', '#e0f2fe'];
       case 'warzone': return ['#fb923c', '#fde68a'];
@@ -11834,6 +13310,16 @@ export function initGame() {
         ctx.beginPath();
         ctx.ellipse(gx, gy, Math.max(4, r), Math.max(3, Math.round(r * 0.68)), 0, 0, Math.PI * 2);
         ctx.stroke();
+      } else if (gz.type === 'sanguine_pool') {
+        const r = Math.round(gz.radius || 62);
+        const pulse = 0.75 + Math.sin(globalTime * 6) * 0.15;
+        ctx.fillStyle = `rgba(239, 68, 68, ${0.14 * pulse})`;
+        ctx.beginPath();
+        ctx.ellipse(gx, gy, r, Math.round(r * 0.65), 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2;
+        ctx.stroke();
       } else if (gz.type === 'telegraph') {
         const r = Math.round(gz.radius || 70);
         const ry = Math.round(r * 0.65);
@@ -11969,6 +13455,21 @@ export function initGame() {
           } else if (pr.type === 'blossomTree') {
             img = sprites.props.blossomTree || sprites.props.ancientOak || sprites.props.pillar;
             shadowRx = 15; shadowRy = 5;
+          } else if (pr.type === 'cosmicAnvil') {
+            const list = sprites.props.cosmicAnvil;
+            img = (list && list[Math.floor(globalTime * 3.0) % list.length]) || sprites.props.pillar;
+            shadowRx = 13; shadowRy = 5;
+          } else if (pr.type === 'aetherCrucible') {
+            const list = sprites.props.aetherCrucible;
+            img = (list && list[Math.floor(globalTime * 3.2) % list.length]) || sprites.props.pillar;
+            shadowRx = 12; shadowRy = 4;
+          } else if (pr.type === 'celestialLoom') {
+            const list = sprites.props.celestialLoom;
+            img = (list && list[Math.floor(globalTime * 2.8) % list.length]) || sprites.props.pillar;
+            shadowRx = 13; shadowRy = 5;
+          } else if (pr.type === 'bountyBoard') {
+            img = sprites.props.bountyBoard || sprites.props.woodenSign || sprites.props.pillar;
+            shadowRx = 12; shadowRy = 4;
           }
 
           if (img) {
@@ -12121,7 +13622,14 @@ export function initGame() {
           const sy = Math.round(ent.y - camTop);
           let img = null;
           if (ent.type === 'node') {
-            if (ent.isGrand && ent.charges > 0 && sprites.grandNode?.length) {
+            if (ent.skillingType && SKILLING_NODE_TYPES[ent.skillingType]) {
+              const sk = SKILLING_NODE_TYPES[ent.skillingType];
+              const readyArr = sprites[sk.spriteReady] || sprites.node;
+              const emptyArr = sprites[sk.spriteEmpty] || [sprites.nodeEmpty];
+              img = ent.charges > 0
+                ? readyArr[Math.floor(globalTime * 2.4 + Math.abs(ent.x)) % readyArr.length]
+                : (Array.isArray(emptyArr) ? emptyArr[0] : emptyArr);
+            } else if (ent.isGrand && ent.charges > 0 && sprites.grandNode?.length) {
               img = sprites.grandNode[Math.floor(globalTime * 2.5) % sprites.grandNode.length];
             } else if (ent.isGrand && sprites.grandNodeEmpty) {
               img = sprites.grandNodeEmpty;
@@ -12165,6 +13673,16 @@ export function initGame() {
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.ellipse(sx, sy, Math.round(img.width * 0.46), 5, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          } else if (ent.eliteAffix && ELITE_AFFIXES[ent.eliteAffix] && !ent.isDying) {
+            const eColor = ELITE_AFFIXES[ent.eliteAffix].color || '#facc15';
+            const pulse = 0.88 + Math.sin(globalTime * 4.2 + Math.abs(ent.x)) * 0.14;
+            ctx.save();
+            ctx.strokeStyle = eColor;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.ellipse(sx, sy, Math.round(img.width * 0.52 * pulse), 5, 0, 0, Math.PI * 2);
             ctx.stroke();
             ctx.restore();
           }
@@ -12243,18 +13761,21 @@ export function initGame() {
             ctx.fillRect(bx - 1, by - 1, bw + 2, 5);
             ctx.fillStyle = '#1e293b';
             ctx.fillRect(bx, by, bw, 3);
+            const skSpecDraw = ent.type === 'node' && ent.skillingType ? SKILLING_NODE_TYPES[ent.skillingType] : null;
+            const eliteSpecDraw = ent.eliteAffix ? ELITE_AFFIXES[ent.eliteAffix] : null;
             ctx.fillStyle =
-              ent.type === 'node' ? '#c084fc' :
+              ent.type === 'node' ? (skSpecDraw?.sparkColors?.[0] || '#c084fc') :
               ent.type === 'siege_shard' ? '#fde047' :
               ent.type === 'outpost_nexus' ? (FACTIONS_META[ent.faction]?.color || '#38bdf8') :
               ent.type === 'ally_nexus' ? '#38bdf8' :
+              eliteSpecDraw ? (eliteSpecDraw.color || '#facc15') :
               '#ef4444';
             ctx.fillRect(bx, by, Math.round((val / max) * bw), 3);
 
             // Overhead entity label for Bosses, Objectives, Targeted entity, Dummy, or nearby entities
             const isTargeted = currentTarget && currentTarget.id === ent.id;
             const dPlayer = Math.hypot(ent.x - player.x, ent.y - player.y);
-            const showName = isBossOrCore || isTargeted || dPlayer < 95 || ent.type === 'dummy' || (ent.type === 'node' && dPlayer < (isGrandNode ? 220 : 120));
+            const showName = isBossOrCore || Boolean(eliteSpecDraw) || isTargeted || dPlayer < 95 || ent.type === 'dummy' || (ent.type === 'node' && dPlayer < (isGrandNode ? 220 : 125));
 
             if (showName) {
               ctx.font = isBossOrCore ? '700 11px "Outfit", system-ui, sans-serif' : '600 10px "Outfit", system-ui, sans-serif';
@@ -12264,7 +13785,7 @@ export function initGame() {
                 : ent.type === 'shrine'
                   ? (ent.charges > 0 ? `${ent.name} [${getHarvestKeyLabel()}]` : `${ent.name} (Depleted)`)
                   : ent.type === 'node'
-                    ? (ent.charges > 0 ? `${ent.name} [${getHarvestKeyLabel()}] • ${ent.charges}/${ent.maxCharges}` : `Depleted ${ent.isGrand ? 'Grand Font' : 'Node'}`)
+                    ? (ent.charges > 0 ? `${ent.name} [${getHarvestKeyLabel()}] • ${ent.charges}/${ent.maxCharges}` : `Depleted ${skSpecDraw ? ent.name : ent.isGrand ? 'Grand Font' : 'Node'}`)
                     : ent.isBoss
                       ? (isEnraged ? `★ ${ent.name} 🔥 ENRAGED` : `★ ${ent.name}`)
                       : ent.name;
@@ -12273,11 +13794,21 @@ export function initGame() {
               const rx = Math.round(sx);
               const lpx = Math.round(rx - (lw + 8) / 2);
               const lpy = Math.round(by - (isBossOrCore ? 14 : 12));
-              const badgeColor = isBossOrCore ? (isEnraged ? '#ef4444' : '#facc15') : isTargeted ? '#38bdf8' : ent.type === 'shrine' ? '#facc15' : ent.type === 'node' ? (isGrandNode ? '#fde047' : '#c084fc') : '#ffffff';
+              const badgeColor = isBossOrCore
+                ? (isEnraged ? '#ef4444' : '#facc15')
+                : eliteSpecDraw
+                  ? (eliteSpecDraw.color || '#facc15')
+                  : isTargeted
+                    ? '#38bdf8'
+                    : ent.type === 'shrine'
+                      ? '#facc15'
+                      : ent.type === 'node'
+                        ? (isGrandNode ? '#fde047' : (skSpecDraw?.sparkColors?.[0] || '#c084fc'))
+                        : '#ffffff';
 
               ctx.fillStyle = 'rgba(5, 7, 16, 0.90)';
               ctx.fillRect(lpx, lpy, lw + 8, isBossOrCore ? 14 : 12);
-              if (isBossOrCore || isTargeted) {
+              if (isBossOrCore || isTargeted || eliteSpecDraw) {
                 ctx.fillStyle = badgeColor;
                 ctx.fillRect(lpx, lpy + (isBossOrCore ? 13 : 11), lw + 8, 1);
               }

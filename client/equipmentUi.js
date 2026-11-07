@@ -9,6 +9,7 @@
 
 import {
   EQUIPMENT_CATALOG,
+  MYTHIC_DUNGEONS,
   BARROWS_SETS,
   getActiveSetBonuses,
   getEquipmentStatBonuses,
@@ -33,6 +34,10 @@ export function formatItemStatsHtml(item, showSet = true) {
   if (stats.critPct) lines.push(`<span style="color:#fbbf24; font-weight:bold;">🎯 +${Math.round(stats.critPct * 100)}% Crit</span>`);
   if (item.healHp) lines.push(`<span style="color:#4ade80; font-weight:bold;">🧪 Restores +${item.healHp} Health</span>`);
   if (item.restoreGlimmer) lines.push(`<span style="color:#38bdf8; font-weight:bold;">⚗️ Restores +${item.restoreGlimmer} Glimmer</span>`);
+  if (item.keystone) {
+    const dungeon = MYTHIC_DUNGEONS[item.keystone.dungeonId];
+    lines.push(`<span style="color:#fb923c; font-weight:bold;">🗝️ Tier ${item.keystone.tier} Mythic Key — activate inside ${dungeon?.name || 'its faction crypt'}</span>`);
+  }
 
   let setHtml = '';
   if (showSet && item.set && BARROWS_SETS[item.set]) {
@@ -69,7 +74,7 @@ export function getHoveredCardHtml(itemId, source = 'equipped') {
   const actionTip = source === 'equipped'
     ? '👉 Click slot to Unequip to Backpack'
     : source === 'inventory'
-    ? '👉 Left-click to Equip • Right-click to Drop'
+    ? (item.slot === 'socket_gem' ? '👉 Left-click to Socket into Weapon/Chest/Helm • Right-click to Drop' : '👉 Left-click to Equip/Use • Right-click to Drop')
     : source === 'bank'
     ? '👉 Left-click to Withdraw 1 • Right-click to Withdraw All'
     : '👉 AetherSwap Catalog Entry';
@@ -259,6 +264,40 @@ export function renderEquipmentModal({ profile }) {
               </div>
             `;
           }).join('')}
+        </div>
+
+        <!-- Leyline Relic Gem Sockets (Helm • Chest • Weapon) -->
+        <div style="background:#141210; border:2px solid #57534e; border-radius:4px; padding:8px 10px; margin-top:10px;">
+          <div style="font-family:var(--font-header); font-size:9px; color:#38bdf8; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span>💎 LEYLINE RELIC SOCKETS</span>
+            <span style="font-size:7.5px; color:#94a3b8;">CLICK GEM IN BAG TO SOCKET</span>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px;">
+            ${[
+              { key: 'socket_head', label: 'HELM SOCKET', icon: '🪖' },
+              { key: 'socket_body', label: 'CHEST SOCKET', icon: '🛡️' },
+              { key: 'socket_weapon', label: 'WEAPON SOCKET', icon: '⚔️' },
+            ].map((sock) => {
+              const gemId = equip[sock.key];
+              const gem = gemId ? EQUIPMENT_CATALOG[gemId] : null;
+              const col = gem ? getRarityColor(gem.rarity) : '#44403c';
+              return `
+                <div style="background:#0c0a09; border:1.5px ${gem ? 'solid' : 'dashed'} ${col}; border-radius:4px; padding:5px 4px; text-align:center; cursor:pointer;"
+                     onclick="${gem ? `window.unequipSlot('${sock.key}')` : `window.socketFirstAvailableGem ? window.socketFirstAvailableGem('${sock.key}') : toggleModal('inventory-modal')`}"
+                     onmouseenter="window.setHoveredEquipment('${gem ? gem.id : ''}', 'equipped', event)"
+                     onmousemove="window.updateHoveredEquipmentPos(event)"
+                     onmouseleave="window.clearHoveredEquipment()">
+                  ${gem ? `
+                    <img class="pixel-art" src="${getItemIconDataUrl(gem.id, 24)}" width="22" height="22" style="image-rendering:pixelated; display:block; margin:0 auto;" alt="${gem.name}" />
+                    <div style="font-size:7px; color:${col}; font-weight:800; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${gem.name.replace(/^Cut\s*/i, '')}</div>
+                  ` : `
+                    <div style="font-size:13px; opacity:0.55;">${sock.icon}</div>
+                    <div style="font-size:6.5px; color:#78716c; font-weight:700; margin-top:2px;">${sock.label}</div>
+                  `}
+                </div>
+              `;
+            }).join('')}
+          </div>
         </div>
 
         <!-- Live Player Animated Sprite Canvas -->

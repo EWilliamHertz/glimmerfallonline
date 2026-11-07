@@ -38,6 +38,7 @@ export class FrontpageController {
     this.previewAnimTimer = null;
     this.previewDirIdx = 0;
     this.previewFrame = 0;
+    this._lastRenderSig = '';
 
     // Realm Mode: 'singleplayer' (zero lag / local) or 'multiplayer' (online authoritative)
     let savedMode = 'singleplayer';
@@ -294,15 +295,53 @@ export class FrontpageController {
     if (this.isOpen) this.render();
   }
 
+  buildRenderSignature(profile = null) {
+    const p = profile || this.net?.profile || {};
+    const chars = this.playMode === 'singleplayer'
+      ? this.getRosterCharacters()
+      : (Array.isArray(p.characters) ? p.characters : []);
+    const charSummary = chars
+      .map((c) => `${c.id}:${c.name || ''}:${c.faction || ''}:${c.classId || ''}:${c.progression?.level || 1}:${JSON.stringify(c.equipment || {})}`)
+      .join('|');
+    return [
+      this.playMode,
+      this.state,
+      this.selectedCharacterId || '',
+      Boolean(this.net?.authenticated),
+      p.username || '',
+      p.activeCharacterId || '',
+      this.authMode || '',
+      this.authError || '',
+      this.renameMessage || '',
+      this.renameError || '',
+      this.creationError || '',
+      this.enterError || '',
+      this._enteringWorld ? '1' : '0',
+      charSummary,
+    ].join('::');
+  }
+
   syncFromProfile(profile) {
     if (!profile) return;
     if (this.playMode === 'multiplayer') {
       const chars = profile.characters || [];
-      const active = chars.find((c) => c.id === profile.activeCharacterId) || chars[0];
-      if (active) {
-        this.selectedCharacterId = active.id;
+      const stillValid = this.selectedCharacterId && chars.some((c) => c.id === this.selectedCharacterId);
+      if (!stillValid) {
+        const active = chars.find((c) => c.id === profile.activeCharacterId) || chars[0];
+        if (active) {
+          this.selectedCharacterId = active.id;
+        }
       }
-      if (this.isOpen) this.render();
+      if (!this.isOpen) return;
+      // Never blow away DOM while the user is actively typing in a frontpage input
+      const root = document.getElementById('frontpage-body');
+      const activeEl = document.activeElement;
+      if (root && activeEl && root.contains(activeEl) && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA')) {
+        return;
+      }
+      const nextSig = this.buildRenderSignature(profile);
+      if (nextSig === this._lastRenderSig) return;
+      this.render();
     }
   }
 
@@ -791,7 +830,7 @@ export class FrontpageController {
         this.previewDirIdx = (this.previewDirIdx + 1) % dirs.length;
       }
       this.drawPaperdollPreviewCanvas('fp-paperdoll-canvas', dirs[this.previewDirIdx], (this.previewFrame % 2) + 1);
-    }, 240);
+    }, 300);
   }
 
   drawPaperdollPreviewCanvas(canvasId, dir = 'down', frameIdx = 0) {
@@ -849,13 +888,16 @@ export class FrontpageController {
     const root = document.getElementById('frontpage-body');
     if (!root) return;
 
+    this._lastRenderSig = this.buildRenderSignature();
+
     if (this.state === FRONTPAGE_STATES.CHARACTER_CREATE) {
       root.innerHTML = this.renderCreationView();
     } else {
       root.innerHTML = this.renderSelectionView();
     }
 
-    this.drawPaperdollPreviewCanvas('fp-paperdoll-canvas', 'down', 0);
+    const dirs = ['down', 'right', 'up', 'left'];
+    this.drawPaperdollPreviewCanvas('fp-paperdoll-canvas', dirs[this.previewDirIdx % dirs.length], (this.previewFrame % 2) + 1);
   }
 
   // ==========================================
