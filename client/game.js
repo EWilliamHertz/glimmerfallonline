@@ -1,3 +1,4 @@
+import { setupSkillGuidesUi } from './game/skillGuidesUi.js';
 // ==========================================
 // GlimmerFall Online 2D — Top-Down Pixel Art MMORPG Client Engine
 // Real-Time Realm Sync + Persistent Cloud Roster + All 4 Factions
@@ -49,6 +50,7 @@ import {
   CRAFTING_STATIONS,
   CRAFTING_RECIPES,
   SKILLING_NODE_TYPES,
+  SKILLING_LAYOUTS,
   ELITE_AFFIXES,
   BOUNTY_CONTRACTS,
 } from '../shared/protocol.js';
@@ -124,187 +126,24 @@ import {
   getTotalProfessionLevel,
 } from '../shared/protocol.js';
 
-const DEFAULT_KEYBINDS = {
-  1: '1',
-  2: '2',
-  3: '3',
-  4: '4',
-  5: '5',
-  6: '6',
-  7: '7',
-  8: '8',
-  harvest: 'e',
-  9: 'q',
-  10: 'r',
-  11: 'f',
-  12: 'z',
-};
-
-const PORTAL_ID_TO_ROOM = {
-  portal_main: ROOM_TYPES.NEXUS_WARZONE,
-  portal_warzone: ROOM_TYPES.NEXUS_WARZONE,
-  portal_sanctuary: ROOM_TYPES.SANCTUARY_HUB,
-  portal_hub: ROOM_TYPES.SANCTUARY_HUB,
-  portal_solari: ROOM_TYPES.SOLARI_CITADEL,
-  portal_citadel: ROOM_TYPES.SOLARI_CITADEL,
-  portal_umbri: ROOM_TYPES.UMBRI_UNDERCITY,
-  portal_undercity: ROOM_TYPES.UMBRI_UNDERCITY,
-  portal_terra: ROOM_TYPES.TERRA_ORCHARD,
-  portal_orchard: ROOM_TYPES.TERRA_ORCHARD,
-  portal_aether: ROOM_TYPES.AETHER_SPIRE,
-  portal_spire: ROOM_TYPES.AETHER_SPIRE,
-  portal_ruins: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
-  portal_solari_vault: ROOM_TYPES.SOLARI_SUNKEN_VAULT,
-  portal_umbri_lab: ROOM_TYPES.UMBRI_SHADOW_LABYRINTH,
-  portal_terra_sanctuary: ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY,
-  portal_aether_archive: ROOM_TYPES.AETHER_FRACTURED_ARCHIVE,
-};
-
-const AWAKENING_DIALOGUE = [
-  {
-    speaker: 'HERALD LYRA • SOLARI SUNSPIRE HERALD',
-    spriteKey: 'heraldNpc',
-    text: 'Awake at last, Summoner-Knight! Centuries have passed since the Great Nexus shattered between the Glimmer and the Fall, scattering its crystal shards across four warring realms.',
-  },
-  {
-    speaker: 'HERALD LYRA • SOLARI SUNSPIRE HERALD',
-    spriteKey: 'heraldNpc',
-    text: 'Explore all 4 Faction Biomes around Sanctuary (North, South, East, West). Venture North through Aether Spire into the Forgotten Ruins, customize your Gear [I] & Loadout [👤 HERO], or form a Squad [O]!',
-  },
-  {
-    speaker: 'HERALD LYRA • SOLARI SUNSPIRE HERALD',
-    spriteKey: 'heraldNpc',
-    text: 'Strike the Dummy with [1] and channel Glimmer with [E]. When you grow stronger, journey North into the high-level Caldera and Celestial Ascent!',
-  },
-];
-
-const WARZONE_DIALOGUE = [
-  {
-    speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
-    spriteKey: 'warzoneArchonNpc',
-    text: 'Welcome to the Nexus Warzone! Every 30 minutes, a Shattered Nexus Shard spawns in the center (or type /siege to rally an instant clash)!',
-  },
-  {
-    speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
-    spriteKey: 'warzoneArchonNpc',
-    text: 'Defend your Faction’s 25-HP Outpost Nexus, shatter rival Outposts, plant your Order Banner [B] (+1 Power), or venture North into the Forgotten Ruins!',
-  },
-];
-
-const RUINS_DIALOGUE = [
-  {
-    speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
-    spriteKey: 'cartographerNpc',
-    text: 'Hail, seeker of antiquity! You stand at the First Nexus—the ancient axis where Solari, Umbri, Terra, and Aether once convened in unbroken harmony before the Shattering.',
-  },
-  {
-    speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
-    spriteKey: 'cartographerNpc',
-    text: 'Look beneath your boots: the four quadrant stones converge right here. Beware the sleeping Prismatic Keystone Guardian at the center—vanquishing it yields a legendary omni-relic!',
-  },
-  {
-    speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
-    spriteKey: 'cartographerNpc',
-    text: 'High-density Glimmer nodes flourish here. Channel them with [E] to replenish your energy and advance your summoner ranks!',
-  },
-];
-
-const SOLARI_VAULT_DIALOGUE = [
-  {
-    speaker: 'PYREMASTER LUCIAN • SUNKEN VAULT FLAMEKEEPER',
-    spriteKey: 'solariFlamekeeperNpc',
-    text: 'Tread with honor, Knight. This Sunken Vault enshrines the ancient solar pyres that ignited the First Lantern of the Golden Citadel.',
-  },
-  {
-    speaker: 'PYREMASTER LUCIAN • SUNKEN VAULT FLAMEKEEPER',
-    spriteKey: 'solariFlamekeeperNpc',
-    text: 'Deep within slumbers the Solaris Core Colossus. Defeat this radiant guardian to claim the Sunfire Greatsword and the sacred Dawnfire Crest!',
-  },
-];
-
-const UMBRI_LABYRINTH_DIALOGUE = [
-  {
-    speaker: 'WRAITHMOTHER VESPERA • WEAVER OF GRAVEGLASS',
-    spriteKey: 'shadowWraithmotherNpc',
-    text: 'Hush... do not disturb the Graveglass mists. In this Labyrinth of Shadows, forgotten echoes wander between the twilight and the abyss.',
-  },
-  {
-    speaker: 'WRAITHMOTHER VESPERA • WEAVER OF GRAVEGLASS',
-    spriteKey: 'shadowWraithmotherNpc',
-    text: 'The Abyssal Devourer lurks at the labyrinth’s dark core. Wield your Umbral Flashes with precision, or forfeit your soul to the void!',
-  },
-];
-
-const TERRA_GROVE_DIALOGUE = [
-  {
-    speaker: 'ELDER DRUID SYLVANUS • VOICE OF IRONBARK',
-    spriteKey: 'terraElderDruidNpc',
-    text: 'Welcome to the Primordial Hollow. Listen to the deep pulse of the mycorrhizal roots humming beneath the emerald moss.',
-  },
-  {
-    speaker: 'ELDER DRUID SYLVANUS • VOICE OF IRONBARK',
-    spriteKey: 'terraElderDruidNpc',
-    text: 'The ancient Elder Treant, Primordial Ironbark, stands guard over the heartbloom. Fulfill the rites of Terra to earn living Ironbark armor!',
-  },
-];
-
-const AETHER_ARCHIVE_DIALOGUE = [
-  {
-    speaker: 'CHRONOS SAGE ZEPHYR • CHRONOCORE ARCHON',
-    spriteKey: 'aetherChronosNpc',
-    text: 'Greetings across time, Summoner! This fractured archive floats beyond conventional causality, recording every timeline of the Great Nexus.',
-  },
-  {
-    speaker: 'CHRONOS SAGE ZEPHYR • CHRONOCORE ARCHON',
-    spriteKey: 'aetherChronosNpc',
-    text: 'The Continuum Singularity at the center bends cooldowns and gravitational planes. Strike decisively before temporal paradoxes engulf the chamber!',
-  },
-];
-
-const SOLARI_CITADEL_DIALOGUE = [
-  {
-    speaker: 'CAPTAIN VAELEN • LANTERN DISTRICT TEMPLAR',
-    spriteKey: 'solariCaptainNpc',
-    text: 'Glory to the Dawn! The Lantern District stands as an unyielding fortress against the dark. The north portal leads into our deepest Sunken Vault!',
-  },
-];
-
-const UMBRI_UNDERCITY_DIALOGUE = [
-  {
-    speaker: 'SHADOW BROKER NYX • DUSKVEIL SMUGGLER',
-    spriteKey: 'shadowBrokerNpc',
-    text: 'Keep your voice down, friend... The north Gloomgate leads straight to the Shadow Labyrinth. Few who enter return unchanged.',
-  },
-];
-
-const TERRA_ORCHARD_DIALOGUE = [
-  {
-    speaker: 'GROVE TENDER ROWAN • ROOTDEEP HERBALIST',
-    spriteKey: 'terraHerbalistNpc',
-    text: 'May the canopy shelter you! The north Waygate connects directly to the Primordial Hollow where ancient Ironbark treants slumber.',
-  },
-];
-
-const AETHER_SPIRE_DIALOGUE = [
-  {
-    speaker: 'ASTROMANCER KAELEN • MIRRORGATE STARGAZER',
-    spriteKey: 'aetherAstromancerNpc',
-    text: 'The celestial mirrors resonate tonight! Ascend to the north rift to enter the Fractured Chrono-Archive and witness the Continuum.',
-  },
-];
-
-const CELESTIAL_ASCENT_DIALOGUE = [
-  {
-    speaker: 'GRAND ARBITER AURELIA • EMPYREAN TITAN KEEPER',
-    spriteKey: 'celestialArbiterNpc',
-    text: 'Halt, mortal Summoner! You tread upon the Celestial Ascent—the sacred mountain terrace forged by the Ancient Titans before the Shattering.',
-  },
-  {
-    speaker: 'GRAND ARBITER AURELIA • EMPYREAN TITAN KEEPER',
-    spriteKey: 'celestialArbiterNpc',
-    text: 'At the northern summit slumbers Aurelius the Empyrean Sovereign, corrupted by encroaching void rifts. Ascend the starlight terraces, attune the Morning Star fonts, and cleanse the Titan’s throne!',
-  },
-];
+import {
+  DEFAULT_KEYBINDS,
+  PORTAL_ID_TO_ROOM,
+  AWAKENING_DIALOGUE,
+  WARZONE_DIALOGUE,
+  RUINS_DIALOGUE,
+  SOLARI_VAULT_DIALOGUE,
+  UMBRI_LABYRINTH_DIALOGUE,
+  TERRA_GROVE_DIALOGUE,
+  AETHER_ARCHIVE_DIALOGUE,
+  SOLARI_CITADEL_DIALOGUE,
+  UMBRI_UNDERCITY_DIALOGUE,
+  TERRA_ORCHARD_DIALOGUE,
+  AETHER_SPIRE_DIALOGUE,
+  CELESTIAL_ASCENT_DIALOGUE,
+} from "./game/dialoguesData.js";
+import { QUEST_CATALOG } from "./game/questCatalogData.js";
+import { WORLD_ATLAS_REGIONS } from "./game/worldAtlasData.js";
 
 export function initGame() {
   const audio = new PixelSoundEngine();
@@ -1208,937 +1047,13 @@ export function initGame() {
     set portalReady(val) { questState.portalTraveled = Boolean(val); },
   };
 
-  const QUEST_CATALOG = {
-    quest_awakening: {
-      id: 'quest_awakening',
-      title: 'Awakening from Stasis',
-      giverId: 'npc_aurora',
-      turnInId: 'npc_aurora',
-      questPoints: 1,
-      unlocks: ['Next Quest: Vanguard Orders', 'Sanctuary Gateway Portals'],
-      description: 'Break stasis by moving [WASD], strike the training dummy [1], and channel the Glimmer Node [E].',
-      isComplete: () => Boolean(questState.stasisBroken && questState.dummyDamaged && questState.nodeHarvested),
-      tasks: [
-        { text: 'Break stasis: Move [WASD]', done: () => Boolean(questState.stasisBroken) },
-        { text: 'Cast Flare Strike [1] on Dummy', done: () => Boolean(questState.dummyDamaged) },
-        { text: 'Channel Glimmer Node [E]', done: () => Boolean(questState.nodeHarvested) },
-      ],
-      rewards: { xp: 140, glimmer: 70, gold: 75 },
-      acceptDialogue: [
-        {
-          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
-          spriteKey: 'heraldNpc',
-          text: 'Awake at last, Summoner-Knight! The Great Nexus shattered long ago. Take your first steps [WASD], strike the Sanctuary Dummy with Flare Strike [1], and channel the Glimmer Node [E]!',
-        },
-        {
-          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
-          spriteKey: 'heraldNpc',
-          text: 'Return to me once your strength is restored to claim your rites and prepare for the Continental Warzone.',
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
-          spriteKey: 'heraldNpc',
-          text: 'You are recovering well, Knight. Strike the training dummy and channel the Glimmer Node before speaking with me again.',
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
-          spriteKey: 'heraldNpc',
-          text: 'Splendidly done! The Glimmer sings through your veins once more. Take these vital shards and experience!',
-        },
-        {
-          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
-          spriteKey: 'heraldNpc',
-          text: 'Now, report to Commander Valerius at the North Vanguard Post to receive your frontline combat rites.',
-        },
-      ],
-      nextQuestId: 'quest_into_the_warzone',
-    },
-
-    quest_into_the_warzone: {
-      id: 'quest_into_the_warzone',
-      title: 'Vanguard Orders',
-      giverId: 'npc_aurora',
-      turnInId: 'npc_archon',
-      prereqQuestId: 'quest_awakening',
-      questPoints: 1,
-      unlocks: ['Next Quest: Banish Void Invaders', 'North Vanguard Command Post Access'],
-      description: 'Report to Commander Valerius at the North Vanguard Post.',
-      isComplete: () => questNpcTalked('quest_into_the_warzone', 'npc_archon'),
-      tasks: [
-        { text: 'Report to Commander Valerius', done: () => questNpcTalked('quest_into_the_warzone', 'npc_archon') },
-      ],
-      rewards: { xp: 180, glimmer: 90, gold: 75 },
-      acceptDialogue: [
-        {
-          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
-          spriteKey: 'heraldNpc',
-          text: 'Commander Valerius awaits you at the Vanguard Command Post to your north. Speak with him to begin your trial!',
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
-          spriteKey: 'warzoneArchonNpc',
-          text: 'Welcome to the frontline, Summoner. Have you reported in with your awakening credentials?',
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
-          spriteKey: 'warzoneArchonNpc',
-          text: 'Welcome, Summoner! Herald Lyra sent word of your awakening. You carry yourself with true steel.',
-        },
-        {
-          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
-          spriteKey: 'warzoneArchonNpc',
-          text: 'We face dire threats beyond the sanctuary borders. The Void corrupts the outer gates, and monsters roam the wild perimeter.',
-        },
-      ],
-      nextQuestId: 'quest_void_banish',
-    },
-
-    quest_void_banish: {
-      id: 'quest_void_banish',
-      title: 'Banish Void Invaders',
-      giverId: 'npc_archon',
-      turnInId: 'npc_archon',
-      prereqQuestId: 'quest_into_the_warzone',
-      questPoints: 1,
-      unlocks: ['Next Quest: First Nexus Secrets', 'Vanguard Frontline Cache'],
-      description: 'Banish 3 hostile foes roaming outside the Sanctuary. Training dummies do not count.',
-      isComplete: () => questCounter('quest_void_banish', 'warzoneKills') >= 3,
-      tasks: [
-        {
-          text: 'Banish Hostile Foes (not dummies)',
-          done: () => questCounter('quest_void_banish', 'warzoneKills') >= 3,
-          counter: () => `${Math.min(3, questCounter('quest_void_banish', 'warzoneKills'))} / 3`,
-        },
-      ],
-      rewards: { xp: 350, glimmer: 150, gold: 140 },
-      acceptDialogue: [
-        {
-          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
-          spriteKey: 'warzoneArchonNpc',
-          text: 'Void entities stalk outside our gates. Step into any outer domain, cut down 3 real foes, and report back to prove your steel. Training dummies do not count.',
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
-          spriteKey: 'warzoneArchonNpc',
-          text: 'Keep hunting, soldier! The void creeps ever closer until all 3 real threats are banished. Practice dummies do not count.',
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
-          spriteKey: 'warzoneArchonNpc',
-          text: 'Outstanding work! The perimeter holds thanks to your blade. Accept this vanguard cache and the gratitude of the Order.',
-        },
-        {
-          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
-          spriteKey: 'warzoneArchonNpc',
-          text: 'When you are ready for deeper mysteries, journey North through the Aether Astral Spire into the Forgotten Ruins and seek Atlas the Cartographer!',
-        },
-      ],
-      nextQuestId: 'quest_first_nexus',
-    },
-
-    quest_first_nexus: {
-      id: 'quest_first_nexus',
-      title: 'First Nexus Secrets',
-      giverId: 'npc_atlas',
-      turnInId: 'npc_atlas',
-      questPoints: 1,
-      unlocks: ['Next Quest: Ascent to the Empyrean', 'Quadrant Waystone Secrets'],
-      description: 'Banish 2 ruin horrors in the Forgotten First Nexus Ruins.',
-      isComplete: () => questCounter('quest_first_nexus', 'ruinsKills') >= 2,
-      tasks: [
-        {
-          text: 'Banish Ancient Ruin Horrors',
-          done: () => questCounter('quest_first_nexus', 'ruinsKills') >= 2,
-          counter: () => `${Math.min(2, questCounter('quest_first_nexus', 'ruinsKills'))} / 2`,
-        },
-      ],
-      rewards: { xp: 500, glimmer: 200, gold: 180 },
-      acceptDialogue: [
-        {
-          speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
-          spriteKey: 'cartographerNpc',
-          text: 'The ancient runes pulse with latent energy, but void horrors taint the First Nexus. Cleanse 2 corrupted stalkers so I can safely read the quadrant stones!',
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
-          spriteKey: 'cartographerNpc',
-          text: 'The readings are still muffled by dark resonance. Vanquish the remaining ruin stalkers!',
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
-          spriteKey: 'cartographerNpc',
-          text: 'Marvelous! The leyline frequency cleared instantly! Look here—the quadrant stones reveal pathways to all four elemental sanctuaries. Take this antique relic!',
-        },
-      ],
-      nextQuestId: 'quest_celestial_ascent',
-    },
-
-    quest_caldera_siege: {
-      id: 'quest_caldera_siege',
-      title: 'The Continental Nexus Shard',
-      giverId: 'npc_archon',
-      turnInId: 'npc_archon',
-      prereqQuestId: 'quest_void_banish',
-      questPoints: 2,
-      unlocks: ['Grand Vanguard Cache', 'Continental Caldera Outpost Access'],
-      description: 'Venture into the Continental Nexus Caldera and vanquish a Caldera foe or contest an Outpost.',
-      isComplete: () => Boolean(questCounter('quest_caldera_siege', 'calderaKills') >= 1 || questCounter('quest_caldera_siege', 'warzoneKills') >= 4),
-      tasks: [
-        {
-          text: 'Vanquish a Continental Caldera foe',
-          done: () => Boolean(questCounter('quest_caldera_siege', 'calderaKills') >= 1 || questCounter('quest_caldera_siege', 'warzoneKills') >= 4),
-          counter: () => `${Math.min(1, questCounter('quest_caldera_siege', 'calderaKills') + (questCounter('quest_caldera_siege', 'warzoneKills') >= 4 ? 1 : 0))} / 1`,
-        },
-      ],
-      rewards: { xp: 700, glimmer: 300, gold: 250 },
-      acceptDialogue: [
-        {
-          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
-          spriteKey: 'warzoneArchonNpc',
-          text: 'Beyond the Forgotten Ruins lies the Continental Caldera—a brutal high-level warzone where rival factions clash! Enter the Caldera and strike down a creature to prove your mastery.',
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
-          spriteKey: 'warzoneArchonNpc',
-          text: 'Steel your resolve in the Caldera! The foes hit hard, but the rewards are unmatched.',
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
-          spriteKey: 'warzoneArchonNpc',
-          text: 'Triumph in the Caldera! You have conquered the Continental Caldera and stood against the horde! Take this Grand Vanguard Cache!',
-        },
-      ],
-    },
-
-    quest_celestial_ascent: {
-      id: 'quest_celestial_ascent',
-      title: 'Ascent to the Empyrean',
-      giverId: 'npc_atlas',
-      turnInId: 'npc_aurelia',
-      prereqQuestId: 'quest_first_nexus',
-      questPoints: 2,
-      unlocks: ['Next Quest: The Slumbering Sovereign', 'Empyrean Summit Colonnade'],
-      description: 'Climb past the northern boundary of the Continental Caldera and seek Grand Arbiter Aurelia at the Celestial Ascent.',
-      isComplete: () => Boolean(questFlag('quest_celestial_ascent', 'ascentReached') || questNpcTalked('quest_celestial_ascent', 'npc_aurelia')),
-      tasks: [
-        {
-          text: 'Reach the Celestial Ascent Summit',
-          done: () => Boolean(questFlag('quest_celestial_ascent', 'ascentReached') || questNpcTalked('quest_celestial_ascent', 'npc_aurelia')),
-        },
-      ],
-      rewards: { xp: 900, glimmer: 350, gold: 350 },
-      acceptDialogue: [
-        {
-          speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
-          spriteKey: 'cartographerNpc',
-          text: 'The quadrant stones point further north—high into the clouds beyond the Caldera plateau! The Ancient Titans carved a mountain colonnade called the Celestial Ascent. Climb to the peak and confer with Grand Arbiter Aurelia.',
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'ATLAS • KEYSTONE CARTOGRAPHER',
-          spriteKey: 'cartographerNpc',
-          text: 'Follow the northern leylines past the Caldera pass to locate the grand ascent stairway.',
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'GRAND ARBITER AURELIA • TITAN KEEPER',
-          spriteKey: 'celestialArbiterNpc',
-          text: 'A mortal champion ascends the starlight stairs! Welcome to the Celestial Ascent, Summoner. The leylines of the Ancients recognize your courage.',
-        },
-      ],
-      nextQuestId: 'quest_titan_cleansing',
-    },
-
-    quest_titan_cleansing: {
-      id: 'quest_titan_cleansing',
-      title: 'The Slumbering Sovereign',
-      giverId: 'npc_aurelia',
-      turnInId: 'npc_aurelia',
-      prereqQuestId: 'quest_celestial_ascent',
-      questPoints: 3,
-      unlocks: ['Titan Sovereign Favor', 'Apex Starlight Champion Title'],
-      description: 'Challenge Aurelius the Empyrean Sovereign at the Northern Summit Throne.',
-      isComplete: () => questCounter('quest_titan_cleansing', 'titanChallenges') >= 1,
-      tasks: [
-        {
-          text: 'Strike Aurelius the Empyrean Sovereign',
-          done: () => questCounter('quest_titan_cleansing', 'titanChallenges') >= 1,
-        },
-      ],
-      rewards: { xp: 1500, glimmer: 500, gold: 600 },
-      acceptDialogue: [
-        {
-          speaker: 'GRAND ARBITER AURELIA • TITAN KEEPER',
-          spriteKey: 'celestialArbiterNpc',
-          text: 'At the northern summit slumbers our titan lord, Aurelius the Empyrean Sovereign. Corrupted by the Fall, he strikes down all who approach. Ascend to his throne, engage the Sovereign in combat, and awaken his dormant light!',
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'GRAND ARBITER AURELIA • TITAN KEEPER',
-          spriteKey: 'celestialArbiterNpc',
-          text: 'The Sovereign awaits at the northern starlight dais. Approach with reverence and prepared steel!',
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'GRAND ARBITER AURELIA • TITAN KEEPER',
-          spriteKey: 'celestialArbiterNpc',
-          text: 'Glorious! You have matched blades with the Titan Sovereign and cleansed the encroaching void rifts from his throne! The Empyrean hosts salute your ascension!',
-        },
-      ],
-    },
-
-    quest_elemental_pilgrimage: {
-      id: 'quest_elemental_pilgrimage',
-      title: 'The Four Leyline Sanctuaries',
-      giverId: 'npc_aurora',
-      turnInId: 'npc_aurora',
-      prereqQuestId: 'quest_awakening',
-      questPoints: 2,
-      unlocks: ['Elemental Quad-Attunement', 'Cross-Domain Travel Mastery'],
-      description: 'Attune to the leylines of all 4 elemental domains: Solari, Umbri, Terra, and Aether.',
-      isComplete: () => Boolean(
-        questVisited('quest_elemental_pilgrimage', 'solari') &&
-        questVisited('quest_elemental_pilgrimage', 'umbri') &&
-        questVisited('quest_elemental_pilgrimage', 'terra') &&
-        questVisited('quest_elemental_pilgrimage', 'aether')
-      ),
-      tasks: [
-        { text: 'Visit Solari Sun-Citadel (West)', done: () => questVisited('quest_elemental_pilgrimage', 'solari') },
-        { text: 'Visit Umbri Undercity (East)', done: () => questVisited('quest_elemental_pilgrimage', 'umbri') },
-        { text: 'Visit Terra Ironwood Wilds (South)', done: () => questVisited('quest_elemental_pilgrimage', 'terra') },
-        { text: 'Visit Aether Astral Spire (North)', done: () => questVisited('quest_elemental_pilgrimage', 'aether') },
-      ],
-      rewards: { xp: 600, glimmer: 250, gold: 250 },
-      acceptDialogue: [
-        {
-          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
-          spriteKey: 'heraldNpc',
-          text: 'The four elemental orders—Solari, Umbri, Terra, and Aether—maintain sovereign domains surrounding our Sanctuary. Journey through all four cardinal gates to attune your astral signature to each elemental power!',
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
-          spriteKey: 'heraldNpc',
-          text: 'Walk through each cardinal gateway from Sanctuary Haven to complete your elemental pilgrimage.',
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
-          spriteKey: 'heraldNpc',
-          text: 'All four elemental affinities now resonate within your core! You are truly a champion of the Glimmerfall.',
-        },
-      ],
-    },
-
-    quest_stargazer_chronos: {
-      id: 'quest_stargazer_chronos',
-      title: "Astromancer's Continuum",
-      giverId: 'npc_kaelen',
-      turnInId: 'npc_kaelen',
-      prereqQuestId: 'quest_awakening',
-      questPoints: 1,
-      unlocks: ['Mirrorgate Portal Attunement', 'Chrono-Archive Astral Path'],
-      description: 'Ascend the Astral Waygate to the Aether Spire, channel the Mirrorgate Star Font [E], and vanquish a Chrono Anomaly.',
-      isComplete: () => Boolean(questCounter('quest_stargazer_chronos', 'aetherFontChannels') >= 1 && questCounter('quest_stargazer_chronos', 'chronoKills') >= 1),
-      tasks: [
-        {
-          text: 'Channel Star Font in Aether Spire',
-          done: () => questCounter('quest_stargazer_chronos', 'aetherFontChannels') >= 1,
-        },
-        {
-          text: 'Banish Chrono Anomaly in Spire',
-          done: () => questCounter('quest_stargazer_chronos', 'chronoKills') >= 1,
-          counter: () => `${Math.min(1, questCounter('quest_stargazer_chronos', 'chronoKills'))} / 1`,
-        },
-        {
-          text: 'Return to Astromancer Kaelen',
-          done: () => Boolean(questCounter('quest_stargazer_chronos', 'aetherFontChannels') >= 1 && questCounter('quest_stargazer_chronos', 'chronoKills') >= 1),
-        },
-      ],
-      rewards: {
-        xp: 350,
-        glimmer: 120,
-        gold: 150,
-        professionXp: { resonance_extraction: 60 },
-      },
-      acceptDialogue: [
-        {
-          speaker: 'ASTROMANCER KAELEN • MIRRORGATE STARGAZER',
-          spriteKey: 'aetherAstromancerNpc',
-          text: 'Greetings, traveler! The celestial mirrors resonate tonight. Temporal fractures ripple through the Aether Spire from the Chrono-Archive above! Channel the Mirrorgate Star Font [E] and banish a Chrono Anomaly to stabilize our timeline!',
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'ASTROMANCER KAELEN • MIRRORGATE STARGAZER',
-          spriteKey: 'aetherAstromancerNpc',
-          text: 'The temporal rifts still fluctuate! Channel the Mirrorgate Star Font [E] and banish a Chrono Anomaly to calm the spire.',
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'ASTROMANCER KAELEN • MIRRORGATE STARGAZER',
-          spriteKey: 'aetherAstromancerNpc',
-          text: 'Magnificent! The mirrors have stabilized, and the celestial resonance sings pure once more. Take this astral reward, Champion of the Continuum!',
-        },
-      ],
-    },
-
-    quest_skill_extraction: {
-      id: 'quest_skill_extraction',
-      title: 'Resonance: First Extraction',
-      giverId: 'merchant_relics',
-      turnInId: 'merchant_relics',
-      questPoints: 1,
-      unlocks: ['Resonance Extraction Lv. 2 Recipes', 'Moira\'s Curio & Relic Trade'],
-      description: 'Channel 2 Glimmer or Leyline Nodes around Sanctuary to harvest raw resonant crystals.',
-      isComplete: () => questCounter('quest_skill_extraction', 'extractionNodesHarvested') >= 2,
-      tasks: [
-        {
-          text: 'Channel Leyline / Glimmer Nodes',
-          done: () => questCounter('quest_skill_extraction', 'extractionNodesHarvested') >= 2,
-          counter: () => `${Math.min(2, questCounter('quest_skill_extraction', 'extractionNodesHarvested'))} / 2`,
-        },
-        {
-          text: 'Return to Relic-Seeker Moira',
-          done: () => questCounter('quest_skill_extraction', 'extractionNodesHarvested') >= 2,
-        },
-      ],
-      rewards: {
-        xp: 180,
-        glimmer: 60,
-        gold: 120,
-        professionXp: { resonance_extraction: 75 },
-      },
-      acceptDialogue: [
-        {
-          speaker: 'RELIC-SEEKER MOIRA • AETHER CURIOS',
-          spriteKey: 'merchantRelicsNpc',
-          text: 'Greetings, traveler! The earth beneath Sanctuary pulses with raw Glimmer. To survive the wild realms, one must learn Resonance Extraction. Step to any Glimmer node or ancient shrine and press [E] to channel its frequency twice. Bring back the resonant crystals!',
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'RELIC-SEEKER MOIRA • AETHER CURIOS',
-          spriteKey: 'merchantRelicsNpc',
-          text: 'Channel 2 Glimmer nodes or ancient shrines with [E] to tune your extraction technique! Press [N] anytime to inspect your Skills tab.',
-          actions: [
-            { label: '🛒 BROWSE WARES & RELICS', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
-            { label: '👋 I WILL GATHER THEM', action: 'close' },
-          ],
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'RELIC-SEEKER MOIRA • AETHER CURIOS',
-          spriteKey: 'merchantRelicsNpc',
-          text: 'Incredible resonance! The crystals hum in your hands. You have mastered the fundamentals of Resonance Extraction! Continue tapping nodes across the continent to gather rare gems, leyline essence, and ancient relics.',
-          actions: [
-            { label: '🛒 BROWSE MOIRA\'S RELICS', action: 'openShop', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
-            { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
-          ],
-        },
-      ],
-    },
-
-    quest_skill_forging: {
-      id: 'quest_skill_forging',
-      title: 'Forging: The Cosmic Star-Anvil',
-      giverId: 'merchant_smith',
-      turnInId: 'merchant_smith',
-      questPoints: 1,
-      unlocks: ['Cosmic Star-Anvil Alloy Recipes', 'Leyline Jewel Cutting'],
-      description: 'Mine Sun-Copper & Star-Tin from a world Ore Vein (or buy starter ore from Torvin), then smelt or forge an item at the Cosmic Star-Anvil!',
-      isComplete: () => artisanQuestDone('quest_skill_forging', 'smithInspected', ['bronze_bar', 'copper_ring', 'star_iron_bar', 'iron_broadsword', 'iron_heater_shield'], 'relic_forging'),
-      tasks: [
-        {
-          text: 'Smelt an Ingot or Forge Gear at the Cosmic Star-Anvil',
-          done: () => artisanQuestDone('quest_skill_forging', 'smithInspected', ['bronze_bar', 'copper_ring', 'star_iron_bar', 'iron_broadsword', 'iron_heater_shield'], 'relic_forging'),
-        },
-        {
-          text: 'Confer with Blacksmith Torvin',
-          done: () => artisanQuestDone('quest_skill_forging', 'smithInspected', ['bronze_bar', 'copper_ring', 'star_iron_bar', 'iron_broadsword', 'iron_heater_shield'], 'relic_forging'),
-        },
-      ],
-      rewards: {
-        xp: 180,
-        glimmer: 50,
-        gold: 120,
-        professionXp: { relic_forging: 75 },
-      },
-      acceptDialogue: [
-        {
-          speaker: 'BLACKSMITH TORVIN • SMITHING & ORE WARES',
-          spriteKey: 'merchantSmithNpc',
-          text: 'Hmph! Real smiths don\'t pay coin to skip the hammer—they work the Cosmic Star-Anvil right beside my stall! Mine Sun-Copper and Star-Tin from ore veins around Sanctuary (or grab a starter pair from my shop), then smelt a Bronze Bar on the Cosmic Star-Anvil!',
-          actions: [
-            { label: '🔨 OPEN COSMIC STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
-            { label: '🛒 BUY STARTER ORES', action: 'openShop', style: 'border-color:#38bdf8; color:#7dd3fc;' },
-            { label: '👋 I WILL SMELT IT', action: 'close' },
-          ],
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'BLACKSMITH TORVIN • SMITHING & ORE WARES',
-          spriteKey: 'merchantSmithNpc',
-          text: 'Step to the glowing Cosmic Star-Anvil right next to my stall and smelt Sun-Copper + Star-Tin into a Bronze Bar (or forge any metal piece)!',
-          actions: [
-            { label: '🔨 OPEN COSMIC STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
-            { label: '🛒 BROWSE RAW ORES', action: 'openShop' },
-            { label: '👋 FAREWELL', action: 'close' },
-          ],
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'BLACKSMITH TORVIN • SMITHING & ORE WARES',
-          spriteKey: 'merchantSmithNpc',
-          text: 'Aye, hear the Cosmic Star-Anvil ring! Combine terrestrial ores with astral minerals to smelt Star-Iron, Umbral Steel, Astral Mithril, and Celestial Starmetal—and cut Leyline Socket Gems for your gear!',
-          actions: [
-            { label: '🔨 OPEN COSMIC STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
-            { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
-          ],
-        },
-      ],
-    },
-
-    quest_skill_binding: {
-      id: 'quest_skill_binding',
-      title: 'Binding: The Aetherial Crucible',
-      giverId: 'merchant_apothecary',
-      turnInId: 'merchant_apothecary',
-      questPoints: 1,
-      unlocks: ['Aetherial Crucible Elixir Formulas', 'Keystone & Focus Orb Binding'],
-      description: 'Forage Sunbloom Herbs (or buy starter herbs from Faye) and brew an elixir at the bubbling Aetherial Crucible!',
-      isComplete: () => artisanQuestDone('quest_skill_binding', 'apothecaryInspected', ['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir', 'astral_battle_tonic'], 'rite_binding'),
-      tasks: [
-        {
-          text: 'Distill a Salve or Draught at the Aetherial Crucible',
-          done: () => artisanQuestDone('quest_skill_binding', 'apothecaryInspected', ['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir', 'astral_battle_tonic'], 'rite_binding'),
-        },
-        {
-          text: 'Confer with Alchemist Faye',
-          done: () => artisanQuestDone('quest_skill_binding', 'apothecaryInspected', ['minor_healing_salve', 'glimmer_draught', 'major_vitality_elixir', 'astral_battle_tonic'], 'rite_binding'),
-        },
-      ],
-      rewards: {
-        xp: 180,
-        glimmer: 50,
-        gold: 120,
-        professionXp: { rite_binding: 75 },
-      },
-      acceptDialogue: [
-        {
-          speaker: 'ALCHEMIST FAYE • APOTHECARY & POTIONS',
-          spriteKey: 'merchantApothecaryNpc',
-          text: 'Welcome, seeker! True Rite-Binding happens at the bubbling Aetherial Crucible beside my stall. Forage Sunbloom Herbs in Sanctuary or Terra Orchard (or pick up starter herbs from my shelf), then brew a Minor Healing Salve in the Crucible!',
-          actions: [
-            { label: '⚗️ OPEN AETHERIAL CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#c084fc; color:#f3e8ff; font-weight:bold;' },
-            { label: '🛒 BUY STARTER HERBS', action: 'openShop', style: 'border-color:#38bdf8; color:#7dd3fc;' },
-            { label: '👋 I WILL BREW IT', action: 'close' },
-          ],
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'ALCHEMIST FAYE • APOTHECARY & POTIONS',
-          spriteKey: 'merchantApothecaryNpc',
-          text: 'Click the glowing purple Aetherial Crucible beside my stall to distill herbs and astral dust into salves, tonics, focus orbs, and Mythic Keystones!',
-          actions: [
-            { label: '⚗️ OPEN AETHERIAL CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#c084fc; color:#f3e8ff; font-weight:bold;' },
-            { label: '🛒 BROWSE HERBS & POTIONS', action: 'openShop' },
-            { label: '👋 FAREWELL', action: 'close' },
-          ],
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'ALCHEMIST FAYE • APOTHECARY & POTIONS',
-          spriteKey: 'merchantApothecaryNpc',
-          text: 'Exquisite distillation! As your Rite-Binding ascends, you can compound Chrono Overdrive Draughts, Empyrean Nectar, Socket Sapphires, and Mythic Leyline Keystones!',
-          actions: [
-            { label: '⚗️ OPEN AETHERIAL CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#c084fc; color:#f3e8ff; font-weight:bold;' },
-            { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
-          ],
-        },
-      ],
-    },
-
-    quest_skill_weaving: {
-      id: 'quest_skill_weaving',
-      title: 'Weaving: The Celestial Loom',
-      giverId: 'merchant_provisions',
-      turnInId: 'merchant_provisions',
-      questPoints: 1,
-      unlocks: ['Celestial Loom Cloak & Robe Patterns', 'Artisan Banquet Hearth'],
-      description: 'Gather Starlight Flax or Sweet Apples and weave a cloak or bake rations at the Celestial Loom & Hearth!',
-      isComplete: () => artisanQuestDone('quest_skill_weaving', 'provisionsInspected', ['fresh_crusty_bread', 'linen_traveller_cloak', 'field_rations', 'spiced_orchard_pie'], 'glimmerweaving'),
-      tasks: [
-        {
-          text: 'Weave Cloth or Bake Sustenance at the Celestial Loom',
-          done: () => artisanQuestDone('quest_skill_weaving', 'provisionsInspected', ['fresh_crusty_bread', 'linen_traveller_cloak', 'field_rations', 'spiced_orchard_pie'], 'glimmerweaving'),
-        },
-        {
-          text: 'Confer with Farmer Bran',
-          done: () => artisanQuestDone('quest_skill_weaving', 'provisionsInspected', ['fresh_crusty_bread', 'linen_traveller_cloak', 'field_rations', 'spiced_orchard_pie'], 'glimmerweaving'),
-        },
-      ],
-      rewards: {
-        xp: 180,
-        glimmer: 50,
-        gold: 120,
-        professionXp: { glimmerweaving: 75 },
-      },
-      acceptDialogue: [
-        {
-          speaker: 'FARMER BRAN • PROVISIONS & RATIONS',
-          spriteKey: 'merchantProvisionsNpc',
-          text: 'Good day to ye! Glimmerweaving turns Starlight Flax, Shadow-Silk, and orchard harvest into enchanted cloaks, robes, and hearty feasts right on the Celestial Loom & Hearth beside my stall!',
-          actions: [
-            { label: '🧵 OPEN CELESTIAL LOOM', action: 'openStation_celestial_loom', style: 'border-color:#4ade80; color:#dcfce7; font-weight:bold;' },
-            { label: '🛒 BUY STARTER FLAX & APPLES', action: 'openShop', style: 'border-color:#38bdf8; color:#7dd3fc;' },
-            { label: '👋 I WILL WEAVE IT', action: 'close' },
-          ],
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'FARMER BRAN • PROVISIONS & RATIONS',
-          spriteKey: 'merchantProvisionsNpc',
-          text: 'Step to the golden Celestial Loom & Hearth next to my stall to weave a Traveller\'s Cloak or bake Fresh Crusty Bread!',
-          actions: [
-            { label: '🧵 OPEN CELESTIAL LOOM', action: 'openStation_celestial_loom', style: 'border-color:#4ade80; color:#dcfce7; font-weight:bold;' },
-            { label: '🛒 BROWSE FLAX & FRUIT', action: 'openShop' },
-            { label: '👋 FAREWELL', action: 'close' },
-          ],
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'FARMER BRAN • PROVISIONS & RATIONS',
-          spriteKey: 'merchantProvisionsNpc',
-          text: 'Well look at that stitchwork! Keep harvesting Shadow-Silk and Celestial Gossamer across the realms to weave Duskveil Mantles, Mystic Robes, and Starfire Banquets!',
-          actions: [
-            { label: '🧵 OPEN CELESTIAL LOOM', action: 'openStation_celestial_loom', style: 'border-color:#4ade80; color:#dcfce7; font-weight:bold;' },
-            { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
-          ],
-        },
-      ],
-    },
-
-    quest_skill_combat: {
-      id: 'quest_skill_combat',
-      title: 'Combat: First Blood',
-      giverId: 'npc_archon',
-      turnInId: 'npc_archon',
-      prereqQuestId: 'quest_awakening',
-      questPoints: 1,
-      unlocks: ['Combat Mastery Lv. 2 Drills', 'Vanguard Sparring Rites'],
-      description: 'Prove your combat discipline by banishing 3 foes or landing 15 strikes on a training dummy.',
-      isComplete: () => questCounter('quest_skill_combat', 'combatKills') >= 3 || questCounter('quest_skill_combat', 'combatTrainingHits') >= 15,
-      tasks: [
-        {
-          text: 'Banish Hostile Foes (not dummies)',
-          done: () => questCounter('quest_skill_combat', 'combatKills') >= 3,
-          counter: () => `${Math.min(3, questCounter('quest_skill_combat', 'combatKills'))} / 3`,
-        },
-        {
-          text: 'Strike a Training Dummy',
-          done: () => questCounter('quest_skill_combat', 'combatTrainingHits') >= 15,
-          counter: () => `${Math.min(15, questCounter('quest_skill_combat', 'combatTrainingHits'))} / 15`,
-        },
-      ],
-      rewards: {
-        xp: 220,
-        glimmer: 60,
-        gold: 100,
-        professionXp: { combat_mastery: 75 },
-      },
-      acceptDialogue: [
-        {
-          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
-          spriteKey: 'warzoneArchonNpc',
-          text: 'Steel is nothing without discipline. Banish three real foes in the outer realms, or drill your forms against the Sanctuary training dummies, and I will mark your first combat rank. Dummy kills do not count as hostile kills.',
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
-          spriteKey: 'warzoneArchonNpc',
-          text: 'Keep your guard high. Three clean kills of real foes or fifteen solid dummy strikes will prove your readiness. Dummy kills do not count toward the kill task.',
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
-          spriteKey: 'warzoneArchonNpc',
-          text: 'Good. Your footwork is no longer a liability. Carry that discipline into every fight and your Combat Mastery will grow quickly.',
-        },
-      ],
-    },
-
-    quest_skill_training: {
-      id: 'quest_skill_training',
-      title: "The Artisan's First Rank",
-      giverId: 'npc_aurora',
-      turnInId: 'npc_aurora',
-      prereqQuestId: 'quest_awakening',
-      questPoints: 1,
-      unlocks: ['Artisan Training Drills', 'Skill Mentor Guidance'],
-      description: 'Raise one artisan profession — Relic-Forging, Rite-Binding, or Glimmerweaving — by 1 level after accepting. Press [N] to open Skills and follow its green HOW TO TRAIN steps.',
-      isComplete: () => ARTISAN_PROFESSION_IDS.some((profId) => questProfessionGain('quest_skill_training', profId) >= 1),
-      tasks: [
-        {
-          text: 'Gain 1 Relic-Forging, Rite-Binding, or Glimmerweaving level',
-          done: () => ARTISAN_PROFESSION_IDS.some((profId) => questProfessionGain('quest_skill_training', profId) >= 1),
-        },
-      ],
-      rewards: {
-        xp: 240,
-        glimmer: 80,
-        gold: 120,
-        professionXp: {
-          relic_forging: 75,
-          rite_binding: 75,
-          glimmerweaving: 75,
-        },
-      },
-      acceptDialogue: [
-        {
-          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
-          spriteKey: 'heraldNpc',
-          text: 'A champion must hone more than the blade. Press [N], click an artisan skill, and read the green HOW TO TRAIN box. Raise Relic-Forging, Rite-Binding, or Glimmerweaving by one level after accepting this task, then return to me. Combat and extraction training do not count for this artisan rank.',
-          actions: [
-            { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
-            { label: '👋 I WILL START NOW', action: 'close' },
-          ],
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
-          spriteKey: 'heraldNpc',
-          text: 'Open Skills [N], choose Relic-Forging, Rite-Binding, or Glimmerweaving, and follow its green HOW TO TRAIN box. Only levels gained after you accepted this task count. Combat and extraction training do not count for this artisan rank.',
-          actions: [
-            { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
-            { label: '👋 I WILL KEEP TRAINING', action: 'close' },
-          ],
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
-          spriteKey: 'heraldNpc',
-          text: 'Your first rank is earned. Keep training, and the artisan masters will open rarer recipes and stronger gear to you.',
-          actions: [
-            { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
-          ],
-        },
-      ],
-    },
-
-    quest_artisan_capstone: {
-      id: 'quest_artisan_capstone',
-      title: "The Artisan's Path",
-      giverId: 'npc_aurora',
-      turnInId: 'npc_aurora',
-      prereqQuestIds: ['quest_skill_extraction', 'quest_skill_forging', 'quest_skill_binding', 'quest_skill_weaving'],
-      questPoints: 2,
-      unlocks: ['Artisan Guild Recognition', 'Master Crafting Commission'],
-      description: 'Complete the four artisan initiation trials and prove that every Sanctuary craft is within your reach.',
-      isComplete: () => Boolean(
-        questState.completedQuests?.quest_skill_extraction &&
-        questState.completedQuests?.quest_skill_forging &&
-        questState.completedQuests?.quest_skill_binding &&
-        questState.completedQuests?.quest_skill_weaving
-      ),
-      tasks: [
-        { text: 'Complete Resonance: First Extraction', done: () => Boolean(questState.completedQuests?.quest_skill_extraction) },
-        { text: "Complete Forging: The Anvil's Spark", done: () => Boolean(questState.completedQuests?.quest_skill_forging) },
-        { text: 'Complete Binding: The Alchemical Draught', done: () => Boolean(questState.completedQuests?.quest_skill_binding) },
-        { text: 'Complete Weaving: The Luminescent Thread', done: () => Boolean(questState.completedQuests?.quest_skill_weaving) },
-      ],
-      rewards: {
-        xp: 800,
-        glimmer: 220,
-        gold: 300,
-        professionXp: {
-          resonance_extraction: 40,
-          relic_forging: 40,
-          rite_binding: 40,
-          glimmerweaving: 40,
-        },
-      },
-      acceptDialogue: [
-        {
-          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
-          spriteKey: 'heraldNpc',
-          text: 'You have walked every artisan path: extraction, forging, binding, and weaving. The Guild has taken notice. Accept their recognition and carry the mark of a true maker.',
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
-          spriteKey: 'heraldNpc',
-          text: 'The four initiation trials are complete. Return to me to claim the Artisan Guild recognition.',
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
-          spriteKey: 'heraldNpc',
-          text: 'All four crafts now answer to your hand. The Artisan Guild recognizes you as a Master of the Sanctuary trades!',
-          actions: [
-            { label: '✨ OPEN SKILLS TAB [N]', action: 'openSkills' },
-          ],
-        },
-      ],
-    },
-
-    quest_starfall_forge: {
-      id: 'quest_starfall_forge',
-      title: 'The Fallen Astral Forge',
-      giverId: 'npc_orion',
-      turnInId: 'npc_orion',
-      questPoints: 2,
-      unlocks: ['Starfall Astral Forge Mastery', 'Celestial Starmetal Smelting Lore'],
-      description: 'In Starfall Crater, shatter 4 Starforged Constructs or Meteor Elementals and mine 2 Astral Mithril or Starmetal veins.',
-      isComplete: () => questCounter('quest_starfall_forge', 'starfallKills') >= 4 && questCounter('quest_starfall_forge', 'starfallVeins') >= 2,
-      tasks: [
-        {
-          text: 'Shatter Starfall Constructs or Meteor Elementals',
-          done: () => questCounter('quest_starfall_forge', 'starfallKills') >= 4,
-          counter: () => `${Math.min(4, questCounter('quest_starfall_forge', 'starfallKills'))} / 4`,
-        },
-        {
-          text: 'Mine Astral Mithril or Starmetal Veins in Crater',
-          done: () => questCounter('quest_starfall_forge', 'starfallVeins') >= 2,
-          counter: () => `${Math.min(2, questCounter('quest_starfall_forge', 'starfallVeins'))} / 2`,
-        },
-      ],
-      rewards: {
-        xp: 850,
-        glimmer: 300,
-        gold: 360,
-        professionXp: { relic_forging: 220, resonance_extraction: 180 },
-      },
-      acceptDialogue: [
-        {
-          speaker: 'FORGE-KEEPER ORION • STARFALL CRATER',
-          spriteKey: 'solariFlamekeeperNpc',
-          text: 'Meteors of pure Celestial Starmetal tore this crater open west of the Golden Citadel! Rogue Starforged Automatons and molten Meteor Elementals guard the veins. Shatter 4 of them and mine 2 crater ore veins so we can reignite the Astral Forge!',
-          actions: [
-            { label: '🔨 INSPECT ASTRAL STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
-            { label: '⚔️ TO THE CRATER!', action: 'close' },
-          ],
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'FORGE-KEEPER ORION • STARFALL CRATER',
-          spriteKey: 'solariFlamekeeperNpc',
-          text: 'Shatter 4 Starfall constructs and mine 2 Mithril or Starmetal veins [E] around the molten basin!',
-          actions: [
-            { label: '🔨 OPEN COSMIC STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
-            { label: '👋 CONTINUE HUNT', action: 'close' },
-          ],
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'FORGE-KEEPER ORION • STARFALL CRATER',
-          spriteKey: 'solariFlamekeeperNpc',
-          text: 'By the Morning Star—feel the heat of that Starmetal! The Astral Forge roars anew! Challenge Ignis-Core at the crater heart if you dare claim the Starmetal Meteor Hammer!',
-          actions: [
-            { label: '🔨 WORK THE ASTRAL FORGE', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
-          ],
-        },
-      ],
-    },
-
-    quest_abyssal_breach: {
-      id: 'quest_abyssal_breach',
-      title: 'Breach of the Void Architect',
-      giverId: 'npc_nihilus',
-      turnInId: 'npc_nihilus',
-      questPoints: 3,
-      unlocks: ['Abyssal Rift Vanguard Honor', 'Voidstar Relic Mastery'],
-      description: 'Venture into the Abyssal Rift and banish 5 Gloam-Silk Widows, Paradox Sentinels, or Xal\'Korath\'s Voidborne.',
-      isComplete: () => questCounter('quest_abyssal_breach', 'abyssalKills') >= 5,
-      tasks: [
-        {
-          text: 'Banish Abyssal Rift Horrors',
-          done: () => questCounter('quest_abyssal_breach', 'abyssalKills') >= 5,
-          counter: () => `${Math.min(5, questCounter('quest_abyssal_breach', 'abyssalKills'))} / 5`,
-        },
-      ],
-      rewards: {
-        xp: 1350,
-        glimmer: 450,
-        gold: 520,
-        professionXp: { combat_mastery: 320, rite_binding: 200 },
-      },
-      acceptDialogue: [
-        {
-          speaker: 'RIFT-WATCHER NIHILUS • ABYSSAL RIFT',
-          spriteKey: 'shadowWraithmotherNpc',
-          text: 'You stand upon the fractured threshold where Xal\'Korath, the Void Architect, unravels reality itself! Banish 5 Rift horrors prowling these obsidian spires before the breach swallows the Caldera!',
-          actions: [
-            { label: '⚗️ OPEN ABYSSAL CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#c084fc; color:#f3e8ff; font-weight:bold;' },
-            { label: '⚔️ ENTER THE BREACH', action: 'close' },
-          ],
-        },
-      ],
-      ongoingDialogue: [
-        {
-          speaker: 'RIFT-WATCHER NIHILUS • ABYSSAL RIFT',
-          spriteKey: 'shadowWraithmotherNpc',
-          text: 'Banish 5 Gloam-Silk Widows or Paradox Sentinels across the Rift—and beware Xal\'Korath at the northern singularity!',
-        },
-      ],
-      completeDialogue: [
-        {
-          speaker: 'RIFT-WATCHER NIHILUS • ABYSSAL RIFT',
-          spriteKey: 'shadowWraithmotherNpc',
-          text: 'The singularity recoils before your blade! Take this sovereign bounty—and when your squad is ready, strike down Xal\'Korath for the Abyssal Voidstar Scythe!',
-        },
-      ],
-    },
-  };
-
   function getNpcName(npcId) {
     const map = {
       merchant_relics: 'Relic-Seeker Moira',
       merchant_smith: 'Blacksmith Torvin',
       merchant_apothecary: 'Alchemist Faye',
       merchant_provisions: 'Farmer Bran',
+      merchant_tailor: 'Shadow Stitcher Silvan',
       npc_aurora: 'Herald Lyra',
       npc_archon: 'Commander Valerius',
       npc_atlas: 'Atlas the Cartographer',
@@ -2584,340 +1499,6 @@ export function initGame() {
   // ==========================================
   // Continental Atlas & Regions Data
   // ==========================================
-  const WORLD_ATLAS_REGIONS = {
-    SANCTUARY_HUB: {
-      id: 'SANCTUARY_HUB',
-      name: 'Sanctuary Haven',
-      sub: 'Awakening Sanctum & Continental Axis',
-      level: 'Lv. 1 – 5',
-      dangerTag: 'SANCTUARY HAVEN',
-      color: '#38bdf8',
-      borderColor: '#7dd3fc',
-      faction: 'Order of the Sunspire (Neutral Sanctuary)',
-      desc: 'The peaceful haven where Summoner-Knights awaken from stasis. Connects the four outer elemental domains and leads North through the Aether Spire into the high-level continental frontier.',
-      gridPos: { col: 1, row: 4 },
-      neighbors: {
-        north: 'AETHER_SPIRE',
-        south: 'TERRA_ORCHARD',
-        west: 'SOLARI_CITADEL',
-        east: 'UMBRI_UNDERCITY'
-      },
-      landmarks: [
-        { x: 63, y: 41, icon: '🏛️', name: 'The Grand AetherVault Bank', sub: 'AetherVault Depository (City Bank)', desc: 'Neoclassical stone bank building. Speak to Banker Trove-Master Orin at the teller booth to manage your cross-realm item vault.' },
-        { x: 50, y: 49, icon: '⛲', name: 'Grand Sanctuary Fountain', sub: 'Central Plaza', desc: 'Tiered stone water fountain at the heart of the metropolis.' },
-        { x: 37, y: 41, icon: '⚖️', name: 'Continental Market Square', sub: 'Merchant Quarter', desc: 'Canopied stalls offering potions, provisions, and curios.' },
-        { x: 55, y: 65, icon: '🛡️', name: 'Herald Lyra', sub: 'Sunspire Mentor', desc: 'Awakening guide and primary quest mentor.' },
-        { x: 44, y: 36, icon: '⚔️', name: 'Commander Valerius', sub: 'Sunspire Warlord', desc: 'Frontline commander directing border defense.' },
-        { x: 50, y: 52, icon: '🎯', name: 'Training Grounds', sub: 'Sanctuary Dummy', desc: 'Training post for honing Rites and Flashes.' },
-        { x: 36, y: 53, icon: '💎', name: 'Awakening Glimmer Font', sub: 'Leyline Font [E]', desc: 'Channel with [E] to replenish energy.' },
-        { x: 64, y: 53, icon: '💎', name: 'East Glimmer Font', sub: 'Leyline Font [E]', desc: 'Channel with [E] to replenish energy.' },
-        { x: 50, y: 8, icon: '▲', name: 'Astral Waygate', sub: 'To Aether Spire [North]', desc: 'Walk North across the Astral threshold.' },
-        { x: 50, y: 92, icon: '▼', name: 'Ironwood Arch', sub: 'To Terra Wilds [South]', desc: 'Walk South into the Ironwood Wilds.' },
-        { x: 8, y: 50, icon: '◀', name: 'Sunspire Arch', sub: 'To Solari Citadel [West]', desc: 'Walk West into the Golden Citadel.' },
-        { x: 92, y: 50, icon: '▶', name: 'Sepulcher Gate', sub: 'To Umbri Undercity [East]', desc: 'Walk East into the Duskveil Bog.' }
-      ],
-      entities: [
-        { name: 'Training Dummy', type: 'Neutral Target', hp: '35 HP', desc: 'Safe target for honing Rites and Flashes.' },
-        { name: 'Glimmer Leyline Node', type: 'Harvest Node', hp: '3 Charges', desc: 'Channel with [E] to restore Solar Charge.' },
-        { name: 'Herald Lyra', type: 'Sunspire Herald', hp: 'Immortal', desc: 'Awakening mentor & primary quest giver.' },
-        { name: 'Commander Valerius', type: 'Vanguard Warlord', hp: 'Immortal', desc: 'Frontline commander directing border defense.' }
-      ],
-      objectives: 'Tutorial Rites, Glimmer Harvesting, Gear customization [I], Squad recruitment [O].',
-      travel: 'You awaken here! Gateways lead North to Aether Spire, West to Solari Citadel, East to Umbri Undercity, and South to Terra Orchard.'
-    },
-    SOLARI_CITADEL: {
-      id: 'SOLARI_CITADEL',
-      name: 'Solari Sun-Citadel',
-      sub: 'Western Radiant Bastion',
-      level: 'Lv. 6 – 15',
-      dangerTag: 'SOLARI REALM',
-      color: '#facc15',
-      borderColor: '#fde047',
-      faction: '☀️ Solari (The Light)',
-      desc: 'Towering golden parapets and solar obelisks basking in perpetual dawn. Daystar paladins channel burning solar wrath and unbreakable bulwark shields.',
-      gridPos: { col: 0, row: 4 },
-      neighbors: {
-        north: 'SOLARI_SUNKEN_VAULT',
-        south: null,
-        west: 'STARFALL_CRATER',
-        east: 'SANCTUARY_HUB'
-      },
-      landmarks: [
-        { x: 62, y: 40, icon: '🏛️', name: 'Solari Citadel Depository', sub: 'Citadel Bank', desc: 'Neoclassical depository bank. Speak to the Solari Vault-Master to access your vault.' },
-        { x: 50, y: 38, icon: '☀️', name: 'Pyremaster Lucian', sub: 'Solari Emissary', desc: 'Master of Sun Aegis and Daystar rites.' },
-        { x: 34, y: 60, icon: '🛡️', name: 'Solari Sentinels', sub: 'Lv.6 Radiant Guards', desc: 'Golden armored paladins with Daystar strikes.' },
-        { x: 66, y: 60, icon: '💎', name: 'Dawnforged Monolith', sub: 'Sunspire Font [E]', desc: 'Power font channeling holy radiance.' },
-        { x: 92, y: 50, icon: '▶', name: 'Eastern Gate', sub: 'To Sanctuary Haven [East]', desc: 'Walk East into Sanctuary Haven.' }
-      ],
-      entities: [
-        { name: 'Solari Sentinels', type: 'Hostile Mob', hp: '120 HP', desc: 'Golden armored guards with Daystar strikes.' },
-        { name: 'Pyremaster Lucian', type: 'Solari Emissary', hp: 'Immortal', desc: 'Master of Sun Aegis and Daystar rites.' },
-        { name: 'Dawnforged Monolith', type: 'Faction Shard', hp: 'Leyline', desc: 'Sunspire power font channeling holy radiance.' }
-      ],
-      objectives: 'Radiant Bulwark training, Solari faction allegiance, Sunken Vault entrance.',
-      travel: 'From Sanctuary Haven, walk West through the Sunspire Archway into the Golden Citadel.'
-    },
-    UMBRI_UNDERCITY: {
-      id: 'UMBRI_UNDERCITY',
-      name: 'Umbri Sepulcher Undercity',
-      sub: 'Eastern Shadow Fens & Catacombs',
-      level: 'Lv. 6 – 15',
-      dangerTag: 'UMBRI REALM',
-      color: '#c084fc',
-      borderColor: '#e879f9',
-      faction: '🌑 Umbri (The Shadow)',
-      desc: 'Sunken mausoleums shrouded in abyssal mist and void whispers. Duskveil assassins stalk the shadows, draining lifeforce from unsuspecting wanderers.',
-      gridPos: { col: 2, row: 4 },
-      neighbors: {
-        north: null,
-        south: null,
-        west: 'SANCTUARY_HUB',
-        east: null
-      },
-      landmarks: [
-        { x: 50, y: 38, icon: '🌑', name: 'Wraithmother Vespera', sub: 'Shadow Mystic', desc: 'Mistress of Abyssal Shroud and Soul Tithes.' },
-        { x: 34, y: 60, icon: '🌫️', name: 'Dusk Fiends', sub: 'Lv.6 Shadow Stalkers', desc: 'Stealthed ambushers with life drain strikes.' },
-        { x: 66, y: 60, icon: '💎', name: 'Abyssal Wellspring', sub: 'Void Font [E]', desc: 'Void font empowering shadow leach affinity.' },
-        { x: 8, y: 50, icon: '◀', name: 'Western Gate', sub: 'To Sanctuary Haven [West]', desc: 'Walk West into Sanctuary Haven.' }
-      ],
-      entities: [
-        { name: 'Dusk Fiends & Shadow Stalkers', type: 'Hostile Mob', hp: '110 HP', desc: 'Stealthed ambushers with life drain strikes.' },
-        { name: 'Wraithmother Vespera', type: 'Shadow Mystic', hp: 'Immortal', desc: 'Mistress of Abyssal Shroud and Soul Tithes.' },
-        { name: 'Abyssal Wellspring', type: 'Faction Shard', hp: 'Leyline', desc: 'Void font empowering shadow leach affinity.' }
-      ],
-      objectives: 'Shadow Labyrinth delve, Void Leach mastery, Umbri stealth training.',
-      travel: 'From Sanctuary Haven, walk East past the Sepulcher braziers into the Undercity.'
-    },
-    TERRA_ORCHARD: {
-      id: 'TERRA_ORCHARD',
-      name: 'Terra Ironwood Wilds',
-      sub: 'Southern Primal Canopies',
-      level: 'Lv. 6 – 15',
-      dangerTag: 'TERRA REALM',
-      color: '#4ade80',
-      borderColor: '#86efac',
-      faction: '🌿 Terra (The Earth)',
-      desc: 'Colossal ironwood groves tangled with thornbark and living moss. Stone behemoths and treants safeguard the wild roots from void corruption.',
-      gridPos: { col: 1, row: 5 },
-      neighbors: {
-        north: 'SANCTUARY_HUB',
-        south: null,
-        west: null,
-        east: null
-      },
-      landmarks: [
-        { x: 50, y: 40, icon: '🌿', name: 'Elder Druid Sylvanus', sub: 'Primal Shaman', desc: 'Teacher of Rooted Bastion and Bramble Reversals.' },
-        { x: 34, y: 60, icon: '🌲', name: 'Ironwood Treants', sub: 'Lv.6 Primal Guardians', desc: 'High armor beasts reflecting melee damage via Thorns.' },
-        { x: 66, y: 60, icon: '💎', name: 'Verdant Heartstone', sub: 'Primal Font [E]', desc: 'Primal nexus crystal boosting maximum health.' },
-        { x: 50, y: 8, icon: '▲', name: 'Northern Archway', sub: 'To Sanctuary Haven [North]', desc: 'Walk North into Sanctuary Haven.' }
-      ],
-      entities: [
-        { name: 'Ironwood Treants & Bramble Hounds', type: 'Hostile Mob', hp: '160 HP', desc: 'High armor beasts reflecting melee damage via Thorns.' },
-        { name: 'Elder Druid Sylvanus', type: 'Primal Shaman', hp: 'Immortal', desc: 'Teacher of Rooted Bastion and Bramble Reversals.' },
-        { name: 'Verdant Heartstone', type: 'Faction Shard', hp: 'Leyline', desc: 'Primal nexus crystal boosting maximum health.' }
-      ],
-      objectives: 'Overgrowth Sanctuary delve, Thornbark defense, Terra Colossus rites.',
-      travel: 'From Sanctuary Haven, walk South through the Orchard archway into the Ironwood Wilds.'
-    },
-    AETHER_SPIRE: {
-      id: 'AETHER_SPIRE',
-      name: 'Aether Astral Spire',
-      sub: 'Northern Floating Terraces',
-      level: 'Lv. 6 – 15',
-      dangerTag: 'AETHER REALM',
-      color: '#38bdf8',
-      borderColor: '#7dd3fc',
-      faction: '🔮 Aether (The Magic)',
-      desc: 'Glacial starlight terraces suspended over the astral void. Time-bending scholars harness chronomancy to fracture reality and slow enemy actions. The northern threshold leads to the Forgotten Ruins.',
-      gridPos: { col: 1, row: 3 },
-      neighbors: {
-        north: 'NEXUS_FORGOTTEN_RUINS',
-        south: 'SANCTUARY_HUB',
-        west: null,
-        east: null
-      },
-      landmarks: [
-        { x: 50, y: 35, icon: '🔮', name: 'Archon of the Continuum', sub: '★ Lv.6 Mirrorgate Boss', desc: 'Temporal master casting Frost Nova and slow pulses.' },
-        { x: 30, y: 55, icon: '✨', name: 'Chrono Anomalies', sub: 'Lv.3 Aether Construct', desc: 'Hostile astral wisps.' },
-        { x: 70, y: 55, icon: '💎', name: 'Mirrorgate Star Font', sub: 'Glimmer Font [E]', desc: 'High-yield astral glimmer node.' },
-        { x: 50, y: 72, icon: '👤', name: 'Astromancer Kaelen', sub: 'Stargazer NPC', desc: 'Scholar of ancient continuum leylines.' },
-        { x: 50, y: 8, icon: '▲', name: 'Northern Ruin Threshold', sub: 'To Forgotten Ruins [North]', desc: 'Walk North into the First Nexus Ruins.' },
-        { x: 50, y: 92, icon: '▼', name: 'Sanctuary Gate', sub: 'To Sanctuary Haven [South]', desc: 'Walk South back to Sanctuary.' }
-      ],
-      entities: [
-        { name: 'Astral Wisps & Starforged Golems', type: 'Hostile Mob', hp: '105 HP', desc: 'Casts Frost Nova chilling and slowing players.' },
-        { name: 'Chronos Sage Zephyr', type: 'Time Weaver', hp: 'Immortal', desc: 'Master of Chrono Warp and Temporal Apotheosis.' },
-        { name: 'Chrono Crystal Font', type: 'Faction Shard', hp: 'Leyline', desc: 'Astral prism accelerating cooldowns and cast speed.' }
-      ],
-      objectives: 'Chronomancy training, Aether Spire trials, Northern gateway to the Forgotten Ruins.',
-      travel: 'From Sanctuary Haven, walk North through the Astral Gate into Mirrorgate Spire. Continue walking North to enter the Forgotten Ruins.'
-    },
-    NEXUS_FORGOTTEN_RUINS: {
-      id: 'NEXUS_FORGOTTEN_RUINS',
-      name: 'Forgotten First Nexus Ruins',
-      sub: 'Sunken Leyline Plateau',
-      level: 'Lv. 15 – 25',
-      dangerTag: 'CONTESTED RUINS',
-      color: '#818cf8',
-      borderColor: '#a5b4fc',
-      faction: 'Ancient Leyline Keepers (Contested)',
-      desc: 'The sunken site where the First Nexus shattered centuries ago. Corrupted stalkers roam the pillars, guarding ancient quadrant runestones and the gateway to the Continental Caldera.',
-      gridPos: { col: 1, row: 2 },
-      neighbors: {
-        north: 'NEXUS_WARZONE',
-        south: 'AETHER_SPIRE',
-        west: null,
-        east: 'STARFALL_CRATER'
-      },
-      landmarks: [
-        { x: 50, y: 30, icon: '🗿', name: 'The Prismatic Golem', sub: '★ Lv.7 First Nexus Guardian', desc: 'Ancient megalith guarding quadrant runestones.' },
-        { x: 50, y: 68, icon: '📜', name: 'Atlas the Cartographer', sub: 'Keystone Seeker NPC', desc: 'Ancient surveyor mapping continental leylines.' },
-        { x: 30, y: 50, icon: '👾', name: 'Corrupted Stalkers', sub: 'Lv.4 Keystone Constructs', desc: 'Lingering void constructs around ruined pillars.' },
-        { x: 70, y: 50, icon: '💎', name: 'Prismatic Leyline Node', sub: 'Glimmer Font [E]', desc: 'Omni-resonance energy node.' },
-        { x: 50, y: 8, icon: '▲', name: 'Continental Boundary Gate', sub: 'To Continental Caldera [North]', desc: 'Walk North across the continental threshold.' },
-        { x: 50, y: 92, icon: '▼', name: 'Aether Archway', sub: 'To Aether Spire [South]', desc: 'Walk South back into Aether Spire.' }
-      ],
-      entities: [
-        { name: 'Corrupted Ruin Stalkers', type: 'Hostile Mob', hp: '220 HP', desc: 'Void spikes & lingering ruin curse.' },
-        { name: 'Atlas the Cartographer', type: 'Keystone Seeker', hp: 'Immortal', desc: 'Ancient surveyor with deep knowledge of the leylines.' },
-        { name: 'First Nexus Altar', type: 'Ancient Relic', hp: 'Indestructible', desc: 'Central altar anchoring continental transitions.' }
-      ],
-      objectives: 'Ruin Horrors quest, Cartographer research, Gateway North to Continental Caldera.',
-      travel: 'From Sanctuary Haven, walk North into Aether Spire, then continue North through the threshold into the Forgotten Ruins.'
-    },
-    NEXUS_WARZONE: {
-      id: 'NEXUS_WARZONE',
-      name: 'The Continental Nexus Caldera',
-      sub: 'Continental Caldera • Open Warzone',
-      level: 'Lv. 30+',
-      dangerTag: 'OPEN WARZONE • HIGH-LEVEL PvPvE',
-      color: '#f97316',
-      borderColor: '#fdba74',
-      faction: '⚔️ Contested All-Faction Warzone',
-      desc: 'A massive 4800×3600 continental warzone where rival factions fight for domination across the Open World!',
-      gridPos: { col: 1, row: 1 },
-      neighbors: {
-        north: 'CELESTIAL_ASCENT',
-        south: 'NEXUS_FORGOTTEN_RUINS',
-        west: null,
-        east: 'ABYSSAL_RIFT'
-      },
-      landmarks: [
-        { x: 50, y: 45, icon: '🌋', name: 'Shattered Nexus Shard', sub: 'Continental Siege Objective', desc: '30-minute continental siege shard granting +250 XP.' },
-        { x: 25, y: 30, icon: '⚔️', name: 'Terra Forest Outpost', sub: '300 HP Strategic Outpost', desc: 'Green faction capture point.' },
-        { x: 75, y: 30, icon: '⚔️', name: 'Umbri Shadow Outpost', sub: '300 HP Strategic Outpost', desc: 'Purple faction capture point.' },
-        { x: 25, y: 70, icon: '⚔️', name: 'Solari Radiant Outpost', sub: '300 HP Strategic Outpost', desc: 'Gold faction capture point.' },
-        { x: 75, y: 70, icon: '⚔️', name: 'Aether Astral Outpost', sub: '300 HP Strategic Outpost', desc: 'Cyan faction capture point.' },
-        { x: 50, y: 80, icon: '🛡️', name: 'Commander Valerius', sub: 'Vanguard Outpost Commander', desc: 'Directs frontline continental bounties.' },
-        { x: 50, y: 8, icon: '▲', name: 'Ascent Mountain Colonnade', sub: 'To Celestial Titan Summit [North]', desc: 'Walk North through the Ascent Gate.' },
-        { x: 50, y: 92, icon: '▼', name: 'Continental Boundary Gate', sub: 'To Forgotten Ruins [South]', desc: 'Walk South back to Forgotten Ruins.' }
-      ],
-      entities: [
-        { name: 'Caldera Void Fiends', type: 'Caldera Mob', hp: '340 – 420 HP', desc: 'Vicious stalkers dealing 24-28 damage.' },
-        { name: 'Continental Faction Bosses', type: 'World Bosses', hp: '1150 – 1250 HP', desc: 'Elite warlords casting faction apex abilities.' },
-        { name: '4 Outpost Nexuses', type: 'Strategic Outposts', hp: '300 HP each', desc: 'Capture points for Solari, Umbri, Terra, and Aether.' },
-        { name: 'Shattered Nexus Shard', type: 'Siege Objective', hp: '850 HP', desc: '30-minute continental siege shard granting +250 XP.' },
-        { name: 'Commander Valerius', type: 'Sunspire Warlord', hp: 'Immortal', desc: 'Vanguard post commander offering frontline bounties.' }
-      ],
-      objectives: 'Continental Faction Siege, Outpost control, Ancient Paragon Caches, Gateway North to Celestial Titan Summit.',
-      travel: 'Walk North from Sanctuary through Aether Spire and the Forgotten Ruins into the Caldera.'
-    },
-    CELESTIAL_ASCENT: {
-      id: 'CELESTIAL_ASCENT',
-      name: 'Celestial Ascent & Titan Summit',
-      sub: 'Empyrean Titan Keep & Throne',
-      level: 'Lv. 35+',
-      dangerTag: 'TITAN APEX RAID',
-      color: '#fde047',
-      borderColor: '#ffffff',
-      faction: 'Empyrean Titan Keepers',
-      desc: 'Sacred starlight terraces towering above the continental clouds. The highest peak in Glimmerfall, where Grand Arbiter Aurelia guards the throne of the Empyrean Sovereign.',
-      gridPos: { col: 1, row: 0 },
-      neighbors: {
-        north: 'ABYSSAL_RIFT',
-        south: 'NEXUS_WARZONE',
-        west: null,
-        east: null
-      },
-      landmarks: [
-        { x: 50, y: 35, icon: '👑', name: 'AURELIUS THE SOVEREIGN', sub: '★ Lv.35 World Raid Boss', desc: '3200 HP Apex Sovereign dealing 65 holy DMG. Drops Crown of Dawn!' },
-        { x: 50, y: 65, icon: '✨', name: 'Grand Arbiter Aurelia', sub: 'Empyrean Keeper NPC', desc: 'Guardian of the Morning Star Colonnade.' },
-        { x: 28, y: 50, icon: '🏛️', name: 'Morning Star Colonnade', sub: 'Ancient Starlight Terrace', desc: 'Towering colonnades above the clouds.' },
-        { x: 72, y: 50, icon: '💎', name: 'Apex Glimmer Font', sub: 'Titan Glimmer Core [E]', desc: 'High-density titan crystal node.' },
-        { x: 50, y: 92, icon: '▼', name: 'Ascent Descent Gate', sub: 'To Caldera Warzone [South]', desc: 'Walk South down the mountain stairs.' }
-      ],
-      entities: [
-        { name: 'AURELIUS THE EMPYREAN SOVEREIGN', type: 'World Raid Boss', hp: '3200 HP', desc: 'Lv. 35 Titan Sovereign dealing 65 holy starlight DMG. Drops Crown of Dawn!' },
-        { name: 'Grand Arbiter Aurelia', type: 'Empyrean Keeper', hp: 'Immortal', desc: 'Guardian of the Morning Star Colonnade.' },
-        { name: 'Morning Star Terraces', type: 'Starlight Colonnade', hp: 'Ancient Monument', desc: 'Sacred terrace fonts resonant with celestial glimmer.' }
-      ],
-      objectives: 'Vanquish Aurelius the Empyrean Sovereign, claim the Crown of Dawn, attune Empyrean resonance.',
-      travel: 'From the northernmost plateau of Continental Nexus Caldera (y: -1760), walk North through the Ascent Gate up the mountain stairs.'
-    },
-    STARFALL_CRATER: {
-      id: 'STARFALL_CRATER',
-      name: 'Starfall Meteorite Crater',
-      sub: 'Astral Impact Basin & Cosmic Forge',
-      level: 'Lv. 20 – 32',
-      dangerTag: 'STARFALL BASIN',
-      color: '#fb923c',
-      borderColor: '#fdba74',
-      faction: '☄️ Order of the Astral Forge',
-      desc: 'A glowing meteorite impact crater west of the Golden Citadel rich with Astral Mithril and Celestial Starmetal veins, guarded by Starforged Automatons and Ignis-Core.',
-      gridPos: { col: 0, row: 2 },
-      neighbors: {
-        north: null,
-        south: null,
-        west: 'NEXUS_FORGOTTEN_RUINS',
-        east: 'SOLARI_CITADEL'
-      },
-      landmarks: [
-        { x: 50, y: 30, icon: '☄️', name: 'Ignis-Core the Starfall Colossus', sub: '★ Lv.28 Crater World Boss', desc: 'Molten starmetal colossus guarding the Meteor Hammer.' },
-        { x: 55, y: 68, icon: '🔨', name: 'Forge-Keeper Orion & Astral Anvil', sub: 'Master Cosmic Smith', desc: 'Smelt Starmetal & Mithril right inside the crater.' },
-        { x: 26, y: 46, icon: '⛏️', name: 'Celestial Starmetal Veins', sub: 'High-Tier Ore Veins [E]', desc: 'Rich veins of Astral Mithril & Celestial Runite.' },
-        { x: 92, y: 50, icon: '▶', name: 'Citadel Canyon Pass', sub: 'To Solari Citadel [East]', desc: 'Walk East back to the Golden Citadel.' }
-      ],
-      entities: [
-        { name: 'Ignis-Core the Starfall Colossus', type: 'Crater Boss', hp: '980 HP', desc: 'Drops the Mythic Starmetal Meteor Hammer.' },
-        { name: 'Starforged Automatons & Meteor Elementals', type: 'Hostile Construct', hp: '190 – 230 HP', desc: 'Guard cosmic ore veins and drop Astral Mineral Dust.' },
-        { name: 'Forge-Keeper Orion', type: 'Astral Smith', hp: 'Immortal', desc: 'Keeper of The Fallen Astral Forge quest.' }
-      ],
-      objectives: 'Mine Astral Mithril & Starmetal, smelt cosmic alloys, defeat Ignis-Core for the Starmetal Meteor Hammer.',
-      travel: 'Walk West from Solari Sun-Citadel (or East from the Forgotten First Nexus Ruins).'
-    },
-    ABYSSAL_RIFT: {
-      id: 'ABYSSAL_RIFT',
-      name: 'The Abyssal Rift',
-      sub: 'Primeval Void Singularity & Late-Game Sanctum',
-      level: 'Lv. 32 – 45',
-      dangerTag: 'APEX VOID BREACH',
-      color: '#e879f9',
-      borderColor: '#f0abfc',
-      faction: '🌌 Rift-Watchers of the Edge',
-      desc: 'A shattered reality breach east of the Continental Caldera where obsidian islands float above the Fall, prowled by Gloam-Silk Widows, Paradox Sentinels, and Xal\'Korath the Void Architect.',
-      gridPos: { col: 2, row: 1 },
-      neighbors: {
-        north: null,
-        south: 'CELESTIAL_ASCENT',
-        west: 'NEXUS_WARZONE',
-        east: null
-      },
-      landmarks: [
-        { x: 50, y: 26, icon: '🌌', name: 'Xal\'Korath the Void Architect', sub: '★ Lv.42 Apex Raid Boss', desc: '3,800 HP Void Sovereign dropping the Abyssal Voidstar Scythe.' },
-        { x: 45, y: 72, icon: '⚗️', name: 'Rift-Watcher Nihilus & Crucible', sub: 'Abyssal Vanguard', desc: 'Oversees Breach quests & high-tier Rite-Binding.' },
-        { x: 74, y: 48, icon: '🕸️', name: 'Celestial Gossamer & Starleaf', sub: 'Endgame Skilling Nodes [E]', desc: 'Harvest Empyrean Starleaf & Celestial Gossamer.' },
-        { x: 8, y: 50, icon: '◀', name: 'Caldera Breach Gate', sub: 'To Nexus Caldera [West]', desc: 'Walk West back into the Continental Caldera.' }
-      ],
-      entities: [
-        { name: 'Xal\'Korath the Void Architect', type: 'Apex Raid Boss', hp: '3800 HP', desc: 'Lv. 42 Void Architect dropping Abyssal Voidstar Scythe!' },
-        { name: 'Paradox Sentinels & Gloam-Silk Widows', type: 'Endgame Rift Mob', hp: '340 – 460 HP', desc: 'Drop Celestial Gossamer, Void Essence & Empyrean Starleaf.' },
-        { name: 'Rift-Watcher Nihilus', type: 'Void Watcher', hp: 'Immortal', desc: 'Issues Breach of the Void Architect quest.' }
-      ],
-      objectives: 'Harvest Empyrean Starleaf & Celestial Gossamer, conquer Elite Rift Champions, vanquish Xal\'Korath.',
-      travel: 'Walk East across the eastern edge of the Continental Nexus Caldera (or North beyond the Celestial Ascent).'
-    }
-  };
-
   let currentLoreTab = 'quests';
   let currentAtlasView = 'square'; // 'square' | 'grid'
   let selectedMapRegionId = 'SANCTUARY_HUB';
@@ -5556,810 +4137,7 @@ export function initGame() {
     }
   };
 
-  window.toggleSkillsTab = function () {
-    const el = document.getElementById('skills-tab-popup');
-    if (!el) return;
-    const isVisible = el.style.display !== 'none' && el.classList.contains('active');
-    if (isVisible) {
-      el.classList.remove('active');
-      el.style.display = 'none';
-    } else {
-      renderSkillsTabUI();
-      el.style.display = 'flex';
-      el.classList.add('active');
-      audio.playChime?.();
-    }
-  };
-
-  window.renderSkillsTabUI = function () {
-    const container = document.getElementById('skills-list-container');
-    const totalBadge = document.getElementById('skills-total-badge');
-    if (!container) return;
-
-    if (!prog.professions) {
-      prog.professions = {
-        resonance_extraction: { xp: 0, level: 1 },
-        relic_forging: { xp: 0, level: 1 },
-        rite_binding: { xp: 0, level: 1 },
-        glimmerweaving: { xp: 0, level: 1 },
-        combat_mastery: { xp: 0, level: 1 },
-      };
-    }
-
-    const totalLevel = getTotalProfessionLevel(prog.professions);
-    if (totalBadge) totalBadge.innerText = `TOTAL LVL: ${totalLevel}`;
-
-    let html = '';
-    for (const [profId, meta] of Object.entries(PROFESSIONS_CATALOG)) {
-      const data = prog.professions[profId] || { xp: 0, level: 1 };
-      const xp = Math.max(0, Math.floor(Number(data.xp) || 0));
-      const currentLevel = getProfessionLevelFromXp(xp);
-      data.level = currentLevel;
-
-      const currentLvlXp = getXpForProfessionLevel(currentLevel);
-      const nextLvlXp = currentLevel >= 99 ? currentLvlXp : getXpForProfessionLevel(currentLevel + 1);
-      const diffXp = Math.max(1, nextLvlXp - currentLvlXp);
-      const progressXp = Math.max(0, xp - currentLvlXp);
-      const pct = currentLevel >= 99 ? 100 : Math.min(100, Math.floor((progressXp / diffXp) * 100));
-
-      html += `
-        <div class="skill-card" style="border-left: 3px solid ${meta.color}; cursor: pointer;" onclick="openSkillGuide('${profId}')" title="Click for exact training steps, methods, and unlocks">
-          <div class="skill-card-top">
-            <div class="skill-card-name" style="color: ${meta.color};">
-              <span class="skill-card-icon">${meta.icon}</span>
-              <span>${meta.name}</span>
-            </div>
-            <div class="skill-card-lvl">
-              <span class="skill-lvl-prefix">Lv.</span>
-              <span class="skill-lvl-num">${currentLevel}</span>
-              <span class="skill-lvl-max">/99</span>
-            </div>
-          </div>
-          <div class="skill-bar-wrap">
-            <div class="skill-bar-fill" style="width: ${pct}%; background: ${meta.color};"></div>
-          </div>
-          <div class="skill-card-meta">
-            <span>${currentLevel >= 99 ? 'MASTER (Lv. 99)' : `${xp.toLocaleString()} / ${nextLvlXp.toLocaleString()} XP (${pct}%)`}</span>
-            <span style="color:#fde047; font-size:8px; font-weight:bold;">📖 HOW TO TRAIN →</span>
-          </div>
-          <div class="skill-card-activity" title="${meta.activity}">${meta.activity}</div>
-        </div>
-      `;
-    }
-
-    container.innerHTML = html;
-  };
-
-  window.openSkillTrainingGuide = function () {
-    window.renderSkillTrainingGuide();
-    window.toggleModal('skill-training-modal');
-  };
-
-  window.renderSkillTrainingGuide = function () {
-    const body = document.getElementById('skill-training-body');
-    if (!body) return;
-
-    const cards = Object.values(PROFESSIONS_CATALOG).map((meta) => {
-      const xp = Math.max(0, Math.floor(Number(prog?.professions?.[meta.id]?.xp) || 0));
-      const level = getProfessionLevelFromXp(xp);
-      return `
-        <div class="skill-training-card" style="border-left-color:${meta.color};">
-          <div class="skill-training-card-head">
-            <span style="color:${meta.color};">${meta.icon} ${meta.name}</span>
-            <span style="color:#fde047; font-size:9px;">LV. ${level} / 99</span>
-          </div>
-          <div class="skill-training-card-start">${meta.quickStart || meta.activity}</div>
-          <div class="skill-training-card-loc">📍 ${meta.trainerLocation || meta.instructor || 'Sanctuary Haven'}</div>
-          <button class="skill-training-card-btn" style="border-color:${meta.color}; color:${meta.color};" onclick="openSkillGuide('${meta.id}')">
-            OPEN STEP-BY-STEP GUIDE →
-          </button>
-        </div>
-      `;
-    }).join('');
-
-    body.innerHTML = `
-      <div class="skill-training-lead">
-        <b style="color:#fde047;">Hands-on Cosmic Skilling — zero shop XP shortcuts!</b> Gather ores, astral minerals, herbs, and silks across the realms, then smelt, forge, brew, and weave at interactive world stations. Pick a skill below to view every Level 1–99 unlock.
-      </div>
-      <div class="skill-training-steps">
-        <div class="skill-training-step"><span class="skill-training-num">1</span><span><b>Gather Materials [E]:</b> Mine Ore &amp; Mineral Veins, forage Herb Clusters, harvest Silk/Flax Blooms, and channel Glimmer Fonts across the continent.</span></div>
-        <div class="skill-training-step"><span class="skill-training-num">2</span><span><b>Work the Cosmic Stations:</b> Smelt ingots &amp; forge gear at the <b>Cosmic Star-Anvil</b>, brew draughts &amp; bind keystones at the <b>Aetherial Crucible</b>, and weave cloaks &amp; feasts at the <b>Celestial Loom</b>.</span></div>
-        <div class="skill-training-step"><span class="skill-training-num">3</span><span><b>Mastery &amp; Leyline Gems:</b> Cut socketable Leyline Gems for your Helm, Chest &amp; Weapon, and claim each skill's <b>Level 99 Mastery Skillcape</b>!</span></div>
-      </div>
-      <div class="skill-training-grid">${cards}</div>
-      <div class="skill-training-tip">💡 <b>Fastest start in Sanctuary Haven:</b> Mine a <b>Sun-Copper &amp; Star-Tin Vein [E]</b> on the grassy perimeter, then click the glowing <b>🔨 Cosmic Star-Anvil</b> in the NW Market Quarter to smelt Bronze Bars and forge gear!</div>
-    `;
-  };
-
-  // ==========================================
-  // Old School RuneScape Style Skill Guide & Unlocks
-  // ==========================================
-  const SKILL_GUIDE_DATA = {
-    resonance_extraction: {
-      id: 'resonance_extraction',
-      name: 'Resonance Extraction',
-      icon: '⚡',
-      color: '#38bdf8',
-      instructor: 'Relic-Seeker Moira (Sanctuary Haven Market)',
-      description: 'The ancient art of harmonizing with the fractured leylines. Extract concentrated Glimmer, crystalline shards, and ancient keystone relics from nodes across the continent.',
-      unlocks: [
-        {
-          level: 1,
-          title: 'Minor Glimmer Node Channeling',
-          icon: '💎',
-          category: 'gathering',
-          desc: 'Extract raw Glimmer from purple crystal fissures around Sanctuary Hub and border roads. Normal nodes give 18+ Glimmer and 25 Extraction XP per charge.',
-          method: 'Channeling [E]',
-          xp: '+25 Extraction XP',
-        },
-        {
-          level: 1,
-          title: 'Grand Glimmer Fonts (Co-op)',
-          icon: '🌌',
-          category: 'gathering',
-          desc: 'Massive shared leyline fonts with 25 charges. Every player in the realm draws from the same pool, making them ideal for group Resonance Extraction grinding. A Grand Font yields 60+ Glimmer and 100 Extraction XP per charge.',
-          method: 'Channeling [E]',
-          xp: '+100 Extraction XP',
-        },
-        {
-          level: 1,
-          title: 'Ancient Leyline Shrines',
-          icon: '✨',
-          category: 'shrines',
-          desc: 'Attune to elemental shrines (Solari, Umbri, Terra, Aether) to receive 60s power blessings and resonance.',
-          method: 'Channeling [E]',
-          xp: '+45 Extraction XP',
-        },
-        {
-          level: 5,
-          title: 'Solid Glimmer Shards',
-          icon: '🔮',
-          category: 'gathering',
-          desc: 'Gather solid crystalline Glimmer Shards valued by market traders, alchemists, and the Grand Exchange.',
-          method: 'Channeling [E]',
-          xp: '+55 Extraction XP',
-        },
-        {
-          level: 12,
-          title: 'Resonant Leyline Fissures',
-          icon: '⚡',
-          category: 'gathering',
-          desc: 'Extract high-frequency Leyline Fissures in the border passes between Sanctuary and the 4 Faction Biomes.',
-          method: 'Channeling [E]',
-          xp: '+85 Extraction XP',
-        },
-        {
-          level: 20,
-          title: 'Chrono-Quartz Geodes',
-          icon: '⏳',
-          category: 'gathering',
-          desc: 'Tap temporal crystal formations in the Forgotten Ruins and Aether Astral Spire. Used in chrono-crafting.',
-          method: 'Ruins Exploration',
-          xp: '+135 Extraction XP',
-        },
-        {
-          level: 35,
-          title: 'Continental Caldera Veins',
-          icon: '🌋',
-          category: 'gathering',
-          desc: 'Harvest molten Glimmer conduits in the contested Continental Warzone Caldera under dangerous conditions.',
-          method: 'Warzone Channeling',
-          xp: '+220 Extraction XP',
-        },
-        {
-          level: 50,
-          title: 'Deep Leyline Surge Attunement',
-          icon: '🌊',
-          category: 'perk',
-          desc: 'Passive perk: Extraction yields 50% more raw Glimmer per charge and has a 15% chance to uncover ancient relics.',
-          method: 'Passive Mastery',
-          xp: 'Double Yield Perk',
-        },
-        {
-          level: 65,
-          title: 'Corrupted Void Rift Sealing',
-          icon: '🌀',
-          category: 'shrines',
-          desc: 'Channel unstable Void Rifts in the outer wastes, banishing shadow tendrils and capturing condensed dark aether.',
-          method: 'Wastes Channeling',
-          xp: '+450 Extraction XP',
-        },
-        {
-          level: 80,
-          title: 'Starlight Geode Extraction',
-          icon: '⭐',
-          category: 'gathering',
-          desc: 'Mine pure starlight crystals along the precipices of the Celestial Ascent Colonnade.',
-          method: 'Celestial Ascent',
-          xp: '+750 Extraction XP',
-        },
-        {
-          level: 90,
-          title: 'Aurelius Empyrean Conduits',
-          icon: '👑',
-          category: 'shrines',
-          desc: 'Channel the sovereign titan conduits on the Northern Summit Throne to harness primal continental light.',
-          method: 'Summit Throne',
-          xp: '+1,200 Extraction XP',
-        },
-        {
-          level: 99,
-          title: 'Skillcape of Extraction & Grand Attunement',
-          icon: '🏆',
-          category: 'mastery',
-          desc: 'Wear the Resonance Extraction Skillcape (+5 all stats). Instant node channeling and +25% bonus Glimmer across all realms.',
-          method: 'Automatic Level 99 Reward',
-          xp: 'Grand Mastery Perk',
-        },
-      ],
-    },
-    relic_forging: {
-      id: 'relic_forging',
-      name: 'Relic-Forging',
-      icon: '🔨',
-      color: '#f97316',
-      instructor: 'Blacksmith Torvin (Sanctuary Haven Smithy)',
-      description: 'The martial craft of smelting raw ores, shaping tempered metals, and hammering mythic blades, shields, and plate armor at the Great Anvil.',
-      unlocks: [
-        {
-          level: 1,
-          title: 'Iron Ore Smelting',
-          icon: '🪨',
-          category: 'smelting',
-          desc: 'Smelt quarried iron rocks into tempered Iron Bars at Blacksmith Torvin\'s Great Anvil.',
-          method: 'Great Anvil',
-          xp: '+35 Forging XP',
-        },
-        {
-          level: 1,
-          title: 'Iron Broadsword & Heater Shield',
-          icon: '🗡️',
-          category: 'equipment',
-          desc: 'Forge sturdy Iron Broadswords (+2 Power) and Iron Heater Shields (+2 Bastion) for novice champions.',
-          method: 'Smithing Station',
-          xp: '+45 Forging XP',
-        },
-        {
-          level: 5,
-          title: 'Bronze Alloy & Bucklers',
-          icon: '🛡️',
-          category: 'smelting',
-          desc: 'Combine copper and tin ores into Bronze Bars to shape lightweight agile bucklers.',
-          method: 'Great Anvil',
-          xp: '+65 Forging XP',
-        },
-        {
-          level: 12,
-          title: 'Sunsteel Blades & Vanguard Helms',
-          icon: '⚔️',
-          category: 'equipment',
-          desc: 'Forge Sunsteel Arming Blades and Reinforced Vanguard Casques with enhanced critical strike rating.',
-          method: 'Smithing Station',
-          xp: '+110 Forging XP',
-        },
-        {
-          level: 20,
-          title: 'Heavy Iron Breastplate & Pauldrons',
-          icon: '🥋',
-          category: 'equipment',
-          desc: 'Shape interlocking steel chestplates granting substantial flat physical damage reduction.',
-          method: 'Great Anvil',
-          xp: '+180 Forging XP',
-        },
-        {
-          level: 35,
-          title: 'Continental Cleaving Greathammers',
-          icon: '🔨',
-          category: 'equipment',
-          desc: 'Forge massive Ironwood Mauls and Sunfire Warhammers capable of staggering multiple foes in melee.',
-          method: 'Great Anvil',
-          xp: '+290 Forging XP',
-        },
-        {
-          level: 50,
-          title: 'Chrono-Alloy Armor & Greatswords',
-          icon: '🌟',
-          category: 'equipment',
-          desc: 'Forge shimmering Chrono-Alloy Plate that shortens ability cooldowns and deflects projectile spells.',
-          method: 'Sanctuary Forge',
-          xp: '+480 Forging XP',
-        },
-        {
-          level: 65,
-          title: 'Primal Socket Reforging',
-          icon: '💎',
-          category: 'perk',
-          desc: 'Punch primal jewel sockets into existing weapons and armor to embed paragon stat gems.',
-          method: 'Anvil Reforging',
-          xp: '+680 Forging XP',
-        },
-        {
-          level: 80,
-          title: 'Titan Sovereign Greatshield',
-          icon: '🛡️',
-          category: 'equipment',
-          desc: 'Craft colossal Empyrean Shields with 20% passive block chance and retaliation damage.',
-          method: 'Master Forge',
-          xp: '+950 Forging XP',
-        },
-        {
-          level: 90,
-          title: 'Sunfire Colossus Greatsword',
-          icon: '🔥',
-          category: 'equipment',
-          desc: 'Hammer blazing Mythic Greatswords infused with living sunfire (+4 Power, +1 Bastion, Holy burst).',
-          method: 'Master Forge',
-          xp: '+1,400 Forging XP',
-        },
-        {
-          level: 99,
-          title: 'Skillcape of Forging & Master Smithing',
-          icon: '🏆',
-          category: 'mastery',
-          desc: 'Wear the Relic-Forging Skillcape (+5 all stats). 20% chance to forge flawless masterwork equipment with double bonus stats.',
-          method: 'Automatic Level 99 Reward',
-          xp: 'Masterwork Smithing Perk',
-        },
-      ],
-    },
-    rite_binding: {
-      id: 'rite_binding',
-      name: 'Rite-Binding',
-      icon: '📜',
-      color: '#a855f7',
-      instructor: 'Alchemist Faye (Sanctuary Haven Apothecary)',
-      description: 'The mystical compounding of alchemical elixirs, vitality salves, and inscribing ceremonial rites and scrolls imbued with living Aether.',
-      unlocks: [
-        {
-          level: 1,
-          title: 'Minor Healing Salve',
-          icon: '🧪',
-          category: 'alchemy',
-          desc: 'Distill mountain herb roots into immediate healing salves restoring +35 Health on consumption.',
-          method: 'Apothecary Distiller',
-          xp: '+35 Binding XP',
-        },
-        {
-          level: 1,
-          title: 'Leyline Glimmer Draught',
-          icon: '⚗️',
-          category: 'alchemy',
-          desc: 'Brew sparkling Glimmer tonics that instantly recover +40 ability charge in battle.',
-          method: 'Apothecary Distiller',
-          xp: '+40 Binding XP',
-        },
-        {
-          level: 5,
-          title: 'Major Vitality Elixir',
-          icon: '🍷',
-          category: 'alchemy',
-          desc: 'Compound concentrated vitality flasks restoring +80 Health to sustain prolonged dungeon fights.',
-          method: 'Cauldron Station',
-          xp: '+65 Binding XP',
-        },
-        {
-          level: 12,
-          title: 'Tincture of Astral Swiftness',
-          icon: '⚡',
-          category: 'alchemy',
-          desc: 'Brew swiftness potions granting +25% sprint speed for 30s to outrun foes or cross biomes rapidly.',
-          method: 'Apothecary Distiller',
-          xp: '+110 Binding XP',
-        },
-        {
-          level: 20,
-          title: 'Inscribed Scroll of Flare Strike',
-          icon: '📜',
-          category: 'rites',
-          desc: 'Inscribe ceremonial parchment with Solar runes to unleash instant searing radial firewaves.',
-          method: 'Scribing Desk',
-          xp: '+180 Binding XP',
-        },
-        {
-          level: 35,
-          title: 'Chrono-Flux Draught',
-          icon: '⏳',
-          category: 'alchemy',
-          desc: 'Distill temporal flux reducing all rite cast times by 20% and flash cooldowns by 15% for 45 seconds.',
-          method: 'Cauldron Station',
-          xp: '+290 Binding XP',
-        },
-        {
-          level: 50,
-          title: 'Sigil of Consecrated Ground',
-          icon: '☀️',
-          category: 'rites',
-          desc: 'Inscribe holy ground sigils that bathe party members in radiant healing while incinerating void enemies.',
-          method: 'Scribing Desk',
-          xp: '+480 Binding XP',
-        },
-        {
-          level: 65,
-          title: 'Void Ward Inscription',
-          icon: '🛡️',
-          category: 'rites',
-          desc: 'Bind protective wards absorbing up to 250 shadow and dark damage before collapsing.',
-          method: 'Scribing Desk',
-          xp: '+680 Binding XP',
-        },
-        {
-          level: 80,
-          title: 'Elixir of the Empyrean Sovereign',
-          icon: '🌟',
-          category: 'alchemy',
-          desc: 'Compound legendary starlight drafts granting 5 seconds of complete invulnerability and full recovery.',
-          method: 'Master Cauldron',
-          xp: '+950 Binding XP',
-        },
-        {
-          level: 90,
-          title: 'Scroll of Continental Teleportation',
-          icon: '✨',
-          category: 'rites',
-          desc: 'Inscribe master scrolls capable of attuning party members to any continental sanctuary waypoint.',
-          method: 'Master Scribing Desk',
-          xp: '+1,400 Binding XP',
-        },
-        {
-          level: 99,
-          title: 'Skillcape of Rite-Binding & Duplication',
-          icon: '🏆',
-          category: 'mastery',
-          desc: 'Wear the Rite-Binding Skillcape (+5 all stats). 25% chance to duplicate any brewed potion or scroll without consuming ingredients.',
-          method: 'Automatic Level 99 Reward',
-          xp: 'Duplication Mastery Perk',
-        },
-      ],
-    },
-    glimmerweaving: {
-      id: 'glimmerweaving',
-      name: 'Glimmerweaving',
-      icon: '🧵',
-      color: '#22c55e',
-      instructor: 'Farmer Bran (Sanctuary Haven Provisions)',
-      description: 'The artisan discipline of spinning luminescent thread, tailoring satchels, expanded backpacks, protective cloaks, and crafting nourishing field rations.',
-      unlocks: [
-        {
-          level: 1,
-          title: 'Fresh Baked Bread & Orchard Apples',
-          icon: '🍞',
-          category: 'provisions',
-          desc: 'Bake warm crusty loaves and prepare crisp orchard apples recovering Health between fights.',
-          method: 'Field Hearth',
-          xp: '+35 Weaving XP',
-        },
-        {
-          level: 1,
-          title: 'Apprentice Fiber Satchel',
-          icon: '🎒',
-          category: 'tailoring',
-          desc: 'Weave beginner utility satchels from wild flax to safely organize inventory and reagents.',
-          method: 'Weaving Loom',
-          xp: '+40 Weaving XP',
-        },
-        {
-          level: 5,
-          title: 'Hearty Field Provisions',
-          icon: '🍖',
-          category: 'provisions',
-          desc: 'Smoke trail jerky and dried fruit rations recovering +35 Health and stamina over time.',
-          method: 'Field Hearth',
-          xp: '+65 Weaving XP',
-        },
-        {
-          level: 12,
-          title: 'Luminescent Linen Robes',
-          icon: '🥋',
-          category: 'tailoring',
-          desc: 'Tailor soft robes from glimmering linen boosting player Tempo and cast speed.',
-          method: 'Weaving Loom',
-          xp: '+110 Weaving XP',
-        },
-        {
-          level: 20,
-          title: 'Reinforced Traveler\'s Rucksack',
-          icon: '🎒',
-          category: 'tailoring',
-          desc: 'Weave durable backpack expansions granting additional carry resilience in the wild.',
-          method: 'Weaving Loom',
-          xp: '+180 Weaving XP',
-        },
-        {
-          level: 35,
-          title: 'Warzone Camouflage Cloak',
-          icon: '🧥',
-          category: 'tailoring',
-          desc: 'Tailor cloaks woven with shadow thread reducing hostile monster aggro detection distance by 30%.',
-          method: 'Weaving Loom',
-          xp: '+290 Weaving XP',
-        },
-        {
-          level: 50,
-          title: 'Faction Order Tabards',
-          icon: '🧣',
-          category: 'tailoring',
-          desc: 'Weave royal guild tabards emblazoned with faction crests providing +1 Power aura to nearby party allies.',
-          method: 'Master Loom',
-          xp: '+480 Weaving XP',
-        },
-        {
-          level: 65,
-          title: 'Gossamer Astral Robes',
-          icon: '✨',
-          category: 'tailoring',
-          desc: 'Spin starlight filaments into ceremonial archmage vestments with high magic resistance.',
-          method: 'Master Loom',
-          xp: '+680 Weaving XP',
-        },
-        {
-          level: 80,
-          title: 'Feast of the Continental Champions',
-          icon: '🍲',
-          category: 'provisions',
-          desc: 'Cook glorious grand banquets granting the entire party +15% maximum Health and +10% damage for 1 hour.',
-          method: 'Grand Hearth',
-          xp: '+950 Weaving XP',
-        },
-        {
-          level: 90,
-          title: 'Empyrean Sovereign Mantle',
-          icon: '👑',
-          category: 'tailoring',
-          desc: 'Weave the mantle of the titan lords with flowing trailing starlight particles and +12% dodge rating.',
-          method: 'Master Loom',
-          xp: '+1,400 Weaving XP',
-        },
-        {
-          level: 99,
-          title: 'Skillcape of Glimmerweaving & Master Tailor',
-          icon: '🏆',
-          category: 'mastery',
-          desc: 'Wear the Glimmerweaving Skillcape (+5 all stats). Provisions heal 50% more Health and backpack weight is reduced to zero.',
-          method: 'Automatic Level 99 Reward',
-          xp: 'Master Provisions Perk',
-        },
-      ],
-    },
-    combat_mastery: {
-      id: 'combat_mastery',
-      name: 'Combat Mastery',
-      icon: '⚔️',
-      color: '#ef4444',
-      instructor: 'Commander Valerius (Sanctuary Haven Command Post)',
-      description: 'The martial art of combat timing, spell rotations, dodging strikes, and triumphing over Voidbeasts, Bandits, Constructs, and enemy champions.',
-      unlocks: [
-        {
-          level: 1,
-          title: 'Training Dummy Sparring',
-          icon: '🎯',
-          category: 'combat',
-          desc: 'Practice basic attack combos and ability timings on the immortal training dummies in Sanctuary Haven.',
-          method: 'Sanctuary Dummies',
-          xp: '+20 Combat XP',
-        },
-        {
-          level: 1,
-          title: 'Wandering Voidling Banishment',
-          icon: '👾',
-          category: 'combat',
-          desc: 'Slay stray voidlings and wandering goblins prowling outside the Sanctuary Haven gate.',
-          method: 'Open World Mobs',
-          xp: '+30 Combat XP',
-        },
-        {
-          level: 5,
-          title: 'Highway Highwaymen & Wild Beasts',
-          icon: '🐺',
-          category: 'combat',
-          desc: 'Hunt aggressive wild wolves and rogue highwaymen along the cardinal roads leading to faction biomes.',
-          method: 'Roadway Skirmishing',
-          xp: '+60 Combat XP',
-        },
-        {
-          level: 12,
-          title: 'Ruins Horrors & Mechanical Watchers',
-          icon: '🗿',
-          category: 'combat',
-          desc: 'Engage ancient ruin stalkers and mechanical construct sentinels in the Forgotten First Nexus Ruins.',
-          method: 'Forgotten Ruins',
-          xp: '+110 Combat XP',
-        },
-        {
-          level: 20,
-          title: 'Ranked 3v3 Nexus Arena Access',
-          icon: '⚔️',
-          category: 'pvp',
-          desc: 'Queue for competitive 3v3 Arena matches via the top-right HUD button to test your build against player champions.',
-          method: '3v3 Arena Queue',
-          xp: '+180 Combat XP',
-        },
-        {
-          level: 35,
-          title: 'Continental Warzone Outposts',
-          icon: '🚩',
-          category: 'pvp',
-          desc: 'Participate in open-world Caldera battles, contesting faction outposts and claiming high-tier mob bounties.',
-          method: 'Caldera Warzone',
-          xp: '+290 Combat XP',
-        },
-        {
-          level: 50,
-          title: 'Scheduled Nexus Siege Events',
-          icon: '⚡',
-          category: 'events',
-          desc: 'Lead the charge during bi-hourly Continental Nexus Sieges, damaging the central shard to win faction glory.',
-          method: 'Continental Siege',
-          xp: '+500 Combat XP',
-        },
-        {
-          level: 65,
-          title: 'Paragon Boss Hunts',
-          icon: '🐉',
-          category: 'bosses',
-          desc: 'Vanquish high-level elite dungeon bosses in coordinated party raids for Mythic equipment drops.',
-          method: 'Dungeon Encounters',
-          xp: '+750 Combat XP',
-        },
-        {
-          level: 80,
-          title: 'Celestial Ascent Colonnade Cleansing',
-          icon: '⛰️',
-          category: 'bosses',
-          desc: 'Battle through ancient titan guardians along the northern mountain stairs to reach the summit throne.',
-          method: 'Celestial Ascent',
-          xp: '+1,100 Combat XP',
-        },
-        {
-          level: 90,
-          title: 'Aurelius the Empyrean Sovereign',
-          icon: '👑',
-          category: 'bosses',
-          desc: 'Challenge the supreme Titan Lord at the Northern Summit Throne to cleanse the lingering Fall corruption.',
-          method: 'Summit Throne Boss',
-          xp: '+1,600 Combat XP',
-        },
-        {
-          level: 99,
-          title: 'Skillcape of Combat Mastery & Champion Aura',
-          icon: '🏆',
-          category: 'mastery',
-          desc: 'Wear the Combat Mastery Skillcape (+5 all stats). Permanent +5% Critical Strike chance and glorious Champion radiant aura.',
-          method: 'Automatic Level 99 Reward',
-          xp: 'Champion Aura Perk',
-        },
-      ],
-    },
-  };
-
-  let currentSkillGuideId = 'resonance_extraction';
-  let currentSkillGuideFilter = 'all';
-
-  window.openSkillGuide = function (skillId = 'resonance_extraction', filter = 'all') {
-    currentSkillGuideId = skillId;
-    currentSkillGuideFilter = filter;
-    renderSkillGuide(currentSkillGuideId, currentSkillGuideFilter);
-    const modal = document.getElementById('skill-guide-modal');
-    if (modal) {
-      document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
-      modal.style.display = 'block';
-      audio.playChime?.();
-    }
-  };
-
-  window.renderSkillGuide = function (skillId = currentSkillGuideId, filter = currentSkillGuideFilter) {
-    currentSkillGuideId = skillId;
-    currentSkillGuideFilter = filter;
-    const meta = PROFESSIONS_CATALOG[skillId] || PROFESSIONS_CATALOG.resonance_extraction;
-    const guideData = SKILL_GUIDE_DATA[skillId] || SKILL_GUIDE_DATA.resonance_extraction;
-
-    const titleEl = document.getElementById('skill-guide-title');
-    const statusEl = document.getElementById('skill-guide-status-bar');
-    const howtoEl = document.getElementById('skill-guide-howto');
-    const filtersEl = document.getElementById('skill-guide-filters');
-    const unlocksEl = document.getElementById('skill-guide-unlocks-container');
-
-    // Update active tab button
-    document.querySelectorAll('.sg-tab-btn').forEach((btn) => {
-      btn.classList.toggle('active', btn.id === `sg-tab-${skillId}`);
-    });
-
-    const profData = prog?.professions?.[skillId] || { xp: 0, level: 1 };
-    const xp = Math.max(0, Math.floor(Number(profData.xp) || 0));
-    const currentLevel = getProfessionLevelFromXp(xp);
-    profData.level = currentLevel;
-
-    const curLvlXp = getXpForProfessionLevel(currentLevel);
-    const nextLvlXp = currentLevel >= 99 ? curLvlXp : getXpForProfessionLevel(currentLevel + 1);
-    const diff = Math.max(1, nextLvlXp - curLvlXp);
-    const progress = Math.max(0, xp - curLvlXp);
-    const pct = currentLevel >= 99 ? 100 : Math.min(100, Math.floor((progress / diff) * 100));
-
-    if (titleEl) {
-      titleEl.innerHTML = `${meta.icon} ${meta.name.toUpperCase()} — SKILL GUIDE &amp; UNLOCKS`;
-      titleEl.style.color = meta.color;
-    }
-
-    if (statusEl) {
-      statusEl.innerHTML = `
-        <span style="background:#0284c7; color:#fff; font-weight:800; padding:2px 7px; border-radius:3px; font-family:var(--font-header);">
-          CURRENT LEVEL: LV. ${currentLevel} / 99
-        </span>
-        <span>TOTAL XP: <b style="color:#fde047;">${xp.toLocaleString()}</b></span>
-        <span>NEXT LEVEL: <b style="color:#38bdf8;">${currentLevel >= 99 ? 'MAX' : `${nextLvlXp.toLocaleString()} XP (+${(nextLvlXp - xp).toLocaleString()} needed)`}</b></span>
-        <span style="color:#94a3b8;">Instructor: <b style="color:#e2e8f0;">${meta.instructor || 'Sanctuary Haven'}</b></span>
-      `;
-    }
-
-    if (howtoEl) {
-      const stationForSkill = skillId === 'relic_forging' ? 'cosmic_anvil' : skillId === 'rite_binding' ? 'aether_crucible' : skillId === 'glimmerweaving' ? 'celestial_loom' : null;
-      const stationObj = stationForSkill ? CRAFTING_STATIONS[stationForSkill] : null;
-      howtoEl.innerHTML = `
-        <div class="skill-guide-howto-title">🚀 HOW TO TRAIN ${meta.name.toUpperCase()}</div>
-        <div class="skill-guide-howto-line"><b>1.</b> ${meta.quickStart || meta.activity}</div>
-        <div class="skill-guide-howto-line"><b>2.</b> 📍 ${meta.trainerLocation || meta.instructor || 'Sanctuary Haven'} <span style="color:#64748b;">• Instructor: ${meta.instructor || 'Sanctuary Haven'}</span></div>
-        <div class="skill-guide-howto-line" style="color:#94a3b8; font-size:9px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-          <span>XP is automatic — gather materials &amp; craft directly at world stations!</span>
-          ${stationObj ? `<button class="id-mini-btn" style="font-size:8.5px; padding:2px 8px; border-color:${stationObj.color}; color:${stationObj.color}; font-weight:800;" onclick="openCraftingModal('${stationForSkill}')">${stationObj.icon} INSPECT ${stationObj.name.toUpperCase()} RECIPES →</button>` : ''}
-          <button class="id-mini-btn" style="font-size:8.5px; padding:1px 6px;" onclick="openSkillTrainingGuide()">SEE ALL 5 TRAINING PATHS →</button>
-        </div>
-      `;
-    }
-
-    if (filtersEl) {
-      filtersEl.innerHTML = `
-        <span style="font-size:9px; color:#94a3b8; font-weight:bold; margin-right:4px;">FILTER:</span>
-        <button class="sg-filter-btn ${filter === 'all' ? 'active' : ''}" onclick="renderSkillGuide('${skillId}', 'all')">ALL UNLOCKS (${guideData.unlocks.length})</button>
-        <button class="sg-filter-btn ${filter === 'unlocked' ? 'active' : ''}" onclick="renderSkillGuide('${skillId}', 'unlocked')">✓ UNLOCKED ONLY</button>
-        <button class="sg-filter-btn ${filter === 'locked' ? 'active' : ''}" onclick="renderSkillGuide('${skillId}', 'locked')">🔒 LOCKED ONLY</button>
-      `;
-    }
-
-    if (unlocksEl) {
-      const filtered = guideData.unlocks.filter((u) => {
-        const isUnlocked = currentLevel >= u.level;
-        if (filter === 'unlocked') return isUnlocked;
-        if (filter === 'locked') return !isUnlocked;
-        return true;
-      });
-
-      if (filtered.length === 0) {
-        unlocksEl.innerHTML = `
-          <div style="background:#090d1c; border:1px dashed #334155; padding:24px; text-align:center; color:#94a3b8; font-size:11px;">
-            No milestone unlocks match the current filter.
-          </div>
-        `;
-        return;
-      }
-
-      unlocksEl.innerHTML = filtered.map((u) => {
-        const isUnlocked = currentLevel >= u.level;
-        return `
-          <div class="osrs-unlock-card ${isUnlocked ? 'is-unlocked' : 'is-locked'}">
-            <div class="osrs-lvl-box">
-              <span class="osrs-lvl-num" style="${isUnlocked ? 'color:#fde047;' : 'color:#94a3b8;'}">${u.level}</span>
-              <span class="osrs-lvl-lbl">LEVEL</span>
-            </div>
-            <div>
-              <div class="osrs-unlock-title">
-                <span>${u.icon}</span>
-                <span style="${isUnlocked ? 'color:#f8fafc;' : 'color:#cbd5e1;'}">${u.title}</span>
-              </div>
-              <div class="osrs-unlock-desc">${u.desc}</div>
-              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:4px;">
-                <span class="osrs-xp-badge">${u.xp}</span>
-                <span style="font-size:9px; color:#94a3b8;">Station / Method: <b style="color:#e2e8f0;">${u.method}</b></span>
-              </div>
-            </div>
-            <div style="text-align:right;">
-              <span class="osrs-status-badge ${isUnlocked ? 'osrs-status-unlocked' : 'osrs-status-locked'}">
-                ${isUnlocked ? '✓ UNLOCKED' : `🔒 REQ. LV. ${u.level}`}
-              </span>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-  };
+  setupSkillGuidesUi({ getProg: () => prog, audio, toggleModal: (id) => window.toggleModal(id) });
 
   window.allocateStat = function (statKey) {
     if (prog.statPoints <= 0 || !(statKey in prog.stats)) return;
@@ -6616,11 +4394,12 @@ export function initGame() {
         { type: 'streetLantern', x: 10, y: -165 },
         { type: 'streetLantern', x: 110, y: -165 },
 
-        // 4. Grand Continental Market Square (North-West) - Generously Spaced Out Wares
+        // 4. Grand Continental Market Square (North-West) - Provisions Stall, Ancient Well, Sundial & Flowerbeds
         { type: 'marketStallProvisions', id: 'stall_provisions', x: -360, y: -210 },
-        { type: 'marketStallPotions', id: 'stall_potions', x: -180, y: -210 },
-        { type: 'marketStallSmith', id: 'stall_smith', x: -360, y: -90 },
-        { type: 'marketStallRelics', id: 'stall_relics', x: -180, y: -90 },
+        { type: 'ancientWell', x: -180, y: -210, label: '💧 Sanctuary Wellspring' },
+        { type: 'solariSundial', x: -270, y: -210, label: '☀️ Continental Sundial' },
+        { type: 'flowerBed', x: -360, y: -90 },
+        { type: 'flowerBed', x: -180, y: -90 },
         { type: 'streetLantern', x: -270, y: -150 },
         { type: 'streetLantern', x: -410, y: -150 },
         { type: 'streetLantern', x: -130, y: -150 },
@@ -6718,39 +4497,6 @@ export function initGame() {
           isMerchant: true,
           x: -360,
           y: -175,
-        },
-        {
-          id: 'merchant_apothecary',
-          name: 'Alchemist Faye',
-          role: 'Apothecary & Potions [Click / T]',
-          spriteKey: 'merchantApothecaryNpc',
-          stallId: 'stall_potions',
-          merchantType: 'merchant_apothecary',
-          isMerchant: true,
-          x: -180,
-          y: -175,
-        },
-        {
-          id: 'merchant_smith',
-          name: 'Blacksmith Torvin',
-          role: 'Smithing & Ore Wares [Click / T]',
-          spriteKey: 'merchantSmithNpc',
-          stallId: 'stall_smith',
-          merchantType: 'merchant_smith',
-          isMerchant: true,
-          x: -360,
-          y: -55,
-        },
-        {
-          id: 'merchant_relics',
-          name: 'Relic-Seeker Moira',
-          role: 'Aether Curios & Relics [Click / T]',
-          spriteKey: 'merchantRelicsNpc',
-          stallId: 'stall_relics',
-          merchantType: 'merchant_relics',
-          isMerchant: true,
-          x: -180,
-          y: -55,
         },
         {
           id: 'npc_archon',
@@ -7181,13 +4927,18 @@ export function initGame() {
 
       if (resolvedRoomType === ROOM_TYPES.SOLARI_CITADEL) {
         props.push(
-          { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: -195, y: 40, label: '🔨 Citadel Star-Anvil [Click / E]' },
+          { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: -210, y: 40, label: '🔨 Citadel Star-Anvil [Click / E]' },
+          { type: 'marketStallSmith', id: 'stall_smith', x: -160, y: 40, label: '⚒️ Sunforged Weaponry Stall' },
+          { type: 'solariSundial', x: 0, y: -70, label: '☀️ Citadel Solar Chronometer' },
+          { type: 'flowerBed', x: -110, y: -50 },
+          { type: 'flowerBed', x: 110, y: -50 },
+          { type: 'flowerBed', x: -110, y: 15 },
+          { type: 'flowerBed', x: 110, y: 15 },
           { type: 'bankBuilding', x: 220, y: -160, label: '🏛️ Solari Citadel Depository' },
           { type: 'bankCounter', x: 220, y: -110 },
           { type: 'grandFountain', x: 0, y: 0, label: '☀️ Solari Sun Fountain' },
           { type: 'cityHouseB', x: -160, y: -180 },
           { type: 'cityHouseB', x: -280, y: -180 },
-          { type: 'marketStall', x: -140, y: 40, label: '🏮 Solari Lantern Exchange' },
           { type: 'streetLantern', x: -60, y: 80 },
           { type: 'streetLantern', x: 60, y: 80 },
           { type: 'streetLantern', x: -60, y: -60 },
@@ -7197,54 +4948,163 @@ export function initGame() {
           { type: 'blossomTree', x: -120, y: -80 },
           { type: 'blossomTree', x: 120, y: -80 }
         );
-        npcs.push({
-          id: 'npc_solari_bank',
-          name: 'Solari Vault-Master',
-          role: 'Citadel Banker [Click / T]',
-          spriteKey: 'bankerNpc',
-          x: 220,
-          y: -110,
-          isBank: true,
-        });
-        npcs.push({
-          id: 'npc_vael',
-          name: 'Captain Vaelen',
-          role: 'Lantern District Templar [Click / T]',
-          spriteKey: 'solariCaptainNpc',
-          x: -45,
-          y: 125,
-          dialogue: SOLARI_CITADEL_DIALOGUE,
-        });
+        npcs.push(
+          {
+            id: 'merchant_smith',
+            name: 'Blacksmith Torvin',
+            role: 'Sunforged Armorer [Click / T]',
+            spriteKey: 'merchantSmithNpc',
+            stallId: 'stall_smith',
+            merchantType: 'merchant_smith',
+            isMerchant: true,
+            x: -160,
+            y: 75,
+          },
+          {
+            id: 'npc_solari_bank',
+            name: 'Solari Vault-Master',
+            role: 'Citadel Banker [Click / T]',
+            spriteKey: 'bankerNpc',
+            x: 220,
+            y: -110,
+            isBank: true,
+          },
+          {
+            id: 'npc_vael',
+            name: 'Captain Vaelen',
+            role: 'Lantern District Templar [Click / T]',
+            spriteKey: 'solariCaptainNpc',
+            x: -45,
+            y: 125,
+            dialogue: SOLARI_CITADEL_DIALOGUE,
+          }
+        );
       } else if (resolvedRoomType === ROOM_TYPES.UMBRI_UNDERCITY) {
-        npcs.push({
-          id: 'npc_nyx',
-          name: 'Shadow Broker Nyx',
-          role: 'Duskveil Smuggler [Click / T]',
-          spriteKey: 'shadowBrokerNpc',
-          x: 45,
-          y: 125,
-          dialogue: UMBRI_UNDERCITY_DIALOGUE,
-        });
+        props.push(
+          { type: 'celestialLoom', stationId: 'celestial_loom', x: -210, y: 40, label: '🧵 Undercity Shadow Loom [Click / E]' },
+          { type: 'marketStallTailor', id: 'stall_tailor', x: -160, y: 40, label: '🕸️ Duskveil Silk Stall' },
+          { type: 'umbriBrazierAltar', x: -90, y: -50 },
+          { type: 'umbriBrazierAltar', x: 90, y: -50 },
+          { type: 'umbriBrazierAltar', x: -60, y: 110 },
+          { type: 'umbriBrazierAltar', x: 60, y: 110 },
+          { type: 'bankBuilding', x: 220, y: -160, label: '🏛️ Umbri Shadow Depository' },
+          { type: 'bankCounter', x: 220, y: -110 },
+          { type: 'pillar', x: -140, y: 0 },
+          { type: 'pillar', x: 140, y: 0 },
+          { type: 'streetLantern', x: -50, y: 75 },
+          { type: 'streetLantern', x: 50, y: 75 },
+          { type: 'stoneBench', x: -35, y: -15 },
+          { type: 'stoneBench', x: 35, y: -15 }
+        );
+        npcs.push(
+          {
+            id: 'merchant_tailor',
+            name: 'Shadow Stitcher Silvan',
+            role: 'Glimmerweaving & Silks [Click / T]',
+            spriteKey: 'shadowBrokerNpc',
+            stallId: 'stall_tailor',
+            merchantType: 'merchant_tailor',
+            isMerchant: true,
+            x: -160,
+            y: 75,
+          },
+          {
+            id: 'npc_umbri_bank',
+            name: 'Undercity Vault-Keeper',
+            role: 'Duskveil Vault Banker [Click / T]',
+            spriteKey: 'bankerNpc',
+            x: 220,
+            y: -110,
+            isBank: true,
+          },
+          {
+            id: 'npc_nyx',
+            name: 'Shadow Broker Nyx',
+            role: 'Duskveil Smuggler [Click / T]',
+            spriteKey: 'shadowBrokerNpc',
+            x: 45,
+            y: 125,
+            dialogue: UMBRI_UNDERCITY_DIALOGUE,
+          }
+        );
       } else if (resolvedRoomType === ROOM_TYPES.TERRA_ORCHARD) {
-        npcs.push({
-          id: 'npc_rowan',
-          name: 'Grove Tender Rowan',
-          role: 'Rootdeep Herbalist [Click / T]',
-          spriteKey: 'terraHerbalistNpc',
-          x: -45,
-          y: 125,
-          dialogue: TERRA_ORCHARD_DIALOGUE,
-        });
+        props.push(
+          { type: 'aetherCrucible', stationId: 'aether_crucible', x: -210, y: 40, label: '⚗️ Orchard Herbal Crucible [Click / E]' },
+          { type: 'marketStallPotions', id: 'stall_potions', x: -160, y: 40, label: '🌿 Rootdeep Apothecary Stall' },
+          { type: 'terraMenhir', x: 0, y: -80, label: '🗿 Ancient Mossy Menhir' },
+          { type: 'ancientWell', x: 160, y: 40, label: '💧 Pure Blossom Spring' },
+          { type: 'flowerBed', x: -110, y: -50 },
+          { type: 'flowerBed', x: 110, y: -50 },
+          { type: 'flowerBed', x: 0, y: 25 },
+          { type: 'ancientOak', x: -260, y: -160 },
+          { type: 'ancientOak', x: 260, y: -160 },
+          { type: 'blossomTree', x: -120, y: -70 },
+          { type: 'blossomTree', x: 120, y: -70 },
+          { type: 'blossomTree', x: -80, y: 130 },
+          { type: 'blossomTree', x: 80, y: 130 },
+          { type: 'stoneBench', x: -35, y: -15 },
+          { type: 'stoneBench', x: 35, y: -15 }
+        );
+        npcs.push(
+          {
+            id: 'merchant_apothecary',
+            name: 'Alchemist Faye',
+            role: 'Rootdeep Apothecary [Click / T]',
+            spriteKey: 'merchantApothecaryNpc',
+            stallId: 'stall_potions',
+            merchantType: 'merchant_apothecary',
+            isMerchant: true,
+            x: -160,
+            y: 75,
+          },
+          {
+            id: 'npc_rowan',
+            name: 'Grove Tender Rowan',
+            role: 'Rootdeep Herbalist [Click / T]',
+            spriteKey: 'terraHerbalistNpc',
+            x: -45,
+            y: 125,
+            dialogue: TERRA_ORCHARD_DIALOGUE,
+          }
+        );
       } else if (resolvedRoomType === ROOM_TYPES.AETHER_SPIRE) {
-        npcs.push({
-          id: 'npc_kaelen',
-          name: 'Astromancer Kaelen',
-          role: 'Mirrorgate Stargazer [Click / T]',
-          spriteKey: 'aetherAstromancerNpc',
-          x: 45,
-          y: 125,
-          dialogue: AETHER_SPIRE_DIALOGUE,
-        });
+        props.push(
+          { type: 'aetherArmillary', x: 0, y: -80, label: '🌟 Floating Chrono-Armillary' },
+          { type: 'marketStallRelics', id: 'stall_relics', x: -160, y: 40, label: '🔮 Mirrorgate Relic Stall' },
+          { type: 'aetherCrucible', stationId: 'aether_crucible', x: -210, y: 40, label: '⚗️ Mirrorgate Transmuter [Click / E]' },
+          { type: 'crystalPillar', x: -130, y: 90 },
+          { type: 'crystalPillar', x: 130, y: 90 },
+          { type: 'crystalPillar', x: -130, y: -90 },
+          { type: 'crystalPillar', x: 130, y: -90 },
+          { type: 'flowerBed', x: -110, y: -50 },
+          { type: 'flowerBed', x: 110, y: -50 },
+          { type: 'streetLantern', x: -60, y: 75 },
+          { type: 'streetLantern', x: 60, y: 75 },
+          { type: 'stoneBench', x: -35, y: -15 },
+          { type: 'stoneBench', x: 35, y: -15 }
+        );
+        npcs.push(
+          {
+            id: 'merchant_relics',
+            name: 'Relic-Seeker Moira',
+            role: 'Mirrorgate Curio Merchant [Click / T]',
+            spriteKey: 'merchantRelicsNpc',
+            stallId: 'stall_relics',
+            merchantType: 'merchant_relics',
+            isMerchant: true,
+            x: -160,
+            y: 75,
+          },
+          {
+            id: 'npc_kaelen',
+            name: 'Astromancer Kaelen',
+            role: 'Mirrorgate Stargazer [Click / T]',
+            spriteKey: 'aetherAstromancerNpc',
+            x: 45,
+            y: 125,
+            dialogue: AETHER_SPIRE_DIALOGUE,
+          }
+        );
       }
     }
   }
@@ -7522,72 +5382,7 @@ export function initGame() {
   }
 
   function populateWorldSkillingNodes(roomType, targetList) {
-    const layouts = {
-      [ROOM_TYPES.SANCTUARY_HUB]: [
-        ['copper_tin_vein', -245, 195],
-        ['copper_tin_vein', 245, 195],
-        ['herb_cluster_low', -195, 255],
-        ['fiber_bloom_low', 195, 255],
-      ],
-      [ROOM_TYPES.SOLARI_CITADEL]: [
-        ['copper_tin_vein', -175, 115],
-        ['iron_coal_vein', 165, 65],
-        ['herb_cluster_low', 145, -95],
-      ],
-      [ROOM_TYPES.UMBRI_UNDERCITY]: [
-        ['iron_coal_vein', -165, 85],
-        ['herb_cluster_low', 155, 95],
-        ['fiber_bloom_low', 145, -85],
-      ],
-      [ROOM_TYPES.TERRA_ORCHARD]: [
-        ['herb_cluster_low', -155, 95],
-        ['herb_cluster_low', 155, 95],
-        ['fiber_bloom_low', -145, -85],
-        ['copper_tin_vein', 145, -85],
-      ],
-      [ROOM_TYPES.AETHER_SPIRE]: [
-        ['iron_coal_vein', -160, 95],
-        ['mithril_vein', 160, -75],
-        ['fiber_bloom_low', 150, 95],
-      ],
-      [ROOM_TYPES.NEXUS_FORGOTTEN_RUINS]: [
-        ['iron_coal_vein', -195, 95],
-        ['mithril_vein', 195, -95],
-        ['herb_cluster_high', -185, -135],
-        ['fiber_bloom_high', 185, 115],
-      ],
-      [ROOM_TYPES.STARFALL_CRATER]: [
-        ['mithril_vein', -235, 120],
-        ['mithril_vein', 235, 120],
-        ['starmetal_vein', -255, -140],
-        ['starmetal_vein', 255, -140],
-        ['herb_cluster_high', 0, 110],
-      ],
-      [ROOM_TYPES.NEXUS_WARZONE]: [
-        ['iron_coal_vein', -320, 1280],
-        ['iron_coal_vein', 320, 1280],
-        ['mithril_vein', -620, 360],
-        ['mithril_vein', 620, 360],
-        ['starmetal_vein', -380, -1080],
-        ['starmetal_vein', 380, -1080],
-        ['herb_cluster_high', -760, -440],
-        ['fiber_bloom_high', 760, -440],
-      ],
-      [ROOM_TYPES.ABYSSAL_RIFT]: [
-        ['starmetal_vein', -270, 55],
-        ['starmetal_vein', 270, -115],
-        ['herb_cluster_high', -245, -175],
-        ['fiber_bloom_high', 245, 115],
-        ['fiber_bloom_high', -180, 205],
-      ],
-      [ROOM_TYPES.CELESTIAL_ASCENT]: [
-        ['starmetal_vein', -185, 340],
-        ['starmetal_vein', 185, -180],
-        ['herb_cluster_high', 185, 340],
-        ['fiber_bloom_high', -185, -180],
-      ],
-    };
-    const entries = layouts[roomType] || [];
+    const entries = SKILLING_LAYOUTS[roomType] || [];
     entries.forEach(([skKey, x, y], idx) => {
       const spec = SKILLING_NODE_TYPES[skKey];
       if (!spec) return;
@@ -13473,6 +11268,25 @@ export function initGame() {
           } else if (pr.type === 'bountyBoard') {
             img = sprites.props.bountyBoard || sprites.props.woodenSign || sprites.props.pillar;
             shadowRx = 12; shadowRy = 4;
+          } else if (pr.type === 'solariSundial') {
+            img = sprites.props.solariSundial || sprites.props.pillar;
+            shadowRx = 9; shadowRy = 3;
+          } else if (pr.type === 'umbriBrazierAltar') {
+            const list = sprites.props.umbriBrazierAltar;
+            img = (list && list[Math.floor(globalTime * 2.5 + Math.abs(pr.x)) % list.length]) || sprites.props.brazier?.[0] || sprites.props.pillar;
+            shadowRx = 9; shadowRy = 4;
+          } else if (pr.type === 'terraMenhir') {
+            img = sprites.props.terraMenhir || sprites.props.monument || sprites.props.pillar;
+            shadowRx = 9; shadowRy = 4;
+          } else if (pr.type === 'aetherArmillary') {
+            img = sprites.props.aetherArmillary || sprites.props.crystalPillar?.[0] || sprites.props.pillar;
+            shadowRx = 8; shadowRy = 3;
+          } else if (pr.type === 'ancientWell') {
+            img = sprites.props.ancientWell || sprites.props.grandFountain?.[0] || sprites.props.pillar;
+            shadowRx = 12; shadowRy = 5;
+          } else if (pr.type === 'flowerBed') {
+            img = sprites.props.flowerBed || sprites.props.stoneBench || sprites.props.pillar;
+            shadowRx = 11; shadowRy = 3;
           }
 
           if (img) {

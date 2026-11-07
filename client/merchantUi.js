@@ -82,6 +82,24 @@ export const MERCHANT_CATALOGS = {
       { itemId: 'apprentice_focus_orb', price: 28, note: 'Arcane off-hand orb (+2 Resonance).' },
     ],
   },
+  merchant_tailor: {
+    id: 'merchant_tailor',
+    name: 'Shadow Stitcher Silvan',
+    title: 'Glimmerweaving & Silk Merchant',
+    icon: '🧵',
+    spriteKey: 'shadowBrokerNpc',
+    badgeColor: '#a855f7',
+    greeting: 'Step into the twilight, wanderer. In the Umbri Undercity, we spin silence and void-threads into garments that turn blades.',
+    loreIntro: 'I stock starlight flax, dark umbral coal, and raw fibers. You can weave protective travel mantles, cowls, and mystic vestments right at the Celestial Loom in our market district.',
+    stationId: 'celestial_loom',
+    stationHint: 'Train Glimmerweaving at the Celestial Loom right beside my stall in the Umbri Undercity using botanical fibers and shadow silks!',
+    wares: [
+      { itemId: 'starlight_flax', price: 6, note: 'Luminescent fiber ready for spinning into fine yarn.' },
+      { itemId: 'umbral_coal', price: 8, note: 'Subterranean void fuel for forging dark alloys and dyes.' },
+      { itemId: 'scout_leather_tunic', price: 26, note: 'Lightweight scouting tunic (+2 Bastion, +1 Tempo).' },
+      { itemId: 'cloth_cape', price: 22, note: 'Flowing traveler mantle (+1 Bastion).' },
+    ],
+  },
 };
 
 export function getMerchantDialoguePages(merchantId) {
@@ -92,6 +110,7 @@ export function getMerchantDialoguePages(merchantId) {
     if (cat.id === 'merchant_apothecary') window.questState.apothecaryInspected = true;
     if (cat.id === 'merchant_provisions') window.questState.provisionsInspected = true;
     if (cat.id === 'merchant_relics') window.questState.relicsInspected = true;
+    if (cat.id === 'merchant_tailor') window.questState.provisionsInspected = true;
     if (typeof window.saveQuestState === 'function') window.saveQuestState();
     if (typeof window.updateQuestTrackerHUD === 'function') window.updateQuestTrackerHUD();
   }

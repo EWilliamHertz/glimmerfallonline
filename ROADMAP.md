@@ -164,11 +164,31 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
   - Killing the crypt boss in time crystallizes a cache: tier-scaled Solar Gold, faction currency, Greater Vitality Elixirs, a guaranteed faction set piece, a bonus Apex relic at Tier 10, and the **next tier's keystone** (T1–T9) so the loop can continue.
   - Completion awards bonus XP, announces the clear to every connected champion, and persists across the authoritative server and the offline realm.
 
-#### Day 4 — Legendary Relic Infusion & Leyline Socketing *(PARTIAL — SOCKETING LIVE)*
+#### Day 4 — Legendary Relic Infusion, Leyline Socketing & Ancient Runewords *(COMPLETED)*
 - [x] Expand Hero Equipment (`[K]`) with Leyline Relic Socket slots on Helm (`socket_head`), Armor (`socket_body`), and Weapon (`socket_weapon`).
 - [x] Add socketable cut Leyline Gems (`gem_solar_ruby`, `gem_void_sapphire`, `gem_terra_emerald`, `gem_aether_diamond`) crafted at the Cosmic Star-Anvil / Aetherial Crucible and dropped by Elite Champions & World Bosses, granting Power, Crit, Max HP, Resonance, Tempo, and Max Glimmer.
-- [ ] Enable Runeword synergies (e.g. `DAWN + LIGHT = +25% Solar Flare Radius`).
-- [x] Integrated one-click Leyline Gem socketing & unsocketing UI directly in Equipment `[K]` and Backpack `[B]`.
+- [x] Implemented Ancient Leyline Runes (`rune_sol`, `rune_umb`, `rune_ter`, `rune_aet`, `rune_zod`) with 16-bit pixel stone glyph sprites and Aetherial Crucible inscription recipes.
+- [x] Authored 6 canonical 3-socket Runeword Synergies (`Sovereign Trinity`, `Dawnbreaker Radiance`, `Eclipse Reaper`, `Worldtree Aegis`, `Chrono Infinity`, `Prismatic Convergence`) with active runeword detection, stat boosts, and damage multipliers (`getActiveRuneword`).
+- [x] Added Ancient Runeword Codex & Active Synergy Banner to the Equipment modal (`[K]`).
+- [x] Integrated one-click Leyline Gem and Rune socketing & unsocketing UI directly in Equipment `[K]` and Backpack `[B]`.
+
+#### Codebase Architecture & Modularization Sprint *(COMPLETED)*
+- [x] **Monolith Split**: Decoupled monolithic files into clean, focused ES modules while maintaining 100% backward compatibility and 25/25 passing test coverage:
+  - `index.html` (3,037 → 701 lines): Extracted inline styles to `client/styles/{base,hud,modals,main}.css`.
+  - `shared/protocol.js` (4,192 → 11 lines): Sliced into 9 domain modules under `shared/protocol/`.
+  - `client/sprites.js` (2,772 → 92 lines): Sliced into 6 sprite synthesizers under `client/sprites/`.
+  - `server/roomManager.js` (6,077 → 535 lines): Decoupled into 10 authoritative server modules under `server/rooms/`.
+  - `client/equipmentUi.js` (1,073 → 424 lines): Extracted inventory & exchange into `client/ui/`.
+  - `client/itemSprites.js` (1,204 → 113 lines): Extracted gear & materials into `client/sprites/item*.js`.
+  - `client/game.js` (14,296 → 12,110 lines): Extracted static data and skill guides into `client/game/`.
+- [x] **New Pixelated Sprite Decorations**: Added 7 new custom pixel-art props in `client/sprites/propSprites.js` (`solariSundial`, animated `umbriBrazierAltar`, `terraMenhir`, `aetherArmillary`, `ancientWell`, `marketStallTailor`, `flowerBed`) and rendered across all realm hubs.
+- [x] **Peaceful City Merchant Redistribution**:
+  - Relocated Blacksmith Torvin (`merchant_smith`) to the Solari Citadel Forge Courtyard.
+  - Established Shadow Stitcher Silvan (`merchant_tailor`) in the Umbri Undercity Silk Grotto.
+  - Relocated Alchemist Faye (`merchant_apothecary`) to the blossoming Terra Orchard Arboretum.
+  - Relocated Relic-Seeker Moira (`merchant_relics`) to the Aether Spire Celestial Observatory.
+  - Maintained Farmer Bran (`merchant_provisions`), Grand Exchange Broker Caelum, and Banker Orin in Sanctuary Haven.
+- [x] **Spatially Spread-Out Skilling Areas**: Added authoritative `SKILLING_LAYOUTS` in `shared/protocol/craftingAndSkilling.js`, establishing dedicated quarries, mineral seams, and botanical gardens across all continental zones with 100% parity across Single Player and Multiplayer.
 
 #### Day 5 — Faction Territory Control & Warzone Outpost Siege Battles
 - [ ] Expand the 4 Outpost Nexuses in Nexus Warzone into capturable faction strongholds.

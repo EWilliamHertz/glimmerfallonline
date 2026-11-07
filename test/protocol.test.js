@@ -399,3 +399,51 @@ test('Grand Glimmer Font harvest emits a single 100 Resonance Extraction XP awar
     rm.stop();
   }
 });
+
+test('SKILLING_LAYOUTS defines spread-out nodes across all continental realms referencing valid specs', () => {
+  const layouts = protocol.SKILLING_LAYOUTS;
+  assert.ok(layouts, 'SKILLING_LAYOUTS must be exported');
+  const expectedRooms = [
+    protocol.ROOM_TYPES.SANCTUARY_HUB,
+    protocol.ROOM_TYPES.SOLARI_CITADEL,
+    protocol.ROOM_TYPES.UMBRI_UNDERCITY,
+    protocol.ROOM_TYPES.TERRA_ORCHARD,
+    protocol.ROOM_TYPES.AETHER_SPIRE,
+    protocol.ROOM_TYPES.STARFALL_CRATER,
+    protocol.ROOM_TYPES.ABYSSAL_RIFT,
+    protocol.ROOM_TYPES.NEXUS_WARZONE,
+  ];
+
+  for (const rType of expectedRooms) {
+    const nodes = layouts[rType];
+    assert.ok(Array.isArray(nodes) && nodes.length >= 6, `Room ${rType} should have at least 6 spread-out skilling nodes`);
+    for (const [skType, x, y] of nodes) {
+      assert.ok(protocol.SKILLING_NODE_TYPES[skType], `Unknown skilling node type: ${skType}`);
+      assert.ok(typeof x === 'number' && typeof y === 'number', 'Coordinates must be numbers');
+    }
+  }
+});
+
+test('Ancient Runes and Runewords are valid, complete, and activate 3-socket synergies', () => {
+  const runes = ['rune_sol', 'rune_umb', 'rune_ter', 'rune_aet', 'rune_zod'];
+  for (const rId of runes) {
+    const item = protocol.EQUIPMENT_CATALOG[rId];
+    assert.ok(item, `Rune ${rId} must exist in EQUIPMENT_CATALOG`);
+    assert.equal(item.slot, 'socket_gem');
+    assert.ok(item.stats, `Rune ${rId} must define flat socket stats`);
+  }
+
+  assert.ok(protocol.RUNEWORD_SYNERGIES, 'RUNEWORD_SYNERGIES must exist');
+  assert.ok(Object.keys(protocol.RUNEWORD_SYNERGIES).length >= 6, 'Must define at least 6 canonical Runewords');
+
+  // Test Runeword detection on 3 socket gems: Sovereign Trinity (Sol + Umb + Zod)
+  const equipment = {
+    socket_1: 'rune_sol',
+    socket_2: 'rune_umb',
+    socket_3: 'rune_zod',
+  };
+  const active = protocol.getActiveRuneword(equipment);
+  assert.ok(active, 'Should activate Sovereign Trinity runeword for Sol-Umb-Zod');
+  assert.equal(active.name, 'Sovereign Trinity');
+  assert.ok(active.dmgMult >= 1.10, 'Runeword should provide damage multiplier');
+});

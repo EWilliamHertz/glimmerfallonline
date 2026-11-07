@@ -1,0 +1,445 @@
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Pixelated image-rendering strictly scoped to game canvas, pixel sprites, and portraits */
+canvas#game-canvas, #npc-portrait-canvas, #minimap-canvas, img.pixel-render, .pixel-art {
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-crisp-edges;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+input, textarea, select {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  font-family: var(--font-clean);
+  font-size: 12px;
+}
+
+:root {
+  --font-ui: 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-pixel: 'Outfit', system-ui, -apple-system, sans-serif;
+  --font-header: 'Cinzel', 'Outfit', Georgia, serif;
+  --font-display: 'Cinzel', Georgia, serif;
+  --font-clean: 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --bg-panel: rgba(11, 16, 30, 0.96);
+  --border-hi: #38bdf8;
+  --border-gold: #facc15;
+  --border-dark: #05070f;
+}
+
+body {
+  overflow: hidden;
+  background: #070b19;
+  font-family: var(--font-clean);
+  font-size: 12px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  color: #f8fafc;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+}
+
+#canvas-container {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  cursor: crosshair;
+}
+
+#game-canvas {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: block;
+}
+
+#crt-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+  display: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.22) 0px,
+    rgba(0, 0, 0, 0.22) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+#crt-overlay.active { display: block; }
+
+/* Day 3: Mythic Leyline Keystone run banner */
+#mythic-run-hud {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 280px;
+  padding: 6px 12px;
+  z-index: 45;
+  text-align: center;
+  border: 1px solid #f97316;
+  background: rgba(8, 10, 20, 0.9);
+  display: none;
+}
+#mythic-run-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  font-family: var(--font-header);
+  font-size: 10px;
+  letter-spacing: 0.4px;
+}
+#mythic-run-timer {
+  color: #fde047;
+  font-weight: 800;
+}
+#mythic-run-affixes {
+  font-size: 8.5px;
+  color: #cbd5e1;
+  margin-top: 2px;
+  letter-spacing: 0.3px;
+}
+#mythic-run-bar {
+  height: 4px;
+  background: #1c1917;
+  border: 1px solid #7c2d12;
+  margin-top: 5px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+#mythic-run-bar-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #f97316, #fde047);
+  transition: width 0.3s linear;
+}
+
+#hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.panel {
+  pointer-events: auto;
+  background: var(--bg-panel);
+  border: 2px solid var(--border-hi);
+  box-shadow:
+    0 0 0 2px var(--border-dark),
+    inset 0 0 0 2px #162038,
+    4px 4px 0 rgba(0, 0, 0, 0.85);
+  padding: 8px 10px;
+}
+
+/* ==========================================
+   1. TOP-LEFT: PLAYER UNIT FRAME, QUESTS & 3-PLAYER SQUAD
+   ========================================== */
+#player-unit-frame {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 262px;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  border-color: var(--border-gold);
+}
+
+.portrait {
+  width: 48px;
+  height: 48px;
+  border: 2px solid var(--border-gold);
+  box-shadow: 0 0 0 2px var(--border-dark);
+  background: #1e1b4b;
+  position: relative;
+  flex-shrink: 0;
+  cursor: default;
+}
+#portrait-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.level-badge {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  background: #0284c7;
+  border: 2px solid #fde047;
+  font-family: var(--font-header);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 5px;
+  color: #fff;
+}
+
+.unit-info { flex: 1; min-width: 0; }
+.unit-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+}
+.unit-name {
+  font-family: var(--font-header);
+  color: #facc15;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-shadow: 2px 2px 0 #000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.id-mini-btn {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  font-weight: 700;
+  background: #172554;
+  border: 1px solid #38bdf8;
+  color: #bae6fd;
+  padding: 2px 5px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.id-mini-btn:hover {
+  background: #1e40af;
+  color: #fde047;
+  border-color: #fde047;
+}
+.unit-sub {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 700;
+  margin-top: 2px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.bar-bg {
+  width: 100%;
+  height: 10px;
+  background: #050811;
+  border: 2px solid #334155;
+  position: relative;
+  margin-top: 1px;
+}
+.bar-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    transparent 10px,
+    rgba(5, 8, 17, 0.55) 10px,
+    rgba(5, 8, 17, 0.55) 12px
+  );
+  pointer-events: none;
+}
+.bar-hp {
+  height: 100%;
+  background: #22c55e;
+  border-top: 2px solid #86efac;
+  transition: width 0.12s steps(8);
+}
+.bar-hp.shielded {
+  background: #38bdf8;
+  border-top-color: #bae6fd;
+}
+.bar-enemy {
+  height: 100%;
+  background: #ef4444;
+  border-top: 2px solid #fca5a5;
+  transition: width 0.12s steps(8);
+}
+.bar-res {
+  height: 100%;
+  background: #f59e0b;
+  border-top: 2px solid #fef08a;
+  transition: width 0.12s steps(8);
+}
+
+#quest-tracker {
+  position: absolute;
+  top: 118px;
+  left: 12px;
+  width: 280px;
+  max-height: 48vh;
+  overflow-y: auto;
+  font-size: 9.5px;
+  line-height: 1.38;
+  padding: 2px 4px;
+  pointer-events: all;
+  scrollbar-width: thin;
+  scrollbar-color: #38bdf8 transparent;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.quest-title {
+  font-family: var(--font-header);
+  color: #facc15;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 5px;
+  display: flex;
+  justify-content: space-between;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.95), 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+}
+.quest-task {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #f1f5f9;
+  margin-bottom: 3px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.95), 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+}
+.quest-check {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid #38bdf8;
+  background: rgba(5, 7, 18, 0.7);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: #4ade80;
+  flex-shrink: 0;
+}
+.quest-check.done {
+  background: #16a34a;
+  border-color: #86efac;
+  color: #fff;
+}
+.quest-turnin-banner {
+  margin-top: 5px;
+  padding: 4px 6px;
+  background: rgba(250, 204, 21, 0.12);
+  border: 1px solid rgba(250, 204, 21, 0.5);
+  border-radius: 2px;
+  color: #fde047;
+  font-size: 8.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* UI Customization & Draggable HUD Mode */
+body.ui-edit-mode .ui-draggable-panel {
+  outline: 2px dashed #38bdf8 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.45) !important;
+  cursor: grab !important;
+  user-select: none !important;
+  position: absolute !important;
+}
+body.ui-edit-mode .ui-draggable-panel:active {
+  cursor: grabbing !important;
+}
+#ui-edit-banner {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  background: rgba(6, 11, 24, 0.96);
+  border: 2px solid #fde047;
+  box-shadow: 0 0 25px rgba(250, 204, 21, 0.45), 0 8px 30px rgba(0, 0, 0, 0.85);
+  padding: 12px 22px;
+  border-radius: 6px;
+  text-align: center;
+  display: none;
+  pointer-events: all;
+  backdrop-filter: blur(6px);
+}
+body.ui-edit-mode #ui-edit-banner {
+  display: block;
+}
+
+#arena-invite-toast {
+  position: absolute;
+  top: 392px;
+  left: 12px;
+  width: 262px;
+  display: none;
+  border-color: #38bdf8;
+  z-index: 30;
+  font-size: 9px;
+}
+.arena-slot-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin: 8px 0;
+}
+.arena-slot {
+  background: #0d1324;
+  border: 2px dashed #334155;
+  padding: 6px 4px;
+  min-height: 46px;
+  text-align: center;
+  font-size: 8.5px;
+  color: #64748b;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+.arena-slot.filled {
+  border-style: solid;
+  color: #f8fafc;
+  background: #101a33;
+}
+.arena-btn-primary {
+  width: 100%;
+  font-size: 10px;
+  padding: 9px 8px;
+  margin-top: 6px;
+}
+.arena-timer-bar {
+  height: 8px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  margin-top: 4px;
+}
+.arena-timer-fill {
+  height: 100%;
+  width: 0%;
+  background: #38bdf8;
+}
+
+#party-invite-toast {
+  position: absolute;
+  top: 318px;
+  left: 12px;
+  width: 262px;
+  display: none;
+  border-color: #fde047;
+  z-index: 30;
+  font-size: 9px;
+}

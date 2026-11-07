@@ -1,0 +1,1082 @@
+/* ==========================================
+   6c. OLD SCHOOL RUNESCAPE STYLE SKILL GUIDE
+   ========================================== */
+.sg-tab-btn {
+  background: #090e1d;
+  border: 1px solid #1e293b;
+  color: #94a3b8;
+  font-family: var(--font-header);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.sg-tab-btn:hover {
+  background: #111a30;
+  color: #f8fafc;
+  border-color: #38bdf8;
+}
+.sg-tab-btn.active {
+  background: #0369a1;
+  border-color: #38bdf8;
+  color: #f0f9ff;
+  box-shadow: 0 0 10px rgba(56,189,248,0.35);
+}
+.sg-filter-btn {
+  background: #0b1329;
+  border: 1px solid #1e293b;
+  color: #94a3b8;
+  font-family: var(--font-pixel);
+  font-size: 8.5px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.sg-filter-btn:hover {
+  background: #1e293b;
+  color: #f1f5f9;
+}
+.sg-filter-btn.active {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #38bdf8;
+}
+.skill-guide-howto {
+  background: linear-gradient(135deg, rgba(5, 46, 22, 0.8), rgba(9, 13, 28, 0.96));
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  border-left: 4px solid #22c55e;
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin: 8px 0 4px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: #cbd5e1;
+}
+.skill-guide-howto-title {
+  font-family: var(--font-header);
+  font-size: 10px;
+  font-weight: 800;
+  color: #86efac;
+  letter-spacing: 0.3px;
+  margin-bottom: 3px;
+}
+.skill-guide-howto-line {
+  margin-top: 2px;
+}
+.skill-training-lead {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid #334155;
+  border-left: 4px solid #facc15;
+  border-radius: 4px;
+  padding: 9px 11px;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: #cbd5e1;
+}
+.skill-training-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 9px 0 10px;
+}
+.skill-training-step {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: #cbd5e1;
+}
+.skill-training-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #0369a1;
+  border: 1px solid #38bdf8;
+  color: #f0f9ff;
+  font-family: var(--font-header);
+  font-size: 10px;
+  font-weight: 800;
+}
+.skill-training-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px;
+}
+.skill-training-card {
+  background: #090e1d;
+  border: 1px solid #1e293b;
+  border-left: 3px solid #38bdf8;
+  border-radius: 4px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.skill-training-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-header);
+  font-size: 10px;
+  font-weight: 800;
+}
+.skill-training-card-start {
+  font-size: 9.5px;
+  color: #e2e8f0;
+  line-height: 1.4;
+}
+.skill-training-card-loc {
+  font-size: 8.5px;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+.skill-training-card-btn {
+  margin-top: auto;
+  align-self: flex-start;
+  background: #0b1329;
+  border: 1px solid #38bdf8;
+  color: #7dd3fc;
+  font-family: var(--font-header);
+  font-size: 8.5px;
+  font-weight: 800;
+  padding: 4px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.skill-training-card-btn:hover {
+  background: #1e293b;
+  color: #f8fafc;
+}
+.skill-training-tip {
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px dashed rgba(56, 189, 248, 0.4);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-top: 10px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: #bae6fd;
+}
+.osrs-unlock-card {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  padding: 9px 12px;
+  display: grid;
+  grid-template-columns: 68px 1fr 140px;
+  gap: 12px;
+  align-items: center;
+  transition: all 0.15s;
+}
+.osrs-unlock-card:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(56,189,248,0.5);
+}
+.osrs-unlock-card.is-unlocked {
+  border-left: 4px solid #22c55e;
+}
+.osrs-unlock-card.is-locked {
+  border-left: 4px solid #475569;
+  opacity: 0.82;
+}
+.osrs-lvl-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #050811;
+  border: 1px solid #1e293b;
+  border-radius: 3px;
+  padding: 4px 6px;
+  text-align: center;
+}
+.osrs-lvl-num {
+  font-family: var(--font-header);
+  font-size: 16px;
+  font-weight: 800;
+  color: #fde047;
+  line-height: 1;
+}
+.osrs-lvl-lbl {
+  font-size: 8px;
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+.osrs-unlock-title {
+  font-family: var(--font-header);
+  font-size: 12px;
+  font-weight: 700;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.osrs-unlock-desc {
+  font-size: 10px;
+  color: #cbd5e1;
+  margin-top: 3px;
+  line-height: 1.4;
+}
+.osrs-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: var(--font-header);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+.osrs-status-unlocked {
+  background: rgba(34, 197, 94, 0.18);
+  border: 1px solid #22c55e;
+  color: #4ade80;
+}
+.osrs-status-locked {
+  background: rgba(100, 116, 139, 0.18);
+  border: 1px solid #475569;
+  color: #94a3b8;
+}
+.osrs-xp-badge {
+  font-size: 8.5px;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  display: inline-block;
+  margin-top: 4px;
+}
+
+/* RuneScape Equipment Paperdoll Grid */
+.rs-paperdoll-wrapper {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.rs-paperdoll-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 56px);
+  grid-template-rows: repeat(5, 56px);
+  gap: 8px;
+  justify-content: center;
+  background: radial-gradient(circle, #292524 0%, #141210 100%);
+  border: 3px double #78350f;
+  padding: 12px;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 4px 12px rgba(0,0,0,0.6);
+  position: relative;
+}
+.rs-equip-slot {
+  width: 56px;
+  height: 56px;
+  background: #171513;
+  border: 2px solid #57534e;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.7);
+}
+.rs-equip-slot:hover {
+  border-color: #facc15;
+  background: #23201b;
+  transform: translateY(-1px);
+}
+.rs-equip-slot.filled {
+  border-color: #d97706;
+  background: #1c1917;
+}
+.rs-equip-slot .rs-slot-placeholder {
+  font-size: 20px;
+  opacity: 0.28;
+  filter: grayscale(1);
+}
+.rs-equip-slot .rs-slot-label {
+  font-size: 7.5px;
+  font-family: var(--font-header);
+  color: #78716c;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+  text-transform: uppercase;
+}
+
+/* RuneScape 28-Slot Inventory Grid (4 cols x 7 rows) */
+.rs-inv-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 54px);
+  grid-template-rows: repeat(7, 54px);
+  gap: 6px;
+  justify-content: center;
+  background: radial-gradient(circle, #292524 0%, #141210 100%);
+  border: 3px double #92400e;
+  padding: 10px;
+  box-shadow: inset 0 0 16px rgba(0,0,0,0.9);
+}
+.rs-inv-slot {
+  width: 54px;
+  height: 54px;
+  background: #1c1917;
+  border: 1.5px solid #44403c;
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.12s ease;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+}
+.rs-inv-slot:hover {
+  border-color: #facc15;
+  background: #292524;
+  transform: scale(1.04);
+  z-index: 2;
+}
+.rs-inv-slot.empty {
+  cursor: default;
+}
+.rs-inv-slot.empty:hover {
+  border-color: #44403c;
+  background: #1c1917;
+  transform: none;
+}
+
+/* Grand Exchange Replica Grid */
+.rs-ge-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.rs-ge-box {
+  background: #141210;
+  border: 2px solid #57534e;
+  border-radius: 4px;
+  padding: 8px;
+  min-height: 110px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+}
+.rs-ge-box:hover {
+  border-color: #d97706;
+}
+
+/* Floating Combat Text */
+#fct-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+}
+.fct-text {
+  position: absolute;
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 2px 4px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: pixelFloat 0.95s steps(12) forwards;
+}
+.fct-crit {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 2px 6px rgba(250, 204, 21, 0.75);
+}
+@keyframes pixelFloat {
+  0% { opacity: 1; transform: translate(-50%, 0); }
+  75% { opacity: 1; transform: translate(-50%, -34px); }
+  100% { opacity: 0; transform: translate(-50%, -46px); }
+}
+
+#damage-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 45;
+  border: 10px solid rgba(239, 68, 68, 0.75);
+  opacity: 0;
+  display: none;
+}
+#portal-mist-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 46;
+  opacity: 0;
+  background: radial-gradient(circle at center, transparent 40%, rgba(56, 189, 248, 0.22) 100%);
+  box-shadow: inset 0 0 36px 8px rgba(56, 189, 248, 0.35);
+  transform: translateZ(0);
+  will-change: opacity;
+  transition: opacity 0.12s ease-out;
+}
+#portal-mist-fx.active {
+  opacity: 1;
+}
+#death-screen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  background: rgba(5, 7, 15, 0.92);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+}
+
+/* Modals */
+.modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 580px;
+  max-width: 94vw;
+  max-height: 84vh;
+  display: none;
+  z-index: 100;
+  overflow-y: auto;
+  border-color: #facc15;
+  padding: 12px 14px;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #334155;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+.modal-title {
+  font-family: var(--font-header);
+  font-size: 9.5px;
+  color: #facc15;
+  text-shadow: 2px 2px 0 #000;
+}
+.modal-close {
+  cursor: pointer;
+  font-family: var(--font-header);
+  font-size: 11px;
+  color: #f87171;
+  padding: 2px 6px;
+}
+
+.keybind-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #080c18;
+  border: 2px solid #1e293b;
+  padding: 6px 9px;
+  margin-bottom: 5px;
+}
+.spec-pill {
+  font-size: 8.5px;
+  background: #172554;
+  color: #7dd3fc;
+  padding: 1px 5px;
+  border: 1px solid #38bdf8;
+}
+.rank-pill {
+  font-size: 8.5px;
+  background: #422006;
+  color: #fde047;
+  padding: 1px 5px;
+  border: 1px solid #eab308;
+}
+.upgrade-btn {
+  font-family: var(--font-header);
+  background: #1e293b;
+  border: 2px solid #475569;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: not-allowed;
+}
+.upgrade-btn.ready {
+  background: #14532d;
+  border-color: #4ade80;
+  color: #fef08a;
+  cursor: pointer;
+}
+.upgrade-btn.ready:hover {
+  background: #16a34a;
+  color: #fff;
+}
+.keybind-btn {
+  font-family: var(--font-header);
+  background: #0d1324;
+  border: 2px solid #38bdf8;
+  color: #facc15;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  min-width: 58px;
+}
+.keybind-btn.listening {
+  background: #9a3412;
+  border-color: #facc15;
+  color: #fff;
+}
+
+/* Diablo 2 Skill Tree Styles & Sticky Header */
+#spellbook-modal {
+  overflow-y: auto;
+  padding-top: 0 !important;
+  scrollbar-gutter: stable;
+}
+.spellbook-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: #090e1d;
+  background: linear-gradient(180deg, #0e162d 0%, #090e1d 96%);
+  border-bottom: 2px solid #38bdf8;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85);
+  margin: 0 -14px 8px -14px;
+  padding: 12px 16px 8px 16px;
+}
+.sp-sticky-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  margin-top: 6px;
+  color: #fde047;
+  font-weight: 700;
+  font-family: var(--font-clean);
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid #334155;
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+.skilltree-nav-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 6px 0 10px 0;
+  border-bottom: 2px solid #1e293b;
+  padding-bottom: 6px;
+}
+.st-tab-btn {
+  background: #080d1a;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  font-family: var(--font-header);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+.st-tab-btn:hover {
+  color: #f8fafc;
+  border-color: #38bdf8;
+}
+.st-tab-btn.active {
+  background: linear-gradient(180deg, #1e3a8a, #0f172a);
+  color: #fde047;
+  border-color: #facc15;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.25);
+}
+.d2-tier-row {
+  margin-bottom: 12px;
+  background: rgba(8, 13, 26, 0.75);
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.d2-tier-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #1e293b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.d2-skills-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 8px;
+}
+.d2-skill-card {
+  background: #090e1d;
+  border: 2px solid #1e293b;
+  border-radius: 6px;
+  padding: 8px 10px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.d2-skill-card:hover {
+  border-color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+}
+.d2-skill-card.learned {
+  border-color: #2563eb;
+}
+.d2-skill-card.maxed {
+  border-color: #facc15;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.2);
+}
+.d2-skill-card.locked {
+  opacity: 0.6;
+}
+.d2-rank-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #94a3b8;
+}
+.d2-rank-badge.has-points {
+  background: #1e3a8a;
+  border-color: #38bdf8;
+  color: #bae6fd;
+}
+.d2-rank-badge.is-max {
+  background: #854d0e;
+  border-color: #facc15;
+  color: #fef08a;
+}
+.d2-alloc-btn {
+  font-family: var(--font-header);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 2px solid #334155;
+  background: #0f172a;
+  color: #64748b;
+  cursor: not-allowed;
+  transition: all 0.15s ease;
+}
+.d2-alloc-btn.can-alloc {
+  background: linear-gradient(180deg, #ca8a04, #a16207);
+  border-color: #fef08a;
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.4);
+  animation: pulseAlloc 1.4s infinite alternate;
+}
+@keyframes pulseAlloc {
+  0% { transform: scale(1); box-shadow: 0 0 6px rgba(250, 204, 21, 0.3); }
+  100% { transform: scale(1.02); box-shadow: 0 0 14px rgba(250, 204, 21, 0.7); }
+}
+.skill-pts-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #1e1b4b;
+  border: 1px solid #fbbf24;
+  color: #fde047;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+/* Form Controls inside GlimmerFall ID Modal */
+.pixel-input {
+  background: #050811;
+  border: 2px solid #334155;
+  color: #f8fafc;
+  padding: 5px 7px;
+  font-size: 9.5px;
+  width: 100%;
+  outline: none;
+}
+.pixel-input:focus {
+  border-color: #facc15;
+}
+.faction-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 4px;
+}
+.faction-card-btn {
+  background: #080c18;
+  border: 2px solid #334155;
+  padding: 6px 4px;
+  text-align: center;
+  cursor: pointer;
+  font-size: 8.5px;
+  color: #cbd5e1;
+}
+.faction-card-btn.selected {
+  border-color: #facc15;
+  background: #172554;
+  color: #fff;
+}
+
+/* ==========================================
+   GAME FRONTPAGE OVERLAY (Character Select, All 4 Factions, Loadout & Paperdoll)
+   ========================================== */
+#frontpage-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  background: radial-gradient(circle at 50% 20%, rgba(15, 32, 66, 0.94), rgba(5, 8, 17, 0.97));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  pointer-events: auto;
+}
+.fp-shell {
+  width: 980px;
+  max-width: 97vw;
+  max-height: 94vh;
+  overflow-y: auto;
+  border-color: #facc15;
+  padding: 14px 16px;
+}
+.fp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #334155;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.fp-logo {
+  font-family: var(--font-header);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #facc15;
+  text-shadow: 2px 2px 0 #000;
+}
+.fp-sub {
+  font-size: 11px;
+  color: #7dd3fc;
+  margin-top: 4px;
+}
+.fp-grid {
+  display: grid;
+  grid-template-columns: 235px 1fr 295px;
+  gap: 12px;
+}
+@media (max-width: 920px) {
+  .fp-grid { grid-template-columns: 1fr; }
+}
+.fp-col {
+  background: #080d1c;
+  border: 2px solid #1e293b;
+  padding: 10px;
+}
+.fp-section-title {
+  font-family: var(--font-header);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #facc15;
+  margin-bottom: 8px;
+}
+.fp-roster-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 170px;
+  overflow-y: auto;
+}
+.fp-roster-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0d152b;
+  border: 2px solid #334155;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.fp-roster-item.active {
+  border-color: #facc15;
+  background: #172554;
+}
+.fp-class-card {
+  background: #0d152b;
+  border: 2px solid #334155;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.fp-class-card.selected {
+  border-color: #38bdf8;
+  background: #172554;
+}
+.fp-loadout-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+.fp-slot-btn {
+  background: #0d152b;
+  border: 2px solid #334155;
+  padding: 4px 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+.fp-slot-btn.selected {
+  border-color: #facc15;
+  background: #1e3a8a;
+}
+.fp-ability-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 168px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.fp-ability-choice {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0d152b;
+  border: 1px solid #334155;
+  padding: 4px 6px;
+  font-size: 8.5px;
+  cursor: pointer;
+}
+.fp-ability-choice:hover {
+  border-color: #38bdf8;
+  background: #172554;
+}
+.fp-ability-choice.equipped {
+  border-color: #4ade80;
+  background: #14532d;
+}
+.fp-enter-btn {
+  width: 100%;
+  font-family: var(--font-header);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 12px 10px;
+  background: linear-gradient(180deg, #eab308, #ca8a04);
+  border: 2px solid #fef08a;
+  box-shadow: 0 0 0 2px #05070f, 4px 4px 0 #000;
+  color: #05070f;
+  cursor: pointer;
+}
+.fp-enter-btn:hover {
+  background: linear-gradient(180deg, #fde047, #eab308);
+}
+
+/* ==========================================
+   OSRS-STYLE QUEST COMPLETE SCROLL MODAL
+   ========================================== */
+@keyframes rsScrollDrop {
+  0% {
+    transform: scale(0.62) translateY(-60px);
+    opacity: 0;
+  }
+  65% {
+    transform: scale(1.03) translateY(4px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+#quest-complete-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 350;
+  background: rgba(4, 7, 16, 0.82);
+  backdrop-filter: blur(5px);
+  align-items: center;
+  justify-content: center;
+}
+
+.rs-quest-scroll {
+  position: relative;
+  width: 530px;
+  max-width: 92vw;
+  background: radial-gradient(circle at 50% 28%, #fff9ec 0%, #faedd0 38%, #ecd7a4 78%, #dfc38a 100%);
+  border: 4px double #5c3a10;
+  outline: 3px solid #2d1804;
+  border-radius: 8px;
+  padding: 24px 28px 20px;
+  box-sizing: border-box;
+  text-align: center;
+  color: #382008;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.94), 0 0 25px rgba(234, 179, 8, 0.3), inset 0 0 35px rgba(120, 70, 20, 0.22);
+  animation: rsScrollDrop 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  user-select: none;
+}
+
+.rs-scroll-header-wrap {
+  margin-top: -36px;
+  margin-bottom: 12px;
+}
+
+.rs-scroll-ribbon {
+  background: linear-gradient(180deg, #b91c1c 0%, #881337 50%, #5b0e24 100%);
+  color: #fef08a;
+  font-family: 'Cinzel', serif;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-shadow: 1px 1px 0 #450a0a, 0 0 8px rgba(254, 240, 138, 0.6);
+  padding: 7px 24px;
+  border: 2px solid #eab308;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 0 1px #78350f;
+  border-radius: 4px;
+  display: inline-block;
+  text-transform: uppercase;
+}
+
+.rs-scroll-title {
+  font-family: 'Cinzel', serif;
+  font-size: 22px;
+  font-weight: 900;
+  color: #451a03;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  margin-top: 4px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  line-height: 1.25;
+}
+
+.rs-scroll-subtitle {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-style: italic;
+  color: #78350f;
+  margin-top: 5px;
+  margin-bottom: 14px;
+}
+
+.rs-scroll-rewards-container {
+  background: rgba(254, 243, 199, 0.65);
+  border: 2px dashed #b45309;
+  border-radius: 6px;
+  padding: 12px 18px;
+  margin: 0 auto 14px;
+  text-align: left;
+  box-shadow: inset 0 0 14px rgba(180, 83, 9, 0.15);
+}
+
+.rs-rewards-header {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 900;
+  color: #78350f;
+  letter-spacing: 1.5px;
+  text-align: center;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(180, 83, 9, 0.3);
+  padding-bottom: 4px;
+}
+
+.rs-rewards-list {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #2d1804;
+  line-height: 1.65;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.rs-reward-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rs-reward-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  background: #78350f;
+  color: #fef08a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.4);
+}
+
+.rs-scroll-qp {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  font-weight: 900;
+  color: #5c3a10;
+  margin-top: 4px;
+  margin-bottom: 6px;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.5px;
+}
+
+.rs-scroll-btn {
+  background: linear-gradient(180deg, #991b1b 0%, #7f1d1d 50%, #450a0a 100%);
+  color: #fef08a;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  text-shadow: 1px 1px 0 #000;
+  padding: 9px 26px;
+  border: 2px solid #ca8a04;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: transform 0.1s, box-shadow 0.1s, background 0.15s;
+}
+
+.rs-scroll-btn:hover {
+  background: linear-gradient(180deg, #b91c1c 0%, #991b1b 50%, #581c1c 100%);
+  border-color: #fde047;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.6), 0 0 10px rgba(254, 240, 138, 0.4);
+}
+
+.rs-scroll-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
