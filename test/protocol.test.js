@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import * as protocol from '../shared/protocol.js';
 import { RoomManager } from '../server/roomManager.js';
 import { AccountsStore } from '../server/accountsStore.js';
@@ -727,4 +728,23 @@ test('UNLOCK_ICON_SVGS provides high grade vector icons for all 69 skill guide a
     assert.ok(svgStr.includes('gf-unlock-svg-wrap'), `${k} must have wrapper gf-unlock-svg-wrap`);
   }
 });
+
+test('Action bar abilities do not render R1-R5 rank pips and item slots show 1 and increasing quantities', () => {
+  const gameSrc = fs.readFileSync(new URL('../client/game.js', import.meta.url), 'utf-8');
+  const hudCss = fs.readFileSync(new URL('../client/styles/hud.css', import.meta.url), 'utf-8');
+
+  // Verify renderActionSlotButton does not render slot-rank-pip or R${rank}
+  assert.ok(!gameSrc.includes('<span class="slot-rank-pip">R${rank}</span>'), 'Ability action slots must not render R1-R5 slot-rank-pip');
+  assert.ok(!gameSrc.includes('slot-rank-pip'), 'game.js should not reference slot-rank-pip');
+
+  // Verify renderActionItemSlot renders quantity for 1 and higher (qty >= 1)
+  assert.ok(gameSrc.includes('${item && qty >= 1 ? `<span class="action-qty">${qty}</span>` : \'\'}'), 'Item action slots must display stack count for 1 and increasing quantities');
+  assert.ok(gameSrc.includes('${item.name}${qty >= 1 ? ` ×${qty}` : \'\'}'), 'Item slot title must display stack count for 1 and increasing quantities');
+
+  // Verify CSS hides slot-rank-pip and styles action-qty
+  assert.ok(hudCss.includes('.slot-rank-pip {'), 'hud.css should define .slot-rank-pip');
+  assert.ok(hudCss.includes('display: none !important;'), 'hud.css should hide .slot-rank-pip');
+  assert.ok(hudCss.includes('.action-qty {'), 'hud.css should style .action-qty');
+});
+
 

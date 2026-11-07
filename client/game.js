@@ -8594,7 +8594,6 @@ export function initGame() {
     const pickTitle = pickTarget ? ` • Click to place ${ABILITIES_CATALOG[pendingAssign.id]?.name || 'this ability'} here` : '';
     const draggable = spec && learned ? 'true' : 'false';
     return `<div class="${cls}" id="btn-slot-${slot}" data-slot-kind="ability" data-slot="${slot}" draggable="${draggable}" title="${title}${pickTitle}">
-      ${spec && learned ? `<span class="slot-rank-pip">R${rank}</span>` : ''}
       <span class="key-badge">${keyLabel}</span>
       <span class="action-icon">${icon}</span>
       <span class="action-name" style="color:${nameColor};">${name}</span>
@@ -8619,14 +8618,14 @@ export function initGame() {
       ? item.name.replace(/^(Sunforged|Ironwood|Chrono|Duskveil|Aurelius)\s*/i, '').split(' ')[0]
       : 'Item';
     const title = item
-      ? `${item.name}${qty > 1 ? ` ×${qty}` : ''}${depleted ? ' — none left in your bag' : ''} • [${keyLabel}] to use • Right-click to clear`
+      ? `${item.name}${qty >= 1 ? ` ×${qty}` : ''}${depleted ? ' — none left in your bag' : ''} • [${keyLabel}] to use • Right-click to clear`
       : `Empty item slot — drag a potion, food, or gear piece here from the bag. [${keyLabel}]`;
 
     return `<div class="${cls}" id="btn-item-${slot}" data-slot-kind="item" data-slot="${slot}" draggable="${item ? 'true' : 'false'}" title="${title}">
       <span class="key-badge">${keyLabel}</span>
       <span class="action-icon">${icon}</span>
       <span class="action-name">${shortName}</span>
-      ${item && qty > 1 ? `<span class="action-qty">${qty}</span>` : ''}
+      ${item && qty >= 1 ? `<span class="action-qty">${qty}</span>` : ''}
     </div>`;
   }
 
