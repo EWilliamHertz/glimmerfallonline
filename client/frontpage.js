@@ -402,65 +402,8 @@ export class FrontpageController {
   }
 
   async renameSelectedCharacter() {
-    const selected = this.getSelectedCharacter();
-    if (!selected) return;
-    const input = document.getElementById('fp-selected-char-name');
-    const nextName = String(input?.value || '')
-      .replace(/[^\w\- ]/g, '')
-      .trim()
-      .slice(0, 18);
-
-    this.renameMessage = '';
-    this.renameError = '';
-    if (!nextName) {
-      this.renameError = 'Enter a name using letters, numbers, spaces, hyphens, or underscores.';
-      this.render();
-      return;
-    }
-    if (nextName === selected.name) {
-      this.renameMessage = 'Name unchanged.';
-      this.render();
-      return;
-    }
-
-    if (this.playMode === 'singleplayer') {
-      const roster = this.getSinglePlayerRoster();
-      const idx = roster.findIndex((c) => c.id === selected.id);
-      if (idx < 0) {
-        this.renameError = 'Could not find that champion in the offline roster.';
-        this.render();
-        return;
-      }
-      roster[idx].name = nextName;
-      this.saveSinglePlayerRoster(roster);
-      this.renameMessage = `✓ Renamed to ${nextName}.`;
-      if (this.audio?.playChime) this.audio.playChime();
-      this.render();
-      return;
-    }
-
-    this.renameMessage = '⏳ Saving name on the realm...';
+    this.renameError = 'Champion names are permanent once registered.';
     this.render();
-    try {
-      const res = await this.net.saveOrSelectCharacter({
-        characterId: selected.id,
-        name: nextName,
-        homeBiome: selected.homeBiome,
-      });
-      if (res?.profile) {
-        this.net.profile = res.profile;
-        if (typeof window !== 'undefined' && window.applyProfile) {
-          window.applyProfile(res.profile);
-        }
-        this.syncFromProfile(res.profile);
-      }
-      this.renameMessage = `✓ Renamed to ${nextName}.`;
-      if (this.audio?.playChime) this.audio.playChime();
-      this.render();
-    } catch (err) {
-      this.renameError = `⚠️ Could not rename champion: ${err.message}`;
-      this.render();
-    }
   }
 
   async playSelectedCharacter() {
@@ -1197,22 +1140,9 @@ export class FrontpageController {
                     </div>
                   </div>
 
-                  <div style="display:flex; gap:6px; align-items:center;">
-                    <input id="fp-selected-char-name"
-                           class="pixel-input"
-                           value="${String(selectedChar.name || '').replace(/"/g, '&quot;')}"
-                           maxlength="18"
-                           aria-label="Champion name"
-                           onkeydown="if(event.key==='Enter'){event.preventDefault();window._fp.renameSelectedCharacter();}"
-                           style="font-size:11px; padding:4px 7px; flex:1;" />
-                    <button class="util-btn"
-                            style="font-size:9.5px; padding:4px 9px; border-color:#38bdf8; color:#bae6fd; font-weight:bold;"
-                            onclick="window._fp.renameSelectedCharacter()">
-                      RENAME
-                    </button>
+                  <div style="font-size:10px; color:#94a3b8; display:flex; align-items:center; gap:5px; margin: 2px 0;">
+                    <span>🔒 Permanent Registered Champion</span>
                   </div>
-                  ${this.renameError ? `<div style="font-size:9.5px; color:#fca5a5;">${this.renameError}</div>` : ''}
-                  ${this.renameMessage ? `<div style="font-size:9.5px; color:#86efac;">${this.renameMessage}</div>` : ''}
 
                   <div style="font-size:11px; color:${selectedFm.color}; font-weight:bold; display:flex; gap:6px; align-items:center;">
                     <img src="${selectedFm.logo}" alt="${selectedChar.faction}" style="width:18px; height:18px; object-fit:contain; filter:drop-shadow(0 0 3px ${selectedFm.color}); flex-shrink:0;" />

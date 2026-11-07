@@ -344,6 +344,12 @@ export const SKILL_ICON_SVGS = {
 };
 
 export function getSkillIconSvg(skillId, size = 26) {
-  const raw = SKILL_ICON_SVGS[skillId] || SKILL_ICON_SVGS.skills_medallion;
-  return `<span class="gf-skill-svg-wrap" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${raw}</span>`;
+  let raw = (SKILL_ICON_SVGS[skillId] || SKILL_ICON_SVGS.skills_medallion || '').trim();
+  raw = raw.replace(/<svg\b/i, `<svg width="${size}" height="${size}" style="width:${size}px;height:${size}px;display:block;"`);
+  return `<span class="gf-skill-svg-wrap" style="width:${size}px;height:${size}px;min-width:${size}px;min-height:${size}px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;">${raw}</span>`;
+}
+
+if (typeof window !== 'undefined') {
+  window.getSkillIconSvg = getSkillIconSvg;
+  window.SKILL_ICON_SVGS = SKILL_ICON_SVGS;
 }

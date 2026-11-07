@@ -647,7 +647,8 @@ export class AccountsStore {
       acc.activeCharacterId = ch.id;
       if (homeBiome) ch.homeBiome = homeBiome;
 
-      if (name) ch.name = sanitizeName(name, ch.name);
+      // Character name is immutable once registered
+      if (!ch.name && name) ch.name = sanitizeName(name, 'Champion');
       if (faction || classId) {
         const norm = normalizeClassAndFaction(classId || ch.classId, faction || ch.faction);
         ch.faction = norm.faction;
@@ -930,7 +931,8 @@ export class AccountsStore {
     this.ensureDefaultCharacter(acc);
     const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
 
-    if (displayName !== undefined) acc.displayName = sanitizeName(displayName, acc.displayName);
+    // Character name is immutable once registered
+    if (displayName !== undefined && !acc.displayName) acc.displayName = sanitizeName(displayName, 'Champion');
     if (classId || faction) {
       const norm = normalizeClassAndFaction(classId || acc.classId, faction || acc.faction);
       const classChanged = norm.classId !== acc.classId;

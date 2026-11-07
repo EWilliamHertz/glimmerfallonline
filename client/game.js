@@ -3600,12 +3600,10 @@ export function initGame() {
   };
 
   window.saveProfileChanges = async function () {
-    const displayName = document.getElementById('prof-display-name')?.value?.trim();
     const orderTag = document.getElementById('prof-order-tag')?.value?.trim();
     const orderName = document.getElementById('prof-order-name')?.value?.trim();
     try {
       const updated = await net.updateProfile({
-        displayName,
         faction: localProfile.faction,
         orderTag,
         orderName,
@@ -3613,9 +3611,8 @@ export function initGame() {
       });
       applyProfile(updated);
       audio.playChime();
-      accountStatusMsg = '✓ Profile, Faction & Order Banner saved!';
+      accountStatusMsg = '✓ Order Banner & Faction saved!';
     } catch (err) {
-      localProfile.displayName = displayName || localProfile.displayName;
       localProfile.orderTag = (orderTag || 'SUN').toUpperCase();
       localProfile.orderName = orderName || localProfile.orderName;
       updatePlayerUI();
@@ -3983,7 +3980,7 @@ export function initGame() {
     if (net.connected && syncToServer) {
       net.send({ type: 'sync_profession_progress', professions: prog.professions });
     }
-    renderSkillsTabUI();
+    window.renderSkillsTabUI?.();
   }
   window.awardProfessionXP = awardProfessionXP;
   window.getLocalProgression = () => prog;
@@ -6121,7 +6118,7 @@ export function initGame() {
           updateActionBarBadges();
           renderStatsModal();
           renderKeybindUI();
-          renderSkillsTabUI();
+          window.renderSkillsTabUI?.();
           if (document.getElementById('crafting-modal')?.style.display === 'block') {
             renderCraftingModal();
           }
@@ -9650,11 +9647,14 @@ export function initGame() {
       if (id === 'lore-modal') {
         renderLoreModal();
       }
+      if (id === 'skills-modal') {
+        window.renderSkillsModal?.();
+      }
       if (id === 'skill-guide-modal') {
-        renderSkillGuide(currentSkillGuideId, currentSkillGuideFilter);
+        window.renderSkillGuide?.();
       }
       if (id === 'skill-training-modal') {
-        renderSkillTrainingGuide();
+        window.renderSkillTrainingGuide?.();
       }
       if (id === 'audio-mixer-modal') {
         syncAudioMixerUI();
@@ -9996,7 +9996,6 @@ export function initGame() {
     if (key === 'm') window.toggleWorldAtlas();
     if (key === 'p') window.toggleModal('spellbook-modal');
     if (key === 'c') window.toggleModal('char-modal');
-    if (key === 'g') window.toggleModal('account-modal');
     if (key === 'o') window.toggleModal('social-modal');
     if (key === 'l') window.openQuestLog();
   }, true);

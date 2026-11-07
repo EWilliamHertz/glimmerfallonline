@@ -219,8 +219,11 @@ export function renderAccountModal({ profile, authTab = 'register', statusMsg = 
       </div>
       <div style="display:grid; grid-template-columns:1fr 90px 1fr; gap:6px; margin-bottom:6px;">
         <div>
-          <label style="font-size:8px; color:#94a3b8;">DISPLAY NAME</label>
-          <input id="prof-display-name" class="pixel-input" value="${p.displayName || ''}" maxlength="18" />
+          <label style="font-size:8px; color:#94a3b8;">CHARACTER NAME (PERMANENT)</label>
+          <div style="font-family:var(--font-header); font-size:11px; color:#fde047; padding:4px 7px; background:#0b1120; border:1px solid #334155; border-radius:3px; display:flex; align-items:center; gap:5px; height:24px; box-sizing:border-box;">
+            <span style="font-size:10px;">🔒</span>
+            <span>${p.displayName || p.name || 'Champion'}</span>
+          </div>
         </div>
         <div>
           <label style="font-size:8px; color:#94a3b8;">&lt;TAG&gt;</label>

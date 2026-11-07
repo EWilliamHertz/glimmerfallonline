@@ -79,7 +79,7 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
 
     // Header Medallion
     const iconHeader = document.getElementById('skills-modal-icon');
-    if (iconHeader && !iconHeader.innerHTML.trim()) {
+    if (iconHeader) {
       iconHeader.innerHTML = getSkillIconSvg('skills_medallion', 30);
     }
 
@@ -93,7 +93,7 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
 
     if (entValEl) entValEl.innerText = `${entLvl}`;
     if (entArchEl) entArchEl.innerText = archetype;
-    if (entCrestWrap && !entCrestWrap.innerHTML.trim()) {
+    if (entCrestWrap) {
       entCrestWrap.innerHTML = getSkillIconSvg('entity_crest', 44);
     }
     if (entBreakdownEl) {
@@ -119,7 +119,7 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
     if (totalValEl) {
       totalValEl.innerHTML = `${totalLevel} <span class="skills-total-max">/ ${maxTotalLevel}</span>`;
     }
-    if (totalCrestWrap && !totalCrestWrap.innerHTML.trim()) {
+    if (totalCrestWrap) {
       totalCrestWrap.innerHTML = getSkillIconSvg('total_crest', 44);
     }
 
@@ -265,11 +265,19 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
 
   window.openSkillTrainingGuide = function () {
     window.renderSkillTrainingGuide();
-    toggleModal('skill-training-modal');
+    const targetModal = document.getElementById('skill-training-modal');
+    if (targetModal) {
+      document.querySelectorAll('.modal').forEach((m) => {
+        if (m !== targetModal) m.style.display = 'none';
+      });
+      targetModal.style.display = 'block';
+    } else {
+      toggleModal('skill-training-modal');
+    }
   };
 
   window.renderSkillTrainingGuide = function () {
-    const listEl = document.getElementById('skill-training-list');
+    const listEl = document.getElementById('skill-training-body') || document.getElementById('skill-training-list');
     if (!listEl) return;
     const prog = getProg();
     const profs = prog.professions || {};
@@ -446,8 +454,15 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
     currentSkillGuideId = skillId;
     currentSkillGuideFilter = filter;
     window.renderSkillGuide(skillId, filter);
-    const targetModal = 'skill-guide-modal';
-    toggleModal(targetModal);
+    const targetModal = document.getElementById('skill-guide-modal');
+    if (targetModal) {
+      document.querySelectorAll('.modal').forEach((m) => {
+        if (m !== targetModal) m.style.display = 'none';
+      });
+      targetModal.style.display = 'block';
+    } else {
+      toggleModal('skill-guide-modal');
+    }
   };
 
   window.renderSkillGuide = function (skillId = currentSkillGuideId, filter = currentSkillGuideFilter) {
@@ -468,6 +483,7 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
     const titleEl = document.getElementById('skill-guide-title');
     const levelEl = document.getElementById('skill-guide-level');
     const xpEl = document.getElementById('skill-guide-xp');
+    const howtoEl = document.getElementById('skill-guide-howto');
     const navEl = document.getElementById('skill-guide-filters');
     const listEl = document.getElementById('skill-guide-unlocks-container');
 
@@ -478,6 +494,14 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
     }
     if (levelEl) levelEl.innerText = `LEVEL ${curLevel} / 99`;
     if (xpEl) xpEl.innerText = `${prof.xp.toLocaleString()} TOTAL XP`;
+    if (howtoEl && pDef.training) {
+      howtoEl.innerHTML = `
+        <div style="background:#090e1d; border:1px solid ${pDef.color}44; border-left:3px solid ${pDef.color}; padding:8px 10px; border-radius:4px; font-size:10px; line-height:1.45; display:flex; flex-direction:column; gap:4px;">
+          <div><b style="color:${pDef.color};">HOW TO TRAIN:</b> <span style="color:#e2e8f0;">${pDef.training.howTo}</span></div>
+          <div><b style="color:#fde047;">NODES &amp; ACTIVITIES:</b> <span style="color:#cbd5e1;">${pDef.training.interactive}</span> • <b style="color:#38bdf8;">LOCATIONS:</b> <span style="color:#94a3b8;">${pDef.training.where}</span></div>
+        </div>
+      `;
+    }
 
     // Active tab in skill selection header
     const tabBtns = document.querySelectorAll('.sg-tab-btn');

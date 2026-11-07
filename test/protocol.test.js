@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as protocol from '../shared/protocol.js';
 import { RoomManager } from '../server/roomManager.js';
+import { AccountsStore } from '../server/accountsStore.js';
 import { FrontpageController, FRONTPAGE_STATES } from '../client/frontpage.js';
 import { SKILL_ICON_SVGS, getSkillIconSvg } from '../client/ui/skillIcons.js';
+import { setupSkillGuidesUi } from '../client/game/skillGuidesUi.js';
 
 test('tick constants match the authoritative 20 Hz loop', () => {
   assert.equal(protocol.TICK_RATE, 20);
@@ -585,6 +587,99 @@ test('RoomManager arena queue and match conclusion preserves player pre-arena re
     assert.equal(winMsg.won, true, 'Blue team client must win when red nexus falls');
   } finally {
     rm.stop();
+  }
+});
+
+test('Registered character names are immutable and cannot be renamed', () => {
+  const store = new AccountsStore();
+  const { account: acc } = store.createGuestAccount('EternalHero', 'Solari', 'solari_vanguard');
+  const initialName = store.listCharacters(acc.id)[0].name;
+  assert.ok(initialName && initialName.length > 0, 'Character must have an initial registered name');
+
+  // Attempting to rename via updateProfile must be rejected / ignored
+  store.updateProfile(acc.id, { displayName: 'ChangedNameViaProfile' });
+  assert.equal(store.accountsById.get(acc.id).displayName, initialName, 'Account displayName must not change');
+  assert.equal(store.listCharacters(acc.id)[0].name, initialName, 'Character name must remain immutable');
+
+  // Attempting to rename via character selection/update must be ignored
+  store.createOrSelectCharacter(acc.id, { characterId: acc.activeCharacterId, name: 'ChangedNameViaSelect' });
+  assert.equal(store.listCharacters(acc.id)[0].name, initialName, 'Character name must remain immutable after selection');
+});
+
+test('getSkillIconSvg injects explicit sizing and covers all professions and crests', () => {
+  const requiredIcons = [
+    'combat_mastery',
+    'rites',
+    'flashes',
+    'resonance_extraction',
+    'relic_forging',
+    'rite_binding',
+    'glimmerweaving',
+    'skills_medallion',
+    'entity_crest',
+    'total_crest',
+  ];
+
+  for (const id of requiredIcons) {
+    const rendered = getSkillIconSvg(id, 32);
+    assert.ok(rendered.includes('width="32"'), `${id} SVG must have explicit width="32"`);
+    assert.ok(rendered.includes('height="32"'), `${id} SVG must have explicit height="32"`);
+    assert.ok(rendered.includes('<svg'), `${id} must contain SVG markup`);
+    assert.ok(rendered.includes('gf-skill-svg-wrap'), `${id} must be wrapped in gf-skill-svg-wrap`);
+  }
+});
+
+test('Skill guide and skill training guide modals open and render without ReferenceErrors', () => {
+  const elements = new Map();
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+
+  globalThis.document = {
+    activeElement: null,
+    getElementById: (id) => {
+      if (!elements.has(id)) {
+        elements.set(id, {
+          id,
+          style: { display: 'none' },
+          innerHTML: '',
+          innerText: '',
+          classList: { add: () => {}, remove: () => {}, contains: () => false },
+          setAttribute: () => {},
+          getAttribute: () => '',
+        });
+      }
+      return elements.get(id);
+    },
+    querySelectorAll: () => [],
+  };
+  globalThis.window = globalThis;
+
+  try {
+    setupSkillGuidesUi({
+      getProg: () => ({ professions: { resonance_extraction: { level: 10, xp: 1200 } } }),
+      audio: {},
+      toggleModal: (id) => {
+        const el = globalThis.document.getElementById(id);
+        if (el) el.style.display = 'block';
+      },
+    });
+
+    // Test openSkillGuide
+    globalThis.window.openSkillGuide('resonance_extraction');
+    const guideModal = elements.get('skill-guide-modal');
+    assert.equal(guideModal.style.display, 'block', 'skill-guide-modal must display as block');
+    assert.ok(elements.get('skill-guide-title').innerText.includes('RESONANCE EXTRACTION'), 'guide title must update');
+
+    // Test openSkillTrainingGuide
+    globalThis.window.openSkillTrainingGuide();
+    const trainingModal = elements.get('skill-training-modal');
+    assert.equal(trainingModal.style.display, 'block', 'skill-training-modal must display as block');
+    const trainingBody = elements.get('skill-training-body');
+    assert.ok(trainingBody.innerHTML.length > 50, 'skill-training-body must contain rendered cards');
+    assert.ok(trainingBody.innerHTML.includes('Resonance Extraction'), 'must render skill cards');
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
   }
 });
 
