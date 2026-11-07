@@ -810,14 +810,14 @@ test('LandingPageController initializes, toggles Start on this site, and renders
   // Test Game Systems Encyclopedia content
   landing.setGameEncSection('combat');
   const combatHtml = landing.renderGameEncSection();
-  assert.ok(combatHtml.includes('Action Combat System &amp; Damage Formulas'));
+  assert.ok(combatHtml.includes('Attack Cleave Arcs &amp; Hitboxes'));
   assert.ok(combatHtml.includes('1.5s Global Cooldown'));
 
   landing.setGameEncSection('persistence');
   const persistHtml = landing.renderGameEncSection();
   assert.ok(persistHtml.includes('Exact Health &amp; Glimmer Persistence'));
   assert.ok(persistHtml.includes('Exact World Coordinate Resuming'));
-  assert.ok(persistHtml.includes('Clean Monster Respawn &amp; Aggro Reset'));
+  assert.ok(persistHtml.includes('Clean Monster Respawn &amp; Aggro Wipe'));
 
   // Test Cosmic Lore & TCG Encyclopedia content from glimmerfalltcg.com
   landing.setLoreEncSection('creeds');

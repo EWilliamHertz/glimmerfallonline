@@ -9,6 +9,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
   <noscript><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" /></noscript>
   <link rel="stylesheet" href="/client/styles/main.css" />
+  <link rel="icon" type="image/png" href="/GlimmerFall_official_multicolor_logo.png" />
+  <link rel="shortcut icon" href="/GlimmerFall_official_multicolor_logo.png" />
+  <link rel="apple-touch-icon" href="/GlimmerFall_official_multicolor_logo.png" />
 </head>
 <body>
   <div id="canvas-container">
@@ -17,13 +20,19 @@
   <div id="crt-overlay"></div>
   <div id="fct-container"></div>
 
+  <!-- PREMIER LANDING PAGE: Pixelated Heaven with Sidebar Nav, Gear, Currencies, Skills & Encyclopedias -->
+  <div id="landing-overlay" class="landing-overlay"></div>
+
   <!-- GAME FRONTPAGE: Character Roster, Faction, Class, Name, Paperdoll & Loadout -->
   <div id="frontpage-overlay" style="display:none;">
     <div class="fp-shell panel">
       <div class="fp-header">
-        <div>
-          <div class="fp-logo">⚔️ GLIMMERFALL ONLINE — 2D PIXEL MMORPG</div>
-          <div class="fp-sub">4 Canonical Factions • 8 Archetypes • Seamless World Traversal</div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <img src="/GlimmerFall_official_multicolor_logo.png" alt="GlimmerFall" style="height:36px; width:auto; object-fit:contain; filter:drop-shadow(0 0 10px rgba(250,204,21,0.5));" />
+          <div>
+            <div class="fp-logo">⚔️ GLIMMERFALL ONLINE — 2D PIXEL MMORPG</div>
+            <div class="fp-sub">4 Canonical Factions • 8 Archetypes • Seamless World Traversal</div>
+          </div>
         </div>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
           <label style="display:inline-flex; align-items:center; gap:5px; font-size:10px; color:#cbd5e1; cursor:pointer; background:#080e1c; padding:3px 8px; border:1px solid #334155; border-radius:3px;" title="When checked, visits go directly to this loadout. When unchecked, you start at the landing page.">
@@ -54,11 +63,25 @@
             var shouldShowLoadout = forceLoadout || (startOnSite && !forceLanding);
 
             var overlayEl = document.getElementById('frontpage-overlay');
+            var landingEl = document.getElementById('landing-overlay');
             if (overlayEl) {
               overlayEl.style.display = shouldShowLoadout ? 'flex' : 'none';
             }
+            if (landingEl) {
+              landingEl.style.display = shouldShowLoadout ? 'none' : 'block';
+            }
             var cb = document.getElementById('fp-start-on-site-cb');
             if (cb) cb.checked = startOnSite;
+
+            window.openLandingPage = window.openLandingPage || function (tab) {
+              var fp = document.getElementById('frontpage-overlay');
+              var lp = document.getElementById('landing-overlay');
+              if (fp) fp.style.display = 'none';
+              if (lp) lp.style.display = 'block';
+              if (window._landing) {
+                window._landing.open(tab);
+              }
+            };
 
             if (!shouldShowLoadout) {
               return;

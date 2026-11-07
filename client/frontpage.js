@@ -1075,7 +1075,7 @@ export class FrontpageController {
             <input type="checkbox" class="start-on-site-cb" ${this.getStartOnSite() ? 'checked' : ''} onchange="window._fp.setStartOnSite(this.checked)">
             <span>Start on this site</span>
           </label>
-          <button type="button" class="util-btn" style="font-size:10px; padding:3px 8px; border-color:#38bdf8; color:#7dd3fc; font-weight:bold;" onclick="window.openLandingPage ? window.openLandingPage() : null">
+          <button type="button" class="util-btn" style="font-size:10px; padding:3px 8px; border-color:#38bdf8; color:#7dd3fc; font-weight:bold;" onclick="if(window.openLandingPage){window.openLandingPage();}else if(window._landing){window._landing.open();}else{var lp=document.getElementById('landing-overlay');var fp=document.getElementById('frontpage-overlay');if(fp)fp.style.display='none';if(lp)lp.style.display='block';}">
             📖 LANDING &amp; ENCYCLOPEDIAS
           </button>
         </div>

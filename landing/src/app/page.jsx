@@ -34,10 +34,15 @@ import {
   ShieldAlert,
   Cpu,
   MapPin,
+  Coins,
+  Gem,
+  Pickaxe,
+  Feather,
+  Backpack,
+  ExternalLink,
 } from 'lucide-react';
 
-const HERO_BG =
-  'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/static/hero_bg-LEXvPiF25DW4GwYAIML7yqFaTveuiz.png';
+const LOGO_PATH = '/GlimmerFall_official_multicolor_logo.png';
 
 // ==========================================
 // CANONICAL 4 FACTIONS & 8 ARCHETYPES DATA
@@ -58,123 +63,19 @@ const FACTIONS_DATA = {
         role: 'Radiant Frontliner • Guard & Zenith',
         armor: 'Heavy Sunforged Plate',
         weapon: 'Solari Spellblade & Radiant Shield',
-        desc: 'Frontline bastion channeling blinding solar flares, generating radiant threat with shield slams, and entering Zenith State at 100 Solar Charge.',
-        abilities: ['Flare Strike', 'Solar Flare', 'Judgement of Sol', 'Consecrated Ground'],
-        stats: { power: 1, bastion: 2, resonance: 0, tempo: 0 },
-        starterAbility: 'Flare Strike (Instant Melee Cleave)',
+        primary: 'Radiant Slash',
+        rites: ['Radiant Slash', 'Solar Flare', 'Sun Shield', 'Dawn Wrath'],
+        desc: 'Unshakable bulwark holding the frontlines. Channels pure solar fury through consecrated blade and aegis.',
       },
       {
         id: 'aurora_marshal',
         name: 'Aurora Marshal',
-        role: 'Celestial Commander • Nexus Healer',
-        armor: 'Sunforged Plate / Mail',
-        weapon: 'Solari Spellblade & Mirror Shield',
-        desc: 'Herald of Dawn commanding Decree of the Sun and Daybreak to mend wounded allies and fortify Outpost Nexuses.',
-        abilities: ['Flare Strike', 'Solar Flare', 'Decree of the Sun', 'Daybreak'],
-        stats: { power: 1, bastion: 1, resonance: 1, tempo: 0 },
-        starterAbility: 'Flare Strike (Instant Melee Cleave)',
-      },
-    ],
-    cards: [
-      {
-        name: 'Solari Vanguard',
-        url: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/solari_vanguard-YFbhwOPGHYNEmDfQQm2CZfBk9fZJBI.webp',
-        stat: '+15% Radiant Slash Damage',
-      },
-      {
-        name: 'Dawnblade Templar',
-        url: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/dawnblade_templar-JSNrQIidGZhWg88RUeUCqOWBRcaAUy.webp',
-        stat: '+10% Critical Strike Chance',
-      },
-    ],
-  },
-  Aether: {
-    name: 'The Astral Conclave',
-    motto: 'Time and space bend to the arcane truth.',
-    color: '#00BFFF',
-    border: 'border-[#00BFFF]',
-    badgeBg: 'bg-[#00BFFF]/15',
-    resource: 'Astral Resonance (0-4 Stacks) & Mana',
-    desc: 'Spacetime arcanists tapping the Mirrorgate leylines. Generating Astral Resonance accelerates cast speed and summons gravity singularities to freeze opponents.',
-    classes: [
-      {
-        id: 'chronomancer_sage',
-        name: 'Chronomancer Sage',
-        role: 'Time-Bender • Flash Tempo & Echo',
-        armor: 'Starweave Cloth',
-        weapon: 'Chronocore Staff & Mirror Shield',
-        desc: 'Mirrorgate scholar bending spacetime with Chrono Shift, Gravity Well, and Time Loop Paradox to out-tempo foes.',
-        abilities: ['Reality Fracture', 'Astral Convergence', 'Arcane Bolt', 'Gravity Well'],
-        stats: { power: 1, bastion: 0, resonance: 1, tempo: 1 },
-        starterAbility: 'Reality Fracture (Instant Arcane Bolt)',
-      },
-      {
-        id: 'nexus_weaver',
-        name: 'Nexus Weaver',
-        role: 'Arcane Battlemage • Starfall & Freeze',
-        armor: 'Starweave Robes & Mail',
-        weapon: 'Chronocore Staff & Mirror Shield',
-        desc: 'Weaver of cosmic leylines freezing foes in place with Frost Nova and calling down celestial Astral Convergence.',
-        abilities: ['Reality Fracture', 'Arcane Bolt', 'Astral Convergence', 'Frost Nova'],
-        stats: { power: 1, bastion: 0, resonance: 2, tempo: 0 },
-        starterAbility: 'Reality Fracture (Instant Arcane Bolt)',
-      },
-    ],
-    cards: [
-      {
-        name: 'Mana Crystal',
-        url: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/mana_crystal_85d4da2e-150onQbusVx2hyQEu7HfosXCqX0Ktc.webp',
-        stat: '+25 Max Glimmer & Rapid Regen',
-      },
-      {
-        name: 'Nexus Weaver',
-        url: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/nexus_weaver-xp4JawbGUuORJsT04pcs27CqlZ7KhX.webp',
-        stat: '+20% Spell Haste Rating',
-      },
-    ],
-  },
-  Terra: {
-    name: 'The Rootdeep Collective',
-    motto: 'Stand unyielding as ancient stone.',
-    color: '#22E07B',
-    border: 'border-[#22E07B]',
-    badgeBg: 'bg-[#22E07B]/15',
-    resource: 'Primal Fury (0-100) & Living Stoneplate',
-    desc: 'Uncompromising guardians of the Glimmer Orchard. Hardening their living barkskin allows reflecting hostile strikes and unleashing seismic upheavals.',
-    classes: [
-      {
-        id: 'forest_warden',
-        name: 'Forest Warden',
-        role: 'Primal Bruiser • Overwhelm & Roots',
-        armor: 'Living Ironwood Armor',
-        weapon: 'Ironwood Maul & Bramble Buckler',
-        desc: 'Guardian of Glimmer Orchard snaring enemies in Briar Snare and charging with Wildshape Surge to shatter enemy ranks.',
-        abilities: ['Tectonic Slam', 'Earthshatter', 'Ancient Boulder', 'Briar Snare'],
-        stats: { power: 1, bastion: 1, resonance: 0, tempo: 1 },
-        starterAbility: 'Tectonic Slam (Earth Shaker Cleave)',
-      },
-      {
-        id: 'stonekin_elder',
-        name: 'Stonekin Elder',
-        role: 'Colossal Tank • Thornbark Reflect',
-        armor: 'Deep-Root Living Stoneplate',
-        weapon: 'Ironwood Maul & Bramble Buckler',
-        desc: 'Ancient Rootdeep juggernaut encased in Barkskin Infusion, reflecting melee damage and creating crater stuns.',
-        abilities: ['Tectonic Slam', 'Ancient Boulder', 'Barkskin Infusion', 'Earthshatter'],
-        stats: { power: 1, bastion: 2, resonance: 0, tempo: 0 },
-        starterAbility: 'Tectonic Slam (Earth Shaker Cleave)',
-      },
-    ],
-    cards: [
-      {
-        name: 'Granite Behemoth',
-        url: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/granite_behemoth-YUFhjjGdiBlGqBINNmSW7tRa37JsSB.webp',
-        stat: '+350 Max Armor & Threat',
-      },
-      {
-        name: 'Forest Warden',
-        url: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/forest_warden-7v5Tjn83CPLhmB9Rll3v2QbE2gnSyP.webp',
-        stat: '+12% Health Regeneration',
+        role: 'Support Commander • Beacon of Sol',
+        armor: 'Reinforced Mail & Cape',
+        weapon: 'Consecrated Halberd & Dawn Standard',
+        primary: 'Daybreak Strike',
+        rites: ['Daybreak Strike', 'Healing Radiance', 'Aura of Zeal', 'Judgement Beam'],
+        desc: 'Inspires allies with golden banners, mend leylines, and summons heavenly solar spears against void abominations.',
       },
     ],
   },
@@ -184,183 +85,138 @@ const FACTIONS_DATA = {
     color: '#9B30FF',
     border: 'border-[#9B30FF]',
     badgeBg: 'bg-[#9B30FF]/15',
-    resource: 'Shadow Energy & Dusk Combo Points',
-    desc: 'Subterranean reapers operating from the Umbri Undercity. Striking from stealth generates Dusk Points to detonate targets with critical Unmake finishers.',
+    resource: 'Void Resonance (0-100) & Dusk Shroud',
+    desc: 'Subterranean reapers operating from the Umbri Undercity. Void Resonance fuels terrifying shadow-weaving, stealth strikes, and life-stealing graveglass sorcery.',
     classes: [
       {
         id: 'umbral_assassin',
         name: 'Umbral Assassin',
-        role: 'Stealth Executioner • Void Harvest',
-        armor: 'Duskveil Shroud',
-        weapon: 'Scythe of Soulreaper & Graveglass Lantern',
-        desc: 'Duskveil stalker vanishing in shadow, teleporting with Shadow Step, and executing enemies with high-crit Unmake.',
-        abilities: ['Whisper of the Void', 'Unmake', 'Soul Tithe', 'Shadow Step'],
-        stats: { power: 2, bastion: 0, resonance: 0, tempo: 1 },
-        starterAbility: 'Whisper of the Void (Shadow Strike)',
+        role: 'Burst Flanker • Stealth & Execution',
+        armor: 'Graveglass Shadow Leather',
+        weapon: 'Dual Nether Daggers',
+        primary: 'Shadow Cleave',
+        rites: ['Shadow Cleave', 'Void Blink', 'Smoke Shroud', 'Death Mark'],
+        desc: 'Vanishes into thin air before emerging behind vulnerable targets to deliver lethal critical strikes.',
       },
       {
         id: 'graveglass_oracle',
         name: 'Graveglass Oracle',
-        role: 'Blood-Hex Reaper • Life Drain',
-        armor: 'Duskveil Shroud / Robes',
-        weapon: 'Scythe of Soulreaper & Graveglass Lantern',
-        desc: 'Sepulcher mystic draining enemy life-force via Siphon Soul, Soul Tithe, and contagious Nightfall Plague.',
-        abilities: ['Whisper of the Void', 'Siphon Soul', 'Soul Tithe', 'Nightfall Plague'],
-        stats: { power: 1, bastion: 0, resonance: 2, tempo: 0 },
-        starterAbility: 'Whisper of the Void (Shadow Strike)',
+        role: 'Void Sorcerer • Curse & Siphon',
+        armor: 'Obsidian Weave Robes',
+        weapon: 'Graveglass Lantern & Scythe',
+        primary: 'Nether Bolt',
+        rites: ['Nether Bolt', 'Soul Drain', 'Grave Chill', 'Abyssal Nova'],
+        desc: 'Masters of the forbidden dark leylines. Reaps dying essence to sustain dark shields and curse enemy formations.',
       },
     ],
-    cards: [
+  },
+  Terra: {
+    name: 'The Rootdeep Collective',
+    motto: 'Stand unyielding as ancient stone.',
+    color: '#22E07B',
+    border: 'border-[#22E07B]',
+    badgeBg: 'bg-[#22E07B]/15',
+    resource: 'Root Armor (0-100) & Bramble Fortitude',
+    desc: 'Shamans and guardians communing with the giant canopy of Glimmer Orchard. Root Armor absorbs massive punishment and retaliates with thorn barriers.',
+    classes: [
       {
-        name: 'Void Stalker',
-        url: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/void_stalker-mdTofDRCVGbCIGSduoJbUcOKWcclJN.webp',
-        stat: '+25% Stealth Opener Damage',
+        id: 'forest_warden',
+        name: 'Forest Warden',
+        role: 'Skirmisher • Beast & Bramble',
+        armor: 'Hardened Bark & Hide',
+        weapon: 'Briar Bow & Woodaxe',
+        primary: 'Thorn Volley',
+        rites: ['Thorn Volley', 'Tangle Roots', 'Barkskin Blessing', 'Wild Rampage'],
+        desc: 'Prowls ancient groves with unmatched agility, ensnaring foes in thorny brambles and coordinating pack strikes.',
       },
       {
-        name: 'Duskblade Fiend',
-        url: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/duskblade_fiend-v1EnEuvSFu137bkLNZoZbI1NIFrgfF.webp',
-        stat: '+15% Shadow Damage Bleeds',
+        id: 'stonekin_elder',
+        name: 'Stonekin Elder',
+        role: 'Colossus Tank • Seismic Control',
+        armor: 'Living Bedrock Plating',
+        weapon: 'Granite Maul & Earth Pillar',
+        primary: 'Bedrock Slam',
+        rites: ['Bedrock Slam', 'Earth Spike', 'Tectonic Fortress', 'Avalanche'],
+        desc: 'An immovable mountain walking among mortals. Smashes the earth to stun groups and deflects heavy artillery.',
+      },
+    ],
+  },
+  Aether: {
+    name: 'The Astral Conclave',
+    motto: 'Time and space bend to the arcane truth.',
+    color: '#00BFFF',
+    border: 'border-[#00BFFF]',
+    badgeBg: 'bg-[#00BFFF]/15',
+    resource: 'Chronoflux (0-100) & Temporal Surge',
+    desc: 'Scholars of the Mirrorgate Spire who manipulate the celestial lattice. Chronoflux accelerates cooldowns, bends projectile vectors, and manipulates time flow.',
+    classes: [
+      {
+        id: 'chronomancer_sage',
+        name: 'Chronomancer Sage',
+        role: 'Time Controller • Arcane Velocity',
+        armor: 'Astral Silk Vestments',
+        weapon: 'Mirrorgate Focus Staff',
+        primary: 'Arcane Arc',
+        rites: ['Arcane Arc', 'Time Distortion', 'Rewind Slip', 'Chronos Rift'],
+        desc: 'Alters the flow of combat by accelerating allies, freezing foes in temporal pockets, and resetting crucial cooldowns.',
+      },
+      {
+        id: 'nexus_weaver',
+        name: 'Nexus Weaver',
+        role: 'Portal Specialist • Reality Rift',
+        armor: 'Loomed Aether Shroud',
+        weapon: 'Warp Dagger & Catalyst Orb',
+        primary: 'Flux Burst',
+        rites: ['Flux Burst', 'Leyline Tether', 'Dimensional Portal', 'Starfall Burst'],
+        desc: 'Tears open spatial wormholes across battlefield lines, rearranging squad positioning with reality rifts.',
       },
     ],
   },
 };
 
 // ==========================================
-// 7 AUTHENTIC SKILLS & 99-LEVEL PROFESSIONS
+// PIXELATED ARMORY ITEMS SHOWCASE
 // ==========================================
-const PROFESSIONS_LIST = [
-  {
-    id: 'combat_mastery',
-    name: 'Combat Mastery',
-    category: 'Combat',
-    icon: '⚔️',
-    color: '#ef4444',
-    summary: 'Martial Prowess, Weapon Lethality & World Boss Slaying',
-    desc: 'Honed by vanquishing monsters, dungeon sentinels, and world bosses across the continental realms.',
-    cape: 'Skillcape of Combat Mastery (+10 All Stats • Slain Mob XP Boost)',
-    activity: 'Slay monsters, Elite Champions, and Sanctuary Bounty targets.',
-  },
-  {
-    id: 'rites',
-    name: 'Rites',
-    category: 'Invocation',
-    icon: '☀️',
-    color: '#f59e0b',
-    summary: 'Channeled Cast-Time Sorcery & Invocations',
-    desc: 'Unleashing channeled TCG Rites. Higher levels grant +0.25% Cast Speed per level and expand Max Glimmer.',
-    cape: 'Skillcape of Rite Mastery (+24.5% Rite Cast Speed • +19 Max Glimmer)',
-    activity: 'Channel any cast-time Rite ability in combat or against trial dummies.',
-  },
-  {
-    id: 'flashes',
-    name: 'Flashes',
-    category: 'Reflex',
-    icon: '⚡',
-    color: '#06b6d4',
-    summary: 'Instant Strikes, Split-Second Counters & Mobility',
-    desc: 'Executing instant-cast TCG Flashes. Higher levels grant up to +14.7% Cooldown Recovery & +11.8% Critical Chance.',
-    cape: 'Skillcape of Flash Mastery (+14.7% CDR • +11.8% Crit Chance)',
-    activity: 'Trigger instant-cast Flash abilities (cleaves, shields, blinks, frost novas).',
-  },
-  {
-    id: 'resonance_extraction',
-    name: 'Resonance Extraction',
-    category: 'Gathering',
-    icon: '💎',
-    color: '#38bdf8',
-    summary: 'Leyline Channeling, Cosmic Mining & Botanical Foraging',
-    desc: 'Quarrying mineral seams and Grand Fonts from Sun-Copper to Celestial Starmetal and Runite.',
-    cape: 'Skillcape of Resonance Extraction (2x Harvesting Yield • Fast Font Re-charge)',
-    activity: 'Press [E] or click Glimmer Nodes, Grand Fonts, and Mineral Veins.',
-  },
-  {
-    id: 'relic_forging',
-    name: 'Relic-Forging',
-    category: 'Artisan',
-    icon: '🔨',
-    color: '#f97316',
-    summary: 'Astral Smelting, Weaponry Smithing & Heavy Plate',
-    desc: 'Smelting raw ores with cosmic minerals and forging enchanted blades, bulwarks, and platebodies at the Cosmic Star-Anvil.',
-    cape: 'Skillcape of Relic-Forging (Chance to Forge Masterwork Sockets)',
-    activity: 'Use the Cosmic Star-Anvil in Sanctuary West Workshop or Citadel.',
-  },
-  {
-    id: 'rite_binding',
-    name: 'Rite-Binding',
-    category: 'Artisan',
-    icon: '📜',
-    color: '#a855f7',
-    summary: 'Aetherial Crucible Inscription & Spell Enchants',
-    desc: 'Transmuting essences at the Aetherial Crucible to bind cosmic spell scrolls, runic socket gems, and glyph enchants.',
-    cape: 'Skillcape of Rite-Binding (+15% Spell Potency • Runic Catalyst Infusion)',
-    activity: 'Transmute leylines at the Aetherial Crucible in Sanctuary.',
-  },
-  {
-    id: 'glimmerweaving',
-    name: 'Glimmerweaving',
-    category: 'Artisan',
-    icon: '🧵',
-    color: '#ec4899',
-    summary: 'Celestial Loom Textiles, Robes & Shrouds',
-    desc: 'Spinning celestial threads at the Celestial Loom into enchanted cloth, backpacks, and arcane vestments.',
-    cape: 'Skillcape of Glimmerweaving (Expanded Inventory Satchel • +15% Mana)',
-    activity: 'Spin starry fibres at the Celestial Loom in Sanctuary.',
-  },
+const PIXEL_ITEMS = [
+  { id: 'dawnblade', name: 'Dawnblade Greatsword', slot: 'Weapon', rarity: 'Legendary', icon: '🗡️', stat: '+24 Radiant Dmg • +8% Holy Crit', color: '#F2A900', desc: 'Forged from Starfall meteorite and quenched in the solar well.' },
+  { id: 'sun_shield', name: 'Sunforged Radiance Aegis', slot: 'Shield', rarity: 'Epic', icon: '🛡️', stat: '+45 Armor • +60 Block Value', color: '#F2A900', desc: 'Imbued with the Zenith core. Emits blinding retaliation flashes.' },
+  { id: 'astral_crown', name: 'Chronomancer Crown', slot: 'Head', rarity: 'Legendary', icon: '👑', stat: '+18 Arcane • +20 Max Glimmer', color: '#00BFFF', desc: 'Allows the wearer to perceive 3 seconds into adjacent timelines.' },
+  { id: 'shadow_cowl', name: 'Duskveil Shadow Cowl', slot: 'Head', rarity: 'Epic', icon: '🦹', stat: '+14 Agility • +12% Stealth Opener', color: '#9B30FF', desc: 'Woven with Graveglass filament that drinks ambient illumination.' },
+  { id: 'leyline_boots', name: 'Boots of Leyline Striding', slot: 'Boots', rarity: 'Rare', icon: '🥾', stat: '+15% Move Speed • Zero Leyline Friction', color: '#22E07B', desc: 'Glides over rough cavern terrain and hazardous root tangles.' },
+  { id: 'ring_solar', name: 'Ring of the Solar Core', slot: 'Ring', rarity: 'Epic', icon: '💍', stat: '+15 Solar Charge Max • +5 HP/s Regen', color: '#F2A900', desc: 'Warm to the touch even in the frost of the Abyssal Rift.' },
+  { id: 'void_rune', name: 'Ancient Void Inscription', slot: 'Rune', rarity: 'Cosmic', icon: '📜', stat: 'Activates 3-Socket Synergy (+22% Dmg)', color: '#9B30FF', desc: 'Decoded from the monolith ruins deep inside Starfall Crater.' },
+  { id: 'chronocore', name: 'Chronocore Prism', slot: 'Relic', rarity: 'Cosmic', icon: '💎', stat: 'World Nexus Anchor (25 HP Rule)', color: '#00BFFF', desc: 'Authentic TCG relic from glimmerfalltcg.com. Protects your Outpost Nexus.' },
 ];
 
 // ==========================================
-// CONTINENTAL REALMS & DUNGEONS ATLAS
+// LEYLINE CURRENCIES
 // ==========================================
-const REALMS_ATLAS = [
-  {
-    name: 'Awakening Sanctuary Hub',
-    type: 'Safe Isle • Artisan Workshops & Trial Dummies',
-    desc: 'The central gathering plaza. Features separated artisan workshop bays (Textiles Loom, Cosmic Star-Anvil, Aetherial Crucible), trial dummies, Grand Fonts, and portals.',
-    color: '#F2A900',
-  },
-  {
-    name: 'Nexus Warzone',
-    type: 'Contested Battleground • 20Hz Open PvP',
-    desc: 'High-intensity territorial battleground featuring scheduled Shattered Nexus Shard siege events and 4 Outpost Nexuses.',
-    color: '#ef4444',
-  },
-  {
-    name: 'Solari Golden Citadel & Sunken Vault',
-    type: 'Faction Stronghold & Radiant Dungeon',
-    desc: 'Gilded bastions of light overlooking the Sunspire. Deep beneath lie the Sunken Vaults guarded by Ancient Solari Sentinels.',
-    color: '#F2A900',
-  },
-  {
-    name: 'Umbri Undercity & Catacombs',
-    type: 'Subterranean Labyrinth & Void Rift',
-    desc: 'Shadowy cavern metropolis lit by ethereal lantern glow. Harbors the Sepulcher Catacombs and voidstalker elite lairs.',
-    color: '#9B30FF',
-  },
-  {
-    name: 'Terra Orchard & Rootdeep Grove',
-    type: 'Verdant Forest & Living Stoneplate Spire',
-    desc: 'Towering ancient ironwood trees pulsating with primal fury. Home to colossal stonekin juggernauts and herbal leylines.',
-    color: '#22E07B',
-  },
-  {
-    name: 'Aether Spire & Arcane Concourse',
-    type: 'Astral Floating Monolith & Time Rift',
-    desc: 'Floating crystalline spires where spacetime distorts. Channeling leylines here unlocks temporal haste and reality singularities.',
-    color: '#00BFFF',
-  },
-  {
-    name: 'Starfall Crater & Abyssal Rift',
-    type: 'Seamless Bidirectional Edge Traversal',
-    desc: 'Cosmic impact crater connected directly via seamless coordinate borders to the Abyssal Rift dungeon instance.',
-    color: '#e2e8f0',
-  },
+const CURRENCIES = [
+  { id: 'solar_gold', name: 'Solar Gold', val: '1,420,500', icon: '🪙', color: '#F2A900', desc: 'Universal trade currency of Sanctuary Haven pavilion.' },
+  { id: 'glimmer_shards', name: 'Glimmer Shards', val: '350', icon: '🔮', color: '#00BFFF', desc: 'Crystallized leyline resonance extracted from Grand Fonts.' },
+  { id: 'chrono_cores', name: 'Chrono Cores', val: '28', icon: '🌀', color: '#38bdf8', desc: 'Pulsing temporal fragments dropped from Mirrorgate dungeon bosses.' },
+  { id: 'void_remnants', name: 'Void Remnants', val: '115', icon: '🖤', color: '#9B30FF', desc: 'Reaped shadowy essence from the subterranean Undercity depths.' },
+  { id: 'root_stones', name: 'Root Stones', val: '42', icon: '🌿', color: '#22E07B', desc: 'Ancient stone heart seeds blessed by the canopy elders.' },
+];
+
+// ==========================================
+// 7 DISCIPLINES & SKILLS (MAX LVL 99)
+// ==========================================
+const PROFESSIONS = [
+  { id: 'mining', name: 'Resonance Extraction', lvl: 48, icon: '⛏️', color: '#00BFFF', desc: 'Harvesting mineral seams and Grand Glimmer Fonts.' },
+  { id: 'smithing', name: 'Star-Forging', lvl: 35, icon: '🔨', color: '#F2A900', desc: 'Hammering celestial ingots into platebody armor and blades.' },
+  { id: 'weaving', name: 'Leyline Weaving', lvl: 42, icon: '🧵', color: '#22E07B', desc: 'Looming enchanted silkrobes and stealth cowls at Celestial Loom.' },
+  { id: 'inscription', name: 'Void Inscription', lvl: 29, icon: '📜', color: '#9B30FF', desc: 'Carving Ancient Runewords into 3-socket equipment.' },
+  { id: 'alchemy', name: 'Celestial Alchemy', lvl: 51, icon: '🧪', color: '#ec4899', desc: 'Distilling radiant tinctures, health vials, and elixirs.' },
+  { id: 'rites', name: 'Rites Mastery', lvl: 64, icon: '⚔️', color: '#facc15', desc: 'Combat spellcasting proficiency across all canonical disciplines.' },
+  { id: 'flashes', name: 'Flashes Mastery', lvl: 58, icon: '⚡', color: '#38bdf8', desc: 'Instant reaction strikes, evasive maneuvers, and combo bursts.' },
 ];
 
 const ORDER_PRESETS = [
-  { tag: 'SUN', name: 'Order of Dawn', color: '#facc15' },
-  { tag: 'STAR', name: 'Astral Ascendant', color: '#38bdf8' },
-  { tag: 'WILD', name: 'Verdant Guard', color: '#4ade80' },
-  { tag: 'VOID', name: 'Eclipse Syndicate', color: '#c084fc' },
+  { tag: 'SUN', name: 'Order of Dawn', color: '#F2A900' },
+  { tag: 'ASTR', name: 'Mirror Ascendants', color: '#00BFFF' },
+  { tag: 'VOID', name: 'Dusk Reapers', color: '#9B30FF' },
+  { tag: 'TERR', name: 'Verdant Guard', color: '#22E07B' },
 ];
 
 const RANDOM_NAMES = [
@@ -370,19 +226,37 @@ const RANDOM_NAMES = [
 ];
 
 export default function LandingPage() {
-  // Navigation & Deep Dive State
-  const [activeTab, setActiveTab] = useState('loadout');
+  // Navigation & State
   const [selectedFaction, setSelectedFaction] = useState('Solari');
-  const [soundEnabled, setSoundEnabled] = useState(true);
-
-  // Character Loadout State
   const [characterName, setCharacterName] = useState('Aurelia');
   const [playMode, setPlayMode] = useState('singleplayer'); // 'singleplayer' | 'multiplayer'
   const [selectedClassId, setSelectedClassId] = useState('solari_vanguard');
   const [selectedOrderTag, setSelectedOrderTag] = useState('SUN');
-  const [isLaunching, setIsLaunching] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [startOnLoadout, setStartOnLoadout] = useState(false);
+  const [activeEncTab, setActiveEncTab] = useState('combat');
+  const [activeLoreTab, setActiveLoreTab] = useState('shattering');
+  const [hoveredItem, setHoveredItem] = useState(null);
 
-  // Sound feedback synthesizer (Web Audio API)
+  // Load initial preferences
+  useEffect(() => {
+    try {
+      const savedStart = localStorage.getItem('glimmerfall_start_on_loadout') === 'true';
+      setStartOnLoadout(savedStart);
+      const savedMode = localStorage.getItem('glimmerfall_play_mode');
+      if (savedMode === 'multiplayer' || savedMode === 'singleplayer') {
+        setPlayMode(savedMode);
+      }
+    } catch (_) {}
+  }, []);
+
+  const handleToggleStartOnSite = (checked) => {
+    setStartOnLoadout(checked);
+    try {
+      localStorage.setItem('glimmerfall_start_on_loadout', checked ? 'true' : 'false');
+    } catch (_) {}
+  };
+
   const playSfx = (type = 'click') => {
     if (!soundEnabled || typeof window === 'undefined') return;
     try {
@@ -412,7 +286,6 @@ export default function LandingPage() {
     } catch (_) {}
   };
 
-  // Sync class selection when faction changes
   const handleFactionSelect = (facKey) => {
     setSelectedFaction(facKey);
     const firstCls = FACTIONS_DATA[facKey].classes[0];
@@ -420,11 +293,7 @@ export default function LandingPage() {
     playSfx('click');
   };
 
-  const activeFactionObj = FACTIONS_DATA[selectedFaction];
-  const activeClassObj =
-    activeFactionObj.classes.find((c) => c.id === selectedClassId) || activeFactionObj.classes[0];
-
-  const handleRandomizeName = () => {
+  const randomizeName = () => {
     const pick = RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)];
     const num = Math.floor(Math.random() * 89 + 10);
     setCharacterName(`${pick}_${num}`);
@@ -433,13 +302,12 @@ export default function LandingPage() {
 
   const handleLaunchGame = () => {
     playSfx('launch');
-    setIsLaunching(true);
 
     try {
       const finalName = characterName.trim() || 'Vanguard';
       const order = ORDER_PRESETS.find((o) => o.tag === selectedOrderTag) || ORDER_PRESETS[0];
+      const activeClass = FACTIONS_DATA[selectedFaction].classes.find((c) => c.id === selectedClassId) || FACTIONS_DATA[selectedFaction].classes[0];
 
-      // Seed local storage with configured character so game loads it immediately
       if (typeof window !== 'undefined') {
         localStorage.setItem('glimmerfall_play_mode', playMode);
 
@@ -448,7 +316,7 @@ export default function LandingPage() {
           id: newCharId,
           name: finalName,
           faction: selectedFaction,
-          classId: activeClassObj.id,
+          classId: activeClass.id,
           orderTag: order.tag,
           orderName: order.name,
           orderColor: order.color,
@@ -458,14 +326,12 @@ export default function LandingPage() {
           lastPosition: { roomType: 'sanctuary_hub', x: 0, y: 96 },
         };
 
-        // Read single player roster
         const rawRoster = localStorage.getItem('glimmerfall_sp_roster_v2');
         let roster = [];
         try {
           roster = rawRoster ? JSON.parse(rawRoster) : [];
         } catch (_) {}
 
-        // Add or update active character
         const existingIdx = roster.findIndex((c) => c.name.toLowerCase() === finalName.toLowerCase());
         if (existingIdx >= 0) {
           roster[existingIdx] = { ...roster[existingIdx], ...newChar };
@@ -476,10 +342,9 @@ export default function LandingPage() {
         }
         localStorage.setItem('glimmerfall_sp_roster_v2', JSON.stringify(roster));
 
-        // Redirect into main game client with params
         setTimeout(() => {
           window.location.href = `/?mode=${playMode}&autostart=1`;
-        }, 350);
+        }, 300);
       }
     } catch (e) {
       console.error(e);
@@ -487,909 +352,899 @@ export default function LandingPage() {
     }
   };
 
+  const handleOpenLoadout = () => {
+    playSfx('click');
+    if (typeof window !== 'undefined') {
+      window.location.href = '/?loadout=1';
+    }
+  };
+
+  const currentFaction = FACTIONS_DATA[selectedFaction];
+  const activeClassObj = currentFaction.classes.find((c) => c.id === selectedClassId) || currentFaction.classes[0];
+  const currentOrder = ORDER_PRESETS.find((o) => o.tag === selectedOrderTag) || ORDER_PRESETS[0];
+
   return (
-    <div className="min-h-screen bg-[#0B0C10] text-[#F8FAFC] selection:bg-[#F2A900] selection:text-black">
-      {/* ========================================== */}
-      {/* NAVIGATION BAR WITH LIVE SERVER STATUS     */}
-      {/* ========================================== */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/10 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+    <div className="min-h-screen bg-[#070B18] text-[#F8FAFC] flex flex-col lg:flex-row antialiased overflow-x-hidden selection:bg-[#F2A900] selection:text-black">
+      {/* ======================================================== */}
+      {/* 1. LEFT STICKY PIXELATED SIDEBAR NAVIGATION */}
+      {/* ======================================================== */}
+      <aside className="w-full lg:w-80 lg:min-w-[320px] lg:h-screen lg:sticky lg:top-0 bg-[#0A0F22]/95 border-r border-[#1E293B] flex flex-col z-40 backdrop-blur-xl overflow-y-auto scrollbar-thin scrollbar-thumb-[#1E293B]">
+        {/* Brand Header & Official Logo */}
+        <div className="p-5 border-b border-[#1E293B] bg-gradient-to-b from-[#0F172A] to-[#0A0F22]">
           <div className="flex items-center gap-3">
-            <span className="font-display font-black text-2xl tracking-wider text-white">
-              GLIMMER<span className="text-[#F2A900] drop-shadow-[0_0_15px_rgba(242,169,0,0.6)]">FALL</span>
-            </span>
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-head font-bold uppercase tracking-wider bg-[#22E07B]/15 text-[#22E07B] border border-[#22E07B]/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#22E07B] animate-ping" />
-              20Hz Authoritative MMO
-            </span>
-          </div>
-
-          {/* Nav Links */}
-          <div className="hidden lg:flex items-center gap-6 text-xs font-head font-semibold uppercase tracking-wider text-white/70">
-            <a href="#forge" className="hover:text-[#F2A900] transition-colors flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-[#F2A900]" /> Character Forge
-            </a>
-            <a href="#factions" className="hover:text-white transition-colors">
-              4 Factions &amp; 8 Classes
-            </a>
-            <a href="#skills" className="hover:text-white transition-colors">
-              7 Skills (Lv. 99)
-            </a>
-            <a href="#arena" className="hover:text-white transition-colors">
-              3v3 Arena
-            </a>
-            <a href="#realms" className="hover:text-white transition-colors">
-              World Atlas
-            </a>
-            <a href="#controls" className="hover:text-white transition-colors">
-              Controls
-            </a>
-            <a
-              href="https://glimmerfalltcg.com"
-              target="_blank"
-              rel="noreferrer"
-              className="text-[#00BFFF] hover:text-[#38bdf8] flex items-center gap-1"
-            >
-              TCG Oracle <ChevronRight className="w-3 h-3" />
-            </a>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                setSoundEnabled(!soundEnabled);
-                playSfx('click');
-              }}
-              title={soundEnabled ? 'Mute Interface Sound' : 'Enable Interface Sound'}
-              className="p-2.5 rounded-full glass hover:border-white/30 text-white/70 hover:text-white transition-all"
-            >
-              {soundEnabled ? <Volume2 className="w-4 h-4 text-[#F2A900]" /> : <VolumeX className="w-4 h-4" />}
-            </button>
-
-            <a
-              href="#forge"
-              onClick={() => playSfx('click')}
-              className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#F2A900] text-black font-head font-bold text-xs uppercase tracking-wider hover:bg-[#ffc21f] transition-all shadow-[0_0_20px_rgba(242,169,0,0.4)] hover:scale-105 active:scale-95"
-            >
-              <Play className="w-3.5 h-3.5 fill-black" /> Awaken Champion
-            </a>
-          </div>
-        </div>
-      </nav>
-
-      {/* ========================================== */}
-      {/* HERO SECTION                               */}
-      {/* ========================================== */}
-      <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
-        {/* Background Atmosphere */}
-        <div className="absolute inset-0 z-0">
-          <img src={HERO_BG} alt="" className="w-full h-full object-cover opacity-30 scale-105" />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0B0C10]/60 via-[#0B0C10]/85 to-[#0B0C10]" />
-        </div>
-
-        <div className="relative z-10 max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-xs font-head font-semibold tracking-widest uppercase text-[#F2A900] mb-6 border border-[#F2A900]/30 shadow-[0_0_20px_rgba(242,169,0,0.2)]"
-            >
-              <Sparkles className="w-4 h-4 text-[#F2A900]" /> 16-Bit Top-Down 2D Pixel MMORPG
-            </motion.div>
-
-            <motion.h1
-              initial={{ opacity: 0, y: 25 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.1 }}
-              className="font-display font-black leading-[1.05] text-5xl sm:text-6xl lg:text-7xl"
-            >
-              GLIMMER<span className="text-[#F2A900] drop-shadow-[0_0_25px_rgba(242,169,0,0.6)]">FALL</span>{' '}
-              <span className="block text-[#00BFFF] drop-shadow-[0_0_25px_rgba(0,191,255,0.5)] text-4xl sm:text-5xl lg:text-6xl mt-2 font-display">
-                ONLINE
-              </span>
-            </motion.h1>
-
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.25 }}
-              className="mt-6 text-white/70 max-w-xl text-lg leading-relaxed font-body"
-            >
-              Command top-down 8-directional action combat inspired by classic 16-bit RPGs. Harvest cosmic Glimmer leylines, socket authentic trading card relics, master 7 authentic professions to Level 99, and battle in real-time 3v3 Nexus Destruction arenas.
-            </motion.p>
-
-            {/* Quick Play CTA */}
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="mt-10 flex flex-wrap gap-4"
-            >
-              <a
-                href="#forge"
-                onClick={() => playSfx('click')}
-                className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-[#F2A900] text-black font-head font-extrabold text-base hover:bg-[#ffc21f] transition-all shadow-[0_0_35px_rgba(242,169,0,0.5)] hover:scale-105 active:scale-95"
-              >
-                <Play className="w-5 h-5 fill-black" /> Enter Character Loadout Forge
-                <ArrowRight className="w-4 h-4" />
-              </a>
-
-              <a
-                href="#factions"
-                onClick={() => playSfx('click')}
-                className="inline-flex items-center gap-2 px-7 py-4 rounded-full glass font-head font-bold text-white hover:border-white/30 transition-all hover:bg-white/5"
-              >
-                <Swords className="w-5 h-5 text-[#00BFFF]" /> Explore Classes &amp; Lore
-              </a>
-            </motion.div>
-
-            {/* Feature Bullets */}
-            <div className="mt-12 flex flex-wrap gap-5 text-xs text-white/60 font-head">
-              <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-[#00BFFF]" /> 0ms Offline &bull; 20Hz Online</span>
-              <span className="flex items-center gap-1.5"><Shield className="w-4 h-4 text-[#F2A900]" /> Exact Health &amp; Glimmer Persistence</span>
-              <span className="flex items-center gap-1.5"><Award className="w-4 h-4 text-[#22E07B]" /> 7 Skills to Level 99</span>
-              <span className="flex items-center gap-1.5"><Boxes className="w-4 h-4 text-[#9B30FF]" /> 16-Bit Outlined Sprites</span>
-            </div>
-          </div>
-
-          {/* Hero Visual Card Showcase */}
-          <div className="relative h-[460px] hidden lg:flex items-center justify-center">
-            <div className="absolute w-80 h-80 rounded-full bg-[#F2A900]/15 blur-3xl pointer-events-none" />
-            <div className="absolute w-72 h-72 rounded-full bg-[#00BFFF]/15 blur-3xl translate-x-20 pointer-events-none" />
-
-            {/* Solari Card (Left) */}
-            <motion.div
-              initial={{ opacity: 0, x: -40, rotate: -10 }}
-              animate={{ opacity: 1, x: -75, rotate: -6 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="absolute z-10 w-56 rounded-2xl glass p-3 border border-[#F2A900]/40 shadow-2xl hover:scale-105 transition-transform"
-            >
+            <div className="relative w-12 h-12 flex-shrink-0 p-1 rounded-xl bg-black/40 border border-[#F2A900]/40 shadow-[0_0_15px_rgba(242,169,0,0.3)]">
               <img
-                src="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/solari_vanguard-YFbhwOPGHYNEmDfQQm2CZfBk9fZJBI.webp"
-                alt="Solari Vanguard"
-                className="w-full rounded-xl object-cover"
+                src={LOGO_PATH}
+                alt="GlimmerFall Official Logo"
+                className="w-full h-full object-contain filter drop-shadow(0 0 6px #F2A900)"
               />
-              <div className="mt-2.5 text-center">
-                <span className="text-[11px] font-head font-bold text-[#F2A900] uppercase tracking-wider">Solari Vanguard</span>
-                <p className="text-[10px] text-white/60">Heavy Plate &bull; Radiant Guard</p>
-              </div>
-            </motion.div>
-
-            {/* Central Nexus Monolith (Center) */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.35 }}
-              className="absolute z-20 w-64 rounded-2xl glass p-3.5 border-2 border-[#00BFFF] shadow-[0_0_35px_rgba(0,191,255,0.4)] hover:scale-105 transition-transform"
-            >
-              <img
-                src="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/chronocore_prism_6eca2de9-tghtsdxz1Tl6oMafBny57jAs96P1Ki.webp"
-                alt="Central Nexus"
-                className="w-full rounded-xl object-cover"
-              />
-              <div className="mt-3 text-center">
-                <span className="text-xs font-head font-black text-[#00BFFF] uppercase tracking-wider">World Objective</span>
-                <p className="text-[11px] text-white/90 font-bold">Central Nexus Monolith &bull; 25 HP</p>
-              </div>
-            </motion.div>
-
-            {/* Umbral Void Stalker (Right) */}
-            <motion.div
-              initial={{ opacity: 0, x: 40, rotate: 10 }}
-              animate={{ opacity: 1, x: 75, rotate: 6 }}
-              transition={{ duration: 0.8, delay: 0.5 }}
-              className="absolute z-10 w-56 rounded-2xl glass p-3 border border-[#9B30FF]/40 shadow-2xl hover:scale-105 transition-transform"
-            >
-              <img
-                src="https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/void_stalker-mdTofDRCVGbCIGSduoJbUcOKWcclJN.webp"
-                alt="Void Stalker"
-                className="w-full rounded-xl object-cover"
-              />
-              <div className="mt-2.5 text-center">
-                <span className="text-[11px] font-head font-bold text-[#9B30FF] uppercase tracking-wider">Umbral Assassin</span>
-                <p className="text-[10px] text-white/60">Shadow Shroud &bull; Stealth Crit</p>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ========================================================= */}
-      {/* MASSIVE MODERN CHARACTER LOADOUT FORGE COMPONENT          */}
-      {/* Allows customizing name, mode, faction, class, order, and  */}
-      {/* immediately launching Single Player or Multiplayer!       */}
-      {/* ========================================================= */}
-      <section id="forge" className="max-w-7xl mx-auto px-6 py-20 border-t border-white/10 scroll-mt-20">
-        <div className="text-center max-w-3xl mx-auto mb-14">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#F2A900]/15 text-[#F2A900] border border-[#F2A900]/40 text-xs font-head font-bold uppercase tracking-widest mb-3">
-            <Sparkles className="w-3.5 h-3.5" /> Interactive Character Loadout
-          </div>
-          <h2 className="text-3xl sm:text-5xl font-display font-black text-white leading-tight">
-            Forge Your Champion &bull; Choose Your Realm
-          </h2>
-          <p className="mt-4 text-white/65 font-body text-base">
-            Select your mode, craft your moniker, choose your faction and class, then step seamlessly into the 2D world.
-          </p>
-        </div>
-
-        <div className="massive-card rounded-3xl p-6 sm:p-10 border-2 border-white/15 relative overflow-hidden">
-          {/* Subtle Faction Ambient Glow */}
-          <div
-            style={{ backgroundColor: `${activeFactionObj.color}15` }}
-            className="absolute top-0 right-0 w-96 h-96 rounded-full blur-3xl pointer-events-none transition-all duration-700"
-          />
-
-          <div className="grid lg:grid-cols-12 gap-10 items-start">
-            {/* LEFT / MAIN COLUMN: MASSIVE MODERN INPUTS */}
-            <div className="lg:col-span-8 space-y-8">
-              {/* STEP 1: MASSIVE MODERN NAME INPUT */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-head font-bold uppercase tracking-wider text-white/70 flex items-center gap-1.5">
-                    <UserCheck className="w-4 h-4 text-[#F2A900]" />
-                    Champion Moniker &bull; Cognomen
-                  </label>
-                  <span className="text-[11px] font-head text-white/40">
-                    {characterName.length}/18 characters
-                  </span>
-                </div>
-
-                <div className="relative flex items-center">
-                  <input
-                    type="text"
-                    value={characterName}
-                    maxLength={18}
-                    onChange={(e) => setCharacterName(e.target.value)}
-                    placeholder="Enter your hero's moniker..."
-                    className="massive-input w-full pr-32"
-                  />
-                  <div className="absolute right-3 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleRandomizeName}
-                      className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-head font-bold text-white/80 hover:text-white transition-all flex items-center gap-1.5 border border-white/15"
-                      title="Randomize Moniker"
-                    >
-                      <Dices className="w-4 h-4 text-[#F2A900]" />
-                      <span className="hidden sm:inline">Randomize</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* STEP 2: DUAL-SEGMENTED PLAY MODE TOGGLE (SINGLE VS MULTI) */}
-              <div>
-                <label className="text-xs font-head font-bold uppercase tracking-wider text-white/70 flex items-center gap-1.5 mb-2.5">
-                  <Globe className="w-4 h-4 text-[#00BFFF]" />
-                  Select Realm Play Mode
-                </label>
-
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {/* Single Player Option */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPlayMode('singleplayer');
-                      playSfx('click');
-                    }}
-                    className={`relative p-5 rounded-2xl border text-left transition-all ${
-                      playMode === 'singleplayer'
-                        ? 'border-[#22E07B] bg-[#22E07B]/10 shadow-[0_0_25px_rgba(34,224,123,0.25)]'
-                        : 'border-white/10 bg-white/5 hover:border-white/20'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-head font-bold text-base text-white flex items-center gap-2">
-                        🕹️ Single Player Realm
-                      </span>
-                      {playMode === 'singleplayer' && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-head font-bold bg-[#22E07B] text-black">
-                          ACTIVE
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-white/60 font-body leading-relaxed">
-                      Instant local loop with <b>0ms latency</b>. Private offline world running completely client-side in browser storage.
-                    </p>
-                  </button>
-
-                  {/* Multiplayer Option */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPlayMode('multiplayer');
-                      playSfx('click');
-                    }}
-                    className={`relative p-5 rounded-2xl border text-left transition-all ${
-                      playMode === 'multiplayer'
-                        ? 'border-[#00BFFF] bg-[#00BFFF]/10 shadow-[0_0_25px_rgba(0,191,255,0.25)]'
-                        : 'border-white/10 bg-white/5 hover:border-white/20'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-head font-bold text-base text-white flex items-center gap-2">
-                        🌐 Multiplayer MMO
-                      </span>
-                      {playMode === 'multiplayer' && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-head font-bold bg-[#00BFFF] text-black">
-                          ACTIVE
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-white/60 font-body leading-relaxed">
-                      Authoritative <b>20Hz multi-room server</b> with real-time player synchronization, open PvP Warzone &amp; 3v3 Arena.
-                    </p>
-                  </button>
-                </div>
-              </div>
-
-              {/* STEP 3: 4 CANONICAL FACTIONS SELECTOR */}
-              <div>
-                <label className="text-xs font-head font-bold uppercase tracking-wider text-white/70 flex items-center gap-1.5 mb-2.5">
-                  <Sparkles className="w-4 h-4 text-[#F2A900]" />
-                  Choose Canonical Faction Allegiance
-                </label>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {Object.keys(FACTIONS_DATA).map((fKey) => {
-                    const f = FACTIONS_DATA[fKey];
-                    const isSelected = selectedFaction === fKey;
-                    return (
-                      <button
-                        key={fKey}
-                        type="button"
-                        onClick={() => handleFactionSelect(fKey)}
-                        style={{
-                          borderColor: isSelected ? f.color : 'rgba(255,255,255,0.1)',
-                          backgroundColor: isSelected ? `${f.color}18` : 'rgba(18,21,30,0.6)',
-                        }}
-                        className={`p-3.5 rounded-2xl border text-center transition-all hover:scale-105 ${
-                          isSelected ? 'shadow-lg' : 'hover:border-white/30'
-                        }`}
-                      >
-                        <span
-                          style={{ color: f.color }}
-                          className="font-display font-black text-sm block mb-1 uppercase tracking-wider"
-                        >
-                          {fKey}
-                        </span>
-                        <span className="text-[10px] font-head text-white/50 block">
-                          {f.name.replace('The ', '')}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* STEP 4: ARCHETYPE & CLASS CHOOSER */}
-              <div>
-                <label className="text-xs font-head font-bold uppercase tracking-wider text-white/70 flex items-center gap-1.5 mb-2.5">
-                  <Swords className="w-4 h-4 text-[#F2A900]" />
-                  Select Archetype ({selectedFaction})
-                </label>
-
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {activeFactionObj.classes.map((cls) => {
-                    const isSelected = selectedClassId === cls.id;
-                    return (
-                      <button
-                        key={cls.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedClassId(cls.id);
-                          playSfx('click');
-                        }}
-                        style={{
-                          borderColor: isSelected ? activeFactionObj.color : 'rgba(255,255,255,0.1)',
-                          backgroundColor: isSelected ? `${activeFactionObj.color}15` : 'rgba(18,21,30,0.6)',
-                        }}
-                        className={`p-4 rounded-2xl border text-left transition-all hover:scale-[1.02] ${
-                          isSelected ? 'shadow-lg' : 'hover:border-white/20'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="font-display font-bold text-base text-white">
-                            {cls.name}
-                          </span>
-                          <span className="text-[10.5px] font-head px-2 py-0.5 rounded bg-white/10 text-white/80">
-                            {cls.armor}
-                          </span>
-                        </div>
-                        <p className="text-xs font-head font-medium text-[#F2A900] mb-2">
-                          {cls.role}
-                        </p>
-                        <p className="text-xs text-white/60 font-body leading-relaxed mb-3">
-                          {cls.desc}
-                        </p>
-                        <div className="text-[11px] font-head text-white/70 bg-black/30 p-2 rounded-lg border border-white/5">
-                          <span className="text-white/40 block text-[9.5px] uppercase tracking-wider">Starter Ability</span>
-                          <b>{cls.starterAbility}</b>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* STEP 5: ORDER CREST TAG SELECTOR */}
-              <div>
-                <label className="text-xs font-head font-bold uppercase tracking-wider text-white/70 flex items-center gap-1.5 mb-2.5">
-                  <Award className="w-4 h-4 text-[#F2A900]" />
-                  Order Crest &bull; Heraldry Tag
-                </label>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {ORDER_PRESETS.map((order) => {
-                    const isSelected = selectedOrderTag === order.tag;
-                    return (
-                      <button
-                        key={order.tag}
-                        type="button"
-                        onClick={() => {
-                          setSelectedOrderTag(order.tag);
-                          playSfx('click');
-                        }}
-                        style={{
-                          borderColor: isSelected ? order.color : 'rgba(255,255,255,0.1)',
-                          backgroundColor: isSelected ? `${order.color}20` : 'rgba(18,21,30,0.6)',
-                          color: isSelected ? order.color : '#cbd5e1',
-                        }}
-                        className="p-3 rounded-xl border text-center font-head font-bold text-xs transition-all hover:scale-105"
-                      >
-                        <span className="block font-black text-sm">[{order.tag}]</span>
-                        <span className="text-[10px] opacity-75">{order.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
             </div>
-
-            {/* RIGHT COLUMN: LIVE PEDESTAL VISAGE & ACTION LAUNCHER */}
-            <div className="lg:col-span-4 glass rounded-3xl p-6 border border-white/15 sticky top-24">
-              <span className="text-[10.5px] font-head font-bold uppercase tracking-widest text-white/40 block mb-3 text-center">
-                Champion Pedestal Preview
-              </span>
-
-              {/* Visage Box */}
-              <div className="relative rounded-2xl bg-gradient-to-b from-black/40 to-black/80 border border-white/10 p-5 text-center overflow-hidden">
-                <div
-                  style={{ backgroundColor: `${activeFactionObj.color}20` }}
-                  className="absolute inset-0 blur-2xl pointer-events-none"
-                />
-
-                <div className="relative z-10">
-                  <div className="inline-block p-4 rounded-2xl glass border border-white/20 mb-3 shadow-xl">
-                    <span className="text-4xl">⚔️</span>
-                  </div>
-
-                  <h3 className="font-display font-black text-2xl text-white">
-                    {characterName.trim() || 'Vanguard'}
-                  </h3>
-
-                  <div className="mt-1 flex items-center justify-center gap-1.5 text-xs font-head font-bold">
-                    <span style={{ color: activeFactionObj.color }}>[{selectedOrderTag}]</span>
-                    <span className="text-white/60">&bull;</span>
-                    <span className="text-white/80">{activeClassObj.name}</span>
-                  </div>
-
-                  <span className="text-[11px] font-body text-white/50 block mt-1">
-                    {activeFactionObj.name}
-                  </span>
-
-                  {/* Vitals & Resource Preview */}
-                  <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-2 text-left">
-                    <div className="glass p-2.5 rounded-xl border border-white/10">
-                      <span className="text-[10px] font-head text-white/50 block">Vital Integrity</span>
-                      <span className="text-xs font-num font-bold text-[#4ade80]">❤️ 40 / 40 HP</span>
-                    </div>
-                    <div className="glass p-2.5 rounded-xl border border-white/10">
-                      <span className="text-[10px] font-head text-white/50 block">Resource Pool</span>
-                      <span className="text-xs font-num font-bold text-[#38bdf8]">🔮 100 Glimmer</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-2.5 text-[10.5px] font-head text-white/60 bg-white/5 p-2 rounded-lg border border-white/5 text-left">
-                    <span>🏛️ Starting Leyline Anchor: </span>
-                    <b className="text-white">Awakening Sanctuary Hub</b>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Bar Hotkeys Preview */}
-              <div className="mt-5">
-                <span className="text-[10.5px] font-head font-bold uppercase tracking-wider text-white/40 block mb-2">
-                  Action Bar Configuration
-                </span>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {['[1] Primary', '[2] Rite', '[3] Spell', '[4] Burst'].map((slot, i) => (
-                    <div
-                      key={slot}
-                      className="p-2 rounded-lg glass border border-white/10 text-center text-[10px] font-head"
-                    >
-                      <b className="text-[#F2A900] block">{slot.split(' ')[0]}</b>
-                      <span className="text-white/50 text-[9px]">{i === 0 ? 'Flare' : 'Empty'}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* MASSIVE AWAKEN BUTTON */}
-              <div className="mt-6">
-                <button
-                  type="button"
-                  disabled={isLaunching}
-                  onClick={handleLaunchGame}
-                  className="w-full py-4 px-6 rounded-2xl bg-[#F2A900] hover:bg-[#ffc21f] text-black font-display font-black text-lg tracking-wider uppercase transition-all shadow-[0_0_35px_rgba(242,169,0,0.5)] hover:scale-105 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {isLaunching ? (
-                    <>
-                      <RotateCcw className="w-5 h-5 animate-spin" />
-                      Awakening Champion...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-5 h-5 fill-black" />
-                      Awaken In Glimmerfall
-                    </>
-                  )}
-                </button>
-
-                <p className="text-[10.5px] text-white/50 text-center mt-2.5 font-body">
-                  Zero download &bull; Runs 100% in your browser
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ========================================================= */}
-      {/* 4 FACTIONS & 8 PLAYABLE CLASSES DEEP-DIVE                 */}
-      {/* ========================================================= */}
-      <section id="factions" className="max-w-7xl mx-auto px-6 py-20 border-t border-white/10">
-        <div className="text-center max-w-3xl mx-auto mb-14">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#00BFFF]/15 text-[#00BFFF] border border-[#00BFFF]/40 text-xs font-head font-bold uppercase tracking-widest mb-3">
-            <Layers className="w-3.5 h-3.5" /> Lore &bull; Doctrines &bull; Combat Mechanics
-          </div>
-          <h2 className="text-3xl sm:text-5xl font-display font-black text-white">
-            The 4 Factions &bull; 8 Playable Archetypes
-          </h2>
-          <p className="mt-4 text-white/65 font-body text-base">
-            Every faction commands a distinct primary and secondary resource mechanic, authentic trading card passives, and 2 specialized combat classes.
-          </p>
-        </div>
-
-        {/* Faction Switcher Pills */}
-        <div className="flex justify-center flex-wrap gap-3 mb-12">
-          {Object.keys(FACTIONS_DATA).map((factionKey) => {
-            const f = FACTIONS_DATA[factionKey];
-            const isSelected = selectedFaction === factionKey;
-            return (
-              <button
-                key={factionKey}
-                onClick={() => handleFactionSelect(factionKey)}
-                style={{
-                  borderColor: isSelected ? f.color : 'rgba(255,255,255,0.1)',
-                  backgroundColor: isSelected ? `${f.color}20` : 'rgba(18,21,30,0.6)',
-                  color: isSelected ? f.color : '#cbd5e1',
-                }}
-                className="px-6 py-3 rounded-full font-head font-bold text-sm border transition-all duration-200 hover:scale-105"
-              >
-                {factionKey} Dominion
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Faction Deep-Dive Card */}
-        <div className="glass rounded-3xl p-8 md:p-12 border border-white/15">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-8 mb-8">
             <div>
-              <span
-                style={{ color: activeFactionObj.color }}
-                className="text-xs font-head font-bold uppercase tracking-widest block mb-1"
-              >
-                Faction Lore &amp; Doctrine
-              </span>
-              <h3 className="text-3xl font-display font-bold text-white">{activeFactionObj.name}</h3>
-              <p className="text-sm italic text-white/60 mt-1">"{activeFactionObj.motto}"</p>
-            </div>
-            <div className="glass px-5 py-3 rounded-xl border border-white/10">
-              <span className="text-[11px] font-head font-medium text-white/50 block">Resource System</span>
-              <span className="text-sm font-head font-bold" style={{ color: activeFactionObj.color }}>
-                {activeFactionObj.resource}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-display font-black text-lg tracking-wider text-white">
+                  GLIMMER<span className="text-[#F2A900]">FALL</span>
+                </span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#38BDF8]/15 border border-[#38BDF8]/40 text-[#38BDF8] font-bold">
+                  2D PIXEL
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#4ADE80] font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#4ADE80] animate-ping" />
+                20Hz Authoritative MMO • 0ms Offline
+              </div>
             </div>
           </div>
 
-          {/* 2 Playable Classes */}
-          <div className="grid md:grid-cols-2 gap-8 mb-10">
-            {activeFactionObj.classes.map((cls) => (
+          {/* Quick Launch & Play Mode */}
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button
+              onClick={() => { setPlayMode('singleplayer'); playSfx('click'); }}
+              className={`text-[11px] py-1.5 px-2 rounded-lg font-bold border transition-all ${
+                playMode === 'singleplayer'
+                  ? 'bg-[#38BDF8]/20 border-[#38BDF8] text-[#7DD3FC] shadow-[0_0_10px_rgba(56,189,248,0.3)]'
+                  : 'bg-black/40 border-[#1E293B] text-white/60 hover:text-white'
+              }`}
+            >
+              🕹️ Offline 0ms
+            </button>
+            <button
+              onClick={() => { setPlayMode('multiplayer'); playSfx('click'); }}
+              className={`text-[11px] py-1.5 px-2 rounded-lg font-bold border transition-all ${
+                playMode === 'multiplayer'
+                  ? 'bg-[#22E07B]/20 border-[#22E07B] text-[#86EFAC] shadow-[0_0_10px_rgba(34,224,123,0.3)]'
+                  : 'bg-black/40 border-[#1E293B] text-white/60 hover:text-white'
+              }`}
+            >
+              🌐 Online 20Hz
+            </button>
+          </div>
+
+          {/* Awaken CTA */}
+          <button
+            onClick={handleLaunchGame}
+            className="w-full mt-3 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#F2A900] to-[#EAB308] text-black font-display font-extrabold text-xs uppercase tracking-wider hover:brightness-110 active:scale-98 transition-all shadow-[0_0_18px_rgba(242,169,0,0.4)] flex items-center justify-center gap-2"
+          >
+            <Play className="w-3.5 h-3.5 fill-black" /> Awaken In Realm
+          </button>
+        </div>
+
+        {/* Sidebar Nav Links */}
+        <div className="p-4 border-b border-[#1E293B] space-y-1 text-xs font-semibold">
+          <a href="#forge" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-white/80 hover:text-[#F2A900] transition-colors">
+            <Sparkles className="w-4 h-4 text-[#F2A900]" /> Character Forge
+          </a>
+          <a href="#game-encyclopedia" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-white/80 hover:text-[#38BDF8] transition-colors">
+            <BookOpen className="w-4 h-4 text-[#38BDF8]" /> Game Systems Encyclopedia
+          </a>
+          <a href="#lore-tcg" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-white/80 hover:text-[#9B30FF] transition-colors">
+            <Scroll className="w-4 h-4 text-[#9B30FF]" /> Cosmic Lore &amp; TCG Oracle
+          </a>
+          <a href="#armory" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-white/80 hover:text-[#22E07B] transition-colors">
+            <Boxes className="w-4 h-4 text-[#22E07B]" /> Continental Armory
+          </a>
+          <a href="#arena" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-white/80 hover:text-[#F87171] transition-colors">
+            <Swords className="w-4 h-4 text-[#F87171]" /> 3v3 Nexus Destruction
+          </a>
+          <a href="#atlas" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-white/80 hover:text-[#38BDF8] transition-colors">
+            <Globe className="w-4 h-4 text-[#38BDF8]" /> Continental World Atlas
+          </a>
+          <button
+            onClick={handleOpenLoadout}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-[#1E1B4B]/60 border border-[#38BDF8]/30 hover:border-[#38BDF8] text-[#7DD3FC] transition-colors mt-2"
+          >
+            <span className="flex items-center gap-2">
+              <UserCheck className="w-4 h-4 text-[#38BDF8]" /> Open Hero Loadout
+            </span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Pixel Gear & Items Showcase */}
+        <div className="p-4 border-b border-[#1E293B]">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-[11px] font-display font-bold tracking-wider text-[#F2A900] flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5 text-[#F2A900]" /> PIXEL ARMORY PREVIEW
+            </span>
+            <span className="text-[9px] text-white/40">Hover to inspect</span>
+          </div>
+
+          <div className="grid grid-cols-4 gap-2">
+            {PIXEL_ITEMS.map((item) => (
               <div
-                key={cls.name}
-                className="glass rounded-2xl p-6 border border-white/10 hover:border-white/25 transition-all"
+                key={item.id}
+                onMouseEnter={() => setHoveredItem(item)}
+                onMouseLeave={() => setHoveredItem(null)}
+                className="relative aspect-square rounded-lg bg-[#080E1C] border border-[#1E293B] hover:border-[#F2A900] flex items-center justify-center text-xl cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-inner"
+                style={{ borderColor: hoveredItem?.id === item.id ? item.color : undefined }}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xl font-display font-bold text-white">{cls.name}</h4>
-                  <span className="text-xs font-head px-2.5 py-1 rounded bg-white/5 text-white/80 border border-white/10">
-                    {cls.role}
-                  </span>
-                </div>
-                <div className="flex gap-4 text-xs text-white/50 font-head mb-3">
-                  <span>Armor: <b className="text-white/80">{cls.armor}</b></span>
-                  <span>Weapon: <b className="text-white/80">{cls.weapon}</b></span>
-                </div>
-                <p className="text-sm text-white/70 leading-relaxed mb-5 font-body">{cls.desc}</p>
-                <div>
-                  <span className="text-[11px] font-head font-bold uppercase text-white/40 tracking-wider block mb-2">
-                    Core Action Abilities
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {cls.abilities.map((ab) => (
-                      <span key={ab} className="text-xs px-2.5 py-1 rounded-md glass font-head text-white/80">
-                        {ab}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                <span>{item.icon}</span>
+                <span className="absolute bottom-0.5 right-1 text-[8px] font-bold text-white/50">{item.slot[0]}</span>
               </div>
             ))}
           </div>
 
-          {/* Socketable Card Relics from this Faction */}
-          <div>
-            <span className="text-xs font-head font-bold uppercase text-white/40 tracking-wider block mb-4">
-              Socketable TCG Relic Cards ({selectedFaction})
+          {/* Hovered item preview tooltip */}
+          {hoveredItem ? (
+            <div className="mt-2.5 p-2 rounded-lg bg-black/80 border border-[#334155] text-[10.5px] animate-fadeIn">
+              <div className="flex justify-between items-center">
+                <span className="font-bold" style={{ color: hoveredItem.color }}>{hoveredItem.name}</span>
+                <span className="text-[9px] px-1 rounded bg-white/10 text-white/70">{hoveredItem.rarity}</span>
+              </div>
+              <div className="text-[10px] text-[#38BDF8] mt-0.5">{hoveredItem.stat}</div>
+              <p className="text-[9.5px] text-white/60 mt-1 italic">{hoveredItem.desc}</p>
+            </div>
+          ) : (
+            <div className="mt-2 text-center text-[10px] text-white/30 italic">
+              Hover over items to inspect stats &amp; sockets
+            </div>
+          )}
+        </div>
+
+        {/* Leyline Currencies */}
+        <div className="p-4 border-b border-[#1E293B]">
+          <div className="text-[11px] font-display font-bold tracking-wider text-[#38BDF8] flex items-center gap-1.5 mb-2.5">
+            <Coins className="w-3.5 h-3.5 text-[#38BDF8]" /> LEYLINE CURRENCY VAULT
+          </div>
+          <div className="space-y-1.5 text-xs">
+            {CURRENCIES.map((curr) => (
+              <div key={curr.id} className="flex items-center justify-between p-1.5 rounded-lg bg-black/40 border border-[#1E293B]/60">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">{curr.icon}</span>
+                  <span className="text-white/80 text-[11px] font-medium">{curr.name}</span>
+                </div>
+                <span className="font-mono font-bold text-[11px]" style={{ color: curr.color }}>{curr.val}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 7 Disciplines & Skills (Max 99) */}
+        <div className="p-4 border-b border-[#1E293B]">
+          <div className="flex justify-between items-center mb-2.5">
+            <span className="text-[11px] font-display font-bold tracking-wider text-[#22E07B] flex items-center gap-1.5">
+              <Pickaxe className="w-3.5 h-3.5 text-[#22E07B]" /> 7 REALM DISCIPLINES
             </span>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {activeFactionObj.cards.map((card) => (
-                <div key={card.name} className="glass rounded-xl p-3 flex items-center gap-4 border border-white/10">
-                  <img src={card.url} alt={card.name} className="w-14 h-20 rounded-lg object-cover" />
-                  <div>
-                    <h5 className="font-head font-bold text-sm text-white">{card.name}</h5>
-                    <p className="text-xs font-head font-semibold mt-1" style={{ color: activeFactionObj.color }}>
-                      {card.stat}
-                    </p>
-                    <span className="text-[10px] text-white/40 font-body">TCG Card-Relic Socket Perk</span>
+            <span className="text-[9.5px] text-[#F2A900] font-bold">MAX LVL 99</span>
+          </div>
+          <div className="space-y-2">
+            {PROFESSIONS.map((prof) => (
+              <div key={prof.id}>
+                <div className="flex justify-between text-[10.5px] font-semibold mb-1">
+                  <span className="flex items-center gap-1.5 text-white/90">
+                    <span>{prof.icon}</span> {prof.name}
+                  </span>
+                  <span style={{ color: prof.color }}>Lv. {prof.lvl} / 99</span>
+                </div>
+                <div className="h-1.5 w-full bg-black/60 rounded-full overflow-hidden border border-white/5">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${(prof.lvl / 99) * 100}%`, backgroundColor: prof.color }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Sidebar Footer & Preferences */}
+        <div className="p-4 mt-auto border-t border-[#1E293B] bg-[#070B18]">
+          <label className="flex items-center gap-2 cursor-pointer text-xs text-white/70 hover:text-white transition-colors">
+            <input
+              type="checkbox"
+              checked={startOnLoadout}
+              onChange={(e) => handleToggleStartOnSite(e.target.checked)}
+              className="rounded border-[#334155] text-[#38BDF8] focus:ring-0 cursor-pointer accent-[#38BDF8]"
+            />
+            <span>Start on Loadout view</span>
+          </label>
+          <div className="mt-2 text-[10px] text-white/40 flex justify-between">
+            <span>© 2026 GlimmerFall</span>
+            <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" className="text-[#38BDF8] hover:underline flex items-center gap-1">
+              glimmerfalltcg.com <ExternalLink className="w-2.5 h-2.5" />
+            </a>
+          </div>
+        </div>
+      </aside>
+
+      {/* ======================================================== */}
+      {/* 2. MAIN SCROLLABLE PIXEL HEAVEN CONTENT */}
+      {/* ======================================================== */}
+      <main className="flex-1 min-h-screen overflow-y-auto px-4 py-8 lg:px-12 lg:py-12 space-y-16">
+        {/* HERO BANNER SECTION */}
+        <section className="relative rounded-3xl p-8 lg:p-14 overflow-hidden border border-[#1E293B] bg-radial from-[#131D38] via-[#090E1E] to-[#050814] shadow-2xl">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-[#F2A900]/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#38BDF8]/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 max-w-3xl">
+            {/* Header with Official Logo */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-2 rounded-2xl bg-black/60 border border-[#F2A900]/40 shadow-[0_0_25px_rgba(242,169,0,0.3)]">
+                <img
+                  src={LOGO_PATH}
+                  alt="GlimmerFall Official Logo"
+                  className="w-16 h-16 object-contain filter drop-shadow(0 0 10px #F2A900)"
+                />
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full bg-[#F2A900]/15 border border-[#F2A900]/40 text-[#F2A900]">
+                  ✨ Official 16-Bit Action MMORPG
+                </span>
+                <h1 className="font-display font-black text-3xl sm:text-5xl tracking-wide text-white mt-1">
+                  GLIMMER<span className="text-[#F2A900]">FALL</span> ONLINE
+                </h1>
+              </div>
+            </div>
+
+            <p className="text-base sm:text-lg text-white/80 leading-relaxed font-head">
+              Step into an authentic top-down action MMORPG inspired by classic 16-bit masterworks.
+              Harvest celestial Glimmer leylines, socket authentic trading card relics from{' '}
+              <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" className="text-[#38BDF8] underline font-bold">
+                glimmerfalltcg.com
+              </a>, master 7 disciplines to Level 99, and defend your 25-HP Outpost Nexus in 3v3 arenas.
+            </p>
+
+            {/* Spec Highlights Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
+              <div className="p-3.5 rounded-xl bg-black/40 border border-[#1E293B]">
+                <div className="text-xl sm:text-2xl font-mono font-black text-[#38BDF8]">0ms</div>
+                <div className="text-[11px] text-white/60 font-semibold uppercase">Single Player</div>
+              </div>
+              <div className="p-3.5 rounded-xl bg-black/40 border border-[#1E293B]">
+                <div className="text-xl sm:text-2xl font-mono font-black text-[#4ADE80]">20 Hz</div>
+                <div className="text-[11px] text-white/60 font-semibold uppercase">Server MMO</div>
+              </div>
+              <div className="p-3.5 rounded-xl bg-black/40 border border-[#1E293B]">
+                <div className="text-xl sm:text-2xl font-mono font-black text-[#F2A900]">Lv. 99</div>
+                <div className="text-[11px] text-white/60 font-semibold uppercase">Max Mastery</div>
+              </div>
+              <div className="p-3.5 rounded-xl bg-black/40 border border-[#1E293B]">
+                <div className="text-xl sm:text-2xl font-mono font-black text-[#F87171]">25 HP</div>
+                <div className="text-[11px] text-white/60 font-semibold uppercase">Nexus Rule</div>
+              </div>
+            </div>
+
+            {/* Launch Actions */}
+            <div className="flex flex-wrap items-center gap-4 mt-8">
+              <button
+                onClick={handleLaunchGame}
+                className="py-4 px-8 rounded-2xl bg-gradient-to-r from-[#F2A900] via-[#EAB308] to-[#CA8A04] text-black font-display font-black text-sm uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shadow-[0_0_30px_rgba(242,169,0,0.4)] flex items-center gap-3"
+              >
+                <Play className="w-5 h-5 fill-black" /> Awaken Champion Now
+              </button>
+
+              <button
+                onClick={handleOpenLoadout}
+                className="py-4 px-6 rounded-2xl bg-black/60 border border-[#38BDF8]/40 text-[#7DD3FC] font-display font-bold text-sm tracking-wide hover:border-[#38BDF8] hover:bg-[#38BDF8]/10 transition-all flex items-center gap-2"
+              >
+                <UserCheck className="w-4 h-4" /> Open In-Game Loadout
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* ======================================================== */}
+        {/* CHARACTER FORGE SECTION (#forge) */}
+        {/* ======================================================== */}
+        <section id="forge" className="rounded-3xl p-6 lg:p-10 border border-[#1E293B] bg-[#0A0F22]/90 space-y-8">
+          <div className="flex flex-wrap justify-between items-center gap-4 pb-6 border-b border-[#1E293B]">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#F2A900] px-2.5 py-1 rounded bg-[#F2A900]/10 border border-[#F2A900]/30">
+                Forge Your Identity
+              </span>
+              <h2 className="font-display font-bold text-2xl sm:text-3xl text-white mt-1">
+                ⚔️ CHAMPION LOADOUT FORGE
+              </h2>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={randomizeName}
+                className="py-2 px-3.5 rounded-xl bg-black/40 border border-[#334155] text-xs font-bold text-white/80 hover:text-white hover:border-[#F2A900] transition-colors flex items-center gap-1.5"
+              >
+                <Dices className="w-4 h-4 text-[#F2A900]" /> Random Moniker
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Left Controls (8 cols) */}
+            <div className="lg:col-span-8 space-y-6">
+              {/* Moniker Input */}
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-white/70 mb-2">
+                  1. CHAMPION MONIKER &amp; TITLE
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={characterName}
+                    onChange={(e) => setCharacterName(e.target.value.slice(0, 18))}
+                    maxLength={18}
+                    placeholder="Enter hero name..."
+                    className="w-full py-4 px-5 rounded-2xl bg-black/60 border-2 border-[#1E293B] focus:border-[#F2A900] outline-none text-lg font-bold text-white tracking-wide transition-all shadow-inner"
+                  />
+                  <span className="absolute right-4 top-4 text-xs font-mono text-white/40">
+                    {characterName.length}/18
+                  </span>
+                </div>
+              </div>
+
+              {/* Faction Alleigance */}
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-white/70 mb-2">
+                  2. CANONICAL FACTION ALLEGIANCE
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {Object.keys(FACTIONS_DATA).map((facKey) => {
+                    const f = FACTIONS_DATA[facKey];
+                    const isSelected = selectedFaction === facKey;
+                    return (
+                      <button
+                        key={facKey}
+                        onClick={() => handleFactionSelect(facKey)}
+                        className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                          isSelected
+                            ? `${f.border} ${f.badgeBg} shadow-[0_0_20px_rgba(0,0,0,0.6)] scale-[1.02]`
+                            : 'border-[#1E293B] bg-black/30 hover:border-white/20'
+                        }`}
+                      >
+                        <div className="font-display font-bold text-sm" style={{ color: f.color }}>
+                          {facKey}
+                        </div>
+                        <div className="text-[10px] text-white/60 mt-1 line-clamp-1">{f.name}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Archetype & Classes */}
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-white/70 mb-2">
+                  3. PLAYABLE ARCHETYPE &amp; ROLE ({selectedFaction})
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {currentFaction.classes.map((cls) => {
+                    const isSelected = selectedClassId === cls.id;
+                    return (
+                      <button
+                        key={cls.id}
+                        onClick={() => { setSelectedClassId(cls.id); playSfx('click'); }}
+                        className={`p-5 rounded-2xl border-2 text-left transition-all ${
+                          isSelected
+                            ? `${currentFaction.border} ${currentFaction.badgeBg} shadow-[0_0_20px_rgba(0,0,0,0.6)]`
+                            : 'border-[#1E293B] bg-black/30 hover:border-white/20'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <span className="font-display font-bold text-base text-white">{cls.name}</span>
+                          <span className="text-[9.5px] px-2 py-0.5 rounded bg-black/60 border border-white/10 text-white/70">
+                            {cls.armor}
+                          </span>
+                        </div>
+                        <div className="text-xs font-semibold mt-1" style={{ color: currentFaction.color }}>
+                          {cls.role}
+                        </div>
+                        <p className="text-[11px] text-white/70 mt-2 line-clamp-2 leading-relaxed">
+                          {cls.desc}
+                        </p>
+                        <div className="mt-3 pt-3 border-t border-white/10 flex flex-wrap gap-1">
+                          {cls.rites.map((r) => (
+                            <span key={r} className="text-[9px] px-1.5 py-0.5 rounded bg-black/40 text-white/60">
+                              {r}
+                            </span>
+                          ))}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Order Crest */}
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-white/70 mb-2">
+                  4. ORDER CREST &bull; HERALDRY TAG
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  {ORDER_PRESETS.map((o) => {
+                    const isSelected = selectedOrderTag === o.tag;
+                    return (
+                      <button
+                        key={o.tag}
+                        onClick={() => { setSelectedOrderTag(o.tag); playSfx('click'); }}
+                        className={`py-3 px-3.5 rounded-xl border text-left transition-all ${
+                          isSelected
+                            ? 'border-[#F2A900] bg-[#F2A900]/15 text-[#F2A900] font-bold shadow-[0_0_12px_rgba(242,169,0,0.3)]'
+                            : 'border-[#1E293B] bg-black/30 text-white/70 hover:border-white/20'
+                        }`}
+                      >
+                        <div className="font-mono text-xs font-black">[{o.tag}]</div>
+                        <div className="text-[10px] text-white/60">{o.name}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Pedestal Card (4 cols) */}
+            <div className="lg:col-span-4">
+              <div className="sticky top-24 p-6 rounded-3xl bg-black/50 border-2 border-[#1E293B] space-y-6 shadow-2xl">
+                <div className="text-center">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-white/50">
+                    Visage Pedestal Preview
+                  </span>
+                  <div className="w-24 h-24 mx-auto my-4 rounded-2xl bg-[#080E1C] border-2 border-[#F2A900] flex items-center justify-center text-4xl shadow-[0_0_20px_rgba(242,169,0,0.3)]">
+                    ⚔️
+                  </div>
+                  <h3 className="font-display font-black text-xl text-white">
+                    {characterName || 'Vanguard'}
+                  </h3>
+                  <div className="text-xs text-[#38BDF8] font-semibold mt-0.5">
+                    [{currentOrder.tag}] • {activeClassObj.name}
+                  </div>
+                  <div className="text-[11px] font-bold mt-1" style={{ color: currentFaction.color }}>
+                    {currentFaction.name}
                   </div>
                 </div>
+
+                {/* Vitals */}
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className="p-3 rounded-xl bg-black/60 border border-[#1E293B]">
+                    <div className="text-[10px] text-white/50 font-bold">HEALTH</div>
+                    <div className="text-sm font-mono font-black text-[#4ADE80]">❤️ 40 / 40 HP</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-black/60 border border-[#1E293B]">
+                    <div className="text-[10px] text-white/50 font-bold">GLIMMER</div>
+                    <div className="text-sm font-mono font-black text-[#38BDF8]">🔮 100 Glimmer</div>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#091224] border border-[#1E293B] text-xs text-white/70 space-y-1">
+                  <div className="flex justify-between">
+                    <span>Starting Leyline:</span>
+                    <b className="text-white">Sanctuary Haven</b>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Armor Class:</span>
+                    <b className="text-[#F2A900]">{activeClassObj.armor}</b>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Starter Rite:</span>
+                    <b className="text-[#38BDF8]">{activeClassObj.primary}</b>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleLaunchGame}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#F2A900] to-[#EAB308] text-black font-display font-black text-sm uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(242,169,0,0.4)]"
+                >
+                  ⚡ Enter GlimmerFall
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ======================================================== */}
+        {/* GAME SYSTEMS ENCYCLOPEDIA SECTION (#game-encyclopedia) */}
+        {/* ======================================================== */}
+        <section id="game-encyclopedia" className="rounded-3xl p-6 lg:p-10 border border-[#1E293B] bg-[#0A0F22]/90 space-y-6">
+          <div className="flex flex-wrap justify-between items-center gap-4 pb-6 border-b border-[#1E293B]">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#38BDF8] px-2.5 py-1 rounded bg-[#38BDF8]/10 border border-[#38BDF8]/30">
+                Official Reference Manual
+              </span>
+              <h2 className="font-display font-bold text-2xl sm:text-3xl text-white mt-1">
+                🎮 GAME SYSTEMS ENCYCLOPEDIA
+              </h2>
+            </div>
+            {/* Tab Switchers */}
+            <div className="flex flex-wrap gap-2 text-xs font-bold">
+              {[
+                { id: 'combat', label: '⚔️ Combat Dynamics' },
+                { id: 'resources', label: '⚡ Faction Resources' },
+                { id: 'skills', label: '📜 7 Disciplines' },
+                { id: 'persistence', label: '💾 State Persistence' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => { setActiveEncTab(tab.id); playSfx('click'); }}
+                  className={`py-2 px-3.5 rounded-xl border transition-all ${
+                    activeEncTab === tab.id
+                      ? 'bg-[#38BDF8]/20 border-[#38BDF8] text-[#7DD3FC] shadow-[0_0_10px_rgba(56,189,248,0.3)]'
+                      : 'bg-black/30 border-[#1E293B] text-white/60 hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                </button>
               ))}
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* ========================================================= */}
-      {/* 7 AUTHENTIC SKILLS & 99-LEVEL PROGRESSION                 */}
-      {/* ========================================================= */}
-      <section id="skills" className="max-w-7xl mx-auto px-6 py-20 border-t border-white/10">
-        <div className="text-center max-w-3xl mx-auto mb-14">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#22E07B]/15 text-[#22E07B] border border-[#22E07B]/40 text-xs font-head font-bold uppercase tracking-widest mb-3">
-            <Award className="w-3.5 h-3.5" /> 99-Level Progression &bull; Mastery Capes
-          </div>
-          <h2 className="text-3xl sm:text-5xl font-display font-black text-white">
-            7 Authentic Skills &bull; Master to Level 99
-          </h2>
-          <p className="mt-4 text-white/65 font-body text-base">
-            Every profession has deep interactive training, recipe unlocks, and prestigious Level 99 Skillcapes.
-          </p>
-        </div>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {PROFESSIONS_LIST.map((prof) => (
-            <div
-              key={prof.id}
-              className="glass rounded-2xl p-6 border border-white/10 hover:border-white/25 transition-all duration-300 hover:-translate-y-1"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div
-                  style={{ backgroundColor: `${prof.color}20`, borderColor: `${prof.color}40` }}
-                  className="w-12 h-12 rounded-xl border flex items-center justify-center text-xl"
-                >
-                  {prof.icon}
+          {/* Tab Content */}
+          <div className="space-y-4">
+            {activeEncTab === 'combat' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
+                  <h4 className="font-display font-bold text-sm text-[#F2A900] mb-1">🗡️ Attack Cleave Arcs &amp; Hitboxes</h4>
+                  <p className="text-xs text-white/70 leading-relaxed">
+                    Melee swings deliver a 90-degree frontal cleave covering 34 pixels. Projectiles track omni-directional vectors with 16px radius hitboxes. Real-time client prediction synchronizes seamlessly with the 20Hz server.
+                  </p>
                 </div>
-                <span className="text-[10.5px] font-head font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/5 text-white/60">
-                  {prof.category}
-                </span>
+                <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
+                  <h4 className="font-display font-bold text-sm text-[#38BDF8] mb-1">⏱️ 1.5s Global Cooldown &amp; Spell Queuing</h4>
+                  <p className="text-xs text-white/70 leading-relaxed">
+                    All major Rites and martial arts observe a 1.5-second GCD. Any input registered within 0.3s of GCD completion is queued automatically, enabling butter-smooth zero-latency spell combos.
+                  </p>
+                </div>
+                <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
+                  <h4 className="font-display font-bold text-sm text-[#4ADE80] mb-1">🛡️ Hyperbolic Armor Mitigation</h4>
+                  <p className="text-xs text-white/70 leading-relaxed">
+                    Incoming physical strikes undergo hyperbolic reduction: <code className="text-[#F2A900]">Damage Reduction = Armor / (Armor + 100)</code>. Heavy plate wearers achieve up to 65% passive mitigation against physical hits.
+                  </p>
+                </div>
+                <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
+                  <h4 className="font-display font-bold text-sm text-[#9B30FF] mb-1">💥 Critical Multipliers &amp; Flashes</h4>
+                  <p className="text-xs text-white/70 leading-relaxed">
+                    Base critical strikes inflict 150% damage. Investing in the Flashes skill and socketing ancient TCG relics elevates critical chance by up to +12% and critical damage multipliers beyond 220%.
+                  </p>
+                </div>
               </div>
+            )}
 
-              <h4 className="text-lg font-display font-bold text-white mb-1">{prof.name}</h4>
-              <p className="text-xs font-head text-[#F2A900] mb-3">{prof.summary}</p>
-              <p className="text-xs text-white/70 font-body leading-relaxed mb-4">{prof.desc}</p>
-
-              <div className="border-t border-white/10 pt-3 text-[11px] font-head text-white/60">
-                <span className="text-white/40 block text-[9.5px] uppercase tracking-wider">Lv. 99 Cape Prestige</span>
-                <b className="text-white/90">{prof.cape}</b>
+            {activeEncTab === 'resources' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-5 rounded-2xl bg-black/40 border border-[#F2A900]/40">
+                  <h4 className="font-display font-bold text-sm text-[#F2A900] mb-1">☀️ Solari: Solar Charge &amp; Zenith</h4>
+                  <p className="text-xs text-white/70 leading-relaxed">
+                    Striking enemies builds Solar Charge (0-100). Reaching 100 triggers the blinding Zenith State, granting +25% movespeed, holy radiance pulse damage, and instant cooldown on Solar Flare.
+                  </p>
+                </div>
+                <div className="p-5 rounded-2xl bg-black/40 border border-[#9B30FF]/40">
+                  <h4 className="font-display font-bold text-sm text-[#9B30FF] mb-1">🌙 Umbri: Void Resonance &amp; Dusk Shroud</h4>
+                  <p className="text-xs text-white/70 leading-relaxed">
+                    Channeling dark arts fuels Void Resonance. Consuming resonance activates Dusk Shroud, cloaking the assassin from enemy unit frames and providing guaranteed critical strikes.
+                  </p>
+                </div>
+                <div className="p-5 rounded-2xl bg-black/40 border border-[#22E07B]/40">
+                  <h4 className="font-display font-bold text-sm text-[#22E07B] mb-1">🌿 Terra: Root Armor &amp; Bedrock</h4>
+                  <p className="text-xs text-white/70 leading-relaxed">
+                    Absorbing physical strikes cultivates living root bark. When shattered, Root Armor triggers a thorn shockwave that roots all adjacent assailants for 2.5 seconds.
+                  </p>
+                </div>
+                <div className="p-5 rounded-2xl bg-black/40 border border-[#00BFFF]/40">
+                  <h4 className="font-display font-bold text-sm text-[#00BFFF] mb-1">🌀 Aether: Chronoflux &amp; Warp</h4>
+                  <p className="text-xs text-white/70 leading-relaxed">
+                    Chronoflux fluctuates dynamically. Harnessing flux enables the sage to bend projectile paths, reverse ally positioning, and rewrite temporal damage histories.
+                  </p>
+                </div>
               </div>
+            )}
+
+            {activeEncTab === 'skills' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {PROFESSIONS.map((prof) => (
+                  <div key={prof.id} className="p-4 rounded-xl bg-black/40 border border-[#1E293B]">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-lg">{prof.icon}</span>
+                      <span className="font-display font-bold text-xs text-white">{prof.name}</span>
+                    </div>
+                    <p className="text-[11px] text-white/60">{prof.desc}</p>
+                    <div className="mt-2 text-[10px] font-bold" style={{ color: prof.color }}>
+                      Unlocks up to Level 99 Mastery Cape
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {activeEncTab === 'persistence' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
+                  <h4 className="font-display font-bold text-sm text-[#4ADE80] mb-1">❤️ Exact Health &amp; Glimmer Persistence</h4>
+                  <p className="text-xs text-white/70 leading-relaxed">
+                    Logging out or switching views preserves your exact current HP and Glimmer reservoir down to the single integer. Re-logging never resets your accumulated charges.
+                  </p>
+                </div>
+                <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
+                  <h4 className="font-display font-bold text-sm text-[#38BDF8] mb-1">🏛️ Exact World Coordinate Resuming</h4>
+                  <p className="text-xs text-white/70 leading-relaxed">
+                    Your character's coordinates (roomType, X, Y) are permanently committed to browser storage and PostgreSQL. You always spawn right where you stepped out of the realm.
+                  </p>
+                </div>
+                <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
+                  <h4 className="font-display font-bold text-sm text-[#F2A900] mb-1">🛡️ Clean Monster Respawn &amp; Aggro Wipe</h4>
+                  <p className="text-xs text-white/70 leading-relaxed">
+                    Respawning creatures enforce a 2.0-second spawn grace period. Aggro tethers, dammer lists, and combat targets are wiped completely clean upon respawn.
+                  </p>
+                </div>
+                <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
+                  <h4 className="font-display font-bold text-sm text-[#9B30FF] mb-1">⚡ 3v3 Arena Safe Return Teleport</h4>
+                  <p className="text-xs text-white/70 leading-relaxed">
+                    Upon conclusion of a 3v3 match, champions are teleported safely back to their exact pre-arena coordinates, retaining all trophies, bounties, and rewards.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ======================================================== */}
+        {/* COSMIC LORE & TCG ENCYCLOPEDIA SECTION (#lore-tcg) */}
+        {/* ======================================================== */}
+        <section id="lore-tcg" className="rounded-3xl p-6 lg:p-10 border border-[#1E293B] bg-[#0A0F22]/90 space-y-6">
+          <div className="flex flex-wrap justify-between items-center gap-4 pb-6 border-b border-[#1E293B]">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#9B30FF] px-2.5 py-1 rounded bg-[#9B30FF]/10 border border-[#9B30FF]/30">
+                glimmerfalltcg.com Canonical Lore
+              </span>
+              <h2 className="font-display font-bold text-2xl sm:text-3xl text-white mt-1">
+                📜 COSMIC LORE &amp; TCG ORACLE
+              </h2>
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ========================================================= */}
-      {/* 3v3 NEXUS DESTRUCTION ARENA                               */}
-      {/* ========================================================= */}
-      <section id="arena" className="max-w-7xl mx-auto px-6 py-20 border-t border-white/10">
-        <div className="relative rounded-3xl overflow-hidden glass border border-[#00BFFF]/30 p-8 md:p-14">
-          <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-[#00BFFF]/10 blur-3xl pointer-events-none" />
-
-          <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#00BFFF]/15 text-[#00BFFF] border border-[#00BFFF]/40 text-xs font-head font-bold uppercase tracking-widest mb-4">
-              <Swords className="w-3.5 h-3.5" /> Competitive 3v3 Mode
-            </span>
-            <h3 className="text-3xl md:text-5xl font-display font-black text-white leading-tight">
-              3v3 Nexus Destruction Arena
-            </h3>
-            <p className="mt-4 text-white/70 font-body text-base leading-relaxed">
-              Queue into the ranked 3v3 Nexus Warzone. Coordinate crowd control, focus-fire enemy champions, control harvestable energy fonts, and shatter the enemy 25-HP Nexus Monolith. After match completion, players are <b>automatically teleported back to their exact previous world spot</b>.
-            </p>
-
-            <div className="mt-8 grid sm:grid-cols-3 gap-4">
-              <div className="glass p-4 rounded-xl border border-white/10 text-center">
-                <span className="text-2xl font-num font-bold text-[#38bdf8] block">25 HP</span>
-                <span className="text-xs text-white/60 font-head">Nexus Monolith Rule</span>
-              </div>
-              <div className="glass p-4 rounded-xl border border-white/10 text-center">
-                <span className="text-2xl font-num font-bold text-[#F2A900] block">3 vs 3</span>
-                <span className="text-xs text-white/60 font-head">Squad Composition</span>
-              </div>
-              <div className="glass p-4 rounded-xl border border-white/10 text-center">
-                <span className="text-2xl font-num font-bold text-[#22E07B] block">1.5s GCD</span>
-                <span className="text-xs text-white/60 font-head">Spell Queueing</span>
-              </div>
-            </div>
-
-            <div className="mt-8 flex gap-4">
-              <a
-                href="#forge"
-                onClick={() => playSfx('click')}
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-[#00BFFF] text-black font-head font-bold text-sm hover:bg-[#33ccff] transition-all shadow-[0_0_25px_rgba(0,191,255,0.4)]"
-              >
-                <Play className="w-4 h-4 fill-black" /> Enter Matchmaking Queue
-              </a>
+            <div className="flex flex-wrap gap-2 text-xs font-bold">
+              {[
+                { id: 'shattering', label: '🌌 The Great Shattering' },
+                { id: 'creeds', label: '🏛️ 4 Faction Creeds' },
+                { id: 'cards', label: '🃏 TCG Card Relics' },
+                { id: 'legends', label: '👑 Sanctuary Legends' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => { setActiveLoreTab(tab.id); playSfx('click'); }}
+                  className={`py-2 px-3.5 rounded-xl border transition-all ${
+                    activeLoreTab === tab.id
+                      ? 'bg-[#9B30FF]/20 border-[#9B30FF] text-[#D8B4FE] shadow-[0_0_10px_rgba(155,48,255,0.3)]'
+                      : 'bg-black/30 border-[#1E293B] text-white/60 hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* ========================================================= */}
-      {/* CONTINENTAL REALMS & DUNGEONS ATLAS                       */}
-      {/* ========================================================= */}
-      <section id="realms" className="max-w-7xl mx-auto px-6 py-20 border-t border-white/10">
-        <div className="text-center max-w-3xl mx-auto mb-14">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#F2A900]/15 text-[#F2A900] border border-[#F2A900]/40 text-xs font-head font-bold uppercase tracking-widest mb-3">
-            <Compass className="w-3.5 h-3.5" /> Seamless World Traversal
+          <div className="space-y-4">
+            {activeLoreTab === 'shattering' && (
+              <div className="p-6 rounded-2xl bg-black/40 border border-[#1E293B] space-y-3">
+                <h4 className="font-display font-bold text-base text-[#F2A900]">The Cataclysm of the Shattered Leylines</h4>
+                <p className="text-xs text-white/80 leading-relaxed font-head">
+                  In the First Age of the continent, the celestial Starfall tore through the astral canopy, embedding cosmic Glimmer veins into the very bedrock of the world.
+                  The leyline harmonic split into four distinct frequencies: radiant Solar fire, subterranean Void resonance, enduring Living Root, and fluid Chronoflux.
+                  Sanctuary Haven stands as the sacred neutral haven where mortal champions master these cosmic powers to hold back the encroaching Abyssal Rift.
+                </p>
+              </div>
+            )}
+
+            {activeLoreTab === 'creeds' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-5 rounded-2xl bg-black/40 border-l-4 border-l-[#F2A900] border-y border-r border-[#1E293B]">
+                  <h4 className="font-display font-bold text-sm text-[#F2A900]">The Sunspire Dominion</h4>
+                  <p className="text-xs text-white/70 mt-1 italic">"May the Sunspire illuminate the darkness."</p>
+                  <p className="text-xs text-white/70 mt-2 leading-relaxed">
+                    Sentinels sworn to the Daystar. They construct soaring gilded spires to capture raw solar leylines, burning away shadow taint with unyielding martial discipline.
+                  </p>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-black/40 border-l-4 border-l-[#9B30FF] border-y border-r border-[#1E293B]">
+                  <h4 className="font-display font-bold text-sm text-[#9B30FF]">The Duskveil Syndicate</h4>
+                  <p className="text-xs text-white/70 mt-1 italic">"In shadows we weave, in silence we strike."</p>
+                  <p className="text-xs text-white/70 mt-2 leading-relaxed">
+                    Operating in the subterranean Undercity, they wield void resonance and graveglass lanterns, maintaining that shadow is the ultimate truth and armor against mortal hubris.
+                  </p>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-black/40 border-l-4 border-l-[#22E07B] border-y border-r border-[#1E293B]">
+                  <h4 className="font-display font-bold text-sm text-[#22E07B]">The Rootdeep Collective</h4>
+                  <p className="text-xs text-white/70 mt-1 italic">"Stand unyielding as ancient stone."</p>
+                  <p className="text-xs text-white/70 mt-2 leading-relaxed">
+                    Guardians of the giant canopy in Glimmer Orchard. They defend the ancient stone bedrock and oppose reckless technological mining of planetary leylines.
+                  </p>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-black/40 border-l-4 border-l-[#00BFFF] border-y border-r border-[#1E293B]">
+                  <h4 className="font-display font-bold text-sm text-[#00BFFF]">The Astral Conclave</h4>
+                  <p className="text-xs text-white/70 mt-1 italic">"Time and space bend to the arcane truth."</p>
+                  <p className="text-xs text-white/70 mt-2 leading-relaxed">
+                    Scholars of the Mirrorgate Spire. Viewing all history as an intricate tapestry of threads, they accelerate time and tear reality rifts to rewrite battle outcomes.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {activeLoreTab === 'cards' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[
+                  { name: 'Solari Vanguard', role: '+15% Radiant Slash Dmg', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/solari_vanguard-YFbhwOPGHYNEmDfQQm2CZfBk9fZJBI.webp' },
+                  { name: 'Dawnblade Templar', role: '+10% Critical Strike Chance', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/dawnblade_templar-JSNrQIidGZhWg88RUeUCqOWBRcaAUy.webp' },
+                  { name: 'Mana Crystal', role: '+25 Max Glimmer & Rapid Regen', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/mana_crystal_85d4da2e-150onQbusVx2hyQEu7HfosXCqX0Ktc.webp' },
+                  { name: 'Granite Behemoth', role: '+350 Max Armor & Threat', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/granite_behemoth-YUFhjjGdiBlGqBINNmSW7tRa37JsSB.webp' },
+                  { name: 'Void Stalker', role: '+25% Stealth Opener Damage', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/void_stalker-mdTofDRCVGbCIGSduoJbUcOKWcclJN.webp' },
+                  { name: 'Chronocore Prism', role: 'World Nexus Monolith (25 HP Rule)', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/chronocore_prism_6eca2de9-tghtsdxz1Tl6oMafBny57jAs96P1Ki.webp' },
+                ].map((c) => (
+                  <div key={c.name} className="flex gap-3 p-3.5 rounded-2xl bg-black/40 border border-[#1E293B] items-center">
+                    <img src={c.img} alt={c.name} className="w-14 h-20 object-cover rounded-lg border border-white/10 flex-shrink-0" />
+                    <div>
+                      <div className="font-display font-bold text-xs text-white">{c.name}</div>
+                      <div className="text-[10px] font-bold text-[#38BDF8] mt-0.5">{c.role}</div>
+                      <span className="text-[9px] text-white/40 block mt-1">Socketable TCG Relic</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {activeLoreTab === 'legends' && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
+                  <h4 className="font-display font-bold text-sm text-[#F2A900]">✨ Herald Aurora</h4>
+                  <p className="text-xs text-white/70 mt-1">Voice of the Leylines. Greets newly awakened champions at Sanctuary spawn and guides their first Rite awakenings.</p>
+                </div>
+                <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
+                  <h4 className="font-display font-bold text-sm text-[#38BDF8]">💎 Moira the Relic-Seeker</h4>
+                  <p className="text-xs text-white/70 mt-1">Grandmaster of Resonance Extraction. Stationed near the mineral veins, she teaches extraction from Grand Fonts.</p>
+                </div>
+                <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
+                  <h4 className="font-display font-bold text-sm text-[#22E07B]">🔨 Blacksmith Torvin</h4>
+                  <p className="text-xs text-white/70 mt-1">Master of the Cosmic Star-Anvil. Smelts celestial ores into alloy ingots and hammers masterwork socketed gear.</p>
+                </div>
+              </div>
+            )}
           </div>
-          <h2 className="text-3xl sm:text-5xl font-display font-black text-white">
-            Continental Realms &amp; Dungeons
-          </h2>
-          <p className="mt-4 text-white/65 font-body text-base">
-            Explore safe havens, faction biomes, scheduled siege warzones, and seamless edge-transition dungeons.
+        </section>
+
+        {/* ======================================================== */}
+        {/* CONTINENTAL ARMORY SECTION (#armory) */}
+        {/* ======================================================== */}
+        <section id="armory" className="rounded-3xl p-6 lg:p-10 border border-[#1E293B] bg-[#0A0F22]/90 space-y-6">
+          <div className="flex justify-between items-center pb-6 border-b border-[#1E293B]">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#22E07B] px-2.5 py-1 rounded bg-[#22E07B]/10 border border-[#22E07B]/30">
+                16-Bit Equipment Catalog
+              </span>
+              <h2 className="font-display font-bold text-2xl sm:text-3xl text-white mt-1">
+                🛡️ PIXEL ARMORY &amp; CRAFTING VAULT
+              </h2>
+            </div>
+            <span className="text-xs text-white/50">8 Slots • Socketable Runes</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {PIXEL_ITEMS.map((item) => (
+              <div key={item.id} className="p-5 rounded-2xl bg-black/40 border border-[#1E293B] hover:border-[#F2A900] transition-all">
+                <div className="flex justify-between items-start">
+                  <span className="text-2xl p-2 rounded-xl bg-black/60 border border-white/5">{item.icon}</span>
+                  <span className="text-[9.5px] px-2 py-0.5 rounded font-bold" style={{ backgroundColor: `${item.color}20`, color: item.color }}>
+                    {item.rarity}
+                  </span>
+                </div>
+                <div className="font-display font-bold text-sm text-white mt-3">{item.name}</div>
+                <div className="text-[11px] font-semibold text-[#38BDF8] mt-1">{item.stat}</div>
+                <p className="text-[10.5px] text-white/60 mt-2 leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ======================================================== */}
+        {/* 3v3 NEXUS DESTRUCTION ARENA (#arena) */}
+        {/* ======================================================== */}
+        <section id="arena" className="rounded-3xl p-6 lg:p-10 border border-[#F87171]/30 bg-radial from-[#1E1010] via-[#0D0808] to-[#050404] space-y-6 shadow-2xl">
+          <div className="flex justify-between items-center pb-6 border-b border-[#F87171]/20">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#F87171] px-2.5 py-1 rounded bg-[#F87171]/15 border border-[#F87171]/40">
+                Competitive Rated PvP
+              </span>
+              <h2 className="font-display font-bold text-2xl sm:text-3xl text-white mt-1">
+                ⚡ 3v3 OUTPOST NEXUS DESTRUCTION
+              </h2>
+            </div>
+            <div className="text-xs font-mono font-bold text-[#F87171]">
+              25-HP MONOLITH RULE
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="p-5 rounded-2xl bg-black/50 border border-white/10">
+              <h4 className="font-display font-bold text-sm text-[#F87171] mb-2">1. Squad Composition</h4>
+              <p className="text-xs text-white/70 leading-relaxed">
+                Teams of 3 clash in mirror-symmetric coliseums. Coordination between Frontline Tanks, Support Marshals, and Burst Assassins dictates lane control.
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-black/50 border border-white/10">
+              <h4 className="font-display font-bold text-sm text-[#F87171] mb-2">2. 25-HP Monolith Rule</h4>
+              <p className="text-xs text-white/70 leading-relaxed">
+                Each team defends a 25-HP Outpost Nexus. Strikes deal 1 integer damage per direct hit. First team to shatter the opposing nexus claims the victory.
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-black/50 border border-white/10">
+              <h4 className="font-display font-bold text-sm text-[#F87171] mb-2">3. Safe Return Teleport</h4>
+              <p className="text-xs text-white/70 leading-relaxed">
+                Match conclusion automatically teleports players back to their exact pre-arena coordinates, depositing bounty trophies straight into their inventory.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ======================================================== */}
+        {/* WORLD ATLAS SECTION (#atlas) */}
+        {/* ======================================================== */}
+        <section id="atlas" className="rounded-3xl p-6 lg:p-10 border border-[#1E293B] bg-[#0A0F22]/90 space-y-6">
+          <div className="flex justify-between items-center pb-6 border-b border-[#1E293B]">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#38BDF8] px-2.5 py-1 rounded bg-[#38BDF8]/10 border border-[#38BDF8]/30">
+                Seamless Continental Traversal
+              </span>
+              <h2 className="font-display font-bold text-2xl sm:text-3xl text-white mt-1">
+                🗺️ CONTINENTAL REALMS ATLAS
+              </h2>
+            </div>
+            <span className="text-xs text-white/50">7 Continental Biomes</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              { id: 'sanctuary', name: 'Sanctuary Haven', tag: 'Neutral Hub', color: '#F2A900', desc: 'Central city housing the Grand Exchange pavilion, AetherVault banks, and crafting artisans.' },
+              { id: 'solari', name: 'Solari Citadel', tag: 'Sunspire Territory', color: '#F2A900', desc: 'Golden marble towers and sun-temples harvesting celestial dawn radiation.' },
+              { id: 'umbri', name: 'Umbri Undercity', tag: 'Duskveil Syndicate', color: '#9B30FF', desc: 'Subterranean obsidian caverns lit by glowing violet graveglass lanterns.' },
+              { id: 'terra', name: 'Glimmer Orchard', tag: 'Rootdeep Collective', color: '#22E07B', desc: 'Massive towering ancient canopy trees with sentient moss and stonekin elders.' },
+              { id: 'aether', name: 'Mirrorgate Spire', tag: 'Astral Conclave', color: '#00BFFF', desc: 'Floating crystal pinnacles bending the temporal lattice and leyline currents.' },
+              { id: 'starfall', name: 'Starfall Crater', tag: 'Warzone PvPvE', color: '#F87171', desc: 'Cataclysmic impact site where all 4 factions battle over primal leyline shards.' },
+            ].map((realm) => (
+              <div key={realm.id} className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
+                <div className="flex justify-between items-start mb-2">
+                  <span className="font-display font-bold text-sm text-white">{realm.name}</span>
+                  <span className="text-[9px] px-2 py-0.5 rounded font-bold" style={{ backgroundColor: `${realm.color}20`, color: realm.color }}>
+                    {realm.tag}
+                  </span>
+                </div>
+                <p className="text-xs text-white/60 leading-relaxed">{realm.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* FOOTER */}
+        <footer className="pt-10 border-t border-[#1E293B] text-center space-y-4">
+          <div className="flex items-center justify-center gap-3">
+            <img src={LOGO_PATH} alt="GlimmerFall" className="h-8 object-contain" />
+            <span className="font-display font-bold text-sm text-white">GLIMMERFALL ONLINE</span>
+          </div>
+          <p className="text-xs text-white/50 max-w-lg mx-auto">
+            Official 2D Pixel Action MMORPG based on the GlimmerFall Trading Card Game universe.
+            Built with 20Hz authoritative sync, 0ms offline execution, and deep skill mastery.
           </p>
-        </div>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {REALMS_ATLAS.map((realm) => (
-            <div
-              key={realm.name}
-              className="glass rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <MapPin className="w-4 h-4 text-[#F2A900]" />
-                <h4 className="font-display font-bold text-base text-white">{realm.name}</h4>
-              </div>
-              <span className="text-[11px] font-head text-[#38bdf8] block mb-2">{realm.type}</span>
-              <p className="text-xs text-white/60 font-body leading-relaxed">{realm.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ========================================================= */}
-      {/* CONTROLS GUIDE & KEYBOARD REFERENCE                       */}
-      {/* ========================================================= */}
-      <section id="controls" className="max-w-7xl mx-auto px-6 py-20 border-t border-white/10">
-        <div className="glass rounded-3xl p-8 md:p-12 border border-white/10 grid lg:grid-cols-2 gap-10 items-center">
-          <div>
-            <span className="text-xs font-head font-bold uppercase tracking-widest text-[#F2A900] block mb-2">
-              Action Combat Inputs
-            </span>
-            <h3 className="text-3xl md:text-4xl font-display font-bold text-white mb-4">
-              Keyboard &bull; Hotkey Reference
-            </h3>
-            <p className="text-sm text-white/70 font-body leading-relaxed mb-6">
-              Precision top-down control with 8-directional movement, responsive hotbar slots, and instant interactive prompts.
-            </p>
-
-            <div className="grid grid-cols-2 gap-3 text-xs font-head">
-              <div className="glass p-3 rounded-xl border border-white/10">
-                <b className="text-[#F2A900] block mb-0.5">[WASD]</b>
-                <span className="text-white/60">8-Way Character Movement</span>
-              </div>
-              <div className="glass p-3 rounded-xl border border-white/10">
-                <b className="text-[#00BFFF] block mb-0.5">[1 - 8]</b>
-                <span className="text-white/60">Action Bar Rites &amp; Flashes</span>
-              </div>
-              <div className="glass p-3 rounded-xl border border-white/10">
-                <b className="text-[#22E07B] block mb-0.5">[E] Key</b>
-                <span className="text-white/60">Harvest Leylines &amp; Nodes</span>
-              </div>
-              <div className="glass p-3 rounded-xl border border-white/10">
-                <b className="text-[#9B30FF] block mb-0.5">[Shift + 1-4]</b>
-                <span className="text-white/60">Secondary Utility &amp; Defensives</span>
-              </div>
-              <div className="glass p-3 rounded-xl border border-white/10">
-                <b className="text-white block mb-0.5">[I] / [C] / [P]</b>
-                <span className="text-white/60">Inventory &bull; Paperdoll &bull; Spellbook</span>
-              </div>
-              <div className="glass p-3 rounded-xl border border-white/10">
-                <b className="text-white block mb-0.5">[Space] / [Enter]</b>
-                <span className="text-white/60">Leap &bull; Chat Channel</span>
-              </div>
-            </div>
+          <div className="flex justify-center gap-6 text-xs text-[#38BDF8]">
+            <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" className="hover:underline">glimmerfalltcg.com</a>
+            <a href="https://glimmerfalltcg.com/cards" target="_blank" rel="noreferrer" className="hover:underline">TCG Card Oracle</a>
+            <a href="https://glimmerfalltcg.com/rules" target="_blank" rel="noreferrer" className="hover:underline">Rulebook</a>
           </div>
-
-          <div className="glass rounded-2xl p-8 border border-white/15 text-center">
-            <span className="text-xs font-head uppercase tracking-wider text-[#00BFFF] font-bold block mb-2">
-              Ready to Join the Battle?
-            </span>
-            <h4 className="text-2xl font-display font-bold text-white mb-4">
-              Play Free in Your Browser
-            </h4>
-            <p className="text-xs text-white/60 font-body mb-6 max-w-sm mx-auto leading-relaxed">
-              No client installation or launcher downloads required. Fully authenticated in-memory or PostgreSQL state persistence.
-            </p>
-            <a
-              href="#forge"
-              onClick={() => playSfx('click')}
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-[#F2A900] text-black font-head font-extrabold text-sm hover:bg-[#ffc21f] transition-all shadow-[0_0_25px_rgba(242,169,0,0.5)] hover:scale-105"
-            >
-              <Play className="w-4 h-4 fill-black" /> Open Character Loadout Forge
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* ========================================================= */}
-      {/* FOOTER                                                    */}
-      {/* ========================================================= */}
-      <footer className="border-t border-white/10 py-12 px-6 glass">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div>
-            <span className="font-display font-black text-xl tracking-wider text-white">
-              GLIMMER<span className="text-[#F2A900]">FALL</span> ONLINE
-            </span>
-            <p className="text-xs text-white/50 font-body mt-1">
-              Based on the Glimmerfall TCG Universe &bull;{' '}
-              <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" className="text-[#00BFFF] hover:underline">
-                glimmerfalltcg.com
-              </a>
-            </p>
-          </div>
-
-          <div className="flex gap-6 text-xs font-head text-white/60">
-            <a href="https://glimmerfalltcg.com/rules" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
-              Rulebook
-            </a>
-            <a href="https://glimmerfalltcg.com/cards" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
-              Card Oracle
-            </a>
-            <a href="https://glimmerfalltcg.com/community" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
-              Community
-            </a>
-            <a href="https://glimmerfalltcg.com/stores" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
-              Store Locator
-            </a>
-          </div>
-
-          <div className="text-xs text-white/40 font-body">
+          <div className="text-[10px] text-white/30">
             &copy; 2026 GlimmerFall. All rights reserved.
           </div>
-        </div>
-      </footer>
+        </footer>
+      </main>
     </div>
   );
 }
