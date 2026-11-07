@@ -271,7 +271,10 @@ export function getCharacterSprites(faction = 'Solari', classId = 'solari_vangua
   return out;
 }
 
+let cachedSpriteSheet = null;
+
 export function buildSpriteSheet() {
+  if (cachedSpriteSheet) return cachedSpriteSheet;
   const sprites = {
     tiles: {},
     hero: null,
@@ -2717,6 +2720,7 @@ export function buildSpriteSheet() {
   sprites.aetherBoss = sprites.bossAether;
   sprites.celestialArbiterNpc = sprites.aetherChronosNpc || sprites.heraldNpc;
 
+  cachedSpriteSheet = sprites;
   return sprites;
 }
 

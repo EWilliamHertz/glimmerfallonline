@@ -4,6 +4,7 @@
 // ==========================================
 
 const TOKEN_STORAGE_KEY = 'glimmerfall_auth_token';
+const PROFILE_CACHE_KEY = 'glimmerfall_cached_mp_profile_v1';
 
 export class MultiplayerClient {
   constructor({ onPacket, onStatusChange }) {
@@ -12,17 +13,43 @@ export class MultiplayerClient {
     this.ws = null;
     this.connected = false;
     this.playerId = null;
-    this.profile = null;
+    this.token = this.loadStoredToken();
+    this._profile = this.token ? this.loadCachedProfile() : null;
     this.pingMs = 0;
     this.onPing = null;
     this.reconnectTimer = null;
     this.pingInterval = null;
-    this.token = this.loadStoredToken();
     this.manualReconnect = false;
     this.preferredRoom = null;
     this.pendingRpc = new Map();
     this.isBootstrapping = false;
     this.reconnectAttempt = 0;
+  }
+
+  get profile() {
+    return this._profile;
+  }
+
+  set profile(val) {
+    this._profile = val || null;
+    try {
+      if (val && typeof val === 'object') {
+        localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(val));
+      } else {
+        localStorage.removeItem(PROFILE_CACHE_KEY);
+      }
+    } catch (_) {}
+  }
+
+  loadCachedProfile() {
+    try {
+      const raw = localStorage.getItem(PROFILE_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   loadStoredToken() {

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as protocol from '../shared/protocol.js';
 import { RoomManager } from '../server/roomManager.js';
+import { FrontpageController, FRONTPAGE_STATES } from '../client/frontpage.js';
 
 test('tick constants match the authoritative 20 Hz loop', () => {
   assert.equal(protocol.TICK_RATE, 20);
@@ -307,6 +308,93 @@ test('RoomManager initializes Starfall Crater, Abyssal Rift, skilling veins, and
     assert.equal(abyssal.entities.filter((e) => e.eliteAffix).length, 2);
 
     rm.tickAllRooms();
+  } finally {
+    rm.stop();
+  }
+});
+
+test('FrontpageController renders selection and creation views cleanly in both singleplayer and multiplayer', () => {
+  const bodyEl = { innerHTML: '⚔️ INITIALIZING REALM CHAMPION SELECTION...', contains: () => false };
+  const overlayEl = { style: { display: 'none' } };
+  const prevDoc = globalThis.document;
+  globalThis.document = {
+    activeElement: null,
+    getElementById: (id) => {
+      if (id === 'frontpage-body') return bodyEl;
+      if (id === 'frontpage-overlay') return overlayEl;
+      return null;
+    },
+  };
+  try {
+    const fp = new FrontpageController({
+      net: { profile: null, connected: false },
+      audio: {},
+      onEnterWorld: () => {},
+    });
+    fp.playMode = 'singleplayer';
+    fp.open();
+    assert.ok(!bodyEl.innerHTML.includes('INITIALIZING REALM CHAMPION SELECTION'));
+    assert.ok(bodyEl.innerHTML.includes('CHARACTER SELECTION'));
+    const spSig = fp.buildRenderSignature();
+    assert.ok(typeof spSig === 'string' && spSig.startsWith('singleplayer::'));
+
+    fp.playMode = 'multiplayer';
+    fp.net.profile = {
+      username: 'tester',
+      isGuest: false,
+      activeCharacterId: 'c1',
+      characters: [{ id: 'c1', name: 'Lyra', faction: 'Solari', classId: 'solari_vanguard', progression: protocol.createDefaultProgression() }],
+    };
+    fp.syncFromProfile(fp.net.profile);
+    assert.ok(bodyEl.innerHTML.includes('Lyra'));
+
+    fp.transitionTo(FRONTPAGE_STATES.CHARACTER_CREATE);
+    assert.ok(bodyEl.innerHTML.includes('FORGE A NEW CHAMPION'));
+    fp.close();
+  } finally {
+    globalThis.document = prevDoc;
+  }
+});
+
+test('Grand Glimmer Font harvest emits a single 100 Resonance Extraction XP award on server', () => {
+  const rm = new RoomManager({
+    accountsStore: {
+      saveProgression: () => {},
+      saveQuestState: () => {},
+      addItemToInventory: () => false,
+    },
+    partyManager: {
+      getPartyForMember: () => null,
+      syncPlayerVitals: () => {},
+    },
+  });
+  try {
+    const room = rm.rooms.get('sanctuary_hub_1');
+    const grandFont = room.entities.find((e) => e.isGrand);
+    assert.ok(grandFont, 'Sanctuary Hub should have a Grand Glimmer Font');
+
+    const sentPackets = [];
+    const mockPlayer = {
+      id: 'p_test',
+      displayName: 'Tester',
+      roomId: room.id,
+      x: grandFont.x,
+      y: grandFont.y,
+      isDead: false,
+      solarCharge: 0,
+      maxSolarCharge: 100,
+      classId: 'solari_vanguard',
+      equipment: {},
+      prog: protocol.createDefaultProgression(),
+      questState: {},
+      send: (pkt) => sentPackets.push(pkt),
+    };
+
+    rm.handleHarvestNode(room, mockPlayer, grandFont.id);
+    const profAwards = sentPackets.filter((p) => p.type === 'progression_sync' && p.professionGained);
+    assert.equal(profAwards.length, 1, 'Grand Glimmer Font should emit exactly one professionGained packet');
+    assert.equal(profAwards[0].professionGained.id, 'resonance_extraction');
+    assert.equal(profAwards[0].professionGained.amount, 100);
   } finally {
     rm.stop();
   }

@@ -3907,6 +3907,7 @@ export class RoomManager {
         category: 'combat',
         text: `✨ [SHRINE] Received ${shrine.buffName} Blessing (+Stats for 60s)!`,
       });
+      this.awardProfessionXP(player, 'resonance_extraction', 45, `${shrine.name} Channeling`);
 
       player.questState = player.questState || {};
       player.questState.extractionNodesHarvested = (player.questState.extractionNodesHarvested || 0) + 1;

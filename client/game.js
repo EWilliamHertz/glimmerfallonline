@@ -8969,6 +8969,8 @@ export function initGame() {
       onPlayerKilledMob(currentRoomType, ent.name, ent.isBoss, ent.id, ent.type);
     }
 
+    if (ent.isMinion) return;
+
     const deathRoom = currentRoomType;
     const respawnTemplate = {
       ...ent,
@@ -9826,7 +9828,6 @@ export function initGame() {
       logMessage(`✨ [LEYLINE BLESSING] ${shrine.name} granted ${shrine.buffName} (+Stats for 60s)!`, 'log-solari');
       questState.extractionNodesHarvested = (questState.extractionNodesHarvested || 0) + 1;
       advanceBountyProgress('harvests', 1);
-      awardProfessionXP('resonance_extraction', 45, `${shrine.name} Channeling`);
       if (currentRoomType === ROOM_TYPES.AETHER_SPIRE || shrine.id === 'aeth_node_1') {
         questState.aetherFontChannels = (questState.aetherFontChannels || 0) + 1;
         questState.aetherFontChanneled = true;
@@ -9839,6 +9840,8 @@ export function initGame() {
       updateQuestTrackerHUD();
       if (net.connected) {
         net.send({ type: 'harvest_node', nodeId: shrine.id });
+      } else {
+        awardProfessionXP('resonance_extraction', 45, `${shrine.name} Channeling`);
       }
       return;
     }
@@ -9945,7 +9948,6 @@ export function initGame() {
     if (node.charges === 0) node.rechargeTimer = isGrand ? 45 : 11;
     questState.extractionNodesHarvested = (questState.extractionNodesHarvested || 0) + 1;
     advanceBountyProgress('harvests', 1);
-    awardProfessionXP('resonance_extraction', profXp, isGrand ? 'Grand Glimmer Font' : 'Channeling Leyline Node');
     if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !questState.nodeHarvested) {
       questState.nodeHarvested = true;
     }
@@ -9965,6 +9967,7 @@ export function initGame() {
       player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + gain);
       spawnFCT(player.x, player.y - 14, `+${gain} GLIMMER`, isGrand ? '#fde047' : '#c084fc', isGrand);
       awardXP(charXp, isGrand ? 'Grand Glimmer Font' : 'Glimmer Node');
+      awardProfessionXP('resonance_extraction', profXp, isGrand ? 'Grand Glimmer Font' : 'Channeling Leyline Node');
       if (isGrand || Math.random() < 0.45) {
         const bonusMat = Math.random() < 0.5 ? 'glimmer_shard' : 'astral_mineral_dust';
         if (addItemToBackpack(localProfile, bonusMat, 1)) {

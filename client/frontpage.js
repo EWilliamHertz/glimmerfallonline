@@ -296,29 +296,32 @@ export class FrontpageController {
   }
 
   buildRenderSignature(profile = null) {
-    const p = profile || this.net?.profile || {};
-    const chars = this.playMode === 'singleplayer'
-      ? this.getRosterCharacters()
-      : (Array.isArray(p.characters) ? p.characters : []);
-    const charSummary = chars
-      .map((c) => `${c.id}:${c.name || ''}:${c.faction || ''}:${c.classId || ''}:${c.progression?.level || 1}:${JSON.stringify(c.equipment || {})}`)
-      .join('|');
-    return [
-      this.playMode,
-      this.state,
-      this.selectedCharacterId || '',
-      Boolean(this.net?.authenticated),
-      p.username || '',
-      p.activeCharacterId || '',
-      this.authMode || '',
-      this.authError || '',
-      this.renameMessage || '',
-      this.renameError || '',
-      this.creationError || '',
-      this.enterError || '',
-      this._enteringWorld ? '1' : '0',
-      charSummary,
-    ].join('::');
+    try {
+      const p = profile || this.net?.profile || {};
+      const chars = this.playMode === 'singleplayer'
+        ? this.getSinglePlayerRoster()
+        : (Array.isArray(p.characters) && p.characters.length > 0 ? p.characters : this.getActiveRoster());
+      const charSummary = (chars || [])
+        .map((c) => `${c.id}:${c.name || ''}:${c.faction || ''}:${c.classId || ''}:${c.progression?.level || c.level || 1}:${JSON.stringify(c.equipment || {})}`)
+        .join('|');
+      return [
+        this.playMode,
+        this.state,
+        this.selectedCharacterId || '',
+        p.isGuest === false ? 'auth' : 'guest',
+        p.username || '',
+        p.activeCharacterId || '',
+        this.authMessage || '',
+        this.renameMessage || '',
+        this.renameError || '',
+        this.creationError || '',
+        this.rememberMe ? '1' : '0',
+        this.creationDraft ? JSON.stringify(this.creationDraft) : '',
+        charSummary,
+      ].join('::');
+    } catch (_) {
+      return `${this.playMode}::${this.state}::${Date.now()}`;
+    }
   }
 
   syncFromProfile(profile) {
@@ -888,13 +891,13 @@ export class FrontpageController {
     const root = document.getElementById('frontpage-body');
     if (!root) return;
 
-    this._lastRenderSig = this.buildRenderSignature();
-
     if (this.state === FRONTPAGE_STATES.CHARACTER_CREATE) {
       root.innerHTML = this.renderCreationView();
     } else {
       root.innerHTML = this.renderSelectionView();
     }
+
+    this._lastRenderSig = this.buildRenderSignature();
 
     const dirs = ['down', 'right', 'up', 'left'];
     this.drawPaperdollPreviewCanvas('fp-paperdoll-canvas', dirs[this.previewDirIdx % dirs.length], (this.previewFrame % 2) + 1);
