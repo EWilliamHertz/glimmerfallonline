@@ -37,23 +37,38 @@ export function applySavedUiLayout() {
     const layout = JSON.parse(raw);
     if (typeof layout !== 'object' || !layout) return;
 
-    for (const [id, pos] of Object.entries(layout)) {
-      const el = document.getElementById(id);
-      if (el && pos && pos.left && pos.top) {
-        // Parse the stored coordinates safely
-        const savedLeft = parseInt(pos.left, 10) || 0;
-        const savedTop = parseInt(pos.top, 10) || 0;
-        
-        // Ensure at least 50px of the panel remains visible inside the current window bounds
-        const boundedLeft = Math.max(0, Math.min(savedLeft, window.innerWidth - 50));
-        const boundedTop = Math.max(0, Math.min(savedTop, window.innerHeight - 50));
+    const enforceBounds = () => {
+      for (const [id, pos] of Object.entries(layout)) {
+        const el = document.getElementById(id);
+        if (el && pos && pos.left && pos.top) {
+          const savedLeft = parseInt(pos.left, 10) || 0;
+          const savedTop = parseInt(pos.top, 10) || 0;
+          
+          // Use actual width/height to ensure the ENTIRE element is on-screen
+          // Fallback to 350px (approx menu width) if styles haven't painted yet
+          const elWidth = el.offsetWidth > 0 ? el.offsetWidth : 350;
+          const elHeight = el.offsetHeight > 0 ? el.offsetHeight : 50;
 
-        el.style.left = `${boundedLeft}px`;
-        el.style.top = `${boundedTop}px`;
-        el.style.right = 'auto';
-        el.style.bottom = 'auto';
-        el.style.transform = 'none';
+          const boundedLeft = Math.max(0, Math.min(savedLeft, window.innerWidth - elWidth));
+          const boundedTop = Math.max(0, Math.min(savedTop, window.innerHeight - elHeight));
+
+          el.style.left = `${boundedLeft}px`;
+          el.style.top = `${boundedTop}px`;
+          el.style.right = 'auto';
+          el.style.bottom = 'auto';
+          el.style.transform = 'none';
+        }
       }
+    };
+
+    // Apply immediately
+    enforceBounds();
+    
+    // Re-apply once the window has fully loaded to ensure offsetWidth is 100% accurate
+    if (document.readyState === 'complete') {
+      setTimeout(enforceBounds, 100);
+    } else {
+      window.addEventListener('load', enforceBounds);
     }
   } catch (err) {
     console.warn('[UiLayout] Failed to apply saved layout:', err);
