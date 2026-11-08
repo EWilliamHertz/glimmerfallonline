@@ -4,7 +4,7 @@
 // ==========================================
 
 const STORAGE_KEY = 'glimmerfall_custom_ui_layout';
-
+const SNAP_THRESHOLD = 15; // Pixel distance before magnetic snap triggers
 let isDragging = false;
 let currentDragEl = null;
 let dragStartX = 0;
@@ -40,8 +40,16 @@ export function applySavedUiLayout() {
     for (const [id, pos] of Object.entries(layout)) {
       const el = document.getElementById(id);
       if (el && pos && pos.left && pos.top) {
-        el.style.left = pos.left;
-        el.style.top = pos.top;
+        // Parse the stored coordinates safely
+        const savedLeft = parseInt(pos.left, 10) || 0;
+        const savedTop = parseInt(pos.top, 10) || 0;
+        
+        // Ensure at least 50px of the panel remains visible inside the current window bounds
+        const boundedLeft = Math.max(0, Math.min(savedLeft, window.innerWidth - 50));
+        const boundedTop = Math.max(0, Math.min(savedTop, window.innerHeight - 50));
+
+        el.style.left = `${boundedLeft}px`;
+        el.style.top = `${boundedTop}px`;
         el.style.right = 'auto';
         el.style.bottom = 'auto';
         el.style.transform = 'none';
@@ -51,7 +59,6 @@ export function applySavedUiLayout() {
     console.warn('[UiLayout] Failed to apply saved layout:', err);
   }
 }
-
 function onPanelMouseDown(e, panel) {
   if (!document.body.classList.contains('ui-edit-mode')) return;
   // Ignore clicks on buttons inside the banner
@@ -79,9 +86,57 @@ function onWindowMouseMove(e) {
   const dx = e.clientX - dragStartX;
   const dy = e.clientY - dragStartY;
 
-  const newLeft = Math.max(0, Math.min(window.innerWidth - currentDragEl.offsetWidth, elemStartLeft + dx));
-  const newTop = Math.max(0, Math.min(window.innerHeight - currentDragEl.offsetHeight, elemStartTop + dy));
+  const elWidth = currentDragEl.offsetWidth;
+  const elHeight = currentDragEl.offsetHeight;
+  const winWidth = window.innerWidth;
+  const winHeight = window.innerHeight;
 
+  // 1. Calculate raw bounds-checked coordinates
+  let newLeft = Math.max(0, Math.min(winWidth - elWidth, elemStartLeft + dx));
+  let newTop = Math.max(0, Math.min(winHeight - elHeight, elemStartTop + dy));
+
+  // 2. Magnetic Snap to Screen Edges
+  if (newLeft < SNAP_THRESHOLD) newLeft = 0;
+  if (newLeft + elWidth > winWidth - SNAP_THRESHOLD) newLeft = winWidth - elWidth;
+  if (newTop < SNAP_THRESHOLD) newTop = 0;
+  if (newTop + elHeight > winHeight - SNAP_THRESHOLD) newTop = winHeight - elHeight;
+
+  // 3. Magnetic Snap to other UI Panels
+  const panels = document.querySelectorAll('.ui-draggable-panel');
+  let snappedX = false;
+  let snappedY = false;
+
+  panels.forEach(panel => {
+    if (panel === currentDragEl || panel.style.display === 'none') return;
+    
+    const rect = panel.getBoundingClientRect();
+    
+    // Evaluate X-Axis Snapping
+    if (!snappedX) {
+      // Snap left edge to their right edge
+      if (Math.abs(newLeft - rect.right) < SNAP_THRESHOLD) { newLeft = rect.right; snappedX = true; }
+      // Snap right edge to their left edge
+      else if (Math.abs((newLeft + elWidth) - rect.left) < SNAP_THRESHOLD) { newLeft = rect.left - elWidth; snappedX = true; }
+      // Align left edges
+      else if (Math.abs(newLeft - rect.left) < SNAP_THRESHOLD) { newLeft = rect.left; snappedX = true; }
+      // Align right edges
+      else if (Math.abs((newLeft + elWidth) - rect.right) < SNAP_THRESHOLD) { newLeft = rect.right - elWidth; snappedX = true; }
+    }
+
+    // Evaluate Y-Axis Snapping
+    if (!snappedY) {
+      // Snap top edge to their bottom edge
+      if (Math.abs(newTop - rect.bottom) < SNAP_THRESHOLD) { newTop = rect.bottom; snappedY = true; }
+      // Snap bottom edge to their top edge
+      else if (Math.abs((newTop + elHeight) - rect.top) < SNAP_THRESHOLD) { newTop = rect.top - elHeight; snappedY = true; }
+      // Align top edges
+      else if (Math.abs(newTop - rect.top) < SNAP_THRESHOLD) { newTop = rect.top; snappedY = true; }
+      // Align bottom edges
+      else if (Math.abs((newTop + elHeight) - rect.bottom) < SNAP_THRESHOLD) { newTop = rect.bottom - elHeight; snappedY = true; }
+    }
+  });
+
+  // Apply final coordinates
   currentDragEl.style.left = `${Math.round(newLeft)}px`;
   currentDragEl.style.top = `${Math.round(newTop)}px`;
   currentDragEl.style.right = 'auto';
