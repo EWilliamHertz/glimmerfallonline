@@ -569,8 +569,8 @@ export default function LandingPage() {
       {/* ======================================================== */}
       {/* 2. MAIN SCROLLABLE PIXEL HEAVEN CONTENT */}
       {/* ======================================================== */}
-      <main className="flex-1 min-h-screen overflow-y-auto px-4 py-8 lg:px-12 lg:py-12 space-y-16">
-        {/* HERO BANNER SECTION */}
+          <main className="flex-1 min-h-screen px-4 py-8 lg:px-12 lg:py-12 space-y-16">
+          {/* HERO BANNER SECTION */}
         <section className="relative rounded-3xl p-8 lg:p-14 overflow-hidden border border-[#1E293B] bg-radial from-[#131D38] via-[#090E1E] to-[#050814] shadow-2xl">
           <div className="absolute top-0 right-0 w-96 h-96 bg-[#F2A900]/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#38BDF8]/10 rounded-full blur-3xl pointer-events-none" />

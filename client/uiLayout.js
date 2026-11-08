@@ -22,13 +22,15 @@ export function initUiLayout() {
   const panels = document.querySelectorAll('.ui-draggable-panel');
   panels.forEach((panel) => {
     panel.addEventListener('mousedown', (e) => onPanelMouseDown(e, panel));
+    panel.addEventListener('touchstart', (e) => onPanelMouseDown(e, panel), { passive: false });
   });
 
-  // 3. Bind global mouse movement
+  // 3. Bind global mouse/touch movement
   window.addEventListener('mousemove', onWindowMouseMove);
   window.addEventListener('mouseup', onWindowMouseUp);
+  window.addEventListener('touchmove', onWindowMouseMove, { passive: false });
+  window.addEventListener('touchend', onWindowMouseUp);
 }
-
 export function applySavedUiLayout() {
   if (typeof localStorage === 'undefined') return;
   try {
@@ -76,16 +78,22 @@ export function applySavedUiLayout() {
 }
 function onPanelMouseDown(e, panel) {
   if (!document.body.classList.contains('ui-edit-mode')) return;
-  // Ignore clicks on buttons inside the banner
-  if (e.target.closest('#ui-edit-banner') || e.target.closest('button') || e.target.closest('input')) {
+  
+  // Removed e.target.closest('button') so the menu bar can be dragged
+  if (e.target.closest('#ui-edit-banner') || e.target.closest('input')) {
     return;
   }
 
-  e.preventDefault();
+  if (e.cancelable) e.preventDefault();
+  
   isDragging = true;
   currentDragEl = panel;
-  dragStartX = e.clientX;
-  dragStartY = e.clientY;
+  
+  const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+  const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+  
+  dragStartX = clientX;
+  dragStartY = clientY;
 
   const rect = panel.getBoundingClientRect();
   elemStartLeft = rect.left;
@@ -96,10 +104,13 @@ function onPanelMouseDown(e, panel) {
 
 function onWindowMouseMove(e) {
   if (!isDragging || !currentDragEl) return;
-  e.preventDefault();
+  if (e.cancelable) e.preventDefault();
 
-  const dx = e.clientX - dragStartX;
-  const dy = e.clientY - dragStartY;
+  const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+  const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+  const dx = clientX - dragStartX;
+  const dy = clientY - dragStartY;
 
   const elWidth = currentDragEl.offsetWidth;
   const elHeight = currentDragEl.offsetHeight;
@@ -128,25 +139,17 @@ function onWindowMouseMove(e) {
     
     // Evaluate X-Axis Snapping
     if (!snappedX) {
-      // Snap left edge to their right edge
       if (Math.abs(newLeft - rect.right) < SNAP_THRESHOLD) { newLeft = rect.right; snappedX = true; }
-      // Snap right edge to their left edge
       else if (Math.abs((newLeft + elWidth) - rect.left) < SNAP_THRESHOLD) { newLeft = rect.left - elWidth; snappedX = true; }
-      // Align left edges
       else if (Math.abs(newLeft - rect.left) < SNAP_THRESHOLD) { newLeft = rect.left; snappedX = true; }
-      // Align right edges
       else if (Math.abs((newLeft + elWidth) - rect.right) < SNAP_THRESHOLD) { newLeft = rect.right - elWidth; snappedX = true; }
     }
 
     // Evaluate Y-Axis Snapping
     if (!snappedY) {
-      // Snap top edge to their bottom edge
       if (Math.abs(newTop - rect.bottom) < SNAP_THRESHOLD) { newTop = rect.bottom; snappedY = true; }
-      // Snap bottom edge to their top edge
       else if (Math.abs((newTop + elHeight) - rect.top) < SNAP_THRESHOLD) { newTop = rect.top - elHeight; snappedY = true; }
-      // Align top edges
       else if (Math.abs(newTop - rect.top) < SNAP_THRESHOLD) { newTop = rect.top; snappedY = true; }
-      // Align bottom edges
       else if (Math.abs((newTop + elHeight) - rect.bottom) < SNAP_THRESHOLD) { newTop = rect.bottom - elHeight; snappedY = true; }
     }
   });
@@ -158,7 +161,6 @@ function onWindowMouseMove(e) {
   currentDragEl.style.bottom = 'auto';
   currentDragEl.style.transform = 'none';
 }
-
 function onWindowMouseUp() {
   if (!isDragging) return;
   if (currentDragEl) {
