@@ -997,8 +997,8 @@ export class FrontpageController {
       if (!img) return;
 
       const scale = 3;
-      const dw = 24 * scale;
-      const dh = 26 * scale;
+      const dw = (img.width || 26) * scale;
+      const dh = (img.height || 28) * scale;
       const dx = Math.round(cx - dw / 2);
       const dy = Math.round(cy - dh + 3);
 
@@ -1031,7 +1031,10 @@ export class FrontpageController {
 
         const set = getCharacterSprites(ch.faction || 'Solari', ch.classId || 'solari_vanguard', ch.equipment || {});
         if (set && set.down && set.down[0]) {
-          ctx.drawImage(set.down[0], 5, 3, 24, 26);
+          const spr = set.down[0];
+          const dx = Math.round((cv.width - spr.width) / 2);
+          const dy = Math.round(cv.height - spr.height - 2);
+          ctx.drawImage(spr, dx, dy);
         }
       });
     } catch (err) {
@@ -1061,7 +1064,10 @@ export class FrontpageController {
 
         const set = getCharacterSprites(faction, classId, cls?.defaultEquipment || {});
         if (set && set.down && set.down[0]) {
-          ctx.drawImage(set.down[0], 5, 3, 24, 26);
+          const spr = set.down[0];
+          const dx = Math.round((cv.width - spr.width) / 2);
+          const dy = Math.round(cv.height - spr.height - 2);
+          ctx.drawImage(spr, dx, dy);
         }
       });
     } catch (err) {

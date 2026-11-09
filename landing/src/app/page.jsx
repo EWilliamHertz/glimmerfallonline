@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   Swords,
   Shield,
@@ -40,6 +39,7 @@ import {
   Feather,
   Backpack,
   ExternalLink,
+  Settings,
 } from 'lucide-react';
 
 const LOGO_PATH = '/GlimmerFall_official_multicolor_logo.png';
@@ -49,143 +49,167 @@ const LOGO_PATH = '/GlimmerFall_official_multicolor_logo.png';
 // ==========================================
 const FACTIONS_DATA = {
   Solari: {
+    id: 'Solari',
     name: 'The Sunspire Dominion',
+    title: 'Solari (The Light)',
+    aspect: 'Solar Light / Gold',
     motto: 'May the Sunspire illuminate the darkness.',
     color: '#F2A900',
     border: 'border-[#F2A900]',
     badgeBg: 'bg-[#F2A900]/15',
+    logo: '/solari_nobg.png',
     resource: 'Solar Charge (0-100) & Zenith State',
-    desc: 'Devout holy sentinels worshipping the eternal Solar Core. Building Solar Charge unlocks the blinding Zenith State, boosting movement speed, defense, and holy radiance bursts.',
+    desc: 'Devout holy sentinels worshipping the eternal Solar Core and dawn-fire facets of the shattered Crystal Heart. Building Solar Charge unlocks the blinding Zenith State, boosting movement speed, defense, and holy radiance bursts.',
     classes: [
       {
         id: 'solari_vanguard',
         name: 'Solari Vanguard',
         role: 'Radiant Frontliner • Guard & Zenith',
-        armor: 'Heavy Sunforged Plate',
-        weapon: 'Solari Spellblade & Radiant Shield',
-        primary: 'Radiant Slash',
-        rites: ['Radiant Slash', 'Solar Flare', 'Sun Shield', 'Dawn Wrath'],
-        desc: 'Unshakable bulwark holding the frontlines. Channels pure solar fury through consecrated blade and aegis.',
+        armor: 'Sunforged Plate',
+        weapon: 'Solari Spellblade',
+        offhand: 'Radiant Shield',
+        primary: 'Flare Strike',
+        rites: ['Flare Strike', 'Solar Flare', 'Judgement of the Sun', 'Consecrated Ground', 'Radiant Bulwark', 'Blessing of Dawn', 'Wrath of the Daystar', 'Blinding Radiance'],
+        desc: 'Unshakable bulwark holding the frontlines. Channels pure solar fury through consecrated blade and aegis, protecting allies and Outpost Nexuses.',
       },
       {
         id: 'aurora_marshal',
         name: 'Aurora Marshal',
-        role: 'Support Commander • Beacon of Sol',
-        armor: 'Reinforced Mail & Cape',
-        weapon: 'Consecrated Halberd & Dawn Standard',
-        primary: 'Daybreak Strike',
-        rites: ['Daybreak Strike', 'Healing Radiance', 'Aura of Zeal', 'Judgement Beam'],
-        desc: 'Inspires allies with golden banners, mend leylines, and summons heavenly solar spears against void abominations.',
+        role: 'Celestial Commander • Nexus Healer',
+        armor: 'Sunforged Plate',
+        weapon: 'Solari Spellblade',
+        offhand: 'Mirror Shield',
+        primary: 'Flare Strike',
+        rites: ['Flare Strike', 'Solar Flare', 'Decree of the Sun', 'Consecrated Ground', 'Radiant Bulwark', 'Daybreak', 'Wrath of the Daystar', 'Blinding Radiance'],
+        desc: 'Herald of Dawn commanding Decree of the Sun and Daybreak to mend allies, cleanse debuffs, and restore health to allied Outpost Nexuses.',
       },
     ],
   },
   Umbri: {
+    id: 'Umbri',
     name: 'The Duskveil Syndicate',
+    title: 'Umbri (The Shadow)',
+    aspect: 'Void / Amethyst',
     motto: 'In shadows we weave, in silence we strike.',
     color: '#9B30FF',
     border: 'border-[#9B30FF]',
     badgeBg: 'bg-[#9B30FF]/15',
+    logo: '/umbri_nobg.png',
     resource: 'Void Resonance (0-100) & Dusk Shroud',
-    desc: 'Subterranean reapers operating from the Umbri Undercity. Void Resonance fuels terrifying shadow-weaving, stealth strikes, and life-stealing graveglass sorcery.',
+    desc: 'Subterranean reapers operating from the Umbri Undercity who bound the necrotic shadow facets of the shattered Crystal Heart. Void Resonance fuels terrifying shadow-weaving, stealth strikes, and life-stealing graveglass sorcery.',
     classes: [
       {
         id: 'umbral_assassin',
         name: 'Umbral Assassin',
-        role: 'Burst Flanker • Stealth & Execution',
-        armor: 'Graveglass Shadow Leather',
-        weapon: 'Dual Nether Daggers',
-        primary: 'Shadow Cleave',
-        rites: ['Shadow Cleave', 'Void Blink', 'Smoke Shroud', 'Death Mark'],
-        desc: 'Vanishes into thin air before emerging behind vulnerable targets to deliver lethal critical strikes.',
+        role: 'Stealth Executioner • Void Harvest',
+        armor: 'Duskveil Shadowmail',
+        weapon: 'Scythe of the Soulreaper',
+        offhand: 'Graveglass Focus',
+        primary: 'Whisper of the Void',
+        rites: ['Whisper of the Void', 'Unmake', 'Soul Tithe', 'Nightfall Plague', 'Veil of Dusk', 'Siphon Soul', 'Graveglass Ward', 'Shadow Step'],
+        desc: 'Duskveil stalker vanishing in shadow, blinking through space with Shadow Step, and executing vulnerable targets with Unmake.',
       },
       {
         id: 'graveglass_oracle',
         name: 'Graveglass Oracle',
-        role: 'Void Sorcerer • Curse & Siphon',
-        armor: 'Obsidian Weave Robes',
-        weapon: 'Graveglass Lantern & Scythe',
-        primary: 'Nether Bolt',
-        rites: ['Nether Bolt', 'Soul Drain', 'Grave Chill', 'Abyssal Nova'],
-        desc: 'Masters of the forbidden dark leylines. Reaps dying essence to sustain dark shields and curse enemy formations.',
+        role: 'Blood-Hex Reaper • Life Drain',
+        armor: 'Duskveil Shadowmail',
+        weapon: 'Scythe of the Soulreaper',
+        offhand: 'Graveglass Focus',
+        primary: 'Whisper of the Void',
+        rites: ['Whisper of the Void', 'Siphon Soul', 'Soul Tithe', 'Nightfall Plague', 'Graveglass Ward', 'Veil of Dusk', 'Unmake', 'Shadow Step'],
+        desc: 'Sepulcher mystic draining enemy life-force via Siphon Soul, Soul Tithe, and Nightfall Plague to sustain dark barriers and wither foes.',
       },
     ],
   },
   Terra: {
+    id: 'Terra',
     name: 'The Rootdeep Collective',
+    title: 'Terra (The Earth)',
+    aspect: 'Verdant Root / Emerald',
     motto: 'Stand unyielding as ancient stone.',
     color: '#22E07B',
     border: 'border-[#22E07B]',
     badgeBg: 'bg-[#22E07B]/15',
+    logo: '/terra_nobg.png',
     resource: 'Root Armor (0-100) & Bramble Fortitude',
-    desc: 'Shamans and guardians communing with the giant canopy of Glimmer Orchard. Root Armor absorbs massive punishment and retaliates with thorn barriers.',
+    desc: 'Ancient guardians and stonekin elders communing with the giant canopy of Glimmer Orchard, binding the living root and ironwood facets of the shattered Crystal Heart. Root Armor absorbs massive punishment and retaliates with thorn shockwaves.',
     classes: [
       {
         id: 'forest_warden',
         name: 'Forest Warden',
-        role: 'Skirmisher • Beast & Bramble',
-        armor: 'Hardened Bark & Hide',
-        weapon: 'Briar Bow & Woodaxe',
-        primary: 'Thorn Volley',
-        rites: ['Thorn Volley', 'Tangle Roots', 'Barkskin Blessing', 'Wild Rampage'],
-        desc: 'Prowls ancient groves with unmatched agility, ensnaring foes in thorny brambles and coordinating pack strikes.',
+        role: 'Primal Bruiser • Overwhelm & Roots',
+        armor: 'Ironwood Armor',
+        weapon: 'Ironwood Greathammer',
+        offhand: 'Thornbark Buckler',
+        primary: 'Tectonic Slam',
+        rites: ['Tectonic Slam', 'Earthshatter', 'Stonekin Boulder', 'Briar Snare', 'Barkskin Infusion', 'Verdant Renewal', 'Primal Overwhelm', 'Wildshape Surge'],
+        desc: 'Guardian of Glimmer Orchard snaring enemies in Briar Snare, stampeding through frontlines with Wildshape Surge, and crushing foes with Tectonic Slam.',
       },
       {
         id: 'stonekin_elder',
         name: 'Stonekin Elder',
-        role: 'Colossus Tank • Seismic Control',
-        armor: 'Living Bedrock Plating',
-        weapon: 'Granite Maul & Earth Pillar',
-        primary: 'Bedrock Slam',
-        rites: ['Bedrock Slam', 'Earth Spike', 'Tectonic Fortress', 'Avalanche'],
-        desc: 'An immovable mountain walking among mortals. Smashes the earth to stun groups and deflects heavy artillery.',
+        role: 'Colossal Tank • Thornbark Reflect',
+        armor: 'Ironwood Armor',
+        weapon: 'Ironwood Greathammer',
+        offhand: 'Thornbark Buckler',
+        primary: 'Tectonic Slam',
+        rites: ['Tectonic Slam', 'Stonekin Boulder', 'Earthshatter', 'Briar Snare', 'Barkskin Infusion', 'Verdant Renewal', 'Primal Overwhelm', 'Wildshape Surge'],
+        desc: 'Ancient Rootdeep juggernaut encased in Barkskin Infusion, reflecting melee strikes with Thornbark and shattering battlefields with Stonekin Boulders.',
       },
     ],
   },
   Aether: {
+    id: 'Aether',
     name: 'The Astral Conclave',
+    title: 'Aether (The Magic)',
+    aspect: 'Celestial Mist / Cyan',
     motto: 'Time and space bend to the arcane truth.',
     color: '#00BFFF',
     border: 'border-[#00BFFF]',
     badgeBg: 'bg-[#00BFFF]/15',
+    logo: '/aether_nobg.png',
     resource: 'Chronoflux (0-100) & Temporal Surge',
-    desc: 'Scholars of the Mirrorgate Spire who manipulate the celestial lattice. Chronoflux accelerates cooldowns, bends projectile vectors, and manipulates time flow.',
+    desc: 'Scholars of the Mirrorgate Spire who manipulate the celestial lattice and star-weaving chronoflux facets of the shattered Crystal Heart. Chronoflux accelerates cooldowns, bends projectile vectors, and rewinds positioning.',
     classes: [
       {
         id: 'chronomancer_sage',
         name: 'Chronomancer Sage',
-        role: 'Time Controller • Arcane Velocity',
-        armor: 'Astral Silk Vestments',
-        weapon: 'Mirrorgate Focus Staff',
-        primary: 'Arcane Arc',
-        rites: ['Arcane Arc', 'Time Distortion', 'Rewind Slip', 'Chronos Rift'],
-        desc: 'Alters the flow of combat by accelerating allies, freezing foes in temporal pockets, and resetting crucial cooldowns.',
+        role: 'Time-Bender • Flash Tempo & Echo',
+        armor: 'Starweave Vestments',
+        weapon: 'Astral Chrono-Staff',
+        offhand: 'Mirror Shield',
+        primary: 'Reality Fracture',
+        rites: ['Reality Fracture', 'Astral Convergence', 'Temporal Lance', 'Gravity Well', 'Mirror Barrier', 'Time Loop Paradox', 'Frost Nova', 'Chrono Shift'],
+        desc: 'Mirrorgate scholar bending spacetime with Chrono Shift, Gravity Well, and Time Loop Paradox to accelerate allies and freeze enemies in temporal rifts.',
       },
       {
         id: 'nexus_weaver',
         name: 'Nexus Weaver',
-        role: 'Portal Specialist • Reality Rift',
-        armor: 'Loomed Aether Shroud',
-        weapon: 'Warp Dagger & Catalyst Orb',
-        primary: 'Flux Burst',
-        rites: ['Flux Burst', 'Leyline Tether', 'Dimensional Portal', 'Starfall Burst'],
-        desc: 'Tears open spatial wormholes across battlefield lines, rearranging squad positioning with reality rifts.',
+        role: 'Arcane Battlemage • Starfall & Freeze',
+        armor: 'Starweave Vestments',
+        weapon: 'Astral Chrono-Staff',
+        offhand: 'Mirror Shield',
+        primary: 'Reality Fracture',
+        rites: ['Reality Fracture', 'Temporal Lance', 'Astral Convergence', 'Gravity Well', 'Mirror Barrier', 'Time Loop Paradox', 'Frost Nova', 'Chrono Shift'],
+        desc: 'Weaver of cosmic leylines freezing foes with Frost Nova, hurling Temporal Lances, and calling down Astral Convergence across the battlefield.',
       },
     ],
   },
 };
 
 // ==========================================
-// PIXELATED ARMORY ITEMS SHOWCASE
+// PIXELATED ARMORY ITEMS SHOWCASE (CANONICAL)
 // ==========================================
 const PIXEL_ITEMS = [
-  { id: 'dawnblade', name: 'Dawnblade Greatsword', slot: 'Weapon', rarity: 'Legendary', icon: '🗡️', stat: '+24 Radiant Dmg • +8% Holy Crit', color: '#F2A900', desc: 'Forged from Starfall meteorite and quenched in the solar well.' },
-  { id: 'sun_shield', name: 'Sunforged Radiance Aegis', slot: 'Shield', rarity: 'Epic', icon: '🛡️', stat: '+45 Armor • +60 Block Value', color: '#F2A900', desc: 'Imbued with the Zenith core. Emits blinding retaliation flashes.' },
-  { id: 'astral_crown', name: 'Chronomancer Crown', slot: 'Head', rarity: 'Legendary', icon: '👑', stat: '+18 Arcane • +20 Max Glimmer', color: '#00BFFF', desc: 'Allows the wearer to perceive 3 seconds into adjacent timelines.' },
-  { id: 'shadow_cowl', name: 'Duskveil Shadow Cowl', slot: 'Head', rarity: 'Epic', icon: '🦹', stat: '+14 Agility • +12% Stealth Opener', color: '#9B30FF', desc: 'Woven with Graveglass filament that drinks ambient illumination.' },
-  { id: 'leyline_boots', name: 'Boots of Leyline Striding', slot: 'Boots', rarity: 'Rare', icon: '🥾', stat: '+15% Move Speed • Zero Leyline Friction', color: '#22E07B', desc: 'Glides over rough cavern terrain and hazardous root tangles.' },
-  { id: 'ring_solar', name: 'Ring of the Solar Core', slot: 'Ring', rarity: 'Epic', icon: '💍', stat: '+15 Solar Charge Max • +5 HP/s Regen', color: '#F2A900', desc: 'Warm to the touch even in the frost of the Abyssal Rift.' },
-  { id: 'void_rune', name: 'Ancient Void Inscription', slot: 'Rune', rarity: 'Cosmic', icon: '📜', stat: 'Activates 3-Socket Synergy (+22% Dmg)', color: '#9B30FF', desc: 'Decoded from the monolith ruins deep inside Starfall Crater.' },
-  { id: 'chronocore', name: 'Chronocore Prism', slot: 'Relic', rarity: 'Cosmic', icon: '💎', stat: 'World Nexus Anchor (25 HP Rule)', color: '#00BFFF', desc: 'Authentic TCG relic from glimmerfalltcg.com. Protects your Outpost Nexus.' },
+  { id: 'solari_spellblade', name: 'Solari Spellblade', slot: 'Weapon', rarity: 'Awakened', icon: '🗡️', stat: '+24 Radiant Dmg • +8% Holy Crit', color: '#F2A900', desc: 'Forged from Starfall meteorite and quenched in the solar well of the Sunspire.' },
+  { id: 'radiant_shield', name: 'Radiant Shield', slot: 'Shield', rarity: 'Solari Relic', icon: '🛡️', stat: '+45 Armor • +60 Block Value', color: '#F2A900', desc: 'Imbued with the Zenith core. Emits blinding retaliation flashes.' },
+  { id: 'scythe_soulreaper', name: 'Scythe of the Soulreaper', slot: 'Weapon', rarity: 'Epic Relic', icon: '⛏️', stat: '+28 Void Dmg • +20% Life Leech', color: '#9B30FF', desc: 'Forged in the Umbri Undercity to harvest dying essence and replenish vitals.' },
+  { id: 'duskveil_shroud', name: 'Duskveil Shadowmail', slot: 'Armor', rarity: 'Awakened', icon: '🦹', stat: '+14 Agility • +12% Stealth Opener', color: '#9B30FF', desc: 'Woven with Graveglass filament that drinks ambient illumination.' },
+  { id: 'ironwood_maul', name: 'Ironwood Greathammer', slot: 'Weapon', rarity: 'Awakened', icon: '🔨', stat: '+32 Physical Dmg • Stun Chance', color: '#22E07B', desc: 'Carved from heartwood of Glimmer Orchard ancient boughs.' },
+  { id: 'bramble_buckler', name: 'Thornbark Buckler', slot: 'Shield', rarity: 'Terra Relic', icon: '🪵', stat: '+35 Armor • +35% Reflect', color: '#22E07B', desc: 'Reflects incoming melee damage back at attackers through barbed briars.' },
+  { id: 'chronocore_staff', name: 'Astral Chrono-Staff', slot: 'Weapon', rarity: 'Awakened', icon: '🔮', stat: '+26 Arcane • -12% Cooldowns', color: '#00BFFF', desc: 'Allows the wielder to perceive temporal currents and accelerate spell rites.' },
+  { id: 'chronocore', name: 'Chronocore Prism', slot: 'Relic', rarity: 'Cosmic Relic', icon: '💎', stat: 'World Nexus Anchor (25 HP Rule)', color: '#00BFFF', desc: 'Authentic TCG relic from glimmerfalltcg.com. Protects your Outpost Nexus.' },
 ];
 
 // ==========================================
@@ -213,10 +237,11 @@ const PROFESSIONS = [
 ];
 
 const ORDER_PRESETS = [
-  { tag: 'SUN', name: 'Order of Dawn', color: '#F2A900' },
-  { tag: 'ASTR', name: 'Mirror Ascendants', color: '#00BFFF' },
-  { tag: 'VOID', name: 'Dusk Reapers', color: '#9B30FF' },
-  { tag: 'TERR', name: 'Verdant Guard', color: '#22E07B' },
+  { tag: 'SUN', name: 'Order of Dawn', color: '#F2A900', emblem: '☀️' },
+  { tag: 'VOID', name: 'Duskveil Cabal', color: '#9B30FF', emblem: '🌑' },
+  { tag: 'ROOT', name: 'Ironwood Watch', color: '#22E07B', emblem: '🌿' },
+  { tag: 'AETH', name: 'Chronocore Wardens', color: '#00BFFF', emblem: '🔮' },
+  { tag: 'GLIM', name: 'GlimmerFall Founders', color: '#FB923C', emblem: '⚡' },
 ];
 
 const RANDOM_NAMES = [
@@ -342,9 +367,15 @@ export default function LandingPage() {
         }
         localStorage.setItem('glimmerfall_sp_roster_v2', JSON.stringify(roster));
 
+        // Determine destination: if on standalone Next.js marketing page, navigate to /game.html; else /
+        const isStandalone = typeof window !== 'undefined' && !document.getElementById('frontpage-overlay');
+        const targetUrl = isStandalone
+          ? `/game.html?mode=${playMode}&autostart=1`
+          : `/?mode=${playMode}&autostart=1`;
+
         setTimeout(() => {
-          window.location.href = `/?mode=${playMode}&autostart=1`;
-        }, 300);
+          window.location.href = targetUrl;
+        }, 250);
       }
     } catch (e) {
       console.error(e);
@@ -355,7 +386,8 @@ export default function LandingPage() {
   const handleOpenLoadout = () => {
     playSfx('click');
     if (typeof window !== 'undefined') {
-      window.location.href = '/?loadout=1';
+      const isStandalone = !document.getElementById('frontpage-overlay');
+      window.location.href = isStandalone ? '/game.html?loadout=1' : '/?loadout=1';
     }
   };
 
@@ -390,7 +422,7 @@ export default function LandingPage() {
               </div>
               <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#4ADE80] font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#4ADE80] animate-ping" />
-                20Hz Authoritative MMO • 0ms Offline
+                20Hz Authoritative MMO • 0ms Local
               </div>
             </div>
           </div>
@@ -437,7 +469,10 @@ export default function LandingPage() {
             <BookOpen className="w-4 h-4 text-[#38BDF8]" /> Game Systems Encyclopedia
           </a>
           <a href="#lore-tcg" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-white/80 hover:text-[#9B30FF] transition-colors">
-            <Scroll className="w-4 h-4 text-[#9B30FF]" /> Cosmic Lore &amp; TCG Oracle
+            <Scroll className="w-4 h-4 text-[#9B30FF]" /> World Lore &amp; Chronicle
+          </a>
+          <a href="#tcg-cards" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-white/80 hover:text-[#38BDF8] transition-colors">
+            <Sparkles className="w-4 h-4 text-[#38BDF8]" /> Authentic TCG Cards
           </a>
           <a href="#armory" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-white/80 hover:text-[#22E07B] transition-colors">
             <Boxes className="w-4 h-4 text-[#22E07B]" /> Continental Armory
@@ -448,6 +483,10 @@ export default function LandingPage() {
           <a href="#atlas" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-white/80 hover:text-[#38BDF8] transition-colors">
             <Globe className="w-4 h-4 text-[#38BDF8]" /> Continental World Atlas
           </a>
+          <a href="#settings" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-white/80 hover:text-[#F2A900] transition-colors">
+            <Settings className="w-4 h-4 text-[#F2A900]" /> Preferences &amp; Settings
+          </a>
+
           <button
             onClick={handleOpenLoadout}
             className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-[#1E1B4B]/60 border border-[#38BDF8]/30 hover:border-[#38BDF8] text-[#7DD3FC] transition-colors mt-2"
@@ -555,7 +594,7 @@ export default function LandingPage() {
               onChange={(e) => handleToggleStartOnSite(e.target.checked)}
               className="rounded border-[#334155] text-[#38BDF8] focus:ring-0 cursor-pointer accent-[#38BDF8]"
             />
-            <span>Start on Loadout view</span>
+            <span>Start on this site (Loadout)</span>
           </label>
           <div className="mt-2 text-[10px] text-white/40 flex justify-between">
             <span>© 2026 GlimmerFall</span>
@@ -569,8 +608,8 @@ export default function LandingPage() {
       {/* ======================================================== */}
       {/* 2. MAIN SCROLLABLE PIXEL HEAVEN CONTENT */}
       {/* ======================================================== */}
-          <main className="flex-1 min-h-screen px-4 py-8 lg:px-12 lg:py-12 space-y-16">
-          {/* HERO BANNER SECTION */}
+      <main className="flex-1 min-h-screen px-4 py-8 lg:px-12 lg:py-12 space-y-16">
+        {/* HERO BANNER SECTION */}
         <section className="relative rounded-3xl p-8 lg:p-14 overflow-hidden border border-[#1E293B] bg-radial from-[#131D38] via-[#090E1E] to-[#050814] shadow-2xl">
           <div className="absolute top-0 right-0 w-96 h-96 bg-[#F2A900]/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#38BDF8]/10 rounded-full blur-3xl pointer-events-none" />
@@ -597,10 +636,15 @@ export default function LandingPage() {
 
             <p className="text-base sm:text-lg text-white/80 leading-relaxed font-head">
               Step into an authentic top-down action MMORPG inspired by classic 16-bit masterworks.
-              Harvest celestial Glimmer leylines, socket authentic trading card relics from{' '}
+              Before the continent formed, the celestial <b>Crystal Heart shattered</b>, fracturing unified light into four elemental aspects:
+              <span className="text-[#F2A900] font-bold"> Solar Light</span>,
+              <span className="text-[#9B30FF] font-bold"> Void</span>,
+              <span className="text-[#22E07B] font-bold"> Verdant Root</span>, and
+              <span className="text-[#38BDF8] font-bold"> Celestial Mist</span>.
+              Harvest living Glimmer fonts, socket trading card relics from{' '}
               <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" className="text-[#38BDF8] underline font-bold">
                 glimmerfalltcg.com
-              </a>, master 7 disciplines to Level 99, and defend your 25-HP Outpost Nexus in 3v3 arenas.
+              </a>, master 7 disciplines to Level 99, and defend your 25-HP Outpost Nexus in 3v3 destruction arenas.
             </p>
 
             {/* Spec Highlights Grid */}
@@ -688,7 +732,7 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              {/* Faction Alleigance */}
+              {/* Faction Allegiance */}
               <div>
                 <label className="block text-xs font-extrabold uppercase tracking-wider text-white/70 mb-2">
                   2. CANONICAL FACTION ALLEGIANCE
@@ -710,7 +754,8 @@ export default function LandingPage() {
                         <div className="font-display font-bold text-sm" style={{ color: f.color }}>
                           {facKey}
                         </div>
-                        <div className="text-[10px] text-white/60 mt-1 line-clamp-1">{f.name}</div>
+                        <div className="text-[10px] text-white/80 font-medium mt-0.5">{f.aspect}</div>
+                        <div className="text-[9.5px] text-white/50 mt-1 line-clamp-1">{f.name}</div>
                       </button>
                     );
                   })}
@@ -765,7 +810,7 @@ export default function LandingPage() {
                 <label className="block text-xs font-extrabold uppercase tracking-wider text-white/70 mb-2">
                   4. ORDER CREST &bull; HERALDRY TAG
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
                   {ORDER_PRESETS.map((o) => {
                     const isSelected = selectedOrderTag === o.tag;
                     return (
@@ -778,7 +823,7 @@ export default function LandingPage() {
                             : 'border-[#1E293B] bg-black/30 text-white/70 hover:border-white/20'
                         }`}
                       >
-                        <div className="font-mono text-xs font-black">[{o.tag}]</div>
+                        <div className="font-mono text-xs font-black">[{o.tag}] {o.emblem}</div>
                         <div className="text-[10px] text-white/60">{o.name}</div>
                       </button>
                     );
@@ -804,7 +849,7 @@ export default function LandingPage() {
                     [{currentOrder.tag}] • {activeClassObj.name}
                   </div>
                   <div className="text-[11px] font-bold mt-1" style={{ color: currentFaction.color }}>
-                    {currentFaction.name}
+                    {currentFaction.name} ({currentFaction.aspect})
                   </div>
                 </div>
 
@@ -832,6 +877,10 @@ export default function LandingPage() {
                   <div className="flex justify-between">
                     <span>Starter Rite:</span>
                     <b className="text-[#38BDF8]">{activeClassObj.primary}</b>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Faction Mechanic:</span>
+                    <b style={{ color: currentFaction.color }}>{currentFaction.resource}</b>
                   </div>
                 </div>
 
@@ -863,7 +912,7 @@ export default function LandingPage() {
             <div className="flex flex-wrap gap-2 text-xs font-bold">
               {[
                 { id: 'combat', label: '⚔️ Combat Dynamics' },
-                { id: 'resources', label: '⚡ Faction Resources' },
+                { id: 'resources', label: '⚡ 4 Faction Resources' },
                 { id: 'skills', label: '📜 7 Disciplines' },
                 { id: 'persistence', label: '💾 State Persistence' },
               ].map((tab) => (
@@ -889,7 +938,7 @@ export default function LandingPage() {
                 <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
                   <h4 className="font-display font-bold text-sm text-[#F2A900] mb-1">🗡️ Attack Cleave Arcs &amp; Hitboxes</h4>
                   <p className="text-xs text-white/70 leading-relaxed">
-                    Melee swings deliver a 90-degree frontal cleave covering 34 pixels. Projectiles track omni-directional vectors with 16px radius hitboxes. Real-time client prediction synchronizes seamlessly with the 20Hz server.
+                    Melee strikes deliver a 90-degree frontal cleave covering 34 pixels. Projectiles track omni-directional vectors with 16px radius hitboxes. Real-time client prediction synchronizes seamlessly with the 20Hz server.
                   </p>
                 </div>
                 <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
@@ -916,27 +965,27 @@ export default function LandingPage() {
             {activeEncTab === 'resources' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-5 rounded-2xl bg-black/40 border border-[#F2A900]/40">
-                  <h4 className="font-display font-bold text-sm text-[#F2A900] mb-1">☀️ Solari: Solar Charge &amp; Zenith</h4>
+                  <h4 className="font-display font-bold text-sm text-[#F2A900] mb-1">☀️ Solari: Solar Charge &amp; Zenith State (Solar Light / Gold)</h4>
                   <p className="text-xs text-white/70 leading-relaxed">
-                    Striking enemies builds Solar Charge (0-100). Reaching 100 triggers the blinding Zenith State, granting +25% movespeed, holy radiance pulse damage, and instant cooldown on Solar Flare.
+                    Striking enemies builds Solar Charge (0-100). Reaching 100 triggers the blinding Zenith State, granting +25% movespeed, holy radiance pulse damage, and resetting cooldown on Solar Flare.
                   </p>
                 </div>
                 <div className="p-5 rounded-2xl bg-black/40 border border-[#9B30FF]/40">
-                  <h4 className="font-display font-bold text-sm text-[#9B30FF] mb-1">🌙 Umbri: Void Resonance &amp; Dusk Shroud</h4>
+                  <h4 className="font-display font-bold text-sm text-[#9B30FF] mb-1">🌙 Umbri: Void Resonance &amp; Dusk Shroud (Void / Amethyst)</h4>
                   <p className="text-xs text-white/70 leading-relaxed">
                     Channeling dark arts fuels Void Resonance. Consuming resonance activates Dusk Shroud, cloaking the assassin from enemy unit frames and providing guaranteed critical strikes.
                   </p>
                 </div>
                 <div className="p-5 rounded-2xl bg-black/40 border border-[#22E07B]/40">
-                  <h4 className="font-display font-bold text-sm text-[#22E07B] mb-1">🌿 Terra: Root Armor &amp; Bedrock</h4>
+                  <h4 className="font-display font-bold text-sm text-[#22E07B] mb-1">🌿 Terra: Root Armor &amp; Bedrock (Verdant Root / Emerald)</h4>
                   <p className="text-xs text-white/70 leading-relaxed">
-                    Absorbing physical strikes cultivates living root bark. When shattered, Root Armor triggers a thorn shockwave that roots all adjacent assailants for 2.5 seconds.
+                    Absorbing physical strikes cultivates living root bark. When shattered, Root Armor triggers a thorn shockwave that roots all adjacent assailants and reflects incoming melee damage.
                   </p>
                 </div>
                 <div className="p-5 rounded-2xl bg-black/40 border border-[#00BFFF]/40">
-                  <h4 className="font-display font-bold text-sm text-[#00BFFF] mb-1">🌀 Aether: Chronoflux &amp; Warp</h4>
+                  <h4 className="font-display font-bold text-sm text-[#00BFFF] mb-1">🌀 Aether: Chronoflux &amp; Flash Tempo (Celestial Mist / Cyan)</h4>
                   <p className="text-xs text-white/70 leading-relaxed">
-                    Chronoflux fluctuates dynamically. Harnessing flux enables the sage to bend projectile paths, reverse ally positioning, and rewrite temporal damage histories.
+                    Chronoflux fluctuates dynamically. Harnessing flux accelerates cooldown recovery, bends projectile vectors, and empowers Rites to Echo for +45% bonus arcane damage.
                   </p>
                 </div>
               </div>
@@ -991,24 +1040,23 @@ export default function LandingPage() {
         </section>
 
         {/* ======================================================== */}
-        {/* COSMIC LORE & TCG ENCYCLOPEDIA SECTION (#lore-tcg) */}
+        {/* WORLD LORE & CHRONICLE SECTION (#lore-tcg) */}
         {/* ======================================================== */}
         <section id="lore-tcg" className="rounded-3xl p-6 lg:p-10 border border-[#1E293B] bg-[#0A0F22]/90 space-y-6">
           <div className="flex flex-wrap justify-between items-center gap-4 pb-6 border-b border-[#1E293B]">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#9B30FF] px-2.5 py-1 rounded bg-[#9B30FF]/10 border border-[#9B30FF]/30">
-                glimmerfalltcg.com Canonical Lore
+                Canonical Universe Chronicle
               </span>
               <h2 className="font-display font-bold text-2xl sm:text-3xl text-white mt-1">
-                📜 COSMIC LORE &amp; TCG ORACLE
+                📜 WORLD LORE &amp; CHRONICLE
               </h2>
             </div>
             <div className="flex flex-wrap gap-2 text-xs font-bold">
               {[
-                { id: 'shattering', label: '🌌 The Great Shattering' },
-                { id: 'creeds', label: '🏛️ 4 Faction Creeds' },
-                { id: 'cards', label: '🃏 TCG Card Relics' },
-                { id: 'legends', label: '👑 Sanctuary Legends' },
+                { id: 'shattering', label: '🌌 Chapter I: The Shattered Crystal Heart' },
+                { id: 'creeds', label: '🏛️ Chapter II: 4 Faction Creeds' },
+                { id: 'legends', label: '👑 Chapter III: Sanctuary Awakening' },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1027,13 +1075,50 @@ export default function LandingPage() {
 
           <div className="space-y-4">
             {activeLoreTab === 'shattering' && (
-              <div className="p-6 rounded-2xl bg-black/40 border border-[#1E293B] space-y-3">
-                <h4 className="font-display font-bold text-base text-[#F2A900]">The Cataclysm of the Shattered Leylines</h4>
-                <p className="text-xs text-white/80 leading-relaxed font-head">
-                  In the First Age of the continent, the celestial Starfall tore through the astral canopy, embedding cosmic Glimmer veins into the very bedrock of the world.
-                  The leyline harmonic split into four distinct frequencies: radiant Solar fire, subterranean Void resonance, enduring Living Root, and fluid Chronoflux.
-                  Sanctuary Haven stands as the sacred neutral haven where mortal champions master these cosmic powers to hold back the encroaching Abyssal Rift.
+              <div className="p-6 rounded-2xl bg-black/40 border border-[#1E293B] space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#F2A900] tracking-wider uppercase">
+                    CHAPTER I • COSMIC ORIGIN &amp; THE FALL
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-[#F2A900]/15 text-[#F2A900] border border-[#F2A900]/30 font-bold">
+                    THE GREAT FRACTURE
+                  </span>
+                </div>
+                <h4 className="font-display font-bold text-lg text-white">
+                  The Shattered Crystal Heart &amp; The Great Glimmer Fracture
+                </h4>
+                <p className="text-sm text-white/80 leading-relaxed font-head">
+                  Before the continental realms took shape, cosmic reality was held in equilibrium by a solitary celestial relic: the <b>Crystal Heart</b>—an iridescent, multi-faceted anatomical heart pulsing with pure rainbow prismatic light in the silence between the radiant Golden Sun and the deep Abyssal Void.
                 </p>
+                <p className="text-sm text-white/80 leading-relaxed font-head">
+                  As cosmic discord escalated, violent violet lightning fissures fractured its chambers. In a cataclysmic detonation known as the <b>Crystalheart Shattering</b>, the Crystal Heart shattered into a rain of flaming iridescent meteor shards that collided with the earth, forging the continent and embedding living Glimmer veins deep into the bedrock.
+                </p>
+                <p className="text-sm text-white/80 leading-relaxed font-head">
+                  With the Crystal Heart destroyed, the unified white Glimmer split into the four canonical elemental aspects:
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <div className="p-3.5 rounded-xl bg-black/50 border-l-4 border-l-[#F2A900] border-y border-r border-[#1E293B]">
+                    <div className="font-bold text-xs text-[#F2A900]">☀️ Solari — Solar Light / Gold</div>
+                    <div className="text-[11px] text-white/70 mt-1">Claimed the dawn-fire facets. Sentinels of the Sunspire Dominion wielding Guard and Zenith radiance.</div>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-black/50 border-l-4 border-l-[#9B30FF] border-y border-r border-[#1E293B]">
+                    <div className="font-bold text-xs text-[#9B30FF]">🌑 Umbri — Void / Amethyst</div>
+                    <div className="text-[11px] text-white/70 mt-1">Channeled the necrotic shadow facets. Reapers of the Duskveil Syndicate wielding Stealth and Void Harvest.</div>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-black/50 border-l-4 border-l-[#22E07B] border-y border-r border-[#1E293B]">
+                    <div className="font-bold text-xs text-[#22E07B]">🌿 Terra — Verdant Root / Emerald</div>
+                    <div className="text-[11px] text-white/70 mt-1">Bound the root and ironwood facets. Guardians of the Rootdeep Collective wielding Overwhelm and Thornbark reflect.</div>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-black/50 border-l-4 border-l-[#00BFFF] border-y border-r border-[#1E293B]">
+                    <div className="font-bold text-xs text-[#00BFFF]">🔮 Aether — Celestial Mist / Cyan</div>
+                    <div className="text-[11px] text-white/70 mt-1">Harnessed the star-weaving chronoflux facets. Scholars of the Astral Conclave wielding Flash Tempo and Echo.</div>
+                  </div>
+                </div>
+
+                <div className="text-xs text-white/60 italic pt-2 border-t border-white/10">
+                  "The Glimmer singing in your blood is not ordinary magic—it is the living life-blood of the shattered Crystal Heart." — Herald Lyra
+                </div>
               </div>
             )}
 
@@ -1041,76 +1126,116 @@ export default function LandingPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-5 rounded-2xl bg-black/40 border-l-4 border-l-[#F2A900] border-y border-r border-[#1E293B]">
                   <h4 className="font-display font-bold text-sm text-[#F2A900]">The Sunspire Dominion</h4>
+                  <div className="text-[10px] text-[#F2A900] font-semibold">Aspect: Solar Light / Gold</div>
                   <p className="text-xs text-white/70 mt-1 italic">"May the Sunspire illuminate the darkness."</p>
                   <p className="text-xs text-white/70 mt-2 leading-relaxed">
-                    Sentinels sworn to the Daystar. They construct soaring gilded spires to capture raw solar leylines, burning away shadow taint with unyielding martial discipline.
+                    Sentinels sworn to the Daystar and dawn-fire facets. They construct soaring gilded sunspires to capture raw solar leylines, burning away void corruption with unyielding martial discipline and Zenith empowerment.
                   </p>
                 </div>
 
                 <div className="p-5 rounded-2xl bg-black/40 border-l-4 border-l-[#9B30FF] border-y border-r border-[#1E293B]">
                   <h4 className="font-display font-bold text-sm text-[#9B30FF]">The Duskveil Syndicate</h4>
+                  <div className="text-[10px] text-[#9B30FF] font-semibold">Aspect: Void / Amethyst</div>
                   <p className="text-xs text-white/70 mt-1 italic">"In shadows we weave, in silence we strike."</p>
                   <p className="text-xs text-white/70 mt-2 leading-relaxed">
-                    Operating in the subterranean Undercity, they wield void resonance and graveglass lanterns, maintaining that shadow is the ultimate truth and armor against mortal hubris.
+                    Operating in the subterranean Undercity, they wield the necrotic shadow facets through Graveglass Lanterns, claiming that shadow is the ultimate truth and shield against mortal hubris.
                   </p>
                 </div>
 
                 <div className="p-5 rounded-2xl bg-black/40 border-l-4 border-l-[#22E07B] border-y border-r border-[#1E293B]">
                   <h4 className="font-display font-bold text-sm text-[#22E07B]">The Rootdeep Collective</h4>
+                  <div className="text-[10px] text-[#22E07B] font-semibold">Aspect: Verdant Root / Emerald</div>
                   <p className="text-xs text-white/70 mt-1 italic">"Stand unyielding as ancient stone."</p>
                   <p className="text-xs text-white/70 mt-2 leading-relaxed">
-                    Guardians of the giant canopy in Glimmer Orchard. They defend the ancient stone bedrock and oppose reckless technological mining of planetary leylines.
+                    Guardians of the giant canopy in Glimmer Orchard communing with the ironwood facets. They defend the ancient stone bedrock and oppose reckless technological mining of planetary leylines.
                   </p>
                 </div>
 
                 <div className="p-5 rounded-2xl bg-black/40 border-l-4 border-l-[#00BFFF] border-y border-r border-[#1E293B]">
                   <h4 className="font-display font-bold text-sm text-[#00BFFF]">The Astral Conclave</h4>
+                  <div className="text-[10px] text-[#00BFFF] font-semibold">Aspect: Celestial Mist / Cyan</div>
                   <p className="text-xs text-white/70 mt-1 italic">"Time and space bend to the arcane truth."</p>
                   <p className="text-xs text-white/70 mt-2 leading-relaxed">
-                    Scholars of the Mirrorgate Spire. Viewing all history as an intricate tapestry of threads, they accelerate time and tear reality rifts to rewrite battle outcomes.
+                    Scholars of the Mirrorgate Spire bending the celestial mist and chronoflux facets. Viewing all history as an intricate harmonic tapestry, they accelerate cooldowns and tear reality rifts to rewrite battle outcomes.
                   </p>
                 </div>
-              </div>
-            )}
-
-            {activeLoreTab === 'cards' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[
-                  { name: 'Solari Vanguard', role: '+15% Radiant Slash Dmg', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/solari_vanguard-YFbhwOPGHYNEmDfQQm2CZfBk9fZJBI.webp' },
-                  { name: 'Dawnblade Templar', role: '+10% Critical Strike Chance', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/dawnblade_templar-JSNrQIidGZhWg88RUeUCqOWBRcaAUy.webp' },
-                  { name: 'Mana Crystal', role: '+25 Max Glimmer & Rapid Regen', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/mana_crystal_85d4da2e-150onQbusVx2hyQEu7HfosXCqX0Ktc.webp' },
-                  { name: 'Granite Behemoth', role: '+350 Max Armor & Threat', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/granite_behemoth-YUFhjjGdiBlGqBINNmSW7tRa37JsSB.webp' },
-                  { name: 'Void Stalker', role: '+25% Stealth Opener Damage', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/void_stalker-mdTofDRCVGbCIGSduoJbUcOKWcclJN.webp' },
-                  { name: 'Chronocore Prism', role: 'World Nexus Monolith (25 HP Rule)', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/chronocore_prism_6eca2de9-tghtsdxz1Tl6oMafBny57jAs96P1Ki.webp' },
-                ].map((c) => (
-                  <div key={c.name} className="flex gap-3 p-3.5 rounded-2xl bg-black/40 border border-[#1E293B] items-center">
-                    <img src={c.img} alt={c.name} className="w-14 h-20 object-cover rounded-lg border border-white/10 flex-shrink-0" />
-                    <div>
-                      <div className="font-display font-bold text-xs text-white">{c.name}</div>
-                      <div className="text-[10px] font-bold text-[#38BDF8] mt-0.5">{c.role}</div>
-                      <span className="text-[9px] text-white/40 block mt-1">Socketable TCG Relic</span>
-                    </div>
-                  </div>
-                ))}
               </div>
             )}
 
             {activeLoreTab === 'legends' && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
-                  <h4 className="font-display font-bold text-sm text-[#F2A900]">✨ Herald Aurora</h4>
-                  <p className="text-xs text-white/70 mt-1">Voice of the Leylines. Greets newly awakened champions at Sanctuary spawn and guides their first Rite awakenings.</p>
+                  <h4 className="font-display font-bold text-sm text-[#F2A900]">✨ Herald Lyra • Sunspire Herald</h4>
+                  <p className="text-xs text-white/70 mt-1">Greets newly awakened Summoner-Knights in Sanctuary Plaza, initiates their awakening trials [WASD &amp; 1], and instructs on the Shattered Crystal Heart.</p>
                 </div>
                 <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
-                  <h4 className="font-display font-bold text-sm text-[#38BDF8]">💎 Moira the Relic-Seeker</h4>
-                  <p className="text-xs text-white/70 mt-1">Grandmaster of Resonance Extraction. Stationed near the mineral veins, she teaches extraction from Grand Fonts.</p>
+                  <h4 className="font-display font-bold text-sm text-[#38BDF8]">🛡️ Commander Valerius • Warlord</h4>
+                  <p className="text-xs text-white/70 mt-1">Commands the North Vanguard Post. Directs champions toward the continental warzones and authorizes squad patrols across the perimeter.</p>
                 </div>
                 <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
-                  <h4 className="font-display font-bold text-sm text-[#22E07B]">🔨 Blacksmith Torvin</h4>
-                  <p className="text-xs text-white/70 mt-1">Master of the Cosmic Star-Anvil. Smelts celestial ores into alloy ingots and hammers masterwork socketed gear.</p>
+                  <h4 className="font-display font-bold text-sm text-[#22E07B]">🔨 Master Artisan Aldric</h4>
+                  <p className="text-xs text-white/70 mt-1">Master of the Artisan Forge. Teaches the cosmic 1.25s cadence of the Crystal Heart, ensuring flawless smithing, tailoring, and void inscription.</p>
                 </div>
               </div>
             )}
+          </div>
+        </section>
+
+        {/* ======================================================== */}
+        {/* AUTHENTIC TCG CARDS SECTION (#tcg-cards) */}
+        {/* ======================================================== */}
+        <section id="tcg-cards" className="rounded-3xl p-6 lg:p-10 border border-[#1E293B] bg-[#0A0F22]/90 space-y-6">
+          <div className="flex flex-wrap justify-between items-center gap-4 pb-6 border-b border-[#1E293B]">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#38BDF8] px-2.5 py-1 rounded bg-[#38BDF8]/10 border border-[#38BDF8]/30">
+                Official glimmerfalltcg.com Integration
+              </span>
+              <h2 className="font-display font-bold text-2xl sm:text-3xl text-white mt-1">
+                🃏 AUTHENTIC TCG CARD RELICS
+              </h2>
+            </div>
+            <a
+              href="https://glimmerfalltcg.com"
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-[#38BDF8] hover:underline flex items-center gap-1 font-bold"
+            >
+              Explore Full TCG Set <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+
+          <p className="text-xs text-white/70">
+            Authentic trading card relics sourced directly from <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" className="text-[#38BDF8] underline font-bold">glimmerfalltcg.com</a>. Socket these rare physical cards into your MMORPG champion's weapon and armor sockets for unique passive traits and stat synergies.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              { name: 'Solari Vanguard', role: '+15% Radiant Strike Dmg', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/solari_vanguard-YFbhwOPGHYNEmDfQQm2CZfBk9fZJBI.webp' },
+              { name: 'Dawnblade Templar', role: '+10% Critical Strike Chance', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/dawnblade_templar-JSNrQIidGZhWg88RUeUCqOWBRcaAUy.webp' },
+              { name: 'Mana Crystal', role: '+25 Max Glimmer & Rapid Regen', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/mana_crystal_85d4da2e-150onQbusVx2hyQEu7HfosXCqX0Ktc.webp' },
+              { name: 'Granite Behemoth', role: '+350 Max Armor & Threat', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/granite_behemoth-YUFhjjGdiBlGqBINNmSW7tRa37JsSB.webp' },
+              { name: 'Void Stalker', role: '+25% Stealth Opener Damage', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards/void_stalker-mdTofDRCVGbCIGSduoJbUcOKWcclJN.webp' },
+              { name: 'Chronocore Prism', role: 'World Nexus Monolith (25 HP Rule)', img: 'https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/cards2/chronocore_prism_6eca2de9-tghtsdxz1Tl6oMafBny57jAs96P1Ki.webp' },
+            ].map((c) => (
+              <div key={c.name} className="flex gap-3.5 p-4 rounded-2xl bg-black/40 border border-[#1E293B] items-center hover:border-[#38BDF8] transition-all">
+                <div className="w-16 h-22 rounded-lg bg-[#080E1C] border border-white/10 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                  <img
+                    src={c.img}
+                    alt={c.name}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                    className="w-full h-full object-cover"
+                  />
+                  <span className="text-xl text-white/30">🃏</span>
+                </div>
+                <div>
+                  <div className="font-display font-bold text-xs text-white">{c.name}</div>
+                  <div className="text-[10.5px] font-bold text-[#38BDF8] mt-1">{c.role}</div>
+                  <span className="text-[9px] text-[#4ADE80] font-semibold block mt-1">Socketable TCG Relic</span>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -1124,7 +1249,7 @@ export default function LandingPage() {
                 16-Bit Equipment Catalog
               </span>
               <h2 className="font-display font-bold text-2xl sm:text-3xl text-white mt-1">
-                🛡️ PIXEL ARMORY &amp; CRAFTING VAULT
+                🛡️ CONTINENTAL ARMORY &amp; CRAFTING VAULT
               </h2>
             </div>
             <span className="text-xs text-white/50">8 Slots • Socketable Runes</span>
@@ -1211,6 +1336,7 @@ export default function LandingPage() {
               { id: 'terra', name: 'Glimmer Orchard', tag: 'Rootdeep Collective', color: '#22E07B', desc: 'Massive towering ancient canopy trees with sentient moss and stonekin elders.' },
               { id: 'aether', name: 'Mirrorgate Spire', tag: 'Astral Conclave', color: '#00BFFF', desc: 'Floating crystal pinnacles bending the temporal lattice and leyline currents.' },
               { id: 'starfall', name: 'Starfall Crater', tag: 'Warzone PvPvE', color: '#F87171', desc: 'Cataclysmic impact site where all 4 factions battle over primal leyline shards.' },
+              { id: 'abyssal', name: 'Abyssal Rift', tag: 'High-Level Dungeon', color: '#A855F7', desc: 'Endgame chasm where elite void abominations and corrupted keystones lurk.' },
             ].map((realm) => (
               <div key={realm.id} className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
                 <div className="flex justify-between items-start mb-2">
@@ -1222,6 +1348,83 @@ export default function LandingPage() {
                 <p className="text-xs text-white/60 leading-relaxed">{realm.desc}</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* ======================================================== */}
+        {/* SETTINGS & PREFERENCES SECTION (#settings) */}
+        {/* ======================================================== */}
+        <section id="settings" className="rounded-3xl p-6 lg:p-10 border border-[#1E293B] bg-[#0A0F22]/90 space-y-6">
+          <div className="flex justify-between items-center pb-6 border-b border-[#1E293B]">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#F2A900] px-2.5 py-1 rounded bg-[#F2A900]/10 border border-[#F2A900]/30">
+                User Preferences &amp; Audio
+              </span>
+              <h2 className="font-display font-bold text-2xl sm:text-3xl text-white mt-1">
+                ⚙️ SETTINGS &amp; DISPLAY CONFIGURATION
+              </h2>
+            </div>
+            <span className="text-xs text-white/50">Stored Locally in Browser</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B] space-y-4">
+              <h4 className="font-display font-bold text-sm text-[#F2A900]">🎮 Startup &amp; Navigation Preferences</h4>
+
+              <div className="flex items-center justify-between p-3 rounded-xl bg-black/60 border border-white/5">
+                <div>
+                  <div className="text-xs font-bold text-white">Start on this site (Hero Loadout)</div>
+                  <div className="text-[10.5px] text-white/50">Skip marketing landing page and launch directly into character loadout.</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={startOnLoadout}
+                  onChange={(e) => handleToggleStartOnSite(e.target.checked)}
+                  className="w-5 h-5 rounded border-[#334155] text-[#38BDF8] focus:ring-0 cursor-pointer accent-[#38BDF8]"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-xl bg-black/60 border border-white/5">
+                <div>
+                  <div className="text-xs font-bold text-white">Sound Effects Audio</div>
+                  <div className="text-[10.5px] text-white/50">Synthesizer audio clicks, ability SFX, and launch fanfares.</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setSoundEnabled(!soundEnabled); playSfx('click'); }}
+                  className={`p-2 rounded-lg border text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    soundEnabled
+                      ? 'bg-[#38BDF8]/20 border-[#38BDF8] text-[#7DD3FC]'
+                      : 'bg-black/40 border-[#334155] text-white/40'
+                  }`}
+                >
+                  {soundEnabled ? <Volume2 className="w-4 h-4 text-[#38BDF8]" /> : <VolumeX className="w-4 h-4 text-white/40" />}
+                  {soundEnabled ? 'Enabled' : 'Muted'}
+                </button>
+              </div>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B] space-y-4">
+              <h4 className="font-display font-bold text-sm text-[#38BDF8]">🖥️ Client Engine &amp; Display Specs</h4>
+              <div className="space-y-2 text-xs text-white/70">
+                <div className="flex justify-between p-2 rounded-lg bg-black/40 border border-white/5">
+                  <span>Rendering Pipeline:</span>
+                  <b className="text-white">HD Pixel Anti-Aliased Canvas</b>
+                </div>
+                <div className="flex justify-between p-2 rounded-lg bg-black/40 border border-white/5">
+                  <span>Network Sync:</span>
+                  <b className="text-[#4ADE80]">20Hz Authoritative Tick Loop</b>
+                </div>
+                <div className="flex justify-between p-2 rounded-lg bg-black/40 border border-white/5">
+                  <span>Artisan Cooldown:</span>
+                  <b className="text-[#F2A900]">1.25s Crystalheart Cadence</b>
+                </div>
+                <div className="flex justify-between p-2 rounded-lg bg-black/40 border border-white/5">
+                  <span>Action Bar Docking:</span>
+                  <b className="text-[#38BDF8]">Persistent Viewport Centered Dock</b>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 

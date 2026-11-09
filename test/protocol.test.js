@@ -1645,6 +1645,44 @@ test('1.25s Crafting Cooldown anti-exploit enforcement and Crystalheart Shatteri
   assert.ok(chronicleSrc.includes('THE CRYSTAL HEART') && chronicleSrc.includes('GREAT GLIMMER FRACTURE'), 'World chronicle must explain the Crystal Heart and Glimmer fracture');
 });
 
+test('Canonical Heroic Character Sprite Sheet V1.0 styling and palette verification', async () => {
+  const { BASE_FACTION_PALETTES } = await import('../client/sprites/characterSprites.js');
+  // Solari palette must match Pixel_art_animation_sheet: Cyan hair, Gold plate armor, Purple cape
+  assert.equal(BASE_FACTION_PALETTES.Solari.capeMid, '#a855f8', 'Solari cape must be royal purple (#a855f8)');
+  assert.equal(BASE_FACTION_PALETTES.Solari.armorHi, '#facc15', 'Solari armor must be radiant gold (#facc15)');
+  assert.equal(BASE_FACTION_PALETTES.Solari.hairMid, '#38bdf8', 'Solari hair must be electric cyan (#38bdf8)');
+
+  const characterSpritesSrc = fs.readFileSync(new URL('../client/sprites/characterSprites.js', import.meta.url), 'utf8');
+  assert.ok(characterSpritesSrc.includes('makeCanvas(26, 28)'), 'Sprite canvas must use 26x28 dimensions for heroic proportions');
+  assert.ok(characterSpritesSrc.includes('Pixel_art_animation_sheet'), 'Sprite sheet must document design lineage from animation sheet');
+});
+
+test('Zonal BGM music themes, sanctuary audio track streaming, and room configs', async () => {
+  const { BGM_THEMES } = await import('../client/audio.js');
+  assert.ok(BGM_THEMES.sanctuary, 'BGM_THEMES must define sanctuary theme');
+  assert.equal(BGM_THEMES.sanctuary.audioFile, '/audio/sanctuary_pixel_overloop.m4a', 'Sanctuary theme must link to sanctuary_pixel_overloop.m4a');
+  assert.ok(BGM_THEMES.solari, 'BGM_THEMES must define solari theme');
+  assert.ok(BGM_THEMES.umbri, 'BGM_THEMES must define umbri theme');
+  assert.ok(BGM_THEMES.terra, 'BGM_THEMES must define terra theme');
+  assert.ok(BGM_THEMES.aether, 'BGM_THEMES must define aether theme');
+  assert.ok(BGM_THEMES.abyss, 'BGM_THEMES must define abyss theme');
+
+  const { ROOM_CONFIGS, ROOM_TYPES } = await import('../shared/protocol.js');
+  assert.equal(ROOM_CONFIGS[ROOM_TYPES.SANCTUARY_HUB].bgm, 'sanctuary');
+  assert.equal(ROOM_CONFIGS[ROOM_TYPES.SOLARI_CITADEL].bgm, 'solari');
+  assert.equal(ROOM_CONFIGS[ROOM_TYPES.UMBRI_UNDERCITY].bgm, 'umbri');
+  assert.equal(ROOM_CONFIGS[ROOM_TYPES.TERRA_ORCHARD].bgm, 'terra');
+  assert.equal(ROOM_CONFIGS[ROOM_TYPES.AETHER_SPIRE].bgm, 'aether');
+  assert.equal(ROOM_CONFIGS[ROOM_TYPES.STARFALL_CRATER].bgm, 'abyss');
+  assert.equal(ROOM_CONFIGS[ROOM_TYPES.ABYSSAL_RIFT].bgm, 'abyss');
+
+  const audioJsSrc = fs.readFileSync(new URL('../client/audio.js', import.meta.url), 'utf8');
+  assert.ok(audioJsSrc.includes('playTrackAudio'), 'audio.js must implement playTrackAudio');
+  assert.ok(audioJsSrc.includes('stopTrackAudio'), 'audio.js must implement stopTrackAudio');
+});
+
+
+
 
 
 

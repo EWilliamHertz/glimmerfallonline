@@ -1,7 +1,25 @@
 node_modules
 dist
+.next/
+landing/.next/
+.turbo/
+.cache/
+.freebuff/
 .env
 .env.*
 !.env.example
 .DS_Store
 server/data/
+*.tsbuildinfo
+
+# Uploaded chat media & screenshots
+*.mp4
+IMG_*.png
+Pixel Overloop.m4a
+
+# Logs & temporary files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache

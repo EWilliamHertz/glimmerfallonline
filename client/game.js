@@ -2536,7 +2536,12 @@ export function initGame() {
     pctx.fillStyle = '#0d152c';
     pctx.fillRect(0, 0, 28, 28);
     const heroSet = getCharacterSprites(localProfile.faction, localProfile.classId, localProfile.equipment);
-    pctx.drawImage(heroSet.down[0], 2, 1);
+    if (heroSet?.down?.[0]) {
+      const spr = heroSet.down[0];
+      const px = Math.round((28 - spr.width) / 2);
+      const py = Math.round((28 - spr.height) / 2) + 1;
+      pctx.drawImage(spr, px, py);
+    }
   }
 
   function recalcVitalsFromProfile(initialProf = null, isInitialSpawn = false) {
