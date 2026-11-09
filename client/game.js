@@ -5941,6 +5941,13 @@ export function initGame() {
       `;
       return;
     }
+    if (isSessionSuperseded || net?.isSuperseded) {
+      pill.innerHTML = `
+        <div class="net-pill-line1" style="color:#f59e0b;">● DISCONNECTED • SESSION SUPERSEDED</div>
+        <div class="net-pill-line2">ACTIVE IN ANOTHER TAB OR WINDOW</div>
+      `;
+      return;
+    }
     if (!net.connected) {
       const attempt = net.reconnectAttempt || 0;
       pill.innerHTML = `
@@ -6294,16 +6301,82 @@ export function initGame() {
     updateNetStatusPill();
   }
 
+  let isSessionSuperseded = false;
+  const currentTabSessionId = 'tab_' + Math.random().toString(36).slice(2, 10);
+  let sessionBroadcast = null;
+
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      sessionBroadcast = new BroadcastChannel('glimmerfall_active_session');
+      sessionBroadcast.onmessage = (event) => {
+        const data = event.data;
+        if (!data) return;
+        if (data.type === 'CLAIM_SESSION' && data.sessionId !== currentTabSessionId) {
+          if (net && (net.connected || !net.isSuperseded)) {
+            console.warn('[Session] Active realm session claimed by another tab.');
+            net.isSuperseded = true;
+            net.disconnect();
+            showSessionSupersededOverlay();
+          }
+        }
+      };
+    }
+  } catch (err) {
+    console.warn('[Session] BroadcastChannel unavailable:', err);
+  }
+
+  function claimActiveTabSession() {
+    if (sessionBroadcast) {
+      try {
+        sessionBroadcast.postMessage({
+          type: 'CLAIM_SESSION',
+          sessionId: currentTabSessionId,
+          timestamp: Date.now(),
+        });
+      } catch (_) {}
+    }
+  }
+
+  function showSessionSupersededOverlay() {
+    isSessionSuperseded = true;
+    player.isMoving = false;
+    inputs.up = inputs.down = inputs.left = inputs.right = false;
+    inputs.w = inputs.a = inputs.s = inputs.d = false;
+    remotePlayers.clear();
+    const ov = document.getElementById('session-superseded-overlay');
+    if (ov) ov.style.display = 'flex';
+    updateNetStatusPill();
+  }
+
+  function hideSessionSupersededOverlay() {
+    isSessionSuperseded = false;
+    const ov = document.getElementById('session-superseded-overlay');
+    if (ov) ov.style.display = 'none';
+    updateNetStatusPill();
+  }
+
+  window.reclaimActiveSession = () => {
+    hideSessionSupersededOverlay();
+    claimActiveTabSession();
+    if (net) {
+      net.reconnectNow();
+    }
+    updateNetStatusPill();
+  };
+
   const net = new MultiplayerClient({
     onStatusChange(connected, reason) {
       updateNetStatusPill();
       if (connected) {
+        hideSessionSupersededOverlay();
+        claimActiveTabSession();
         logMessage('[Realm] Connected to GlimmerFall Online Realm!', 'log-gain', 'chat');
       } else {
         remotePlayers.clear();
         if (!isSinglePlayer) {
-          if (reason === 'superseded') {
-            logMessage('[Account] Session active in another window/tab. This window is now running offline.', 'log-solari', 'chat');
+          if (reason === 'superseded' || net.isSuperseded) {
+            showSessionSupersededOverlay();
+            logMessage('[Account] Session active in another window/tab. Single instance lock engaged.', 'log-solari', 'chat');
           } else {
             logMessage('[Realm] Connection lost — reconnecting...', 'log-combat', 'chat');
           }
@@ -6312,6 +6385,10 @@ export function initGame() {
     },
     onPacket(msg) {
       switch (msg.type) {
+        case 'session_superseded':
+          showSessionSupersededOverlay();
+          break;
+
         case 'welcome':
           applyProfile(msg.profile, false);
           frontpage.syncFromProfile(msg.profile);
@@ -7921,7 +7998,7 @@ export function initGame() {
   }
 
   window.castAbility = function (slot) {
-    if (player.isDead || player.frozen) return;
+    if (player.isDead || player.frozen || isSessionSuperseded) return;
     if (!isSlotUnlocked(prog, slot)) {
       const reqLvl = SLOT_UNLOCK_LEVELS[slot] || 1;
       logMessage(`🔒 Slot locked! Reach Level ${reqLvl} to unlock this ${slot >= 9 ? 'Flash' : 'Rite'}.`, 'log-combat');
@@ -10679,7 +10756,7 @@ export function initGame() {
       }
     }
 
-    if (!player.isDead && !player.frozen && !frontpage.isOpen) {
+    if (!player.isDead && !player.frozen && !frontpage.isOpen && !isSessionSuperseded) {
       let mx = 0;
       let my = 0;
       if (inputs.w || inputs.up) my -= 1;

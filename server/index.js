@@ -453,7 +453,37 @@ export function createGlimmerFallServer() {
     });
   });
 
+  const ipConnections = new Map();
+  const MAX_CONCURRENT_PER_IP = 15;
+  const accountRecentLogins = new Map();
+  const MAX_LOGINS_PER_WINDOW = 5;
+  const LOGIN_WINDOW_MS = 6000;
+
   wss.on('connection', (ws, _req, url) => {
+    const rawIp = _req.headers['x-forwarded-for']?.split(',')[0]?.trim() || _req.socket?.remoteAddress || 'unknown';
+    const curIpCount = ipConnections.get(rawIp) || 0;
+    if (curIpCount >= MAX_CONCURRENT_PER_IP) {
+      try {
+        ws.send(JSON.stringify({
+          type: 'sys_msg',
+          category: 'system',
+          text: '[Security] Concurrent connection limit reached for your network.',
+        }));
+        ws.close(1008, 'Too many connections from IP');
+      } catch (_) {}
+      return;
+    }
+    ipConnections.set(rawIp, curIpCount + 1);
+
+    let cleanedIp = false;
+    const cleanupIp = () => {
+      if (cleanedIp) return;
+      cleanedIp = true;
+      const rem = (ipConnections.get(rawIp) || 1) - 1;
+      if (rem <= 0) ipConnections.delete(rawIp);
+      else ipConnections.set(rawIp, rem);
+    };
+
     if (ws._socket) {
       ws._socket.setNoDelay(true);
       ws._socket.setKeepAlive(true, 15000);
@@ -494,6 +524,23 @@ export function createGlimmerFallServer() {
       account = created.account;
       issuedToken = created.token;
     }
+
+    const now = Date.now();
+    const recentTimes = (accountRecentLogins.get(account.id) || []).filter((t) => now - t < LOGIN_WINDOW_MS);
+    if (recentTimes.length >= MAX_LOGINS_PER_WINDOW) {
+      try {
+        ws.send(JSON.stringify({
+          type: 'sys_msg',
+          category: 'system',
+          text: '[Security] Rapid reconnect rate limit reached. Please wait a few seconds.',
+        }));
+        ws.close(4029, 'Rate limit exceeded');
+      } catch (_) {}
+      cleanupIp();
+      return;
+    }
+    recentTimes.push(now);
+    accountRecentLogins.set(account.id, recentTimes);
 
     const session = rooms.attachConnection(ws, account, preferredRoom, reqX, reqY);
     if (issuedToken) {
@@ -546,11 +593,13 @@ export function createGlimmerFallServer() {
     });
 
     ws.on('close', () => {
+      cleanupIp();
       clearInterval(heartbeatTimer);
       rooms.removeClient(session);
     });
 
     ws.on('error', () => {
+      cleanupIp();
       clearInterval(heartbeatTimer);
       rooms.removeClient(session);
     });

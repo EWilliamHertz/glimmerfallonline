@@ -271,8 +271,15 @@ export class RoomManager {
     const existing = this.clients.get(account.id);
     if (existing && existing.ws !== ws) {
       try {
+        existing.isSuperseded = true;
+        existing.send({
+          type: 'session_superseded',
+          reason: 'Your account was logged in from another window or device.',
+        });
         existing.send({ type: 'sys_msg', category: 'system', text: '[System] Logged in from another window.' });
-        existing.ws.close(4001, 'Logged in from another window');
+        if (existing.ws.readyState === 1) {
+          existing.ws.close(4001, 'Logged in from another window');
+        }
       } catch (_) {}
       this.removeClient(existing);
     }
@@ -466,7 +473,8 @@ export class RoomManager {
   }
 
   removeClient(client) {
-    if (!client) return;
+    if (!client || client._removed) return;
+    client._removed = true;
     this.saveClientState(client);
     this.leaveArenaQueue(client);
     this.parties.leaveParty(client);
@@ -474,14 +482,16 @@ export class RoomManager {
     this.duels?.onPlayerDisconnect(client.id);
     if (client.roomId && this.rooms.has(client.roomId)) {
       const room = this.rooms.get(client.roomId);
-      room.players.delete(client.id);
-      this.broadcastToRoom(room, {
-        type: 'player_left',
-        playerId: client.id,
-        playerName: client.displayName,
-      });
-      if (room.type === ROOM_TYPES.ARENA_3V3 && room.players.size === 0) {
-        this.rooms.delete(room.id);
+      if (room.players.get(client.id) === client) {
+        room.players.delete(client.id);
+        this.broadcastToRoom(room, {
+          type: 'player_left',
+          playerId: client.id,
+          playerName: client.displayName,
+        });
+        if (room.type === ROOM_TYPES.ARENA_3V3 && room.players.size === 0) {
+          this.rooms.delete(room.id);
+        }
       }
     }
     if (this.clients.get(client.id) === client) {

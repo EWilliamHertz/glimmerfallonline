@@ -57,6 +57,33 @@ function sanitizeName(raw, fallback = 'Vanguard') {
   return cleaned.length >= 2 ? cleaned : fallback;
 }
 
+export const RESERVED_NAMES = new Set([
+  'admin',
+  'administrator',
+  'system',
+  'moderator',
+  'mod',
+  'gm',
+  'gamemaster',
+  'server',
+  'glimmerfall',
+  'official',
+  'staff',
+  'support',
+  'bot',
+  'security',
+  'root',
+  'owner',
+  'null',
+  'undefined',
+]);
+
+export function isReservedName(name) {
+  if (!name) return false;
+  const lower = String(name).trim().toLowerCase();
+  return RESERVED_NAMES.has(lower);
+}
+
 function sanitizeOrderTag(raw) {
   return String(raw || '')
     .toUpperCase()
@@ -672,7 +699,11 @@ export class AccountsStore {
       if (homeBiome) ch.homeBiome = homeBiome;
 
       // Character name is immutable once registered
-      if (!ch.name && name) ch.name = sanitizeName(name, 'Champion');
+      if (!ch.name && name) {
+        const cleanName = sanitizeName(name, 'Champion');
+        if (isReservedName(cleanName)) throw new Error(`Character name "${cleanName}" is reserved.`);
+        ch.name = cleanName;
+      }
       if (faction || classId) {
         const norm = normalizeClassAndFaction(classId || ch.classId, faction || ch.faction);
         ch.faction = norm.faction;
@@ -704,10 +735,14 @@ export class AccountsStore {
     ) || ORDER_PRESETS[0];
 
     const chId = `chr_${crypto.randomUUID().slice(0, 10)}`;
+    const reqName = sanitizeName(name, norm.cls.name);
+    if (name && isReservedName(reqName)) {
+      throw new Error(`Character name "${reqName}" is reserved.`);
+    }
     const ch = {
       id: chId,
       accountId: acc.id,
-      name: sanitizeName(name, norm.cls.name),
+      name: reqName,
       faction: norm.faction,
       classId: norm.classId,
       orderTag: sanitizeOrderTag(orderTag) || preset.tag,
@@ -753,9 +788,27 @@ export class AccountsStore {
     const id = `acc_${crypto.randomUUID().slice(0, 12)}`;
     const suffix = Math.floor(100 + Math.random() * 899);
     const norm = normalizeClassAndFaction(classId, faction);
-    const displayName = preferredName
-      ? sanitizeName(preferredName, `Vanguard_${suffix}`)
-      : `Vanguard_${suffix}`;
+    let displayName = `Vanguard_${suffix}`;
+
+    if (preferredName) {
+      const sanitized = sanitizeName(preferredName, '');
+      const lower = sanitized.toLowerCase();
+      const isReserved = isReservedName(lower);
+      const isUserTaken = this.idByUsername.has(lower);
+      let isCharTaken = false;
+      for (const cmap of this.charactersByAccount.values()) {
+        for (const ch of cmap.values()) {
+          if (ch.name && ch.name.toLowerCase() === lower) {
+            isCharTaken = true;
+            break;
+          }
+        }
+        if (isCharTaken) break;
+      }
+      if (sanitized.length >= 2 && !isReserved && !isUserTaken && !isCharTaken) {
+        displayName = sanitized;
+      }
+    }
 
     const preset = ORDER_PRESETS.find((o) =>
       (norm.faction === 'Solari' && o.tag === 'SUN') ||
@@ -821,6 +874,9 @@ export class AccountsStore {
     if (!password || String(password).length < 4) throw new Error('Password must be at least 4 characters.');
 
     const lower = cleanUser.toLowerCase();
+    if (isReservedName(lower)) {
+      throw new Error(`Username "${cleanUser}" is reserved by realm authority.`);
+    }
     const existingOwner = this.idByUsername.get(lower);
     if (existingOwner && existingOwner !== upgradeAccountId) {
       throw new Error(`Username "${cleanUser}" is already claimed.`);

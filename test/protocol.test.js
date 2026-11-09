@@ -1188,6 +1188,142 @@ test('Tier 3 Social: Player Inspect protocol and UI integration', () => {
   assert.ok(gameSrc.includes('⚔️ HONORABLE DUEL RING ⚔️'), 'Client must render duel boundary ring in world canvas');
 });
 
+test('Single-instance enforcement: Name reservation and anti-spoofing in guest and registered accounts', async () => {
+  const { AccountsStore, isReservedName } = await import('../server/accountsStore.js');
+  const store = new AccountsStore();
+
+  assert.ok(isReservedName('admin'), 'admin must be reserved');
+  assert.ok(isReservedName('ADMIN'), 'ADMIN must be reserved case-insensitively');
+  assert.ok(isReservedName('system'), 'system must be reserved');
+  assert.ok(isReservedName('moderator'), 'moderator must be reserved');
+  assert.ok(isReservedName('gm'), 'gm must be reserved');
+
+  // 1. Guest account creation must reject reserved name 'admin' and fallback to Vanguard_xxx
+  const guestAdmin = store.createGuestAccount({ preferredName: 'admin' });
+  assert.notStrictEqual(guestAdmin.account.displayName.toLowerCase(), 'admin', 'Guest cannot take reserved name admin');
+  assert.ok(guestAdmin.account.displayName.startsWith('Vanguard_'), 'Guest falls back to Vanguard_xxx');
+
+  // 2. Normal guest name works
+  const guestLegit = store.createGuestAccount({ preferredName: 'SolariHero' });
+  assert.strictEqual(guestLegit.account.displayName, 'SolariHero', 'Valid guest name is accepted');
+
+  // 3. Registering reserved name must throw
+  assert.throws(
+    () => store.registerAccount({ username: 'admin', password: 'secretpassword123' }),
+    /reserved/i,
+    'Registering admin must throw reserved error'
+  );
+  assert.throws(
+    () => store.registerAccount({ username: 'system', password: 'secretpassword123' }),
+    /reserved/i,
+    'Registering system must throw reserved error'
+  );
+
+  // 4. Register legitimate user
+  const reg = store.registerAccount({ username: 'PlayerOne', password: 'secretpassword123' });
+  assert.strictEqual(reg.account.username, 'PlayerOne');
+
+  // 5. Another guest trying to impersonate PlayerOne must be rejected
+  const guestImpersonator = store.createGuestAccount({ preferredName: 'PlayerOne' });
+  assert.notStrictEqual(guestImpersonator.account.displayName, 'PlayerOne', 'Guest cannot impersonate registered username');
+  assert.ok(guestImpersonator.account.displayName.startsWith('Vanguard_'), 'Guest impersonator falls back to Vanguard_xxx');
+
+  // 6. Character creation with reserved name must throw
+  assert.throws(
+    () => store.createOrSelectCharacter(reg.account.id, { name: 'admin' }),
+    /reserved/i,
+    'Creating character named admin must throw'
+  );
+});
+
+test('Single-instance enforcement: Superseded session protocol, anti-duplication, and safe cleanup in RoomManager', async () => {
+  const { RoomManager } = await import('../server/roomManager.js');
+  const { AccountsStore } = await import('../server/accountsStore.js');
+
+  const store = new AccountsStore();
+  const reg = store.registerAccount({ username: 'MultiTestHero', password: 'password123' });
+  const rooms = new RoomManager({
+    accountsStore: store,
+    partyManager: {
+      getPartyForMember: () => null,
+      leaveParty: () => {},
+      syncPlayerVitals: () => {},
+    },
+  });
+
+  const sentPackets1 = [];
+  const ws1 = {
+    readyState: 1,
+    closeCalls: [],
+    send(str) { sentPackets1.push(JSON.parse(str)); },
+    close(code, reason) { this.closeCalls.push({ code, reason }); this.readyState = 3; }
+  };
+
+  const sentPackets2 = [];
+  const ws2 = {
+    readyState: 1,
+    closeCalls: [],
+    send(str) { sentPackets2.push(JSON.parse(str)); },
+    close(code, reason) { this.closeCalls.push({ code, reason }); this.readyState = 3; }
+  };
+
+  // 1. Connect first instance
+  const client1 = rooms.attachConnection(ws1, reg.account, 'sanctuary_hub');
+  assert.strictEqual(rooms.clients.get(reg.account.id), client1);
+  const room = rooms.rooms.get(client1.roomId);
+  assert.strictEqual(room.players.get(reg.account.id), client1);
+
+  // 2. Connect second instance of same account (e.g. from second window)
+  const client2 = rooms.attachConnection(ws2, reg.account, 'sanctuary_hub');
+
+  // ws1 must receive session_superseded packet BEFORE close
+  const supersededPacket = sentPackets1.find((p) => p.type === 'session_superseded');
+  assert.ok(supersededPacket, 'Existing session must receive session_superseded packet');
+  assert.strictEqual(client1.isSuperseded, true, 'client1 must be flagged isSuperseded');
+  assert.strictEqual(ws1.closeCalls.length, 1, 'ws1 must be closed');
+  assert.strictEqual(ws1.closeCalls[0].code, 4001, 'Close code must be 4001');
+
+  // client2 is now the active player in room
+  assert.strictEqual(rooms.clients.get(reg.account.id), client2);
+  assert.strictEqual(room.players.get(reg.account.id), client2);
+
+  // 3. Delayed close event fires on client1's socket (simulating async OS TCP close)
+  rooms.removeClient(client1);
+
+  // CRITICAL: Delayed remove of client1 MUST NOT delete client2 from room.players!
+  assert.strictEqual(room.players.get(reg.account.id), client2, 'client2 must remain active in room.players');
+  assert.strictEqual(rooms.clients.get(reg.account.id), client2, 'client2 must remain active in rooms.clients');
+
+  rooms.stop();
+});
+
+test('Single-instance enforcement: Client network decisive superseded lock and UI overlay integration', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+
+  const netSrc = fs.readFileSync(path.join(process.cwd(), 'client/network.js'), 'utf8');
+  const gameSrc = fs.readFileSync(path.join(process.cwd(), 'client/game.js'), 'utf8');
+  const indexHtml = fs.readFileSync(path.join(process.cwd(), 'index.html'), 'utf8');
+
+  // 1. Network.js handles session_superseded and locks reconnect
+  assert.ok(netSrc.includes("msg.type === 'session_superseded'"), 'network.js must handle session_superseded packet');
+  assert.ok(netSrc.includes('this.isSuperseded = true'), 'network.js must flag isSuperseded');
+  assert.ok(netSrc.includes('reconnectNow()'), 'network.js must provide reconnectNow()');
+  assert.ok(netSrc.includes('ev?.code === 4001'), 'network.js must check 4001 close code');
+
+  // 2. Game.js provides cross-tab BroadcastChannel and superseded lock
+  assert.ok(gameSrc.includes("BroadcastChannel('glimmerfall_active_session')"), 'game.js must use BroadcastChannel');
+  assert.ok(gameSrc.includes('CLAIM_SESSION'), 'game.js must send and listen for CLAIM_SESSION');
+  assert.ok(gameSrc.includes('showSessionSupersededOverlay()'), 'game.js must show superseded overlay');
+  assert.ok(gameSrc.includes('window.reclaimActiveSession'), 'game.js must expose window.reclaimActiveSession');
+  assert.ok(gameSrc.includes('SESSION SUPERSEDED'), 'game.js must update net status pill for superseded state');
+
+  // 3. index.html has #session-superseded-overlay
+  assert.ok(indexHtml.includes('id="session-superseded-overlay"'), 'index.html must have #session-superseded-overlay');
+  assert.ok(indexHtml.includes('Session Active in Another Window'), 'Overlay must have clear retro title');
+  assert.ok(indexHtml.includes('reclaimActiveSession()'), 'Overlay must have Play Here button calling reclaimActiveSession');
+});
+
 
 
 

@@ -20,6 +20,7 @@ export class MultiplayerClient {
     this.reconnectTimer = null;
     this.pingInterval = null;
     this.manualReconnect = false;
+    this.isSuperseded = false;
     this.preferredRoom = null;
     this.pendingRpc = new Map();
     this.isBootstrapping = false;
@@ -195,6 +196,10 @@ export class MultiplayerClient {
     if (!force && this.ws && (this.ws.readyState === 0 || this.ws.readyState === 1)) {
       return;
     }
+    if (force) {
+      this.isSuperseded = false;
+      this.manualReconnect = false;
+    }
 
     clearTimeout(this.reconnectTimer);
     if (this.ws) {
@@ -256,6 +261,16 @@ export class MultiplayerClient {
           this.saveStoredToken(msg.token);
           return;
         }
+        if (msg.type === 'session_superseded') {
+          this.isSuperseded = true;
+          this.manualReconnect = true;
+          clearTimeout(this.reconnectTimer);
+          clearInterval(this.pingInterval);
+          console.warn('[Network] Session superseded:', msg.reason);
+          if (this.onStatusChange) this.onStatusChange(false, 'superseded');
+          if (this.onPacket) this.onPacket(msg);
+          return;
+        }
         if (msg.type === 'auth_rpc_res') {
           const pending = this.pendingRpc.get(msg.reqId);
           if (pending) {
@@ -289,8 +304,11 @@ export class MultiplayerClient {
     sock.onclose = (ev) => {
       this.connected = false;
       clearInterval(this.pingInterval);
-      const isSuperseded = ev?.code === 4001;
+      const isSuperseded = this.isSuperseded || ev?.code === 4001 || ev?.reason?.includes('another window') || ev?.reason?.includes('Superseded');
       if (isSuperseded) {
+        this.isSuperseded = true;
+        this.manualReconnect = true;
+        clearTimeout(this.reconnectTimer);
         console.warn('[Network] Disconnected: Session opened from another window or tab.');
         if (this.onStatusChange) this.onStatusChange(false, 'superseded');
         return; // Halt reconnect duel: do not schedule reconnect!
@@ -326,6 +344,14 @@ export class MultiplayerClient {
     }
     this.connected = false;
     if (this.onStatusChange) this.onStatusChange(false);
+  }
+
+  reconnectNow() {
+    this.isSuperseded = false;
+    this.manualReconnect = false;
+    this.reconnectAttempt = 0;
+    clearTimeout(this.reconnectTimer);
+    return this.connectWebSocket(true);
   }
 
   send(packet) {
