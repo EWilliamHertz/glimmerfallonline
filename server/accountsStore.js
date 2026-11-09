@@ -58,8 +58,6 @@ function sanitizeName(raw, fallback = 'Vanguard') {
 }
 
 export const RESERVED_NAMES = new Set([
-  'admin',
-  'administrator',
   'system',
   'moderator',
   'mod',

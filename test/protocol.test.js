@@ -1192,16 +1192,15 @@ test('Single-instance enforcement: Name reservation and anti-spoofing in guest a
   const { AccountsStore, isReservedName } = await import('../server/accountsStore.js');
   const store = new AccountsStore();
 
-  assert.ok(isReservedName('admin'), 'admin must be reserved');
-  assert.ok(isReservedName('ADMIN'), 'ADMIN must be reserved case-insensitively');
   assert.ok(isReservedName('system'), 'system must be reserved');
+  assert.ok(isReservedName('SYSTEM'), 'SYSTEM must be reserved case-insensitively');
   assert.ok(isReservedName('moderator'), 'moderator must be reserved');
   assert.ok(isReservedName('gm'), 'gm must be reserved');
+  assert.ok(!isReservedName('admin'), 'admin is allowed as an account and character name');
 
-  // 1. Guest account creation must reject reserved name 'admin' and fallback to Vanguard_xxx
+  // 1. Guest account creation allows admin
   const guestAdmin = store.createGuestAccount({ preferredName: 'admin' });
-  assert.notStrictEqual(guestAdmin.account.displayName.toLowerCase(), 'admin', 'Guest cannot take reserved name admin');
-  assert.ok(guestAdmin.account.displayName.startsWith('Vanguard_'), 'Guest falls back to Vanguard_xxx');
+  assert.strictEqual(guestAdmin.account.displayName, 'admin', 'Guest can take admin');
 
   // 2. Normal guest name works
   const guestLegit = store.createGuestAccount({ preferredName: 'SolariHero' });
@@ -1209,14 +1208,14 @@ test('Single-instance enforcement: Name reservation and anti-spoofing in guest a
 
   // 3. Registering reserved name must throw
   assert.throws(
-    () => store.registerAccount({ username: 'admin', password: 'secretpassword123' }),
-    /reserved/i,
-    'Registering admin must throw reserved error'
-  );
-  assert.throws(
     () => store.registerAccount({ username: 'system', password: 'secretpassword123' }),
     /reserved/i,
     'Registering system must throw reserved error'
+  );
+  assert.throws(
+    () => store.registerAccount({ username: 'server', password: 'secretpassword123' }),
+    /reserved/i,
+    'Registering server must throw reserved error'
   );
 
   // 4. Register legitimate user
@@ -1230,9 +1229,9 @@ test('Single-instance enforcement: Name reservation and anti-spoofing in guest a
 
   // 6. Character creation with reserved name must throw
   assert.throws(
-    () => store.createOrSelectCharacter(reg.account.id, { name: 'admin' }),
+    () => store.createOrSelectCharacter(reg.account.id, { name: 'system' }),
     /reserved/i,
-    'Creating character named admin must throw'
+    'Creating character named system must throw'
   );
 });
 
@@ -1322,6 +1321,26 @@ test('Single-instance enforcement: Client network decisive superseded lock and U
   assert.ok(indexHtml.includes('id="session-superseded-overlay"'), 'index.html must have #session-superseded-overlay');
   assert.ok(indexHtml.includes('Session Active in Another Window'), 'Overlay must have clear retro title');
   assert.ok(indexHtml.includes('reclaimActiveSession()'), 'Overlay must have Play Here button calling reclaimActiveSession');
+});
+
+test('Rendering safety & Action Bar centering: Array prop indexing and persistent center dock alignment', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+
+  const gameSrc = fs.readFileSync(path.join(process.cwd(), 'client/game.js'), 'utf8');
+  const uiLayoutSrc = fs.readFileSync(path.join(process.cwd(), 'client/uiLayout.js'), 'utf8');
+  const touchSrc = fs.readFileSync(path.join(process.cwd(), 'client/touch.js'), 'utf8');
+
+  // 1. Bounty board must be array-safe in game.js
+  assert.ok(gameSrc.includes("pr.type === 'bountyBoard'"), 'Must handle bountyBoard prop');
+  assert.ok(gameSrc.includes('sprites.props.bountyBoard'), 'Must reference sprites.props.bountyBoard');
+  assert.ok(gameSrc.includes('Array.isArray(list)'), 'Must check Array.isArray for bountyBoard');
+  assert.ok(gameSrc.includes('instanceof HTMLCanvasElement'), 'Must strictly validate Canvas before drawImage');
+
+  // 2. Action bar centering in uiLayout and touch.js
+  assert.ok(uiLayoutSrc.includes('isDefaultCenter'), 'uiLayout must preserve isDefaultCenter');
+  assert.ok(uiLayoutSrc.includes("el.style.left = '50%'"), 'uiLayout must anchor center to left 50%');
+  assert.ok(touchSrc.includes('isCentered'), 'touch.js fitDock must respect custom vs centered action bar');
 });
 
 

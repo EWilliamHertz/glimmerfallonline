@@ -12550,7 +12550,8 @@ export function initGame() {
             img = (list && list[Math.floor(globalTime * 2.8) % list.length]) || sprites.props.pillar;
             shadowRx = 13; shadowRy = 5;
           } else if (pr.type === 'bountyBoard') {
-            img = sprites.props.bountyBoard || sprites.props.woodenSign || sprites.props.pillar;
+            const list = sprites.props.bountyBoard;
+            img = (list && (Array.isArray(list) ? list[Math.floor(globalTime * 2.0) % list.length] : list)) || sprites.props.woodenSign || sprites.props.pillar;
             shadowRx = 12; shadowRy = 4;
           } else if (pr.type === 'solariSundial') {
             img = sprites.props.solariSundial || sprites.props.pillar;
@@ -12573,7 +12574,10 @@ export function initGame() {
             shadowRx = 11; shadowRy = 3;
           }
 
-          if (img) {
+          if (Array.isArray(img)) {
+            img = img[0];
+          }
+          if (img && (img instanceof HTMLCanvasElement || img instanceof HTMLImageElement || (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap))) {
             drawPixelEllipseShadow(sx, sy, shadowRx, shadowRy);
             ctx.drawImage(img, Math.round(sx - img.width / 2), sy - img.height + 2);
           }
@@ -12588,7 +12592,8 @@ export function initGame() {
           const sx = Math.round(npc.x - camLeft);
           const sy = Math.round(npc.y - camTop);
           const sprList = (npc.spriteKey && sprites[npc.spriteKey]) || sprites.heraldNpc;
-          const img = sprList[Math.floor(globalTime * 2.2) % sprList.length];
+          let img = Array.isArray(sprList) ? sprList[Math.floor(globalTime * 2.2) % sprList.length] : sprList;
+          if (!img || !(img instanceof HTMLCanvasElement || img instanceof HTMLImageElement || (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap))) return;
           drawPixelEllipseShadow(sx, sy, 9, 3);
           ctx.drawImage(img, Math.round(sx - img.width / 2), sy - img.height + 3);
 
@@ -12643,7 +12648,9 @@ export function initGame() {
         y: ai.y - 1,
         draw: () => {
           const heroSet = getCharacterSprites(localProfile.faction, localProfile.classId, localProfile.equipment);
-          const img = (heroSet[ai.dir || 'up'] || heroSet.down)[1];
+          const frameList = heroSet[ai.dir || 'up'] || heroSet.down;
+          const img = Array.isArray(frameList) ? frameList[1] : frameList;
+          if (!img || !(img instanceof HTMLCanvasElement || img instanceof HTMLImageElement || (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap))) return;
           ctx.save();
           ctx.globalAlpha = Math.max(0, 0.45 * (1 - ai.age / ai.maxAge));
           ctx.drawImage(img, Math.round(ai.x - camLeft - img.width / 2), Math.round(ai.y - camTop - img.height + 2));
@@ -12657,7 +12664,8 @@ export function initGame() {
         y: al.y,
         draw: () => {
           const frames = sprites[al.spriteKey] || sprites.allyPaladin;
-          const img = frames[Math.floor(globalTime * 3.5) % frames.length];
+          let img = Array.isArray(frames) ? frames[Math.floor(globalTime * 3.5) % frames.length] : frames;
+          if (!img || !(img instanceof HTMLCanvasElement || img instanceof HTMLImageElement || (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap))) return;
           const sx = Math.round(al.x - camLeft);
           const sy = Math.round(al.y - camTop);
           drawPixelEllipseShadow(sx, sy, 8, 3);
@@ -12711,9 +12719,10 @@ export function initGame() {
             img = sprites.dummy[ent.hitFlash > 0 ? 1 : 0];
           } else {
             const arr = sprites[ent.spriteKey] || sprites.voidStalker;
-            img = arr[Math.floor(globalTime * (ent.type === 'portal' ? 1.8 : 3.5)) % arr.length];
+            img = Array.isArray(arr) ? arr[Math.floor(globalTime * (ent.type === 'portal' ? 1.8 : 3.5)) % arr.length] : arr;
           }
-          if (!img) return;
+          if (Array.isArray(img)) img = img[0];
+          if (!img || !(img instanceof HTMLCanvasElement || img instanceof HTMLImageElement || (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap))) return;
           const isGrandNode = ent.type === 'node' && Boolean(ent.isGrand);
           if (isGrandNode) {
             const pulse = 0.82 + Math.sin(globalTime * 2.4) * 0.12;
@@ -12930,7 +12939,8 @@ export function initGame() {
           drawPixelEllipseShadow(sx, sy, 8, 3);
           const heroSet = getCharacterSprites(rp.faction, rp.classId, rp.equipment);
           const frames = heroSet[rp.dir || 'down'] || heroSet.down;
-          const img = frames[rp.isMoving ? (Math.floor(rp.walkTimer || 0) % 2) + 1 : 0];
+          const img = Array.isArray(frames) ? frames[rp.isMoving ? (Math.floor(rp.walkTimer || 0) % 2) + 1 : 0] : frames;
+          if (!img || !(img instanceof HTMLCanvasElement || img instanceof HTMLImageElement || (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap))) return;
 
           ctx.save();
           if (rp.hitFlash > 0 && typeof ctx.filter !== 'undefined') {
@@ -12988,7 +12998,8 @@ export function initGame() {
 
           const heroSet = getCharacterSprites(localProfile.faction, localProfile.classId, localProfile.equipment);
           const frames = heroSet[player.dir] || heroSet.down;
-          const img = frames[player.isMoving ? (Math.floor(player.walkTimer) % 2) + 1 : 0];
+          const img = Array.isArray(frames) ? frames[player.isMoving ? (Math.floor(player.walkTimer) % 2) + 1 : 0] : frames;
+          if (!img || !(img instanceof HTMLCanvasElement || img instanceof HTMLImageElement || (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap))) return;
 
           if (isCasting || player.zenith) {
             ctx.strokeStyle = '#fde047';

@@ -207,11 +207,17 @@ export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstT
     const dock = document.getElementById('bottom-bar-dock');
     const cluster = document.getElementById('action-bar-cluster');
     if (!dock || !cluster) return;
-    dock.style.transform = 'translateX(-50%)';
     const need = cluster.scrollWidth + 8;
     const avail = window.innerWidth - 12;
     const s = Math.min(1, avail / need);
-    dock.style.transform = `translateX(-50%) scale(${s})`;
+
+    const isCentered = !dock.style.left || dock.style.left === '50%' || (dock.style.transform && dock.style.transform.includes('translateX(-50%)'));
+    if (isCentered) {
+      dock.style.left = '50%';
+      dock.style.transform = `translateX(-50%) scale(${s})`;
+    } else {
+      dock.style.transform = s < 1 ? `scale(${s})` : 'none';
+    }
 
     // Lift the thumbstick / buttons above the action bar
     const lift = Math.round(dock.getBoundingClientRect().height + 14);

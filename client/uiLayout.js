@@ -42,7 +42,18 @@ export function applySavedUiLayout() {
     const enforceBounds = () => {
       for (const [id, pos] of Object.entries(layout)) {
         const el = document.getElementById(id);
-        if (el && pos && pos.left && pos.top) {
+        if (!el || !pos) continue;
+
+        if (id === 'bottom-bar-dock' && pos.isDefaultCenter) {
+          el.style.left = '50%';
+          el.style.top = '';
+          el.style.right = '';
+          el.style.bottom = 'calc(12px + env(safe-area-inset-bottom, 0px))';
+          el.style.transform = 'translateX(-50%)';
+          continue;
+        }
+
+        if (pos.left && pos.top) {
           const savedLeft = parseInt(pos.left, 10) || 0;
           const savedTop = parseInt(pos.top, 10) || 0;
           
@@ -154,12 +165,30 @@ function onWindowMouseMove(e) {
     }
   });
 
+  // Dedicated Magnetic Snap for Action Bar (#bottom-bar-dock) to Default Bottom Center
+  if (currentDragEl.id === 'bottom-bar-dock') {
+    const dockCenterX = newLeft + elWidth / 2;
+    if (Math.abs(dockCenterX - winWidth / 2) < 45) {
+      newLeft = (winWidth - elWidth) / 2;
+    }
+    if (winHeight - (newTop + elHeight) < 45) {
+      newTop = winHeight - elHeight - 12;
+    }
+  }
+
   // Apply final coordinates
-  currentDragEl.style.left = `${Math.round(newLeft)}px`;
-  currentDragEl.style.top = `${Math.round(newTop)}px`;
-  currentDragEl.style.right = 'auto';
-  currentDragEl.style.bottom = 'auto';
-  currentDragEl.style.transform = 'none';
+  if (currentDragEl.id === 'bottom-bar-dock' && Math.abs((newLeft + elWidth / 2) - winWidth / 2) < 3) {
+    currentDragEl.style.left = '50%';
+    currentDragEl.style.transform = 'translateX(-50%)';
+    currentDragEl.style.top = `${Math.round(newTop)}px`;
+    currentDragEl.style.bottom = 'auto';
+  } else {
+    currentDragEl.style.left = `${Math.round(newLeft)}px`;
+    currentDragEl.style.top = `${Math.round(newTop)}px`;
+    currentDragEl.style.right = 'auto';
+    currentDragEl.style.bottom = 'auto';
+    currentDragEl.style.transform = 'none';
+  }
 }
 function onWindowMouseUp() {
   if (!isDragging) return;
@@ -198,6 +227,16 @@ export function saveAndLockUiLayout() {
 
   panels.forEach((panel) => {
     if (panel.id) {
+      if (panel.id === 'bottom-bar-dock') {
+        const rect = panel.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const isNearCenter = Math.abs(centerX - window.innerWidth / 2) < 45;
+        const isNearBottom = (window.innerHeight - rect.bottom) < 55;
+        if (isNearCenter && isNearBottom) {
+          layout[panel.id] = { isDefaultCenter: true };
+          return;
+        }
+      }
       const rect = panel.getBoundingClientRect();
       layout[panel.id] = {
         left: `${Math.round(rect.left)}px`,
@@ -232,6 +271,13 @@ export function resetDefaultUiLayout() {
     panel.style.bottom = '';
     panel.style.transform = '';
   });
+
+  const dock = document.getElementById('bottom-bar-dock');
+  if (dock) {
+    dock.style.left = '50%';
+    dock.style.bottom = 'calc(12px + env(safe-area-inset-bottom, 0px))';
+    dock.style.transform = 'translateX(-50%)';
+  }
 
   toggleUiEditMode(false);
 
