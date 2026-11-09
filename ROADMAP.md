@@ -320,28 +320,30 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
   - **☄️ Starfall Crater (Lv. 20–32)**: Connected west of Solari Citadel and east of First Nexus Ruins; features scorched meteoric basalt tiles, *Starforged Automatons*, *Meteor Elementals*, rich mythril/starmetal veins, quest *Forge of the Fallen Star* (`Star-Smith Orion`), and multi-phase world boss **Ignis-Core, Starfall Colossus** (drops *Starmetal Meteor Hammer*).
   - **🌌 The Abyssal Rift (Lv. 32–45)**: Connected east of Continental Caldera and north of Empyrean Summit; features fractured void-crystal tiles, *Gloam Widows*, *Paradox Sentinels*, high-tier starmetal/silk nodes, quest *Breach of the Void Architect* (`Rift-Watcher Nihilus`), and multi-phase apex boss **Xal'Korath, Void Architect** (drops *Abyssal Voidstar Scythe*).
 
-#### Day 17 — Player-to-Player Trading & Secure Trade Windows
-- [ ] Right-click another player -> `[Trade]` option.
-- [ ] Two-sided secure trade window with item slots and Glimmer currency exchange.
-- [ ] Dual-confirmation trade accept button to prevent trade scams.
-- [ ] Authoritative server-side inventory atomic swap.
+#### Day 17 — Player-to-Player Trading & Secure Trade Windows *(COMPLETE)*
+- [x] Target another player -> `[🤝 TRADE]` button or `/trade <name>` command.
+- [x] Two-sided secure trade window with 8 item slots and Solar Gold Sovereign exchange.
+- [x] Dual-confirmation trade accept button; any offer modification immediately resets both players' acceptance to prevent trade scams.
+- [x] Authoritative server-side inventory atomic swap with capacity check.
 
-#### Day 18 — AetherSwap Continental Exchange (Cross-Faction Trading Alliance) *(IN PROGRESS / REPLICA UI COMPLETE)*
+#### Day 18 — AetherSwap Continental Exchange (Cross-Faction Trading Alliance) *(COMPLETE)*
 - [x] Canonical Lore: An invention of the Aether Astral Enclave to broker peace and exchange across the Shattered Nexus.
 - [x] Dedicated AetherSwap interface modal (`[X]`) with 8 Trading Offer Slots.
 - [x] Market Guide Price catalog with live item search across all 50+ weapons, armors, currencies, and Canonical Faction sets.
 - [x] Instant Buy Limit & Sell Limit order placement actions with Solar Gold Sovereign and Glimmer pricing.
 - [x] AetherSwap Continental Arbiter dialog explaining cross-realm order matching and alliance trade health.
-- [ ] Multi-realm asynchronous order book matching engine across online and offline champions.
-- [ ] AetherSwap Continental Arbiter NPCs stationed in Sanctuary Hub and Grand Bazaar.
-- [ ] Alliance Depot Box with automated currency and item retrieval.
-- [ ] 2% Solar Gold trade tariff sink to maintain healthy realm anti-inflation.
+- [x] Multi-realm asynchronous order book matching engine across online and offline champions with price-time priority.
+- [x] AetherSwap Continental Arbiter NPCs stationed in Sanctuary Hub and Grand Bazaar.
+- [x] Alliance Depot Box with automated currency and item retrieval.
+- [x] 2% Solar Gold trade tariff sink on completed sales to maintain healthy realm anti-inflation.
 
-#### Day 19 — Expanded Chat Channels, Player Inspect & Dueling
-- [ ] Chat channel tabs: `[All]`, `[Party]`, `[Guild]`, `[Combat]`, `[Trade]`.
-- [ ] `[Shift + Click]` on gear items to link them in chat with interactive tooltips.
-- [ ] Right-click a player -> `[Inspect]` to view their equipped paperdoll and allocated stats.
-- [ ] Friendly Dueling: `/duel <PlayerName>` anywhere in peaceful zones with 3-second countdown.
+#### Day 19 — Expanded Chat Channels, Player Inspect & Dueling *(COMPLETE)*
+- [x] Chat channel commands: `/say`, `/faction`, `/party`, `/order`, `/trade`, `/duel`, `/inspect`.
+- [x] Target player -> `[🔍 INSPECT]` button or `/inspect <name>` to view equipped paperdoll, combat attributes, paragon affinity, and 5 profession masteries.
+- [x] Friendly Dueling: `/duel <PlayerName>` anywhere in peaceful zones or click `[⚔️ DUEL]`.
+- [x] 3-second countdown (3... 2... 1... FIGHT!) with screen shake and sound cues.
+- [x] Glowing dueling ring boundary (200px) with 5-second out-of-bounds forfeit timer.
+- [x] Non-lethal surrender protection: duelist is protected at 1 HP, duel ends cleanly, winner announced, and HP safely restored to 35% with zero death penalty or XP loss.
 
 #### Day 20 — Emote Wheel, Character Flair & Cosmetic Titles
 - [ ] Radial Emote Wheel (`[V]`) with pixel animations and floating overhead emotes.

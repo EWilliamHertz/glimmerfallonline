@@ -38,7 +38,10 @@ import {
   clearHoveredEquipment,
   updateFloatingGearTooltipPos,
   hideFloatingGearTooltip,
+  setAuthoritativeExchangeOffers,
+  isUsingAuthoritativeExchange,
 } from './equipmentUi.js';
+import { renderTradeModal, renderInspectModal } from './ui/tradeAndInspectUi.js';
 import { getItemCanvas, getItemIconDataUrl } from './itemSprites.js';
 import {
   MYTHIC_DUNGEONS,
@@ -196,6 +199,11 @@ export function initGame() {
   if (initialZoomBtn) initialZoomBtn.innerText = `${zoom}x`;
 
   const camera = { x: 0, y: 0 };
+  const screenShake = { trauma: 0, offsetX: 0, offsetY: 0 };
+  function triggerScreenShake(amount = 0.25) {
+    screenShake.trauma = Math.min(1.0, screenShake.trauma + amount);
+  }
+  window.triggerScreenShake = triggerScreenShake;
 
   // HUD elements are looked up once and reused. The render loop must never query
   // the DOM per frame (every lookup can force style/layout work).
@@ -373,6 +381,7 @@ export function initGame() {
     zenith: false,
     thornbark: false,
     frozen: false,
+    hitFlash: 0,
     bubble: null,
     bubbleTimer: 0,
     emote: null,
@@ -383,6 +392,11 @@ export function initGame() {
   const remotePlayers = new Map();
   let currentParty = null;
   let pendingPartyInvite = null;
+  let pendingTradeInvite = null;
+  let activeTradeSession = null;
+  let pendingDuelInvite = null;
+  let activeDuelSession = null;
+  let inspectedPlayerData = null;
   let accountAuthTab = 'register';
   let accountStatusMsg = '';
   let chatChannel = 'say';
@@ -2619,8 +2633,8 @@ export function initGame() {
   // ==========================================
   function worldToScreen(wx, wy, wz = 0) {
     return {
-      sx: (wx - camera.x + viewW / 2) * zoom,
-      sy: (wy - wz - camera.y + viewH / 2) * zoom,
+      sx: (wx - (camera.x + screenShake.offsetX) + viewW / 2) * zoom,
+      sy: (wy - wz - (camera.y + screenShake.offsetY) + viewH / 2) * zoom,
     };
   }
 
@@ -2671,7 +2685,7 @@ export function initGame() {
     return str;
   }
 
-  function spawnFCT(wx, wy, text, color = '#facc15', isCrit = false) {
+  function spawnFCT(wx, wy, text, color = null, isCrit = false, category = null) {
     if (!fctContainer) return;
     const now = performance.now();
     // Clear out expired FCT records (> 850ms)
@@ -2689,13 +2703,59 @@ export function initGame() {
     recentFcts.push({ sx, sy, time: now });
 
     const cleanText = shortenFctText(text);
-    const labelText = isCrit ? `★ ${cleanText}!` : cleanText;
+
+    // Differentiate combat text category
+    let cat = category;
+    if (!cat) {
+      if (isCrit) {
+        cat = 'crit';
+      } else if (cleanText.includes('HP') || cleanText.includes('HEALTH') || cleanText.includes('SIPHON') || cleanText.includes('HEAL')) {
+        cat = cleanText.startsWith('-') ? 'player_dmg' : 'heal';
+      } else if (cleanText.includes('GLIMMER') || cleanText.includes('CHRONO') || cleanText.includes('RES')) {
+        cat = 'glimmer';
+      } else if (cleanText.startsWith('-')) {
+        cat = 'damage';
+      } else {
+        cat = 'info';
+      }
+    }
+
+    let finalColor = color;
+    let labelText = cleanText;
+    let extraClass = '';
+
+    if (cat === 'crit' || isCrit) {
+      extraClass = 'fct-crit';
+      finalColor = color || '#fde047';
+      labelText = cleanText.startsWith('★') ? cleanText : `★ ${cleanText}!`;
+    } else if (cat === 'heal') {
+      extraClass = 'fct-heal';
+      finalColor = color || '#4ade80';
+      labelText = cleanText.startsWith('+') ? cleanText : `+${cleanText}`;
+    } else if (cat === 'glimmer') {
+      extraClass = 'fct-glimmer';
+      finalColor = color || '#38bdf8';
+      labelText = cleanText.startsWith('+') ? cleanText : `+${cleanText}`;
+    } else if (cat === 'damage') {
+      extraClass = 'fct-damage-normal';
+      finalColor = color || '#fef08a';
+    } else if (cat === 'player_dmg') {
+      extraClass = 'fct-player-dmg';
+      finalColor = color || '#ef4444';
+    } else {
+      finalColor = color || '#facc15';
+    }
 
     const el = document.createElement('div');
-    el.className = isCrit ? 'fct-text fct-crit' : 'fct-text';
+    el.className = `fct-text ${extraClass}`.trim();
     el.style.left = `${sx}px`;
     el.style.top = `${sy - stackOffsetY}px`;
-    el.style.color = color;
+    el.style.color = finalColor;
+    if (isCrit || cat === 'crit') {
+      const arcDir = Math.random() < 0.5 ? -1 : 1;
+      const arcDist = Math.round(arcDir * (10 + Math.random() * 14));
+      el.style.setProperty('--crit-arc-x', `${arcDist}px`);
+    }
 
     const inner = document.createElement('span');
     inner.className = 'fct-inner';
@@ -2703,7 +2763,7 @@ export function initGame() {
     el.appendChild(inner);
 
     fctContainer.appendChild(el);
-    setTimeout(() => el.remove(), 1050);
+    setTimeout(() => el.remove(), isCrit ? 1150 : 1000);
   }
   window.spawnFCT = spawnFCT;
 
@@ -3360,6 +3420,23 @@ export function initGame() {
     if (!d) return;
     const offers = getExchangeOffers();
     const targetSlot = d.slot || (offers.find((o) => !o.type)?.slot || 1);
+
+    if (net && net.connected) {
+      net.send({
+        type: 'exchange_place_order',
+        mode: d.mode,
+        slot: targetSlot,
+        itemId: d.itemId,
+        qty: d.qty,
+        unitPrice: d.unitPrice,
+      });
+      setExchangeOrderDialog(null);
+      audio.playShield();
+      setExchangeTab('listings');
+      renderExchangeModal({ profile: localProfile });
+      return;
+    }
+
     const slotIdx = offers.findIndex((o) => o.slot === targetSlot);
     if (slotIdx === -1) return;
 
@@ -3421,6 +3498,12 @@ export function initGame() {
   };
 
   window.collectExchangeOffer = function (slot) {
+    if (net && net.connected) {
+      net.send({ type: 'exchange_collect', slot });
+      audio.playPickup();
+      return;
+    }
+
     const offers = getExchangeOffers();
     const o = offers.find((offer) => offer.slot === slot);
     if (!o || !o.completed || !o.type) return;
@@ -3457,6 +3540,12 @@ export function initGame() {
   };
 
   window.abortExchangeOffer = function (slot) {
+    if (net && net.connected) {
+      net.send({ type: 'exchange_abort', slot });
+      audio.playHurt();
+      return;
+    }
+
     const offers = getExchangeOffers();
     const o = offers.find((offer) => offer.slot === slot);
     if (!o || !o.type) return;
@@ -3619,6 +3708,128 @@ export function initGame() {
 
   window.leaveSquad = function () {
     if (net.connected) net.send({ type: 'party_leave' });
+  };
+
+  // Direct Player-to-Player Trading Actions
+  window.tradeTargetedPlayer = function () {
+    if (currentTarget && currentTarget.isRemotePlayer && net.connected) {
+      net.send({ type: 'trade_request', target: currentTarget.playerId });
+    } else if (!net.connected) {
+      logMessage('🤝 [Trade] Player trading requires connection to multiplayer realm.', 'log-combat');
+    }
+  };
+
+  window.respondTradeInvite = function (accept) {
+    const toast = document.getElementById('trade-invite-toast');
+    if (toast) toast.style.display = 'none';
+    if (pendingTradeInvite && net.connected) {
+      net.send({ type: 'trade_respond', inviteId: pendingTradeInvite.inviteId, accept });
+    }
+    pendingTradeInvite = null;
+  };
+
+  window.addBackpackItemToTrade = function (itemId) {
+    if (!activeTradeSession || !net.connected) return;
+    const yourItems = [...(activeTradeSession.yourOffer?.items || [])];
+    if (yourItems.length >= 8) {
+      logMessage('🤝 [Trade] Trade offer is full (8/8 slots)!', 'log-combat');
+      return;
+    }
+    const existing = yourItems.find((it) => it.id === itemId);
+    const inBag = countItemInBackpack(localProfile, itemId);
+    if (existing) {
+      if (existing.qty < inBag) {
+        existing.qty += 1;
+      } else {
+        logMessage(`🤝 [Trade] You only have ${inBag}x of this item in your backpack.`, 'log-combat');
+        return;
+      }
+    } else {
+      yourItems.push({ id: itemId, qty: 1 });
+    }
+    net.send({
+      type: 'trade_offer',
+      items: yourItems,
+      gold: activeTradeSession.yourOffer?.gold || 0,
+    });
+  };
+
+  window.removeTradeItem = function (slotIdx) {
+    if (!activeTradeSession || !net.connected) return;
+    const yourItems = [...(activeTradeSession.yourOffer?.items || [])];
+    if (slotIdx >= 0 && slotIdx < yourItems.length) {
+      yourItems.splice(slotIdx, 1);
+      net.send({
+        type: 'trade_offer',
+        items: yourItems,
+        gold: activeTradeSession.yourOffer?.gold || 0,
+      });
+    }
+  };
+
+  window.setTradeGold = function (val) {
+    if (!activeTradeSession || !net.connected) return;
+    const goldNum = Math.max(0, Math.floor(Number(val) || 0));
+    const maxGold = getPlayerGold(localProfile);
+    const sanitized = Math.min(maxGold, goldNum);
+    net.send({
+      type: 'trade_offer',
+      items: activeTradeSession.yourOffer?.items || [],
+      gold: sanitized,
+    });
+  };
+
+  window.acceptTradeOffer = function () {
+    if (!activeTradeSession || !net.connected) return;
+    net.send({ type: 'trade_accept' });
+  };
+
+  window.cancelActiveTrade = function () {
+    if (activeTradeSession && net.connected) {
+      net.send({ type: 'trade_cancel' });
+    }
+    activeTradeSession = null;
+    const m = document.getElementById('trade-modal');
+    if (m) m.style.display = 'none';
+  };
+
+  // Friendly Player Dueling Actions
+  window.duelTargetedPlayer = function () {
+    if (currentTarget && currentTarget.isRemotePlayer && net.connected) {
+      net.send({ type: 'duel_request', target: currentTarget.playerId });
+    } else if (!net.connected) {
+      logMessage('⚔️ [Duel] Dueling requires connection to multiplayer realm.', 'log-combat');
+    }
+  };
+
+  window.respondDuelInvite = function (accept) {
+    const toast = document.getElementById('duel-invite-toast');
+    if (toast) toast.style.display = 'none';
+    if (pendingDuelInvite && net.connected) {
+      net.send({ type: 'duel_respond', inviteId: pendingDuelInvite.inviteId, accept });
+    }
+    pendingDuelInvite = null;
+  };
+
+  window.forfeitActiveDuel = function () {
+    if (activeDuelSession && net.connected) {
+      net.send({ type: 'duel_forfeit' });
+    }
+  };
+
+  // Player Profile & Gear Inspection Actions
+  window.inspectTargetedPlayer = function () {
+    if (currentTarget && currentTarget.isRemotePlayer && net.connected) {
+      net.send({ type: 'inspect_player', target: currentTarget.playerId });
+    } else if (!net.connected) {
+      logMessage('🔍 [Inspect] Inspecting remote players requires connection to multiplayer realm.', 'log-combat');
+    }
+  };
+
+  window.inspectPlayerByName = function (name) {
+    if (net.connected && name) {
+      net.send({ type: 'inspect_player', target: name });
+    }
   };
 
   window.switchServerRoom = function (roomId) {
@@ -4423,21 +4634,30 @@ export function initGame() {
     spawnSmokeBurst(wx, wy, isBoss ? 64 : 36, isBoss);
   }
 
-  function spawnSparkBurst(wx, wy, colors = ['#facc15', '#fef08a', '#ffffff'], count = 12) {
+  function spawnSparkBurst(wx, wy, colors = ['#facc15', '#fef08a', '#ffffff'], count = 12, dirAngle = null, isCrit = false) {
+    const spread = Math.PI * 0.65;
     for (let i = 0; i < count; i++) {
-      const ang = Math.random() * Math.PI * 2;
-      const spd = 16 + Math.random() * 42;
+      let ang;
+      let spd;
+      if (dirAngle !== null) {
+        ang = dirAngle + (Math.random() - 0.5) * spread;
+        spd = (isCrit ? 36 : 22) + Math.random() * (isCrit ? 58 : 38);
+      } else {
+        ang = Math.random() * Math.PI * 2;
+        spd = (isCrit ? 28 : 16) + Math.random() * (isCrit ? 52 : 42);
+      }
       particles.push({
         x: wx,
         y: wy,
         z: 8 + Math.random() * 8,
         vx: Math.cos(ang) * spd,
-        vy: Math.sin(ang) * spd * 0.65,
-        vz: (Math.random() - 0.2) * 24,
-        size: Math.random() < 0.5 ? 2 : 3,
+        vy: Math.sin(ang) * spd * 0.72,
+        vz: (Math.random() - 0.15) * (isCrit ? 32 : 24),
+        size: isCrit ? (Math.random() < 0.4 ? 4 : 3) : Math.random() < 0.5 ? 2 : 3,
         color: colors[(Math.random() * colors.length) | 0],
         age: 0,
-        maxAge: 0.28 + Math.random() * 0.22,
+        maxAge: (isCrit ? 0.35 : 0.28) + Math.random() * 0.24,
+        isCritSpark: Boolean(isCrit),
       });
     }
   }
@@ -5994,8 +6214,21 @@ export function initGame() {
         audio.playHit(fx.isCrit);
         const hitEnt = entities.find((e) => Math.hypot(e.x - fx.x, e.y - fx.y) < 22);
         if (hitEnt) hitEnt.hitFlash = 0.14;
-        spawnSparkBurst(fx.x, fx.y - 8, fx.isCrit ? ['#fde047', '#ffffff', '#f97316'] : ['#ef4444', '#fca5a5', '#facc15'], fx.isCrit ? 12 : 7);
-        spawnFCT(fx.x, fx.y, `-${fx.dmg}`, fx.isCrit ? '#facc15' : '#f87171', fx.isCrit);
+        const dirAngle = (fx.attackerX !== undefined && fx.attackerY !== undefined)
+          ? Math.atan2(fx.y - fx.attackerY, fx.x - fx.attackerX)
+          : null;
+        spawnSparkBurst(
+          fx.x,
+          fx.y - 8,
+          fx.isCrit ? ['#fde047', '#ffffff', '#fb923c', '#e0f2fe'] : ['#ef4444', '#fca5a5', '#facc15'],
+          fx.isCrit ? 16 : 8,
+          dirAngle,
+          fx.isCrit
+        );
+        spawnFCT(fx.x, fx.y, `-${fx.dmg}`, fx.isCrit ? '#fde047' : '#fef08a', fx.isCrit, fx.isCrit ? 'crit' : 'damage');
+        if (fx.isCrit) {
+          triggerScreenShake(0.18);
+        }
         if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !questState.dummyDamaged) {
           questState.dummyDamaged = true;
           saveQuestState();
@@ -6013,8 +6246,20 @@ export function initGame() {
         }
       } else if (fx.kind === 'player_hit') {
         audio.playHit(fx.isCrit);
-        spawnFCT(fx.x, fx.y, `-${fx.dmg} HP`, '#ef4444', fx.isCrit);
-        if (fx.playerId === net.playerId) {
+        const isSelf = fx.playerId === net.playerId;
+        if (isSelf) {
+          player.hitFlash = 0.14;
+        } else {
+          const rp = remotePlayers.get(fx.playerId);
+          if (rp) rp.hitFlash = 0.14;
+        }
+        const dirAngle = (fx.attackerX !== undefined && fx.attackerY !== undefined)
+          ? Math.atan2(fx.y - fx.attackerY, fx.x - fx.attackerX)
+          : null;
+        spawnSparkBurst(fx.x, fx.y - 8, ['#ef4444', '#f87171', '#facc15'], fx.isCrit ? 14 : 8, dirAngle, fx.isCrit);
+        spawnFCT(fx.x, fx.y, `-${fx.dmg} HP`, '#ef4444', fx.isCrit, 'player_dmg');
+        if (isSelf) {
+          triggerScreenShake(fx.isCrit ? 0.24 : 0.14);
           const vig = document.getElementById('damage-vignette');
           if (vig) {
             vig.style.display = 'block';
@@ -6310,6 +6555,141 @@ export function initGame() {
             refreshSocialModalView();
           }
           break;
+
+        case 'exchange_sync':
+          setAuthoritativeExchangeOffers(msg.offers);
+          if (document.getElementById('exchange-modal')?.style.display === 'block') {
+            renderExchangeModal({ profile: localProfile });
+          }
+          break;
+
+        case 'trade_incoming': {
+          audio.playPartyInvite();
+          pendingTradeInvite = msg;
+          const toast = document.getElementById('trade-invite-toast');
+          const txt = document.getElementById('trade-invite-txt');
+          if (toast && txt) {
+            txt.innerText = `${msg.senderName} invites you to trade.`;
+            toast.style.display = 'block';
+          }
+          break;
+        }
+
+        case 'trade_start':
+        case 'trade_update': {
+          audio.playChatPop();
+          activeTradeSession = msg;
+          const toast = document.getElementById('trade-invite-toast');
+          if (toast) toast.style.display = 'none';
+          const m = document.getElementById('trade-modal');
+          if (m) m.style.display = 'block';
+          renderTradeModal({ session: activeTradeSession, profile: localProfile });
+          break;
+        }
+
+        case 'trade_complete': {
+          audio.playPickup();
+          activeTradeSession = null;
+          const m = document.getElementById('trade-modal');
+          if (m) m.style.display = 'none';
+          spawnFCT(player.x, player.y - 14, `TRADE COMPLETED WITH ${msg.partnerName || 'PARTNER'}! 🤝`, '#4ade80', true);
+          break;
+        }
+
+        case 'trade_cancelled': {
+          audio.playHurt();
+          activeTradeSession = null;
+          const m = document.getElementById('trade-modal');
+          if (m) m.style.display = 'none';
+          const toast = document.getElementById('trade-invite-toast');
+          if (toast) toast.style.display = 'none';
+          spawnFCT(player.x, player.y - 14, 'TRADE CANCELLED ✕', '#f87171');
+          break;
+        }
+
+        case 'duel_incoming': {
+          audio.playPartyInvite();
+          pendingDuelInvite = msg;
+          const toast = document.getElementById('duel-invite-toast');
+          const txt = document.getElementById('duel-invite-txt');
+          if (toast && txt) {
+            txt.innerText = `${msg.senderName} challenged you to an honorable duel!`;
+            toast.style.display = 'block';
+          }
+          break;
+        }
+
+        case 'duel_start': {
+          audio.playShield();
+          pendingDuelInvite = null;
+          activeDuelSession = msg;
+          const toast = document.getElementById('duel-invite-toast');
+          if (toast) toast.style.display = 'none';
+          const b = document.getElementById('duel-countdown-banner');
+          const t = document.getElementById('duel-countdown-title');
+          const s = document.getElementById('duel-countdown-subtitle');
+          if (b && t && s) {
+            t.innerText = '3';
+            t.style.color = '#fde047';
+            s.innerText = `DUEL: ${msg.p1Name} VS ${msg.p2Name}`;
+            b.style.display = 'block';
+          }
+          break;
+        }
+
+        case 'duel_countdown': {
+          audio.playChatPop();
+          triggerScreenShake(0.08);
+          const t = document.getElementById('duel-countdown-title');
+          if (t) t.innerText = String(msg.seconds);
+          break;
+        }
+
+        case 'duel_fight': {
+          audio.playLevelUp();
+          triggerScreenShake(0.25);
+          const t = document.getElementById('duel-countdown-title');
+          const s = document.getElementById('duel-countdown-subtitle');
+          if (t) {
+            t.innerText = '⚔️ FIGHT!';
+            t.style.color = '#ef4444';
+          }
+          if (s) s.innerText = 'HONORABLE COMBAT ACTIVE';
+          setTimeout(() => {
+            const b = document.getElementById('duel-countdown-banner');
+            if (b) b.style.display = 'none';
+          }, 1200);
+          break;
+        }
+
+        case 'duel_out_of_bounds': {
+          spawnFCT(player.x, player.y - 16, `⚠️ RETURN TO RING (${msg.remaining}s)!`, '#ef4444');
+          break;
+        }
+
+        case 'duel_concluded': {
+          activeDuelSession = null;
+          const b = document.getElementById('duel-countdown-banner');
+          if (b) b.style.display = 'none';
+          const won = msg.winnerName === localProfile.name;
+          if (won) {
+            audio.playLevelUp();
+            spawnFCT(player.x, player.y - 18, 'VICTORY! 🏆', '#facc15', true);
+          } else {
+            audio.playHurt();
+            spawnFCT(player.x, player.y - 18, 'HONORABLE DEFEAT ⚔️', '#94a3b8');
+          }
+          triggerScreenShake(0.18);
+          break;
+        }
+
+        case 'inspect_data': {
+          inspectedPlayerData = msg.target;
+          const m = document.getElementById('inspect-modal');
+          if (m) m.style.display = 'block';
+          renderInspectModal({ targetData: msg.target });
+          break;
+        }
 
         case 'sys_msg':
           logMessage(msg.text, 'log-gain', msg.category || 'chat');
@@ -7320,7 +7700,7 @@ export function initGame() {
     }, delayMs);
   }
 
-  function damageOfflineEntity(ent, dmg, isCrit = false, isRite = false, spellName = '') {
+  function damageOfflineEntity(ent, dmg, isCrit = false, isRite = false, spellName = '', attackerRef = player) {
     if (!ent || ent.isDying || ent.type === 'node' || ent.type === 'portal') return;
     ent.hp = Math.max(0, ent.hp - dmg);
     ent.hitFlash = 0.14;
@@ -7331,13 +7711,19 @@ export function initGame() {
       ent.inCombat = true;
     }
     audio.playHit(isCrit);
+    const dirAngle = attackerRef ? Math.atan2(ent.y - attackerRef.y, ent.x - attackerRef.x) : null;
     spawnSparkBurst(
       ent.x,
       ent.y - 8,
-      isCrit ? ['#fde047', '#ffffff', '#38bdf8'] : ['#ef4444', '#fca5a5', '#facc15'],
-      isCrit ? 12 : 7
+      isCrit ? ['#fde047', '#ffffff', '#fb923c', '#e0f2fe'] : ['#ef4444', '#fca5a5', '#facc15'],
+      isCrit ? 16 : 8,
+      dirAngle,
+      isCrit
     );
-    spawnFCT(ent.x, ent.y, `-${dmg}`, isCrit ? '#facc15' : '#f87171', isCrit);
+    spawnFCT(ent.x, ent.y, `-${dmg}`, isCrit ? '#fde047' : '#fef08a', isCrit, isCrit ? 'crit' : 'damage');
+    if (isCrit) {
+      triggerScreenShake(0.18);
+    }
 
     if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !questState.dummyDamaged) {
       questState.dummyDamaged = true;
@@ -7465,9 +7851,12 @@ export function initGame() {
 
     if (rem > 0) {
       player.hp = Math.max(0, player.hp - rem);
+      player.hitFlash = 0.14;
       audio.playHit(false);
-      spawnSparkBurst(player.x, player.y - 8, ['#ef4444', '#f87171', '#facc15'], 8);
-      spawnFCT(player.x, player.y - 10, `-${rem} HP`, '#ef4444');
+      const dirAngle = attackerRef ? Math.atan2(player.y - attackerRef.y, player.x - attackerRef.x) : null;
+      spawnSparkBurst(player.x, player.y - 8, ['#ef4444', '#f87171', '#facc15'], 9, dirAngle);
+      spawnFCT(player.x, player.y - 10, `-${rem} HP`, '#ef4444', false, 'player_dmg');
+      triggerScreenShake(rem >= player.maxHp * 0.15 ? 0.22 : 0.12);
 
       const vig = document.getElementById('damage-vignette');
       if (vig) {
@@ -7691,6 +8080,9 @@ export function initGame() {
           if (!tgt) return;
           audio.playSpell();
           skyBeams.push({ x: tgt.x, y: tgt.y, color: spec.color || '#38bdf8', age: 0, maxAge: 0.45 });
+          if (spec.id === 'corona_cataclysm' || (spec.tier && spec.tier >= 7)) {
+            triggerScreenShake(0.40);
+          }
           const dmg = Math.max(5, Math.floor(Math.random() * 5) + 10 + eff.power * 2 + rank * 3);
           damageOfflineEntity(tgt, dmg, true, true, spec.name);
           for (const near of entities) {
@@ -7908,8 +8300,9 @@ export function initGame() {
     if (spec.kind === 'archon_form') {
       player.solarAscensionTimer = 8.0;
       for (const s of [9, 10, 11, 12]) cooldowns[s] = 0;
-      spawnSparkBurst(player.x, player.y - 8, ['#fde047', '#facc15', '#ffffff'], 24);
+      spawnSparkBurst(player.x, player.y - 8, ['#fde047', '#facc15', '#ffffff'], 24, null, true);
       spawnFCT(player.x, player.y - 14, '👑 SOLAR ASCENSION APEX ARCHON!', '#fde047', true);
+      triggerScreenShake(0.35);
       updatePlayerUI();
       return;
     }
@@ -7951,6 +8344,7 @@ export function initGame() {
       setTimeout(() => { if (!net.connected) player.stealthed = false; }, 8000);
       spawnSmokeBurst(player.x, player.y, 24);
       spawnFCT(player.x, player.y - 14, '👑 AVATAR OF THE VOID!', '#a855f7', true);
+      triggerScreenShake(0.35);
       updatePlayerUI();
       return;
     }
@@ -7998,6 +8392,7 @@ export function initGame() {
       player.thornbark = true;
       player.treantFormTimer = 8.0;
       spawnFCT(player.x, player.y - 14, '👑 AVATAR OF THE IRONWOOD!', '#22c55e', true);
+      triggerScreenShake(0.35);
       updatePlayerUI();
       return;
     }
@@ -8034,8 +8429,9 @@ export function initGame() {
       for (const s of ACTION_SLOTS) {
         if (s !== slot) cooldowns[s] = 0;
       }
-      spawnSparkBurst(player.x, player.y - 8, ['#e0f2fe', '#38bdf8', '#c084fc'], 24);
+      spawnSparkBurst(player.x, player.y - 8, ['#e0f2fe', '#38bdf8', '#c084fc'], 24, null, true);
       spawnFCT(player.x, player.y - 14, '👑 TEMPORAL APOTHEOSIS!', '#e0f2fe', true);
+      triggerScreenShake(0.35);
       updatePlayerUI();
       return;
     }
@@ -8058,6 +8454,7 @@ export function initGame() {
     if (spec.kind === 'singularity_collapse') {
       groundZones.push({ id: `off_gz_${Date.now()}`, type: 'gravity', color: '#c084fc', spellName: spec.name, x: player.x, y: player.y, radius: 16 * YARD_PX, tickDmg: 8 + rank * 2, age: 0, maxAge: 3.5, tickTimer: 0.2 });
       spawnFCT(player.x, player.y - 12, '🌌 VOID ANNIHILATION APEX!', '#c084fc', true);
+      triggerScreenShake(0.40);
       for (const e of [...entities]) {
         if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
           if (Math.hypot(e.x - player.x, e.y - player.y) <= 16 * YARD_PX) {
@@ -8085,6 +8482,7 @@ export function initGame() {
       const quakeRad = 16 * YARD_PX;
       groundZones.push({ id: `off_ring_${Date.now()}`, type: 'shockwave', color: '#4ade80', x: player.x, y: player.y, radius: quakeRad, age: 0, maxAge: 0.6 });
       spawnFCT(player.x, player.y - 12, '🌳 WRATH OF GAIA APEX!', '#4ade80', true);
+      triggerScreenShake(0.40);
       for (const e of [...entities]) {
         if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
           if (Math.hypot(e.x - player.x, e.y - player.y) <= quakeRad) {
@@ -8103,6 +8501,7 @@ export function initGame() {
       const cy = acquiredTarget ? acquiredTarget.y : player.y;
       groundZones.push({ id: `off_ring_${Date.now()}`, type: 'shockwave', color: '#38bdf8', x: cx, y: cy, radius: 13 * YARD_PX, age: 0, maxAge: 0.5 });
       spawnFCT(cx, cy - 10, '💥 SUPERNOVA COLLAPSE!', '#38bdf8', true);
+      triggerScreenShake(0.32);
       for (const e of [...entities]) {
         if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
           if (Math.hypot(e.x - cx, e.y - cy) <= 13 * YARD_PX) {
@@ -8118,6 +8517,7 @@ export function initGame() {
       const stasisRad = 14 * YARD_PX;
       groundZones.push({ id: `off_gz_${Date.now()}`, type: 'frost_ring', color: '#0284c7', x: player.x, y: player.y, radius: stasisRad, age: 0, maxAge: 3.5 });
       spawnFCT(player.x, player.y - 12, '🌌 CHRONO STASIS APEX!', '#7dd3fc', true);
+      triggerScreenShake(0.38);
       for (const e of [...entities]) {
         if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
           if (Math.hypot(e.x - player.x, e.y - player.y) <= stasisRad) {
@@ -9748,7 +10148,14 @@ export function initGame() {
         renderInventoryModal({ profile: localProfile });
       }
       if (id === 'exchange-modal') {
+        if (net.connected) net.send({ type: 'exchange_open' });
         renderExchangeModal({ profile: localProfile });
+      }
+      if (id === 'trade-modal') {
+        if (activeTradeSession) renderTradeModal({ session: activeTradeSession, profile: localProfile });
+      }
+      if (id === 'inspect-modal') {
+        if (inspectedPlayerData) renderInspectModal({ targetData: inspectedPlayerData });
       }
       if (id === 'bank-modal') {
         renderBankModal({ profile: localProfile });
@@ -10491,12 +10898,26 @@ export function initGame() {
       rp.renderX += (rp.x - rp.renderX) * Math.min(1, 14 * dt);
       rp.renderY += (rp.y - rp.renderY) * Math.min(1, 14 * dt);
       if (rp.isMoving) rp.walkTimer = (rp.walkTimer || 0) + dt * 9.5;
+      if (rp.hitFlash > 0) rp.hitFlash = Math.max(0, rp.hitFlash - dt);
     }
+
+    if (player.hitFlash > 0) player.hitFlash = Math.max(0, player.hitFlash - dt);
 
     camera.x += (player.x - camera.x) * Math.min(1, 10 * dt);
     camera.y += (player.y - camera.y) * Math.min(1, 10 * dt);
     if (Math.abs(player.x - camera.x) < 0.2) camera.x = player.x;
     if (Math.abs(player.y - camera.y) < 0.2) camera.y = player.y;
+
+    if (screenShake.trauma > 0) {
+      screenShake.trauma = Math.max(0, screenShake.trauma - dt * 3.2);
+      const power = screenShake.trauma * screenShake.trauma;
+      const maxShakePx = 5.0;
+      screenShake.offsetX = (Math.random() * 2 - 1) * maxShakePx * power;
+      screenShake.offsetY = (Math.random() * 2 - 1) * maxShakePx * power;
+    } else {
+      screenShake.offsetX = 0;
+      screenShake.offsetY = 0;
+    }
 
     for (let i = entities.length - 1; i >= 0; i--) {
       const e = entities[i];
@@ -10691,6 +11112,68 @@ export function initGame() {
                   snare: e.spriteKey === 'graniteBoss' ? 2.0 : 0,
                 });
               }
+            } else if (e.eliteAffix || (e.maxHp >= 100 && e.type === 'mob')) {
+              // High-tier / Elite Monster Telegraphed Ability (1.2-1.45s reactive dodge ring)
+              e.eliteAbilityCooldown = (e.eliteAbilityCooldown ?? (5.0 + Math.random() * 3.5)) - dt;
+              if (e.eliteAbilityCooldown <= 0) {
+                e.eliteAbilityCooldown = 7.5 + Math.random() * 4.0;
+                let telLabel = '⚡ LEYLINE SURGE';
+                let telColor = '#facc15';
+                let shockRad = 46;
+                let warnDuration = 1.35;
+                let snare = 0;
+
+                if (e.eliteAffix === 'molten' || e.spriteKey === 'solariSentinel') {
+                  telLabel = e.eliteAffix === 'molten' ? '🌋 MAGMA ERUPTION' : '☀️ SOLAR SMITE';
+                  telColor = '#f97316';
+                  shockRad = 48;
+                  warnDuration = 1.3;
+                } else if (e.eliteAffix === 'voidtouched' || e.spriteKey === 'voidStalker' || e.spriteKey === 'duskFiend') {
+                  telLabel = '🌑 VOID CONVERGENCE';
+                  telColor = '#c084fc';
+                  shockRad = 50;
+                  warnDuration = 1.35;
+                } else if (e.eliteAffix === 'frostweaver') {
+                  telLabel = '❄️ FROST NOVA';
+                  telColor = '#38bdf8';
+                  shockRad = 52;
+                  warnDuration = 1.4;
+                  snare = 1.8;
+                } else if (e.eliteAffix === 'electrified' || e.spriteKey === 'aetherWeaver') {
+                  telLabel = '⚡ LIGHTNING STRIKE';
+                  telColor = '#facc15';
+                  shockRad = 45;
+                  warnDuration = 1.2;
+                } else if (e.spriteKey === 'terraWarden') {
+                  telLabel = '🌿 SEISMIC TREMOR';
+                  telColor = '#4ade80';
+                  shockRad = 50;
+                  warnDuration = 1.4;
+                  snare = 1.5;
+                }
+
+                const shockDmg = Math.max(3, Math.round((e.damage || 5) * 1.45));
+                const tgtX = Math.random() < 0.75 ? player.x : e.x;
+                const tgtY = Math.random() < 0.75 ? player.y : e.y;
+
+                spawnFCT(tgtX, tgtY - 14, `⚠️ ${telLabel}!`, telColor, true);
+
+                groundZones.push({
+                  id: `off_el_tel_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                  type: 'telegraph',
+                  color: telColor,
+                  label: telLabel,
+                  x: tgtX,
+                  y: tgtY,
+                  radius: shockRad,
+                  age: 0,
+                  maxAge: warnDuration,
+                  damage: shockDmg,
+                  bossName: e.name,
+                  bossRef: e,
+                  snare,
+                });
+              }
             }
 
             const speedMult = e.snareTimer > 0 ? 0.35 : e.slowTimer > 0 ? 0.55 : 1.0;
@@ -10798,6 +11281,7 @@ export function initGame() {
             });
             spawnSparkBurst(gz.x, gz.y, [gz.color || '#ef4444', '#fde047', '#ffffff'], 24);
             audio.playHit(true);
+            triggerScreenShake(0.28);
             if (!player.isDead && !player.stealthed && Math.hypot(player.x - gz.x, player.y - gz.y) <= gz.radius) {
               damageOfflinePlayer(gz.damage || 14, `${gz.bossName || 'Boss'} ${gz.label || 'Cataclysm'}`, gz.bossRef);
               const ang = Math.atan2(player.y - gz.y, player.x - gz.x);
@@ -11668,8 +12152,8 @@ export function initGame() {
     ctx.fillStyle = '#070b19';
     ctx.fillRect(0, 0, viewW, viewH);
 
-    const camLeft = Math.floor(camera.x - viewW / 2);
-    const camTop = Math.floor(camera.y - viewH / 2);
+    const camLeft = Math.floor(camera.x + screenShake.offsetX - viewW / 2);
+    const camTop = Math.floor(camera.y + screenShake.offsetY - viewH / 2);
 
     const roomKey = `${currentRoomId}|${currentRoomType}|${currentBiomeTheme}|${mapBounds.halfW}x${mapBounds.halfH}`;
     if (roomKey !== tileChunkRoomKey) {
@@ -11759,6 +12243,29 @@ export function initGame() {
         ctx.fillStyle = `rgba(56, 189, 248, ${0.12 + 0.1 * pulse})`;
         ctx.fillRect(lineX + 1, y1, 14, y2 - y1);
       }
+      ctx.restore();
+    }
+
+    // Active Friendly Duel Arena Boundary Ring
+    if (activeDuelSession) {
+      const dx = Math.round(activeDuelSession.centerX - camLeft);
+      const dy = Math.round(activeDuelSession.centerY - camTop);
+      const dr = activeDuelSession.radius || 200;
+      ctx.save();
+      const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 250);
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 6]);
+      ctx.strokeStyle = `rgba(245, 158, 11, ${0.45 + pulse * 0.45})`;
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.05)';
+      ctx.beginPath();
+      ctx.arc(dx, dy, dr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = 'bold 9px monospace';
+      ctx.fillStyle = '#fde047';
+      ctx.textAlign = 'center';
+      ctx.fillText('⚔️ HONORABLE DUEL RING ⚔️', dx, dy - dr - 6);
       ctx.restore();
     }
 
@@ -12174,6 +12681,9 @@ export function initGame() {
           const shakeX = ent.hitFlash > 0 && ent.type !== 'dummy' ? 1 : 0;
 
           ctx.save();
+          if (ent.hitFlash > 0 && typeof ctx.filter !== 'undefined') {
+            ctx.filter = 'brightness(3.2) contrast(1.4)';
+          }
           if (ent.isDying) {
             const sc = Math.max(0.08, 1 - (ent.deathAge || 0) / 0.65);
             ctx.globalAlpha = sc;
@@ -12346,6 +12856,9 @@ export function initGame() {
           const img = frames[rp.isMoving ? (Math.floor(rp.walkTimer || 0) % 2) + 1 : 0];
 
           ctx.save();
+          if (rp.hitFlash > 0 && typeof ctx.filter !== 'undefined') {
+            ctx.filter = 'brightness(3.2) contrast(1.4)';
+          }
           if (rp.stealthed) ctx.globalAlpha = 0.45;
           ctx.drawImage(img, Math.round(sx - img.width / 2), Math.round(sy - (rp.z || 0) - img.height + 3));
           if (rp.frozen) {
@@ -12410,6 +12923,9 @@ export function initGame() {
           }
 
           ctx.save();
+          if (player.hitFlash > 0 && typeof ctx.filter !== 'undefined') {
+            ctx.filter = 'brightness(3.2) contrast(1.4)';
+          }
           if (player.stealthed) ctx.globalAlpha = 0.48;
           ctx.drawImage(img, Math.round(sx - img.width / 2), Math.round(sy - player.z - img.height + 3));
           if (player.frozen) {
@@ -12545,6 +13061,24 @@ export function initGame() {
           ctx.arc(sx - r * 0.28, sy - r * 0.28, Math.max(1, r * 0.42), 0, Math.PI * 2);
           ctx.fill();
         }
+        ctx.restore();
+      } else if (pt.isCritSpark) {
+        const prog = Math.min(1, pt.age / pt.maxAge);
+        const alpha = Math.max(0, 1 - prog);
+        const sz = Math.max(1, pt.size * (1.3 - prog * 0.4));
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = pt.color;
+        // 4-pointed diamond star
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - sz * 1.8);
+        ctx.lineTo(sx + sz * 0.7, sy);
+        ctx.lineTo(sx, sy + sz * 1.8);
+        ctx.lineTo(sx - sz * 0.7, sy);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(sx - 1, sy - 1, 2, 2);
         ctx.restore();
       } else {
         const prog = Math.min(1, pt.age / pt.maxAge);

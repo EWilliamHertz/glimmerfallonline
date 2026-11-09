@@ -10,6 +10,9 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { AccountsStore } from './accountsStore.js';
 import { PartyManager } from './partyManager.js';
+import { ExchangeManager } from './exchangeManager.js';
+import { TradeManager } from './tradeManager.js';
+import { DuelManager } from './duelManager.js';
 import { RoomManager } from './roomManager.js';
 import { TICK_RATE } from '../shared/protocol.js';
 
@@ -343,7 +346,33 @@ export function createGlimmerFallServer() {
     (id) => rooms?.getClientById(id),
     (name) => rooms?.findClientByName(name)
   );
-  rooms = new RoomManager({ accountsStore: accounts, partyManager: parties });
+
+  const exchange = new ExchangeManager({
+    accountsStore: accounts,
+    getClientById: (id) => rooms?.getClientById(id),
+    broadcastToAll: (msg) => rooms?.broadcastToAll(msg),
+  });
+
+  const trades = new TradeManager({
+    accountsStore: accounts,
+    getClientById: (id) => rooms?.getClientById(id),
+    findClientByName: (name) => rooms?.findClientByName(name),
+  });
+
+  const duels = new DuelManager({
+    getClientById: (id) => rooms?.getClientById(id),
+    findClientByName: (name) => rooms?.findClientByName(name),
+    getRoomById: (id) => rooms?.rooms.get(id),
+    broadcastToRoom: (room, msg) => rooms?.broadcastToRoom(room, msg),
+  });
+
+  rooms = new RoomManager({
+    accountsStore: accounts,
+    partyManager: parties,
+    exchangeManager: exchange,
+    tradeManager: trades,
+    duelManager: duels,
+  });
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
@@ -532,10 +561,11 @@ export function createGlimmerFallServer() {
       rooms.saveClientState(client);
     }
     rooms.stop();
+    exchange.save();
     await accounts.flushToPostgres().catch(() => {});
   };
 
-  return { server, wss, accounts, parties, rooms, ready, shutdown };
+  return { server, wss, accounts, parties, exchange, trades, duels, rooms, ready, shutdown };
 }
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);

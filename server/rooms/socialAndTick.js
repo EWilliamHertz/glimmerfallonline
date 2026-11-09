@@ -95,6 +95,15 @@ export const socialAndTickMethods = {
       } else if (cmd === 'leave') {
         this.parties.leaveParty(sender);
         return;
+      } else if (cmd === 'trade' || cmd === 'tr') {
+        this.trades?.handleRequest(sender, arg);
+        return;
+      } else if (cmd === 'duel') {
+        this.duels?.handleRequest(sender, arg);
+        return;
+      } else if (cmd === 'inspect') {
+        this.handleInspectPlayer(sender, arg);
+        return;
       } else if (cmd === 'siege') {
         const wz = Array.from(this.rooms.values()).find((r) => r.type === ROOM_TYPES.NEXUS_WARZONE);
         if (wz) this.spawnWarzoneSiegeShard(wz, true);
@@ -170,6 +179,7 @@ export const socialAndTickMethods = {
     this.processMatchmaking();
     const dt = TICK_MS / 1000;
     const now = Date.now();
+    this.duels?.tick(dt);
 
     for (const room of this.rooms.values()) {
       this.tickRoom(room, dt, now);
@@ -566,6 +576,75 @@ export const socialAndTickMethods = {
                 bossName: e.name,
                 bossRef: e,
                 snare: e.spriteKey === 'graniteBoss' ? 2.0 : 0,
+              });
+            }
+          } else if (e.eliteAffix || (e.maxHp >= 100 && e.type === 'mob')) {
+            // High-tier / Elite Monster Telegraphed Ability (1.2-1.45s reactive dodge ring)
+            e.eliteAbilityCooldown = (e.eliteAbilityCooldown ?? (5.0 + Math.random() * 3.5)) - dt;
+            if (e.eliteAbilityCooldown <= 0) {
+              e.eliteAbilityCooldown = 7.5 + Math.random() * 4.0;
+              let telLabel = '⚡ LEYLINE SURGE';
+              let telColor = '#facc15';
+              let shockRadius = 46;
+              let warnDuration = 1.35;
+              let snare = 0;
+
+              if (e.eliteAffix === 'molten' || e.spriteKey === 'solariSentinel') {
+                telLabel = e.eliteAffix === 'molten' ? '🌋 MAGMA ERUPTION' : '☀️ SOLAR SMITE';
+                telColor = '#f97316';
+                shockRadius = 48;
+                warnDuration = 1.3;
+              } else if (e.eliteAffix === 'voidtouched' || e.spriteKey === 'voidStalker' || e.spriteKey === 'duskFiend') {
+                telLabel = '🌑 VOID CONVERGENCE';
+                telColor = '#c084fc';
+                shockRadius = 50;
+                warnDuration = 1.35;
+              } else if (e.eliteAffix === 'frostweaver') {
+                telLabel = '❄️ FROST NOVA';
+                telColor = '#38bdf8';
+                shockRadius = 52;
+                warnDuration = 1.4;
+                snare = 1.8;
+              } else if (e.eliteAffix === 'electrified' || e.spriteKey === 'aetherWeaver') {
+                telLabel = '⚡ LIGHTNING STRIKE';
+                telColor = '#facc15';
+                shockRadius = 45;
+                warnDuration = 1.2;
+              } else if (e.spriteKey === 'terraWarden') {
+                telLabel = '🌿 SEISMIC TREMOR';
+                telColor = '#4ade80';
+                shockRadius = 50;
+                warnDuration = 1.4;
+                snare = 1.5;
+              }
+
+              const shockDmg = Math.max(3, Math.round((e.damage || 5) * 1.45));
+              const tgtX = nearestPlayer ? nearestPlayer.x : e.x;
+              const tgtY = nearestPlayer ? nearestPlayer.y : e.y;
+
+              room.fxQueue.push({
+                kind: 'fct',
+                x: tgtX,
+                y: tgtY - 14,
+                text: `⚠️ ${telLabel}!`,
+                color: telColor,
+                isCrit: true,
+              });
+
+              room.groundZones.push({
+                id: `tel_${crypto.randomUUID().slice(0, 6)}`,
+                type: 'telegraph',
+                color: telColor,
+                label: telLabel,
+                x: tgtX,
+                y: tgtY,
+                radius: shockRadius,
+                age: 0,
+                maxAge: warnDuration,
+                damage: shockDmg,
+                bossName: e.name,
+                bossRef: e,
+                snare,
               });
             }
           }

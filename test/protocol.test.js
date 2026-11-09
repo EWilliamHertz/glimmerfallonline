@@ -860,6 +860,335 @@ test('Glimmer harvesting preserves active solarCharge and does not revert to cac
   assert.ok(roomManagerSrc.includes('client.solarCharge = Math.min(client.maxSolarCharge, client.solarCharge);'), 'Server refreshClientFromAccount must preserve live client.solarCharge');
 });
 
+test('Tier 3 Economy: AetherSwap Continental Exchange order placement, matching engine, and 2% tariff sink', async () => {
+  const { ExchangeManager, EXCHANGE_TARIFF_RATE } = await import('../server/exchangeManager.js');
+
+  assert.strictEqual(EXCHANGE_TARIFF_RATE, 0.02, 'Tariff rate must be exactly 2%');
+
+  const testAccounts = {
+    profiles: new Map(),
+    getProfile(id) {
+      if (!this.profiles.has(id)) {
+        this.profiles.set(id, {
+          id,
+          name: `Player_${id}`,
+          inventory: [{ id: 'solar_gold', qty: 1000 }, { id: 'major_vitality_elixir', qty: 10 }],
+          gold: 0,
+        });
+      }
+      return this.profiles.get(id);
+    },
+    updateProfile(id, updates) {
+      const p = this.getProfile(id);
+      Object.assign(p, updates);
+      return p;
+    },
+  };
+
+  const clientMessages = new Map();
+  const mockClients = new Map();
+
+  function createMockClient(id, name) {
+    clientMessages.set(id, []);
+    const c = {
+      id,
+      displayName: name,
+      send(msg) {
+        clientMessages.get(id).push(msg);
+      },
+    };
+    mockClients.set(id, c);
+    return c;
+  }
+
+  const exchange = new ExchangeManager({
+    accountsStore: testAccounts,
+    getClientById: (id) => mockClients.get(id),
+    broadcastToAll: () => {},
+    dataDir: `/tmp/glimmer_test_ge_${Date.now()}`,
+  });
+
+  const seller = createMockClient('p_seller', 'SellerSam');
+  const buyer = createMockClient('p_buyer', 'BuyerBob');
+
+  // 1. SellerSam places SELL offer for 5x major_vitality_elixir @ 20 🪙 each
+  exchange.handlePlaceOrder(seller, {
+    mode: 'SELL',
+    slot: 1,
+    itemId: 'major_vitality_elixir',
+    qty: 5,
+    unitPrice: 20,
+  });
+
+  const sellerOffers = exchange.getPlayerSlotOrders(seller.id);
+  assert.strictEqual(sellerOffers[0].type, 'SELL', 'Slot 1 should be a SELL order');
+  assert.strictEqual(sellerOffers[0].qty, 5, 'Sell qty should be 5');
+  assert.strictEqual(sellerOffers[0].unitPrice, 20, 'Sell unitPrice should be 20');
+
+  // Verify seller items were deducted from inventory into escrow
+  const sellerProf = testAccounts.getProfile(seller.id);
+  const remainingElixirs = exchange.countItemInBackpack(sellerProf, 'major_vitality_elixir');
+  assert.strictEqual(remainingElixirs, 5, 'Seller should have 5 elixirs left in backpack after depositing 5');
+
+  // 2. BuyerBob places BUY offer for 5x major_vitality_elixir @ 20 🪙 each
+  exchange.handlePlaceOrder(buyer, {
+    mode: 'BUY',
+    slot: 1,
+    itemId: 'major_vitality_elixir',
+    qty: 5,
+    unitPrice: 20,
+  });
+
+  // 3. Orders should match immediately!
+  const buyerOffersAfter = exchange.getPlayerSlotOrders(buyer.id);
+  const sellerOffersAfter = exchange.getPlayerSlotOrders(seller.id);
+
+  assert.strictEqual(buyerOffersAfter[0].completed, true, 'Buyer order should be completed');
+  assert.strictEqual(buyerOffersAfter[0].payoutItems, 5, 'Buyer should have 5 items in payout');
+
+  assert.strictEqual(sellerOffersAfter[0].completed, true, 'Seller order should be completed');
+  // 5 * 20 = 100 gross. 2% tariff of 100 = 2. Net = 98 gold.
+  assert.strictEqual(sellerOffersAfter[0].payoutGold, 98, 'Seller should receive 98 gold after 2% trade tariff sink');
+
+  // 4. BuyerBob collects items
+  exchange.handleCollect(buyer, 1);
+  const buyerProfAfterCollect = testAccounts.getProfile(buyer.id);
+  const buyerElixirs = exchange.countItemInBackpack(buyerProfAfterCollect, 'major_vitality_elixir');
+  assert.strictEqual(buyerElixirs, 15, 'Buyer should have 10 initial + 5 collected = 15 elixirs in backpack');
+
+  // 5. SellerSam collects gold
+  exchange.handleCollect(seller, 1);
+  const sellerProfAfterCollect = testAccounts.getProfile(seller.id);
+  const sellerGold = exchange.getPlayerGold(sellerProfAfterCollect);
+  assert.strictEqual(sellerGold, 1098, 'Seller should have 1000 initial + 98 trade proceeds = 1098 gold');
+
+  // 6. Test Aborting an unfilled order and refunding escrow
+  const buyerGoldBeforeOrder = exchange.getPlayerGold(testAccounts.getProfile(buyer.id));
+  exchange.handlePlaceOrder(buyer, {
+    mode: 'BUY',
+    slot: 2,
+    itemId: 'duskveil_twin_daggers',
+    qty: 1,
+    unitPrice: 50,
+  });
+  const buyerGoldDuringEscrow = exchange.getPlayerGold(testAccounts.getProfile(buyer.id));
+  assert.strictEqual(buyerGoldDuringEscrow, buyerGoldBeforeOrder - 50, 'Escrow gold must be held during active offer');
+
+  exchange.handleAbort(buyer, 2);
+  const buyerGoldAfterAbort = exchange.getPlayerGold(testAccounts.getProfile(buyer.id));
+  assert.strictEqual(buyerGoldAfterAbort, buyerGoldBeforeOrder, 'Aborting buy order should refund escrow gold');
+});
+
+test('Tier 3 Social: Direct Player-to-Player Trading with anti-scam dual acceptance and atomic swap', async () => {
+  const { TradeManager } = await import('../server/tradeManager.js');
+
+  const testAccounts = {
+    profiles: new Map(),
+    getProfile(id) {
+      if (!this.profiles.has(id)) {
+        this.profiles.set(id, {
+          id,
+          name: `Player_${id}`,
+          inventory: id === 'p1' ? [{ id: 'iron_ore', qty: 10 }, { id: 'solar_gold', qty: 500 }] : [{ id: 'bronze_bar', qty: 5 }, { id: 'solar_gold', qty: 200 }],
+          gold: 0,
+        });
+      }
+      return this.profiles.get(id);
+    },
+    updateProfile(id, updates) {
+      const p = this.getProfile(id);
+      Object.assign(p, updates);
+      return p;
+    },
+  };
+
+  const mockClients = new Map();
+  function createMockClient(id, name, x, y) {
+    const c = {
+      id,
+      displayName: name,
+      roomId: 'sanctuary_hub',
+      x,
+      y,
+      isDead: false,
+      msgs: [],
+      send(m) {
+        this.msgs.push(m);
+      },
+    };
+    mockClients.set(id, c);
+    return c;
+  }
+
+  const tm = new TradeManager({
+    accountsStore: testAccounts,
+    getClientById: (id) => mockClients.get(id),
+    findClientByName: (n) => Array.from(mockClients.values()).find((c) => c.displayName.toLowerCase() === n.toLowerCase()),
+  });
+
+  const p1 = createMockClient('p1', 'Alice', 0, 0);
+  const p2 = createMockClient('p2', 'Bob', 20, 20);
+
+  // 1. Send trade request and accept invitation
+  tm.handleRequest(p1, 'Bob');
+  const inviteMsg = p2.msgs.find((m) => m.type === 'trade_incoming');
+  assert.ok(inviteMsg, 'Target should receive trade_incoming invite');
+
+  tm.handleRespond(p2, inviteMsg.inviteId, true);
+  assert.ok(tm.isPlayerTrading(p1.id), 'Player 1 should be in active trade');
+  assert.ok(tm.isPlayerTrading(p2.id), 'Player 2 should be in active trade');
+
+  // 2. Offer items and gold
+  tm.handleOfferUpdate(p1, [{ id: 'iron_ore', qty: 4 }], 100);
+  tm.handleOfferUpdate(p2, [{ id: 'bronze_bar', qty: 2 }], 50);
+
+  const session = tm.getTradeForPlayer(p1.id);
+  assert.strictEqual(session.p1.items[0].qty, 4, 'P1 offered 4 iron ore');
+  assert.strictEqual(session.p1.gold, 100, 'P1 offered 100 gold');
+  assert.strictEqual(session.p2.items[0].qty, 2, 'P2 offered 2 bronze bars');
+
+  // 3. P1 accepts trade
+  tm.handleAccept(p1);
+  assert.strictEqual(session.p1.accepted, true, 'P1 accepted trade');
+  assert.strictEqual(session.p2.accepted, false, 'P2 has not accepted yet');
+
+  // 4. ANTI-SCAM TEST: P2 modifies offer -> MUST reset P1 accepted state!
+  tm.handleOfferUpdate(p2, [{ id: 'bronze_bar', qty: 1 }], 50);
+  assert.strictEqual(session.p1.accepted, false, 'Offer modification MUST reset other player acceptance to false');
+  assert.strictEqual(session.p2.accepted, false, 'Offer modification MUST reset own acceptance to false');
+
+  // 5. Both players accept final offer
+  tm.handleAccept(p1);
+  tm.handleAccept(p2);
+
+  // 6. Atomic swap executed
+  assert.strictEqual(tm.isPlayerTrading(p1.id), false, 'Trade should conclude cleanly after atomic swap');
+
+  const prof1 = testAccounts.getProfile('p1');
+  const prof2 = testAccounts.getProfile('p2');
+
+  const p1Bronze = tm.countItemInBackpack(prof1, 'bronze_bar');
+  const p1Iron = tm.countItemInBackpack(prof1, 'iron_ore');
+  const p1Gold = tm.getPlayerGold(prof1);
+
+  const p2Bronze = tm.countItemInBackpack(prof2, 'bronze_bar');
+  const p2Iron = tm.countItemInBackpack(prof2, 'iron_ore');
+  const p2Gold = tm.getPlayerGold(prof2);
+
+  assert.strictEqual(p1Bronze, 1, 'P1 should receive 1 bronze bar');
+  assert.strictEqual(p1Iron, 6, 'P1 should have 6 iron ore left (10 - 4)');
+  assert.strictEqual(p1Gold, 450, 'P1 gold should be 500 - 100 + 50 = 450');
+
+  assert.strictEqual(p2Bronze, 4, 'P2 should have 4 bronze bars left (5 - 1)');
+  assert.strictEqual(p2Iron, 4, 'P2 should receive 4 iron ore');
+  assert.strictEqual(p2Gold, 250, 'P2 gold should be 200 - 50 + 100 = 250');
+});
+
+test('Tier 3 Social: Friendly Player Dueling with 3-second countdown and 1-HP surrender protection', async () => {
+  const { DuelManager, DUEL_COUNTDOWN_SEC, DUEL_RING_RADIUS_PX } = await import('../server/duelManager.js');
+
+  const mockClients = new Map();
+  function createMockClient(id, name, x, y) {
+    const c = {
+      id,
+      displayName: name,
+      roomId: 'sanctuary_hub',
+      roomType: 'sanctuary_hub',
+      x,
+      y,
+      hp: 100,
+      maxHp: 100,
+      isDead: false,
+      msgs: [],
+      send(m) {
+        this.msgs.push(m);
+      },
+    };
+    mockClients.set(id, c);
+    return c;
+  }
+
+  const mockRoom = {
+    id: 'sanctuary_hub',
+    fxQueue: [],
+  };
+
+  const dm = new DuelManager({
+    getClientById: (id) => mockClients.get(id),
+    findClientByName: (n) => Array.from(mockClients.values()).find((c) => c.displayName.toLowerCase() === n.toLowerCase()),
+    getRoomById: () => mockRoom,
+    broadcastToRoom: () => {},
+  });
+
+  const c1 = createMockClient('c1', 'GladiatorA', 100, 100);
+  const c2 = createMockClient('c2', 'GladiatorB', 120, 100);
+
+  // 1. Issue duel challenge
+  dm.handleRequest(c1, 'GladiatorB');
+  const invite = c2.msgs.find((m) => m.type === 'duel_incoming');
+  assert.ok(invite, 'Target should receive duel_incoming');
+
+  // 2. Accept challenge
+  dm.handleRespond(c2, invite.inviteId, true);
+  const session = dm.getDuelForPlayer(c1.id);
+  assert.ok(session, 'Active duel session should be created');
+  assert.strictEqual(session.state, 'countdown', 'Duel state starts in countdown');
+  assert.strictEqual(session.radius, DUEL_RING_RADIUS_PX, 'Duel radius must match DUEL_RING_RADIUS_PX');
+
+  // 3. Countdown tick (3.0 seconds)
+  dm.tick(1.0);
+  assert.strictEqual(session.state, 'countdown', 'Still in countdown after 1s');
+  dm.tick(2.1);
+  assert.strictEqual(session.state, 'active', 'Duel should be active after 3.1s');
+  assert.strictEqual(dm.isDuelActiveBetween(c1.id, c2.id), true, 'Duel is active between c1 and c2');
+
+  // 4. Non-Lethal Surrender Protection:
+  // When loser is about to take fatal damage, concludeDuel is invoked
+  c2.hp = 1;
+  dm.concludeDuel(c2.id, c1.id, 'defeat');
+
+  // Verify defeated duelist DOES NOT DIE and has HP safely restored to 35% Max HP
+  assert.strictEqual(c2.isDead, false, 'Defeated duelist must NOT die');
+  assert.strictEqual(c2.hp, 35, 'Defeated duelist must have HP restored to 35%');
+  assert.strictEqual(dm.hasActiveDuel(c1.id), false, 'Duel session cleaned up');
+  assert.strictEqual(dm.hasActiveDuel(c2.id), false, 'Duel session cleaned up');
+
+  const concludedMsg = c1.msgs.find((m) => m.type === 'duel_concluded');
+  assert.ok(concludedMsg, 'Winner receives duel_concluded packet');
+  assert.strictEqual(concludedMsg.winnerName, 'GladiatorA', 'Winner is GladiatorA');
+  assert.strictEqual(concludedMsg.loserName, 'GladiatorB', 'Loser is GladiatorB');
+});
+
+test('Tier 3 Social: Player Inspect protocol and UI integration', () => {
+  const gameSrc = fs.readFileSync(new URL('../client/game.js', import.meta.url), 'utf-8');
+  const indexHtml = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf-8');
+  const arenaPacketsSrc = fs.readFileSync(new URL('../server/rooms/arenaAndPackets.js', import.meta.url), 'utf-8');
+
+  // 1. Target Frame Player Actions
+  assert.ok(indexHtml.includes('id="target-player-actions"'), 'index.html must have target player actions');
+  assert.ok(indexHtml.includes('inspectTargetedPlayer()'), 'Must have Inspect button');
+  assert.ok(indexHtml.includes('tradeTargetedPlayer()'), 'Must have Trade button');
+  assert.ok(indexHtml.includes('duelTargetedPlayer()'), 'Must have Duel button');
+
+  // 2. Modals Present in index.html
+  assert.ok(indexHtml.includes('id="trade-modal"'), 'index.html must have #trade-modal');
+  assert.ok(indexHtml.includes('id="inspect-modal"'), 'index.html must have #inspect-modal');
+  assert.ok(indexHtml.includes('id="trade-invite-toast"'), 'index.html must have #trade-invite-toast');
+  assert.ok(indexHtml.includes('id="duel-invite-toast"'), 'index.html must have #duel-invite-toast');
+  assert.ok(indexHtml.includes('id="duel-countdown-banner"'), 'index.html must have #duel-countdown-banner');
+
+  // 3. Server Inspect Packet Generation
+  assert.ok(arenaPacketsSrc.includes("case 'inspect_player':"), 'Server packet router must handle inspect_player');
+  assert.ok(arenaPacketsSrc.includes('handleInspectPlayer(client, targetQuery)'), 'Server must implement handleInspectPlayer');
+  assert.ok(arenaPacketsSrc.includes("type: 'inspect_data'"), 'Server must emit inspect_data packet');
+
+  // 4. Client Game Network Dispatch & World Dueling Ring
+  assert.ok(gameSrc.includes("case 'inspect_data':"), 'Client must handle inspect_data packet');
+  assert.ok(gameSrc.includes('renderInspectModal({ targetData: msg.target })'), 'Client must render inspect modal');
+  assert.ok(gameSrc.includes('⚔️ HONORABLE DUEL RING ⚔️'), 'Client must render duel boundary ring in world canvas');
+});
+
+
 
 
 

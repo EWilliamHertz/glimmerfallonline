@@ -81,9 +81,12 @@ import { entityDeathAndProgressionMethods } from './rooms/entityDeathAndProgress
 import { socialAndTickMethods } from './rooms/socialAndTick.js';
 
 export class RoomManager {
-  constructor({ accountsStore, partyManager }) {
+  constructor({ accountsStore, partyManager, exchangeManager, tradeManager, duelManager }) {
     this.accounts = accountsStore;
     this.parties = partyManager;
+    this.exchange = exchangeManager;
+    this.trades = tradeManager;
+    this.duels = duelManager;
     this.clients = new Map(); // playerId -> PlayerSession
     this.rooms = new Map();   // roomId -> RoomInstance
     this.arenaQueue = [];     // Array of { leaderId, memberIds, queuedAt }
@@ -467,6 +470,8 @@ export class RoomManager {
     this.saveClientState(client);
     this.leaveArenaQueue(client);
     this.parties.leaveParty(client);
+    this.trades?.onPlayerDisconnect(client.id);
+    this.duels?.onPlayerDisconnect(client.id);
     if (client.roomId && this.rooms.has(client.roomId)) {
       const room = this.rooms.get(client.roomId);
       room.players.delete(client.id);
@@ -575,6 +580,15 @@ export class RoomManager {
     for (const p of room.players.values()) {
       if (excludePlayerId && p.id === excludePlayerId) continue;
       if (p.ws.readyState === 1) {
+        p.ws.send(encoded);
+      }
+    }
+  }
+
+  broadcastToAll(packet) {
+    const encoded = JSON.stringify(packet);
+    for (const p of this.clients.values()) {
+      if (p.ws && p.ws.readyState === 1) {
         p.ws.send(encoded);
       }
     }

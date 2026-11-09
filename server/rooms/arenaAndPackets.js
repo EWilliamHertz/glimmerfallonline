@@ -318,6 +318,7 @@ export const arenaAndPacketsMethods = {
   arePlayersAllied(room, pA, pB) {
     if (!pA || !pB) return true;
     if (pA.id === pB.id) return true;
+    if (this.duels && this.duels.isDuelActiveBetween(pA.id, pB.id)) return false;
     if (!room.pvp) return true;
     if (room.type === ROOM_TYPES.ARENA_3V3) return pA.team === pB.team;
     if (this.parties.areInSameParty(pA.id, pB.id)) return true;
@@ -708,6 +709,62 @@ export const arenaAndPacketsMethods = {
         this.parties.kickMember(client, msg.targetId);
         break;
 
+      // AetherSwap Continental Exchange
+      case 'exchange_open':
+        this.exchange?.handleOpen(client);
+        break;
+
+      case 'exchange_place_order':
+        this.exchange?.handlePlaceOrder(client, msg);
+        break;
+
+      case 'exchange_collect':
+        this.exchange?.handleCollect(client, msg.slot);
+        break;
+
+      case 'exchange_abort':
+        this.exchange?.handleAbort(client, msg.slot);
+        break;
+
+      // Direct Player Trading
+      case 'trade_request':
+        this.trades?.handleRequest(client, msg.target);
+        break;
+
+      case 'trade_respond':
+        this.trades?.handleRespond(client, msg.inviteId, Boolean(msg.accept));
+        break;
+
+      case 'trade_offer':
+        this.trades?.handleOfferUpdate(client, msg.items, msg.gold);
+        break;
+
+      case 'trade_accept':
+        this.trades?.handleAccept(client);
+        break;
+
+      case 'trade_cancel':
+        this.trades?.handleCancel(client);
+        break;
+
+      // Friendly Player Dueling
+      case 'duel_request':
+        this.duels?.handleRequest(client, msg.target);
+        break;
+
+      case 'duel_respond':
+        this.duels?.handleRespond(client, msg.inviteId, Boolean(msg.accept));
+        break;
+
+      case 'duel_forfeit':
+        this.duels?.handleForfeit(client);
+        break;
+
+      // Player Profile & Gear Inspect
+      case 'inspect_player':
+        this.handleInspectPlayer(client, msg.target);
+        break;
+
       case 'list_rooms':
         client.send({ type: 'rooms_list', rooms: this.listPublicRooms() });
         break;
@@ -826,5 +883,53 @@ export const arenaAndPacketsMethods = {
     }
 
     throw new Error(`Unknown auth action: ${action}`);
+  },
+
+  handleInspectPlayer(client, targetQuery) {
+    if (!client) return;
+    const q = String(targetQuery || '').trim();
+    if (!q) {
+      client.send({ type: 'sys_msg', category: 'social', text: '🔍 [Inspect] Specify a player name to inspect.' });
+      return;
+    }
+
+    const target = this.getClientById(q) || this.findClientByName(q);
+    if (!target) {
+      client.send({ type: 'sys_msg', category: 'social', text: `🔍 [Inspect] Player "${q}" is not online.` });
+      return;
+    }
+
+    const profile = this.accounts.getProfile(target.id);
+    const equip = target.equipment || profile?.equipment || {};
+    const prog = target.prog || profile?.progression || {};
+
+    client.send({
+      type: 'inspect_data',
+      target: {
+        id: target.id,
+        name: target.displayName,
+        faction: target.faction,
+        classId: target.classId,
+        className: target.className || target.classId,
+        orderTag: target.orderTag,
+        orderName: target.orderName,
+        orderColor: target.orderColor,
+        level: prog.level || 1,
+        xp: prog.xp || 0,
+        equipment: equip,
+        paragon: prog.paragon || {},
+        professions: prog.professions || {},
+        statsMeta: target.statsMeta || profile?.statsMeta || {},
+        stats: {
+          power: target.effPower || 10,
+          bastion: target.effBastion || 10,
+          resonance: target.effResonance || 10,
+          tempo: target.effTempo || 10,
+          maxHp: target.maxHp || 100,
+          maxGlimmer: target.maxSolarCharge || 100,
+          critChance: target.critChance || 0.05,
+        },
+      },
+    });
   },
 };

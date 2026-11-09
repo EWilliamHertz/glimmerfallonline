@@ -424,6 +424,8 @@ export const combatRitesAndDamageMethods = {
         dmg,
         isCrit,
         targetId: t.id,
+        attackerX: attackerPlayer ? attackerPlayer.x : undefined,
+        attackerY: attackerPlayer ? attackerPlayer.y : undefined,
       });
 
       if (attackerPlayer && t.type === 'dummy' && t.hp > 0 && !t.noHitXp) {
@@ -537,7 +539,27 @@ export const combatRitesAndDamageMethods = {
       room.fxQueue.push({ kind: 'fct', x: targetPlayer.x, y: targetPlayer.y, text: `GUARD ${absorbed}`, color: '#38bdf8' });
     }
 
+    const isDueling = this.duels && this.duels.hasActiveDuel(targetPlayer.id);
+
     if (rem > 0) {
+      if (isDueling && targetPlayer.hp - rem <= 1) {
+        targetPlayer.hp = 1;
+        room.fxQueue.push({
+          kind: 'player_hit',
+          playerId: targetPlayer.id,
+          x: targetPlayer.x,
+          y: targetPlayer.y,
+          dmg: rem,
+          isCrit,
+          attackerName,
+          attackerX: attackerRef ? attackerRef.x : undefined,
+          attackerY: attackerRef ? attackerRef.y : undefined,
+        });
+        this.parties.syncPlayerVitals(targetPlayer.id);
+        this.duels.concludeDuel(targetPlayer.id, attackerRef?.id, 'defeat');
+        return;
+      }
+
       targetPlayer.hp = Math.max(0, targetPlayer.hp - rem);
       room.fxQueue.push({
         kind: 'player_hit',
@@ -547,6 +569,8 @@ export const combatRitesAndDamageMethods = {
         dmg: rem,
         isCrit,
         attackerName,
+        attackerX: attackerRef ? attackerRef.x : undefined,
+        attackerY: attackerRef ? attackerRef.y : undefined,
       });
     }
 

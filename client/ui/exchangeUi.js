@@ -65,7 +65,22 @@ export function getItemGuidePrice(itemId) {
   return 75;
 }
 
+let authoritativeOffers = null;
+
+export function setAuthoritativeExchangeOffers(offers) {
+  if (Array.isArray(offers)) {
+    authoritativeOffers = offers;
+  }
+}
+
+export function isUsingAuthoritativeExchange() {
+  return Boolean(authoritativeOffers);
+}
+
 export function getExchangeOffers() {
+  if (authoritativeOffers && Array.isArray(authoritativeOffers)) {
+    return authoritativeOffers;
+  }
   try {
     const raw = localStorage.getItem('glimmerfall_aetherswap_offers');
     if (raw) {
@@ -89,12 +104,14 @@ export function getExchangeOffers() {
 }
 
 export function saveExchangeOffers(offers) {
+  if (authoritativeOffers) return;
   try {
     localStorage.setItem('glimmerfall_aetherswap_offers', JSON.stringify(offers));
   } catch (_) {}
 }
 
 export function tickExchangeOffers(profile) {
+  if (authoritativeOffers) return;
   const offers = getExchangeOffers();
   let changed = false;
   for (const o of offers) {

@@ -94,7 +94,7 @@ export const combatCastMethods = {
         best = { kind: 'entity', ref: e };
       }
     }
-    if (room.pvp) {
+    if (room.pvp || (this.duels && this.duels.hasActiveDuel(player.id))) {
       for (const other of room.players.values()) {
         if (other.isDead || other.stealthedTimer > 0 || this.arePlayersAllied(room, player, other)) continue;
         const d = Math.hypot(other.x - player.x, other.y - player.y);
@@ -115,7 +115,7 @@ export const combatCastMethods = {
         out.push({ kind: 'entity', ref: e });
       }
     }
-    if (room.pvp) {
+    if (room.pvp || (this.duels && this.duels.hasActiveDuel(player.id))) {
       for (const other of room.players.values()) {
         if (other.isDead || this.arePlayersAllied(room, player, other)) continue;
         if (Math.hypot(other.x - cx, other.y - cy) <= radius) {
