@@ -744,11 +744,12 @@ export function setupWorldAtlasAndLoreUi({
   function renderChronicleView(body) {
     body.innerHTML = `
       <div style="display:flex; flex-direction:column; gap:10px;">
-        <div style="background:#080c18; border:2px solid #1e293b; padding:10px; border-radius:4px;">
+        <div style="background:#080c18; border:2px solid #facc15; padding:10px; border-radius:4px;">
           <b style="color:#facc15; display:block; margin-bottom:4px; font-family:var(--font-header); font-size:12px;">
-            I. THE GLIMMER, THE FALL &amp; THE SHATTERED NEXUS
+            I. THE CRYSTAL HEART &amp; THE GREAT GLIMMER FRACTURE
           </b>
-          Before time took shape, reality hung between the radiance of the <b>Glimmer</b> and the silence of the <b>Fall</b>. Between them stood the crystalline <b>Nexus</b>, holding the Void at bay—until the Great Shattering scattered its shards across the continental caldera.
+          Before the continental caldera took shape, cosmic reality hung in perfect equilibrium between the radiant Golden Sun and the deep Abyssal Void. At the exact nexus of these primordial forces beat a solitary celestial organ: the <b>Crystal Heart</b>—an iridescent, multi-faceted anatomical heart glowing with pure rainbow prismatic light.<br/><br/>
+          As cosmic tensions escalated, violent purple lightning fissures ruptured across the crystalline chambers. In an apocalyptic detonation, the <b>Crystal Heart shattered</b>! Flaming iridescent meteor shards fell from the heavens across the continent. With the Heart destroyed, the unified white Glimmer fractured into the four elemental aspects: <b>☀️ Solari Dawn</b>, <b>🌑 Umbri Dusk</b>, <b>🌿 Terra Earth</b>, and <b>🔮 Aether Chronoflux</b>.
         </div>
         <div style="background:#080c18; border:2px solid #1e293b; padding:10px; border-radius:4px;">
           <b style="color:#38bdf8; display:block; margin-bottom:4px; font-family:var(--font-header); font-size:12px;">

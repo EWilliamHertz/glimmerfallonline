@@ -201,11 +201,27 @@ export const gatheringAndCraftingMethods = {
   },
 
   handleCraftRecipe(room, player, recipeId) {
-    if (!player || !player.prog || !recipeId) return;
+    if (!player || player.isDead || !player.prog || !recipeId) return;
+
+    // Authoritative Anti-Macro / Anti-Exploit Cooldown: 1.25 seconds (1250ms)
+    const now = Date.now();
+    const CRAFT_COOLDOWN_MS = 1250;
+    if (player.lastCraftAt && (now - player.lastCraftAt) < CRAFT_COOLDOWN_MS) {
+      const remainingSec = ((CRAFT_COOLDOWN_MS - (now - player.lastCraftAt)) / 1000).toFixed(2);
+      player.send({
+        type: 'sys_msg',
+        category: 'combat',
+        text: `⏳ [Artisan Station] Please wait ${remainingSec}s before crafting again!`,
+      });
+      return;
+    }
+
     const recipe = CRAFTING_RECIPES.find((r) => r.id === recipeId);
     if (!recipe) return;
     const outItem = EQUIPMENT_CATALOG[recipe.outputId];
     if (!outItem) return;
+
+    player.lastCraftAt = now;
 
     const acc = this.accounts.accountsById.get(player.id);
     if (!acc) return;

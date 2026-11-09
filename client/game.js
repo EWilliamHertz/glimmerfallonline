@@ -4323,7 +4323,19 @@ export function initGame() {
   window.startCraftingBatch = startCraftingBatch;
   window.stopCraftingQueue = stopCraftingQueue;
 
+  let lastCraftTime = 0;
+  const CRAFT_COOLDOWN_MS = 1250;
+  window.getCraftCooldownRemaining = () => Math.max(0, CRAFT_COOLDOWN_MS - (performance.now() - lastCraftTime));
+
   window.performCraftRecipe = function (recipeId) {
+    if (player.isDead || deathScreenVisible) return false;
+    const now = performance.now();
+    if (now - lastCraftTime < CRAFT_COOLDOWN_MS) {
+      const remainSec = Math.max(0.1, ((CRAFT_COOLDOWN_MS - (now - lastCraftTime)) / 1000)).toFixed(1);
+      spawnFCT(player.x, player.y - 14, `⏳ CRAFTING COOLDOWN (${remainSec}s)`, '#facc15');
+      return false;
+    }
+
     const recipe = CRAFTING_RECIPES.find((r) => r.id === recipeId);
     if (!recipe || !localProfile) return false;
     const outItem = EQUIPMENT_CATALOG[recipe.outputId];
@@ -4391,6 +4403,7 @@ export function initGame() {
     addItemToBackpack(localProfile, recipe.outputId, outQty);
 
     // Update quest & bounty state
+    lastCraftTime = performance.now();
     questState.craftsCompleted = (questState.craftsCompleted || 0) + 1;
     if (recipe.station === 'cosmic_anvil') questState.smithInspected = true;
     if (recipe.station === 'aether_crucible') questState.apothecaryInspected = true;

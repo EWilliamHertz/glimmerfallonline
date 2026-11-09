@@ -81,7 +81,7 @@ export function startCraftingBatch(recipeId, count = 1) {
 
   craftQueueRecipeId = recipe.id;
   craftQueueRemaining = Math.max(1, Math.min(28, Math.floor(Number(count) || 1)));
-  // Perform the first craft immediately for snappy responsiveness, then tick every 550ms!
+  // Perform the first craft immediately if off cooldown, then tick every 1250ms (1.25s authoritative cadence)
   stepCraft();
   if (craftQueueRemaining > 0) {
     craftQueueTimer = setInterval(() => {
@@ -91,7 +91,7 @@ export function startCraftingBatch(recipeId, count = 1) {
         return;
       }
       stepCraft();
-    }, 550);
+    }, 1250);
   }
 }
 
@@ -299,7 +299,7 @@ export function renderCraftingModal(stationOverride = null) {
                 </div>
               ` : isQueueActive ? `
                 <div style="background:#1e293b; border:1px solid ${station.color}; border-radius:4px; padding:7px 10px; display:flex; justify-content:space-between; align-items:center;">
-                  <span style="font-size:9.5px; color:#fde047; font-weight:800;">⚡ ${station.actionVerb}... (${craftQueueRemaining} left)</span>
+                  <span style="font-size:9.5px; color:#fde047; font-weight:800;">⚡ ${station.actionVerb}... (${craftQueueRemaining} left • 1.25s cadence)</span>
                   <button class="id-mini-btn" style="border-color:#ef4444; color:#fca5a5; font-weight:800;" onclick="window.stopCraftingQueue()">⏹ STOP</button>
                 </div>
               ` : `

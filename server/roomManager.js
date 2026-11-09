@@ -81,7 +81,11 @@ import { entityDeathAndProgressionMethods } from './rooms/entityDeathAndProgress
 import { socialAndTickMethods } from './rooms/socialAndTick.js';
 
 export class RoomManager {
-  constructor({ accountsStore, partyManager, exchangeManager, tradeManager, duelManager }) {
+  constructor(opts = {}) {
+    const config = (opts && (opts.accountsStore !== undefined || opts.partyManager !== undefined || opts.exchangeManager !== undefined))
+      ? opts
+      : { accountsStore: opts };
+    const { accountsStore, partyManager, exchangeManager, tradeManager, duelManager } = config;
     this.accounts = accountsStore;
     this.parties = partyManager;
     this.exchange = exchangeManager;

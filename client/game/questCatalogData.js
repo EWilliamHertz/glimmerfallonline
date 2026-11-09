@@ -925,6 +925,191 @@
         },
       ],
     },
+
+    quest_crystalheart_shattering: {
+      id: 'quest_crystalheart_shattering',
+      title: 'The Shattered Crystal Heart',
+      giverId: 'npc_aurora',
+      turnInId: 'npc_aurora',
+      prereqQuestId: 'quest_awakening',
+      questPoints: 2,
+      unlocks: ['Next Quest: The Great Glimmer Fracture', 'Crystalheart Chronicle Lore'],
+      description: 'Discover the foundational origin of the GlimmerFall universe: channel a Glimmer Font [E] and confer with Herald Lyra regarding the Shattered Crystal Heart.',
+      isComplete: () => Boolean(questState.nodeHarvested || questCounter('quest_crystalheart_shattering', 'leylineHarvests') >= 1),
+      tasks: [
+        {
+          text: 'Channel a Glimmer Font in Sanctuary [E]',
+          done: () => Boolean(questState.nodeHarvested || questCounter('quest_crystalheart_shattering', 'leylineHarvests') >= 1),
+        },
+        {
+          text: 'Confer with Herald Lyra on the Crystal Heart',
+          done: () => questNpcTalked('quest_crystalheart_shattering', 'npc_aurora'),
+        },
+      ],
+      rewards: { xp: 450, glimmer: 160, gold: 120 },
+      acceptDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'Look up into the astral heavens, Summoner. Before the continental realms existed, reality was held in balance by a solitary celestial relic: the Crystal Heart.',
+        },
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'It was an iridescent anatomical crystal beating in the silence between the radiant Golden Sun and the abyssal Void. But cosmic discord tore through its chambers. Violet lightning fissures fractured the crystal, and the Crystal Heart shattered into a rain of flaming meteors that formed our continent.',
+        },
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'Channel one of the Sanctuary Glimmer Fonts [E] to attune your senses to its heartbeat, then speak with me once more!',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'Channel the glowing Glimmer Font [E] in Sanctuary Plaza. Can you feel the ancient crystalline pulse beneath the stone?',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'You felt it, did you not? The Glimmer singing in your blood is not ordinary magic—it is the living life-blood of the shattered Crystal Heart.',
+        },
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'When the Heart broke, the single, unified white light of creation fractured into four distinct elemental splinters. We must inspect these splinters across the realms!',
+        },
+      ],
+      nextQuestId: 'quest_the_four_splinters',
+    },
+
+    quest_the_four_splinters: {
+      id: 'quest_the_four_splinters',
+      title: 'The Great Glimmer Fracture',
+      giverId: 'npc_aurora',
+      turnInId: 'npc_archon',
+      prereqQuestId: 'quest_crystalheart_shattering',
+      questPoints: 2,
+      unlocks: ['Next Quest: Reforging the Crystal Core', 'Factional Splinter Attunement'],
+      description: 'The unified Glimmer split into four elemental aspects during the Crystal Heart fall. Cross an Astral Waygate into the outer realm and banish 3 fractured entities.',
+      isComplete: () => Boolean(questState.portalTraveled && questCounter('quest_the_four_splinters', 'warzoneKills') >= 3),
+      tasks: [
+        {
+          text: 'Cross an Astral Waygate into the Outer Realms',
+          done: () => Boolean(questState.portalTraveled),
+        },
+        {
+          text: 'Banish 3 Fractured Glimmer Entities',
+          done: () => questCounter('quest_the_four_splinters', 'warzoneKills') >= 3,
+          counter: () => `${Math.min(3, questCounter('quest_the_four_splinters', 'warzoneKills'))} / 3`,
+        },
+        {
+          text: 'Report to Commander Valerius at North Post',
+          done: () => questNpcTalked('quest_the_four_splinters', 'npc_archon'),
+        },
+      ],
+      rewards: { xp: 680, glimmer: 240, gold: 200 },
+      acceptDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'As the Crystal Heart fragmented into thousands of falling meteors, the unified light split into four prismatic wavelengths:\n\n☀️ Solari claimed the dawn-fire facets;\n🌑 Umbri channeled the necrotic shadow facets;\n🌿 Terra bound the root and ironwood facets;\n🔮 Aether harnessed the star-weaving chronoflux!',
+        },
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'Take the Astral Waygate north to the frontier, defeat 3 entities infused with these fractured energies, and report what you find to Commander Valerius!',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'The four factions wage war over every fallen shard of the Crystal Heart. Have you crossed the gate and engaged the fractured beasts outside?',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Well fought! You have observed the fracture firsthand. The beasts out there burn with fragmented Glimmer, driven mad by the loss of the primal Heart.',
+        },
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Master Artisan Aldric believes we can synthesize and re-harmonize these splinters in the Sanctuary Workshop. Speak with him immediately.',
+        },
+      ],
+      nextQuestId: 'quest_reforge_crystalheart_shard',
+    },
+
+    quest_reforge_crystalheart_shard: {
+      id: 'quest_reforge_crystalheart_shard',
+      title: 'Reforging the Crystal Core',
+      giverId: 'npc_artisan_aldric',
+      turnInId: 'npc_artisan_aldric',
+      prereqQuestId: 'quest_the_four_splinters',
+      questPoints: 3,
+      unlocks: ['Artisan Master Resonance', 'Harmonic Crystalheart Talisman Recipe'],
+      description: 'Master Artisan Aldric has unlocked the secret to channeling the Crystal Heart\'s memory. Respect the 1.25s artisan cadence and craft 2 items at any Artisan Station.',
+      isComplete: () => questCounter('quest_reforge_crystalheart_shard', 'craftsCompleted') >= 2,
+      tasks: [
+        {
+          text: 'Perform 2 Artisan Crafts (1.25s cadence)',
+          done: () => questCounter('quest_reforge_crystalheart_shard', 'craftsCompleted') >= 2,
+          counter: () => `${Math.min(2, questCounter('quest_reforge_crystalheart_shard', 'craftsCompleted'))} / 2`,
+        },
+        {
+          text: 'Consult Artisan Master Aldric in Sanctuary',
+          done: () => questNpcTalked('quest_reforge_crystalheart_shard', 'npc_artisan_aldric'),
+        },
+      ],
+      rewards: {
+        xp: 850,
+        glimmer: 320,
+        gold: 260,
+        professionXp: { relic_forging: 150, rite_binding: 150, glimmerweaving: 150 },
+      },
+      acceptDialogue: [
+        {
+          speaker: 'ARTISAN MASTER ALDRIC • SANCTUARY WORKSHOP',
+          spriteKey: 'merchantSmithNpc',
+          text: 'Listen closely, Knight! Crafting is not a hurried hacking of buttons. The living remnants of the Crystal Heart beat with an exact frequency: 1.25 seconds per pulse.',
+        },
+        {
+          speaker: 'ARTISAN MASTER ALDRIC • SANCTUARY WORKSHOP',
+          spriteKey: 'merchantSmithNpc',
+          text: 'Step to the Cosmic Star-Anvil, Aether Crucible, or Celestial Loom. Complete 2 artisan crafts, allowing each 1.25-second cycle to settle properly, and witness how the material harmonizes!',
+          actions: [
+            { label: '🔨 OPEN COSMIC STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
+            { label: '⚗️ OPEN AETHERIAL CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#c084fc; color:#f3e8ff;' },
+            { label: '🧵 OPEN CELESTIAL LOOM', action: 'openStation_celestial_loom', style: 'border-color:#38bdf8; color:#bae6fd;' },
+          ],
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'ARTISAN MASTER ALDRIC • SANCTUARY WORKSHOP',
+          spriteKey: 'merchantSmithNpc',
+          text: 'Respect the 1.25-second artisan cadence! Forge or brew 2 items at the station to stabilize your resonance.',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'ARTISAN MASTER ALDRIC • SANCTUARY WORKSHOP',
+          spriteKey: 'merchantSmithNpc',
+          text: 'Masterful work! By honoring the 1.25s cadence of the Crystal Heart, you have created flawless goods free from instability and corruption.',
+        },
+        {
+          speaker: 'ARTISAN MASTER ALDRIC • SANCTUARY WORKSHOP',
+          spriteKey: 'merchantSmithNpc',
+          text: 'Take this bounty of artisan experience and Glimmer shards. You now walk as a true Guardian of the Crystalheart!',
+        },
+      ],
+    },
   };
 
 

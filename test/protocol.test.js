@@ -1390,7 +1390,7 @@ test('Interface scaling, full loadout preservation, and anti-aliased HD text', a
 test('Sanctuary death respawn and Awaken Champion character creation flow', async () => {
   // 1. Authoritative Server Tick: Dead player outside Arena respawns at Sanctuary Hub
   const accounts = new AccountsStore();
-  const rm = new RoomManager(accounts);
+  const rm = new RoomManager({ accountsStore: accounts });
   try {
     const calderaRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.CALDERA_PEAK);
     const sentPackets = [];
@@ -1516,7 +1516,7 @@ test('Sanctuary death respawn and Awaken Champion character creation flow', asyn
 
 test('Dead player exploit prevention, anti-aliased world text, and Graveglass Oracle tactical codex', async () => {
   const accounts = new AccountsStore();
-  const rm = new RoomManager(accounts);
+  const rm = new RoomManager({ accountsStore: accounts });
   try {
     const calderaRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.CALDERA_PEAK);
     const sentPackets = [];
@@ -1579,6 +1579,70 @@ test('Dead player exploit prevention, anti-aliased world text, and Graveglass Or
   assert.ok(gameJs.includes('renderClassGuideUI'), 'game.js must implement renderClassGuideUI');
   assert.ok(gameJs.includes('GRAVEGLASS ORACLE — OFFICIAL TACTICAL CODEX'), 'game.js must contain official Graveglass Oracle tactical guide');
   assert.ok(gameJs.includes('activeTextCtx || ctx'), 'game.js must route overhead badges and loot labels to activeTextCtx for anti-aliasing');
+});
+
+test('1.25s Crafting Cooldown anti-exploit enforcement and Crystalheart Shattering lore quests', async () => {
+  // 1. Authoritative Server Crafting Cooldown (1.25s / 1250ms)
+  const accounts = new AccountsStore();
+  const rm = new RoomManager({ accountsStore: accounts });
+  try {
+    const hubRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.SANCTUARY_HUB);
+    const sentPackets = [];
+    const { account } = accounts.createGuestAccount({
+      preferredName: 'Crafter Hero',
+      faction: 'Solari',
+      classId: 'solari_vanguard',
+    });
+    account.inventory = [{ id: 'ore_starlight', qty: 10 }, { id: 'shard_glimmer', qty: 20 }];
+
+    const crafterClient = {
+      ...account,
+      prog: account.progression || protocol.createDefaultProgression(),
+      hp: 50,
+      maxHp: 50,
+      shield: 0,
+      solarCharge: 30,
+      maxSolarCharge: 30,
+      isDead: false,
+      ws: { readyState: 1, send: (data) => sentPackets.push(typeof data === 'string' ? JSON.parse(data) : data) },
+      send: (pkt) => sentPackets.push(pkt),
+    };
+
+    rm.joinRoom(crafterClient, hubRoom.id);
+
+    // Initial craft should succeed
+    const recipeId = protocol.CRAFTING_RECIPES[0]?.id || 'forge_solari_blade';
+    rm.handlePacket(crafterClient, { type: 'craft_recipe', recipeId });
+
+    // Rapid second craft immediately after (0ms delta) MUST be blocked by 1.25s cooldown
+    sentPackets.length = 0;
+    rm.handlePacket(crafterClient, { type: 'craft_recipe', recipeId });
+
+    const cdPkt = sentPackets.find((p) => p.type === 'sys_msg' && p.text.includes('Artisan Station'));
+    assert.ok(cdPkt, 'Server must emit a cooldown warning on rapid repeated craft');
+    assert.ok(cdPkt.text.includes('Please wait'), 'Cooldown warning must inform player of artisan delay');
+  } finally {
+    rm.stop();
+  }
+
+  // 2. Client files verify 1.25s cadence
+  const craftingUiSrc = fs.readFileSync(new URL('../client/craftingUi.js', import.meta.url), 'utf8');
+  assert.ok(craftingUiSrc.includes('1250'), 'craftingUi.js must tick batch crafting at 1250ms (1.25s)');
+  assert.ok(craftingUiSrc.includes('1.25s cadence'), 'craftingUi.js must display 1.25s cadence');
+
+  const gameJsSrc = fs.readFileSync(new URL('../client/game.js', import.meta.url), 'utf8');
+  assert.ok(gameJsSrc.includes('CRAFT_COOLDOWN_MS = 1250'), 'game.js must enforce 1250ms client-side cooldown');
+
+  // 3. New Canonical GlimmerFall Quests in questCatalogData.js
+  const questCatalogSrc = fs.readFileSync(new URL('../client/game/questCatalogData.js', import.meta.url), 'utf8');
+  assert.ok(questCatalogSrc.includes('quest_crystalheart_shattering'), 'QUEST_CATALOG must include quest_crystalheart_shattering');
+  assert.ok(questCatalogSrc.includes('quest_the_four_splinters'), 'QUEST_CATALOG must include quest_the_four_splinters');
+  assert.ok(questCatalogSrc.includes('quest_reforge_crystalheart_shard'), 'QUEST_CATALOG must include quest_reforge_crystalheart_shard');
+  assert.ok(questCatalogSrc.includes('The Shattered Crystal Heart'), 'Quest catalog must contain The Shattered Crystal Heart title');
+
+  // 4. World Chronicle Lore in worldAtlasAndLoreUi.js
+  const chronicleSrc = fs.readFileSync(new URL('../client/game/worldAtlasAndLoreUi.js', import.meta.url), 'utf8');
+  assert.ok(chronicleSrc.includes('THE CRYSTAL HEART') && chronicleSrc.includes('GREAT GLIMMER FRACTURE'), 'World chronicle must explain the Crystal Heart and Glimmer fracture');
 });
 
 
