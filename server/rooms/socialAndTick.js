@@ -257,11 +257,29 @@ export const socialAndTickMethods = {
           p.hp = p.maxHp;
           p.shield = 0;
           p.solarCharge = 0;
-          const cfg = ROOM_CONFIGS[room.type] || ROOM_CONFIGS[ROOM_TYPES.SANCTUARY_HUB];
-          p.x = cfg.spawnX;
-          p.y = room.type === ROOM_TYPES.ARENA_3V3 && p.team === 'red' ? -170 : cfg.spawnY;
-          p.send({ type: 'player_respawned', x: p.x, y: p.y, hp: p.hp });
-          this.parties.syncPlayerVitals(p.id);
+          if (room.type === ROOM_TYPES.ARENA_3V3) {
+            const cfg = ROOM_CONFIGS[room.type] || ROOM_CONFIGS[ROOM_TYPES.SANCTUARY_HUB];
+            p.x = cfg.spawnX;
+            p.y = p.team === 'red' ? -170 : cfg.spawnY;
+            p.send({ type: 'player_respawned', x: p.x, y: p.y, hp: p.hp, roomType: room.type });
+            this.parties?.syncPlayerVitals(p.id);
+          } else {
+            const sanctCfg = ROOM_CONFIGS[ROOM_TYPES.SANCTUARY_HUB];
+            if (room.type !== ROOM_TYPES.SANCTUARY_HUB) {
+              this.joinRoom(p, ROOM_TYPES.SANCTUARY_HUB, null, sanctCfg.spawnX, sanctCfg.spawnY, 'up');
+              p.send({
+                type: 'sys_msg',
+                category: 'combat',
+                text: '🛡️ [Awakening] Re-anchored at Sanctuary Hub!',
+              });
+            } else {
+              p.x = sanctCfg.spawnX;
+              p.y = sanctCfg.spawnY;
+              p.dir = 'up';
+              p.send({ type: 'player_respawned', x: p.x, y: p.y, hp: p.hp, roomType: ROOM_TYPES.SANCTUARY_HUB });
+              this.parties?.syncPlayerVitals(p.id);
+            }
+          }
         }
         continue;
       }
@@ -833,7 +851,7 @@ export const socialAndTickMethods = {
         orderTag: p.orderTag,
         orderColor: p.orderColor,
         tcgLinked: p.tcgLinked,
-        level: p.prog.level,
+        level: p.prog?.level || 1,
         x: Math.round(p.x * 10) / 10,
         y: Math.round(p.y * 10) / 10,
         z: Math.round(p.z),

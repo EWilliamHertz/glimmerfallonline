@@ -6443,13 +6443,9 @@ export function initGame() {
           remotePlayers.clear();
 
           // Smooth Client Prediction Preservation:
-          // If player already walked forward into the new zone, avoid rubberbanding back to the gate line
-          const distFromSpawn = Math.hypot(player.x - msg.x, player.y - msg.y);
-          if (distFromSpawn > 100 || roomChanged) {
-            if (distFromSpawn > 140) {
-              player.x = msg.x;
-              player.y = msg.y;
-            }
+          if (roomChanged || Math.hypot(player.x - msg.x, player.y - msg.y) > 120) {
+            player.x = msg.x;
+            player.y = msg.y;
           }
           player.z = 0;
           player.vz = 0;
@@ -6463,10 +6459,8 @@ export function initGame() {
             if (am) am.style.display = 'none';
             window.dismissArenaInvite?.();
           }
-          if (Math.hypot(camera.x - player.x, camera.y - player.y) > 160) {
-            camera.x = player.x;
-            camera.y = player.y;
-          }
+          camera.x = player.x;
+          camera.y = player.y;
           lastSentMove = {
             x: player.x,
             y: player.y,
@@ -6563,8 +6557,12 @@ export function initGame() {
         case 'player_respawned':
           player.x = msg.x;
           player.y = msg.y;
-          player.hp = msg.hp;
+          player.hp = msg.hp || player.maxHp;
+          player.shield = 0;
+          player.solarCharge = msg.solarCharge ?? 0;
           player.isDead = false;
+          camera.x = player.x;
+          camera.y = player.y;
           hideDeathScreen();
           audio.playChime();
           updatePlayerUI();
@@ -6816,6 +6814,10 @@ export function initGame() {
       audio.setBgmTheme(ROOM_CONFIGS[targetRealm]?.bgm || 'sanctuary');
       setupZoneDecor(targetRealm);
 
+      if (window._landing && window._landing.isOpen) window._landing.close();
+      frontpage.close();
+      hideDeathScreen();
+
       if (isSinglePlayer) {
         net.disconnect();
         portalCooldown = 2.0;
@@ -6827,7 +6829,9 @@ export function initGame() {
         updateNetStatusPill();
         logMessage('[Realm] Entered Single Player Realm (Offline • 0ms). Instant local response!', 'log-solari', 'chat');
       } else {
-        if (net.connected && startingRealm && !currentRoomId.startsWith(startingRealm)) {
+        camera.x = player.x;
+        camera.y = player.y;
+        if (net.connected && startingRealm && !currentRoomId?.startsWith(startingRealm)) {
           portalCooldown = 2.0;
           triggerPortalMist(0.5);
           inputs.up = inputs.down = inputs.left = inputs.right = false;
@@ -7992,7 +7996,7 @@ export function initGame() {
             player.shield = 0;
             player.solarCharge = 0;
             hideDeathScreen();
-            const returnSpot = preArenaSpot || { roomType: ROOM_TYPES.SANCTUARY_HUB, x: 0, y: 0 };
+            const returnSpot = preArenaSpot || { roomType: ROOM_TYPES.SANCTUARY_HUB, x: ROOM_CONFIGS[ROOM_TYPES.SANCTUARY_HUB].spawnX, y: ROOM_CONFIGS[ROOM_TYPES.SANCTUARY_HUB].spawnY };
             preArenaSpot = null;
             offlineArenaEnded = false;
             buildOfflineZone(returnSpot.roomType, returnSpot.x, returnSpot.y);
@@ -8014,9 +8018,9 @@ export function initGame() {
           const cfg = ROOM_CONFIGS[ROOM_TYPES.SANCTUARY_HUB];
           player.x = cfg.spawnX;
           player.y = cfg.spawnY;
-          if (currentRoomType !== ROOM_TYPES.SANCTUARY_HUB) {
-            buildOfflineZone(ROOM_TYPES.SANCTUARY_HUB);
-          }
+          camera.x = player.x;
+          camera.y = player.y;
+          buildOfflineZone(ROOM_TYPES.SANCTUARY_HUB, cfg.spawnX, cfg.spawnY);
           updatePlayerUI();
           logMessage(`[Awakening] Re-anchored at Sanctuary!`, 'log-solari', 'quest');
         }, 3000);
@@ -13463,8 +13467,8 @@ export function initGame() {
   const MIN_RENDER_MS = 1000 / 60;
   function frame(now) {
     requestAnimationFrame(frame);
-    if (frontpage.isOpen) {
-      // While at character selection, do not burn 60 FPS CPU/GPU simulating world physics & rendering
+    if (frontpage.isOpen || (window._landing && window._landing.isOpen)) {
+      // While at character selection or landing page, do not burn 60 FPS CPU/GPU simulating world physics & rendering
       lastTs = now;
       return;
     }

@@ -469,7 +469,7 @@ export class RoomManager {
       type: 'profile_updated',
       profile: this.accounts.toPublicProfile(acc),
     });
-    this.parties.syncPlayerVitals(client.id);
+    this.parties?.syncPlayerVitals(client.id);
   }
 
   removeClient(client) {
@@ -477,7 +477,7 @@ export class RoomManager {
     client._removed = true;
     this.saveClientState(client);
     this.leaveArenaQueue(client);
-    this.parties.leaveParty(client);
+    this.parties?.leaveParty(client);
     this.trades?.onPlayerDisconnect(client.id);
     this.duels?.onPlayerDisconnect(client.id);
     if (client.roomId && this.rooms.has(client.roomId)) {
@@ -582,7 +582,7 @@ export class RoomManager {
       client.id
     );
 
-    this.parties.syncPlayerVitals(client.id);
+    this.parties?.syncPlayerVitals(client.id);
   }
 
   broadcastToRoom(room, packet, excludePlayerId = null) {

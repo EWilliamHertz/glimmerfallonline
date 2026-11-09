@@ -144,6 +144,9 @@ export class LandingPageController {
       this.activeTab = initialTab;
     }
 
+    if (this.frontpage) {
+      this.frontpage.close();
+    }
     const fpOverlay = document.getElementById('frontpage-overlay');
     if (fpOverlay) fpOverlay.style.display = 'none';
 
@@ -241,7 +244,7 @@ export class LandingPageController {
     this.render();
   }
 
-  launchGame() {
+  async launchGame() {
     this.playSfx('launch');
     const finalName = (this.characterName || 'Vanguard').trim().slice(0, 18);
     const order = ORDER_PRESETS.find((o) => o.tag === this.selectedOrderTag) || ORDER_PRESETS[0];
@@ -249,65 +252,24 @@ export class LandingPageController {
 
     try {
       localStorage.setItem(PLAY_MODE_KEY, this.playMode);
-
-      const newCharId = `char_${Date.now()}`;
-      const newChar = {
-        id: newCharId,
-        name: finalName,
-        faction: this.selectedFaction,
-        classId: cls.id,
-        orderTag: order.tag,
-        orderName: order.name,
-        orderColor: order.color,
-        homeBiome: ROOM_TYPES.SANCTUARY_HUB,
-        hp: 40,
-        solarCharge: this.selectedFaction === 'Solari' ? 0 : 20,
-        lastPosition: { roomType: ROOM_TYPES.SANCTUARY_HUB, x: 0, y: 96 },
-        loadout: { ...cls.defaultLoadout },
-        equipment: { ...cls.defaultEquipment },
-        inventory: [
-          { id: 'solar_gold', qty: 60 },
-          { id: 'boots_of_haste', qty: 1 },
-        ],
-        bank: [],
-        progression: createDefaultProgression(),
-      };
-
-      const rawRoster = localStorage.getItem(SP_ROSTER_KEY);
-      let roster = [];
-      try {
-        roster = rawRoster ? JSON.parse(rawRoster) : [];
-      } catch (_) {}
-
-      const existingIdx = roster.findIndex((c) => c.name.toLowerCase() === finalName.toLowerCase());
-      if (existingIdx >= 0) {
-        roster[existingIdx] = { ...roster[existingIdx], ...newChar };
-        localStorage.setItem(SP_ACTIVE_KEY, roster[existingIdx].id);
-      } else {
-        roster.unshift(newChar);
-        localStorage.setItem(SP_ACTIVE_KEY, newCharId);
-      }
-      localStorage.setItem(SP_ROSTER_KEY, JSON.stringify(roster));
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (_) {}
 
     this.close();
 
     if (this.frontpage) {
+      this.frontpage.close();
       this.frontpage.playMode = this.playMode;
-      if (this.playMode === 'multiplayer') {
-        this.frontpage.createCharacter({
+      try {
+        await this.frontpage.createCharacter({
           name: finalName,
           faction: this.selectedFaction,
           classId: cls.id,
           orderTag: order.tag,
-        }).catch(() => {
-          this.frontpage.playSelectedCharacter();
+          startingRealm: ROOM_TYPES.SANCTUARY_HUB,
         });
-      } else {
-        this.frontpage.selectedCharacterId = localStorage.getItem(SP_ACTIVE_KEY);
-        this.frontpage.playSelectedCharacter();
+      } catch (err) {
+        console.warn('[Landing] createCharacter fallback to playSelectedCharacter:', err);
+        await this.frontpage.playSelectedCharacter();
       }
     } else if (typeof window !== 'undefined') {
       window.location.href = `/?mode=${this.playMode}&autostart=1`;

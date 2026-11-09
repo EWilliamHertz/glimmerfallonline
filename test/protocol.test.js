@@ -1386,6 +1386,133 @@ test('Interface scaling, full loadout preservation, and anti-aliased HD text', a
   assert.ok(indexHtml.includes('cycleUiScale()'), 'index.html must include Interface Scale button');
 });
 
+test('Sanctuary death respawn and Awaken Champion character creation flow', async () => {
+  // 1. Authoritative Server Tick: Dead player outside Arena respawns at Sanctuary Hub
+  const accounts = new AccountsStore();
+  const rm = new RoomManager(accounts);
+  try {
+    const calderaRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.CALDERA_PEAK);
+    const sentPackets = [];
+    const fakeClient = {
+      id: 'p_test_dead_respawn',
+      username: 'fallen_hero',
+      displayName: 'Fallen Hero',
+      faction: 'Solari',
+      classId: 'solari_vanguard',
+      hp: 0,
+      maxHp: 50,
+      shield: 0,
+      solarCharge: 0,
+      maxSolarCharge: 30,
+      prog: protocol.createDefaultProgression(),
+      isDead: true,
+      respawnTimer: 0.01,
+      ws: { readyState: 1, send: (data) => sentPackets.push(JSON.parse(data)) },
+      send: (pkt) => sentPackets.push(pkt),
+    };
+    rm.joinRoom(fakeClient, calderaRoom.id);
+    assert.equal(fakeClient.roomType, protocol.ROOM_TYPES.CALDERA_PEAK);
+
+    // Simulate death in Caldera
+    fakeClient.isDead = true;
+    fakeClient.respawnTimer = 0.01;
+    fakeClient.hp = 0;
+
+    // Tick the room
+    rm.tickRoom(calderaRoom, 0.05);
+
+    // Client should now be restored, not dead, and transported to Sanctuary Hub!
+    assert.equal(fakeClient.isDead, false, 'Player should no longer be dead after respawn');
+    assert.equal(fakeClient.hp, fakeClient.maxHp, 'Player HP should be restored to max');
+    assert.equal(fakeClient.roomType, protocol.ROOM_TYPES.SANCTUARY_HUB, 'Player must respawn at Sanctuary Hub');
+    const sanctCfg = protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.SANCTUARY_HUB];
+    assert.equal(fakeClient.x, sanctCfg.spawnX, 'Player x must be Sanctuary spawnX');
+    assert.equal(fakeClient.y, sanctCfg.spawnY, 'Player y must be Sanctuary spawnY');
+  } finally {
+    rm.stop();
+  }
+
+  // 2. FrontpageController and LandingPageController: Awaken Champion flow without black screen
+  let enteredWorldData = null;
+  const memoryStore = {};
+  global.localStorage = {
+    getItem: (k) => (Object.prototype.hasOwnProperty.call(memoryStore, k) ? memoryStore[k] : null),
+    setItem: (k, v) => { memoryStore[k] = String(v); },
+    removeItem: (k) => { delete memoryStore[k]; },
+  };
+
+  const bodyEl = { innerHTML: '', contains: () => false };
+  const overlayEl = { style: { display: 'none' } };
+  const landingOverlayEl = { style: { display: 'block' } };
+  globalThis.document = {
+    activeElement: null,
+    getElementById: (id) => {
+      if (id === 'frontpage-body') return bodyEl;
+      if (id === 'frontpage-overlay') return overlayEl;
+      if (id === 'landing-overlay') return landingOverlayEl;
+      return null;
+    },
+    querySelectorAll: () => [],
+    createElement: () => ({ id: '', className: '', style: {} }),
+    body: { appendChild: () => {} },
+  };
+
+  const fp = new FrontpageController({
+    net: {
+      profile: null,
+      connected: false,
+      saveOrSelectCharacter: async (payload) => ({
+        ok: true,
+        character: { id: 'char_online_1', name: payload.name },
+        profile: { id: 'char_online_1', displayName: payload.name, faction: payload.faction, classId: payload.classId },
+      }),
+    },
+    audio: {},
+    onEnterWorld: (data) => {
+      enteredWorldData = data;
+    },
+  });
+
+  const landing = new LandingPageController({
+    frontpage: fp,
+    onEnterWorld: fp.onEnterWorld,
+  });
+
+  // Landing open() must ensure frontpage is closed so rendering loop does not halt
+  landing.open();
+  assert.equal(fp.isOpen, false, 'Frontpage must be closed when Landing is opened');
+  assert.equal(landing.isOpen, true, 'Landing must be open');
+
+  // Singleplayer launchGame: creates character, closes landing & frontpage, and enters world cleanly
+  landing.playMode = 'singleplayer';
+  landing.characterName = 'AwakenedSolari';
+  landing.selectedFaction = 'Solari';
+  landing.selectedClassId = 'solari_vanguard';
+
+  await landing.launchGame();
+  assert.equal(landing.isOpen, false, 'Landing must be closed after launchGame');
+  assert.equal(fp.isOpen, false, 'Frontpage must be closed after launchGame');
+  assert.ok(enteredWorldData !== null, 'onEnterWorld must have been called');
+  assert.equal(enteredWorldData.playMode, 'singleplayer');
+  assert.equal(enteredWorldData.profile.displayName, 'AwakenedSolari');
+  assert.equal(enteredWorldData.startingRealm, protocol.ROOM_TYPES.SANCTUARY_HUB);
+
+  // Multiplayer launchGame: creates character on online realm without throw or black screen
+  enteredWorldData = null;
+  landing.playMode = 'multiplayer';
+  landing.characterName = 'OnlineAwakened';
+  landing.selectedFaction = 'Umbri';
+  landing.selectedClassId = 'umbri_reaper';
+
+  await landing.launchGame();
+  assert.equal(landing.isOpen, false, 'Landing must be closed after multiplayer launchGame');
+  assert.equal(fp.isOpen, false, 'Frontpage must be closed after multiplayer launchGame');
+  assert.ok(enteredWorldData !== null, 'onEnterWorld must have been called for multiplayer');
+  assert.equal(enteredWorldData.playMode, 'multiplayer');
+  assert.equal(enteredWorldData.profile.displayName, 'OnlineAwakened');
+  assert.equal(enteredWorldData.startingRealm, protocol.ROOM_TYPES.SANCTUARY_HUB);
+});
+
 
 
 

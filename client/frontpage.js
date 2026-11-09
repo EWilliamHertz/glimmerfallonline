@@ -33,7 +33,7 @@ export class FrontpageController {
       window._fp = this;
     }
 
-    this.isOpen = true;
+    this.isOpen = false;
     this.state = FRONTPAGE_STATES.CHARACTER_SELECT;
 
     this.previewAnimTimer = null;
@@ -583,20 +583,15 @@ export class FrontpageController {
     this.creationDraft.startingRealm = val;
   }
 
-  async submitNewCharacter() {
-    if (this.state !== FRONTPAGE_STATES.CHARACTER_CREATE || !this.creationDraft) return;
-
-    const draft = this.creationDraft;
-    const cls = CLASSES_CATALOG[draft.classId] || CLASSES_CATALOG.solari_vanguard;
-
-    let charName = draft.name.trim();
+  async createCharacter({ name, faction, classId, orderTag, startingRealm = ROOM_TYPES.SANCTUARY_HUB }) {
+    const cls = CLASSES_CATALOG[classId] || CLASSES_CATALOG.solari_vanguard;
+    let charName = (name || '').trim();
     if (!charName) {
       const suffix = Math.floor(100 + Math.random() * 899);
       charName = `${cls.name.replace(/\s+/g, '_')}_${suffix}`;
     }
-
-    const orderTag = (draft.orderTag || 'SUN').trim().toUpperCase() || 'SUN';
-    const startingRealm = draft.startingRealm || ROOM_TYPES.SANCTUARY_HUB;
+    const tag = (orderTag || 'SUN').trim().toUpperCase() || 'SUN';
+    const realm = startingRealm || ROOM_TYPES.SANCTUARY_HUB;
 
     if (this.audio?.init) this.audio.init();
     if (this.audio?.playPortal) this.audio.playPortal();
@@ -604,84 +599,115 @@ export class FrontpageController {
     // === SINGLE PLAYER (OFFLINE / 0ms) ===
     if (this.playMode === 'singleplayer') {
       const spRoster = this.getSinglePlayerRoster();
-      if (spRoster.length >= 8) {
-        this.creationError = 'Roster limit reached (8 max). Delete an existing champion first.';
-        this.render();
-        return;
+      let activeChar = spRoster.find((c) => c.name.toLowerCase() === charName.toLowerCase());
+      if (activeChar) {
+        activeChar.faction = faction || activeChar.faction;
+        activeChar.classId = cls.id;
+        activeChar.orderTag = tag;
+        activeChar.loadout = { ...cls.defaultLoadout, ...(activeChar.loadout || {}) };
+        activeChar.equipment = { ...cls.defaultEquipment, ...(activeChar.equipment || {}) };
+      } else {
+        if (spRoster.length >= 8) {
+          this.creationError = 'Roster limit reached (8 max). Delete an existing champion first.';
+          if (this.isOpen) this.render();
+          return null;
+        }
+        activeChar = {
+          id: `sp_char_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          name: charName,
+          faction: faction || 'Solari',
+          classId: cls.id,
+          orderTag: tag,
+          equipment: { ...cls.defaultEquipment },
+          loadout: { ...cls.defaultLoadout },
+          inventory: [
+            { id: 'ring_of_the_sun', qty: 1 },
+            { id: 'boots_of_haste', qty: 1 },
+            { id: 'vanguard_gauntlets', qty: 1 },
+            { id: 'amulet_of_glory', qty: 1 },
+          ],
+          bank: [],
+          progression: createDefaultProgression(),
+          homeBiome: realm,
+          lastPosition: { roomType: realm, x: 0, y: 96 },
+        };
+        spRoster.unshift(activeChar);
       }
-
-      const newChar = {
-        id: `sp_char_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        name: charName,
-        faction: draft.faction,
-        classId: draft.classId,
-        orderTag,
-        equipment: { ...cls.defaultEquipment },
-        loadout: { ...cls.defaultLoadout },
-        inventory: [
-          { id: 'ring_of_the_sun', qty: 1 },
-          { id: 'boots_of_haste', qty: 1 },
-          { id: 'vanguard_gauntlets', qty: 1 },
-          { id: 'amulet_of_glory', qty: 1 },
-        ],
-        bank: [],
-        progression: createDefaultProgression(),
-        homeBiome: startingRealm,
-      };
-
-      spRoster.push(newChar);
       this.saveSinglePlayerRoster(spRoster);
       try {
-        localStorage.setItem(SP_ACTIVE_KEY, newChar.id);
+        localStorage.setItem(SP_ACTIVE_KEY, activeChar.id);
       } catch (_) {}
 
-      this.selectedCharacterId = newChar.id;
+      this.selectedCharacterId = activeChar.id;
       this.creationDraft = null;
       this.state = FRONTPAGE_STATES.CHARACTER_SELECT;
 
-      const singlePlayerProfile = {
-        id: newChar.id,
-        displayName: newChar.name,
-        faction: newChar.faction,
-        classId: newChar.classId,
-        orderTag: newChar.orderTag,
-        orderName: `Order of ${newChar.faction}`,
-        loadout: newChar.loadout,
-        equipment: newChar.equipment,
-        inventory: newChar.inventory,
-        bank: newChar.bank,
-        progression: newChar.progression,
-        questState: null,
-        characters: spRoster,
-        activeCharacterId: newChar.id,
-        isGuest: true,
-      };
-
       this.close();
+      if (typeof window !== 'undefined' && window._landing) {
+        window._landing.close();
+      }
+
       if (this.onEnterWorld) {
         this.onEnterWorld({
-          profile: singlePlayerProfile,
-          startingRealm,
+          profile: {
+            id: activeChar.id,
+            displayName: activeChar.name,
+            faction: activeChar.faction,
+            classId: activeChar.classId,
+            orderTag: activeChar.orderTag,
+            orderName: `Order of ${activeChar.faction}`,
+            loadout: activeChar.loadout,
+            equipment: activeChar.equipment,
+            inventory: activeChar.inventory || [],
+            bank: activeChar.bank || [],
+            progression: activeChar.progression || createDefaultProgression(),
+            questState: activeChar.questState || null,
+            hp: typeof activeChar.hp === 'number' ? activeChar.hp : null,
+            solarCharge: typeof activeChar.solarCharge === 'number' ? activeChar.solarCharge : null,
+            lastPosition: activeChar.lastPosition || null,
+            characters: spRoster,
+            activeCharacterId: activeChar.id,
+            isGuest: true,
+          },
+          startingRealm: realm,
           playMode: 'singleplayer',
+          startX: activeChar.lastPosition?.x ?? 0,
+          startY: activeChar.lastPosition?.y ?? 96,
         });
       }
-      return;
+      return activeChar;
     }
 
     // === MULTIPLAYER (ONLINE REALM) ===
     this.creationError = '⏳ Forging champion on realm...';
-    this.render();
+    if (this.isOpen) this.render();
     try {
-      const res = await this.net.saveOrSelectCharacter({
-        name: charName,
-        faction: draft.faction,
-        classId: draft.classId,
-        orderTag,
-        loadout: cls.defaultLoadout,
-        equipment: cls.defaultEquipment,
-        homeBiome: startingRealm,
-        enterRealm: startingRealm,
-      });
+      let res = null;
+      if (this.net?.connected) {
+        res = await this.net.wsRpc('save_character', {
+          name: charName,
+          faction: faction || 'Solari',
+          classId: cls.id,
+          orderTag: tag,
+          loadout: cls.defaultLoadout,
+          equipment: cls.defaultEquipment,
+          homeBiome: realm,
+          enterRealm: realm,
+        }, 4000).catch(() => null);
+      }
+
+      if (!res && this.net?.saveOrSelectCharacter) {
+        res = await this.net.saveOrSelectCharacter({
+          name: charName,
+          faction: faction || 'Solari',
+          classId: cls.id,
+          orderTag: tag,
+          loadout: cls.defaultLoadout,
+          equipment: cls.defaultEquipment,
+          homeBiome: realm,
+          enterRealm: realm,
+        }).catch(() => null);
+      }
 
       if (res?.character?.id) {
         this.selectedCharacterId = res.character.id;
@@ -690,17 +716,50 @@ export class FrontpageController {
       this.state = FRONTPAGE_STATES.CHARACTER_SELECT;
 
       this.close();
+      if (typeof window !== 'undefined' && window._landing) {
+        window._landing.close();
+      }
+
+      const prof = res?.profile || this.net?.profile || {
+        id: res?.character?.id || `mp_${Date.now()}`,
+        displayName: charName,
+        faction: faction || 'Solari',
+        classId: cls.id,
+        orderTag: tag,
+        loadout: cls.defaultLoadout,
+        equipment: cls.defaultEquipment,
+        inventory: [],
+        bank: [],
+        progression: createDefaultProgression(),
+      };
+
       if (this.onEnterWorld) {
         this.onEnterWorld({
-          profile: res.profile,
-          startingRealm,
+          profile: prof,
+          startingRealm: realm,
           playMode: 'multiplayer',
+          startX: 0,
+          startY: 96,
         });
       }
+      return res || prof;
     } catch (err) {
       this.creationError = `⚠️ Failed to create character: ${err.message}`;
-      this.render();
+      if (this.isOpen) this.render();
+      throw err;
     }
+  }
+
+  async submitNewCharacter() {
+    if (this.state !== FRONTPAGE_STATES.CHARACTER_CREATE || !this.creationDraft) return;
+    const draft = this.creationDraft;
+    return this.createCharacter({
+      name: draft.name,
+      faction: draft.faction,
+      classId: draft.classId,
+      orderTag: draft.orderTag,
+      startingRealm: draft.startingRealm,
+    });
   }
 
   // ==========================================
