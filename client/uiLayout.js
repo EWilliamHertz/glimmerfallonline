@@ -4,7 +4,56 @@
 // ==========================================
 
 const STORAGE_KEY = 'glimmerfall_custom_ui_layout';
+const UI_SCALE_KEY = 'glimmerfall_custom_ui_scale';
 const SNAP_THRESHOLD = 15; // Pixel distance before magnetic snap triggers
+
+export function getUiScale() {
+  const custom = (typeof localStorage !== 'undefined' ? localStorage.getItem(UI_SCALE_KEY) : null) || 'auto';
+  if (custom === 'auto') {
+    const w = typeof window !== 'undefined' ? window.innerWidth : 1280;
+    const h = typeof window !== 'undefined' ? window.innerHeight : 720;
+    if (w >= 1900 && h >= 1050) return { scale: 1.25, label: 'Auto (125%)' };
+    if (w >= 1400) return { scale: 1.15, label: 'Auto (115%)' };
+    if (w >= 1000) return { scale: 1.05, label: 'Auto (105%)' };
+    if (w <= 640 || h <= 500) return { scale: 0.82, label: 'Auto (82%)' };
+    if (w <= 850) return { scale: 0.90, label: 'Auto (90%)' };
+    return { scale: 1.0, label: 'Auto (100%)' };
+  }
+  const num = parseFloat(custom);
+  if (Number.isFinite(num) && num >= 0.7 && num <= 1.5) {
+    return { scale: num, label: `${Math.round(num * 100)}%` };
+  }
+  return { scale: 1.0, label: '100%' };
+}
+
+export function setUiScale(val = 'auto') {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(UI_SCALE_KEY, val);
+  }
+  const { scale, label } = getUiScale();
+  if (typeof document !== 'undefined') {
+    document.documentElement.style.setProperty('--hud-scale', String(scale));
+    const labelEl = document.getElementById('ui-scale-label');
+    if (labelEl) labelEl.innerText = label;
+  }
+  if (typeof window !== 'undefined' && typeof window.fitDock === 'function') {
+    window.fitDock();
+  }
+}
+
+export function cycleUiScale() {
+  const current = (typeof localStorage !== 'undefined' ? localStorage.getItem(UI_SCALE_KEY) : null) || 'auto';
+  const steps = ['auto', '0.8', '0.9', '1.0', '1.1', '1.2', '1.3'];
+  let curIdx = steps.indexOf(current);
+  if (curIdx === -1) curIdx = 0;
+  const nextVal = steps[(curIdx + 1) % steps.length];
+  setUiScale(nextVal);
+}
+
+export function applySavedUiScale() {
+  const saved = typeof localStorage !== 'undefined' ? (localStorage.getItem(UI_SCALE_KEY) || 'auto') : 'auto';
+  setUiScale(saved);
+}
 let isDragging = false;
 let currentDragEl = null;
 let dragStartX = 0;
@@ -15,7 +64,8 @@ let elemStartTop = 0;
 export function initUiLayout() {
   if (typeof document === 'undefined') return;
 
-  // 1. Restore saved layout if any
+  // 1. Restore saved layout & UI scale
+  applySavedUiScale();
   applySavedUiLayout();
 
   // 2. Attach drag listeners to all draggable panels
@@ -25,11 +75,17 @@ export function initUiLayout() {
     panel.addEventListener('touchstart', (e) => onPanelMouseDown(e, panel), { passive: false });
   });
 
-  // 3. Bind global mouse/touch movement
+  // 3. Bind global mouse/touch movement & auto-scaling
   window.addEventListener('mousemove', onWindowMouseMove);
   window.addEventListener('mouseup', onWindowMouseUp);
   window.addEventListener('touchmove', onWindowMouseMove, { passive: false });
   window.addEventListener('touchend', onWindowMouseUp);
+  window.addEventListener('resize', () => {
+    const mode = typeof localStorage !== 'undefined' ? localStorage.getItem(UI_SCALE_KEY) : 'auto';
+    if (!mode || mode === 'auto') {
+      setUiScale('auto');
+    }
+  });
 }
 export function applySavedUiLayout() {
   if (typeof localStorage === 'undefined') return;
@@ -316,4 +372,7 @@ if (typeof window !== 'undefined') {
   window.toggleUiEditMode = toggleUiEditMode;
   window.saveAndLockUiLayout = saveAndLockUiLayout;
   window.resetDefaultUiLayout = resetDefaultUiLayout;
+  window.setUiScale = setUiScale;
+  window.cycleUiScale = cycleUiScale;
+  window.getUiScale = getUiScale;
 }

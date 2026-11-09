@@ -26,49 +26,65 @@ export function drawPixelNameplateAndBubbles(ctx, {
   bubble = null,
   emote = null,
   globalTime = 0,
+  isHd = false,
 }) {
   ctx.save();
 
   // 1. Remote Player Health Bar (above head)
   if (!isSelf) {
-    const bw = 20;
+    const bw = isHd ? 28 : 20;
     const bx = Math.round(sx - bw / 2);
-    const by = Math.round(topY - 5);
+    const by = Math.round(topY - (isHd ? 7 : 5));
+    const bh = isHd ? 3 : 2;
     ctx.fillStyle = '#070a12';
-    ctx.fillRect(bx - 1, by - 1, bw + 2, 4);
+    ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
     ctx.fillStyle = '#1e293b';
-    ctx.fillRect(bx, by, bw, 2);
+    ctx.fillRect(bx, by, bw, bh);
     ctx.fillStyle = shield > 0 ? '#38bdf8' : isHostile ? '#ef4444' : isParty ? '#4ade80' : '#22c55e';
-    ctx.fillRect(bx, by, Math.max(0, Math.round((hp / Math.max(1, maxHp)) * bw)), 2);
+    ctx.fillRect(bx, by, Math.max(0, Math.round((hp / Math.max(1, maxHp)) * bw)), bh);
   }
 
-  // 2. Crisp, High-Contrast Pixel Nameplate + <ORDER> Tag (Clean Dark Plaque + Integer Alignment)
-  ctx.font = '700 11px "Outfit", system-ui, -apple-system, sans-serif';
+  // 2. Crisp, High-Contrast Nameplate + <ORDER> Tag
+  const fontPx = isHd ? 12.5 : 11;
+  ctx.font = `700 ${fontPx}px "Outfit", system-ui, -apple-system, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   const tagPrefix = orderTag && orderTag !== 'NONE' ? `<${orderTag}> ` : '';
   const tcgStar = tcgLinked ? '⚡ ' : '';
   const label = `${tcgStar}${tagPrefix}${name}`;
   const rx = Math.round(sx);
-  const ny = Math.round(isSelf ? topY - 6 : topY - 11);
+  const ny = Math.round(isSelf ? topY - (isHd ? 8 : 6) : topY - (isHd ? 14 : 11));
   const labelW = Math.ceil(ctx.measureText(label).width);
   const facColor = FACTIONS_META[faction]?.color || orderColor || '#facc15';
   const textColor = isHostile ? '#fecaca' : isParty ? '#bbf7d0' : '#ffffff';
   const accentColor = isHostile ? '#ef4444' : isParty ? '#4ade80' : facColor;
 
   // Dark high-contrast plaque with faction accent line
-  const plateW = labelW + 8;
+  const padX = isHd ? 10 : 8;
+  const plateW = labelW + padX;
+  const plateH = isHd ? 17 : 14;
   const plateX = Math.round(rx - plateW / 2);
+  const plateY = Math.round(ny - (isHd ? 13 : 11));
   ctx.fillStyle = 'rgba(5, 7, 15, 0.92)';
-  ctx.fillRect(plateX, ny - 11, plateW, 14);
+  ctx.fillRect(plateX, plateY, plateW, plateH);
   ctx.fillStyle = accentColor;
-  ctx.fillRect(plateX, ny + 2, plateW, 1);
+  ctx.fillRect(plateX, plateY + plateH - 1, plateW, isHd ? 1.5 : 1);
 
-  // Sharp, un-smeared 1px drop shadow + single-pass crisp fill
-  ctx.fillStyle = '#05070f';
-  ctx.fillText(label, rx + 1, ny + 1);
-  ctx.fillStyle = isHostile ? textColor : isParty ? textColor : facColor;
-  ctx.fillText(label, rx, ny);
+  // Sharp, anti-aliased typography (smooth vector shadow when in HD mode)
+  if (isHd) {
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+    ctx.shadowBlur = 2.5;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 1;
+    ctx.fillStyle = isHostile ? textColor : isParty ? textColor : facColor;
+    ctx.fillText(label, rx, ny);
+    ctx.shadowColor = 'transparent';
+  } else {
+    ctx.fillStyle = '#05070f';
+    ctx.fillText(label, rx + 1, ny + 1);
+    ctx.fillStyle = isHostile ? textColor : isParty ? textColor : facColor;
+    ctx.fillText(label, rx, ny);
+  }
 
   // 3. Pixel Emote Badge (bouncing above nameplate)
   if (emote && EMOTES_CATALOG[emote]) {
@@ -85,9 +101,10 @@ export function drawPixelNameplateAndBubbles(ctx, {
     ctx.fillText(em.icon, sx, ey + 2);
   }
 
-  // 4. 16-Bit Pixel Speech Bubble (above character's head!)
+  // 4. Speech Bubble (above character's head)
   if (bubble) {
-    ctx.font = '600 11px "Outfit", system-ui, sans-serif';
+    const bubbleFontPx = isHd ? 12 : 11;
+    ctx.font = `600 ${bubbleFontPx}px "Outfit", system-ui, sans-serif`;
     const cleanText = String(bubble).slice(0, 64);
     // Wrap up to 2 lines of ~22 chars
     const lines = [];
@@ -104,15 +121,15 @@ export function drawPixelNameplateAndBubbles(ctx, {
     for (const ln of lines) {
       maxLineW = Math.max(maxLineW, Math.ceil(ctx.measureText(ln).width));
     }
-    const padX = 5;
-    const lineH = 9;
+    const padX = isHd ? 8 : 5;
+    const lineH = isHd ? 14 : 9;
     const boxW = maxLineW + padX * 2;
-    const boxH = lines.length * lineH + 5;
+    const boxH = lines.length * lineH + (isHd ? 8 : 5);
     const bx = Math.round(sx - boxW / 2);
-    const by = Math.round((emote ? ny - 32 : ny - 13) - boxH);
+    const by = Math.round((emote ? ny - (isHd ? 38 : 32) : ny - (isHd ? 18 : 13)) - boxH);
     const accent = FACTIONS_META[faction]?.color || '#38bdf8';
 
-    // Outer pixel outline
+    // Outer outline
     ctx.fillStyle = '#05070f';
     ctx.fillRect(bx - 1, by - 1, boxW + 2, boxH + 2);
     // Faction border
@@ -129,7 +146,7 @@ export function drawPixelNameplateAndBubbles(ctx, {
 
     ctx.fillStyle = '#f8fafc';
     lines.forEach((ln, idx) => {
-      ctx.fillText(ln, Math.round(sx), Math.round(by + 8 + idx * lineH));
+      ctx.fillText(ln, Math.round(sx), Math.round(by + (isHd ? 12 : 8) + idx * lineH));
     });
   }
 

@@ -175,16 +175,11 @@ export const CLASSES_CATALOG = {
   },
 };
 
-// Normalizes a stored loadout. Characters still carrying an old eight-ability
-// default are reset to the single starting Rite/Flash, and custom slot choices
-// (such as moving Flare Strike to another slot) are preserved without duplication.
+// Normalizes a stored loadout, preserving player abilities across all slots
+// without duplication, and ensuring starter ability in slot 1 for empty bars.
 export function sanitizeLoadout(rawLoadout, classId) {
   const cls = CLASSES_CATALOG[classId] || CLASSES_CATALOG.solari_vanguard;
   const raw = rawLoadout && typeof rawLoadout === 'object' ? rawLoadout : null;
-  const legacy = cls.legacyDefaultLoadout;
-  const isLegacyDefault = Boolean(raw && legacy) &&
-    ACTION_SLOTS.every((slot) => (raw[slot] ?? raw[String(slot)]) === legacy[slot]);
-  if (isLegacyDefault) return { ...cls.defaultLoadout };
 
   const out = {};
   const seen = new Set();

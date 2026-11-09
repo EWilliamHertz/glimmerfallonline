@@ -1348,6 +1348,44 @@ test('Rendering safety & Action Bar centering: Array prop indexing and persisten
   assert.ok(gameSrc.includes('setupZoneDecor(ROOM_TYPES.SANCTUARY_HUB);'), 'Sanctuary decor must be initialized on boot');
 });
 
+test('Interface scaling, full loadout preservation, and anti-aliased HD text', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+
+  const indexHtml = fs.readFileSync(path.join(process.cwd(), 'index.html'), 'utf8');
+  const baseCss = fs.readFileSync(path.join(process.cwd(), 'client/styles/base.css'), 'utf8');
+  const hudCss = fs.readFileSync(path.join(process.cwd(), 'client/styles/hud.css'), 'utf8');
+  const uiLayoutSrc = fs.readFileSync(path.join(process.cwd(), 'client/uiLayout.js'), 'utf8');
+  const gameSrc = fs.readFileSync(path.join(process.cwd(), 'client/game.js'), 'utf8');
+  const protocol = await import('../shared/protocol.js');
+
+  // 1. Spells preservation: 8-ability loadout must NEVER be wiped back to slot 1
+  const fullLoadout = {
+    1: 'whisper_of_the_void',
+    2: 'siphon_soul',
+    3: 'soul_tithe',
+    4: 'nightfall_plague',
+    9: 'graveglass_ward',
+    10: 'veil_of_dusk',
+    11: 'unmake',
+    12: 'shadow_step',
+  };
+  const sanitized = protocol.sanitizeLoadout(fullLoadout, 'graveglass_oracle');
+  assert.deepEqual(sanitized, fullLoadout, 'Full 8-ability loadout must be preserved intact without being wiped');
+
+  // 2. High-resolution anti-aliased text canvas layer
+  assert.ok(indexHtml.includes('id="text-canvas"'), 'index.html must include text-canvas for vector HD text');
+  assert.ok(baseCss.includes('#text-canvas'), 'base.css must style #text-canvas');
+  assert.ok(gameSrc.includes('toggleTextAntiAliasing'), 'game.js must provide toggleTextAntiAliasing');
+  assert.ok(indexHtml.includes('settings-antialiasing-checkbox'), 'index.html must expose anti-aliasing toggle');
+
+  // 3. Interface browser scaling
+  assert.ok(uiLayoutSrc.includes('setUiScale'), 'uiLayout must export setUiScale');
+  assert.ok(uiLayoutSrc.includes('cycleUiScale'), 'uiLayout must export cycleUiScale');
+  assert.ok(hudCss.includes('--hud-scale'), 'hud.css must scale panels with --hud-scale');
+  assert.ok(indexHtml.includes('cycleUiScale()'), 'index.html must include Interface Scale button');
+});
+
 
 
 

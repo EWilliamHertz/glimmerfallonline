@@ -202,21 +202,24 @@ export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstT
     return Math.round(safeAreaProbe.getBoundingClientRect().height) || 0;
   }
 
-  // Fit the action bar to narrow screens
+  // Fit the action bar to narrow or wide screens
   function fitDock() {
     const dock = document.getElementById('bottom-bar-dock');
     const cluster = document.getElementById('action-bar-cluster');
     if (!dock || !cluster) return;
     const need = cluster.scrollWidth + 8;
     const avail = window.innerWidth - 12;
-    const s = Math.min(1, avail / need);
+    const uiScale = (typeof document !== 'undefined' && parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hud-scale'))) || 1;
+    const maxScale = Math.max(1, uiScale);
+    const fitScale = avail / need;
+    const s = Math.max(0.65, Math.min(fitScale, maxScale));
 
     const isCentered = dock.dataset.customFloating !== 'true';
     if (isCentered) {
       dock.style.left = '50%';
-      dock.style.transform = `translateX(-50%) scale(${s})`;
+      dock.style.transform = `translateX(-50%) scale(${s.toFixed(3)})`;
     } else {
-      dock.style.transform = s < 1 ? `scale(${s})` : 'none';
+      dock.style.transform = `scale(${s.toFixed(3)})`;
     }
 
     // Lift the thumbstick / buttons above the action bar
@@ -227,6 +230,7 @@ export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstT
       el.style.bottom = `${lift + Number(el.dataset.baseBottom) + safeBottom}px`;
     });
   }
+  window.fitDock = fitDock;
   window.addEventListener('resize', fitDock);
   window.addEventListener('orientationchange', () => setTimeout(fitDock, 250));
   if (window.visualViewport) window.visualViewport.addEventListener('resize', fitDock);

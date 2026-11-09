@@ -660,7 +660,8 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(var(--hud-scale, 1));
+  transform-origin: center center;
   width: 580px;
   max-width: 94vw;
   max-height: 84vh;

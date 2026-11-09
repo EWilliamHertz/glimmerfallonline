@@ -159,9 +159,28 @@ export function initGame() {
 
   const canvas = document.getElementById('game-canvas');
   const ctx = canvas.getContext('2d');
+  const textCanvas = document.getElementById('text-canvas');
+  const textCtx = textCanvas ? textCanvas.getContext('2d') : null;
   const minimapCanvas = document.getElementById('minimap-canvas');
   const mmCtx = minimapCanvas.getContext('2d');
   const fctContainer = document.getElementById('fct-container');
+
+  let isTextAntiAliased = true;
+  try {
+    const savedAa = localStorage.getItem('glimmerfall_anti_alias_text');
+    if (savedAa !== null) isTextAntiAliased = savedAa === 'true';
+  } catch (_) {}
+
+  function toggleTextAntiAliasing(val) {
+    isTextAntiAliased = Boolean(val);
+    try {
+      localStorage.setItem('glimmerfall_anti_alias_text', String(isTextAntiAliased));
+    } catch (_) {}
+    if (textCtx) {
+      textCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    }
+  }
+  window.toggleTextAntiAliasing = toggleTextAntiAliasing;
 
   let zoom = 3;
   try {
@@ -187,6 +206,15 @@ export function initGame() {
     canvas.width = viewW;
     canvas.height = viewH;
     ctx.imageSmoothingEnabled = false;
+
+    if (textCanvas && textCtx) {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      textCanvas.width = Math.round(window.innerWidth * dpr);
+      textCanvas.height = Math.round(window.innerHeight * dpr);
+      textCtx.setTransform(1, 0, 0, 1, 0, 0);
+      textCtx.scale(dpr, dpr);
+      textCtx.imageSmoothingEnabled = true;
+    }
   }
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
@@ -10269,8 +10297,15 @@ export function initGame() {
         if (compassCb) compassCb.checked = questCompassEnabled;
         const crtCb = document.getElementById('settings-crt-checkbox');
         if (crtCb) crtCb.checked = document.getElementById('crt-overlay')?.style.display === 'block';
+        const aaCb = document.getElementById('settings-antialiasing-checkbox');
+        if (aaCb) aaCb.checked = isTextAntiAliased;
         const zLbl = document.getElementById('zoom-label');
         if (zLbl) zLbl.innerText = `${zoom}x`;
+        if (typeof window.getUiScale === 'function') {
+          const sObj = window.getUiScale();
+          const sLbl = document.getElementById('ui-scale-label');
+          if (sLbl) sLbl.innerText = sObj.label;
+        }
       }
       el.style.display = 'block';
     }
@@ -12225,6 +12260,10 @@ export function initGame() {
   }
 
   function drawWorld() {
+    if (textCtx) {
+      textCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    }
+    const activeTextCtx = isTextAntiAliased ? textCtx : null;
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#070b19';
     ctx.fillRect(0, 0, viewW, viewH);
@@ -12620,24 +12659,27 @@ export function initGame() {
             }
 
             // High-contrast, sharp typography for overhead quest glyph
-            ctx.save();
-            ctx.font = '900 15px "Cinzel", "Outfit", system-ui, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.lineJoin = 'round';
+            const qTargetCtx = activeTextCtx || ctx;
+            const isHd = Boolean(activeTextCtx);
+            const qPos = isHd ? worldToScreen(npc.x, npc.y - img.height - 24 + bounce) : { sx, sy: qy };
+            qTargetCtx.save();
+            qTargetCtx.font = isHd ? '900 18px "Cinzel", "Outfit", system-ui, sans-serif' : '900 15px "Cinzel", "Outfit", system-ui, sans-serif';
+            qTargetCtx.textAlign = 'center';
+            qTargetCtx.textBaseline = 'middle';
+            qTargetCtx.lineJoin = 'round';
 
             const symbol = (isFinished || isOngoing) ? '?' : '!';
             const fillColor = isFinished ? '#fef08a' : (isOngoing ? '#cbd5e1' : '#fde047');
             const strokeColor = isFinished ? '#78350f' : (isOngoing ? '#0f172a' : '#05070f');
-            const qx = Math.round(sx);
-            const qry = Math.round(qy);
+            const qx = Math.round(qPos.sx);
+            const qry = Math.round(qPos.sy);
 
-            ctx.strokeStyle = strokeColor;
-            ctx.lineWidth = 1.5;
-            ctx.strokeText(symbol, qx, qry);
-            ctx.fillStyle = fillColor;
-            ctx.fillText(symbol, qx, qry);
-            ctx.restore();
+            qTargetCtx.strokeStyle = strokeColor;
+            qTargetCtx.lineWidth = isHd ? 2.5 : 1.5;
+            qTargetCtx.strokeText(symbol, qx, qry);
+            qTargetCtx.fillStyle = fillColor;
+            qTargetCtx.fillText(symbol, qx, qry);
+            qTargetCtx.restore();
           }
         },
       });
@@ -12798,39 +12840,64 @@ export function initGame() {
           if (ent.type === 'portal') {
             const nameStr = ent.name;
             const subStr = ent.sub || 'Step In [W]';
-            ctx.font = '700 10.5px "Outfit", system-ui, sans-serif';
-            const nw = Math.ceil(ctx.measureText(nameStr).width);
-            ctx.font = '600 9px "Outfit", system-ui, sans-serif';
-            const sw = Math.ceil(ctx.measureText(subStr).width);
-            const badgeW = Math.max(Math.max(nw, sw) + 14, 72);
-            const badgeH = 25;
-            const rx = Math.round(sx);
-            const bx = Math.round(rx - badgeW / 2);
-            const by = Math.round(sy - img.height - 24);
+            const tCtx = activeTextCtx || ctx;
+            const isHd = Boolean(activeTextCtx);
+            const fontName = isHd ? '700 12px "Outfit", system-ui, sans-serif' : '700 10.5px "Outfit", system-ui, sans-serif';
+            const fontSub = isHd ? '600 10px "Outfit", system-ui, sans-serif' : '600 9px "Outfit", system-ui, sans-serif';
+            tCtx.font = fontName;
+            const nw = Math.ceil(tCtx.measureText(nameStr).width);
+            tCtx.font = fontSub;
+            const sw = Math.ceil(tCtx.measureText(subStr).width);
+            const badgeW = Math.max(Math.max(nw, sw) + (isHd ? 18 : 14), isHd ? 86 : 72);
+            const badgeH = isHd ? 30 : 25;
+
+            let rx, bx, by;
+            if (isHd) {
+              const sPos = worldToScreen(ent.x, ent.y - img.height - 24);
+              rx = Math.round(sPos.sx);
+              bx = Math.round(rx - badgeW / 2);
+              by = Math.round(sPos.sy - badgeH);
+            } else {
+              rx = Math.round(sx);
+              bx = Math.round(rx - badgeW / 2);
+              by = Math.round(sy - img.height - 24);
+            }
 
             // Dark plaque with cyan cybernetic border
-            ctx.fillStyle = 'rgba(5, 9, 24, 0.92)';
-            ctx.fillRect(bx, by, badgeW, badgeH);
-            ctx.fillStyle = '#38bdf8';
-            ctx.fillRect(bx, by, badgeW, 1);
-            ctx.fillRect(bx, by + badgeH - 1, badgeW, 1);
-            ctx.fillRect(bx, by, 1, badgeH);
-            ctx.fillRect(bx + badgeW - 1, by, 1, badgeH);
+            tCtx.fillStyle = 'rgba(5, 9, 24, 0.92)';
+            tCtx.fillRect(bx, by, badgeW, badgeH);
+            tCtx.fillStyle = '#38bdf8';
+            tCtx.fillRect(bx, by, badgeW, 1);
+            tCtx.fillRect(bx, by + badgeH - 1, badgeW, 1);
+            tCtx.fillRect(bx, by, 1, badgeH);
+            tCtx.fillRect(bx + badgeW - 1, by, 1, badgeH);
 
-            // Nameplate text with crisp 1px shadow (separated cleanly so lines never overlap)
-            ctx.font = '700 10.5px "Outfit", system-ui, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillStyle = '#05070f';
-            ctx.fillText(nameStr, rx + 1, by + 11);
-            ctx.fillStyle = '#7dd3fc';
-            ctx.fillText(nameStr, rx, by + 10);
+            tCtx.font = fontName;
+            tCtx.textAlign = 'center';
+            if (isHd) {
+              tCtx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+              tCtx.shadowBlur = 2.5;
+              tCtx.shadowOffsetY = 1;
+              tCtx.fillStyle = '#7dd3fc';
+              tCtx.fillText(nameStr, rx, by + 13);
+              tCtx.shadowColor = 'transparent';
+            } else {
+              tCtx.fillStyle = '#05070f';
+              tCtx.fillText(nameStr, rx + 1, by + 11);
+              tCtx.fillStyle = '#7dd3fc';
+              tCtx.fillText(nameStr, rx, by + 10);
+            }
 
-            // Subtitle prompt
-            ctx.font = '600 9px "Outfit", system-ui, sans-serif';
-            ctx.fillStyle = '#05070f';
-            ctx.fillText(subStr, rx + 1, by + 21);
-            ctx.fillStyle = '#fde047';
-            ctx.fillText(subStr, rx, by + 20);
+            tCtx.font = fontSub;
+            if (isHd) {
+              tCtx.fillStyle = '#fde047';
+              tCtx.fillText(subStr, rx, by + 24);
+            } else {
+              tCtx.fillStyle = '#05070f';
+              tCtx.fillText(subStr, rx + 1, by + 21);
+              tCtx.fillStyle = '#fde047';
+              tCtx.fillText(subStr, rx, by + 20);
+            }
           } else if (!ent.isDying) {
             const val = ent.hp ?? ent.charges ?? 0;
             const max = ent.maxHp ?? ent.maxCharges ?? 1;
@@ -12861,8 +12928,6 @@ export function initGame() {
             const showName = isBossOrCore || Boolean(eliteSpecDraw) || isTargeted || dPlayer < 95 || ent.type === 'dummy' || (ent.type === 'node' && dPlayer < (isGrandNode ? 220 : 125));
 
             if (showName) {
-              ctx.font = isBossOrCore ? '700 10.5px "Outfit", system-ui, sans-serif' : '600 9.5px "Outfit", system-ui, sans-serif';
-              ctx.textAlign = 'center';
               const label = ent.type === 'dummy'
                 ? 'Training Dummy'
                 : ent.type === 'shrine'
@@ -12873,10 +12938,6 @@ export function initGame() {
                       ? (isEnraged ? `★ ${ent.name} 🔥 ENRAGED` : `★ ${ent.name}`)
                       : ent.name;
 
-              const lw = Math.ceil(ctx.measureText(label).width);
-              const rx = Math.round(sx);
-              const lpx = Math.round(rx - (lw + 8) / 2);
-              const lpy = Math.round(by - (isBossOrCore ? 14 : 12));
               const badgeColor = isBossOrCore
                 ? (isEnraged ? '#ef4444' : '#facc15')
                 : eliteSpecDraw
@@ -12889,18 +12950,49 @@ export function initGame() {
                         ? (isGrandNode ? '#fde047' : (skSpecDraw?.sparkColors?.[0] || '#c084fc'))
                         : '#ffffff';
 
-              ctx.fillStyle = 'rgba(5, 7, 16, 0.90)';
-              ctx.fillRect(lpx, lpy, lw + 8, isBossOrCore ? 14 : 12);
-              if (isBossOrCore || isTargeted || eliteSpecDraw) {
-                ctx.fillStyle = badgeColor;
-                ctx.fillRect(lpx, lpy + (isBossOrCore ? 13 : 11), lw + 8, 1);
+              const tCtx = activeTextCtx || ctx;
+              const isHd = Boolean(activeTextCtx);
+              tCtx.font = isBossOrCore
+                ? (isHd ? '700 12.5px "Outfit", system-ui, sans-serif' : '700 10.5px "Outfit", system-ui, sans-serif')
+                : (isHd ? '600 11px "Outfit", system-ui, sans-serif' : '600 9.5px "Outfit", system-ui, sans-serif');
+              tCtx.textAlign = 'center';
+
+              const lw = Math.ceil(tCtx.measureText(label).width);
+              let rx, lpx, lpy, badgeH;
+              if (isHd) {
+                const sPos = worldToScreen(ent.x, ent.y - img.height - 5 - (isBossOrCore ? 14 : 12));
+                rx = Math.round(sPos.sx);
+                badgeH = isBossOrCore ? 18 : 15;
+                lpx = Math.round(rx - (lw + 10) / 2);
+                lpy = Math.round(sPos.sy - badgeH);
+              } else {
+                rx = Math.round(sx);
+                badgeH = isBossOrCore ? 14 : 12;
+                lpx = Math.round(rx - (lw + 8) / 2);
+                lpy = Math.round(by - (isBossOrCore ? 14 : 12));
               }
 
-              const textY = Math.round(lpy + (isBossOrCore ? 10 : 9));
-              ctx.fillStyle = '#05070f';
-              ctx.fillText(label, rx + 1, textY + 1);
-              ctx.fillStyle = badgeColor;
-              ctx.fillText(label, rx, textY);
+              tCtx.fillStyle = 'rgba(5, 7, 16, 0.92)';
+              tCtx.fillRect(lpx, lpy, lw + (isHd ? 10 : 8), badgeH);
+              if (isBossOrCore || isTargeted || eliteSpecDraw) {
+                tCtx.fillStyle = badgeColor;
+                tCtx.fillRect(lpx, lpy + badgeH - 1, lw + (isHd ? 10 : 8), isHd ? 1.5 : 1);
+              }
+
+              const textY = Math.round(lpy + (isHd ? (isBossOrCore ? 13 : 11) : (isBossOrCore ? 10 : 9)));
+              if (isHd) {
+                tCtx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+                tCtx.shadowBlur = 2.5;
+                tCtx.shadowOffsetY = 1;
+                tCtx.fillStyle = badgeColor;
+                tCtx.fillText(label, rx, textY);
+                tCtx.shadowColor = 'transparent';
+              } else {
+                tCtx.fillStyle = '#05070f';
+                tCtx.fillText(label, rx + 1, textY + 1);
+                tCtx.fillStyle = badgeColor;
+                tCtx.fillText(label, rx, textY);
+              }
             }
           }
         },
@@ -12964,9 +13056,9 @@ export function initGame() {
             }
           }
 
-          drawPixelNameplateAndBubbles(ctx, {
-            sx,
-            topY: sy - (rp.z || 0) - img.height + 2,
+          drawPixelNameplateAndBubbles(activeTextCtx || ctx, {
+            sx: activeTextCtx ? worldToScreen(rp.renderX, rp.renderY).sx : sx,
+            topY: activeTextCtx ? worldToScreen(rp.renderX, rp.renderY - (rp.z || 0) - img.height + 2).sy : (sy - (rp.z || 0) - img.height + 2),
             name: rp.name,
             faction: rp.faction,
             orderTag: rp.orderTag,
@@ -12982,6 +13074,7 @@ export function initGame() {
             bubble: rp.bubble,
             emote: rp.emote,
             globalTime,
+            isHd: Boolean(activeTextCtx),
           });
         },
       });
@@ -13036,9 +13129,9 @@ export function initGame() {
             }
           }
 
-          drawPixelNameplateAndBubbles(ctx, {
-            sx,
-            topY: sy - player.z - img.height + 2,
+          drawPixelNameplateAndBubbles(activeTextCtx || ctx, {
+            sx: activeTextCtx ? worldToScreen(player.x, player.y).sx : sx,
+            topY: activeTextCtx ? worldToScreen(player.x, player.y - player.z - img.height + 2).sy : (sy - player.z - img.height + 2),
             name: localProfile.displayName,
             faction: localProfile.faction,
             orderTag: localProfile.orderTag,
@@ -13049,6 +13142,7 @@ export function initGame() {
             bubble: player.bubble,
             emote: player.emote,
             globalTime,
+            isHd: Boolean(activeTextCtx),
           });
         },
       });
