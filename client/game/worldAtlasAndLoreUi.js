@@ -53,6 +53,7 @@ export function setupWorldAtlasAndLoreUi({
   };
 
   window.toggleWorldAtlas = function () {
+    if (typeof window !== 'undefined' && typeof window._isDeadScreenVisible === 'function' && window._isDeadScreenVisible()) return;
     const modal = document.getElementById('lore-modal');
     if (modal && modal.style.display === 'block' && currentLoreTab === 'map') {
       window.toggleModal('lore-modal');
@@ -754,6 +755,12 @@ export function setupWorldAtlasAndLoreUi({
             II. YOUR AWAKENING FROM STASIS
           </b>
           Sealed in starlight crystal in <b>Sanctuary Haven</b> since the Fall, you awaken as a <b>Summoner-Knight</b>. Train with <b>Herald Lyra</b>, form 3-player squads [O], and venture into the outer realms—banishing enemies into Void smoke, defending our Sanctuary, and shattering rival Monoliths!
+        </div>
+        <div style="background:#080c18; border:2px solid #a855f7; padding:10px; border-radius:4px;">
+          <b style="color:#c084fc; display:block; margin-bottom:4px; font-family:var(--font-header); font-size:12px;">
+            III. SPOTLIGHT: THE GRAVEGLASS ORACLE (UMBRAL MYSTIC)
+          </b>
+          From the subterranean catacombs of the Undercity emerge the <b>Graveglass Oracles</b>. Masters of life-force drain, they trap enemies in <b>Nightfall Plague</b> (-45% slow), rip vitality into their own health pool with <b>Siphon Soul</b> (heals 60% of damage dealt), shield themselves with <b>Graveglass Ward</b>, and obliterate foes below 50% HP using the execution rite <b>Unmake</b> (+50% execution damage). Prioritize <b>Resonance &gt; Power &gt; Tempo</b>.
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:10px;">
           <div style="background:#080c18; border-left:3px solid #facc15; padding:8px; border-radius:3px;">

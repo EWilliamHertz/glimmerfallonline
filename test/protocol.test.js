@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
 import * as protocol from '../shared/protocol.js';
 import { RoomManager } from '../server/roomManager.js';
 import { AccountsStore } from '../server/accountsStore.js';
@@ -1511,6 +1512,73 @@ test('Sanctuary death respawn and Awaken Champion character creation flow', asyn
   assert.equal(enteredWorldData.playMode, 'multiplayer');
   assert.equal(enteredWorldData.profile.displayName, 'OnlineAwakened');
   assert.equal(enteredWorldData.startingRealm, protocol.ROOM_TYPES.SANCTUARY_HUB);
+});
+
+test('Dead player exploit prevention, anti-aliased world text, and Graveglass Oracle tactical codex', async () => {
+  const accounts = new AccountsStore();
+  const rm = new RoomManager(accounts);
+  try {
+    const calderaRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.CALDERA_PEAK);
+    const sentPackets = [];
+    const deadClient = {
+      id: 'p_test_dead_exploit',
+      username: 'exploit_tester',
+      displayName: 'Exploit Tester',
+      faction: 'Umbri',
+      classId: 'graveglass_oracle',
+      hp: 0,
+      maxHp: 50,
+      shield: 0,
+      solarCharge: 0,
+      maxSolarCharge: 30,
+      prog: protocol.createDefaultProgression(),
+      isDead: true,
+      respawnTimer: 3.0,
+      ws: { readyState: 1, send: (data) => sentPackets.push(JSON.parse(data)) },
+      send: (pkt) => sentPackets.push(pkt),
+    };
+    rm.joinRoom(deadClient, calderaRoom.id, null, 10, 20);
+    deadClient.isDead = true; // explicitly set dead
+
+    const initialX = deadClient.x;
+    const initialY = deadClient.y;
+    const initialRoom = deadClient.roomId;
+
+    // 1. Server rejects 'move' packet while client.isDead is true
+    rm.handlePacket(deadClient, { type: 'move', x: 200, y: 300, dir: 'right', isMoving: true });
+    assert.equal(deadClient.x, initialX, 'Dead client x position must not be altered by move packet');
+    assert.equal(deadClient.y, initialY, 'Dead client y position must not be altered by move packet');
+
+    // 2. Server rejects 'switch_room' packet while client.isDead is true
+    rm.handlePacket(deadClient, { type: 'switch_room', roomType: protocol.ROOM_TYPES.SANCTUARY_HUB });
+    assert.equal(deadClient.roomId, initialRoom, 'Dead client must not be permitted to switch rooms early');
+
+    // 3. Server rejects 'queue_arena' packet while client.isDead is true
+    rm.handlePacket(deadClient, { type: 'queue_arena', join: true });
+    assert.equal(rm.arenaQueue.some((q) => q.memberIds.includes(deadClient.id)), false, 'Dead client must not be queued into arena');
+
+    // 4. Server rejects 'save_character' RPC while client.isDead is true
+    await rm.handlePacket(deadClient, { type: 'auth_rpc', reqId: 'r1', action: 'save_character', payload: { name: 'Oracle' } });
+    const rpcRes = sentPackets.find((p) => p.type === 'auth_rpc_res' && p.reqId === 'r1');
+    assert.ok(rpcRes, 'Server must respond to save_character RPC');
+    assert.equal(rpcRes.ok, false, 'save_character must be rejected while dead');
+    assert.ok(rpcRes.error.includes('fallen'), 'Error must inform player to await resurrection');
+  } finally {
+    rm.stop();
+  }
+
+  // 5. CSS and Client DOM verifications: #death-screen pointer events and Class Codex tab
+  const modalsCss = fs.readFileSync(new URL('../client/styles/modals.css', import.meta.url), 'utf8');
+  assert.ok(modalsCss.includes('#death-screen.active {\n  pointer-events: auto;\n}'), '#death-screen.active must enforce pointer-events: auto to block clicks');
+
+  const indexHtml = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.ok(indexHtml.includes('id="st-tab-guide"'), 'Spellbook modal must include Class Codex & Oracle Guide tab');
+  assert.ok(indexHtml.includes('id="class-guide-content"'), 'Spellbook modal must contain class-guide-content view');
+
+  const gameJs = fs.readFileSync(new URL('../client/game.js', import.meta.url), 'utf8');
+  assert.ok(gameJs.includes('renderClassGuideUI'), 'game.js must implement renderClassGuideUI');
+  assert.ok(gameJs.includes('GRAVEGLASS ORACLE — OFFICIAL TACTICAL CODEX'), 'game.js must contain official Graveglass Oracle tactical guide');
+  assert.ok(gameJs.includes('activeTextCtx || ctx'), 'game.js must route overhead badges and loot labels to activeTextCtx for anti-aliasing');
 });
 
 

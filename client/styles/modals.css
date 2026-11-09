@@ -646,13 +646,17 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 100;
+  z-index: 9999;
   background: rgba(5, 7, 15, 0.92);
   display: none;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   opacity: 0;
+  transition: opacity 0.2s ease-out;
+}
+#death-screen.active {
+  pointer-events: auto;
 }
 
 /* Modals */

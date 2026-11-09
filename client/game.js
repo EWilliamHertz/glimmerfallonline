@@ -1619,6 +1619,7 @@ export function initGame() {
   };
 
   window.toggleWorldAtlas = function () {
+    if (player.isDead || deathScreenVisible) return;
     const modal = document.getElementById('lore-modal');
     if (modal && modal.style.display === 'block' && currentLoreTab === 'map') {
       window.toggleModal('lore-modal');
@@ -6041,8 +6042,21 @@ export function initGame() {
     clearTimeout(deathHideTimer);
     clearInterval(deathCountdownTimer);
     deathScreenVisible = true;
+    ds.classList.add('active');
     ds.style.display = 'flex';
     ds.style.opacity = '1';
+    ds.style.pointerEvents = 'auto';
+
+    // Zero out movement inputs and stop active character motion immediately
+    inputs.w = inputs.a = inputs.s = inputs.d = inputs.up = inputs.down = inputs.left = inputs.right = inputs.shift = false;
+    inputs.axisX = inputs.axisY = 0;
+    player.isMoving = false;
+
+    // Dismiss active modals and dialogs behind death screen
+    document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
+    if (window.closeDialogue) window.closeDialogue();
+    setTarget(null);
+
     const txt = document.getElementById('death-timer-txt');
     const endAt = performance.now() + seconds * 1000;
     const tick = () => {
@@ -6069,6 +6083,8 @@ export function initGame() {
     deathScreenVisible = false;
     const ds = document.getElementById('death-screen');
     if (!ds) return;
+    ds.classList.remove('active');
+    ds.style.pointerEvents = 'none';
     ds.style.opacity = '0';
     deathHideTimer = setTimeout(() => {
       if (!deathScreenVisible) ds.style.display = 'none';
@@ -6853,7 +6869,9 @@ export function initGame() {
     },
   });
   window._fp = frontpage;
+  window._isDeadScreenVisible = () => Boolean(player.isDead || deathScreenVisible);
   window.openFrontpage = function () {
+    if (player.isDead || deathScreenVisible) return;
     saveCurrentVitals();
     document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
     if (window._landing && window._landing.isOpen) window._landing.close();
@@ -6866,6 +6884,7 @@ export function initGame() {
   });
   window._landing = landingPage;
   window.openLandingPage = function (initialTab = null) {
+    if (player.isDead || deathScreenVisible) return;
     saveCurrentVitals();
     document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
     frontpage.close();
@@ -7543,34 +7562,63 @@ export function initGame() {
   }
 
   function drawOverheadBadge(b) {
-    ctx.save();
-    ctx.globalAlpha = b.alpha !== undefined ? b.alpha : 1;
-    ctx.font = '700 9.5px "Outfit", system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    const tCtx = activeTextCtx || ctx;
+    const isHd = Boolean(activeTextCtx);
+    tCtx.save();
+    tCtx.globalAlpha = b.alpha !== undefined ? b.alpha : 1;
+    tCtx.textAlign = 'center';
+    tCtx.textBaseline = 'middle';
 
-    const bx = Math.round(b.sx);
-    const by = Math.round(b.renderY !== undefined ? b.renderY : b.sy);
+    if (isHd) {
+      tCtx.font = '700 11.5px "Outfit", system-ui, sans-serif';
+      const sPos = worldToScreen(b.wx, b.wy);
+      const bx = Math.round(sPos.sx);
+      const deltaLowResY = b.renderY !== undefined ? (b.renderY - (b.wy - activeCamTop)) : (b.sy - (b.wy - activeCamTop));
+      const by = Math.round(sPos.sy + deltaLowResY * zoom);
 
-    ctx.translate(bx, by);
+      tCtx.translate(bx, by);
 
-    const padX = 5;
-    const boxW = b.tw + padX * 2;
-    const boxH = 15;
+      const tw = Math.ceil(tCtx.measureText(b.text).width);
+      const padX = 7;
+      const boxW = tw + padX * 2;
+      const boxH = 19;
 
-    ctx.fillStyle = b.bg;
-    ctx.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
-    ctx.strokeStyle = b.borderColor;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(-boxW / 2, -boxH / 2, boxW, boxH);
+      tCtx.fillStyle = b.bg || 'rgba(5, 7, 18, 0.92)';
+      tCtx.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
+      tCtx.strokeStyle = b.borderColor || '#38bdf8';
+      tCtx.lineWidth = 1.25;
+      tCtx.strokeRect(-boxW / 2, -boxH / 2, boxW, boxH);
 
-    // Text shadow and main text
-    ctx.fillStyle = '#05070f';
-    ctx.fillText(b.text, 0.8, 1);
-    ctx.fillStyle = b.textColor;
-    ctx.fillText(b.text, 0, 0.2);
+      tCtx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+      tCtx.shadowBlur = 2.5;
+      tCtx.shadowOffsetY = 1;
+      tCtx.fillStyle = b.textColor || '#ffffff';
+      tCtx.fillText(b.text, 0, 0.5);
+    } else {
+      tCtx.font = '700 9.5px "Outfit", system-ui, sans-serif';
+      const bx = Math.round(b.sx);
+      const by = Math.round(b.renderY !== undefined ? b.renderY : b.sy);
 
-    ctx.restore();
+      tCtx.translate(bx, by);
+
+      const padX = 5;
+      const boxW = b.tw + padX * 2;
+      const boxH = 15;
+
+      tCtx.fillStyle = b.bg;
+      tCtx.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
+      tCtx.strokeStyle = b.borderColor;
+      tCtx.lineWidth = 1;
+      tCtx.strokeRect(-boxW / 2, -boxH / 2, boxW, boxH);
+
+      // Text shadow and main text
+      tCtx.fillStyle = '#05070f';
+      tCtx.fillText(b.text, 0.8, 1);
+      tCtx.fillStyle = b.textColor;
+      tCtx.fillText(b.text, 0, 0.2);
+    }
+
+    tCtx.restore();
   }
 
   function drawLootShard(l, sx, sy) {
@@ -7625,29 +7673,59 @@ export function initGame() {
     // by layoutLootLabels() so nearby labels stack instead of overlapping.
     const label = getLootLabel(l);
     if (label) {
+      const tCtx = activeTextCtx || ctx;
+      const isHd = Boolean(activeTextCtx);
       const labelY = Number.isFinite(l._labelY) ? l._labelY : Math.round(cy - 20);
-      const rx = Math.round(sx);
 
-      ctx.save();
-      ctx.font = LOOT_LABEL_FONT;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const tw = Math.ceil(ctx.measureText(label.text).width);
-      const boxW = tw + 8;
-      const boxX = Math.round(rx - boxW / 2);
-      const boxY = Math.round(labelY - LOOT_LABEL_H / 2);
+      tCtx.save();
+      if (isHd) {
+        tCtx.font = '700 11.5px "Outfit", system-ui, sans-serif';
+        tCtx.textAlign = 'center';
+        tCtx.textBaseline = 'middle';
+        const sPos = worldToScreen(l.x, l.y);
+        const rx = Math.round(sPos.sx);
+        const deltaLowResY = labelY - (l.y - activeCamTop);
+        const ry = Math.round(sPos.sy + deltaLowResY * zoom);
 
-      ctx.fillStyle = 'rgba(5, 8, 18, 0.90)';
-      ctx.fillRect(boxX, boxY, boxW, LOOT_LABEL_H);
-      ctx.strokeStyle = label.color;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(boxX, boxY, boxW, LOOT_LABEL_H);
+        const tw = Math.ceil(tCtx.measureText(label.text).width);
+        const boxW = tw + 12;
+        const boxH = 19;
+        const boxX = Math.round(rx - boxW / 2);
+        const boxY = Math.round(ry - boxH / 2);
 
-      ctx.fillStyle = '#05070f';
-      ctx.fillText(label.text, rx + 1, labelY + 1);
-      ctx.fillStyle = label.color;
-      ctx.fillText(label.text, rx, labelY);
-      ctx.restore();
+        tCtx.fillStyle = 'rgba(5, 8, 18, 0.92)';
+        tCtx.fillRect(boxX, boxY, boxW, boxH);
+        tCtx.strokeStyle = label.color || '#38bdf8';
+        tCtx.lineWidth = 1.25;
+        tCtx.strokeRect(boxX, boxY, boxW, boxH);
+
+        tCtx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+        tCtx.shadowBlur = 2.5;
+        tCtx.shadowOffsetY = 1;
+        tCtx.fillStyle = label.color || '#ffffff';
+        tCtx.fillText(label.text, rx, ry + 0.5);
+      } else {
+        const rx = Math.round(sx);
+        tCtx.font = LOOT_LABEL_FONT;
+        tCtx.textAlign = 'center';
+        tCtx.textBaseline = 'middle';
+        const tw = Math.ceil(tCtx.measureText(label.text).width);
+        const boxW = tw + 8;
+        const boxX = Math.round(rx - boxW / 2);
+        const boxY = Math.round(labelY - LOOT_LABEL_H / 2);
+
+        tCtx.fillStyle = 'rgba(5, 8, 18, 0.90)';
+        tCtx.fillRect(boxX, boxY, boxW, LOOT_LABEL_H);
+        tCtx.strokeStyle = label.color;
+        tCtx.lineWidth = 1;
+        tCtx.strokeRect(boxX, boxY, boxW, LOOT_LABEL_H);
+
+        tCtx.fillStyle = '#05070f';
+        tCtx.fillText(label.text, rx + 1, labelY + 1);
+        tCtx.fillStyle = label.color;
+        tCtx.fillText(label.text, rx, labelY);
+      }
+      tCtx.restore();
     }
   }
 
@@ -8861,6 +8939,7 @@ export function initGame() {
   };
 
   window.teleportWorld = function () {
+    if (player.isDead || deathScreenVisible) return;
     audio.playPortal();
     portalCooldown = 2.0;
     triggerPortalMist(0.5);
@@ -9700,14 +9779,22 @@ export function initGame() {
 
     const treeContent = document.getElementById('skill-tree-content');
     const kbContainer = document.getElementById('keybind-list-container');
+    const guideContainer = document.getElementById('class-guide-content');
 
     if (tab === 'keybinds') {
       if (treeContent) treeContent.style.display = 'none';
       if (kbContainer) kbContainer.style.display = 'block';
+      if (guideContainer) guideContainer.style.display = 'none';
       renderKeybindUI();
+    } else if (tab === 'guide') {
+      if (treeContent) treeContent.style.display = 'none';
+      if (kbContainer) kbContainer.style.display = 'none';
+      if (guideContainer) guideContainer.style.display = 'block';
+      renderClassGuideUI();
     } else {
       if (treeContent) treeContent.style.display = 'block';
       if (kbContainer) kbContainer.style.display = 'none';
+      if (guideContainer) guideContainer.style.display = 'none';
       renderSkillTreeUI();
     }
   };
@@ -10092,6 +10179,177 @@ export function initGame() {
     }
   }
 
+  let selectedGuideClassId = 'graveglass_oracle';
+
+  window.selectGuideClass = function (classId) {
+    selectedGuideClassId = classId;
+    renderClassGuideUI();
+  };
+
+  function renderClassGuideUI() {
+    const container = document.getElementById('class-guide-content');
+    if (!container) return;
+
+    const currentClass = selectedGuideClassId || localProfile.classId || 'graveglass_oracle';
+    const classes = Object.values(CLASSES_CATALOG);
+
+    let html = `
+      <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:10px; border-bottom:1px solid #1e293b;">
+        ${classes.map((c) => {
+          const isActive = c.id === currentClass;
+          const fac = FACTIONS_META[c.faction] || {};
+          return `
+            <button type="button" class="st-tab-btn ${isActive ? 'active' : ''}" style="white-space:nowrap; font-size:10px; padding:4px 8px; border-color:${isActive ? (fac.color || '#facc15') : '#334155'}; color:${isActive ? (fac.color || '#facc15') : '#cbd5e1'};"
+              onclick="window.selectGuideClass('${c.id}')">
+              ${fac.icon || '⚔️'} ${c.name}
+            </button>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    if (currentClass === 'graveglass_oracle') {
+      html += `
+        <div style="background:rgba(15,23,42,0.85); border:2px solid #a855f7; border-radius:6px; padding:12px; margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+            <div>
+              <div style="font-family:var(--font-header); font-size:14px; font-weight:800; color:#c084fc; letter-spacing:0.5px;">
+                🔮 GRAVEGLASS ORACLE — OFFICIAL TACTICAL CODEX
+              </div>
+              <div style="font-size:10.5px; color:#e9d5ff; margin-top:2px;">
+                Faction: <b>🌑 Umbri (The Shadow)</b> • Role: <b>Blood-Hex Reaper &amp; Life Drain Mystic</b>
+              </div>
+            </div>
+            <div style="background:#1e1b4b; border:1px solid #7c3aed; padding:4px 8px; border-radius:4px; font-size:9.5px; color:#facc15;">
+              STAT PRIORITY: Resonance ≫ Power ≫ Tempo ≫ Bastion
+            </div>
+          </div>
+          <div style="font-size:10px; color:#94a3b8; margin-top:6px; line-height:1.4;">
+            The Graveglass Oracle is an ancient Umbri sorcerer wielding shattered sepulcher crystal and necrotic rites. By draining the life-force of adversaries into their own health pool and collapsing wounded enemies with Void executions, the Oracle is virtually unkillable in sustained combat.
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+          <div style="background:#090d1a; border:1px solid #334155; padding:10px; border-radius:4px;">
+            <div style="font-weight:700; color:#facc15; font-size:11px; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
+              ⚡ RECOMMENDED 8-SLOT ACTION BAR
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px; font-size:9.5px;">
+              <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:2px 0;">
+                <span style="color:#c084fc;"><b>[1] Whisper of the Void</b> (Flash)</span>
+                <span style="color:#94a3b8;">Instant Cleave • Generates Glimmer</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:2px 0;">
+                <span style="color:#f43f5e;"><b>[2] Siphon Soul</b> (Rite)</span>
+                <span style="color:#4ade80;">20y Drain • Heals 60% of DMG dealt</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:2px 0;">
+                <span style="color:#e879f9;"><b>[3] Soul Tithe</b> (Rite)</span>
+                <span style="color:#38bdf8;">Void Bolt • Drains HP, +24 Glimmer</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:2px 0;">
+                <span style="color:#a855f7;"><b>[4] Nightfall Plague</b> (Rite)</span>
+                <span style="color:#fde047;">6s AoE Miasma • -45% Slow &amp; Void DoT</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:2px 0;">
+                <span style="color:#c084fc;"><b>[Q] Graveglass Ward</b> (Flash)</span>
+                <span style="color:#38bdf8;">Spectral Shield • Absorbs incoming hits</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:2px 0;">
+                <span style="color:#9333ea;"><b>[E] Veil of Dusk</b> (Flash)</span>
+                <span style="color:#a855f7;">3.5s Stealth • Drops Aggro • +35% Spd</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:2px 0;">
+                <span style="color:#c084fc;"><b>[R] Shadow Step</b> (Flash)</span>
+                <span style="color:#38bdf8;">16y Blink • Teleport behind target</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; padding:2px 0;">
+                <span style="color:#e11d48;"><b>[F] Unmake</b> (Rite)</span>
+                <span style="color:#ef4444;">Execute • +50% DMG if target &lt;50% HP</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="background:#090d1a; border:1px solid #334155; padding:10px; border-radius:4px;">
+            <div style="font-weight:700; color:#38bdf8; font-size:11px; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
+              📊 STAT ALLOCATION &amp; SCALING
+            </div>
+            <div style="display:flex; flex-direction:column; gap:5px; font-size:9.5px; color:#cbd5e1; line-height:1.4;">
+              <div>
+                <b style="color:#c084fc;">Resonance:</b> Your primary attribute. Scales your Siphon Soul healing output, multiplies Nightfall Plague tick damage, and directly thickens your Graveglass Ward barrier.
+              </div>
+              <div>
+                <b style="color:#facc15;">Power:</b> Increases baseline necrotic damage on all Rites and pushes Unmake execute damage into lethal one-shot territory.
+              </div>
+              <div>
+                <b style="color:#38bdf8;">Tempo:</b> Lowers cast times on Siphon Soul (1.0s) and Unmake (1.3s) while speeding up global rite cycling.
+              </div>
+              <div>
+                <b style="color:#4ade80;">Bastion:</b> Provides passive defensive padding against unexpected physical bursts.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#090d1a; border:1px solid #1e293b; padding:12px; border-radius:4px; margin-bottom:8px;">
+          <div style="font-weight:700; color:#fde047; font-size:11.5px; margin-bottom:8px; font-family:var(--font-header);">
+            ⚔️ STEP-BY-STEP COMBAT ROTATION &amp; TACTICAL PLAYBOOK
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px; font-size:10px; color:#cbd5e1; line-height:1.45;">
+            <div>
+              <b style="color:#facc15;">1. The Opener (Area Control):</b>
+              Cast <b>Nightfall Plague [4]</b> at the start of any encounter or pack pull. The 45% slow shackles enemies in place while the Duskveil miasma continuously chips away at their health for 6 seconds.
+            </div>
+            <div>
+              <b style="color:#38bdf8;">2. Glimmer Harvest &amp; Ranged Poke:</b>
+              Fire <b>Soul Tithe [3]</b> on cooldown to drain health and generate <b>+24 Glimmer</b>. In close proximity, slash with <b>Whisper of the Void [1]</b> to sustain your Glimmer reserves without burning cast time.
+            </div>
+            <div>
+              <b style="color:#4ade80;">3. The Life-Drain Channel (Infinite Sustain):</b>
+              Whenever your health bar drops below 80%, channel <b>Siphon Soul [2]</b> from up to 20 yards away. It leeches vitality every fraction of a second and immediately heals you for <b>60% of all damage dealt</b>.
+            </div>
+            <div>
+              <b style="color:#c084fc;">4. Defensive Shielding &amp; Resetting:</b>
+              Activate <b>Graveglass Ward [Q]</b> when bosses begin wind-up telegraphs. If overwhelmed by mob swarms, press <b>Veil of Dusk [E]</b> to drop all monster aggro instantly, gain +35% sprint speed, and safely retreat.
+            </div>
+            <div>
+              <b style="color:#ef4444;">5. The Executioner's Rite (Unmake):</b>
+              Watch target health bars vigilantly. As soon as a boss or player dips below <b>50% HP</b>, cast <b>Unmake [F]</b> for a colossal void collapse that receives a <b>+50% damage amplification</b>, vaporizing targets instantly.
+            </div>
+            <div>
+              <b style="color:#a855f7;">6. Level 30 Endgame Apex:</b>
+              At Rank 30, activate <b>Avatar of the Void</b> for 8 seconds of doubled life leech, 100% critical strike chance, and +40% movement speed, then cast <b>Void Annihilation</b> to draw the entire battlefield into a catastrophic singularity!
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      const clsMeta = CLASSES_CATALOG[currentClass];
+      const facMeta = FACTIONS_META[clsMeta?.faction] || {};
+      html += `
+        <div style="background:rgba(15,23,42,0.85); border:2px solid ${facMeta.color || '#38bdf8'}; border-radius:6px; padding:12px; margin-bottom:10px;">
+          <div style="font-family:var(--font-header); font-size:13.5px; font-weight:800; color:${facMeta.color || '#facc15'};">
+            ${facMeta.icon || '⚔️'} ${clsMeta?.name?.toUpperCase() || currentClass}
+          </div>
+          <div style="font-size:10.5px; color:#e2e8f0; margin-top:2px;">
+            Faction: <b>${clsMeta?.faction}</b> • Role: <b>${clsMeta?.role}</b>
+          </div>
+          <div style="font-size:10px; color:#94a3b8; margin-top:6px; line-height:1.4;">
+            ${clsMeta?.desc || ''}
+          </div>
+          <div style="font-size:9.5px; color:#facc15; margin-top:8px;">
+            Default Gear: ${clsMeta?.defaultEquipment?.weapon || 'Standard'} • ${clsMeta?.defaultEquipment?.armor || 'Standard'} • ${clsMeta?.defaultEquipment?.offhand || 'Standard'}
+          </div>
+        </div>
+        <div style="font-size:10.5px; color:#cbd5e1; background:#090d1a; padding:10px; border-radius:4px; border:1px solid #1e293b;">
+          Click <b>Graveglass Oracle</b> above to inspect detailed rotations, ability cards, stat weightings, and tactical combat guides.
+        </div>
+      `;
+    }
+
+    container.innerHTML = html;
+  }
+
   function renderStatsModal() {
     const body = document.getElementById('stats-modal-body');
     if (!body) return;
@@ -10319,6 +10577,7 @@ export function initGame() {
   // Input Listeners
   // ==========================================
   function enterPortalEntity(ent) {
+    if (player.isDead || deathScreenVisible) return;
     const dest = ent.targetRoom || PORTAL_ID_TO_ROOM[ent.id] || ROOM_TYPES.NEXUS_WARZONE;
     if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && dest !== ROOM_TYPES.SANCTUARY_HUB) {
       questState.portalTraveled = true;
@@ -10340,7 +10599,7 @@ export function initGame() {
   }
 
   canvas.addEventListener('mousedown', (e) => {
-    if (frontpage.isOpen) return;
+    if (player.isDead || deathScreenVisible || frontpage.isOpen) return;
     window.clearHoveredEquipment?.();
     audio.init();
     const { wx, wy } = screenToWorld(e.clientX, e.clientY);
@@ -10469,6 +10728,12 @@ export function initGame() {
   });
 
   window.addEventListener('keydown', (e) => {
+    if (player.isDead || deathScreenVisible) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
     // 1. PRIORITY CAPTURE: Rebinding a Rite/Flash hotkey inside [P] Rites!
     if (listeningSlot !== null) {
       e.preventDefault();
@@ -10795,7 +11060,13 @@ export function initGame() {
       }
     }
 
-    if (!player.isDead && !player.frozen && !frontpage.isOpen && !isSessionSuperseded) {
+    if (player.isDead || deathScreenVisible) {
+      inputs.w = inputs.a = inputs.s = inputs.d = inputs.up = inputs.down = inputs.left = inputs.right = inputs.shift = false;
+      inputs.axisX = inputs.axisY = 0;
+      player.isMoving = false;
+    }
+
+    if (!player.isDead && !deathScreenVisible && !player.frozen && !frontpage.isOpen && !isSessionSuperseded) {
       let mx = 0;
       let my = 0;
       if (inputs.w || inputs.up) my -= 1;
@@ -12263,17 +12534,27 @@ export function initGame() {
     ctx.restore();
   }
 
+  let activeTextCtx = null;
+  let activeCamLeft = 0;
+  let activeCamTop = 0;
+
   function drawWorld() {
     if (textCtx) {
-      textCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      textCtx.setTransform(1, 0, 0, 1, 0, 0);
+      textCtx.clearRect(0, 0, textCanvas.width, textCanvas.height);
+      textCtx.scale(dpr, dpr);
+      textCtx.imageSmoothingEnabled = true;
     }
-    const activeTextCtx = isTextAntiAliased ? textCtx : null;
+    activeTextCtx = isTextAntiAliased ? textCtx : null;
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#070b19';
     ctx.fillRect(0, 0, viewW, viewH);
 
-    const camLeft = Math.floor(camera.x + screenShake.offsetX - viewW / 2);
-    const camTop = Math.floor(camera.y + screenShake.offsetY - viewH / 2);
+    activeCamLeft = Math.floor(camera.x + screenShake.offsetX - viewW / 2);
+    activeCamTop = Math.floor(camera.y + screenShake.offsetY - viewH / 2);
+    const camLeft = activeCamLeft;
+    const camTop = activeCamTop;
 
     const roomKey = `${currentRoomId}|${currentRoomType}|${currentBiomeTheme}|${mapBounds.halfW}x${mapBounds.halfH}`;
     if (roomKey !== tileChunkRoomKey) {
@@ -12382,10 +12663,23 @@ export function initGame() {
       ctx.fill();
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.font = 'bold 9px monospace';
-      ctx.fillStyle = '#fde047';
-      ctx.textAlign = 'center';
-      ctx.fillText('⚔️ HONORABLE DUEL RING ⚔️', dx, dy - dr - 6);
+      if (activeTextCtx) {
+        const dPos = worldToScreen(activeDuelSession.centerX, activeDuelSession.centerY - dr - 8);
+        activeTextCtx.save();
+        activeTextCtx.font = '700 12px "Outfit", system-ui, sans-serif';
+        activeTextCtx.fillStyle = '#fde047';
+        activeTextCtx.textAlign = 'center';
+        activeTextCtx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+        activeTextCtx.shadowBlur = 3;
+        activeTextCtx.shadowOffsetY = 1;
+        activeTextCtx.fillText('⚔️ HONORABLE DUEL RING ⚔️', dPos.sx, dPos.sy);
+        activeTextCtx.restore();
+      } else {
+        ctx.font = 'bold 9px monospace';
+        ctx.fillStyle = '#fde047';
+        ctx.textAlign = 'center';
+        ctx.fillText('⚔️ HONORABLE DUEL RING ⚔️', dx, dy - dr - 6);
+      }
       ctx.restore();
     }
 
@@ -12477,21 +12771,40 @@ export function initGame() {
 
         // 4. Countdown warning label
         const remain = Math.max(0, (gz.maxAge || 1.5) - (gz.age || 0));
-        ctx.font = '700 11px "Outfit", system-ui, sans-serif';
-        ctx.textAlign = 'center';
         const warnText = `⚠️ ${(remain).toFixed(1)}s`;
-        const wy = Math.round(gy - ry - 4);
-        ctx.fillStyle = '#05070f';
-        ctx.fillText(warnText, gx + 1, wy + 1);
-        ctx.fillStyle = '#fde047';
-        ctx.fillText(warnText, gx, wy);
-        if (gz.label) {
-          ctx.font = '800 10px "Cinzel", serif';
-          const ly = Math.round(gy + 3);
+        if (activeTextCtx) {
+          const gzPos = worldToScreen(gz.x, gz.y - ry - 4);
+          activeTextCtx.save();
+          activeTextCtx.font = '700 12.5px "Outfit", system-ui, sans-serif';
+          activeTextCtx.textAlign = 'center';
+          activeTextCtx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+          activeTextCtx.shadowBlur = 3;
+          activeTextCtx.shadowOffsetY = 1;
+          activeTextCtx.fillStyle = '#fde047';
+          activeTextCtx.fillText(warnText, gzPos.sx, gzPos.sy);
+          if (gz.label) {
+            const lPos = worldToScreen(gz.x, gz.y + 3);
+            activeTextCtx.font = '800 12px "Cinzel", serif';
+            activeTextCtx.fillStyle = '#ffffff';
+            activeTextCtx.fillText(gz.label, lPos.sx, lPos.sy);
+          }
+          activeTextCtx.restore();
+        } else {
+          ctx.font = '700 11px "Outfit", system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          const wy = Math.round(gy - ry - 4);
           ctx.fillStyle = '#05070f';
-          ctx.fillText(gz.label, gx + 1, ly + 1);
-          ctx.fillStyle = '#ffffff';
-          ctx.fillText(gz.label, gx, ly);
+          ctx.fillText(warnText, gx + 1, wy + 1);
+          ctx.fillStyle = '#fde047';
+          ctx.fillText(warnText, gx, wy);
+          if (gz.label) {
+            ctx.font = '800 10px "Cinzel", serif';
+            const ly = Math.round(gy + 3);
+            ctx.fillStyle = '#05070f';
+            ctx.fillText(gz.label, gx + 1, ly + 1);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(gz.label, gx, ly);
+          }
         }
       }
     }

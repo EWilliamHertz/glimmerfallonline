@@ -414,6 +414,7 @@ export const arenaAndPacketsMethods = {
       }
 
       case 'switch_room': {
+        if (client.isDead) return;
         const target = msg.roomId || msg.roomType || ROOM_TYPES.NEXUS_WARZONE;
         if (client.portalCooldown > 0.4 && (client.roomType === target || client.roomId === target || client.roomId?.startsWith(target))) {
           break;
@@ -423,6 +424,7 @@ export const arenaAndPacketsMethods = {
       }
 
       case 'queue_arena':
+        if (client.isDead) return;
         if (msg.join) {
           if (msg.returnRoom && Number.isFinite(Number(msg.returnX)) && Number.isFinite(Number(msg.returnY))) {
             client.preArenaSpot = {
@@ -820,6 +822,15 @@ export const arenaAndPacketsMethods = {
     }
 
     if (action === 'save_character') {
+      if (client.isDead) {
+        client.send({
+          type: 'auth_rpc_res',
+          reqId,
+          ok: false,
+          error: 'Cannot switch characters while fallen! Please await resurrection at Sanctuary.',
+        });
+        return;
+      }
       this.saveClientState(client);
       await this.accounts.ensureFreshFromPostgres({ id: client.id });
       const charObj = this.accounts.createOrSelectCharacter(client.id, payload);
