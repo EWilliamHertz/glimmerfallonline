@@ -44,13 +44,18 @@ export function applySavedUiLayout() {
         const el = document.getElementById(id);
         if (!el || !pos) continue;
 
-        if (id === 'bottom-bar-dock' && pos.isDefaultCenter) {
-          el.style.left = '50%';
-          el.style.top = '';
-          el.style.right = '';
-          el.style.bottom = 'calc(12px + env(safe-area-inset-bottom, 0px))';
-          el.style.transform = 'translateX(-50%)';
-          continue;
+        if (id === 'bottom-bar-dock') {
+          // Bottom action bar dock is centered at the bottom by default.
+          // Discard legacy/stale absolute coordinates unless explicitly marked isCustomFloating.
+          if (!pos.isCustomFloating) {
+            el.style.left = '50%';
+            el.style.top = '';
+            el.style.right = '';
+            el.style.bottom = 'calc(12px + env(safe-area-inset-bottom, 0px))';
+            el.style.transform = 'translateX(-50%)';
+            delete el.dataset.customFloating;
+            continue;
+          }
         }
 
         if (pos.left && pos.top) {
@@ -168,26 +173,30 @@ function onWindowMouseMove(e) {
   // Dedicated Magnetic Snap for Action Bar (#bottom-bar-dock) to Default Bottom Center
   if (currentDragEl.id === 'bottom-bar-dock') {
     const dockCenterX = newLeft + elWidth / 2;
-    if (Math.abs(dockCenterX - winWidth / 2) < 45) {
+    if (Math.abs(dockCenterX - winWidth / 2) < 80) {
       newLeft = (winWidth - elWidth) / 2;
     }
-    if (winHeight - (newTop + elHeight) < 45) {
+    if (winHeight - (newTop + elHeight) < 80) {
       newTop = winHeight - elHeight - 12;
     }
   }
 
   // Apply final coordinates
-  if (currentDragEl.id === 'bottom-bar-dock' && Math.abs((newLeft + elWidth / 2) - winWidth / 2) < 3) {
+  if (currentDragEl.id === 'bottom-bar-dock' && Math.abs((newLeft + elWidth / 2) - winWidth / 2) < 10) {
     currentDragEl.style.left = '50%';
     currentDragEl.style.transform = 'translateX(-50%)';
-    currentDragEl.style.top = `${Math.round(newTop)}px`;
-    currentDragEl.style.bottom = 'auto';
+    currentDragEl.style.top = '';
+    currentDragEl.style.bottom = 'calc(12px + env(safe-area-inset-bottom, 0px))';
+    delete currentDragEl.dataset.customFloating;
   } else {
     currentDragEl.style.left = `${Math.round(newLeft)}px`;
     currentDragEl.style.top = `${Math.round(newTop)}px`;
     currentDragEl.style.right = 'auto';
     currentDragEl.style.bottom = 'auto';
     currentDragEl.style.transform = 'none';
+    if (currentDragEl.id === 'bottom-bar-dock') {
+      currentDragEl.dataset.customFloating = 'true';
+    }
   }
 }
 function onWindowMouseUp() {
@@ -230,12 +239,24 @@ export function saveAndLockUiLayout() {
       if (panel.id === 'bottom-bar-dock') {
         const rect = panel.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
-        const isNearCenter = Math.abs(centerX - window.innerWidth / 2) < 45;
-        const isNearBottom = (window.innerHeight - rect.bottom) < 55;
-        if (isNearCenter && isNearBottom) {
-          layout[panel.id] = { isDefaultCenter: true };
+        const isNearCenter = Math.abs(centerX - window.innerWidth / 2) < 80;
+        const isNearBottom = (window.innerHeight - rect.bottom) < 90;
+        if (isNearCenter || isNearBottom || panel.dataset.customFloating !== 'true') {
+          layout[panel.id] = { isDefaultCenter: true, isCustomFloating: false };
+          panel.style.left = '50%';
+          panel.style.top = '';
+          panel.style.right = '';
+          panel.style.bottom = 'calc(12px + env(safe-area-inset-bottom, 0px))';
+          panel.style.transform = 'translateX(-50%)';
+          delete panel.dataset.customFloating;
           return;
         }
+        layout[panel.id] = {
+          isCustomFloating: true,
+          left: `${Math.round(rect.left)}px`,
+          top: `${Math.round(rect.top)}px`,
+        };
+        return;
       }
       const rect = panel.getBoundingClientRect();
       layout[panel.id] = {
@@ -274,7 +295,10 @@ export function resetDefaultUiLayout() {
 
   const dock = document.getElementById('bottom-bar-dock');
   if (dock) {
+    delete dock.dataset.customFloating;
     dock.style.left = '50%';
+    dock.style.top = '';
+    dock.style.right = '';
     dock.style.bottom = 'calc(12px + env(safe-area-inset-bottom, 0px))';
     dock.style.transform = 'translateX(-50%)';
   }

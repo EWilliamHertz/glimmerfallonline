@@ -231,9 +231,9 @@ export function initGame() {
   };
 
   let currentZone = 'tutorial';
-  let currentRoomType = ROOM_TYPES.SANCTUARY_HUB;
+  let currentRoomType = null;
   let currentBiomeTheme = 'sanctuary';
-  let currentRoomId = 'sanctuary_hub_1';
+  let currentRoomId = null;
   let currentRoomMax = 60;
   let onlineTotal = 1;
   let publicRoomsList = [];
@@ -4694,7 +4694,7 @@ export function initGame() {
           ? ROOM_TYPES.ARENA_3V3
           : ROOM_TYPES.NEXUS_WARZONE;
 
-    if (lastDecorRoomType === resolvedRoomType && !roomTitleOverride) {
+    if (lastDecorRoomType === resolvedRoomType && !roomTitleOverride && props.length > 0 && npcs.length > 0) {
       return;
     }
     lastDecorRoomType = resolvedRoomType;
@@ -6447,9 +6447,7 @@ export function initGame() {
             isMoving: Boolean(inputs.up || inputs.down || inputs.left || inputs.right),
             time: performance.now(),
           };
-          if (roomChanged) {
-            setupZoneDecor(msg.roomType, msg.roomTitle);
-          }
+          setupZoneDecor(msg.roomType, msg.roomTitle);
           if (msg.roomType !== ROOM_TYPES.SANCTUARY_HUB && !questState.portalTraveled) {
             questState.portalTraveled = true;
             saveQuestState();
@@ -6786,7 +6784,9 @@ export function initGame() {
     onEnterWorld({ profile, startingRealm, playMode, startX, startY }) {
       isSinglePlayer = playMode === 'singleplayer';
       if (profile) applyProfile(profile, true);
-      audio.setBgmTheme(ROOM_CONFIGS[startingRealm]?.bgm || 'sanctuary');
+      const targetRealm = startingRealm || ROOM_TYPES.SANCTUARY_HUB;
+      audio.setBgmTheme(ROOM_CONFIGS[targetRealm]?.bgm || 'sanctuary');
+      setupZoneDecor(targetRealm);
 
       if (isSinglePlayer) {
         net.disconnect();
@@ -13342,6 +13342,7 @@ export function initGame() {
   }
 
   loadQuestState();
+  setupZoneDecor(ROOM_TYPES.SANCTUARY_HUB);
   if (!frontpage.isOpen) {
     buildOfflineZone(ROOM_TYPES.SANCTUARY_HUB);
   }

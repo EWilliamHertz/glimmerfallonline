@@ -1341,6 +1341,11 @@ test('Rendering safety & Action Bar centering: Array prop indexing and persisten
   assert.ok(uiLayoutSrc.includes('isDefaultCenter'), 'uiLayout must preserve isDefaultCenter');
   assert.ok(uiLayoutSrc.includes("el.style.left = '50%'"), 'uiLayout must anchor center to left 50%');
   assert.ok(touchSrc.includes('isCentered'), 'touch.js fitDock must respect custom vs centered action bar');
+
+  // 3. Sanctuary Hub decor and NPC population must never be skipped
+  assert.ok(gameSrc.includes('let currentRoomId = null;'), 'currentRoomId must initialize to null to ensure room_joined populates decor');
+  assert.ok(gameSrc.includes('props.length > 0 && npcs.length > 0'), 'setupZoneDecor must not early-return if decor is empty');
+  assert.ok(gameSrc.includes('setupZoneDecor(ROOM_TYPES.SANCTUARY_HUB);'), 'Sanctuary decor must be initialized on boot');
 });
 
 

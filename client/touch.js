@@ -211,7 +211,7 @@ export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstT
     const avail = window.innerWidth - 12;
     const s = Math.min(1, avail / need);
 
-    const isCentered = !dock.style.left || dock.style.left === '50%' || (dock.style.transform && dock.style.transform.includes('translateX(-50%)'));
+    const isCentered = dock.dataset.customFloating !== 'true';
     if (isCentered) {
       dock.style.left = '50%';
       dock.style.transform = `translateX(-50%) scale(${s})`;
