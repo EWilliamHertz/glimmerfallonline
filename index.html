@@ -42,6 +42,9 @@
           <button type="button" class="util-btn" style="font-size:10px; padding:3px 8px; border-color:#38bdf8; color:#7dd3fc; font-weight:bold;" onclick="if(window.openLandingPage){window.openLandingPage();}else if(window._landing){window._landing.open();}">
             📖 LANDING &amp; ENCYCLOPEDIAS
           </button>
+          <a href="/landing" class="util-btn" style="text-decoration:none; border-color:#a855f7; color:#c084fc; font-size:10px; padding:3px 8px; font-weight:bold;" title="Explore the Next.js marketing showcase">
+            🌟 MARKETING PAGE ↗
+          </a>
           <a href="https://www.glimmerfalltcg.com" target="_blank" rel="noreferrer" class="util-btn" style="text-decoration:none; border-color:#facc15; color:#fde047;">
             🃏 GLIMMERFALLTCG.COM ↗
           </a>
@@ -1413,6 +1416,89 @@
       </div>
     </div>
   </div>
+
+  <!-- Cinematic Video Modal Overlay -->
+  <div id="cinematic-modal-overlay" style="display:none; position:fixed; inset:0; z-index:100000; background:rgba(3,7,18,0.92); backdrop-filter:blur(10px); align-items:center; justify-content:center; padding:18px;">
+    <div class="panel" style="width:900px; max-width:96vw; background:#080e1c; border:2px solid #facc15; box-shadow:0 0 50px rgba(250,204,21,0.3), 0 24px 60px rgba(0,0,0,0.95); border-radius:12px; overflow:hidden; display:flex; flex-direction:column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 18px; border-bottom:1px solid #1e293b; background:linear-gradient(90deg, rgba(250,204,21,0.12), transparent);">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:20px;">🎬</span>
+          <div>
+            <div id="cinematic-modal-title" style="font-family:var(--font-header); font-size:13px; font-weight:800; color:#fde047; letter-spacing:0.5px;">GLIMMERFALL CINEMATIC</div>
+            <div id="cinematic-modal-badge" style="font-size:10px; color:#38bdf8; font-weight:bold;">1080P FULL HD • AUTHENTIC UNIVERSE LORE</div>
+          </div>
+        </div>
+        <button type="button" class="util-btn" style="padding:5px 12px; font-size:11px; font-weight:bold; color:#ef4444; border-color:#ef4444; cursor:pointer;" onclick="window.closeCinematicModal()">✕ CLOSE [ESC]</button>
+      </div>
+      <div style="position:relative; width:100%; aspect-ratio:16/9; background:#000; overflow:hidden;">
+        <video id="cinematic-modal-video" controls playsinline style="width:100%; height:100%; object-fit:contain; display:block; outline:none;" preload="metadata"></video>
+      </div>
+      <div style="padding:10px 18px; background:#050811; border-top:1px solid #1e293b; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div id="cinematic-modal-caption" style="font-size:11px; color:#94a3b8; font-style:italic; max-width:640px; line-height:1.4;">
+          Authentic 1080p GlimmerFall Universe Cinematic.
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="id-mini-btn" style="font-size:10px; padding:4px 10px;" onclick="window.open('https://glimmerfalltcg.com','_blank')">glimmerfalltcg.com ↗</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function() {
+      var CINEMATICS = {
+        crystal_heart: {
+          title: 'THE SHATTERING OF THE CRYSTAL HEART (1080P)',
+          badge: '1080P PROLOGUE CINEMATIC • UNIVERSE ORIGIN',
+          url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/crystal_heart_shattering_1080p.mp4',
+          caption: 'Before the continental caldera took shape, cosmic tensions fractured the Crystal Heart into falling iridescent meteors, fracturing primordial Glimmer into the four elemental aspects.'
+        },
+        sprite_sheet: {
+          title: 'CANONICAL HERO SPRITE ANIMATION REEL (1080P)',
+          badge: '60 FPS PIXEL ANIMATION SHOWCASE',
+          url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/pixel_art_animation_sheet_1080p.mp4',
+          caption: 'Official 60 FPS pixel art animation sheet showcasing idle stances, 8-directional sprints, slashing melee strikes, and spellcasting rites across the realm\'s archetypes.'
+        }
+      };
+
+      window.playCinematicModal = function(type) {
+        var data = CINEMATICS[type] || CINEMATICS.crystal_heart;
+        var overlay = document.getElementById('cinematic-modal-overlay');
+        var title = document.getElementById('cinematic-modal-title');
+        var badge = document.getElementById('cinematic-modal-badge');
+        var caption = document.getElementById('cinematic-modal-caption');
+        var video = document.getElementById('cinematic-modal-video');
+        if (!overlay || !video) return;
+
+        if (title) title.textContent = data.title;
+        if (badge) badge.textContent = data.badge;
+        if (caption) caption.textContent = data.caption;
+        video.src = data.url;
+        video.currentTime = 0;
+        overlay.style.display = 'flex';
+        video.play().catch(function() {});
+      };
+
+      window.closeCinematicModal = function() {
+        var overlay = document.getElementById('cinematic-modal-overlay');
+        var video = document.getElementById('cinematic-modal-video');
+        if (video) {
+          try { video.pause(); } catch(_) {}
+          video.removeAttribute('src');
+          try { video.load(); } catch(_) {}
+        }
+        if (overlay) overlay.style.display = 'none';
+      };
+
+      window.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          var overlay = document.getElementById('cinematic-modal-overlay');
+          if (overlay && overlay.style.display !== 'none') {
+            window.closeCinematicModal();
+          }
+        }
+      });
+    })();
+  </script>
 
   <script type="module" src="/client/main.js"></script>
 </body>

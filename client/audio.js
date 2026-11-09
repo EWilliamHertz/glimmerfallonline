@@ -14,7 +14,7 @@
 export const BGM_THEMES = {
   sanctuary: {
     name: 'Pixel Overloop (Sanctuary Haven)',
-    audioFile: '/audio/sanctuary_pixel_overloop.m4a',
+    audioFile: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/sanctuary_pixel_overloop.m4a',
     stepMs: 240,
     leadType: 'triangle',
     bassType: 'triangle',

@@ -1660,7 +1660,7 @@ test('Canonical Heroic Character Sprite Sheet V1.0 styling and palette verificat
 test('Zonal BGM music themes, sanctuary audio track streaming, and room configs', async () => {
   const { BGM_THEMES } = await import('../client/audio.js');
   assert.ok(BGM_THEMES.sanctuary, 'BGM_THEMES must define sanctuary theme');
-  assert.equal(BGM_THEMES.sanctuary.audioFile, '/audio/sanctuary_pixel_overloop.m4a', 'Sanctuary theme must link to sanctuary_pixel_overloop.m4a');
+  assert.ok(BGM_THEMES.sanctuary.audioFile.includes('sanctuary_pixel_overloop.m4a'), 'Sanctuary theme must link to sanctuary_pixel_overloop.m4a');
   assert.ok(BGM_THEMES.solari, 'BGM_THEMES must define solari theme');
   assert.ok(BGM_THEMES.umbri, 'BGM_THEMES must define umbri theme');
   assert.ok(BGM_THEMES.terra, 'BGM_THEMES must define terra theme');
@@ -1679,6 +1679,90 @@ test('Zonal BGM music themes, sanctuary audio track streaming, and room configs'
   const audioJsSrc = fs.readFileSync(new URL('../client/audio.js', import.meta.url), 'utf8');
   assert.ok(audioJsSrc.includes('playTrackAudio'), 'audio.js must implement playTrackAudio');
   assert.ok(audioJsSrc.includes('stopTrackAudio'), 'audio.js must implement stopTrackAudio');
+});
+
+test('Authoritative ChatSpamFilter rate limits, duplicate suppression, caps reduction, and profanity masking', async () => {
+  const { ChatSpamFilter, maskProfanity, isProfane } = await import('../shared/protocol/chatAndNameFilter.js');
+  const filter = new ChatSpamFilter({ minIntervalMs: 500, maxInWindow: 3, windowMs: 2000, repeatCooldownMs: 3000 });
+
+  // 1. First message succeeds
+  const r1 = filter.processMessage('player_1', 'Hail, Knights of the Sunspire!');
+  assert.equal(r1.allowed, true);
+  assert.equal(r1.filteredText, 'Hail, Knights of the Sunspire!');
+
+  // 2. Rapid message under minIntervalMs is throttled
+  const r2 = filter.processMessage('player_1', 'Can anyone hear me?');
+  assert.equal(r2.allowed, false);
+  assert.ok(r2.reason.includes('slow down'));
+
+  // 3. Different player is not throttled by player_1
+  const rOther = filter.processMessage('player_2', 'I can hear you clearly!');
+  assert.equal(rOther.allowed, true);
+
+  // 4. Repeated exact message spam is rejected even after delay if within repeatCooldownMs
+  const filter2 = new ChatSpamFilter({ minIntervalMs: 0, maxInWindow: 10, windowMs: 5000, repeatCooldownMs: 5000 });
+  const r3 = filter2.processMessage('p3', 'Selling Sunfire Blade for 500g');
+  assert.equal(r3.allowed, true);
+  const r3Dup = filter2.processMessage('p3', 'Selling Sunfire Blade for 500g');
+  assert.equal(r3Dup.allowed, false);
+  assert.ok(r3Dup.reason.toLowerCase().includes('duplicate message'));
+
+  // 5. Excessive caps lock shouting is normalized
+  const rCaps = filter2.processMessage('p3', 'EVERYONE COME TO THE WARZONE NOW RIGHT THIS SECOND');
+  assert.equal(rCaps.allowed, true);
+  assert.ok(rCaps.filteredText !== 'EVERYONE COME TO THE WARZONE NOW RIGHT THIS SECOND');
+  assert.ok(rCaps.filteredText.toLowerCase().includes('everyone come to the warzone'));
+
+  // 6. Profanity masking
+  assert.equal(isProfane('What a friendly day'), false);
+  assert.equal(isProfane('You are a fucking idiot'), true);
+  const masked = maskProfanity('You are a fucking idiot and a bitch');
+  assert.ok(!masked.includes('fucking'));
+  assert.ok(!masked.includes('bitch'));
+  assert.ok(masked.includes('*'));
+});
+
+test('Character Name validation, profanity filter, reserved words, and cross-account duplication prevention', async () => {
+  const { validateCharacterName } = await import('../shared/protocol/chatAndNameFilter.js');
+  const { AccountsStore } = await import('../server/accountsStore.js');
+
+  // Length bounds
+  assert.equal(validateCharacterName('ab').valid, false);
+  assert.equal(validateCharacterName('A'.repeat(25)).valid, false);
+
+  // Character set (alphanumeric, spaces, underscores, hyphens)
+  assert.equal(validateCharacterName('Hero_123').valid, true);
+  assert.equal(validateCharacterName('Solar-Knight').valid, true);
+  assert.equal(validateCharacterName('Hero<script>').valid, false);
+  assert.equal(validateCharacterName('Hero$Money').valid, false);
+
+  // Reserved names
+  assert.equal(validateCharacterName('System').valid, false);
+  assert.equal(validateCharacterName('Moderator').valid, false);
+  assert.equal(validateCharacterName('GameMaster').valid, false);
+
+  // Profanity in character name
+  assert.equal(validateCharacterName('FuckingHero').valid, false);
+  assert.equal(validateCharacterName('BitchKnight').valid, false);
+
+  // Cross-account duplication prevention in AccountsStore
+  const store = new AccountsStore();
+  const acc1 = store.createGuestAccount({ preferredName: 'OriginalHero' });
+  assert.ok(acc1.account);
+
+  // Attempting to create character with existing name on same or different account must fail
+  assert.equal(store.isNameTaken('OriginalHero'), true);
+  assert.equal(store.isNameTaken('ORIGINALHERO'), true, 'Name collision must be case-insensitive');
+  assert.equal(store.isNameTaken('originalhero'), true);
+
+  const acc2 = store.createGuestAccount({ preferredName: 'OtherAccount' });
+  assert.throws(() => {
+    store.createOrSelectCharacter(acc2.account.id, {
+      name: 'OriginalHero',
+      faction: 'Solari',
+      classId: 'solari_vanguard',
+    });
+  }, /already taken/i);
 });
 
 

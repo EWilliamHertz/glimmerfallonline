@@ -2,6 +2,7 @@ node_modules
 dist
 .next/
 landing/.next/
+landing/out/
 .turbo/
 .cache/
 .freebuff/
@@ -19,6 +20,7 @@ Pixel Overloop.m4a
 
 # Logs & temporary files
 *.log
+scratch/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

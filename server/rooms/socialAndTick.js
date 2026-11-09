@@ -28,6 +28,7 @@ import {
   MAX_BASE_LEVEL,
   PARAGON_AFFINITIES,
   paragonXpForLevel,
+  ChatSpamFilter,
   canUpgradeParagon,
   resolveFactionAndClass,
   calcMaxHp,
@@ -115,6 +116,20 @@ export const socialAndTickMethods = {
     }
 
     if (!text) return;
+
+    if (!this.chatSpamFilter) {
+      this.chatSpamFilter = new ChatSpamFilter();
+    }
+    const checkRes = this.chatSpamFilter.checkMessage(sender.id, text);
+    if (!checkRes.allow) {
+      sender.send({
+        type: 'sys_msg',
+        category: 'combat',
+        text: checkRes.reason,
+      });
+      return;
+    }
+    text = checkRes.text;
 
     const packet = {
       type: 'chat_msg',

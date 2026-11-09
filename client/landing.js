@@ -12,6 +12,7 @@ import {
   PROFESSIONS_CATALOG,
   ORDER_PRESETS,
   createDefaultProgression,
+  validateCharacterName,
 } from '../shared/protocol.js';
 
 const START_ON_LOADOUT_KEY = 'glimmerfall_start_on_loadout';
@@ -279,7 +280,13 @@ export class LandingPageController {
 
   async launchGame() {
     this.playSfx('launch');
-    const finalName = (this.characterName || 'Vanguard').trim().slice(0, 18);
+    const rawName = (this.characterName || 'Vanguard').trim();
+    const vRes = validateCharacterName(rawName);
+    if (!vRes.valid) {
+      alert(`⚠️ ${vRes.error}`);
+      return;
+    }
+    const finalName = vRes.cleanName;
     const order = ORDER_PRESETS.find((o) => o.tag === this.selectedOrderTag) || ORDER_PRESETS[0];
     const cls = CLASSES_CATALOG[this.selectedClassId] || CLASSES_CATALOG.solari_vanguard;
 
@@ -429,6 +436,10 @@ export class LandingPageController {
                 <span>⚙️ Settings &amp; Display</span>
                 <span style="color:#facc15;">▸</span>
               </a>
+              <a href="/landing" class="sidebar-nav-link" style="border-left:3px solid #a855f7; color:#c084fc;">
+                <span>🌟 Next.js Marketing Site</span>
+                <span style="color:#c084fc;">↗</span>
+              </a>
               <button type="button" class="sidebar-nav-link special" onclick="window._landing.openLoadout()">
                 <span>👤 Open Hero Loadout</span>
                 <span>⚙️</span>
@@ -521,6 +532,7 @@ export class LandingPageController {
             </label>
             <div class="sidebar-footer-links">
               <span>&copy; 2026 GlimmerFall</span>
+              <a href="/landing" style="color:#c084fc; font-weight:bold;">Next.js Page ↗</a>
               <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer">glimmerfalltcg.com ↗</a>
             </div>
           </div>
@@ -734,6 +746,25 @@ export class LandingPageController {
                   <button type="button" class="sidebar-cta-btn" style="padding:14px; font-size:12px;" onclick="window._landing.launchGame()">
                     ⚡ AWAKEN IN GLIMMERFALL
                   </button>
+
+                  <!-- 60 FPS Sprite Animation Reel -->
+                  <div style="margin-top:14px; background:#060a16; border:1px solid #1e293b; border-radius:10px; overflow:hidden;">
+                    <div style="padding:7px 10px; background:#0a1224; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e293b;">
+                      <span style="font-size:10px; font-weight:bold; color:#38bdf8;">🎬 HERO SPRITE REEL (60 FPS)</span>
+                      <button type="button" class="id-mini-btn" style="font-size:9px; padding:2px 6px; cursor:pointer;" onclick="window.playCinematicModal && window.playCinematicModal('sprite_sheet')">⛶ Cinema</button>
+                    </div>
+                    <video
+                      src="https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/pixel_art_animation_sheet_1080p.mp4"
+                      poster="/GlimmerFall_official_multicolor_logo.png"
+                      controls
+                      playsinline
+                      preload="metadata"
+                      style="width:100%; max-height:220px; object-fit:contain; display:block; background:#000;"
+                    ></video>
+                    <div style="padding:6px 8px; font-size:9.5px; color:#94a3b8; line-height:1.35;">
+                      60 FPS pixel art animation sheet: 8-dir tactical sprints, combat slashes, and spellcasting rites.
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1186,6 +1217,25 @@ export class LandingPageController {
             <p style="font-size:12.5px; line-height:1.6; color:#cbd5e1; margin-bottom:12px;">
               As cosmic tensions escalated, violent purple lightning fissures ruptured across the crystalline chambers. In an apocalyptic detonation known as the <b>Crystalheart Shattering</b>, the Crystal Heart shattered into a rain of flaming iridescent meteor shards that forged our continent. With the Heart destroyed, the unified white Glimmer fractured into the four elemental aspects:
             </p>
+
+            <!-- 1080p Video Embed: Crystal Heart Shattering -->
+            <div style="margin:14px 0; border-radius:10px; overflow:hidden; border:2px solid rgba(250,204,21,0.5); box-shadow:0 0 25px rgba(250,204,21,0.2), 0 8px 30px rgba(0,0,0,0.8); background:#040711;">
+              <video
+                src="https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/crystal_heart_shattering_1080p.mp4"
+                poster="/GlimmerFall_official_multicolor_logo.png"
+                controls
+                playsinline
+                preload="metadata"
+                style="width:100%; max-height:360px; object-fit:contain; display:block; background:#000;"
+              ></video>
+              <div style="padding:8px 14px; background:#080e1c; border-top:1px solid #1e293b; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <span style="font-size:11px; font-weight:bold; color:#fde047;">🎬 1080p Cinematic • The Shattered Crystal Heart</span>
+                <button type="button" class="id-mini-btn" style="font-size:10px; padding:3px 10px; border-color:#facc15; color:#fde047; cursor:pointer;" onclick="window.playCinematicModal && window.playCinematicModal('crystal_heart')">
+                  ⛶ Open Theater Mode
+                </button>
+              </div>
+            </div>
+
             <div class="elemental-aspects-grid">
               <div style="background:#080e1c; border-left:3px solid #facc15; padding:8px 10px; border-radius:4px;">
                 <b style="color:#facc15; font-size:11px;">☀️ Solari — Solar Light / Gold</b>

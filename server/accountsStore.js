@@ -22,6 +22,10 @@ import {
   PROFESSIONS_CATALOG,
   getProfessionLevelFromXp,
   sanitizeLoadout,
+  validateCharacterName,
+  isReservedName,
+  isProfane,
+  maskProfanity,
 } from '../shared/protocol.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -57,37 +61,19 @@ function sanitizeName(raw, fallback = 'Vanguard') {
   return cleaned.length >= 2 ? cleaned : fallback;
 }
 
-export const RESERVED_NAMES = new Set([
-  'system',
-  'moderator',
-  'mod',
-  'gm',
-  'gamemaster',
-  'server',
-  'glimmerfall',
-  'official',
-  'staff',
-  'support',
-  'bot',
-  'security',
-  'root',
-  'owner',
-  'null',
-  'undefined',
-]);
-
-export function isReservedName(name) {
-  if (!name) return false;
-  const lower = String(name).trim().toLowerCase();
-  return RESERVED_NAMES.has(lower);
-}
-
 function sanitizeOrderTag(raw) {
   return String(raw || '')
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '')
     .slice(0, 5);
 }
+
+export {
+  validateCharacterName,
+  isReservedName,
+  isProfane,
+  maskProfanity,
+};
 
 export function normalizeClassAndFaction(classId, faction) {
   let cls = CLASSES_CATALOG[classId];
@@ -664,6 +650,24 @@ export class AccountsStore {
     acc.lastPosition = ch.lastPosition || null;
   }
 
+  isNameTaken(name, { excludeAccountId = null, excludeCharId = null } = {}) {
+    if (!name) return false;
+    const lower = String(name).trim().toLowerCase();
+    if (this.idByUsername.has(lower)) {
+      const matchAccId = this.idByUsername.get(lower);
+      if (matchAccId !== excludeAccountId) return true;
+    }
+    for (const [accId, cmap] of this.charactersByAccount.entries()) {
+      for (const [cId, ch] of cmap.entries()) {
+        if (accId === excludeAccountId && cId === excludeCharId) continue;
+        if (ch.name && ch.name.trim().toLowerCase() === lower) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   listCharacters(accountId) {
     const acc = this.accountsById.get(accountId);
     if (!acc) return [];
@@ -698,9 +702,12 @@ export class AccountsStore {
 
       // Character name is immutable once registered
       if (!ch.name && name) {
-        const cleanName = sanitizeName(name, 'Champion');
-        if (isReservedName(cleanName)) throw new Error(`Character name "${cleanName}" is reserved.`);
-        ch.name = cleanName;
+        const vRes = validateCharacterName(name);
+        if (!vRes.valid) throw new Error(vRes.error);
+        if (this.isNameTaken(vRes.cleanName, { excludeAccountId: acc.id, excludeCharId: ch.id })) {
+          throw new Error(`Character name "${vRes.cleanName}" is already taken by another champion.`);
+        }
+        ch.name = vRes.cleanName;
       }
       if (faction || classId) {
         const norm = normalizeClassAndFaction(classId || ch.classId, faction || ch.faction);
@@ -733,10 +740,13 @@ export class AccountsStore {
     ) || ORDER_PRESETS[0];
 
     const chId = `chr_${crypto.randomUUID().slice(0, 10)}`;
-    const reqName = sanitizeName(name, norm.cls.name);
-    if (name && isReservedName(reqName)) {
-      throw new Error(`Character name "${reqName}" is reserved.`);
+    const candidateName = name || norm.cls.name;
+    const vRes = validateCharacterName(candidateName);
+    if (!vRes.valid) throw new Error(vRes.error);
+    if (this.isNameTaken(vRes.cleanName, { excludeAccountId: acc.id })) {
+      throw new Error(`Character name "${vRes.cleanName}" is already taken by another champion.`);
     }
+    const reqName = vRes.cleanName;
     const ch = {
       id: chId,
       accountId: acc.id,
@@ -789,22 +799,9 @@ export class AccountsStore {
     let displayName = `Vanguard_${suffix}`;
 
     if (preferredName) {
-      const sanitized = sanitizeName(preferredName, '');
-      const lower = sanitized.toLowerCase();
-      const isReserved = isReservedName(lower);
-      const isUserTaken = this.idByUsername.has(lower);
-      let isCharTaken = false;
-      for (const cmap of this.charactersByAccount.values()) {
-        for (const ch of cmap.values()) {
-          if (ch.name && ch.name.toLowerCase() === lower) {
-            isCharTaken = true;
-            break;
-          }
-        }
-        if (isCharTaken) break;
-      }
-      if (sanitized.length >= 2 && !isReserved && !isUserTaken && !isCharTaken) {
-        displayName = sanitized;
+      const vRes = validateCharacterName(preferredName);
+      if (vRes.valid && !this.isNameTaken(vRes.cleanName)) {
+        displayName = vRes.cleanName;
       }
     }
 
@@ -867,16 +864,13 @@ export class AccountsStore {
     upgradeAccountId = null,
     clientProgression = null,
   }) {
-    const cleanUser = sanitizeName(username, '').replace(/\s+/g, '');
-    if (cleanUser.length < 3) throw new Error('GlimmerFall ID username must be at least 3 characters.');
+    const vRes = validateCharacterName(username);
+    if (!vRes.valid) throw new Error(vRes.error);
+    const cleanUser = vRes.cleanName.replace(/\s+/g, '');
     if (!password || String(password).length < 4) throw new Error('Password must be at least 4 characters.');
 
     const lower = cleanUser.toLowerCase();
-    if (isReservedName(lower)) {
-      throw new Error(`Username "${cleanUser}" is reserved by realm authority.`);
-    }
-    const existingOwner = this.idByUsername.get(lower);
-    if (existingOwner && existingOwner !== upgradeAccountId) {
+    if (this.isNameTaken(cleanUser, { excludeAccountId: upgradeAccountId })) {
       throw new Error(`Username "${cleanUser}" is already claimed.`);
     }
 

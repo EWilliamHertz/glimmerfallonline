@@ -12,6 +12,7 @@ import {
   EQUIPMENT_CATALOG,
   getEquipmentStatBonuses,
   createDefaultProgression,
+  validateCharacterName,
 } from '../shared/protocol.js';
 import { getCharacterSprites } from './sprites.js';
 import { renderEquipmentModal } from './equipmentUi.js';
@@ -590,6 +591,15 @@ export class FrontpageController {
       const suffix = Math.floor(100 + Math.random() * 899);
       charName = `${cls.name.replace(/\s+/g, '_')}_${suffix}`;
     }
+
+    const vRes = validateCharacterName(charName);
+    if (!vRes.valid) {
+      this.creationError = `⚠️ ${vRes.error}`;
+      if (this.isOpen) this.render();
+      return null;
+    }
+    charName = vRes.cleanName;
+
     const tag = (orderTag || 'SUN').trim().toUpperCase() || 'SUN';
     const realm = startingRealm || ROOM_TYPES.SANCTUARY_HUB;
 

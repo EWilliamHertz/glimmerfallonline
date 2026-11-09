@@ -750,6 +750,11 @@ export function setupWorldAtlasAndLoreUi({
           </b>
           Before the continental caldera took shape, cosmic reality hung in perfect equilibrium between the radiant Golden Sun and the deep Abyssal Void. At the exact nexus of these primordial forces beat a solitary celestial organ: the <b>Crystal Heart</b>—an iridescent, multi-faceted anatomical heart glowing with pure rainbow prismatic light.<br/><br/>
           As cosmic tensions escalated, violent purple lightning fissures ruptured across the crystalline chambers. In an apocalyptic detonation, the <b>Crystal Heart shattered</b>! Flaming iridescent meteor shards fell from the heavens across the continent. With the Heart destroyed, the unified white Glimmer fractured into the four elemental aspects: <b>☀️ Solari Dawn</b>, <b>🌑 Umbri Dusk</b>, <b>🌿 Terra Earth</b>, and <b>🔮 Aether Chronoflux</b>.
+          <div style="margin-top:8px;">
+            <button type="button" class="util-btn" style="background:#451a03; border:1px solid #facc15; color:#fde047; font-size:9.5px; padding:5px 12px; font-weight:800; cursor:pointer; letter-spacing:0.5px;" onclick="window.playCinematicModal && window.playCinematicModal('crystal_heart')">
+              ▶ WITNESS PROLOGUE CINEMATIC: THE CRYSTAL HEART SHATTERING (1080P HD)
+            </button>
+          </div>
         </div>
         <div style="background:#080c18; border:2px solid #1e293b; padding:10px; border-radius:4px;">
           <b style="color:#38bdf8; display:block; margin-bottom:4px; font-family:var(--font-header); font-size:12px;">
@@ -762,6 +767,19 @@ export function setupWorldAtlasAndLoreUi({
             III. SPOTLIGHT: THE GRAVEGLASS ORACLE (UMBRAL MYSTIC)
           </b>
           From the subterranean catacombs of the Undercity emerge the <b>Graveglass Oracles</b>. Masters of life-force drain, they trap enemies in <b>Nightfall Plague</b> (-45% slow), rip vitality into their own health pool with <b>Siphon Soul</b> (heals 60% of damage dealt), shield themselves with <b>Graveglass Ward</b>, and obliterate foes below 50% HP using the execution rite <b>Unmake</b> (+50% execution damage). Prioritize <b>Resonance &gt; Power &gt; Tempo</b>.
+        </div>
+        <div style="background:#080c18; border:2px solid #38bdf8; padding:10px; border-radius:4px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+            <b style="color:#38bdf8; font-family:var(--font-header); font-size:12px;">
+              IV. HEROIC ARCHETYPES &amp; 60 FPS COMBAT SPRITE REEL
+            </b>
+            <button type="button" class="util-btn" style="background:#082f49; border:1px solid #38bdf8; color:#7dd3fc; font-size:9.5px; padding:4px 10px; font-weight:800; cursor:pointer;" onclick="window.playCinematicModal && window.playCinematicModal('sprite_sheet')">
+              ▶ WATCH SPRITE ANIMATION REEL (1080P HD)
+            </button>
+          </div>
+          <div style="font-size:10.5px; color:#94a3b8; margin-top:4px; line-height:1.4;">
+            Inspect official 60 FPS animation states for all realm champions: idle stances, 8-directional tactical sprints, weapon strikes, and ability casting rites.
+          </div>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:10px;">
           <div style="background:#080c18; border-left:3px solid #facc15; padding:8px; border-radius:3px;">

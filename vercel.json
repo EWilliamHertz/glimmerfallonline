@@ -3,6 +3,10 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/landing",
+      "destination": "/landing/index.html"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api"
     },

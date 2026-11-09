@@ -462,6 +462,12 @@ export default function LandingPage() {
 
         {/* Sidebar Nav Links */}
         <div className="p-4 border-b border-[#1E293B] space-y-1 text-xs font-semibold">
+          <a href="/" className="flex items-center justify-between px-3 py-2 rounded-lg bg-[#F2A900]/15 border border-[#F2A900]/40 text-[#FDE047] hover:bg-[#F2A900]/25 transition-all font-bold mb-2 shadow-[0_0_12px_rgba(242,169,0,0.2)]">
+            <span className="flex items-center gap-2">
+              <Swords className="w-4 h-4 text-[#F2A900]" /> Enter Full 2D Game
+            </span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/50 text-[#F2A900]">LIVE ↗</span>
+          </a>
           <a href="#forge" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-white/80 hover:text-[#F2A900] transition-colors">
             <Sparkles className="w-4 h-4 text-[#F2A900]" /> Character Forge
           </a>
@@ -890,6 +896,29 @@ export default function LandingPage() {
                 >
                   ⚡ Enter GlimmerFall
                 </button>
+
+                {/* 60 FPS Hero Sprite Animation Showcase */}
+                <div className="mt-4 rounded-2xl overflow-hidden border border-[#1E293B] bg-black/60 shadow-lg">
+                  <div className="px-3.5 py-2.5 bg-[#0D152B] border-b border-[#1E293B] flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#38BDF8] flex items-center gap-1.5">
+                      🎬 HERO SPRITE REEL (60 FPS)
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-[#38BDF8]/10 text-[#38BDF8] font-bold">
+                      1080p Full HD
+                    </span>
+                  </div>
+                  <video
+                    src="https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/pixel_art_animation_sheet_1080p.mp4"
+                    poster="/GlimmerFall_official_multicolor_logo.png"
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="w-full max-h-[220px] object-contain bg-black"
+                  />
+                  <div className="p-2.5 text-[11px] text-white/60 leading-tight">
+                    Official 60 FPS pixel animation showcase: 8-directional sprints, combat attacks, and ability casting rites.
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1096,6 +1125,24 @@ export default function LandingPage() {
                 <p className="text-sm text-white/80 leading-relaxed font-head">
                   With the Crystal Heart destroyed, the unified white Glimmer split into the four canonical elemental aspects:
                 </p>
+
+                {/* 1080p Crystal Heart Shattering Video Player */}
+                <div className="my-4 rounded-2xl overflow-hidden border-2 border-[#F2A900]/40 shadow-[0_0_30px_rgba(242,169,0,0.25)] bg-black">
+                  <video
+                    src="https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/crystal_heart_shattering_1080p.mp4"
+                    poster="/GlimmerFall_official_multicolor_logo.png"
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="w-full max-h-[360px] object-contain bg-black"
+                  />
+                  <div className="p-3 bg-[#0A0F22] border-t border-[#1E293B] flex items-center justify-between text-xs text-white/70">
+                    <span className="font-display font-bold text-[#F2A900]">
+                      🎬 Prologue Cinematic • The Shattered Crystal Heart (1080p Full HD)
+                    </span>
+                    <span className="text-[10px] text-white/50">Canonical Lore Origin</span>
+                  </div>
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <div className="p-3.5 rounded-xl bg-black/50 border-l-4 border-l-[#F2A900] border-y border-r border-[#1E293B]">
