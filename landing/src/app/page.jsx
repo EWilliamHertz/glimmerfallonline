@@ -282,9 +282,17 @@ export default function LandingPage() {
     let startScrollY = 0;
 
     const handleMouseDown = (e) => {
+      // Do not interfere with touch devices or touch emulation on iPad/mobile
+      if (
+        (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+        e.sourceCapabilities?.firesTouchEvents ||
+        (typeof window !== 'undefined' && 'ontouchstart' in window)
+      ) {
+        return;
+      }
       if (e.button !== 0) return;
       const interactive = e.target.closest(
-        'button, a, input, select, textarea, video, canvas, [role="button"], .dock-action-btn, .dock-pill-btn'
+        'button, a, input, select, textarea, video, canvas, [role="button"]'
       );
       if (interactive) return;
 

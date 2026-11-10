@@ -4,15 +4,16 @@
    Massive Modern CSS Inputs • Smooth Scrolling • Official Logo
    ========================================== */
 
-.landing-overlay {
+.landing-overlay,
+#landing-overlay {
   position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
   z-index: 600;
   background: radial-gradient(circle at 50% 10%, #0e172e 0%, #070b18 55%, #03050c 100%);
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow-y: scroll !important;
+  overflow-x: hidden !important;
   -webkit-overflow-scrolling: touch !important;
   touch-action: pan-y !important;
   overscroll-behavior-y: auto;
@@ -22,6 +23,12 @@
   -webkit-font-smoothing: antialiased;
   scrollbar-width: thin;
   scrollbar-color: #facc15 #080d1a;
+}
+
+.landing-shell-layout,
+.landing-main-scroll {
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
 }
 
 /* ==========================================

@@ -237,11 +237,29 @@ export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstT
   setTimeout(fitDock, 50);
   setTimeout(fitDock, 800);
 
-  // Block page pinch-zoom / scroll while playing
-  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  // Block page pinch-zoom / scroll ONLY while actively interacting with the game canvas
+  document.addEventListener('gesturestart', (e) => {
+    if (e.target.closest?.('#canvas-container, #touch-layer, canvas')) {
+      e.preventDefault();
+    }
+  });
+
   document.addEventListener('touchmove', (e) => {
-    if (e.target.closest?.('.modal, #chat-log, input, textarea')) return;
-    e.preventDefault();
+    // 1. NEVER block touchmove on landing page, frontpage, modals, chat, or scrollable UI!
+    const landingEl = document.getElementById('landing-overlay');
+    const fpEl = document.getElementById('frontpage-overlay');
+    if ((landingEl && landingEl.style.display !== 'none') || (fpEl && fpEl.style.display !== 'none')) {
+      return;
+    }
+
+    if (e.target.closest?.('.landing-overlay, #landing-overlay, #frontpage-overlay, .modal, #chat-log, input, textarea, select, [data-scrollable="true"], .overflow-y-auto, .overflow-auto')) {
+      return;
+    }
+
+    // 2. Only prevent scroll when touching the game canvas / touch joystick layer during active gameplay
+    if (e.target.closest?.('#canvas-container, #touch-layer, canvas')) {
+      e.preventDefault();
+    }
   }, { passive: false });
 
   return { enabled: true, resetStick, toggle: toggleTouchControls };

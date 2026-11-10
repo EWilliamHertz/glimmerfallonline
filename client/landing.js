@@ -158,6 +158,14 @@ export class LandingPageController {
     const onMouseDown = (e) => {
       const overlay = this.getScrollContainer();
       if (!overlay || !this.isOpen) return;
+      // Do not interfere with touch devices or touch emulation on iPad/mobile
+      if (
+        (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+        e.sourceCapabilities?.firesTouchEvents ||
+        'ontouchstart' in window
+      ) {
+        return;
+      }
       if (e.button !== 0) return;
 
       const interactive = e.target.closest(
