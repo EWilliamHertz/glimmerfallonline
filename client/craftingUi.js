@@ -21,6 +21,45 @@ let selectedRecipeId = 'smelt_bronze_bar';
 let craftQueueTimer = null;
 let craftQueueRemaining = 0;
 let craftQueueRecipeId = null;
+let craftCooldownTimer = null;
+
+export function clearCraftCooldownTimer() {
+  if (craftCooldownTimer) {
+    clearInterval(craftCooldownTimer);
+    craftCooldownTimer = null;
+  }
+}
+
+function ensureCooldownTicker() {
+  if (craftCooldownTimer) return;
+  craftCooldownTimer = setInterval(() => {
+    const modal = document.getElementById('crafting-modal');
+    if (!modal || modal.style.display === 'none') {
+      clearCraftCooldownTimer();
+      return;
+    }
+    const cd = typeof window.getCraftCooldownRemaining === 'function' ? window.getCraftCooldownRemaining() : 0;
+    if (cd <= 0) {
+      clearCraftCooldownTimer();
+      renderCraftingModal();
+      return;
+    }
+    const buttons = document.querySelectorAll('.craft-action-btn');
+    buttons.forEach((btn) => {
+      btn.disabled = true;
+      btn.style.opacity = '0.45';
+      btn.style.filter = 'grayscale(1)';
+      btn.style.cursor = 'not-allowed';
+      btn.style.background = '#0f172a';
+      btn.style.borderColor = '#334155';
+      btn.style.color = '#94a3b8';
+      const origText = btn.getAttribute('data-orig-label');
+      if (origText) {
+        btn.innerHTML = `⏳ ${(cd / 1000).toFixed(1)}s`;
+      }
+    });
+  }, 80);
+}
 
 function getInventoryItemQty(inv, itemId) {
   if (!Array.isArray(inv)) return 0;
@@ -54,6 +93,7 @@ export function stopCraftingQueue() {
   }
   craftQueueRemaining = 0;
   craftQueueRecipeId = null;
+  clearCraftCooldownTimer();
 }
 
 export function startCraftingBatch(recipeId, count = 1) {
@@ -167,6 +207,11 @@ export function renderCraftingModal(stationOverride = null) {
   const selectedItem = selectedRecipe ? EQUIPMENT_CATALOG[selectedRecipe.outputId] : null;
   const maxMake = selectedRecipe ? getMaxCraftableCount(selectedRecipe, inv, lvl) : 0;
   const isQueueActive = craftQueueRemaining > 0 && craftQueueRecipeId === selectedRecipe?.id;
+  const cdRemain = typeof window.getCraftCooldownRemaining === 'function' ? window.getCraftCooldownRemaining() : 0;
+  const isCooldown = cdRemain > 0;
+  if (isCooldown) {
+    ensureCooldownTicker();
+  }
 
   body.innerHTML = `
     <div style="display:flex; flex-direction:column; gap:10px; font-family:var(--font-body); color:#e2e8f0;">
@@ -304,23 +349,26 @@ export function renderCraftingModal(stationOverride = null) {
                 </div>
               ` : `
                 <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">
-                  <button class="util-btn"
-                          style="font-size:9.5px; padding:7px 6px; border-color:${maxMake >= 1 ? station.color : '#334155'}; color:${maxMake >= 1 ? '#fff' : '#64748b'}; background:${maxMake >= 1 ? '#1e293b' : '#0b1120'}; font-weight:800;"
-                          ${maxMake < 1 ? 'disabled' : ''}
-                          onclick="window.startCraftingBatch('${selectedRecipe.id}', 1)">
-                    ${station.icon} MAKE 1
+                  <button class="util-btn craft-action-btn"
+                          data-orig-label="${station.icon} MAKE 1"
+                          style="font-size:9.5px; padding:7px 6px; border-color:${(!isCooldown && maxMake >= 1) ? station.color : '#334155'}; color:${(!isCooldown && maxMake >= 1) ? '#fff' : '#64748b'}; background:${(!isCooldown && maxMake >= 1) ? '#1e293b' : '#0b1120'}; font-weight:800; ${isCooldown ? 'opacity:0.45; filter:grayscale(1); cursor:not-allowed; background:#0f172a; border-color:#334155; color:#94a3b8;' : ''}"
+                          ${(maxMake < 1 || isCooldown) ? 'disabled' : ''}
+                          onclick="this.disabled=true; this.style.opacity='0.45'; this.style.filter='grayscale(1)'; this.style.cursor='not-allowed'; this.style.background='#0f172a'; this.style.color='#94a3b8'; window.startCraftingBatch('${selectedRecipe.id}', 1)">
+                    ${isCooldown ? `⏳ ${(cdRemain / 1000).toFixed(1)}s` : `${station.icon} MAKE 1`}
                   </button>
-                  <button class="util-btn"
-                          style="font-size:9.5px; padding:7px 6px; border-color:${maxMake >= 2 ? station.color : '#334155'}; color:${maxMake >= 2 ? '#fde047' : '#64748b'}; background:${maxMake >= 2 ? '#1e293b' : '#0b1120'}; font-weight:800;"
-                          ${maxMake < 1 ? 'disabled' : ''}
-                          onclick="window.startCraftingBatch('${selectedRecipe.id}', ${Math.min(5, maxMake)})">
-                    MAKE 5
+                  <button class="util-btn craft-action-btn"
+                          data-orig-label="MAKE 5"
+                          style="font-size:9.5px; padding:7px 6px; border-color:${(!isCooldown && maxMake >= 2) ? station.color : '#334155'}; color:${(!isCooldown && maxMake >= 2) ? '#fde047' : '#64748b'}; background:${(!isCooldown && maxMake >= 2) ? '#1e293b' : '#0b1120'}; font-weight:800; ${isCooldown ? 'opacity:0.45; filter:grayscale(1); cursor:not-allowed; background:#0f172a; border-color:#334155; color:#94a3b8;' : ''}"
+                          ${(maxMake < 1 || isCooldown) ? 'disabled' : ''}
+                          onclick="this.disabled=true; this.style.opacity='0.45'; this.style.filter='grayscale(1)'; this.style.cursor='not-allowed'; this.style.background='#0f172a'; this.style.color='#94a3b8'; window.startCraftingBatch('${selectedRecipe.id}', ${Math.min(5, maxMake)})">
+                    ${isCooldown ? `⏳ ${(cdRemain / 1000).toFixed(1)}s` : 'MAKE 5'}
                   </button>
-                  <button class="util-btn"
-                          style="font-size:9.5px; padding:7px 6px; border-color:${maxMake >= 1 ? '#22c55e' : '#334155'}; color:${maxMake >= 1 ? '#86efac' : '#64748b'}; background:${maxMake >= 1 ? '#052e16' : '#0b1120'}; font-weight:800;"
-                          ${maxMake < 1 ? 'disabled' : ''}
-                          onclick="window.startCraftingBatch('${selectedRecipe.id}', ${Math.min(28, maxMake)})">
-                    ⚡ ALL (${Math.min(28, maxMake)})
+                  <button class="util-btn craft-action-btn"
+                          data-orig-label="⚡ ALL (${Math.min(28, maxMake)})"
+                          style="font-size:9.5px; padding:7px 6px; border-color:${(!isCooldown && maxMake >= 1) ? '#22c55e' : '#334155'}; color:${(!isCooldown && maxMake >= 1) ? '#86efac' : '#64748b'}; background:${(!isCooldown && maxMake >= 1) ? '#052e16' : '#0b1120'}; font-weight:800; ${isCooldown ? 'opacity:0.45; filter:grayscale(1); cursor:not-allowed; background:#0f172a; border-color:#334155; color:#94a3b8;' : ''}"
+                          ${(maxMake < 1 || isCooldown) ? 'disabled' : ''}
+                          onclick="this.disabled=true; this.style.opacity='0.45'; this.style.filter='grayscale(1)'; this.style.cursor='not-allowed'; this.style.background='#0f172a'; this.style.color='#94a3b8'; window.startCraftingBatch('${selectedRecipe.id}', ${Math.min(28, maxMake)})">
+                    ${isCooldown ? `⏳ ${(cdRemain / 1000).toFixed(1)}s` : `⚡ ALL (${Math.min(28, maxMake)})`}
                   </button>
                 </div>
               `}

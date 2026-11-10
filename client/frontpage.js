@@ -285,6 +285,47 @@ export class FrontpageController {
   // ==========================================
   // State Machine Transitions
   // ==========================================
+  beginCharacterCreation() {
+    let seen = false;
+    try {
+      seen = localStorage.getItem('glimmerfall_seen_prologue') === 'true';
+    } catch (_) {}
+
+    if (!seen && typeof window !== 'undefined' && typeof window.playPrologueCinematic === 'function') {
+      window.playPrologueCinematic({
+        isReplay: false,
+        onComplete: () => {
+          this.transitionTo(FRONTPAGE_STATES.CHARACTER_CREATE);
+        },
+      });
+      return;
+    }
+
+    this.transitionTo(FRONTPAGE_STATES.CHARACTER_CREATE);
+  }
+
+  playPrologueCinematic(isReplay = false) {
+    if (typeof window !== 'undefined' && typeof window.playPrologueCinematic === 'function') {
+      window.playPrologueCinematic({
+        isReplay: Boolean(isReplay),
+        onComplete: () => {
+          if (!isReplay) {
+            this.transitionTo(FRONTPAGE_STATES.CHARACTER_CREATE);
+          } else if (this.isOpen) {
+            this.render();
+          }
+        },
+      });
+    } else {
+      try {
+        localStorage.setItem('glimmerfall_seen_prologue', 'true');
+      } catch (_) {}
+      if (!isReplay) {
+        this.transitionTo(FRONTPAGE_STATES.CHARACTER_CREATE);
+      }
+    }
+  }
+
   transitionTo(newState) {
     if (!Object.values(FRONTPAGE_STATES).includes(newState)) return;
     this.state = newState;
@@ -420,8 +461,8 @@ export class FrontpageController {
   async playSelectedCharacter() {
     const chosenChar = this.getSelectedCharacter();
     if (!chosenChar) {
-      // If no character exists on this realm, transition to create state
-      this.transitionTo(FRONTPAGE_STATES.CHARACTER_CREATE);
+      // If no character exists on this realm, begin character creation (with prologue check)
+      this.beginCharacterCreation();
       return;
     }
 
@@ -1247,12 +1288,17 @@ export class FrontpageController {
             </div>
           </div>
 
-          <!-- "Create New Character" Button -->
-          <div style="border-top:1px solid #1e293b; padding-top:10px; margin-top:6px;">
+          <!-- "Create New Character" & "Replay Prologue" Buttons -->
+          <div style="border-top:1px solid #1e293b; padding-top:10px; margin-top:6px; display:flex; flex-direction:column; gap:8px;">
             <button class="util-btn"
                     style="width:100%; border-color:#facc15; background:linear-gradient(180deg, #1e1b4b, #0f172a); color:#fde047; font-size:11.5px; font-weight:bold; padding:9px; display:flex; justify-content:center; align-items:center; gap:6px;"
-                    onclick="window._fp.transitionTo('CHARACTER_CREATE')">
+                    onclick="window._fp.beginCharacterCreation()">
               <span>➕</span> CREATE NEW CHARACTER
+            </button>
+            <button class="util-btn"
+                    style="width:100%; border:2px solid #facc15; background:linear-gradient(180deg, #451a03 0%, #1e1b4b 100%); color:#fde047; font-size:11px; font-weight:800; padding:8px; display:flex; justify-content:center; align-items:center; gap:6px; box-shadow:0 0 14px rgba(250,204,21,0.25); cursor:pointer;"
+                    onclick="window._fp.playPrologueCinematic(true)">
+              <span>🎬</span> REPLAY CRYSTAL HEART PROLOGUE (1080P)
             </button>
           </div>
         </div>

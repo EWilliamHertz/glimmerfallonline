@@ -275,6 +275,120 @@ export default function LandingPage() {
     } catch (_) {}
   }, []);
 
+  // Screen Panning (Drag-to-Scroll) & Keyboard Navigation for broken mouse wheel support
+  useEffect(() => {
+    let isDragging = false;
+    let startY = 0;
+    let startScrollY = 0;
+
+    const handleMouseDown = (e) => {
+      if (e.button !== 0) return;
+      const interactive = e.target.closest(
+        'button, a, input, select, textarea, video, canvas, [role="button"], .dock-action-btn, .dock-pill-btn'
+      );
+      if (interactive) return;
+
+      isDragging = true;
+      startY = e.clientY;
+      startScrollY = window.scrollY;
+      document.body.style.cursor = 'grabbing';
+      document.body.style.userSelect = 'none';
+    };
+
+    const handleMouseMove = (e) => {
+      if (!isDragging) return;
+      const deltaY = e.clientY - startY;
+      window.scrollTo({ top: startScrollY - deltaY });
+    };
+
+    const handleMouseUp = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    const handleKeyDown = (e) => {
+      const active = document.activeElement;
+      const tag = active ? active.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'textarea' || active?.isContentEditable) return;
+
+      if (e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) {
+        e.preventDefault();
+        window.scrollBy({ top: window.innerHeight * 0.75, behavior: 'smooth' });
+      } else if (e.key === 'PageUp' || (e.key === ' ' && e.shiftKey)) {
+        e.preventDefault();
+        window.scrollBy({ top: -window.innerHeight * 0.75, behavior: 'smooth' });
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        window.scrollBy({ top: 140, behavior: 'smooth' });
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        window.scrollBy({ top: -140, behavior: 'smooth' });
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+      }
+    };
+
+    window.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, []);
+
+  const scrollRef = React.useRef({ timeout: null, interval: null });
+
+  const scrollUp = (amount = 420) => {
+    window.scrollBy({ top: -amount, behavior: 'smooth' });
+  };
+  const scrollDown = (amount = 420) => {
+    window.scrollBy({ top: amount, behavior: 'smooth' });
+  };
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const scrollToBottom = () => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+  };
+  const scrollToSection = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const startContinuousScroll = (direction) => {
+    stopContinuousScroll();
+    window.scrollBy({ top: direction * 420, behavior: 'smooth' });
+    scrollRef.current.timeout = setTimeout(() => {
+      scrollRef.current.interval = setInterval(() => {
+        window.scrollBy({ top: direction * 35 });
+      }, 35);
+    }, 260);
+  };
+
+  const stopContinuousScroll = () => {
+    if (scrollRef.current.timeout) {
+      clearTimeout(scrollRef.current.timeout);
+      scrollRef.current.timeout = null;
+    }
+    if (scrollRef.current.interval) {
+      clearInterval(scrollRef.current.interval);
+      scrollRef.current.interval = null;
+    }
+  };
+
   const handleToggleStartOnSite = (checked) => {
     setStartOnLoadout(checked);
     try {
@@ -408,7 +522,10 @@ export default function LandingPage() {
               <img
                 src={LOGO_PATH}
                 alt="GlimmerFall Official Logo"
-                className="w-full h-full object-contain filter drop-shadow(0 0 6px #F2A900)"
+                width={48}
+                height={48}
+                style={{ maxWidth: 48, maxHeight: 48 }}
+                className="sidebar-logo-img w-full h-full object-contain filter drop-shadow(0 0 6px #F2A900)"
               />
             </div>
             <div>
@@ -616,7 +733,7 @@ export default function LandingPage() {
       {/* ======================================================== */}
       <main className="flex-1 min-h-screen px-4 py-8 lg:px-12 lg:py-12 space-y-16">
         {/* HERO BANNER SECTION */}
-        <section className="relative rounded-3xl p-8 lg:p-14 overflow-hidden border border-[#1E293B] bg-radial from-[#131D38] via-[#090E1E] to-[#050814] shadow-2xl">
+        <section id="prologue-hero" className="relative rounded-3xl p-8 lg:p-14 overflow-hidden border border-[#1E293B] bg-radial from-[#131D38] via-[#090E1E] to-[#050814] shadow-2xl">
           <div className="absolute top-0 right-0 w-96 h-96 bg-[#F2A900]/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#38BDF8]/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -627,7 +744,10 @@ export default function LandingPage() {
                 <img
                   src={LOGO_PATH}
                   alt="GlimmerFall Official Logo"
-                  className="w-16 h-16 object-contain filter drop-shadow(0 0 10px #F2A900)"
+                  width={48}
+                  height={48}
+                  style={{ maxWidth: 48, maxHeight: 48 }}
+                  className="hero-logo-img w-12 h-12 sm:w-16 sm:h-16 object-contain filter drop-shadow(0 0 10px #F2A900)"
                 />
               </div>
               <div>
@@ -1069,9 +1189,10 @@ export default function LandingPage() {
         </section>
 
         {/* ======================================================== */}
-        {/* WORLD LORE & CHRONICLE SECTION (#lore-tcg) */}
+        {/* WORLD LORE & CHRONICLE SECTION (#lore-chronicle / #lore-tcg) */}
         {/* ======================================================== */}
-        <section id="lore-tcg" className="rounded-3xl p-6 lg:p-10 border border-[#1E293B] bg-[#0A0F22]/90 space-y-6">
+        <section id="lore-chronicle" className="rounded-3xl p-6 lg:p-10 border border-[#1E293B] bg-[#0A0F22]/90 space-y-6">
+          <a id="lore-tcg" className="hidden"></a>
           <div className="flex flex-wrap justify-between items-center gap-4 pb-6 border-b border-[#1E293B]">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#9B30FF] px-2.5 py-1 rounded bg-[#9B30FF]/10 border border-[#9B30FF]/30">
@@ -1478,7 +1599,14 @@ export default function LandingPage() {
         {/* FOOTER */}
         <footer className="pt-10 border-t border-[#1E293B] text-center space-y-4">
           <div className="flex items-center justify-center gap-3">
-            <img src={LOGO_PATH} alt="GlimmerFall" className="h-8 object-contain" />
+            <img
+              src={LOGO_PATH}
+              alt="GlimmerFall"
+              width={48}
+              height={48}
+              style={{ maxWidth: 48, maxHeight: 48 }}
+              className="sidebar-logo-img h-8 object-contain"
+            />
             <span className="font-display font-bold text-sm text-white">GLIMMERFALL ONLINE</span>
           </div>
           <p className="text-xs text-white/50 max-w-lg mx-auto">
@@ -1495,6 +1623,67 @@ export default function LandingPage() {
           </div>
         </footer>
       </main>
+
+      {/* Floating On-Screen Navigation & Scroll Dock (Broken Mouse Wheel Support) */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2 pointer-events-none">
+        <div className="bg-[#080E1C]/95 border border-[#FACC15]/50 shadow-[0_10px_30px_rgba(0,0,0,0.85),0_0_20px_rgba(250,204,21,0.25)] backdrop-blur-xl rounded-2xl p-3 flex flex-col gap-2.5 max-w-sm pointer-events-auto">
+          <div className="flex justify-between items-center gap-3 border-b border-white/10 pb-2">
+            <span className="font-display font-bold text-xs text-[#FACC15] flex items-center gap-1.5">
+              🧭 SCROLL &amp; NAV DOCK
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={scrollToTop}
+                title="Scroll to Top [Home]"
+                className="px-2.5 py-1 rounded-lg bg-[#1E293B] hover:bg-[#334155] border border-white/10 text-xs font-bold text-white hover:text-[#FACC15] transition-all cursor-pointer"
+              >
+                ⏮ Top
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollUp(420)}
+                onMouseDown={() => startContinuousScroll(-1)}
+                onMouseUp={stopContinuousScroll}
+                onMouseLeave={stopContinuousScroll}
+                title="Scroll Up 420px (Click or Hold)"
+                className="px-3 py-1 rounded-lg bg-amber-700 hover:bg-amber-600 border border-[#FACC15] text-xs font-black text-amber-100 hover:text-white transition-all cursor-pointer shadow-[0_0_10px_rgba(250,204,21,0.3)]"
+              >
+                ▲ Up
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollDown(420)}
+                onMouseDown={() => startContinuousScroll(1)}
+                onMouseUp={stopContinuousScroll}
+                onMouseLeave={stopContinuousScroll}
+                title="Scroll Down 420px (Click or Hold)"
+                className="px-3 py-1 rounded-lg bg-amber-700 hover:bg-amber-600 border border-[#FACC15] text-xs font-black text-amber-100 hover:text-white transition-all cursor-pointer shadow-[0_0_10px_rgba(250,204,21,0.3)]"
+              >
+                ▼ Down
+              </button>
+              <button
+                type="button"
+                onClick={scrollToBottom}
+                title="Scroll to Bottom [End]"
+                className="px-2.5 py-1 rounded-lg bg-[#1E293B] hover:bg-[#334155] border border-white/10 text-xs font-bold text-white hover:text-[#FACC15] transition-all cursor-pointer"
+              >
+                ⏭ Bottom
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1.5 justify-end">
+            <button type="button" onClick={() => scrollToSection('prologue-hero')} className="px-2.5 py-0.5 rounded-full bg-[#0F172A] hover:bg-[#38BDF8]/20 border border-[#1E293B] hover:border-[#38BDF8] text-[10px] font-bold text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer">🎬 Prologue</button>
+            <button type="button" onClick={() => scrollToSection('forge')} className="px-2.5 py-0.5 rounded-full bg-[#0F172A] hover:bg-[#38BDF8]/20 border border-[#1E293B] hover:border-[#38BDF8] text-[10px] font-bold text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer">⚔️ Hero Forge</button>
+            <button type="button" onClick={() => scrollToSection('game-encyclopedia')} className="px-2.5 py-0.5 rounded-full bg-[#0F172A] hover:bg-[#38BDF8]/20 border border-[#1E293B] hover:border-[#38BDF8] text-[10px] font-bold text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer">🎮 Encyclopedia</button>
+            <button type="button" onClick={() => scrollToSection('lore-chronicle')} className="px-2.5 py-0.5 rounded-full bg-[#0F172A] hover:bg-[#38BDF8]/20 border border-[#1E293B] hover:border-[#38BDF8] text-[10px] font-bold text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer">📜 Lore</button>
+            <button type="button" onClick={() => scrollToSection('armory')} className="px-2.5 py-0.5 rounded-full bg-[#0F172A] hover:bg-[#38BDF8]/20 border border-[#1E293B] hover:border-[#38BDF8] text-[10px] font-bold text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer">🛡️ Armory</button>
+            <button type="button" onClick={() => scrollToSection('arena')} className="px-2.5 py-0.5 rounded-full bg-[#0F172A] hover:bg-[#38BDF8]/20 border border-[#1E293B] hover:border-[#38BDF8] text-[10px] font-bold text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer">⚡ 3v3 Arena</button>
+            <button type="button" onClick={() => scrollToSection('atlas')} className="px-2.5 py-0.5 rounded-full bg-[#0F172A] hover:bg-[#38BDF8]/20 border border-[#1E293B] hover:border-[#38BDF8] text-[10px] font-bold text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer">🗺️ Atlas</button>
+            <button type="button" onClick={() => scrollToSection('settings')} className="px-2.5 py-0.5 rounded-full bg-[#0F172A] hover:bg-[#38BDF8]/20 border border-[#1E293B] hover:border-[#38BDF8] text-[10px] font-bold text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer">⚙️ Settings</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

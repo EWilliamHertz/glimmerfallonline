@@ -814,6 +814,16 @@ test('LandingPageController initializes, toggles Start on this site, and renders
   assert.ok(combatHtml.includes('Attack Cleave Arcs &amp; Hitboxes'));
   assert.ok(combatHtml.includes('1.5s Global Cooldown'));
 
+  landing.setGameEncSection('economy');
+  const economyHtml = landing.renderGameEncSection();
+  assert.ok(economyHtml.includes('AetherSwap Continental Orderbook'));
+  assert.ok(economyHtml.includes('2% Macroeconomic Tariff Sink'));
+
+  landing.setGameEncSection('disciplines');
+  const disciplinesHtml = landing.renderGameEncSection();
+  assert.ok(disciplinesHtml.includes('Resonance Extraction'));
+  assert.ok(disciplinesHtml.includes('Star-Forging'));
+
   landing.setGameEncSection('persistence');
   const persistHtml = landing.renderGameEncSection();
   assert.ok(persistHtml.includes('Exact Health &amp; Glimmer Persistence'));
@@ -836,16 +846,31 @@ test('LandingPageController initializes, toggles Start on this site, and renders
   assert.ok(cardsHtml.includes('Mana Crystal'));
   assert.ok(cardsHtml.includes('Chronocore Prism'));
 
+  // Accessibility & scrolling helper methods check
+  assert.equal(typeof landing.scrollUp, 'function');
+  assert.equal(typeof landing.scrollDown, 'function');
+  assert.equal(typeof landing.scrollToTop, 'function');
+  assert.equal(typeof landing.scrollToBottom, 'function');
+  assert.equal(typeof landing.scrollToSection, 'function');
+
   // Verify index.html and frontpage.js integration
   const indexHtml = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf-8');
   assert.ok(indexHtml.includes('Start on this site'), 'index.html must include Start on this site label');
   assert.ok(indexHtml.includes('LANDING &amp; ENCYCLOPEDIAS'), 'index.html must include LANDING & ENCYCLOPEDIAS button');
   assert.ok(indexHtml.includes('id="frontpage-overlay" style="display:none;"'), 'index.html must keep frontpage overlay hidden on initial load if not toggled');
+  assert.ok(indexHtml.includes('id="prologue-modal-overlay"'), 'index.html must include prologue-modal-overlay');
+  assert.ok(indexHtml.includes('SKIP TO HERO SELECTION'), 'index.html must include skip to hero selection button');
 
   const fpSrc = fs.readFileSync(new URL('../client/frontpage.js', import.meta.url), 'utf-8');
   assert.ok(fpSrc.includes('getStartOnSite()'), 'frontpage.js must implement getStartOnSite');
   assert.ok(fpSrc.includes('setStartOnSite('), 'frontpage.js must implement setStartOnSite');
   assert.ok(fpSrc.includes('LANDING &amp; ENCYCLOPEDIAS'), 'frontpage.js must include LANDING & ENCYCLOPEDIAS button');
+  assert.ok(fpSrc.includes('REPLAY CRYSTAL HEART PROLOGUE (1080P)'), 'frontpage.js must include replay prologue button');
+  assert.ok(fpSrc.includes('playPrologueCinematic'), 'frontpage.js must implement playPrologueCinematic');
+
+  const landingCss = fs.readFileSync(new URL('../client/styles/landing.css', import.meta.url), 'utf-8');
+  assert.ok(landingCss.includes('linear-gradient(180deg, #facc15 0%, #ca8a04 100%)'), 'landing.css must include accessible scrollbar thumb');
+  assert.ok(landingCss.includes('.landing-scroll-dock'), 'landing.css must include floating scroll dock styling');
 });
 
 test('Glimmer harvesting preserves active solarCharge and does not revert to cached profile value', () => {

@@ -94,6 +94,169 @@ export class LandingPageController {
       window.openLandingPage = (initialTab = null) => this.open(initialTab);
       window.setStartOnSiteToggle = (checked) => this.setStartOnLoadout(checked);
     }
+
+    this._panningInitialized = false;
+    this._keyboardInitialized = false;
+    this._scrollHoldTimeout = null;
+    this._scrollHoldInterval = null;
+
+    if (typeof window !== 'undefined') {
+      this.initScreenPanning();
+      this.initKeyboardNavigation();
+    }
+  }
+
+  getScrollContainer() {
+    if (typeof document === 'undefined') return null;
+    return document.getElementById('landing-overlay');
+  }
+
+  scrollUp(amount = 420) {
+    const el = this.getScrollContainer();
+    if (el) {
+      el.scrollBy({ top: -amount, behavior: 'smooth' });
+    }
+  }
+
+  scrollDown(amount = 420) {
+    const el = this.getScrollContainer();
+    if (el) {
+      el.scrollBy({ top: amount, behavior: 'smooth' });
+    }
+  }
+
+  scrollToTop() {
+    const el = this.getScrollContainer();
+    if (el) {
+      el.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  scrollToBottom() {
+    const el = this.getScrollContainer();
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    }
+  }
+
+  scrollToSection(sectionId) {
+    if (typeof document === 'undefined') return;
+    const target = document.getElementById(sectionId);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+  startContinuousScroll(direction) {
+    this.stopContinuousScroll();
+    const el = this.getScrollContainer();
+    if (!el) return;
+    el.scrollBy({ top: direction * 420, behavior: 'smooth' });
+    this._scrollHoldTimeout = setTimeout(() => {
+      this._scrollHoldInterval = setInterval(() => {
+        const container = this.getScrollContainer();
+        if (container) {
+          container.scrollTop += direction * 35;
+        }
+      }, 35);
+    }, 260);
+  }
+
+  stopContinuousScroll() {
+    if (this._scrollHoldTimeout) {
+      clearTimeout(this._scrollHoldTimeout);
+      this._scrollHoldTimeout = null;
+    }
+    if (this._scrollHoldInterval) {
+      clearInterval(this._scrollHoldInterval);
+      this._scrollHoldInterval = null;
+    }
+  }
+
+  initScreenPanning() {
+    if (this._panningInitialized || typeof window === 'undefined' || typeof document === 'undefined') return;
+    this._panningInitialized = true;
+
+    let isDragging = false;
+    let startY = 0;
+    let startScrollTop = 0;
+
+    const onMouseDown = (e) => {
+      const overlay = this.getScrollContainer();
+      if (!overlay || !this.isOpen) return;
+      if (e.button !== 0) return;
+
+      const interactive = e.target.closest(
+        'button, a, input, select, textarea, video, canvas, [role="button"], ' +
+        '.dock-action-btn, .dock-pill-btn, .pixel-gear-slot, .faction-select-card, ' +
+        '.class-select-card, .order-select-btn, .enc-switch-btn, .tcg-card-item, ' +
+        '.sidebar-mode-btn, .sidebar-cta-btn, .sidebar-nav-link, .hero-btn-primary, .hero-btn-secondary'
+      );
+      if (interactive) return;
+
+      isDragging = true;
+      startY = e.clientY;
+      startScrollTop = overlay.scrollTop;
+      overlay.classList.add('grabbing-mode');
+    };
+
+    const onMouseMove = (e) => {
+      if (!isDragging) return;
+      const overlay = this.getScrollContainer();
+      if (!overlay) return;
+      const deltaY = e.clientY - startY;
+      overlay.scrollTop = startScrollTop - deltaY;
+    };
+
+    const onMouseUp = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      const overlay = this.getScrollContainer();
+      if (overlay) {
+        overlay.classList.remove('grabbing-mode');
+      }
+    };
+
+    window.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }
+
+  initKeyboardNavigation() {
+    if (this._keyboardInitialized || typeof window === 'undefined') return;
+    this._keyboardInitialized = true;
+
+    window.addEventListener('keydown', (e) => {
+      const overlay = this.getScrollContainer();
+      if (!overlay || !this.isOpen) return;
+
+      const active = document.activeElement;
+      const tag = active ? active.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'textarea' || active?.isContentEditable) {
+        return;
+      }
+
+      const key = e.key;
+      if (key === 'PageDown' || (key === ' ' && !e.shiftKey)) {
+        e.preventDefault();
+        overlay.scrollBy({ top: window.innerHeight * 0.75, behavior: 'smooth' });
+      } else if (key === 'PageUp' || (key === ' ' && e.shiftKey)) {
+        e.preventDefault();
+        overlay.scrollBy({ top: -window.innerHeight * 0.75, behavior: 'smooth' });
+      } else if (key === 'ArrowDown') {
+        e.preventDefault();
+        overlay.scrollBy({ top: 140, behavior: 'smooth' });
+      } else if (key === 'ArrowUp') {
+        e.preventDefault();
+        overlay.scrollBy({ top: -140, behavior: 'smooth' });
+      } else if (key === 'Home') {
+        e.preventDefault();
+        overlay.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (key === 'End') {
+        e.preventDefault();
+        overlay.scrollTo({ top: overlay.scrollHeight, behavior: 'smooth' });
+      }
+    });
   }
 
   getStartOnLoadout() {
@@ -187,6 +350,8 @@ export class LandingPageController {
       overlay.style.display = 'block';
 
       this.render();
+      this.initScreenPanning();
+      this.initKeyboardNavigation();
 
       if (initialTab) {
         const targetEl = document.getElementById(initialTab);
@@ -294,6 +459,27 @@ export class LandingPageController {
       localStorage.setItem(PLAY_MODE_KEY, this.playMode);
     } catch (_) {}
 
+    // Check if player has seen the prologue cinematic
+    let seen = false;
+    try {
+      seen = localStorage.getItem('glimmerfall_seen_prologue') === 'true';
+    } catch (_) {}
+
+    if (!seen && typeof window !== 'undefined' && typeof window.playPrologueCinematic === 'function') {
+      this.close();
+      window.playPrologueCinematic({
+        isReplay: false,
+        onComplete: async () => {
+          await this._executeLaunch(finalName, order, cls);
+        },
+      });
+      return;
+    }
+
+    await this._executeLaunch(finalName, order, cls);
+  }
+
+  async _executeLaunch(finalName, order, cls) {
     this.close();
 
     if (this.frontpage) {
@@ -365,7 +551,7 @@ export class LandingPageController {
           <div class="sidebar-header">
             <div class="sidebar-brand-row">
               <div class="sidebar-logo-box">
-                <img src="${LOGO_SRC}" alt="GlimmerFall Official Logo" class="sidebar-logo-img" />
+                <img src="${LOGO_SRC}" alt="GlimmerFall Official Logo" class="sidebar-logo-img" width="48" height="48" style="max-width:48px; max-height:48px;" />
               </div>
               <div>
                 <div class="sidebar-brand-name">
@@ -404,6 +590,10 @@ export class LandingPageController {
               <span>EXPLORE REALM</span>
             </div>
             <div class="sidebar-nav-list">
+              <a href="#prologue-hero" class="sidebar-nav-link" onclick="document.getElementById('prologue-hero')?.scrollIntoView({behavior:'smooth'})">
+                <span>🎬 Prologue &amp; Reel</span>
+                <span style="color:#fde047;">▸</span>
+              </a>
               <a href="#forge" class="sidebar-nav-link" onclick="document.getElementById('forge')?.scrollIntoView({behavior:'smooth'})">
                 <span>⚔️ Character Forge</span>
                 <span style="color:#facc15;">▸</span>
@@ -542,15 +732,15 @@ export class LandingPageController {
         <!-- 2. MAIN SCROLLABLE CONTENT AREA -->
         <!-- ========================================== -->
         <main class="landing-main-scroll">
-          <!-- HERO BANNER -->
-          <section class="landing-hero-card">
+          <!-- HERO BANNER & 1080P PROLOGUE VIDEO SHOWCASE -->
+          <section id="prologue-hero" class="landing-hero-card">
             <div class="hero-content-wrap">
               <div class="hero-logo-row">
                 <div class="hero-logo-badge">
-                  <img src="${LOGO_SRC}" alt="GlimmerFall Logo" class="hero-logo-img" />
+                  <img src="${LOGO_SRC}" alt="GlimmerFall Logo" class="hero-logo-img" width="48" height="48" style="max-width:48px; max-height:48px;" />
                 </div>
                 <div>
-                  <span class="hero-chip-badge">✨ OFFICIAL 2D PIXEL MMORPG</span>
+                  <span class="hero-chip-badge">✨ OFFICIAL 2D PIXEL MMORPG • 16-BIT DARK FANTASY</span>
                   <h1 class="hero-title">
                     AWAKEN YOUR <span style="color:#facc15;">CHAMPION</span> IN THE REALM OF GLIMMER
                   </h1>
@@ -559,7 +749,7 @@ export class LandingPageController {
 
               <p class="hero-desc">
                 Step into an authentic top-down action MMORPG inspired by classic 16-bit RPG masterworks.
-                Before the continent formed, the celestial <b>Crystal Heart shattered</b>, fracturing unified light into four elemental aspects:
+                Before the continental caldera took shape, the celestial <b>Crystal Heart shattered</b> in an apocalyptic detonation, fracturing unified light into four elemental aspects:
                 <b style="color:#facc15;">Solar Light</b>, <b style="color:#c084fc;">Void</b>, <b style="color:#4ade80;">Verdant Root</b>, and <b style="color:#38bdf8;">Celestial Mist</b>.
                 Harvest living Glimmer leylines, socket authentic trading card relics from
                 <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" style="color:#38bdf8; text-decoration:underline; font-weight:bold;">glimmerfalltcg.com</a>,
@@ -592,6 +782,64 @@ export class LandingPageController {
                 <button type="button" class="hero-btn-secondary" onclick="window._landing.openLoadout()">
                   <span>👤</span> OPEN HERO LOADOUT
                 </button>
+                <button type="button" class="id-mini-btn" style="padding:10px 18px; font-size:12px; font-weight:800; border-color:#facc15; color:#fde047; cursor:pointer;" onclick="window.playCinematicModal && window.playCinematicModal('crystal_heart')">
+                  <span>🎬</span> WATCH 1080P PROLOGUE
+                </button>
+              </div>
+
+              <!-- FEATURED TOP SHOWCASE: 1080P PROLOGUE VIDEO & 60 FPS SPRITE REEL -->
+              <div class="hero-media-showcase-grid">
+                <!-- 1080P Crystal Heart Prologue Video Player -->
+                <div class="hero-media-card">
+                  <div class="hero-media-header">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                      <span style="font-size:13px;">🎬</span>
+                      <b style="font-size:11px; color:#fde047; font-family:var(--font-header);">THE SHATTERED CRYSTAL HEART (1080P)</b>
+                    </div>
+                    <button type="button" class="id-mini-btn" style="font-size:9.5px; padding:2px 8px; border-color:#facc15; color:#fde047; cursor:pointer;" onclick="window.playCinematicModal && window.playCinematicModal('crystal_heart')">
+                      ⛶ Theater Mode
+                    </button>
+                  </div>
+                  <div class="hero-media-video-wrap">
+                    <video
+                      src="https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/crystal_heart_shattering_1080p.mp4"
+                      poster="/GlimmerFall_official_multicolor_logo.png"
+                      controls
+                      playsinline
+                      preload="metadata"
+                      class="hero-media-video"
+                    ></video>
+                  </div>
+                  <div class="hero-media-caption">
+                    Official 1080p cinematic prologue depicting the apocalyptic detonation of the cosmic Crystal Heart that scattered iridescent shards across the continent.
+                  </div>
+                </div>
+
+                <!-- 60 FPS Pixel Art Hero Animation Sheet showcase reel -->
+                <div class="hero-media-card">
+                  <div class="hero-media-header">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                      <span style="font-size:13px;">⚔️</span>
+                      <b style="font-size:11px; color:#38bdf8; font-family:var(--font-header);">60 FPS HERO COMBAT SPRITE REEL</b>
+                    </div>
+                    <button type="button" class="id-mini-btn" style="font-size:9.5px; padding:2px 8px; border-color:#38bdf8; color:#7dd3fc; cursor:pointer;" onclick="window.playCinematicModal && window.playCinematicModal('sprite_sheet')">
+                      ⛶ Cinema Mode
+                    </button>
+                  </div>
+                  <div class="hero-media-video-wrap">
+                    <video
+                      src="https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/pixel_art_animation_sheet_1080p.mp4"
+                      poster="/GlimmerFall_official_multicolor_logo.png"
+                      controls
+                      playsinline
+                      preload="metadata"
+                      class="hero-media-video"
+                    ></video>
+                  </div>
+                  <div class="hero-media-caption">
+                    Live 60 FPS animation showcase across archetypes: 8-directional tactical sprints, combat slashes, and spellcasting rites.
+                  </div>
+                </div>
               </div>
             </div>
           </section>
@@ -783,8 +1031,14 @@ export class LandingPageController {
                 <button type="button" class="enc-switch-btn ${this.gameEncSection === 'combat' ? 'active' : ''}" onclick="window._landing.setGameEncSection('combat')">
                   ⚔️ Combat Dynamics
                 </button>
+                <button type="button" class="enc-switch-btn ${this.gameEncSection === 'economy' ? 'active' : ''}" onclick="window._landing.setGameEncSection('economy')">
+                  💰 Economy &amp; Trade
+                </button>
                 <button type="button" class="enc-switch-btn ${this.gameEncSection === 'resources' ? 'active' : ''}" onclick="window._landing.setGameEncSection('resources')">
                   ⚡ 4 Faction Resources
+                </button>
+                <button type="button" class="enc-switch-btn ${this.gameEncSection === 'disciplines' ? 'active' : ''}" onclick="window._landing.setGameEncSection('disciplines')">
+                  🎯 7 Disciplines (Lv. 99)
                 </button>
                 <button type="button" class="enc-switch-btn ${this.gameEncSection === 'persistence' ? 'active' : ''}" onclick="window._landing.setGameEncSection('persistence')">
                   💾 State Persistence
@@ -1053,12 +1307,95 @@ export class LandingPageController {
             <div style="margin-top:6px;">&copy; 2026 GlimmerFall. All rights reserved.</div>
           </footer>
         </main>
+
+        <!-- FLOATING ON-SCREEN NAVIGATION & SCROLL DOCK (Broken Mouse Wheel Support) -->
+        <div class="landing-scroll-dock">
+          <div class="dock-card-panel">
+            <div class="dock-header-row">
+              <div class="dock-title">
+                <span>🧭</span> SCROLL &amp; NAV DOCK
+              </div>
+              <div class="dock-controls-row">
+                <button type="button" class="dock-action-btn" title="Scroll to Top [Home]" onclick="window._landing.scrollToTop()">
+                  ⏮ Top
+                </button>
+                <button type="button" class="dock-action-btn primary" title="Scroll Up 420px (Click or Hold)"
+                        onmousedown="window._landing.startContinuousScroll(-1)"
+                        onmouseup="window._landing.stopContinuousScroll()"
+                        onmouseleave="window._landing.stopContinuousScroll()"
+                        onclick="window._landing.scrollUp()">
+                  ▲ Up
+                </button>
+                <button type="button" class="dock-action-btn primary" title="Scroll Down 420px (Click or Hold)"
+                        onmousedown="window._landing.startContinuousScroll(1)"
+                        onmouseup="window._landing.stopContinuousScroll()"
+                        onmouseleave="window._landing.stopContinuousScroll()"
+                        onclick="window._landing.scrollDown()">
+                  ▼ Down
+                </button>
+                <button type="button" class="dock-action-btn" title="Scroll to Bottom [End]" onclick="window._landing.scrollToBottom()">
+                  ⏭ Bottom
+                </button>
+              </div>
+            </div>
+            <div class="dock-pills-row">
+              <button type="button" class="dock-pill-btn" onclick="window._landing.scrollToSection('prologue-hero')">🎬 Prologue</button>
+              <button type="button" class="dock-pill-btn" onclick="window._landing.scrollToSection('forge')">⚔️ Hero Forge</button>
+              <button type="button" class="dock-pill-btn" onclick="window._landing.scrollToSection('game-encyclopedia')">🎮 Encyclopedia</button>
+              <button type="button" class="dock-pill-btn" onclick="window._landing.scrollToSection('lore-chronicle')">📜 Lore</button>
+              <button type="button" class="dock-pill-btn" onclick="window._landing.scrollToSection('armory')">🛡️ Armory</button>
+              <button type="button" class="dock-pill-btn" onclick="window._landing.scrollToSection('arena')">⚡ 3v3 Arena</button>
+              <button type="button" class="dock-pill-btn" onclick="window._landing.scrollToSection('atlas')">🗺️ Atlas</button>
+              <button type="button" class="dock-pill-btn" onclick="window._landing.scrollToSection('settings')">⚙️ Settings</button>
+            </div>
+          </div>
+        </div>
       </div>
     `;
   }
 
   renderGameEncSection() {
     switch (this.gameEncSection) {
+      case 'economy':
+        return `
+          <div class="enc-cards-grid">
+            <div class="enc-article-card" style="border-left:4px solid #facc15;">
+              <h4 style="color:#facc15;">🪙 AetherSwap Continental Orderbook</h4>
+              <p>Place buy and sell limit orders on the centralized exchange. Automatic trade matching executes instantaneously across continental players with full trade history.</p>
+            </div>
+            <div class="enc-article-card" style="border-left:4px solid #f87171;">
+              <h4 style="color:#f87171;">🔥 2% Macroeconomic Tariff Sink</h4>
+              <p>Every transaction burns a flat 2% gold tariff from the buyer and seller. This permanent currency sink controls inflation and stabilizes the economy across server ticks.</p>
+            </div>
+            <div class="enc-article-card" style="border-left:4px solid #38bdf8;">
+              <h4 style="color:#38bdf8;">🤝 Anti-Scam Dual Player Trading</h4>
+              <p>Trade gear and gold directly with nearby adventurers. Requires mutual offer placement and locked dual confirmations so you never lose items to quick swaps.</p>
+            </div>
+            <div class="enc-article-card" style="border-left:4px solid #4ade80;">
+              <h4 style="color:#4ade80;">⚔️ 1-HP Surrender Friendly Dueling</h4>
+              <p>Challenge any player to a friendly duel with a 3-second countdown. The duel automatically ends at 1 HP with surrender protection, so you never suffer death penalties.</p>
+            </div>
+          </div>
+        `;
+
+      case 'disciplines':
+        return `
+          <div class="enc-cards-grid">
+            ${DISCIPLINES.map((d) => `
+              <div class="enc-article-card" style="border-left:4px solid ${d.color};">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <h4 style="color:${d.color};">${d.icon} ${d.name}</h4>
+                  <span style="font-size:10px; font-weight:bold; color:${d.color}; background:#080e1c; padding:2px 6px; border:1px solid #1e293b; border-radius:4px;">Lv. ${d.lvl}/99</span>
+                </div>
+                <div class="sidebar-skill-bar-wrap" style="margin:6px 0 8px;">
+                  <div class="sidebar-skill-bar-fill" style="width:${(d.lvl / 99) * 100}%; background:${d.color};"></div>
+                </div>
+                <p style="font-size:10.5px; color:#cbd5e1;">Master this discipline through world node extraction, artisan crafting recipes, and unlock level-99 continental mastery capes.</p>
+              </div>
+            `).join('')}
+          </div>
+        `;
+
       case 'resources':
         return `
           <div class="enc-cards-grid">
