@@ -10,7 +10,7 @@
     "start": "PORT=8080 node server/index.js",
     "tunnel": "ngrok http 8080 --host-header=rewrite",
     "test": "node --test test",
-    "build": "vite build && (cd landing && npm run build) && rm -rf dist/landing && mkdir -p dist/landing && cp -r landing/out/* dist/landing/",
+    "build": "vite build && (cd landing && ([ -f node_modules/.bin/next ] || npm install) && npm run build) && rm -rf dist/landing && mkdir -p dist/landing && cp -r landing/out/* dist/landing/",
     "build:client": "vite build",
     "build:landing": "cd landing && npm run build",
     "preview": "vite preview --host 0.0.0.0 --port 8080",
