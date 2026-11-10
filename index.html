@@ -234,31 +234,6 @@
                       </div>
                     </section>
                   </main>
-
-                  <!-- Floating On-Screen Navigation & Scroll Dock -->
-                  <div class="landing-scroll-dock">
-                    <div class="dock-card-panel">
-                      <div class="dock-header-row">
-                        <div class="dock-title"><span>🧭</span> SCROLL &amp; NAV DOCK</div>
-                        <div class="dock-controls-row">
-                          <button type="button" class="dock-action-btn" title="Scroll to Top" onclick="if(window._landing){window._landing.scrollToTop();}else{document.getElementById('landing-overlay')?.scrollTo({top:0,behavior:'smooth'});}">⏮ Top</button>
-                          <button type="button" class="dock-action-btn primary" title="Scroll Up 420px" onclick="if(window._landing){window._landing.scrollUp();}else{document.getElementById('landing-overlay')?.scrollBy({top:-420,behavior:'smooth'});}">▲ Up</button>
-                          <button type="button" class="dock-action-btn primary" title="Scroll Down 420px" onclick="if(window._landing){window._landing.scrollDown();}else{document.getElementById('landing-overlay')?.scrollBy({top:420,behavior:'smooth'});}">▼ Down</button>
-                          <button type="button" class="dock-action-btn" title="Scroll to Bottom" onclick="if(window._landing){window._landing.scrollToBottom();}else{var el=document.getElementById('landing-overlay');if(el)el.scrollTo({top:el.scrollHeight,behavior:'smooth'});}">⏭ Bottom</button>
-                        </div>
-                      </div>
-                      <div class="dock-pills-row">
-                        <button type="button" class="dock-pill-btn" onclick="document.getElementById('prologue-hero')?.scrollIntoView({behavior:'smooth'})">🎬 Prologue</button>
-                        <button type="button" class="dock-pill-btn" onclick="document.getElementById('forge')?.scrollIntoView({behavior:'smooth'})">⚔️ Hero Forge</button>
-                        <button type="button" class="dock-pill-btn" onclick="document.getElementById('game-encyclopedia')?.scrollIntoView({behavior:'smooth'})">🎮 Encyclopedia</button>
-                        <button type="button" class="dock-pill-btn" onclick="document.getElementById('lore-tcg')?.scrollIntoView({behavior:'smooth'})">📜 Lore</button>
-                        <button type="button" class="dock-pill-btn" onclick="document.getElementById('armory')?.scrollIntoView({behavior:'smooth'})">🛡️ Armory</button>
-                        <button type="button" class="dock-pill-btn" onclick="document.getElementById('arena')?.scrollIntoView({behavior:'smooth'})">⚡ 3v3 Arena</button>
-                        <button type="button" class="dock-pill-btn" onclick="document.getElementById('atlas')?.scrollIntoView({behavior:'smooth'})">🗺️ Atlas</button>
-                        <button type="button" class="dock-pill-btn" onclick="document.getElementById('settings')?.scrollIntoView({behavior:'smooth'})">⚙️ Settings</button>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               `;
             }
@@ -1056,6 +1031,18 @@
               <span>Enable Background Music (BGM)</span>
             </label>
           </div>
+          <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #1e293b; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+            <div>
+              <div style="font-weight: 600; font-size: 10px; color: #38bdf8;">🔄 ROOM MUSIC TRANSITION</div>
+              <div style="font-size: 8px; color: #94a3b8;">Resume audio track / tracker where you left off when re-entering zones</div>
+            </div>
+            <select id="settings-bgm-resume-select" onchange="setBgmResumeMode(this.value)" style="background: #020617; color: #facc15; border: 1px solid #334155; border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer; outline: none;">
+              <option value="always">Always Resume Playback (Seamless)</option>
+              <option value="within_5m">Resume if Left Within 5 Minutes</option>
+              <option value="within_15m">Resume if Left Within 15 Minutes</option>
+              <option value="restart">Always Restart on Room Enter</option>
+            </select>
+          </div>
         </div>
 
         <!-- Video & Graphics -->
@@ -1095,6 +1082,29 @@
           </div>
         </div>
 
+        <!-- Cinematics & Lore Reels -->
+        <div style="background: #080c18; border: 1px solid #1e293b; padding: 10px; border-radius: 4px;">
+          <div style="font-weight: 700; color: #facc15; margin-bottom: 6px;">🎬 CINEMATICS &amp; LORE THEATRE</div>
+          <div style="font-size: 10px; color: #94a3b8; margin-bottom: 8px;">
+            Watch universe origin cinematics, 8 class awakenings, world boss encounters, and monolith climaxes in full 1080p.
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button class="util-btn" style="font-size: 9px; padding: 4px 8px; border-color: #38bdf8; color: #38bdf8;" onclick="playCinematicModal('crystal_heart')">💎 Crystal Heart</button>
+            <button class="util-btn" style="font-size: 9px; padding: 4px 8px; border-color: #facc15; color: #facc15;" onclick="playCinematicModal('solari_vanguard')">⚔️ Vanguard Awakening</button>
+            <button class="util-btn" style="font-size: 9px; padding: 4px 8px; border-color: #f59e0b; color: #f59e0b;" onclick="playCinematicModal('solari_dawnblade')">🗡️ Dawnblade Awakening</button>
+            <button class="util-btn" style="font-size: 9px; padding: 4px 8px; border-color: #a855f7; color: #c084fc;" onclick="playCinematicModal('umbri_reaper')">💀 Reaper Awakening</button>
+            <button class="util-btn" style="font-size: 9px; padding: 4px 8px; border-color: #8b5cf6; color: #a78bfa;" onclick="playCinematicModal('umbri_shadowweaver')">🔮 Shadowweaver</button>
+            <button class="util-btn" style="font-size: 9px; padding: 4px 8px; border-color: #22c55e; color: #4ade80;" onclick="playCinematicModal('terra_ironroot')">🛡️ Ironroot Colossus</button>
+            <button class="util-btn" style="font-size: 9px; padding: 4px 8px; border-color: #10b981; color: #34d399;" onclick="playCinematicModal('terra_bramble_warden')">🏹 Bramble Warden</button>
+            <button class="util-btn" style="font-size: 9px; padding: 4px 8px; border-color: #06b6d4; color: #22d3ee;" onclick="playCinematicModal('aether_chronomancer')">⏳ Chronomancer</button>
+            <button class="util-btn" style="font-size: 9px; padding: 4px 8px; border-color: #0284c7; color: #38bdf8;" onclick="playCinematicModal('aether_tempest_sage')">⚡ Tempest Sage</button>
+            <button class="util-btn" style="font-size: 9px; padding: 4px 8px; border-color: #ef4444; color: #f87171;" onclick="playCinematicModal('colossus_emergence')">🗿 Colossus Emergence</button>
+            <button class="util-btn" style="font-size: 9px; padding: 4px 8px; border-color: #eab308; color: #fde047;" onclick="playCinematicModal('boss_defeated')">🏆 Boss Defeated</button>
+            <button class="util-btn" style="font-size: 9px; padding: 4px 8px; border-color: #f43f5e; color: #fb7185;" onclick="playCinematicModal('monolith_explosion')">💥 Monolith Cataclysm</button>
+            <button class="util-btn" style="font-size: 9px; padding: 4px 8px;" onclick="playCinematicModal('sprite_sheet')">🎞️ Hero Sprite Reel</button>
+          </div>
+        </div>
+
         <!-- Controls Helper -->
         <div style="background: #080c18; border: 1px solid #1e293b; padding: 10px; border-radius: 4px;">
           <div style="font-weight: 700; color: #facc15; margin-bottom: 6px;">🎮 CONTROLS &amp; SHORTCUTS</div>
@@ -1130,10 +1140,21 @@
           <div style="display: flex; align-items: center; gap: 2px;"><input type="number" id="vol-sfx-number" min="0" max="100" step="1" value="80" onchange="setAudioVolume('sfx', this.value)" style="width: 42px; background: #020617; color: #86efac; border: 1px solid #334155; border-radius: 3px; padding: 3px; font-size: 10px;" /><span style="font-size: 9px; color: #94a3b8;">%</span></div>
         </div>
       </div>
-      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 12px; font-size: 10px; color: #e2e8f0;">
-        <input type="checkbox" id="mixer-bgm-checkbox" onchange="toggleBgmMute(this.checked)" checked />
-        Enable Background Music
-      </label>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px; gap: 8px; flex-wrap: wrap;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 10px; color: #e2e8f0;">
+          <input type="checkbox" id="mixer-bgm-checkbox" onchange="toggleBgmMute(this.checked)" checked />
+          <span>Enable Background Music</span>
+        </label>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 9px; color: #94a3b8;">Room Resume:</span>
+          <select id="mixer-bgm-resume-select" onchange="setBgmResumeMode(this.value)" style="background: #020617; color: #facc15; border: 1px solid #334155; border-radius: 3px; padding: 3px 6px; font-size: 9px; cursor: pointer; outline: none;">
+            <option value="always">Always Resume (Seamless)</option>
+            <option value="within_5m">Resume if Left &le; 5m</option>
+            <option value="within_15m">Resume if Left &le; 15m</option>
+            <option value="restart">Always Restart Track</option>
+          </select>
+        </div>
+      </div>
       <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; border-top: 1px solid #1e293b; padding-top: 12px;">
         <button class="util-btn" style="font-size: 10px; border-color: #ef4444; color: #fca5a5;" onclick="muteAllAudio()">🔇 MUTE ALL</button>
         <button class="util-btn" style="font-size: 10px;" onclick="resetAudioVolumes()">↺ RESET LEVELS</button>
@@ -1539,23 +1560,125 @@
   </div>
   <script>
     (function() {
+      var BLOB_BASE = 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/';
+      var FALLBACK_URL = BLOB_BASE + 'crystal_heart_shattering_1080p.mp4';
+
       var CINEMATICS = {
+        // Scene 1: Crystal Heart Shattering (Universal Prologue)
         crystal_heart: {
           title: 'THE SHATTERING OF THE CRYSTAL HEART (1080P)',
-          badge: '1080P PROLOGUE CINEMATIC • UNIVERSE ORIGIN',
-          url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/crystal_heart_shattering_1080p.mp4',
+          badge: 'SCENE 1 • 1080P PROLOGUE CINEMATIC',
+          url: BLOB_BASE + 'crystal_heart_shattering_1080p.mp4',
           caption: 'Before the continental caldera took shape, cosmic tensions fractured the Crystal Heart into falling iridescent meteors, fracturing primordial Glimmer into the four elemental aspects.'
         },
+
+        // Scene 2A - 2H: 1 Awakening Per Heroic Class
+        solari_vanguard: {
+          title: 'KNIGHT AWAKENING: SOLARI VANGUARD (1080P)',
+          badge: 'SCENE 2A • SOLARI TANK AWAKENING',
+          url: BLOB_BASE + 'awakening_solari_vanguard_1080p.mp4',
+          fallbackUrl: FALLBACK_URL,
+          caption: 'A golden knight in radiant Dawnplate armor kneels at dawn. As their broadsword strikes the stone dais, blinding solar light erupts in an expanding aura of sunfire.'
+        },
+        solari_dawnblade: {
+          title: 'BLADE AWAKENING: SOLARI DAWNWAVE (1080P)',
+          badge: 'SCENE 2B • SOLARI MELEE AWAKENING',
+          url: BLOB_BASE + 'awakening_solari_dawnblade_1080p.mp4',
+          fallbackUrl: FALLBACK_URL,
+          caption: 'Twin curved scimitars forged from solar plasma ignite in blazing streaks, carving through morning mist with blistering speed.'
+        },
+        umbri_reaper: {
+          title: 'HARBINGER AWAKENING: UMBRI REAPER (1080P)',
+          badge: 'SCENE 2C • UMBRI HARBINGER AWAKENING',
+          url: BLOB_BASE + 'awakening_umbri_reaper_1080p.mp4',
+          fallbackUrl: FALLBACK_URL,
+          caption: 'A hooded phantom materializes amidst creeping violet fog. An obsidian scythe sweeps open a tear into the Nether Void.'
+        },
+        umbri_shadowweaver: {
+          title: 'SORCERER AWAKENING: UMBRI SHADOWWEAVER (1080P)',
+          badge: 'SCENE 2D • UMBRI CASTER AWAKENING',
+          url: BLOB_BASE + 'awakening_umbri_shadowweaver_1080p.mp4',
+          fallbackUrl: FALLBACK_URL,
+          caption: 'Floating suspended above the Sepulcher Undercity, dusk soul wisps spiral around shadowy silk threads tethered to the nether cosmos.'
+        },
+        terra_ironroot: {
+          title: 'COLOSSUS AWAKENING: TERRA IRONROOT GUARDIAN (1080P)',
+          badge: 'SCENE 2E • TERRA TITAN AWAKENING',
+          url: BLOB_BASE + 'awakening_terra_ironroot_1080p.mp4',
+          fallbackUrl: FALLBACK_URL,
+          caption: 'A massive titan encased in living petrified bark slams a stone tower shield into fertile soil, sending roots erupting with emerald luminescence.'
+        },
+        terra_bramble_warden: {
+          title: 'RANGER AWAKENING: TERRA BRAMBLE WARDEN (1080P)',
+          badge: 'SCENE 2F • TERRA ARCHER AWAKENING',
+          url: BLOB_BASE + 'awakening_terra_bramble_warden_1080p.mp4',
+          fallbackUrl: FALLBACK_URL,
+          caption: 'Drawing back a living bramblewood longbow under ancient giant pines, crystalline thorn arrows ignite with emerald starlight.'
+        },
+        aether_chronomancer: {
+          title: 'TEMPORAL AWAKENING: AETHER CHRONOMANCER (1080P)',
+          badge: 'SCENE 2G • AETHER MAGE AWAKENING',
+          url: BLOB_BASE + 'awakening_aether_chronomancer_1080p.mp4',
+          fallbackUrl: FALLBACK_URL,
+          caption: 'Concentric astrolabe glyphs spin in reverse. Crystalline hourglass sand flows upward as temporal rifts pulse in cyan starlight.'
+        },
+        aether_tempest_sage: {
+          title: 'STORMBALL AWAKENING: AETHER TEMPEST SAGE (1080P)',
+          badge: 'SCENE 2H • AETHER LIGHTNING AWAKENING',
+          url: BLOB_BASE + 'awakening_aether_tempest_sage_1080p.mp4',
+          fallbackUrl: FALLBACK_URL,
+          caption: 'Floating above the Mirrorgate Spire, azure chain lightning crackles across fingertips, coalescing into an electric tempest vortex.'
+        },
+
+        // Scene 3: Colossus Emergence (World Boss Entrance)
+        colossus_emergence: {
+          title: 'THE COLOSSUS EMERGENCE: STARFALL CATACLYSM (1080P)',
+          badge: 'SCENE 3 • WORLD BOSS EMERGENCE',
+          url: BLOB_BASE + 'scene3_colossus_emergence_1080p.mp4',
+          fallbackUrl: FALLBACK_URL,
+          caption: 'Deep within the Starfall Caldera, molten earth shatters as an ancient stone titan breaches the surface, glowing runes roaring with primordial energy.'
+        },
+
+        // Scene 4: Boss Defeated (Victory Fanfare)
+        boss_defeated: {
+          title: 'CATACLYSM CONQUERED: BOSS DEFEATED (1080P)',
+          badge: 'SCENE 4 • VICTORY FANFARE & SPOILS',
+          url: BLOB_BASE + 'scene4_boss_defeated_1080p.mp4',
+          fallbackUrl: FALLBACK_URL,
+          caption: 'The colossal titan dissolves into a fountain of crystalline starlight and celestial loot prisms, raining triumph over the victorious orders.'
+        },
+
+        // Scene 5: Nexus Monolith Explosion (3v3 Climax Cataclysm)
+        monolith_explosion: {
+          title: 'WARZONE COLLAPSE: NEXUS MONOLITH SUPERNOVA (1080P)',
+          badge: 'SCENE 5 • 3V3 CLIMAX CATACLYSM',
+          url: BLOB_BASE + 'scene5_monolith_explosion_1080p.mp4',
+          fallbackUrl: FALLBACK_URL,
+          caption: 'Overloaded by conflicting continental leylines, the central Nexus Monolith implodes, unleashing a blinding prismatic blast that reshapes the warzone.'
+        },
+
+        // Bonus: Hero Sprite Reel
         sprite_sheet: {
           title: 'CANONICAL HERO SPRITE ANIMATION REEL (1080P)',
           badge: '60 FPS PIXEL ANIMATION SHOWCASE',
-          url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/pixel_art_animation_sheet_1080p.mp4',
+          url: BLOB_BASE + 'pixel_art_animation_sheet_1080p.mp4',
           caption: 'Official 60 FPS pixel art animation sheet showcasing idle stances, 8-directional sprints, slashing melee strikes, and spellcasting rites across the realm\'s archetypes.'
         }
       };
 
-      var PROLOGUE_URL = 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/crystal_heart_shattering_1080p.mp4';
+      // Aliases
+      CINEMATICS.awakening_solari_vanguard = CINEMATICS.solari_vanguard;
+      CINEMATICS.awakening_solari_dawnblade = CINEMATICS.solari_dawnblade;
+      CINEMATICS.awakening_umbri_reaper = CINEMATICS.umbri_reaper;
+      CINEMATICS.awakening_umbri_shadowweaver = CINEMATICS.umbri_shadowweaver;
+      CINEMATICS.awakening_terra_ironroot = CINEMATICS.terra_ironroot;
+      CINEMATICS.awakening_terra_bramble_warden = CINEMATICS.terra_bramble_warden;
+      CINEMATICS.awakening_aether_chronomancer = CINEMATICS.aether_chronomancer;
+      CINEMATICS.awakening_aether_tempest_sage = CINEMATICS.aether_tempest_sage;
+
+      var PROLOGUE_URL = BLOB_BASE + 'crystal_heart_shattering_1080p.mp4';
       var prologueCallback = null;
+      var cinematicModalCallback = null;
 
       window.playPrologueCinematic = function(options) {
         var onComplete = (typeof options === 'function') ? options : (options && options.onComplete);
@@ -1608,7 +1731,8 @@
       document.getElementById('prologue-floating-skip-btn')?.addEventListener('click', window.skipPrologueCinematic);
       document.getElementById('prologue-modal-video')?.addEventListener('ended', window.skipPrologueCinematic);
 
-      window.playCinematicModal = function(type) {
+      window.playCinematicModal = function(type, onComplete) {
+        cinematicModalCallback = onComplete || null;
         var data = CINEMATICS[type] || CINEMATICS.crystal_heart;
         var overlay = document.getElementById('cinematic-modal-overlay');
         var title = document.getElementById('cinematic-modal-title');
@@ -1620,10 +1744,26 @@
         if (title) title.textContent = data.title;
         if (badge) badge.textContent = data.badge;
         if (caption) caption.textContent = data.caption;
+
+        // Try primary URL, fallback smoothly if not yet uploaded
+        video.onerror = function() {
+          if (data.fallbackUrl && video.src !== data.fallbackUrl) {
+            console.log('[Cinematics] Primary not found, using fallback:', data.fallbackUrl);
+            video.src = data.fallbackUrl;
+            video.play().catch(function() {});
+          }
+        };
+
         video.src = data.url;
         video.currentTime = 0;
         overlay.style.display = 'flex';
         video.play().catch(function() {});
+      };
+
+      window.playClassAwakening = function(classId, callback) {
+        var key = 'awakening_' + classId;
+        if (!CINEMATICS[key]) key = classId;
+        window.playCinematicModal(key, callback);
       };
 
       window.closeCinematicModal = function() {
@@ -1635,7 +1775,15 @@
           try { video.load(); } catch(_) {}
         }
         if (overlay) overlay.style.display = 'none';
+
+        if (cinematicModalCallback) {
+          var cb = cinematicModalCallback;
+          cinematicModalCallback = null;
+          cb();
+        }
       };
+
+      document.getElementById('cinematic-modal-video')?.addEventListener('ended', window.closeCinematicModal);
 
       window.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {

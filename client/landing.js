@@ -147,32 +147,6 @@ export class LandingPageController {
     }
   }
 
-  startContinuousScroll(direction) {
-    this.stopContinuousScroll();
-    const el = this.getScrollContainer();
-    if (!el) return;
-    el.scrollBy({ top: direction * 420, behavior: 'smooth' });
-    this._scrollHoldTimeout = setTimeout(() => {
-      this._scrollHoldInterval = setInterval(() => {
-        const container = this.getScrollContainer();
-        if (container) {
-          container.scrollTop += direction * 35;
-        }
-      }, 35);
-    }, 260);
-  }
-
-  stopContinuousScroll() {
-    if (this._scrollHoldTimeout) {
-      clearTimeout(this._scrollHoldTimeout);
-      this._scrollHoldTimeout = null;
-    }
-    if (this._scrollHoldInterval) {
-      clearInterval(this._scrollHoldInterval);
-      this._scrollHoldInterval = null;
-    }
-  }
-
   initScreenPanning() {
     if (this._panningInitialized || typeof window === 'undefined' || typeof document === 'undefined') return;
     this._panningInitialized = true;
@@ -188,7 +162,7 @@ export class LandingPageController {
 
       const interactive = e.target.closest(
         'button, a, input, select, textarea, video, canvas, [role="button"], ' +
-        '.dock-action-btn, .dock-pill-btn, .pixel-gear-slot, .faction-select-card, ' +
+        '.pixel-gear-slot, .faction-select-card, ' +
         '.class-select-card, .order-select-btn, .enc-switch-btn, .tcg-card-item, ' +
         '.sidebar-mode-btn, .sidebar-cta-btn, .sidebar-nav-link, .hero-btn-primary, .hero-btn-secondary'
       );
@@ -1307,49 +1281,6 @@ export class LandingPageController {
             <div style="margin-top:6px;">&copy; 2026 GlimmerFall. All rights reserved.</div>
           </footer>
         </main>
-
-        <!-- FLOATING ON-SCREEN NAVIGATION & SCROLL DOCK (Broken Mouse Wheel Support) -->
-        <div class="landing-scroll-dock">
-          <div class="dock-card-panel">
-            <div class="dock-header-row">
-              <div class="dock-title">
-                <span>🧭</span> SCROLL &amp; NAV DOCK
-              </div>
-              <div class="dock-controls-row">
-                <button type="button" class="dock-action-btn" title="Scroll to Top [Home]" onclick="window._landing.scrollToTop()">
-                  ⏮ Top
-                </button>
-                <button type="button" class="dock-action-btn primary" title="Scroll Up 420px (Click or Hold)"
-                        onmousedown="window._landing.startContinuousScroll(-1)"
-                        onmouseup="window._landing.stopContinuousScroll()"
-                        onmouseleave="window._landing.stopContinuousScroll()"
-                        onclick="window._landing.scrollUp()">
-                  ▲ Up
-                </button>
-                <button type="button" class="dock-action-btn primary" title="Scroll Down 420px (Click or Hold)"
-                        onmousedown="window._landing.startContinuousScroll(1)"
-                        onmouseup="window._landing.stopContinuousScroll()"
-                        onmouseleave="window._landing.stopContinuousScroll()"
-                        onclick="window._landing.scrollDown()">
-                  ▼ Down
-                </button>
-                <button type="button" class="dock-action-btn" title="Scroll to Bottom [End]" onclick="window._landing.scrollToBottom()">
-                  ⏭ Bottom
-                </button>
-              </div>
-            </div>
-            <div class="dock-pills-row">
-              <button type="button" class="dock-pill-btn" onclick="window._landing.scrollToSection('prologue-hero')">🎬 Prologue</button>
-              <button type="button" class="dock-pill-btn" onclick="window._landing.scrollToSection('forge')">⚔️ Hero Forge</button>
-              <button type="button" class="dock-pill-btn" onclick="window._landing.scrollToSection('game-encyclopedia')">🎮 Encyclopedia</button>
-              <button type="button" class="dock-pill-btn" onclick="window._landing.scrollToSection('lore-chronicle')">📜 Lore</button>
-              <button type="button" class="dock-pill-btn" onclick="window._landing.scrollToSection('armory')">🛡️ Armory</button>
-              <button type="button" class="dock-pill-btn" onclick="window._landing.scrollToSection('arena')">⚡ 3v3 Arena</button>
-              <button type="button" class="dock-pill-btn" onclick="window._landing.scrollToSection('atlas')">🗺️ Atlas</button>
-              <button type="button" class="dock-pill-btn" onclick="window._landing.scrollToSection('settings')">⚙️ Settings</button>
-            </div>
-          </div>
-        </div>
       </div>
     `;
   }

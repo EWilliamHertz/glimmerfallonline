@@ -1,117 +1,156 @@
 # 🎬 GlimmerFall Online — Google Flow (Veo) Cinematics Production Guide
 
-A production guide for generating cinematic sequences for **GlimmerFall Online** using **Google Flow** (Google Veo).
+A production guide for generating cinematic sequences for **GlimmerFall Online** using **Google Flow** (powered by Google Veo).
 
 ---
 
-## ⚡ Google Flow API vs. Web Interface
+## ⚡ Key Question: "Should we maybe have 1 'knight awakening' per class?"
+> **Answer: YES, ABSOLUTELY!**
+> 
+> Having **1 distinct Awakening cinematic per class (8 archetypes across the 4 factions)** dramatically elevates the character selection and creation flow.
+> When a player picks the **Solari Vanguard**, they see a radiant Dawnplate knight planting a sun-forged broadsword. When they pick the **Umbri Reaper**, an obsidian scythe tears open a void rift. When they pick the **Aether Chronomancer**, celestial astrolabes reverse time.
+> 
+> All 8 Awakening prompts are written below with precise timing, visual cues, and palette notes.
 
-| Attribute | Google Flow Web Interface | Google Cloud Vertex AI Veo API |
+---
+
+## 🎥 Video Specifications for Google Flow
+
+| Parameter | Recommended Setting | Reason |
 | :--- | :--- | :--- |
-| **Model** | Google Veo / Veo 2 | `veo-2.0-generate-001` (Vertex AI) |
-| **Credits** | Uses your **1,000+ Google Flow Credits** | Billed per second to a GCP Cloud Project |
-| **Workflow** | Paste prompts, click generate, download MP4 | Requires Python/Node script + GCP Service Account |
-| **Recommendation** | **Use your 1,000+ Flow credits on the web UI!** Download the `.mp4` and drop them into the project. The agent uploads them to Vercel Blob and wires them into the game automatically. | Optional future upgrade for fully automated backend generation. |
+| **Resolution** | **1080p Full HD (1920 × 1080)** | Crystal-clear fidelity matching desktop monitors and retina displays |
+| **Aspect Ratio** | **16:9 Widescreen** | Fits in-game cinematic modals and hero creation pedestals |
+| **Duration** | **5 to 8 seconds** | Fast pacing, quick 4–8 MB downloads, instantaneous CDN delivery |
+| **Frame Rate** | **24 FPS** (or 30 FPS) | Cinematic motion blur with dramatic volumetric lighting |
+| **Audio** | Silent / Master Stems | The in-game audio engine cross-fades matching thematic music seamlessly |
+| **Skip Guard** | Instant Skip | Every cutscene is skippable via `[ESC]` or on-screen button |
 
 ---
 
-## 🎥 Recommended Generation Specs in Google Flow
-
-For seamless integration into GlimmerFall Online:
-- **Aspect Ratio**:
-  - **In-Game Cinematics**: `16:9` (Widescreen Landscape)
-  - **Social / TikTok / YouTube Shorts**: `9:16` (Vertical)
-- **Quality / Resolution**: `1080p` Full HD (or `720p` upscaled)
-- **Framerate**: `24 FPS` (Cinematic film look) or `30/60 FPS` (High-tempo action)
-- **Duration**: **6 to 8 seconds** (Optimal for pacing, file size, and fast web streaming)
+## 📋 Exact Copy-Paste Prompts for Google Flow
 
 ---
 
-## 📋 Copy-Paste Prompts for Google Flow
-
----
-
-### Scene 1: Prologue — The Shattered Crystal Heart
-> **When it plays**: Triggered once before Hero Selection on new accounts / characters, with an instant **"⏩ Skip to Hero Selection"** button.
-
-- **Duration**: `8 seconds`
-- **Aspect Ratio**: `16:9` (1080p)
-- **Camera Movement**: Slow 360-degree orbital rotation moving upward, followed by a sudden violent push-in upon fracture.
-- **Prompt to copy into Google Flow**:
+### Scene 1: Prologue — The Shattered Crystal Heart (Universe Origin)
+* **Status**: **Already Live on Vercel Blob** (`https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/crystal_heart_shattering_1080p.mp4`)
+* **When it plays**: Triggered once before Hero Selection for new players; replayable anytime from the Character Select screen, Settings, or Landing Page.
+* **Duration**: `8 seconds` | **Quality**: `1080p, 16:9, 24fps`
+* **Prompt to copy into Google Flow**:
 ```text
 Cinematic dark fantasy prologue, 1080p masterpiece. A colossal iridescent anatomical Crystal Heart floats in the cosmic void between a blazing golden sun and deep purple nebula. The crystal heart pulses with internal prismatic starlight. Suddenly, violent violet lightning fissures crack across its glass chambers. In an apocalyptic slow-motion detonation, the Crystal Heart shatters into thousands of glowing crystalline meteors trailing radiant gold and teal stardust, raining downward into an ancient continental crater below. Volumetric god rays, ethereal starlight embers, Unreal Engine 5 cinematic render, photorealistic crystal refraction, 8k resolution, highly detailed fantasy concept art.
 ```
 
 ---
 
-### Scene 2: Awakening & Spawning in Sanctuary Haven
-> **When it plays**: Triggered when a newly created summoner knight enters the game world at Sanctuary Haven for the very first time. Always skippable with `[ESC]` or `[Space]`.
+### Scene 2: The 8 Class Awakenings (1 Per Playable Class Archetype)
 
-- **Duration**: `6 seconds`
-- **Aspect Ratio**: `16:9` (1080p)
-- **Camera Movement**: Low-angle slow pedestal tilt upward from cobblestone to the hero's face.
-- **Prompt to copy into Google Flow**:
+#### 2A. Solari Vanguard (Golden Sun-Knight Tank)
+* **Class ID**: `solari_vanguard`
+* **Duration**: `6 seconds` | **Quality**: `1080p, 16:9, 24fps`
+* **Prompt to copy into Google Flow**:
 ```text
-Cinematic fantasy character awakening sequence. Inside a grand ancient stone cathedral with sunlight streaming through stained glass, a glowing starlight crystal stasis pillar begins to dissolve into iridescent motes of dust. A heroic knight clad in ornate gold and deep obsidian armor materializes on a glowing marble sigil. The knight's eyes open with a piercing cyan Glimmer glow. They raise a consecrated glowing spellblade as holy golden runes pulse across the cathedral floor. Cinematic camera tilting up from floor to hero's face, atmospheric dust motes, volumetric lighting, epic MMORPG intro cinematic, 1080p, hyper-detailed fantasy armor.
+Cinematic fantasy hero awakening, 1080p. Inside a sunlit marble cathedral, a towering knight clad in heavy golden Dawnplate armor kneels upon an ancient solar dais. As daybreak reaches the altar, the knight grips a massive glowing greatsword and thrusts it into the stone floor. An explosive radial shockwave of golden solar fire and floating radiant glyphs erupts around the warrior. The knight slowly looks up with piercing amber eyes as golden sunfire mantles his shoulders. Cinematic low-angle shot, golden hour lighting, lens flare, heroic fantasy, 24fps.
+```
+
+#### 2B. Solari Dawnblade (Solar Blade-Dancer Melee DPS)
+* **Class ID**: `solari_dawnblade`
+* **Duration**: `5 seconds` | **Quality**: `1080p, 16:9, 24fps`
+* **Prompt to copy into Google Flow**:
+```text
+Cinematic martial fantasy awakening, 1080p. An agile warrior draped in white and gold silk flourishes dual curved scimitars forged from solar plasma. She spins in blinding acrobatic slashes across an open sunspire terrace. Her blades leave blazing trails of liquid golden fire that coalesce into a soaring phoenix crest in the morning air. Dynamic tracking camera, sparkling ember sparks, sunrise horizon, 1080p, 24fps.
+```
+
+#### 2C. Umbri Reaper (Nether Void Harbinger Melee)
+* **Class ID**: `umbri_reaper`
+* **Duration**: `6 seconds` | **Quality**: `1080p, 16:9, 24fps`
+* **Prompt to copy into Google Flow**:
+```text
+Cinematic gothic dark fantasy awakening, 1080p. Thick violet mist creeps across the obsidian floor of an underground sepulcher. A shadowy hooded harbinger materializes from the fog, gripping an ornate obsidian scythe glowing with lavender runes. With one sweeping horizontal slash, the blade cleaves open reality itself, revealing a swirling violet void rift of whispering ethereal spirits in slow motion. Volumetric purple fog, gothic dungeon rim lighting, 1080p, 24fps.
+```
+
+#### 2D. Umbri Shadowweaver (Dusk Soul Caster Ranged)
+* **Class ID**: `umbri_shadowweaver`
+* **Duration**: `6 seconds` | **Quality**: `1080p, 16:9, 24fps`
+* **Prompt to copy into Google Flow**:
+```text
+Cinematic dark sorcery awakening, 1080p. A dusk sorcerer in flowing velvet robes levitates two feet above an ancient crypt. From their outstretched hands, glowing violet puppet threads weave through the air, tethered to spiraling soul wisps. The wisps assemble into a massive rotating eldritch eye sigil glowing with bioluminescent purple light. Cavernous candlelit ambience, slow orbital camera, surreal dark magic particles, 1080p, 24fps.
+```
+
+#### 2E. Terra Ironroot Guardian (Living Oak Colossus Tank)
+* **Class ID**: `terra_ironroot`
+* **Duration**: `6 seconds` | **Quality**: `1080p, 16:9, 24fps`
+* **Prompt to copy into Google Flow**:
+```text
+Cinematic nature titan awakening, 1080p. In the heart of an ancient primeval redwood grove, a titanic warrior encased in living petrified ironwood bark steps forward. The colossus slams a colossal granite tower shield into the mossy forest floor. A massive shockwave causes luminescent emerald roots and thick thorned vines to burst from the earth, wrapping around the guardian into an impenetrable living fortress. Volumetric forest sunbeams, floating pollen motes, 1080p, 24fps.
+```
+
+#### 2F. Terra Bramble Warden (Verdant Starlight Archer Ranged)
+* **Class ID**: `terra_bramble_warden`
+* **Duration**: `5 seconds` | **Quality**: `1080p, 16:9, 24fps`
+* **Prompt to copy into Google Flow**:
+```text
+Cinematic fantasy archer awakening, 1080p. A swift ranger perches on the high mossy bough of an autumn oak. She draws back an ancient recurve bow made of living bramblewood. Between her fingertips, an arrow of pure concentrated emerald starlight manifests, illuminating falling red and gold leaves. Slow-motion release sending a streak of emerald energy piercing through the forest canopy. Dynamic depth of field, magical starlight trails, 1080p, 24fps.
+```
+
+#### 2G. Aether Chronomancer (Temporal Astrolabe Caster)
+* **Class ID**: `aether_chronomancer`
+* **Duration**: `6 seconds` | **Quality**: `1080p, 16:9, 24fps`
+* **Prompt to copy into Google Flow**:
+```text
+Cinematic sci-fantasy temporal awakening, 1080p. Inside a floating celestial spire, a scholar in flowing azure silks stands amid giant rotating bronze astrolabes. An ornate crystal hourglass fractures in mid-air, but the shimmering sand reverses direction, flowing upward against gravity. A circular temporal rift opens behind the mage, pulsing with cyan cosmic equations and shimmering starlight. Surreal physics, sparkling chronos dust, lens flare, 1080p, 24fps.
+```
+
+#### 2H. Aether Tempest Sage (Celestial Storm Caller)
+* **Class ID**: `aether_tempest_sage`
+* **Duration**: `5 seconds` | **Quality**: `1080p, 16:9, 24fps`
+* **Prompt to copy into Google Flow**:
+```text
+Cinematic storm sorcerer awakening, 1080p. Hovering above a crystal spire in the heart of a raging thunderhead, a storm sage opens glowing cyan eyes. Crackling branches of azure chain lightning arc across their outstretched hands, coalescing into a spinning electric storm vortex that violently deflects falling raindrops. Epic lightning flashes, dynamic storm wind simulation, hyper-detailed particle lighting, 1080p, 24fps.
 ```
 
 ---
 
-### Scene 3: Boss Defeat — Solaris Core Colossus
-> **When it plays**: Plays in a triumphant 5-second cinematic window upon defeating the World Boss inside the Sunken Vault.
-
-- **Duration**: `6 seconds`
-- **Aspect Ratio**: `16:9` (1080p)
-- **Camera Movement**: Dynamic low-angle tracking shot zooming back as the colossus falls.
-- **Prompt to copy into Google Flow**:
+### Scene 3: The Colossus Emergence (World Boss Entrance)
+* **When it plays**: Triggered when the World Boss breaches the Starfall Caldera or when an Elite Champion spawns.
+* **Duration**: `6 seconds` | **Quality**: `1080p, 16:9, 24fps`
+* **Prompt to copy into Google Flow**:
 ```text
-Cinematic epic boss defeat climax. A gigantic ancient mechanical colossus forged of solar gold plates and burning starlight cores stumbles backward in a cavernous stone ruin. Cracks of blinding golden light erupt through its heavy armor plates. With a deafening roar, the colossus collapses to its knees and explodes into a radiant shockwave of golden sparks and floating solar embers. The dust clears to reveal a gleaming golden chest radiating divine light on the ancient altar. Cinematic slow-motion explosion, dramatic rim lighting, particles and smoke simulation, cinematic film still, 1080p.
+Cinematic epic world boss entrance, 1080p. Across a cracked volcanic caldera floor, the earth ruptures with violent seismic force. Giant basalt monoliths shatter upward as a gargantuan stone titan rises from the magma. Veins of glowing orange lava trace down its rocky shoulders, and ancient runic eyes ignite with blinding blue celestial fire. The colossus slams both rocky fists down, unleashing an apocalyptic shockwave of smoke and flying boulders. Epic scale, cinematic smoke simulation, 1080p, 24fps.
 ```
 
 ---
 
-### Scene 4: Boss Defeat — The Abyssal Devourer (Undercity)
-> **When it plays**: Plays upon slaying the subterranean void terror inside the Umbri Shadow Labyrinth.
-
-- **Duration**: `6 seconds`
-- **Aspect Ratio**: `16:9` (1080p)
-- **Camera Movement**: Crane shot rising above the collapsing abyss.
-- **Prompt to copy into Google Flow**:
+### Scene 4: Boss Defeated (Victory Fanfare & Celestial Starlight)
+* **When it plays**: Victory sequence upon conquering a world boss or winning a high-stakes 3v3 arena match.
+* **Duration**: `6 seconds` | **Quality**: `1080p, 16:9, 24fps`
+* **Prompt to copy into Google Flow**:
 ```text
-Cinematic dark fantasy boss vanquish. A terrifying multi-eyed shadow leviathan made of liquid smoke and amethyst crystal coils shrieks as ethereal cyan energy blades impale its core. The shadow beast collapses into a swirling purple gravitational singularity, imploding into ethereal mist and leaving behind a floating, glowing purple Graveglass relic core pulsing on the damp obsidian stone floor. Dark ethereal fantasy aesthetic, bioluminescent purple lighting, volumetric shadow smoke, dramatic camera pull back, 1080p cinematic render.
+Cinematic boss defeat victory sequence, 1080p. The defeated colossal stone titan stumbles and collapses to one knee on the battlefield. Cracks of golden celestial starlight rip through its stone body. In a gentle, awe-inspiring release of energy, the colossus dissolves into billions of iridescent starlight particles floating into the starry night sky, leaving behind a shower of radiant crystalline loot prisms and glowing golden relic chests. Triumphant heroic lighting, golden sparkles, 1080p, 24fps.
 ```
 
 ---
 
-### Scene 5: Outpost Nexus Shattering (3v3 Warzone Victory)
-> **When it plays**: Victory sequence when a rival faction's 25-HP Outpost Nexus reaches 0 HP in competitive Warzones.
-
-- **Duration**: `5 seconds`
-- **Aspect Ratio**: `16:9` (1080p)
-- **Camera Movement**: Fast dramatic whip pan towards the exploding monolith crystal.
-- **Prompt to copy into Google Flow**:
+### Scene 5: Nexus Monolith Explosion (3v3 Warzone Cataclysm)
+* **When it plays**: Warzone climax when a faction claims the central 25-HP Nexus Monolith in competitive battlegrounds.
+* **Duration**: `6 seconds` | **Quality**: `1080p, 16:9, 24fps`
+* **Prompt to copy into Google Flow**:
 ```text
-High-tempo cinematic battle finale. A massive floating crystalline monolith nexus on an ancient battlefield fractures under a final barrage of magical arrows and lightning spells. The monolith core detonates in an awe-inspiring shockwave of rainbow prismatic energy, sending shockwaves across the grassy plains. A grand faction war banner unfurls triumphantly in the wind as celebratory golden firework sparks fill the sky. Fast camera motion, dynamic motion blur, hyper-detailed explosion simulation, cinematic fantasy action movie still.
+High-tempo cinematic battle finale, 1080p. A massive hovering obsidian monolith at the center of a continental battlefield begins vibrating with unstable elemental energy. Four leylines of gold, purple, emerald, and cyan light converge into its core. The monolith shatters into hovering geometric fragments before detonating into a blinding white-and-rainbow prismatic supernova explosion that clears the clouds above. Epic fantasy action finale, blinding radial shockwave, dynamic motion blur, 1080p, 24fps.
 ```
 
 ---
 
-### Scene 6: Viral TikTok / YouTube Shorts Marketing Teaser
-> **When it plays**: Used for social media advertising, TikTok, YouTube Shorts, and Instagram Reels.
+## 3. How to Upload & Link into the Game
 
-- **Duration**: `8 to 10 seconds`
-- **Aspect Ratio**: `9:16` (Vertical Mobile, 1080x1920)
-- **Camera Movement**: Fast, relentless forward push-in with dynamic rotation.
-- **Prompt to copy into Google Flow**:
-```text
-Viral fantasy action game trailer cinematic in 9:16 vertical format. Fast-paced montage: first, an iridescent magical crystal heart detonates in deep space; cut to a heroic pixel knight in radiant armor drawing a blazing spellblade; cut to four distinct elemental warriors (solar gold, void purple, nature emerald, arcane cyan) clashing on an ancient battlefield; cut to a gigantic ancient stone titan roaring under a cosmic aurora. High saturation, neon glow accents, epic cinematic trailer lighting, intense motion, 60fps aesthetic, photorealistic VFX.
+### Automated Upload Script
+Drop any generated `.mp4` into `assets/cinematics/` or the project root and run:
+```bash
+node scripts/upload-blob-cinematics.mjs --file assets/cinematics/awakening_solari_vanguard_1080p.mp4
 ```
+The script uses your configured `BLOB_READ_WRITE_TOKEN` to upload to Vercel Blob and outputs the public URL.
 
----
-
-## 🚀 How to Ingest Generated Clips into GlimmerFall
-
-1. **Generate in Google Flow**: Paste any of the prompts above into Google Flow, select **16:9 (or 9:16)**, generate, and click **Download MP4**.
-2. **Drop into Workspace**: Drop the downloaded `.mp4` into the project root (e.g. `glimmerfall_prologue.mp4`).
-3. **Automated Cloud Hosting**: The system uploads it directly to your Vercel Blob store (`store_O20ql1pn6R6cwj04`) using your `BLOB_READ_WRITE_TOKEN`.
-4. **Instant In-Game Integration**: The video is assigned an authoritative URL and registered into `window.playCinematicModal(type)` and the hero selection flow with an always-skippable `[Skip]` button!
+### In-Game UI Integration
+- **Character Creation**: When forging a new character, their class awakening plays automatically (skippable with `[ESC]`).
+- **Pedestal Visage**: Clicking `[🎬 WATCH CLASS AWAKENING]` on any character pedestal in Hero Selection immediately previews their video.
+- **Cinematics & Lore Theatre**: Located in **ESC -> Settings -> 🎬 CINEMATICS & LORE THEATRE**, allowing instant review of all 13 cinematics.
+- **Zero Broken Links**: If any video has not yet been generated, the game client automatically falls back to the high-definition Crystal Heart prologue or sprite reel with zero errors.

@@ -20,6 +20,8 @@ export default function RootLayout({ children }) {
             margin: 0;
             padding: 0;
             min-height: 100vh;
+            touch-action: pan-y !important;
+            -webkit-overflow-scrolling: touch !important;
           }
           html {
             scrollbar-width: thin;

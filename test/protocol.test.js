@@ -870,7 +870,8 @@ test('LandingPageController initializes, toggles Start on this site, and renders
 
   const landingCss = fs.readFileSync(new URL('../client/styles/landing.css', import.meta.url), 'utf-8');
   assert.ok(landingCss.includes('linear-gradient(180deg, #facc15 0%, #ca8a04 100%)'), 'landing.css must include accessible scrollbar thumb');
-  assert.ok(landingCss.includes('.landing-scroll-dock'), 'landing.css must include floating scroll dock styling');
+  assert.ok(landingCss.includes('touch-action: pan-y !important;'), 'landing.css must enable native touch-action: pan-y for finger scrolling');
+  assert.ok(!landingCss.includes('.landing-scroll-dock'), 'landing.css must not contain the deleted scroll modal/dock');
 });
 
 test('Glimmer harvesting preserves active solarCharge and does not revert to cached profile value', () => {

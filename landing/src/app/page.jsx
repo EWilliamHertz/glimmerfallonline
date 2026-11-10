@@ -349,44 +349,9 @@ export default function LandingPage() {
     };
   }, []);
 
-  const scrollRef = React.useRef({ timeout: null, interval: null });
-
-  const scrollUp = (amount = 420) => {
-    window.scrollBy({ top: -amount, behavior: 'smooth' });
-  };
-  const scrollDown = (amount = 420) => {
-    window.scrollBy({ top: amount, behavior: 'smooth' });
-  };
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-  const scrollToBottom = () => {
-    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
-  };
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const startContinuousScroll = (direction) => {
-    stopContinuousScroll();
-    window.scrollBy({ top: direction * 420, behavior: 'smooth' });
-    scrollRef.current.timeout = setTimeout(() => {
-      scrollRef.current.interval = setInterval(() => {
-        window.scrollBy({ top: direction * 35 });
-      }, 35);
-    }, 260);
-  };
-
-  const stopContinuousScroll = () => {
-    if (scrollRef.current.timeout) {
-      clearTimeout(scrollRef.current.timeout);
-      scrollRef.current.timeout = null;
-    }
-    if (scrollRef.current.interval) {
-      clearInterval(scrollRef.current.interval);
-      scrollRef.current.interval = null;
-    }
   };
 
   const handleToggleStartOnSite = (checked) => {
@@ -1623,67 +1588,6 @@ export default function LandingPage() {
           </div>
         </footer>
       </main>
-
-      {/* Floating On-Screen Navigation & Scroll Dock (Broken Mouse Wheel Support) */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2 pointer-events-none">
-        <div className="bg-[#080E1C]/95 border border-[#FACC15]/50 shadow-[0_10px_30px_rgba(0,0,0,0.85),0_0_20px_rgba(250,204,21,0.25)] backdrop-blur-xl rounded-2xl p-3 flex flex-col gap-2.5 max-w-sm pointer-events-auto">
-          <div className="flex justify-between items-center gap-3 border-b border-white/10 pb-2">
-            <span className="font-display font-bold text-xs text-[#FACC15] flex items-center gap-1.5">
-              🧭 SCROLL &amp; NAV DOCK
-            </span>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={scrollToTop}
-                title="Scroll to Top [Home]"
-                className="px-2.5 py-1 rounded-lg bg-[#1E293B] hover:bg-[#334155] border border-white/10 text-xs font-bold text-white hover:text-[#FACC15] transition-all cursor-pointer"
-              >
-                ⏮ Top
-              </button>
-              <button
-                type="button"
-                onClick={() => scrollUp(420)}
-                onMouseDown={() => startContinuousScroll(-1)}
-                onMouseUp={stopContinuousScroll}
-                onMouseLeave={stopContinuousScroll}
-                title="Scroll Up 420px (Click or Hold)"
-                className="px-3 py-1 rounded-lg bg-amber-700 hover:bg-amber-600 border border-[#FACC15] text-xs font-black text-amber-100 hover:text-white transition-all cursor-pointer shadow-[0_0_10px_rgba(250,204,21,0.3)]"
-              >
-                ▲ Up
-              </button>
-              <button
-                type="button"
-                onClick={() => scrollDown(420)}
-                onMouseDown={() => startContinuousScroll(1)}
-                onMouseUp={stopContinuousScroll}
-                onMouseLeave={stopContinuousScroll}
-                title="Scroll Down 420px (Click or Hold)"
-                className="px-3 py-1 rounded-lg bg-amber-700 hover:bg-amber-600 border border-[#FACC15] text-xs font-black text-amber-100 hover:text-white transition-all cursor-pointer shadow-[0_0_10px_rgba(250,204,21,0.3)]"
-              >
-                ▼ Down
-              </button>
-              <button
-                type="button"
-                onClick={scrollToBottom}
-                title="Scroll to Bottom [End]"
-                className="px-2.5 py-1 rounded-lg bg-[#1E293B] hover:bg-[#334155] border border-white/10 text-xs font-bold text-white hover:text-[#FACC15] transition-all cursor-pointer"
-              >
-                ⏭ Bottom
-              </button>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-1.5 justify-end">
-            <button type="button" onClick={() => scrollToSection('prologue-hero')} className="px-2.5 py-0.5 rounded-full bg-[#0F172A] hover:bg-[#38BDF8]/20 border border-[#1E293B] hover:border-[#38BDF8] text-[10px] font-bold text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer">🎬 Prologue</button>
-            <button type="button" onClick={() => scrollToSection('forge')} className="px-2.5 py-0.5 rounded-full bg-[#0F172A] hover:bg-[#38BDF8]/20 border border-[#1E293B] hover:border-[#38BDF8] text-[10px] font-bold text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer">⚔️ Hero Forge</button>
-            <button type="button" onClick={() => scrollToSection('game-encyclopedia')} className="px-2.5 py-0.5 rounded-full bg-[#0F172A] hover:bg-[#38BDF8]/20 border border-[#1E293B] hover:border-[#38BDF8] text-[10px] font-bold text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer">🎮 Encyclopedia</button>
-            <button type="button" onClick={() => scrollToSection('lore-chronicle')} className="px-2.5 py-0.5 rounded-full bg-[#0F172A] hover:bg-[#38BDF8]/20 border border-[#1E293B] hover:border-[#38BDF8] text-[10px] font-bold text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer">📜 Lore</button>
-            <button type="button" onClick={() => scrollToSection('armory')} className="px-2.5 py-0.5 rounded-full bg-[#0F172A] hover:bg-[#38BDF8]/20 border border-[#1E293B] hover:border-[#38BDF8] text-[10px] font-bold text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer">🛡️ Armory</button>
-            <button type="button" onClick={() => scrollToSection('arena')} className="px-2.5 py-0.5 rounded-full bg-[#0F172A] hover:bg-[#38BDF8]/20 border border-[#1E293B] hover:border-[#38BDF8] text-[10px] font-bold text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer">⚡ 3v3 Arena</button>
-            <button type="button" onClick={() => scrollToSection('atlas')} className="px-2.5 py-0.5 rounded-full bg-[#0F172A] hover:bg-[#38BDF8]/20 border border-[#1E293B] hover:border-[#38BDF8] text-[10px] font-bold text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer">🗺️ Atlas</button>
-            <button type="button" onClick={() => scrollToSection('settings')} className="px-2.5 py-0.5 rounded-full bg-[#0F172A] hover:bg-[#38BDF8]/20 border border-[#1E293B] hover:border-[#38BDF8] text-[10px] font-bold text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer">⚙️ Settings</button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

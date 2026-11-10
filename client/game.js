@@ -2497,9 +2497,25 @@ export function initGame() {
     if (mixerCb) mixerCb.checked = !audio.bgmMuted;
     const settingsCb = document.getElementById('settings-bgm-checkbox');
     if (settingsCb) settingsCb.checked = !audio.bgmMuted;
+
+    const resumeMode = audio.getResumeMode ? audio.getResumeMode() : 'always';
+    const settingsSelect = document.getElementById('settings-bgm-resume-select');
+    if (settingsSelect) settingsSelect.value = resumeMode;
+    const mixerSelect = document.getElementById('mixer-bgm-resume-select');
+    if (mixerSelect) mixerSelect.value = resumeMode;
   }
 
   window.syncAudioMixerUI = syncAudioMixerUI;
+
+  window.setBgmResumeMode = function (mode) {
+    if (audio.setResumeMode) {
+      audio.setResumeMode(mode);
+    }
+    const settingsSelect = document.getElementById('settings-bgm-resume-select');
+    if (settingsSelect) settingsSelect.value = mode;
+    const mixerSelect = document.getElementById('mixer-bgm-resume-select');
+    if (mixerSelect) mixerSelect.value = mode;
+  };
 
   window.setAudioVolume = function (channel, value) {
     const applied = audio.setVolume(channel, value);

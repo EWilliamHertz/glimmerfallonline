@@ -1,5 +1,5 @@
 // ==========================================
-// GlimmerFall Online 2D — 16-Bit Chiptune SFX & Procedural BGM Engine
+// GlimmerFall Online 2D — 16-Bit Chiptune SFX & Polyphonic Procedural BGM Engine
 // Zones & Themes:
 //   - 'sanctuary' : Awakening Sanctuary Haven (Pixel Overloop / ethereal starlight)
 //   - 'solari'    : Lantern District & Golden Citadel (Daybreak at the Sunspire)
@@ -7,8 +7,8 @@
 //   - 'terra'     : Glimmer Orchard & Rootdeep Expanse (The Rootdeep Hymn)
 //   - 'aether'    : Mirrorgate Spire & Continuum (Mirrorgate Continuum)
 //   - 'abyss'     : Starfall Crater & Abyssal Rift (Cataclysm at Starfall)
-//   - 'warzone'   : Nexus Warzone (Heroic Continental battle pulse)
-//   - 'boss'      : World Boss / Siege Monolith / 3v3 Climax (driving climax tracker)
+//   - 'warzone'   : Nexus Continental Caldera (Heroic Battle March)
+//   - 'boss'      : World Boss / Siege Monolith / 3v3 Climax (Nexus Climax Tracker)
 // ==========================================
 
 export const BGM_THEMES = {
@@ -17,128 +17,272 @@ export const BGM_THEMES = {
     audioFile: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/sanctuary_pixel_overloop.m4a',
     stepMs: 240,
     leadType: 'triangle',
+    harmonyType: 'sine',
     bassType: 'triangle',
     leadGain: 0.045,
+    harmonyGain: 0.022,
     bassGain: 0.04,
     lead: [
       587.33, 739.99, 880.0, 1174.66, 880.0, 739.99, 659.25, 739.99,
       587.33, 659.25, 880.0, 1108.73, 987.77, 880.0, 739.99, 659.25,
+      587.33, 739.99, 880.0, 1174.66, 1318.51, 1174.66, 987.77, 880.0,
+      739.99, 880.0, 1108.73, 1174.66, 880.0, 739.99, 659.25, 587.33,
+    ],
+    harmony: [
+      293.66, 369.99, 440.0, 587.33, 440.0, 369.99, 329.63, 369.99,
+      293.66, 329.63, 440.0, 554.37, 493.88, 440.0, 369.99, 329.63,
+      293.66, 369.99, 440.0, 587.33, 659.25, 587.33, 493.88, 440.0,
+      369.99, 440.0, 554.37, 587.33, 440.0, 369.99, 329.63, 293.66,
     ],
     bass: [
       146.83, 0, 220.0, 0, 185.0, 0, 220.0, 0,
       164.81, 0, 246.94, 0, 185.0, 0, 146.83, 0,
+      146.83, 0, 220.0, 0, 196.0, 0, 220.0, 0,
+      164.81, 0, 220.0, 0, 185.0, 0, 146.83, 0,
+    ],
+    perc: [
+      'kick', null, 'hat', null, 'snare', null, 'hat', null,
+      'kick', null, 'hat', null, 'snare', null, 'hat', 'hat',
+      'kick', null, 'hat', null, 'snare', null, 'hat', null,
+      'kick', 'kick', 'hat', null, 'snare', null, 'cymbal', null,
     ],
   },
   solari: {
     name: 'Daybreak at the Sunspire (Golden Citadel)',
     stepMs: 175,
     leadType: 'square',
+    harmonyType: 'triangle',
     bassType: 'triangle',
     leadGain: 0.038,
+    harmonyGain: 0.024,
     bassGain: 0.048,
     lead: [
       587.33, 739.99, 880.0, 1174.66, 880.0, 739.99, 783.99, 880.0,
       987.77, 880.0, 783.99, 739.99, 659.25, 587.33, 659.25, 739.99,
+      880.0, 987.77, 1174.66, 1318.51, 1174.66, 987.77, 880.0, 739.99,
+      659.25, 739.99, 880.0, 987.77, 1174.66, 880.0, 739.99, 587.33,
+    ],
+    harmony: [
+      293.66, 369.99, 440.0, 587.33, 440.0, 369.99, 392.0, 440.0,
+      493.88, 440.0, 392.0, 369.99, 329.63, 293.66, 329.63, 369.99,
+      440.0, 493.88, 587.33, 659.25, 587.33, 493.88, 440.0, 369.99,
+      329.63, 369.99, 440.0, 493.88, 587.33, 440.0, 369.99, 293.66,
     ],
     bass: [
       146.83, 146.83, 220.0, 146.83, 196.0, 196.0, 246.94, 196.0,
       220.0, 220.0, 277.18, 220.0, 146.83, 220.0, 293.66, 146.83,
+      146.83, 146.83, 220.0, 146.83, 196.0, 196.0, 246.94, 196.0,
+      220.0, 220.0, 277.18, 220.0, 146.83, 196.0, 220.0, 146.83,
+    ],
+    perc: [
+      'kick', 'hat', 'snare', 'hat', 'kick', 'hat', 'snare', 'hat',
+      'kick', 'hat', 'snare', 'hat', 'kick', 'kick', 'snare', 'cymbal',
+      'kick', 'hat', 'snare', 'hat', 'kick', 'hat', 'snare', 'hat',
+      'kick', 'hat', 'snare', 'hat', 'kick', 'kick', 'snare', 'cymbal',
     ],
   },
   umbri: {
     name: 'Shadows in the Sepulcher (Umbri Undercity)',
     stepMs: 215,
     leadType: 'triangle',
+    harmonyType: 'sine',
     bassType: 'sine',
     leadGain: 0.042,
+    harmonyGain: 0.02,
     bassGain: 0.052,
     lead: [
       369.99, 440.0, 554.37, 659.25, 587.33, 554.37, 493.88, 554.37,
       440.0, 415.3, 369.99, 349.23, 369.99, 415.3, 440.0, 493.88,
+      554.37, 493.88, 440.0, 415.3, 369.99, 349.23, 329.63, 349.23,
+      369.99, 440.0, 493.88, 554.37, 493.88, 440.0, 415.3, 369.99,
+    ],
+    harmony: [
+      185.0, 220.0, 277.18, 329.63, 293.66, 277.18, 246.94, 277.18,
+      220.0, 207.65, 185.0, 174.61, 185.0, 207.65, 220.0, 246.94,
+      277.18, 246.94, 220.0, 207.65, 185.0, 174.61, 164.81, 174.61,
+      185.0, 220.0, 246.94, 277.18, 246.94, 220.0, 207.65, 185.0,
     ],
     bass: [
       92.5, 0, 138.59, 0, 146.83, 0, 123.47, 0,
       103.83, 0, 138.59, 0, 92.5, 0, 82.41, 0,
+      92.5, 0, 138.59, 0, 146.83, 0, 123.47, 0,
+      103.83, 0, 138.59, 0, 92.5, 0, 82.41, 0,
+    ],
+    perc: [
+      'kick', null, null, 'hat', 'snare', null, 'hat', null,
+      'kick', null, 'hat', null, 'snare', null, null, 'hat',
+      'kick', null, null, 'hat', 'snare', null, 'hat', null,
+      'kick', 'kick', null, 'hat', 'snare', null, 'hat', 'cymbal',
     ],
   },
   terra: {
     name: 'The Rootdeep Hymn (Terra Orchard)',
     stepMs: 195,
     leadType: 'triangle',
+    harmonyType: 'triangle',
     bassType: 'triangle',
     leadGain: 0.042,
+    harmonyGain: 0.022,
     bassGain: 0.045,
     lead: [
       329.63, 392.0, 440.0, 493.88, 587.33, 493.88, 440.0, 392.0,
       440.0, 493.88, 587.33, 659.25, 587.33, 493.88, 440.0, 329.63,
+      392.0, 440.0, 493.88, 587.33, 659.25, 783.99, 659.25, 587.33,
+      493.88, 440.0, 392.0, 329.63, 293.66, 329.63, 392.0, 329.63,
+    ],
+    harmony: [
+      164.81, 196.0, 220.0, 246.94, 293.66, 246.94, 220.0, 196.0,
+      220.0, 246.94, 293.66, 329.63, 293.66, 246.94, 220.0, 164.81,
+      196.0, 220.0, 246.94, 293.66, 329.63, 392.0, 329.63, 293.66,
+      246.94, 220.0, 196.0, 164.81, 146.83, 164.81, 196.0, 164.81,
     ],
     bass: [
       82.41, 0, 123.47, 82.41, 98.0, 0, 146.83, 98.0,
       110.0, 0, 164.81, 110.0, 123.47, 0, 185.0, 123.47,
+      82.41, 0, 123.47, 82.41, 98.0, 0, 146.83, 98.0,
+      110.0, 0, 164.81, 110.0, 82.41, 98.0, 123.47, 82.41,
+    ],
+    perc: [
+      'kick', null, 'hat', 'hat', 'snare', null, 'hat', null,
+      'kick', 'kick', 'hat', null, 'snare', null, 'hat', 'hat',
+      'kick', null, 'hat', 'hat', 'snare', null, 'hat', null,
+      'kick', null, 'snare', 'hat', 'kick', 'hat', 'snare', 'cymbal',
     ],
   },
   aether: {
     name: 'Mirrorgate Continuum (Aether Spire)',
     stepMs: 160,
     leadType: 'sine',
+    harmonyType: 'sine',
     bassType: 'triangle',
     leadGain: 0.046,
+    harmonyGain: 0.024,
     bassGain: 0.045,
     lead: [
       880.0, 1046.5, 1318.51, 1567.98, 1396.91, 1174.66, 1318.51, 1046.5,
       987.77, 1174.66, 1396.91, 1318.51, 1046.5, 880.0, 987.77, 783.99,
+      880.0, 1046.5, 1174.66, 1318.51, 1567.98, 1760.0, 1567.98, 1318.51,
+      1174.66, 1046.5, 987.77, 880.0, 783.99, 880.0, 1046.5, 880.0,
+    ],
+    harmony: [
+      440.0, 523.25, 659.25, 783.99, 698.46, 587.33, 659.25, 523.25,
+      493.88, 587.33, 698.46, 659.25, 523.25, 440.0, 493.88, 392.0,
+      440.0, 523.25, 587.33, 659.25, 783.99, 880.0, 783.99, 659.25,
+      587.33, 523.25, 493.88, 440.0, 392.0, 440.0, 523.25, 440.0,
     ],
     bass: [
       110.0, 164.81, 110.0, 196.0, 174.61, 130.81, 174.61, 164.81,
       146.83, 220.0, 146.83, 130.81, 164.81, 246.94, 329.63, 164.81,
+      110.0, 164.81, 110.0, 196.0, 174.61, 130.81, 174.61, 164.81,
+      146.83, 220.0, 146.83, 130.81, 110.0, 164.81, 220.0, 110.0,
+    ],
+    perc: [
+      'kick', 'hat', 'hat', 'hat', 'snare', 'hat', 'hat', 'hat',
+      'kick', 'hat', 'kick', 'hat', 'snare', 'hat', 'cymbal', 'hat',
+      'kick', 'hat', 'hat', 'hat', 'snare', 'hat', 'hat', 'hat',
+      'kick', 'kick', 'hat', 'hat', 'snare', 'hat', 'cymbal', 'hat',
     ],
   },
   abyss: {
     name: 'Cataclysm at Starfall (Abyssal Rift)',
     stepMs: 185,
     leadType: 'sawtooth',
+    harmonyType: 'triangle',
     bassType: 'sawtooth',
     leadGain: 0.03,
+    harmonyGain: 0.02,
     bassGain: 0.048,
     lead: [
       311.13, 369.99, 440.0, 523.25, 493.88, 415.3, 329.63, 349.23,
       311.13, 369.99, 440.0, 523.25, 587.33, 523.25, 440.0, 369.99,
+      329.63, 349.23, 415.3, 493.88, 440.0, 369.99, 311.13, 293.66,
+      311.13, 369.99, 440.0, 493.88, 440.0, 369.99, 329.63, 311.13,
+    ],
+    harmony: [
+      155.56, 185.0, 220.0, 261.63, 246.94, 207.65, 164.81, 174.61,
+      155.56, 185.0, 220.0, 261.63, 293.66, 261.63, 220.0, 185.0,
+      164.81, 174.61, 207.65, 246.94, 220.0, 185.0, 155.56, 146.83,
+      155.56, 185.0, 220.0, 246.94, 220.0, 185.0, 164.81, 155.56,
     ],
     bass: [
       77.78, 77.78, 55.0, 77.78, 130.81, 130.81, 92.5, 130.81,
       123.47, 123.47, 82.41, 123.47, 103.83, 103.83, 77.78, 103.83,
+      77.78, 77.78, 55.0, 77.78, 130.81, 130.81, 92.5, 130.81,
+      123.47, 123.47, 82.41, 123.47, 77.78, 82.41, 92.5, 77.78,
+    ],
+    perc: [
+      'kick', null, null, 'hat', 'snare', null, 'kick', null,
+      'kick', null, 'hat', 'hat', 'snare', null, 'cymbal', null,
+      'kick', null, null, 'hat', 'snare', null, 'kick', null,
+      'kick', 'kick', 'hat', 'hat', 'snare', null, 'cymbal', 'snare',
     ],
   },
   warzone: {
     name: 'Continental Caldera (Heroic Battle)',
     stepMs: 165,
     leadType: 'square',
+    harmonyType: 'triangle',
     bassType: 'triangle',
     leadGain: 0.032,
+    harmonyGain: 0.024,
     bassGain: 0.055,
     lead: [
       440.0, 0, 523.25, 587.33, 659.25, 0, 587.33, 523.25,
       493.88, 0, 392.0, 440.0, 523.25, 493.88, 440.0, 0,
+      523.25, 587.33, 659.25, 783.99, 880.0, 0, 783.99, 659.25,
+      587.33, 523.25, 493.88, 440.0, 392.0, 440.0, 523.25, 440.0,
+    ],
+    harmony: [
+      220.0, 0, 261.63, 293.66, 329.63, 0, 293.66, 261.63,
+      246.94, 0, 196.0, 220.0, 261.63, 246.94, 220.0, 0,
+      261.63, 293.66, 329.63, 392.0, 440.0, 0, 392.0, 329.63,
+      293.66, 261.63, 246.94, 220.0, 196.0, 220.0, 261.63, 220.0,
     ],
     bass: [
       110.0, 110.0, 220.0, 110.0, 130.81, 130.81, 261.63, 130.81,
       98.0, 98.0, 196.0, 98.0, 110.0, 146.83, 164.81, 110.0,
+      110.0, 110.0, 220.0, 110.0, 130.81, 130.81, 261.63, 130.81,
+      98.0, 98.0, 196.0, 98.0, 110.0, 130.81, 146.83, 110.0,
+    ],
+    perc: [
+      'kick', 'hat', 'snare', 'hat', 'kick', 'kick', 'snare', 'hat',
+      'kick', 'hat', 'snare', 'hat', 'kick', 'hat', 'snare', 'cymbal',
+      'kick', 'hat', 'snare', 'hat', 'kick', 'kick', 'snare', 'hat',
+      'kick', 'kick', 'snare', 'snare', 'kick', 'hat', 'cymbal', 'snare',
     ],
   },
   boss: {
     name: 'Nexus Climax (World Boss & Siege)',
     stepMs: 130,
     leadType: 'square',
+    harmonyType: 'sawtooth',
     bassType: 'sawtooth',
     leadGain: 0.034,
+    harmonyGain: 0.02,
     bassGain: 0.042,
     lead: [
       659.25, 783.99, 987.77, 783.99, 659.25, 739.99, 880.0, 739.99,
       587.33, 698.46, 880.0, 698.46, 619.25, 739.99, 987.77, 1318.51,
+      1174.66, 987.77, 880.0, 783.99, 987.77, 880.0, 783.99, 659.25,
+      587.33, 659.25, 783.99, 880.0, 987.77, 1174.66, 1318.51, 1567.98,
+    ],
+    harmony: [
+      329.63, 392.0, 493.88, 392.0, 329.63, 369.99, 440.0, 369.99,
+      293.66, 349.23, 440.0, 349.23, 309.63, 369.99, 493.88, 659.25,
+      587.33, 493.88, 440.0, 392.0, 493.88, 440.0, 392.0, 329.63,
+      293.66, 329.63, 392.0, 440.0, 493.88, 587.33, 659.25, 783.99,
     ],
     bass: [
       164.81, 164.81, 329.63, 164.81, 146.83, 146.83, 293.66, 146.83,
       130.81, 130.81, 261.63, 130.81, 123.47, 146.83, 185.0, 246.94,
+      164.81, 164.81, 329.63, 164.81, 146.83, 146.83, 293.66, 146.83,
+      130.81, 130.81, 261.63, 130.81, 164.81, 196.0, 246.94, 329.63,
+    ],
+    perc: [
+      'kick', 'hat', 'snare', 'hat', 'kick', 'kick', 'snare', 'cymbal',
+      'kick', 'hat', 'snare', 'hat', 'kick', 'snare', 'snare', 'cymbal',
+      'kick', 'hat', 'snare', 'hat', 'kick', 'kick', 'snare', 'cymbal',
+      'kick', 'kick', 'snare', 'snare', 'kick', 'snare', 'cymbal', 'snare',
     ],
   },
 };
@@ -159,6 +303,8 @@ export class PixelSoundEngine {
     this.masterVolume = this.readVolume('glimmerfall_vol_master', 0.8);
     this.musicVolume = this.readVolume('glimmerfall_vol_music', 0.65);
     this.sfxVolume = this.readVolume('glimmerfall_vol_sfx', 0.8);
+    this.resumeMode = this.readResumeMode('always');
+    this.themePositions = {};
     try {
       this.bgmMuted = localStorage.getItem('glimmerfall_bgm_muted') === '1';
     } catch (_) {}
@@ -172,6 +318,62 @@ export class PixelSoundEngine {
       if (Number.isFinite(saved)) return Math.max(0, Math.min(1, saved));
     } catch (_) {}
     return fallback;
+  }
+
+  readResumeMode(fallback = 'always') {
+    try {
+      const val = localStorage.getItem('glimmerfall_bgm_resume_mode');
+      if (val && ['always', 'within_5m', 'within_15m', 'restart'].includes(val)) {
+        return val;
+      }
+    } catch (_) {}
+    return fallback;
+  }
+
+  getResumeMode() {
+    return this.resumeMode;
+  }
+
+  setResumeMode(mode) {
+    if (['always', 'within_5m', 'within_15m', 'restart'].includes(mode)) {
+      this.resumeMode = mode;
+      try {
+        localStorage.setItem('glimmerfall_bgm_resume_mode', mode);
+      } catch (_) {}
+    }
+    return this.resumeMode;
+  }
+
+  saveThemePosition(theme = this.bgmTheme) {
+    if (!theme) return;
+    let currentTime = 0;
+    if (this.trackEl && Number.isFinite(this.trackEl.currentTime) && this.trackEl.currentTime > 0) {
+      currentTime = this.trackEl.currentTime;
+    }
+    this.themePositions[theme] = {
+      time: currentTime,
+      step: this.bgmStep || 0,
+      savedAt: Date.now(),
+    };
+  }
+
+  shouldResumeTheme(theme) {
+    if (this.resumeMode === 'restart') return false;
+    const pos = this.themePositions[theme];
+    if (!pos) return false;
+    const elapsedMs = Date.now() - (pos.savedAt || 0);
+    if (this.resumeMode === 'within_5m') {
+      return elapsedMs <= 5 * 60 * 1000;
+    }
+    if (this.resumeMode === 'within_15m') {
+      return elapsedMs <= 15 * 60 * 1000;
+    }
+    // 'always'
+    return true;
+  }
+
+  resetRoomPositions() {
+    this.themePositions = {};
   }
 
   ensureGainNodes() {
@@ -230,7 +432,7 @@ export class PixelSoundEngine {
     return Math.round(value * 100);
   }
 
-  playTrackAudio(url, loop = true) {
+  playTrackAudio(url, loop = true, startTime = 0) {
     if (this.bgmMuted || this.muted) return;
     if (typeof window === 'undefined') return;
     try {
@@ -240,15 +442,38 @@ export class PixelSoundEngine {
       if (this.currentTrackUrl === url && !this.trackEl.paused) return;
 
       this.currentTrackUrl = url;
-      this.trackEl.src = url;
+      const needsSrcChange = this.trackEl.src !== url;
+      if (needsSrcChange) {
+        this.trackEl.src = url;
+      }
       this.trackEl.loop = loop;
       this.trackEl.volume = Math.max(0, Math.min(1, this.musicVolume * this.masterVolume));
-      const playPromise = this.trackEl.play();
-      if (playPromise && typeof playPromise.catch === 'function') {
-        playPromise.catch((err) => {
-          console.warn('[AudioEngine] Track audio playback deferred/fallback:', err.message);
-          this.startBgmLoop();
-        });
+
+      const seekAndPlay = () => {
+        if (startTime > 0 && Number.isFinite(startTime)) {
+          try {
+            if (this.trackEl.duration && Number.isFinite(this.trackEl.duration) && this.trackEl.duration > 0) {
+              this.trackEl.currentTime = startTime % this.trackEl.duration;
+            } else {
+              this.trackEl.currentTime = startTime;
+            }
+          } catch (_) {}
+        }
+        const playPromise = this.trackEl.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch((err) => {
+            console.warn('[AudioEngine] Track audio playback deferred/fallback:', err.message);
+            this.startBgmLoop();
+          });
+        }
+      };
+
+      if (needsSrcChange && startTime > 0 && this.trackEl.readyState < 1) {
+        this.trackEl.addEventListener('loadedmetadata', () => {
+          seekAndPlay();
+        }, { once: true });
+      } else {
+        seekAndPlay();
       }
     } catch (err) {
       console.warn('[AudioEngine] playTrackAudio error:', err);
@@ -256,11 +481,13 @@ export class PixelSoundEngine {
     }
   }
 
-  stopTrackAudio() {
+  stopTrackAudio(resetPosition = false) {
     if (this.trackEl) {
       try {
         this.trackEl.pause();
-        this.trackEl.currentTime = 0;
+        if (resetPosition) {
+          this.trackEl.currentTime = 0;
+        }
       } catch (_) {}
     }
     this.currentTrackUrl = null;
@@ -272,7 +499,7 @@ export class PixelSoundEngine {
       localStorage.setItem('glimmerfall_bgm_muted', this.bgmMuted ? '1' : '0');
     } catch (_) {}
     if (this.bgmMuted) {
-      this.stopTrackAudio();
+      this.stopTrackAudio(false);
       clearInterval(this.bgmTimer);
       this.bgmTimer = null;
     } else {
@@ -284,18 +511,31 @@ export class PixelSoundEngine {
 
   setBgmTheme(theme) {
     const next = BGM_THEMES[theme] ? theme : 'sanctuary';
-    if (this.bgmTheme === next && (this.bgmTimer || this.currentTrackUrl)) return;
-    this.bgmTheme = next;
-    this.bgmStep = 0;
+    if (this.bgmTheme === next && (this.bgmTimer || (this.trackEl && !this.trackEl.paused))) {
+      return;
+    }
 
-    this.stopTrackAudio();
+    // 1. Save current position of outgoing theme before switching
+    if (this.bgmTheme) {
+      this.saveThemePosition(this.bgmTheme);
+    }
+
+    // 2. Stop audio and clear timer without erasing position map
+    this.stopTrackAudio(false);
     clearInterval(this.bgmTimer);
     this.bgmTimer = null;
+
+    // 3. Determine resume timestamp or step
+    const canResume = this.shouldResumeTheme(next);
+    const savedPos = canResume ? (this.themePositions[next] || { time: 0, step: 0 }) : { time: 0, step: 0 };
+
+    this.bgmTheme = next;
+    this.bgmStep = savedPos.step || 0;
 
     if (this.ctx && !this.bgmMuted) {
       const spec = BGM_THEMES[next];
       if (spec?.audioFile && typeof window !== 'undefined') {
-        this.playTrackAudio(spec.audioFile);
+        this.playTrackAudio(spec.audioFile, true, savedPos.time || 0);
       } else {
         this.startBgmLoop();
       }
@@ -310,38 +550,82 @@ export class PixelSoundEngine {
     clearInterval(this.bgmTimer);
     if (this.bgmMuted || this.muted) return;
     const spec = BGM_THEMES[this.bgmTheme] || BGM_THEMES.sanctuary;
+    const patternLen = spec.lead?.length || 16;
 
     this.bgmTimer = setInterval(() => {
       if (this.bgmMuted || this.muted || !this.ctx || this.ctx.state !== 'running') return;
-      const idx = this.bgmStep % spec.lead.length;
+      const idx = this.bgmStep % patternLen;
       this.bgmStep++;
 
-      const leadFreq = spec.lead[idx];
-      const bassFreq = spec.bass[idx];
+      const leadFreq = spec.lead?.[idx];
+      const harmFreq = spec.harmony?.[idx];
+      const bassFreq = spec.bass?.[idx];
+      const percType = spec.perc?.[idx];
       const dur = (spec.stepMs / 1000) * 0.85;
 
       if (leadFreq > 0) {
-        this.playTrackerNote(spec.leadType, leadFreq, dur, spec.leadGain);
+        this.playTrackerNote(spec.leadType || 'triangle', leadFreq, dur, spec.leadGain || 0.04);
+      }
+      if (harmFreq > 0) {
+        this.playTrackerNote(spec.harmonyType || 'sine', harmFreq, dur * 0.9, spec.harmonyGain || 0.022);
       }
       if (bassFreq > 0) {
-        this.playTrackerNote(spec.bassType, bassFreq, dur * 0.95, spec.bassGain);
+        this.playTrackerNote(spec.bassType || 'triangle', bassFreq, dur * 0.95, spec.bassGain || 0.045);
+      }
+      if (percType) {
+        this.playTrackerPerc(percType, dur);
       }
     }, spec.stepMs);
   }
 
-  playTrackerNote(type, freq, dur, gainVal) {
-    if (!this.ctx) return;
+  playTrackerNote(type, freq, dur, gainVal, destNode) {
+    if (!this.ctx || !freq) return;
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    osc.type = type;
+    osc.type = type || 'triangle';
     osc.frequency.setValueAtTime(freq, now);
-    gain.gain.setValueAtTime(gainVal, now);
+    gain.gain.setValueAtTime(gainVal || 0.03, now);
     gain.gain.exponentialRampToValueAtTime(0.0008, now + dur);
     osc.connect(gain);
-    gain.connect(this.musicGain || this.ctx.destination);
+    gain.connect(destNode || this.musicGain || this.ctx.destination);
     osc.start(now);
     osc.stop(now + dur + 0.01);
+  }
+
+  playTrackerPerc(type, dur = 0.08) {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    if (type === 'kick') {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.exponentialRampToValueAtTime(36, now + 0.12);
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+      osc.connect(gain);
+      gain.connect(this.musicGain || this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.15);
+    } else if (type === 'snare') {
+      this.playNoise({ duration: 0.11, bandpassFreq: 1800, endFreq: 400, gainVal: 0.04 });
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(190, now);
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.08);
+      gain.gain.setValueAtTime(0.035, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+      osc.connect(gain);
+      gain.connect(this.musicGain || this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.1);
+    } else if (type === 'hat') {
+      this.playNoise({ duration: 0.035, bandpassFreq: 6500, endFreq: 5000, gainVal: 0.022 });
+    } else if (type === 'cymbal' || type === 'openhat') {
+      this.playNoise({ duration: 0.22, bandpassFreq: 5200, endFreq: 3400, gainVal: 0.032 });
+    }
   }
 
   playTone({ type = 'square', freqs = [440], stepTime = 0.04, gainVal = 0.14, delay = 0 }) {

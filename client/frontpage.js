@@ -698,34 +698,52 @@ export class FrontpageController {
         window._landing.close();
       }
 
-      if (this.onEnterWorld) {
-        this.onEnterWorld({
-          profile: {
-            id: activeChar.id,
-            displayName: activeChar.name,
-            faction: activeChar.faction,
-            classId: activeChar.classId,
-            orderTag: activeChar.orderTag,
-            orderName: `Order of ${activeChar.faction}`,
-            loadout: activeChar.loadout,
-            equipment: activeChar.equipment,
-            inventory: activeChar.inventory || [],
-            bank: activeChar.bank || [],
-            progression: activeChar.progression || createDefaultProgression(),
-            questState: activeChar.questState || null,
-            hp: typeof activeChar.hp === 'number' ? activeChar.hp : null,
-            solarCharge: typeof activeChar.solarCharge === 'number' ? activeChar.solarCharge : null,
-            lastPosition: activeChar.lastPosition || null,
-            characters: spRoster,
-            activeCharacterId: activeChar.id,
-            isGuest: true,
-          },
-          startingRealm: realm,
-          playMode: 'singleplayer',
-          startX: activeChar.lastPosition?.x ?? 0,
-          startY: activeChar.lastPosition?.y ?? 96,
+      const enterSinglePlayer = () => {
+        if (this.onEnterWorld) {
+          this.onEnterWorld({
+            profile: {
+              id: activeChar.id,
+              displayName: activeChar.name,
+              faction: activeChar.faction,
+              classId: activeChar.classId,
+              orderTag: activeChar.orderTag,
+              orderName: `Order of ${activeChar.faction}`,
+              loadout: activeChar.loadout,
+              equipment: activeChar.equipment,
+              inventory: activeChar.inventory || [],
+              bank: activeChar.bank || [],
+              progression: activeChar.progression || createDefaultProgression(),
+              questState: activeChar.questState || null,
+              hp: typeof activeChar.hp === 'number' ? activeChar.hp : null,
+              solarCharge: typeof activeChar.solarCharge === 'number' ? activeChar.solarCharge : null,
+              lastPosition: activeChar.lastPosition || null,
+              characters: spRoster,
+              activeCharacterId: activeChar.id,
+              isGuest: true,
+            },
+            startingRealm: realm,
+            playMode: 'singleplayer',
+            startX: activeChar.lastPosition?.x ?? 0,
+            startY: activeChar.lastPosition?.y ?? 96,
+          });
+        }
+      };
+
+      const seenAwakeningKey = `glimmerfall_seen_awakening_${cls.id}`;
+      let seenAwakening = false;
+      try {
+        seenAwakening = localStorage.getItem(seenAwakeningKey) === 'true';
+      } catch (_) {}
+
+      if (!seenAwakening && typeof window !== 'undefined' && typeof window.playClassAwakening === 'function') {
+        try { localStorage.setItem(seenAwakeningKey, 'true'); } catch (_) {}
+        window.playClassAwakening(cls.id, () => {
+          enterSinglePlayer();
         });
+      } else {
+        enterSinglePlayer();
       }
+
       return activeChar;
     }
 
@@ -784,15 +802,33 @@ export class FrontpageController {
         progression: createDefaultProgression(),
       };
 
-      if (this.onEnterWorld) {
-        this.onEnterWorld({
-          profile: prof,
-          startingRealm: realm,
-          playMode: 'multiplayer',
-          startX: 0,
-          startY: 96,
+      const enterMultiplayer = () => {
+        if (this.onEnterWorld) {
+          this.onEnterWorld({
+            profile: prof,
+            startingRealm: realm,
+            playMode: 'multiplayer',
+            startX: 0,
+            startY: 96,
+          });
+        }
+      };
+
+      const seenAwakeningKey = `glimmerfall_seen_awakening_${cls.id}`;
+      let seenAwakening = false;
+      try {
+        seenAwakening = localStorage.getItem(seenAwakeningKey) === 'true';
+      } catch (_) {}
+
+      if (!seenAwakening && typeof window !== 'undefined' && typeof window.playClassAwakening === 'function') {
+        try { localStorage.setItem(seenAwakeningKey, 'true'); } catch (_) {}
+        window.playClassAwakening(cls.id, () => {
+          enterMultiplayer();
         });
+      } else {
+        enterMultiplayer();
       }
+
       return res || prof;
     } catch (err) {
       this.creationError = `⚠️ Failed to create character: ${err.message}`;
@@ -1361,6 +1397,13 @@ export class FrontpageController {
                     <span>🏛️ Saved Realm Spot:</span>
                     <b style="color:#f8fafc;">${ROOM_CONFIGS[selectedChar.lastPosition?.roomType]?.title || ROOM_CONFIGS[selectedChar.homeBiome]?.title || 'Awakening Sanctuary Hub'}</b>
                   </div>
+
+                  <div style="margin-top:6px;">
+                    <button type="button" class="util-btn" style="width:100%; font-size:10px; padding:5px 8px; border-color:#38bdf8; color:#7dd3fc; display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer;"
+                            onclick="if(typeof window.playClassAwakening==='function'){window.playClassAwakening('${selectedCls.id}');}else if(typeof window.playCinematicModal==='function'){window.playCinematicModal('${selectedCls.id}');}">
+                      <span>🎬</span> WATCH ${selectedCls.name.toUpperCase()} AWAKENING (1080P)
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1527,6 +1570,12 @@ export class FrontpageController {
               </div>
               <div style="font-size:10px; color:${fm.color}; font-weight:600;">
                 ${fm.icon} ${draft.faction} Faction • ${cls.role}
+              </div>
+              <div style="margin-top:10px;">
+                <button type="button" class="util-btn" style="width:100%; font-size:10px; padding:5px 8px; border-color:#38bdf8; color:#7dd3fc; display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer;"
+                        onclick="if(typeof window.playClassAwakening==='function'){window.playClassAwakening('${cls.id}');}else if(typeof window.playCinematicModal==='function'){window.playCinematicModal('${cls.id}');}">
+                  <span>🎬</span> PREVIEW ${cls.name.toUpperCase()} AWAKENING (1080P)
+                </button>
               </div>
             </div>
           </div>
