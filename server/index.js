@@ -514,6 +514,7 @@ export function createGlimmerFallServer() {
 
     const token = url.searchParams.get('token');
     const preferredRoom = url.searchParams.get('room') || null;
+    const reqCharId = url.searchParams.get('characterId') || null;
     const reqX = url.searchParams.get('x');
     const reqY = url.searchParams.get('y');
     let account = token ? accounts.verifyToken(token) : null;
@@ -546,7 +547,7 @@ export function createGlimmerFallServer() {
     recentTimes.push(now);
     accountRecentLogins.set(account.id, recentTimes);
 
-    const session = rooms.attachConnection(ws, account, preferredRoom, reqX, reqY);
+    const session = rooms.attachConnection(ws, account, preferredRoom, reqX, reqY, reqCharId);
     if (issuedToken) {
       session.send({ type: 'session_token', token: issuedToken });
     }

@@ -312,7 +312,7 @@ export const ROOM_CONFIGS = {
     title: 'ROOTDEEP PRIMORDIAL HOLLOW',
     shortTitle: 'PRIMORDIAL HOLLOW',
     biomeTheme: 'terra_grove',
-    bgm: 'warzone',
+    bgm: 'terra',
     maxPlayers: 25,
     width: 48,
     height: 48,

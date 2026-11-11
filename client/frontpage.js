@@ -449,6 +449,17 @@ export class FrontpageController {
       try {
         localStorage.setItem(SP_ACTIVE_KEY, charId);
       } catch (_) {}
+    } else {
+      try {
+        localStorage.setItem('glimmerfall_active_char_id', charId);
+      } catch (_) {}
+      if (this.net) {
+        this.net.preferredCharacterId = charId;
+        this.net.selectedCharacterId = charId;
+        if (this.net.profile) {
+          this.net.profile.activeCharacterId = charId;
+        }
+      }
     }
     if (this.audio?.playChime) this.audio.playChime();
     if (this.isOpen) this.render();
@@ -521,7 +532,6 @@ export class FrontpageController {
     }
 
     // === MULTIPLAYER (ONLINE REALM) ===
-    let updatedProfile = this.net?.profile;
     const lastPos = chosenChar.lastPosition;
     const startRealm = (lastPos?.roomType && lastPos.roomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[lastPos.roomType])
       ? lastPos.roomType
@@ -529,26 +539,63 @@ export class FrontpageController {
     const startX = typeof lastPos?.x === 'number' && Number.isFinite(lastPos.x) ? lastPos.x : null;
     const startY = typeof lastPos?.y === 'number' && Number.isFinite(lastPos.y) ? lastPos.y : null;
 
-    // Dispatch character selection without locking the UI:
+    try {
+      localStorage.setItem('glimmerfall_active_char_id', chosenChar.id);
+    } catch (_) {}
+    if (this.net) {
+      this.net.preferredCharacterId = chosenChar.id;
+      this.net.selectedCharacterId = chosenChar.id;
+    }
+
+    let targetProfile = {
+      ...(this.net?.profile || {}),
+      id: chosenChar.id,
+      displayName: chosenChar.name,
+      faction: chosenChar.faction,
+      classId: chosenChar.classId,
+      orderTag: chosenChar.orderTag || 'SUN',
+      orderName: chosenChar.orderName || `Order of ${chosenChar.faction}`,
+      orderColor: chosenChar.orderColor || '#facc15',
+      loadout: chosenChar.loadout || CLASSES_CATALOG[chosenChar.classId]?.defaultLoadout || {},
+      equipment: chosenChar.equipment || CLASSES_CATALOG[chosenChar.classId]?.defaultEquipment || {},
+      inventory: chosenChar.inventory || [],
+      bank: chosenChar.bank || [],
+      progression: chosenChar.progression || createDefaultProgression(),
+      questState: chosenChar.questState || null,
+      activeCharacterId: chosenChar.id,
+      hp: typeof chosenChar.hp === 'number' ? chosenChar.hp : null,
+      solarCharge: typeof chosenChar.solarCharge === 'number' ? chosenChar.solarCharge : null,
+      lastPosition: lastPos || null,
+      characters: this.getActiveRoster(),
+      isGuest: Boolean(this.net?.profile?.isGuest),
+    };
+
+    if (this.net?.profile) {
+      this.net.profile = {
+        ...this.net.profile,
+        ...targetProfile,
+      };
+    }
+
     if (this.net?.connected) {
-      // Use lightning-fast WebSocket RPC to authoritative server
-      this.net.wsRpc('save_character', {
-        characterId: chosenChar.id,
-        enterRealm: startRealm,
-        x: startX,
-        y: startY,
-      }, 1500).then((res) => {
-        if (res?.profile) {
+      try {
+        const res = await this.net.wsRpc('save_character', {
+          characterId: chosenChar.id,
+          enterRealm: startRealm,
+          x: startX,
+          y: startY,
+        }, 2500);
+        if (res?.ok && res?.profile) {
           this.net.profile = res.profile;
-          if (typeof window !== 'undefined' && window.applyProfile) {
+          targetProfile = res.profile;
+          if (typeof window !== 'undefined' && typeof window.applyProfile === 'function') {
             window.applyProfile(res.profile);
           }
         }
-      }).catch((err) => {
+      } catch (err) {
         console.warn('[Frontpage] wsRpc character selection warning:', err?.message || err);
-      });
+      }
     } else {
-      // Trigger background character sync / connect
       this.net?.saveOrSelectCharacter({
         characterId: chosenChar.id,
         enterRealm: startRealm,
@@ -562,22 +609,7 @@ export class FrontpageController {
     this.close();
     if (this.onEnterWorld) {
       this.onEnterWorld({
-        profile: updatedProfile || {
-          id: chosenChar.id,
-          displayName: chosenChar.name,
-          faction: chosenChar.faction,
-          classId: chosenChar.classId,
-          orderTag: chosenChar.orderTag || 'SUN',
-          loadout: chosenChar.loadout,
-          equipment: chosenChar.equipment,
-          inventory: chosenChar.inventory || [],
-          bank: chosenChar.bank || [],
-          progression: chosenChar.progression || createDefaultProgression(),
-          activeCharacterId: chosenChar.id,
-          hp: typeof chosenChar.hp === 'number' ? chosenChar.hp : null,
-          solarCharge: typeof chosenChar.solarCharge === 'number' ? chosenChar.solarCharge : null,
-          lastPosition: lastPos || null,
-        },
+        profile: targetProfile,
         startingRealm: startRealm,
         playMode: 'multiplayer',
         startX,
@@ -790,17 +822,21 @@ export class FrontpageController {
         window._landing.close();
       }
 
-      const prof = res?.profile || this.net?.profile || {
+      const prof = (res && res.ok && res.profile) ? res.profile : {
         id: res?.character?.id || `mp_${Date.now()}`,
         displayName: charName,
         faction: faction || 'Solari',
         classId: cls.id,
         orderTag: tag,
+        orderName: `Order of ${faction || 'Solari'}`,
+        orderColor: '#facc15',
         loadout: cls.defaultLoadout,
         equipment: cls.defaultEquipment,
         inventory: [],
         bank: [],
         progression: createDefaultProgression(),
+        activeCharacterId: res?.character?.id || `mp_${Date.now()}`,
+        characters: this.getActiveRoster(),
       };
 
       const enterMultiplayer = () => {

@@ -659,7 +659,7 @@ export class AccountsStore {
     }
     for (const [accId, cmap] of this.charactersByAccount.entries()) {
       for (const [cId, ch] of cmap.entries()) {
-        if (accId === excludeAccountId && cId === excludeCharId) continue;
+        if (accId === excludeAccountId && (!excludeCharId || cId === excludeCharId)) continue;
         if (ch.name && ch.name.trim().toLowerCase() === lower) {
           return true;
         }
@@ -725,6 +725,32 @@ export class AccountsStore {
       this.syncAccountFromActiveChar(acc);
       this.schedulePersist(acc.id, ch.id);
       return ch;
+    }
+
+    // If characterId was not explicitly passed, check if a character with this name already exists on this account
+    if (!characterId && name) {
+      const matchNameLower = String(name).trim().toLowerCase();
+      const existingSameName = Array.from(cmap.values()).find((c) => c.name && c.name.trim().toLowerCase() === matchNameLower);
+      if (existingSameName) {
+        acc.activeCharacterId = existingSameName.id;
+        if (homeBiome) existingSameName.homeBiome = homeBiome;
+        if (faction || classId) {
+          const norm = normalizeClassAndFaction(classId || existingSameName.classId, faction || existingSameName.faction);
+          existingSameName.faction = norm.faction;
+          existingSameName.classId = norm.classId;
+        }
+        if (orderTag) existingSameName.orderTag = sanitizeOrderTag(orderTag);
+        if (orderName) existingSameName.orderName = sanitizeName(orderName, existingSameName.orderName);
+        if (orderColor) existingSameName.orderColor = orderColor;
+        if (loadout) existingSameName.loadout = normalizeLoadout(loadout, existingSameName.classId);
+        if (equipment) existingSameName.equipment = normalizeEquipment(equipment, existingSameName.classId);
+        if (inventory) existingSameName.inventory = normalizeInventory(inventory);
+        if (bank) existingSameName.bank = normalizeBank(bank);
+
+        this.syncAccountFromActiveChar(acc);
+        this.schedulePersist(acc.id, existingSameName.id);
+        return existingSameName;
+      }
     }
 
     if (cmap.size >= 8) {

@@ -67,15 +67,16 @@ export const LANDING_OST_TRACKS = [
 // 1080P CINEMATICS THEATRE CATALOG
 // ==========================================
 export const LANDING_CINEMATICS = [
+  { id: 'official_trailer', title: 'GlimmerFall — Official Dual Launch Trailer', category: 'Official Trailer', duration: '1:05', icon: '⚔️', poster: '/GlimmerFall_official_multicolor_logo.png', youtubeId: '2e8E0vjLcLg', url: 'https://youtu.be/2e8E0vjLcLg', desc: 'The official reveal trailer for GlimmerFall Online & TCG, launching December 5, 2026. One universe, two interconnected ways to play.' },
   { id: 'crystal_heart', title: 'The Shattered Crystal Heart', category: 'Prologue', duration: '0:35', icon: '🎬', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/crystal_heart_shattering_1080p.mp4', desc: 'The apocalyptic detonation of the primordial multi-faceted Crystal Heart that showered rainbow shards across the continent and fractured unified light into 4 aspects.' },
-  { id: 'awakening_solari_vanguard', title: 'Solari Vanguard Awakening', category: 'Solari', duration: '0:30', icon: '☀️', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_solari_vanguard_1080p.mp4', desc: 'Sunspire golden plate sentinel with heavy tower shield and blazing spellblade channels solar dawn-fire, mirroring the Solari Vanguard golden knight sprite.' },
-  { id: 'awakening_solari_dawnblade', title: 'Solari Dawnblade Awakening', category: 'Solari', duration: '0:30', icon: '🗡️', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_solari_dawnblade_1080p.mp4', desc: 'Acrobatic radiant duelist wielding solar scimitars in blinding Zenith state, matching the swift dawnblade melee combat sprite.' },
-  { id: 'awakening_umbri_reaper', title: 'Umbri Reaper Awakening', category: 'Umbri', duration: '0:30', icon: '💀', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_umbri_reaper_1080p.mp4', desc: 'Nether assassin wielding soul-harvest scythe from Dusk Shroud stealth, matching the hooded umbral harbinger sprite.' },
-  { id: 'awakening_umbri_shadowweaver', title: 'Umbri Shadowweaver Awakening', category: 'Umbri', duration: '0:30', icon: '🔮', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_umbri_shadowweaver_1080p.mp4', desc: 'Void sorcerer in deep purple robes weaving necrotic leylines and graveglass lanterns, matching the Umbri Shadowweaver caster sprite.' },
-  { id: 'awakening_terra_ironroot', title: 'Terra Ironroot Awakening', category: 'Terra', duration: '0:30', icon: '🛡️', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_terra_ironroot_1080p.mp4', desc: 'Juggernaut forged from ancient ironwood and stonekin boulders, directly reflecting the massive Terra Ironroot titan sprite.' },
-  { id: 'awakening_terra_bramble_warden', title: 'Terra Bramble Warden Awakening', category: 'Terra', duration: '0:30', icon: '🏹', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_terra_bramble_warden_1080p.mp4', desc: 'Verdant archer in forest camouflage drawing starlight briar arrows, matching the Terra Bramble Warden ranger sprite.' },
-  { id: 'awakening_aether_chronomancer', title: 'Aether Chronomancer Awakening', category: 'Aether', duration: '0:30', icon: '⏳', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_aether_chronomancer_1080p.mp4', desc: 'Temporal scholar channeling celestial chronoflux with the astral astrolabe, matching the blue-robed Aether Chronomancer sprite.' },
-  { id: 'awakening_aether_tempest_sage', title: 'Aether Tempest Sage Awakening', category: 'Aether', duration: '0:30', icon: '⚡', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_aether_tempest_sage_1080p.mp4', desc: 'Arcane tempest sage summoning quantum chain lightning and cosmic beams, matching the Aether Tempest Sage lightning sprite.' },
+  { id: 'awakening_solari_vanguard', title: 'Solari Vanguard Awakening', category: 'Solari', duration: '0:30', icon: '☀️', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_solari_vanguard_1080p.mp4', desc: 'Sunspire golden plate sentinel with heavy tower shield and blazing spellblade channels solar dawn-fire, personifying the Solari Vanguard golden knight.' },
+  { id: 'awakening_solari_dawnblade', title: 'Solari Dawnblade Awakening', category: 'Solari', duration: '0:30', icon: '🗡️', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_solari_dawnblade_1080p.mp4', desc: 'Acrobatic radiant duelist wielding solar scimitars in blinding Zenith state, executing swift dawnblade melee combat.' },
+  { id: 'awakening_umbri_reaper', title: 'Umbri Reaper Awakening', category: 'Umbri', duration: '0:30', icon: '💀', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_umbri_reaper_1080p.mp4', desc: 'Nether assassin wielding soul-harvest scythe from Dusk Shroud stealth, channeling the hooded umbral harbinger.' },
+  { id: 'awakening_umbri_shadowweaver', title: 'Umbri Shadowweaver Awakening', category: 'Umbri', duration: '0:30', icon: '🔮', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_umbri_shadowweaver_1080p.mp4', desc: 'Void sorcerer in deep purple robes weaving necrotic leylines and graveglass lanterns, manifesting the Umbri Shadowweaver mystic.' },
+  { id: 'awakening_terra_ironroot', title: 'Terra Ironroot Awakening', category: 'Terra', duration: '0:30', icon: '🛡️', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_terra_ironroot_1080p.mp4', desc: 'Juggernaut forged from ancient ironwood and stonekin boulders, directly embodying the massive Terra Ironroot titan.' },
+  { id: 'awakening_terra_bramble_warden', title: 'Terra Bramble Warden Awakening', category: 'Terra', duration: '0:30', icon: '🏹', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_terra_bramble_warden_1080p.mp4', desc: 'Verdant archer in forest camouflage drawing starlight briar arrows, leading the Terra Bramble Warden rangers.' },
+  { id: 'awakening_aether_chronomancer', title: 'Aether Chronomancer Awakening', category: 'Aether', duration: '0:30', icon: '⏳', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_aether_chronomancer_1080p.mp4', desc: 'Temporal scholar channeling celestial chronoflux with the astral astrolabe, embodying the blue-robed Aether Chronomancer.' },
+  { id: 'awakening_aether_tempest_sage', title: 'Aether Tempest Sage Awakening', category: 'Aether', duration: '0:30', icon: '⚡', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_aether_tempest_sage_1080p.mp4', desc: 'Arcane tempest sage summoning quantum chain lightning and cosmic beams, commanding the Aether Tempest Sage mysteries.' },
   { id: 'scene3_colossus_emergence', title: 'Granite Colossus Emergence', category: 'World Boss', duration: '0:32', icon: '🗿', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/scene3_colossus_emergence_1080p.mp4', desc: 'Earth-shattering boss emergence in the deep Starfall Caldera as ancient stone awakened by leylines stirs to life.' },
   { id: 'scene4_boss_defeated', title: 'Boss Defeated & Shard Harvest', category: 'Victory', duration: '0:28', icon: '🏆', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/scene4_boss_defeated_1080p.mp4', desc: 'Triumphant climax as the Colossus crumbles into celestial loot prisms, showering victory rewards over the heroic orders.' },
   { id: 'scene5_monolith_explosion', title: 'Nexus Monolith Detonation', category: '3v3 Warzone', duration: '0:34', icon: '💥', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/scene5_monolith_explosion_1080p.mp4', desc: 'Cataclysmic 3v3 Warzone finale: The 2500-HP Chronocore Nexus Monolith overloads and detonates in blinding prismatic glory.' },
@@ -1141,6 +1142,43 @@ export default function LandingPage() {
           </div>
         </section>
 
+              {/* OFFICIAL DUAL LAUNCH TRAILER (YOUTUBE EMBED) */}
+              <section className="rounded-3xl p-6 lg:p-10 border-2 border-[#F2A900]/40 bg-gradient-to-br from-[#0F172A] via-[#090E1E] to-[#050814] shadow-[0_0_35px_rgba(242,169,0,0.25)] space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#1E293B]">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#F2A900] px-2.5 py-1 rounded bg-[#F2A900]/15 border border-[#F2A900]/40">
+                      Official Reveal Trailer • Launching Dec 5, 2026
+                    </span>
+                    <h2 className="font-display font-black text-2xl sm:text-3xl text-white mt-1">
+                      ⚔️ GLIMMERFALL OFFICIAL DUAL LAUNCH TRAILER
+                    </h2>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href="https://youtu.be/2e8E0vjLcLg"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3.5 py-1.5 rounded-xl bg-[#DC2626] hover:bg-[#EF4444] text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-md"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-white" /> Watch on YouTube
+                    </a>
+                  </div>
+                </div>
+                <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-[#334155] shadow-2xl bg-black">
+                  <iframe
+                    src="https://www.youtube.com/embed/2e8E0vjLcLg?rel=0&modestbranding=1"
+                    title="GlimmerFall — Official Dual Launch Trailer (Launching December 5, 2026)"
+                    className="absolute top-0 left-0 w-full h-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-white/70 pt-2">
+                  <span>One canonical universe. Two ways to play: <b className="text-[#FDE047]">2D MMORPG</b> &amp; <b className="text-[#38BDF8]">Tactical TCG</b>.</span>
+                  <span className="text-[#38BDF8] font-semibold">Official Release: December 5, 2026</span>
+                </div>
+              </section>
+
               {/* 4 CANONICAL FACTIONS SHOWCASE */}
               <section className="rounded-3xl p-6 lg:p-10 border border-[#1E293B] bg-[#0A0F22]/90 space-y-6">
                 <div className="flex justify-between items-center pb-4 border-b border-[#1E293B]">
@@ -1229,27 +1267,39 @@ export default function LandingPage() {
                 </span>
               </div>
               <span className="text-[10px] px-2 py-0.5 rounded bg-[#38BDF8]/20 border border-[#38BDF8]/40 text-[#38BDF8] font-bold">
-                {activeCinematic.category} &bull; {activeCinematic.duration} &bull; 1080p 60fps
+                {activeCinematic.category} &bull; {activeCinematic.duration} &bull; 1080p Full HD
               </span>
             </div>
 
             <div className="relative aspect-video w-full bg-black">
-              <video
-                id="theatre-main-video"
-                key={activeCinematic.url}
-                src={activeCinematic.url}
-                poster={activeCinematic.poster || LOGO_PATH}
-                controls
-                playsInline
-                preload="metadata"
-                autoPlay={isTheatreAutoplay}
-                onEnded={() => {
-                  if (isTheatreAutoplay) {
-                    handleAdvanceCinematic(1);
-                  }
-                }}
-                className="w-full h-full object-contain"
-              />
+              {activeCinematic.youtubeId ? (
+                <iframe
+                  id="theatre-main-iframe"
+                  key={activeCinematic.youtubeId}
+                  src={`https://www.youtube.com/embed/${activeCinematic.youtubeId}?autoplay=${isTheatreAutoplay ? '1' : '0'}&rel=0`}
+                  title={activeCinematic.title}
+                  className="w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  id="theatre-main-video"
+                  key={activeCinematic.url}
+                  src={activeCinematic.url}
+                  poster={activeCinematic.poster || LOGO_PATH}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  autoPlay={isTheatreAutoplay}
+                  onEnded={() => {
+                    if (isTheatreAutoplay) {
+                      handleAdvanceCinematic(1);
+                    }
+                  }}
+                  className="w-full h-full object-contain"
+                />
+              )}
             </div>
 
             <div className="p-3 bg-[#070C1A] border-t border-[#1E293B] flex items-center justify-between flex-wrap gap-2">

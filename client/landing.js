@@ -77,15 +77,16 @@ export const LANDING_OST_TRACKS = [
 ];
 
 export const LANDING_CINEMATICS = [
+  { id: 'official_trailer', modalKey: 'official_trailer', title: 'GlimmerFall — Official Dual Launch Trailer', category: 'Official Trailer', duration: '1:05', icon: '⚔️', poster: '/GlimmerFall_official_multicolor_logo.png', youtubeId: '2e8E0vjLcLg', url: 'https://youtu.be/2e8E0vjLcLg', desc: 'The official reveal trailer for GlimmerFall Online & TCG, launching December 5, 2026. One universe, two interconnected ways to play.' },
   { id: 'crystal_heart', modalKey: 'crystal_heart', title: 'The Shattered Crystal Heart', category: 'Prologue', duration: '0:35', icon: '🎬', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/crystal_heart_shattering_1080p.mp4', desc: 'The apocalyptic detonation of the primordial multi-faceted Crystal Heart that showered rainbow shards across the continent and fractured unified light into 4 aspects.' },
-  { id: 'awakening_solari_vanguard', modalKey: 'solari_vanguard', title: 'Solari Vanguard Awakening', category: 'Solari', duration: '0:30', icon: '☀️', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_solari_vanguard_1080p.mp4', desc: 'Sunspire golden plate sentinel with heavy tower shield and blazing spellblade channels solar dawn-fire, mirroring the Solari Vanguard golden knight sprite.' },
-  { id: 'awakening_solari_dawnblade', modalKey: 'solari_dawnblade', title: 'Solari Dawnblade Awakening', category: 'Solari', duration: '0:30', icon: '🗡️', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_solari_dawnblade_1080p.mp4', desc: 'Acrobatic radiant duelist wielding solar scimitars in blinding Zenith state, matching the swift dawnblade melee combat sprite.' },
-  { id: 'awakening_umbri_reaper', modalKey: 'umbri_reaper', title: 'Umbri Reaper Awakening', category: 'Umbri', duration: '0:30', icon: '💀', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_umbri_reaper_1080p.mp4', desc: 'Nether assassin wielding soul-harvest scythe from Dusk Shroud stealth, matching the hooded umbral harbinger sprite.' },
-  { id: 'awakening_umbri_shadowweaver', modalKey: 'umbri_shadowweaver', title: 'Umbri Shadowweaver Awakening', category: 'Umbri', duration: '0:30', icon: '🔮', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_umbri_shadowweaver_1080p.mp4', desc: 'Void sorcerer in deep purple robes weaving necrotic leylines and graveglass lanterns, matching the Umbri Shadowweaver caster sprite.' },
-  { id: 'awakening_terra_ironroot', modalKey: 'terra_ironroot', title: 'Terra Ironroot Awakening', category: 'Terra', duration: '0:30', icon: '🛡️', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_terra_ironroot_1080p.mp4', desc: 'Juggernaut forged from ancient ironwood and stonekin boulders, directly reflecting the massive Terra Ironroot titan sprite.' },
-  { id: 'awakening_terra_bramble_warden', modalKey: 'terra_bramble_warden', title: 'Terra Bramble Warden Awakening', category: 'Terra', duration: '0:30', icon: '🏹', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_terra_bramble_warden_1080p.mp4', desc: 'Verdant archer in forest camouflage drawing starlight briar arrows, matching the Terra Bramble Warden ranger sprite.' },
-  { id: 'awakening_aether_chronomancer', modalKey: 'aether_chronomancer', title: 'Aether Chronomancer Awakening', category: 'Aether', duration: '0:30', icon: '⏳', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_aether_chronomancer_1080p.mp4', desc: 'Temporal scholar channeling celestial chronoflux with the astral astrolabe, matching the blue-robed Aether Chronomancer sprite.' },
-  { id: 'awakening_aether_tempest_sage', modalKey: 'aether_tempest_sage', title: 'Aether Tempest Sage Awakening', category: 'Aether', duration: '0:30', icon: '⚡', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_aether_tempest_sage_1080p.mp4', desc: 'Arcane tempest sage summoning quantum chain lightning and cosmic beams, matching the Aether Tempest Sage lightning sprite.' },
+  { id: 'awakening_solari_vanguard', modalKey: 'solari_vanguard', title: 'Solari Vanguard Awakening', category: 'Solari', duration: '0:30', icon: '☀️', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_solari_vanguard_1080p.mp4', desc: 'Sunspire golden plate sentinel with heavy tower shield and blazing spellblade channels solar dawn-fire, personifying the Solari Vanguard golden knight.' },
+  { id: 'awakening_solari_dawnblade', modalKey: 'solari_dawnblade', title: 'Solari Dawnblade Awakening', category: 'Solari', duration: '0:30', icon: '🗡️', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_solari_dawnblade_1080p.mp4', desc: 'Acrobatic radiant duelist wielding solar scimitars in blinding Zenith state, executing swift dawnblade melee combat.' },
+  { id: 'awakening_umbri_reaper', modalKey: 'umbri_reaper', title: 'Umbri Reaper Awakening', category: 'Umbri', duration: '0:30', icon: '💀', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_umbri_reaper_1080p.mp4', desc: 'Nether assassin wielding soul-harvest scythe from Dusk Shroud stealth, channeling the hooded umbral harbinger.' },
+  { id: 'awakening_umbri_shadowweaver', modalKey: 'umbri_shadowweaver', title: 'Umbri Shadowweaver Awakening', category: 'Umbri', duration: '0:30', icon: '🔮', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_umbri_shadowweaver_1080p.mp4', desc: 'Void sorcerer in deep purple robes weaving necrotic leylines and graveglass lanterns, manifesting the Umbri Shadowweaver mystic.' },
+  { id: 'awakening_terra_ironroot', modalKey: 'terra_ironroot', title: 'Terra Ironroot Awakening', category: 'Terra', duration: '0:30', icon: '🛡️', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_terra_ironroot_1080p.mp4', desc: 'Juggernaut forged from ancient ironwood and stonekin boulders, directly embodying the massive Terra Ironroot titan.' },
+  { id: 'awakening_terra_bramble_warden', modalKey: 'terra_bramble_warden', title: 'Terra Bramble Warden Awakening', category: 'Terra', duration: '0:30', icon: '🏹', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_terra_bramble_warden_1080p.mp4', desc: 'Verdant archer in forest camouflage drawing starlight briar arrows, leading the Terra Bramble Warden rangers.' },
+  { id: 'awakening_aether_chronomancer', modalKey: 'aether_chronomancer', title: 'Aether Chronomancer Awakening', category: 'Aether', duration: '0:30', icon: '⏳', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_aether_chronomancer_1080p.mp4', desc: 'Temporal scholar channeling celestial chronoflux with the astral astrolabe, embodying the blue-robed Aether Chronomancer.' },
+  { id: 'awakening_aether_tempest_sage', modalKey: 'aether_tempest_sage', title: 'Aether Tempest Sage Awakening', category: 'Aether', duration: '0:30', icon: '⚡', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/awakening_aether_tempest_sage_1080p.mp4', desc: 'Arcane tempest sage summoning quantum chain lightning and cosmic beams, commanding the Aether Tempest Sage mysteries.' },
   { id: 'scene3_colossus_emergence', modalKey: 'colossus_emergence', title: 'Granite Colossus Emergence', category: 'World Boss', duration: '0:32', icon: '🗿', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/scene3_colossus_emergence_1080p.mp4', desc: 'Earth-shattering boss emergence in the deep Starfall Caldera as ancient stone awakened by leylines stirs to life.' },
   { id: 'scene4_boss_defeated', modalKey: 'boss_defeated', title: 'Boss Defeated & Shard Harvest', category: 'Victory', duration: '0:28', icon: '🏆', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/scene4_boss_defeated_1080p.mp4', desc: 'Triumphant climax as the Colossus crumbles into celestial loot prisms, showering victory rewards over the heroic orders.' },
   { id: 'scene5_monolith_explosion', modalKey: 'monolith_explosion', title: 'Nexus Monolith Detonation', category: '3v3 Warzone', duration: '0:34', icon: '💥', poster: '/GlimmerFall_official_multicolor_logo.png', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/scene5_monolith_explosion_1080p.mp4', desc: 'Cataclysmic 3v3 Warzone finale: The 2500-HP Chronocore Nexus Monolith overloads and detonates in blinding prismatic glory.' },
@@ -343,6 +344,21 @@ export class LandingPageController {
 
       const key = e.key;
       if (key === 'Escape') {
+        const pOverlay = document.getElementById('prologue-modal-overlay');
+        if (pOverlay && pOverlay.style.display !== 'none') {
+          e.preventDefault();
+          e.stopPropagation();
+          window.skipPrologueCinematic?.();
+          return;
+        }
+        const cOverlay = document.getElementById('cinematic-modal-overlay');
+        if (cOverlay && cOverlay.style.display !== 'none') {
+          e.preventDefault();
+          e.stopPropagation();
+          window.closeCinematicModal?.();
+          return;
+        }
+
         e.preventDefault();
         e.stopPropagation();
         this.close();
@@ -616,16 +632,41 @@ export class LandingPageController {
     this.selectedCinematicId = sceneId;
 
     if (typeof document !== 'undefined') {
-      const vid = document.getElementById('theatre-main-video');
-      if (vid) {
-        vid.src = scene.url;
-        vid.poster = scene.poster || LOGO_SRC;
-        vid.onended = () => {
-          if (this.isTheatreAutoplay) {
-            this.advanceCinematic(1, true);
+      const wrap = document.querySelector('.theatre-main-video-wrap');
+      if (wrap) {
+        if (scene.youtubeId) {
+          wrap.innerHTML = `
+            <iframe
+              id="theatre-main-iframe"
+              src="https://www.youtube.com/embed/${scene.youtubeId}?autoplay=${this.isTheatreAutoplay ? '1' : '0'}&rel=0"
+              title="${this.escapeHtml(scene.title)}"
+              style="width:100%; height:100%; min-height:360px; border:0; aspect-ratio:16/9; display:block;"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowfullscreen
+            ></iframe>
+          `;
+        } else {
+          wrap.innerHTML = `
+            <video
+              id="theatre-main-video"
+              src="${scene.url}"
+              poster="${scene.poster || LOGO_SRC}"
+              controls
+              playsinline
+              preload="metadata"
+              class="theatre-main-video"
+            ></video>
+          `;
+          const vid = document.getElementById('theatre-main-video');
+          if (vid) {
+            vid.onended = () => {
+              if (this.isTheatreAutoplay) {
+                this.advanceCinematic(1, true);
+              }
+            };
+            vid.play().catch(() => {});
           }
-        };
-        vid.play().catch(() => {});
+        }
       }
 
       const captionEl = document.getElementById('theatre-main-caption');
@@ -633,7 +674,7 @@ export class LandingPageController {
         captionEl.innerHTML = `
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
             <b style="color:#fde047; font-size:12px;">🎬 ${this.escapeHtml(scene.title)}</b>
-            <span style="font-size:10px; color:#38bdf8; font-weight:bold;">${this.escapeHtml(scene.category)} &bull; ${scene.duration} &bull; 1080p 60fps</span>
+            <span style="font-size:10px; color:#38bdf8; font-weight:bold;">${this.escapeHtml(scene.category)} &bull; ${scene.duration} &bull; 1080p Full HD</span>
           </div>
           <p style="margin-top:4px; font-size:11px; color:#cbd5e1; line-height:1.4;">${this.escapeHtml(scene.desc)}</p>
         `;
@@ -834,6 +875,18 @@ export class LandingPageController {
     if (this.frontpage) {
       this.frontpage.close();
       this.frontpage.playMode = this.playMode;
+      const roster = this.frontpage.getActiveRoster?.() || [];
+      const existing = roster.find((c) => c.name && c.name.toLowerCase() === finalName.toLowerCase());
+      if (existing) {
+        if (existing.classId !== cls.id || existing.faction !== this.selectedFaction) {
+          existing.classId = cls.id;
+          existing.faction = this.selectedFaction;
+          existing.orderTag = order.tag;
+        }
+        this.frontpage.selectCharacter(existing.id);
+        await this.frontpage.playSelectedCharacter();
+        return;
+      }
       try {
         await this.frontpage.createCharacter({
           name: finalName,
@@ -843,8 +896,19 @@ export class LandingPageController {
           startingRealm: ROOM_TYPES.SANCTUARY_HUB,
         });
       } catch (err) {
-        console.warn('[Landing] createCharacter fallback to playSelectedCharacter:', err);
-        await this.frontpage.playSelectedCharacter();
+        console.warn('[Landing] createCharacter fallback with unique suffix:', err);
+        try {
+          const uniqueName = `${finalName}_${Math.floor(100 + Math.random() * 899)}`;
+          await this.frontpage.createCharacter({
+            name: uniqueName,
+            faction: this.selectedFaction,
+            classId: cls.id,
+            orderTag: order.tag,
+            startingRealm: ROOM_TYPES.SANCTUARY_HUB,
+          });
+        } catch (_) {
+          await this.frontpage.playSelectedCharacter();
+        }
       }
     } else if (this.onEnterWorld) {
       this.onEnterWorld({
@@ -1301,6 +1365,34 @@ export class LandingPageController {
         </div>
       </section>
 
+      <!-- OFFICIAL DUAL LAUNCH TRAILER (YOUTUBE EMBED) -->
+      <section class="landing-section-box" style="margin-top:20px; border:2px solid #ca8a04; background:radial-gradient(ellipse at 50% 0%, #172554, #080d1e); box-shadow:0 0 35px rgba(242,169,0,0.25);">
+        <div class="section-header-row" style="border-bottom:1px solid #1e293b; padding-bottom:10px; margin-bottom:14px;">
+          <div>
+            <span class="section-tag" style="background:rgba(250,204,21,0.18); color:#fde047; border:1px solid rgba(250,204,21,0.4); font-weight:800;">
+              OFFICIAL REVEAL TRAILER • LAUNCHING DEC 5, 2026
+            </span>
+            <h2 class="section-heading" style="margin-top:4px;">⚔️ GLIMMERFALL OFFICIAL DUAL LAUNCH TRAILER</h2>
+          </div>
+          <a href="https://youtu.be/2e8E0vjLcLg" target="_blank" rel="noreferrer" class="id-mini-btn" style="padding:6px 14px; font-size:11px; font-weight:800; background:#dc2626; border-color:#ef4444; color:#fff; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+            <span>▶</span> Watch on YouTube ↗
+          </a>
+        </div>
+        <div style="position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:12px; overflow:hidden; border:1px solid #334155; box-shadow:0 8px 30px rgba(0,0,0,0.8);">
+          <iframe
+            src="https://www.youtube.com/embed/2e8E0vjLcLg?rel=0&modestbranding=1"
+            title="GlimmerFall — Official Dual Launch Trailer (Launching December 5, 2026)"
+            style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+          ></iframe>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-top:10px; font-size:11px; color:#cbd5e1;">
+          <span>One canonical universe. Two ways to play: <b style="color:#fde047;">2D MMORPG</b> &amp; <b style="color:#38bdf8;">Tactical TCG</b>.</span>
+          <span style="color:#38bdf8; font-weight:bold;">Official Release: December 5, 2026</span>
+        </div>
+      </section>
+
       <!-- 4 CANONICAL FACTIONS SHOWCASE CARDS -->
       <section class="landing-section-box" style="margin-top:20px;">
         <div class="section-header-row">
@@ -1368,20 +1460,31 @@ export class LandingPageController {
             </div>
           </div>
           <div class="theatre-main-video-wrap">
-            <video
-              id="theatre-main-video"
-              src="${activeCinematic.url}"
-              poster="${activeCinematic.poster || LOGO_SRC}"
-              controls
-              playsinline
-              preload="metadata"
-              class="theatre-main-video"
-            ></video>
+            ${activeCinematic.youtubeId ? `
+              <iframe
+                id="theatre-main-iframe"
+                src="https://www.youtube.com/embed/${activeCinematic.youtubeId}?autoplay=${this.isTheatreAutoplay ? '1' : '0'}&rel=0"
+                title="${this.escapeHtml(activeCinematic.title)}"
+                style="width:100%; height:100%; min-height:360px; border:0; aspect-ratio:16/9; display:block;"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowfullscreen
+              ></iframe>
+            ` : `
+              <video
+                id="theatre-main-video"
+                src="${activeCinematic.url}"
+                poster="${activeCinematic.poster || LOGO_SRC}"
+                controls
+                playsinline
+                preload="metadata"
+                class="theatre-main-video"
+              ></video>
+            `}
           </div>
           <div id="theatre-main-caption" class="theatre-main-caption">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
               <b style="color:#fde047; font-size:12px;">🎬 ${activeCinematic.title}</b>
-              <span style="font-size:10px; color:#38bdf8; font-weight:bold;">${activeCinematic.category} &bull; ${activeCinematic.duration} &bull; 1080p 60fps</span>
+              <span style="font-size:10px; color:#38bdf8; font-weight:bold;">${activeCinematic.category} &bull; ${activeCinematic.duration} &bull; 1080p Full HD</span>
             </div>
             <p style="margin-top:4px; font-size:11px; color:#cbd5e1; line-height:1.4;">${activeCinematic.desc}</p>
           </div>

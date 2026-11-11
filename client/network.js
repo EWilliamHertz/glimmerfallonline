@@ -211,6 +211,8 @@ export class MultiplayerClient {
     const qs = new URLSearchParams();
     if (this.token) qs.set('token', this.token);
     if (this.preferredRoom) qs.set('room', this.preferredRoom);
+    const activeChId = this.preferredCharacterId || this.selectedCharacterId || this.profile?.activeCharacterId || (typeof localStorage !== 'undefined' ? localStorage.getItem('glimmerfall_active_char_id') : null);
+    if (activeChId) qs.set('characterId', activeChId);
     qs.set('ngrok-skip-browser-warning', '1');
     if (this.currentCoords && Number.isFinite(this.currentCoords.x) && Number.isFinite(this.currentCoords.y)) {
       qs.set('x', String(Math.round(this.currentCoords.x)));

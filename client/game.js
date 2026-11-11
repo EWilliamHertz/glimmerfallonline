@@ -2679,6 +2679,10 @@ export function initGame() {
     }
   }
 
+  window.applyProfile = function (prof) {
+    applyProfile(prof, false);
+  };
+
   // ==========================================
   // Coordinate, FCT, Chat & Logging Helpers
   // ==========================================
@@ -6049,7 +6053,9 @@ export function initGame() {
       titleEl.style.color = '#fde047';
       titleEl.innerText = `⚡ NEXUS SIEGE ACTIVE: SHATTERED SHARD (${siegeState.shardHp} / ${siegeState.shardMaxHp} HP)!`;
       subEl.innerText = `All 4 Factions clash at Warzone Center • Defend your 25-HP ${localProfile.faction} Outpost Nexus!`;
-      audio.setBgmTheme('boss');
+      if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
+        audio.setBgmTheme('boss');
+      }
     } else {
       const mins = Math.floor((siegeState.nextInSec || 0) / 60);
       const secs = String((siegeState.nextInSec || 0) % 60).padStart(2, '0');
@@ -6060,7 +6066,9 @@ export function initGame() {
         ? `Last Claimed: ${siegeState.lastWinnerFaction} (${siegeState.lastClaimedBy})`
         : 'Defend your 25-HP Outpost Nexus';
       subEl.innerText = `${lastTxt} • Type /siege in chat to rally an instant clash!`;
-      audio.setBgmTheme('warzone');
+      if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
+        audio.setBgmTheme('warzone');
+      }
     }
   }
 
@@ -10814,7 +10822,38 @@ export function initGame() {
       return;
     }
 
-    // 2. Escape on landing page or frontpage
+    // 2. HIGHEST PRIORITY DISMISSAL ON ESCAPE: Video Cinematics or Prologue
+    const pOverlay = document.getElementById('prologue-modal-overlay');
+    if (pOverlay && pOverlay.style.display !== 'none') {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        window.skipPrologueCinematic?.();
+        return;
+      }
+    }
+    const cOverlay = document.getElementById('cinematic-modal-overlay');
+    if (cOverlay && cOverlay.style.display !== 'none') {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        window.closeCinematicModal?.();
+        return;
+      }
+    }
+
+    // 3. Dismiss Quest Complete scroll modal on Space, Enter, or Escape
+    const qcModal = document.getElementById('quest-complete-modal');
+    if (qcModal && qcModal.style.display === 'flex') {
+      if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        window.closeQuestCompleteModal(true);
+        return;
+      }
+    }
+
+    // 4. Escape on landing page or frontpage
     if (landingPage && landingPage.isOpen) {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -10835,40 +10874,14 @@ export function initGame() {
           frontpage.transitionTo('CHARACTER_SELECT');
         } else if (hasEnteredWorld || introShown) {
           frontpage.close();
+        } else if (landingPage) {
+          frontpage.close();
+          landingPage.open();
+        } else {
+          frontpage.close();
         }
       }
       return;
-    }
-
-    // 3. Dismiss video cinematics or prologue on Escape
-    const pOverlay = document.getElementById('prologue-modal-overlay');
-    if (pOverlay && pOverlay.style.display !== 'none') {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        window.skipPrologueCinematic?.();
-        return;
-      }
-    }
-    const cOverlay = document.getElementById('cinematic-modal-overlay');
-    if (cOverlay && cOverlay.style.display !== 'none') {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        window.closeCinematicModal?.();
-        return;
-      }
-    }
-
-    // 4. Dismiss Quest Complete scroll modal on Space, Enter, or Escape
-    const qcModal = document.getElementById('quest-complete-modal');
-    if (qcModal && qcModal.style.display === 'flex') {
-      if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') {
-        e.preventDefault();
-        e.stopPropagation();
-        window.closeQuestCompleteModal(true);
-        return;
-      }
     }
 
     // 5. Active inputs & form controls
@@ -10920,11 +10933,13 @@ export function initGame() {
 
       const skPopup = document.getElementById('skills-tab-popup');
       const isSkOpen = skPopup && skPopup.style.display !== 'none' && skPopup.classList.contains('active');
-      if (openModal || currentTarget || dialogueOpen || isSkOpen) {
+      const hasQuickPick = typeof quickPickSlot !== 'undefined' && quickPickSlot !== null;
+      if (openModal || currentTarget || dialogueOpen || isSkOpen || hasQuickPick) {
         setTarget(null);
         window.closeDialogue();
         window.clearHoveredEquipment?.();
         window.closeCraftingModal?.();
+        window.closeQuickSlotPicker?.();
         if (skPopup) {
           skPopup.classList.remove('active');
           skPopup.style.display = 'none';

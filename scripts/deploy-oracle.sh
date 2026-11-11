@@ -10,6 +10,16 @@ echo "📦 Updating system packages..."
 sudo apt-get update -y
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl git iptables-persistent
 
+# 1b. Ensure swapfile exists (crucial for 1GB RAM AMD Micro instances)
+if [ ! -f /swapfile ] && [ $(free -m | awk '/^Mem:/{print $2}') -lt 3000 ]; then
+  echo "💾 Configuring 2GB swap space for smooth build on low-RAM instance..."
+  sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+  sudo chmod 600 /swapfile
+  sudo mkswap /swapfile
+  sudo swapon /swapfile
+  echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+fi
+
 # 2. Open firewall ports (80, 443, 8080) in OS iptables
 echo "🛡️ Opening firewall ports (80, 443, 8080)..."
 sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT || true

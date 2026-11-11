@@ -1,0 +1,151 @@
+================================================================================
+⚔️ GLIMMERFALL ONLINE — ORACLE CLOUD QUICKSTART GUIDE (IPAD ONLY)
+================================================================================
+No computer, laptop, or App Store terminal apps required.
+Follow this guide using ONLY:
+  1. iPad Safari (for Oracle Console & Cloud Shell)
+  2. iPad Files app (for downloaded SSH key)
+  3. Google Cloud Shell terminal (for SSH connection & deployment)
+================================================================================
+
+--------------------------------------------------------------------------------
+STEP 1: CREATE YOUR FREE SERVER IN ORACLE CLOUD (SAFARI ON IPAD)
+--------------------------------------------------------------------------------
+
+1. Open Safari on your iPad and go to: https://cloud.oracle.com
+2. Sign in to your Oracle Cloud account.
+3. Tap the top-left Navigation Menu (☰) → Compute → Instances.
+4. Tap the blue "Create Instance" button.
+
+5. Configure Instance Settings:
+   • Name: glimmerfall-server
+   • Placement: Leave default (AD-1).
+
+   • Image and Shape:
+     - Image: Tap "Edit" → select "Ubuntu 24.04" (or 22.04).
+     - Shape: Tap "Change Shape"
+         * OPTION A (Fastest & Guaranteed - Never out of capacity):
+           Tap "Specialty and legacy" (or AMD) → select "VM.Standard.E2.1.Micro" 
+           (1 OCPU, 1 GB RAM, Always Free). 
+           (Note: The deployer script automatically creates a 2GB swapfile 
+            so the game builds and runs smoothly on 1GB RAM).
+
+         * OPTION B (If you want the 12GB ARM server):
+           Select "Ampere (ARM)" → VM.Standard.A1.Flex.
+           If AD-1 is out of capacity, tap Placement "Edit" and switch 
+           Availability Domain to "AD-2" or "AD-3", or reduce sliders to 
+           1 OCPU and 6 GB RAM.
+
+   • Networking:
+     - Leave default ("Create new virtual cloud network").
+     - Ensure "Assign a public IPv4 address" is set to "Yes".
+
+   • Add SSH Keys:
+     - Select "Generate a key pair for me".
+     - Tap "Save Private Key". 
+       (Safari will download a file named ssh-key-....key directly 
+        into your iPad's Files → Downloads folder).
+
+6. Scroll to the bottom and tap "Create".
+   • If you see "Out of capacity for shape VM.Standard.A1.Flex":
+     → Solution 1: Change Shape to "VM.Standard.E2.1.Micro" (AMD Micro Always Free).
+     → Solution 2: Under Placement "Edit", change Availability Domain from AD-1 to AD-2 or AD-3.
+     → Solution 3: In Ampere shape, reduce sliders to 1 OCPU and 6 GB RAM.
+   • Wait ~60 seconds until the status tile turns green ("Running").
+   • Tap and COPY your "Public IP Address" (e.g. 129.153.xxx.xxx).
+
+--------------------------------------------------------------------------------
+STEP 2: OPEN FIREWALL PORTS IN ORACLE CONSOLE (SAFARI ON IPAD)
+--------------------------------------------------------------------------------
+Oracle blocks web and game traffic by default until you add Ingress Rules:
+
+1. On your instance details page, scroll down to the "Primary VNIC" section.
+2. Tap the blue link next to "Subnet" (e.g., subnet-2026...).
+3. Under "Security Lists", tap "Default Security List for...".
+4. Tap the blue "Add Ingress Rules" button:
+   • Source Type: CIDR
+   • Source CIDR: 0.0.0.0/0
+   • IP Protocol: TCP
+   • Destination Port Range: 80,443,8080
+   • Description: GlimmerFall Web and Game Server
+5. Tap "Add Ingress Rules".
+
+--------------------------------------------------------------------------------
+STEP 3: CONNECT FROM GOOGLE CLOUD SHELL (NO COMPUTER NEEDED!)
+--------------------------------------------------------------------------------
+Since you are using Google Cloud Shell on your iPad, Cloud Shell IS your terminal!
+
+1. Upload your Oracle SSH key to Cloud Shell:
+   • In your Safari tab running Google Cloud Shell:
+   • Look at the top toolbar (above the black terminal screen).
+   • Tap the Three Dots (⋮) or the File Transfer icon.
+   • Tap "Upload File".
+   • The iPad file picker will open:
+       - Tap "Choose File" → tap "Browse".
+       - Go to your iPad's Downloads folder (Files app).
+       - Select your "ssh-key-....key" file.
+       - Tap "Upload".
+   • Cloud Shell uploads the key file directly to your home directory (~/).
+
+2. In the Cloud Shell terminal, lock key permissions:
+   Run:
+     chmod 400 ~/ssh-key-*.key
+
+3. Connect to your Oracle server (replace YOUR_ORACLE_IP with the IP from Step 1):
+   Run:
+     ssh -i ~/ssh-key-*.key ubuntu@YOUR_ORACLE_IP
+
+   • When prompted: "Are you sure you want to continue connecting (yes/no)?"
+   • Type "yes" and press Return / Enter.
+   • You are now logged in! Your prompt will change to:
+     ubuntu@glimmerfall-server:~$
+
+--------------------------------------------------------------------------------
+STEP 4: RUN THE 1-COMMAND AUTOMATED DEPLOYER
+--------------------------------------------------------------------------------
+Inside the Oracle Ubuntu prompt (ubuntu@glimmerfall-server:~$), paste and run:
+
+curl -sSL https://raw.githubusercontent.com/EWilliamHertz/glimmerfallonline/main/scripts/deploy-oracle.sh | bash
+
+What this script automatically does (takes ~2 minutes):
+  1. Configures the Ubuntu OS iptables firewall for ports 80, 443, and 8080.
+  2. Installs Node.js 20 LTS and Git.
+  3. Clones the latest GlimmerFall Online codebase from GitHub.
+  4. Installs dependencies and builds the production client bundle.
+  5. Starts the 20Hz Authoritative MMORPG Server with PM2 (runs 24/7 
+     in the background and auto-restarts if the server ever reboots).
+
+--------------------------------------------------------------------------------
+STEP 5: PLAY ON YOUR IPAD!
+--------------------------------------------------------------------------------
+When the script completes, it will display:
+  🎉 DEPLOYMENT COMPLETE!
+  ⚔️ Play GlimmerFall Online at:
+  👉 http://YOUR_ORACLE_IP:8080
+
+1. Open a new tab in iPad Safari and enter:
+   http://YOUR_ORACLE_IP:8080
+
+2. Make it a Full-Screen iPad App:
+   • In Safari, tap the Share icon (square with upward arrow).
+   • Tap "Add to Home Screen".
+   • Name it "GlimmerFall Online" and tap "Add".
+   • Tap the new game icon on your iPad home screen to launch in full-screen 
+     mode with zero browser bars, responsive 60 FPS touch controls, 
+     and 24/7 multiplayer server uptime!
+
+================================================================================
+USEFUL SERVER COMMANDS (ONCE LOGGED INTO ORACLE SERVER):
+================================================================================
+• View live game server logs:
+    pm2 logs glimmerfall
+
+• Check server status & CPU/RAM usage:
+    pm2 status
+
+• Restart the server:
+    pm2 restart glimmerfall
+
+• Update game to latest GitHub code:
+    cd ~/glimmerfallonline && git pull && npm run build && pm2 restart glimmerfall
+================================================================================

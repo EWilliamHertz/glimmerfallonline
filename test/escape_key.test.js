@@ -38,7 +38,7 @@ test('Escape Key Integrity: Modals, settings, audio mixer, inputs, cinematics, a
     'game.js must clean up crafting timers on Escape dismiss'
   );
 
-  // 4. Landing page handles Escape to return to frontpage or game
+  // 4. Landing page and frontpage handle Escape to navigate between screens or return to game
   assert.ok(
     landingJsSrc.includes("if (key === 'Escape')"),
     'landing.js must handle Escape in initKeyboardNavigation'
@@ -47,5 +47,14 @@ test('Escape Key Integrity: Modals, settings, audio mixer, inputs, cinematics, a
     gameJsSrc.includes('hasEnteredWorld') &&
     gameJsSrc.includes('frontpage.open()'),
     'game.js must return to frontpage on Escape from landing page if world not entered'
+  );
+  assert.ok(
+    gameJsSrc.includes('landingPage.open()'),
+    'game.js must return to landing page on Escape from frontpage if world not entered'
+  );
+  assert.ok(
+    landingJsSrc.includes('skipPrologueCinematic') &&
+    landingJsSrc.includes('closeCinematicModal'),
+    'landing.js must dismiss video cinematics on Escape before closing landing page'
   );
 });

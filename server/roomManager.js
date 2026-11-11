@@ -271,7 +271,7 @@ export class RoomManager {
     return out;
   }
 
-  attachConnection(ws, account, preferredRoom = null, reqX = null, reqY = null) {
+  attachConnection(ws, account, preferredRoom = null, reqX = null, reqY = null, reqCharId = null) {
     const existing = this.clients.get(account.id);
     if (existing && existing.ws !== ws) {
       try {
@@ -288,6 +288,9 @@ export class RoomManager {
       this.removeClient(existing);
     }
 
+    if (reqCharId && this.accounts.charactersByAccount.get(account.id)?.has(reqCharId)) {
+      account.activeCharacterId = reqCharId;
+    }
     this.accounts.ensureDefaultCharacter(account);
     this.accounts.syncAccountFromActiveChar(account);
     const ch = this.accounts.charactersByAccount.get(account.id)?.get(account.activeCharacterId);
