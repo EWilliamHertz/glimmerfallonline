@@ -969,8 +969,7 @@ export function buildPropSprites(sprites) {
   // Crystalline obsidian gravestone marking player fallen ground
   // ==========================================
   {
-    const c = makeCanvas(24, 28);
-    const ctx = c.getContext('2d');
+    const { c, ctx } = makeCanvas(24, 28);
 
     // Stone base pedestal
     rect(ctx, 4, 24, 16, 4, '#1e293b');

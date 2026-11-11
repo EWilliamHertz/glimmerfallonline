@@ -27,6 +27,7 @@ if (typeof globalThis.document === 'undefined') {
       return null;
     },
     querySelectorAll: () => [],
+    querySelector: () => null,
   };
 }
 
@@ -198,4 +199,66 @@ test('AccountsStore & RoomManager: Character selection and attachConnection inte
   assert.equal(clientSession.displayName, 'ShadowHero', 'Client session displayName must match secondChar');
   assert.equal(clientSession.classId, 'umbral_assassin', 'Client session classId must match secondChar');
   rm.stop();
+});
+
+test('Landing Page & Champion Forge: buildSpriteSheet and forge hero buttons work without throwing', async () => {
+  const dummyCtx = {
+    fillRect: () => {}, drawImage: () => {}, clearRect: () => {},
+    getImageData: () => ({ data: new Uint8ClampedArray(400) }),
+    createImageData: () => ({ data: new Uint8ClampedArray(400) }),
+    putImageData: () => {},
+  };
+  const prevCreateElement = globalThis.document.createElement;
+  globalThis.document.createElement = (tag) => {
+    if (tag === 'canvas') {
+      return {
+        width: 32,
+        height: 32,
+        getContext: () => dummyCtx,
+      };
+    }
+    return { style: {}, classList: { add: () => {}, remove: () => {} }, appendChild: () => {} };
+  };
+
+  const landingEl = { innerHTML: '', style: { display: 'none' } };
+  const prevGetElementById = globalThis.document.getElementById;
+  globalThis.document.getElementById = (id) => {
+    if (id === 'landing-overlay') return landingEl;
+    return prevGetElementById(id);
+  };
+
+  try {
+    const { buildSpriteSheet } = await import('../client/sprites.js');
+    const sheet = buildSpriteSheet();
+    assert.ok(sheet.props, 'sheet.props must exist');
+    assert.ok(sheet.props.graveglassTombstone, 'sheet.props.graveglassTombstone must be built without error');
+
+    const { LandingPageController } = await import('../client/landing.js');
+    const landing = new LandingPageController({
+      frontpage: { close: () => {}, open: () => {} },
+      onEnterWorld: () => {}
+    });
+    landing.open();
+    assert.equal(landing.isOpen, true);
+
+    // Test clicking Forge hero buttons
+    landing.setFaction('Solari');
+    landing.setTab('forge');
+    assert.equal(landing.selectedFaction, 'Solari');
+    assert.equal(landing.activeTab, 'forge');
+    assert.ok(landingEl.innerHTML.includes('CHAMPION LOADOUT FORGE'), 'Forge tab must render loadout forge');
+
+    landing.setFaction('Umbri');
+    assert.equal(landing.selectedFaction, 'Umbri');
+    assert.ok(landingEl.innerHTML.includes('Umbri'), 'Forge tab must reflect Umbri faction');
+
+    landing.setFaction('Terra');
+    assert.equal(landing.selectedFaction, 'Terra');
+
+    landing.setFaction('Aether');
+    assert.equal(landing.selectedFaction, 'Aether');
+  } finally {
+    globalThis.document.createElement = prevCreateElement;
+    globalThis.document.getElementById = prevGetElementById;
+  }
 });

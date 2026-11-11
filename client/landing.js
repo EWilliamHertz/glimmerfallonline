@@ -180,7 +180,7 @@ export const SYSTEMS_SHOWCASE = [
 ];
 
 export class LandingPageController {
-  constructor({ frontpage, onEnterWorld }) {
+  constructor({ frontpage = null, onEnterWorld = null } = {}) {
     this.frontpage = frontpage;
     this.onEnterWorld = onEnterWorld;
     this.isOpen = false;
@@ -462,7 +462,7 @@ export class LandingPageController {
     this.activeTab = aliasMap[tabId] || tabId;
     this.playSfx('click');
     this.render();
-    if (typeof document !== 'undefined') {
+    if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
       const scrollEl = document.querySelector('.landing-main-scroll');
       if (scrollEl) {
         scrollEl.scrollTop = 0;
@@ -474,6 +474,14 @@ export class LandingPageController {
     this.isOpen = true;
     if (initialTab) {
       this.activeTab = initialTab;
+    } else if (typeof window !== 'undefined' && window._pendingLandingTab) {
+      this.activeTab = window._pendingLandingTab;
+      window._pendingLandingTab = null;
+    }
+    if (typeof window !== 'undefined' && window._pendingLandingFaction) {
+      const pendingFac = window._pendingLandingFaction;
+      window._pendingLandingFaction = null;
+      this.setFaction(pendingFac);
     }
 
     if (this.frontpage) {

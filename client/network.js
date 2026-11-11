@@ -11,16 +11,13 @@ export function normalizeServerUrl(rawUrl) {
   let url = String(rawUrl).trim().replace(/\/+$/, '');
   const isPageHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
 
-  // If accessing or configured with Oracle raw IP:
-  if (url.includes('79.76.40.148') && !url.includes('sslip.io')) {
-    if (isPageHttps || url.startsWith('https:')) {
-      url = url.replace('79.76.40.148:8080', '79.76.40.148.sslip.io')
-               .replace('79.76.40.148', '79.76.40.148.sslip.io');
-      if (!url.startsWith('https://')) {
-        url = url.replace(/^http:\/\//i, 'https://');
-        if (!url.startsWith('https://')) url = 'https://' + url;
-      }
-    }
+  // If accessing or configured with Oracle raw IP or sslip.io:
+  if (url.includes('79.76.40.148') || url.includes('sslip.io')) {
+    // Automatically route to official clean domain with verified Let's Encrypt TLS:
+    return 'https://glimmerfall.online';
+  }
+  if (isPageHttps && url.startsWith('http://') && !url.includes('localhost') && !url.includes('127.0.0.1')) {
+    url = url.replace(/^http:\/\//i, 'https://');
   }
   return url;
 }
@@ -86,17 +83,20 @@ export class MultiplayerClient {
       if (env) return normalizeServerUrl(String(env));
     } catch (_) {}
     if (typeof window !== 'undefined') {
-      const isHttps = window.location.protocol === 'https:';
       const host = (window.location.hostname || '').toLowerCase();
-      // If deployed on Vercel or custom domain:
-      if (isHttps && (host.includes('vercel.app') || host.includes('glimmerfall.online'))) {
-        return 'https://79.76.40.148.sslip.io';
-      }
-      if (host === '79.76.40.148' || host.includes('sslip.io')) {
+      // If visited directly on official domain, stay on same origin!
+      if (host.includes('glimmerfall.online')) {
         return `${window.location.protocol}//${window.location.host}`;
       }
+      // If deployed on Vercel or external host:
+      if (host.includes('vercel.app')) {
+        return 'https://glimmerfall.online';
+      }
+      if (host === '79.76.40.148' || host.includes('sslip.io')) {
+        return 'https://glimmerfall.online';
+      }
     }
-    return '';
+    return 'https://glimmerfall.online';
   }
 
   isLocalOrigin() {
@@ -129,10 +129,16 @@ export class MultiplayerClient {
         localStorage.removeItem('glimmerfall_server_url');
         const sessionBase = sessionStorage.getItem('glimmerfall_server_url');
         if (sessionBase) return normalizeServerUrl(sessionBase);
-        return this.getDefaultServerBase();
+        return '';
       }
       const stored = localStorage.getItem('glimmerfall_server_url');
-      if (stored) return normalizeServerUrl(stored);
+      if (stored) {
+        const clean = normalizeServerUrl(stored);
+        if (stored.includes('79.76.40.148') || stored.includes('sslip.io')) {
+          localStorage.setItem('glimmerfall_server_url', clean);
+        }
+        return clean;
+      }
     } catch (_) {}
     return this.getDefaultServerBase();
   }
@@ -256,15 +262,15 @@ export class MultiplayerClient {
       const isHttps = serverBase.startsWith('https:') || (typeof window !== 'undefined' && window.location.protocol === 'https:');
       const wsProto = isHttps ? 'wss:' : 'ws:';
       let cleanHost = serverBase.replace(/^https?:\/\//i, '');
-      if (isHttps && cleanHost.includes('79.76.40.148') && !cleanHost.includes('sslip.io')) {
-        cleanHost = cleanHost.replace('79.76.40.148:8080', '79.76.40.148.sslip.io').replace('79.76.40.148', '79.76.40.148.sslip.io');
+      if (cleanHost.includes('79.76.40.148') || cleanHost.includes('sslip.io')) {
+        cleanHost = 'glimmerfall.online';
       }
       url = `${wsProto}//${cleanHost}/ws${qStr}`;
     } else {
       const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       let host = window.location.host;
-      if (wsProto === 'wss:' && host.includes('79.76.40.148') && !host.includes('sslip.io')) {
-        host = host.replace('79.76.40.148:8080', '79.76.40.148.sslip.io').replace('79.76.40.148', '79.76.40.148.sslip.io');
+      if (host.includes('79.76.40.148') || host.includes('sslip.io')) {
+        host = 'glimmerfall.online';
       }
       url = `${wsProto}//${host}/ws${qStr}`;
     }

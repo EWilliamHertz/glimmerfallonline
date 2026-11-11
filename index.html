@@ -54,6 +54,47 @@
             var cbs = document.querySelectorAll('.start-on-site-cb');
             cbs.forEach(function (cb) { cb.checked = startOnSite; });
 
+            window.landingSetTab = function (tab) {
+              if (window._landing) {
+                window._landing.setTab(tab);
+              } else {
+                window._pendingLandingTab = tab;
+              }
+            };
+            window.landingSetFaction = function (fac, andTab) {
+              if (window._landing) {
+                window._landing.setFaction(fac);
+                if (andTab) window._landing.setTab(andTab);
+              } else {
+                window._pendingLandingFaction = fac;
+                if (andTab) window._pendingLandingTab = andTab;
+              }
+            };
+            window.landingStartJourney = function () {
+              if (window._landing) {
+                window._landing.startJourney();
+              } else if (window._fp) {
+                window._fp.playSelectedCharacter();
+              } else {
+                location.href = '/?autostart=1';
+              }
+            };
+            window.landingSetPlayMode = function (mode) {
+              try { localStorage.setItem('glimmerfall_play_mode', mode); } catch (_) {}
+              if (window._landing) {
+                window._landing.setPlayMode(mode);
+              }
+            };
+            window.landingOpenLoadout = function () {
+              if (window._landing) {
+                window._landing.openLoadout();
+              } else if (window._fp) {
+                window._fp.open();
+              } else {
+                location.href = '/?loadout=1';
+              }
+            };
+
             window.openLandingPage = window.openLandingPage || function (tab) {
               var fp = document.getElementById('frontpage-overlay');
               var lp = document.getElementById('landing-overlay');
@@ -62,8 +103,11 @@
                 lp.style.display = 'block';
                 if (window._landing) {
                   window._landing.open(tab);
-                } else if (typeof preRenderLanding === 'function') {
-                  preRenderLanding();
+                } else {
+                  if (tab) window._pendingLandingTab = tab;
+                  if (typeof preRenderLanding === 'function') {
+                    preRenderLanding();
+                  }
                 }
               }
             };
@@ -84,22 +128,22 @@
                         </div>
                       </div>
                       <div class="sidebar-mode-grid">
-                        <button type="button" class="sidebar-mode-btn active single" onclick="if(window._landing){window._landing.setPlayMode('singleplayer');}">🕹️ Offline</button>
-                        <button type="button" class="sidebar-mode-btn" onclick="if(window._landing){window._landing.setPlayMode('multiplayer');}">🌐 Online</button>
+                        <button type="button" class="sidebar-mode-btn active single" onclick="window.landingSetPlayMode('singleplayer')">🕹️ Offline</button>
+                        <button type="button" class="sidebar-mode-btn" onclick="window.landingSetPlayMode('multiplayer')">🌐 Online</button>
                       </div>
-                      <button type="button" class="sidebar-cta-btn" onclick="if(window._landing){window._landing.startJourney();}else{location.href='/?autostart=1';}">⚡ START JOURNEY NOW</button>
+                      <button type="button" class="sidebar-cta-btn" onclick="window.landingStartJourney()">⚡ START JOURNEY NOW</button>
                     </div>
                     <div class="sidebar-section">
                       <div class="sidebar-section-title"><span>EXPLORE AREAS</span></div>
                       <div class="sidebar-nav-list">
-                        <button type="button" class="sidebar-nav-link active" onclick="if(window._landing){window._landing.setTab('overview');}"><span>🏛️ Overview &amp; Music</span><span style="color:#fde047;">▸</span></button>
-                        <button type="button" class="sidebar-nav-link" onclick="if(window._landing){window._landing.setTab('theatre');}"><span>🎬 1080p Theatre</span><span style="color:#38bdf8;">▸</span></button>
-                        <button type="button" class="sidebar-nav-link" onclick="if(window._landing){window._landing.setTab('forge');}"><span>⚔️ Champion Forge</span><span style="color:#facc15;">▸</span></button>
-                        <button type="button" class="sidebar-nav-link" onclick="if(window._landing){window._landing.setTab('systems');}"><span>⚙️ Game Systems</span><span style="color:#4ade80;">▸</span></button>
-                        <button type="button" class="sidebar-nav-link" onclick="if(window._landing){window._landing.setTab('armory');}"><span>🛡️ Armory &amp; TCG</span><span style="color:#38bdf8;">▸</span></button>
-                        <button type="button" class="sidebar-nav-link" onclick="if(window._landing){window._landing.setTab('atlas');}"><span>🗺️ Atlas &amp; Lore</span><span style="color:#c084fc;">▸</span></button>
-                        <button type="button" class="sidebar-nav-link" onclick="if(window._landing){window._landing.setTab('settings');}"><span>⚙️ Preferences &amp; Settings</span><span style="color:#facc15;">▸</span></button>
-                        <button type="button" class="sidebar-nav-link special" onclick="if(window._landing){window._landing.openLoadout();}else if(window._fp){window._fp.open();}else{location.href='/?loadout=1';}"><span>👤 Open Hero Loadout</span><span>⚙️</span></button>
+                        <button type="button" class="sidebar-nav-link active" onclick="window.landingSetTab('overview')"><span>🏛️ Overview &amp; Music</span><span style="color:#fde047;">▸</span></button>
+                        <button type="button" class="sidebar-nav-link" onclick="window.landingSetTab('theatre')"><span>🎬 1080p Theatre</span><span style="color:#38bdf8;">▸</span></button>
+                        <button type="button" class="sidebar-nav-link" onclick="window.landingSetTab('forge')"><span>⚔️ Champion Forge</span><span style="color:#facc15;">▸</span></button>
+                        <button type="button" class="sidebar-nav-link" onclick="window.landingSetTab('systems')"><span>⚙️ Game Systems</span><span style="color:#4ade80;">▸</span></button>
+                        <button type="button" class="sidebar-nav-link" onclick="window.landingSetTab('armory')"><span>🛡️ Armory &amp; TCG</span><span style="color:#38bdf8;">▸</span></button>
+                        <button type="button" class="sidebar-nav-link" onclick="window.landingSetTab('atlas')"><span>🗺️ Atlas &amp; Lore</span><span style="color:#c084fc;">▸</span></button>
+                        <button type="button" class="sidebar-nav-link" onclick="window.landingSetTab('settings')"><span>⚙️ Preferences &amp; Settings</span><span style="color:#facc15;">▸</span></button>
+                        <button type="button" class="sidebar-nav-link special" onclick="window.landingOpenLoadout()"><span>👤 Open Hero Loadout</span><span>⚙️</span></button>
                       </div>
                     </div>
                     <div class="sidebar-footer">
@@ -118,16 +162,16 @@
                     <!-- TOP TAB HEADER -->
                     <header class="landing-tabs-header">
                       <nav class="landing-tabs-nav">
-                        <button type="button" class="landing-tab-btn active" onclick="if(window._landing){window._landing.setTab('overview');}"><span>🏛️ Overview &amp; Music</span><span class="landing-tab-btn-badge">OST</span></button>
-                        <button type="button" class="landing-tab-btn" onclick="if(window._landing){window._landing.setTab('theatre');}"><span>🎬 1080p Theatre</span><span class="landing-tab-btn-badge">12 Scenes</span></button>
-                        <button type="button" class="landing-tab-btn" onclick="if(window._landing){window._landing.setTab('forge');}"><span>⚔️ Champion Forge</span><span class="landing-tab-btn-badge">Hero</span></button>
-                        <button type="button" class="landing-tab-btn" onclick="if(window._landing){window._landing.setTab('systems');}"><span>⚙️ Game Systems</span><span class="landing-tab-btn-badge">Lv.99</span></button>
-                        <button type="button" class="landing-tab-btn" onclick="if(window._landing){window._landing.setTab('armory');}"><span>🛡️ Armory &amp; TCG</span><span class="landing-tab-btn-badge">8 Slots</span></button>
-                        <button type="button" class="landing-tab-btn" onclick="if(window._landing){window._landing.setTab('atlas');}"><span>🗺️ Atlas &amp; Lore</span><span class="landing-tab-btn-badge">8 Biomes</span></button>
-                        <button type="button" class="landing-tab-btn" onclick="if(window._landing){window._landing.setTab('settings');}"><span>⚙️ Settings</span><span class="landing-tab-btn-badge">Prefs</span></button>
+                        <button type="button" class="landing-tab-btn active" onclick="window.landingSetTab('overview')"><span>🏛️ Overview &amp; Music</span><span class="landing-tab-btn-badge">OST</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('theatre')"><span>🎬 1080p Theatre</span><span class="landing-tab-btn-badge">12 Scenes</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('forge')"><span>⚔️ Champion Forge</span><span class="landing-tab-btn-badge">Hero</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('systems')"><span>⚙️ Game Systems</span><span class="landing-tab-btn-badge">Lv.99</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('armory')"><span>🛡️ Armory &amp; TCG</span><span class="landing-tab-btn-badge">8 Slots</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('atlas')"><span>🗺️ Atlas &amp; Lore</span><span class="landing-tab-btn-badge">8 Biomes</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('settings')"><span>⚙️ Settings</span><span class="landing-tab-btn-badge">Prefs</span></button>
                       </nav>
                       <div style="display:flex; align-items:center; gap:8px;">
-                        <button type="button" class="hero-btn-primary" style="padding:6px 14px; font-size:11px;" onclick="if(window._landing){window._landing.startJourney();}else{location.href='/?autostart=1';}">
+                        <button type="button" class="hero-btn-primary" style="padding:6px 14px; font-size:11px;" onclick="window.landingStartJourney()">
                           <span>⚡</span> START JOURNEY
                         </button>
                       </div>
@@ -161,10 +205,10 @@
                             <div class="hero-spec-pill"><div class="spec-val" style="color:#f87171;">2500 HP</div><div class="spec-lbl">Nexus Rule</div></div>
                           </div>
                           <div class="hero-cta-row">
-                            <button type="button" class="hero-btn-primary" onclick="if(window._landing){window._landing.startJourney();}else{location.href='/?autostart=1';}"><span>⚡</span> START JOURNEY NOW</button>
-                            <button type="button" class="hero-btn-secondary" onclick="if(window._landing){window._landing.setTab('forge');}"><span>⚔️</span> FORGE LOADOUT</button>
+                            <button type="button" class="hero-btn-primary" onclick="window.landingStartJourney()"><span>⚡</span> START JOURNEY NOW</button>
+                            <button type="button" class="hero-btn-secondary" onclick="window.landingSetTab('forge')"><span>⚔️</span> FORGE LOADOUT</button>
                             <button type="button" class="id-mini-btn" style="padding:10px 18px; font-size:12px; font-weight:800; border-color:#facc15; color:#fde047; cursor:pointer;" onclick="window.playCinematicModal && window.playCinematicModal('crystal_heart')"><span>🎬</span> WATCH 1080P PROLOGUE</button>
-                            <button type="button" class="id-mini-btn" style="padding:10px 18px; font-size:12px; font-weight:800; border-color:#38bdf8; color:#7dd3fc; cursor:pointer;" onclick="if(window._landing){window._landing.setTab('theatre');}"><span>🎞️</span> THEATRE (12 SCENES)</button>
+                            <button type="button" class="id-mini-btn" style="padding:10px 18px; font-size:12px; font-weight:800; border-color:#38bdf8; color:#7dd3fc; cursor:pointer;" onclick="window.landingSetTab('theatre')"><span>🎞️</span> THEATRE (12 SCENES)</button>
                           </div>
 
                           <!-- 4 Canonical Factions Cards -->
@@ -176,7 +220,7 @@
                               </div>
                               <div style="font-size:10.5px; font-weight:600; color:#fff; margin-bottom:4px;">The Sunspire Dominion</div>
                               <p style="font-size:10.5px; color:#cbd5e1; line-height:1.45; margin-bottom:12px;">Dawn-fire sentinels channeling Zenith Radiance and sunforged armor.</p>
-                              <button type="button" class="id-mini-btn" style="width:100%; font-size:10px; padding:6px; border-color:#facc15; color:#facc15; cursor:pointer;" onclick="if(window._landing){window._landing.setFaction('Solari'); window._landing.setTab('forge');}">
+                              <button type="button" class="id-mini-btn" style="width:100%; font-size:10px; padding:6px; border-color:#facc15; color:#facc15; cursor:pointer;" onclick="window.landingSetFaction('Solari', 'forge')">
                                 Forge Solari Champion ➔
                               </button>
                             </div>
@@ -188,7 +232,7 @@
                               </div>
                               <div style="font-size:10.5px; font-weight:600; color:#fff; margin-bottom:4px;">The Duskveil Syndicate</div>
                               <p style="font-size:10.5px; color:#cbd5e1; line-height:1.45; margin-bottom:12px;">Nether assassins and graveglass mystics striking unseen from Dusk Shroud.</p>
-                              <button type="button" class="id-mini-btn" style="width:100%; font-size:10px; padding:6px; border-color:#c084fc; color:#c084fc; cursor:pointer;" onclick="if(window._landing){window._landing.setFaction('Umbri'); window._landing.setTab('forge');}">
+                              <button type="button" class="id-mini-btn" style="width:100%; font-size:10px; padding:6px; border-color:#c084fc; color:#c084fc; cursor:pointer;" onclick="window.landingSetFaction('Umbri', 'forge')">
                                 Forge Umbri Champion ➔
                               </button>
                             </div>
@@ -200,7 +244,7 @@
                               </div>
                               <div style="font-size:10.5px; font-weight:600; color:#fff; margin-bottom:4px;">The Rootdeep Collective</div>
                               <p style="font-size:10.5px; color:#cbd5e1; line-height:1.45; margin-bottom:12px;">Primeval forest guardians wielding Ironwood resilience and Thornbark reflection.</p>
-                              <button type="button" class="id-mini-btn" style="width:100%; font-size:10px; padding:6px; border-color:#4ade80; color:#4ade80; cursor:pointer;" onclick="if(window._landing){window._landing.setFaction('Terra'); window._landing.setTab('forge');}">
+                              <button type="button" class="id-mini-btn" style="width:100%; font-size:10px; padding:6px; border-color:#4ade80; color:#4ade80; cursor:pointer;" onclick="window.landingSetFaction('Terra', 'forge')">
                                 Forge Terra Champion ➔
                               </button>
                             </div>
@@ -212,7 +256,7 @@
                               </div>
                               <div style="font-size:10.5px; font-weight:600; color:#fff; margin-bottom:4px;">The Astral Conclave</div>
                               <p style="font-size:10.5px; color:#cbd5e1; line-height:1.45; margin-bottom:12px;">Temporal weavers commanding Chronoflux acceleration and Astral Tempo.</p>
-                              <button type="button" class="id-mini-btn" style="width:100%; font-size:10px; padding:6px; border-color:#38bdf8; color:#38bdf8; cursor:pointer;" onclick="if(window._landing){window._landing.setFaction('Aether'); window._landing.setTab('forge');}">
+                              <button type="button" class="id-mini-btn" style="width:100%; font-size:10px; padding:6px; border-color:#38bdf8; color:#38bdf8; cursor:pointer;" onclick="window.landingSetFaction('Aether', 'forge')">
                                 Forge Aether Champion ➔
                               </button>
                             </div>
