@@ -555,7 +555,7 @@ export const combatRitesAndDamageMethods = {
           attackerX: attackerRef ? attackerRef.x : undefined,
           attackerY: attackerRef ? attackerRef.y : undefined,
         });
-        this.parties.syncPlayerVitals(targetPlayer.id);
+        this.parties?.syncPlayerVitals?.(targetPlayer.id);
         this.duels.concludeDuel(targetPlayer.id, attackerRef?.id, 'defeat');
         return;
       }
@@ -593,7 +593,7 @@ export const combatRitesAndDamageMethods = {
       }
     }
 
-    this.parties.syncPlayerVitals(targetPlayer.id);
+    this.parties?.syncPlayerVitals?.(targetPlayer.id);
 
     if (targetPlayer.hp <= 0) {
       targetPlayer.isDead = true;

@@ -1992,6 +1992,66 @@ test('Tibia Skull Infamy rules & Graveglass Tombstone retrieval run', async () =
   rm.damagePlayerSession(warzoneRoom, victim, 50, attacker.displayName, false, attacker);
   assert.equal(attacker.skull, 'red', '3 unprovoked kills grants Red Skull');
   assert.equal(attacker.skullTimer, 1800, 'Red skull lasts 1800 seconds (30m)');
+
+  rm.stop();
+});
+
+test('World of Warcraft Boss Multi-Phase Mechanics & Telegraphed AoE Ground Danger Zones', async () => {
+  const protocol = await import('../shared/protocol.js');
+  const { RoomManager } = await import('../server/roomManager.js');
+  const { AccountsStore } = await import('../server/accountsStore.js');
+
+  const store = new AccountsStore();
+  const rm = new RoomManager({ accountsStore: store });
+
+  // 1. Check Ironwood Timberlands boss (Elder Barkhide) and Coral Coast boss (Triton) in room entities
+  const timberlandsRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.IRONWOOD_TIMBERLANDS);
+  const barkhide = timberlandsRoom.entities.find((e) => e.name.includes('Barkhide'));
+  assert.ok(barkhide, 'Elder Barkhide must exist in Ironwood Timberlands');
+  assert.equal(barkhide.isBoss, true);
+  assert.equal(barkhide.spriteKey, 'elderBarkhide');
+
+  const coralRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.CORAL_COAST);
+  const triton = coralRoom.entities.find((e) => e.name.includes('Triton'));
+  assert.ok(triton, 'Triton must exist in Coral Coast');
+  assert.equal(triton.isBoss, true);
+  assert.equal(triton.spriteKey, 'tideReaverBoss');
+
+  // 2. Elder Barkhide Telegraphed Primal Root Bind ground danger zone
+  timberlandsRoom.groundZones.push({
+    id: 'tel_barkhide_test',
+    type: 'telegraph',
+    color: '#22c55e',
+    label: '🌿 PRIMAL ROOT BIND',
+    x: 0,
+    y: 0,
+    radius: 76,
+    age: 0,
+    maxAge: 1.65,
+    damage: 28,
+    bossName: barkhide.name,
+    bossRef: barkhide,
+    snare: 2.5,
+  });
+
+  const reg = store.registerAccount({ username: 'wow_raider', password: 'Pass123!456', displayName: 'Heroic Raider', faction: 'Solari', classId: 'solari_paladin' });
+  const dummyWs = { readyState: 1, send: () => {}, close: () => {} };
+  const player = rm.attachConnection(dummyWs, reg.account, 'ironwood_timberlands');
+  player.x = 20;
+  player.y = 20;
+  const initialHp = player.hp;
+
+  // Advance time past telegraph maxAge so it detonates
+  const telZone = timberlandsRoom.groundZones.find((gz) => gz.id === 'tel_barkhide_test');
+  telZone.age = 1.7;
+  rm.tickRoom(timberlandsRoom, 0.1, Date.now());
+
+  // Player within radius must suffer damage and snare!
+  assert.ok(player.hp < initialHp, 'Player within telegraphed circle must take detonation damage');
+  assert.ok(player.snareTimer > 0, 'Player within Primal Root Bind circle must be snared');
+  assert.equal(timberlandsRoom.groundZones.find((gz) => gz.id === 'tel_barkhide_test'), undefined, 'Telegraph zone must be consumed after detonation');
+
+  rm.stop();
 });
 
 
