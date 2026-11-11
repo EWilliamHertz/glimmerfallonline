@@ -622,7 +622,9 @@ export function createGlimmerFallServer() {
   return { server, wss, accounts, parties, exchange, trades, duels, rooms, ready, shutdown };
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain =
+  Boolean(process.env.pm_id !== undefined || process.env.PM2_HOME) ||
+  (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url));
 if (isMain) {
   const app = createGlimmerFallServer();
   app.ready.then(() => {
