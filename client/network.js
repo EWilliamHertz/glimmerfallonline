@@ -6,6 +6,12 @@
 const TOKEN_STORAGE_KEY = 'glimmerfall_auth_token';
 const PROFILE_CACHE_KEY = 'glimmerfall_cached_mp_profile_v1';
 
+export const KNOWN_SERVER_FALLBACKS = [
+  'https://glimmerfall.online',
+  'https://gore-kilometer-stylist.ngrok-free.dev',
+  'https://hampton-honor-daniel-fisheries.trycloudflare.com',
+];
+
 export function normalizeServerUrl(rawUrl) {
   if (!rawUrl) return '';
   let url = String(rawUrl).trim().replace(/\/+$/, '');
@@ -41,6 +47,9 @@ export class MultiplayerClient {
     this.pendingRpc = new Map();
     this.isBootstrapping = false;
     this.reconnectAttempt = 0;
+    this.fallbackIndex = 0;
+    this.manualServerOverride = false;
+    this._activeFallbackBase = null;
   }
 
   get profile() {
@@ -113,6 +122,7 @@ export class MultiplayerClient {
       const params = new URLSearchParams(window.location.search);
       const qServer = params.get('server');
       if (qServer) {
+        this.manualServerOverride = true;
         const clean = normalizeServerUrl(qServer);
         if (this.isLocalOrigin()) {
           // An explicit ?server= is honored for this tab only.
@@ -130,6 +140,9 @@ export class MultiplayerClient {
         const sessionBase = sessionStorage.getItem('glimmerfall_server_url');
         if (sessionBase) return normalizeServerUrl(sessionBase);
         return '';
+      }
+      if (this._activeFallbackBase) {
+        return this._activeFallbackBase;
       }
       const stored = localStorage.getItem('glimmerfall_server_url');
       if (stored) {
@@ -289,6 +302,11 @@ export class MultiplayerClient {
     sock.onopen = () => {
       this.connected = true;
       this.reconnectAttempt = 0;
+      if (this._activeFallbackBase && !this.isLocalOrigin()) {
+        try {
+          localStorage.setItem('glimmerfall_server_url', this._activeFallbackBase);
+        } catch (_) {}
+      }
       if (this.onStatusChange) this.onStatusChange(true);
       clearInterval(this.pingInterval);
       this.send({ type: 'ping', ts: performance.now() });
@@ -369,12 +387,30 @@ export class MultiplayerClient {
     };
   }
 
+  cycleNextFallbackServer() {
+    this.fallbackIndex = (this.fallbackIndex + 1) % KNOWN_SERVER_FALLBACKS.length;
+    this._activeFallbackBase = KNOWN_SERVER_FALLBACKS[this.fallbackIndex];
+    console.info(`[Network] Firewall bypass failover: Switching connection to ${this._activeFallbackBase}`);
+    if (this.onPacket) {
+      this.onPacket({
+        type: 'chat_broadcast',
+        from: '[Firewall Bypass]',
+        channel: 'log',
+        text: `Switched connection to bypass mirror (${this._activeFallbackBase}). Reconnecting...`,
+      });
+    }
+  }
+
   scheduleReconnect() {
     clearTimeout(this.reconnectTimer);
     // Exponential backoff with jitter (1s, 2s, 4s ... capped at 30s). A flat retry
     // hammers a sleeping or saturated host and prevents it from recovering.
     const attempt = Math.min(this.reconnectAttempt, 5);
     this.reconnectAttempt += 1;
+    // Hospital / school firewall failover: if blocked on current endpoint, try unblocked mirror
+    if (this.reconnectAttempt >= 2 && !this.manualServerOverride && !this.isLocalOrigin()) {
+      this.cycleNextFallbackServer();
+    }
     const delay = Math.min(30000, 1000 * 2 ** attempt) + Math.floor(Math.random() * 400);
     this.reconnectTimer = setTimeout(() => this.connectWebSocket(), delay);
   }
