@@ -774,10 +774,11 @@ export class FrontpageController {
     if (this.isOpen) this.render();
     try {
       let res = null;
+      const facToSend = faction || cls.faction || 'Solari';
       if (this.net?.connected) {
         res = await this.net.wsRpc('save_character', {
           name: charName,
-          faction: faction || 'Solari',
+          faction: facToSend,
           classId: cls.id,
           orderTag: tag,
           loadout: cls.defaultLoadout,
@@ -790,7 +791,7 @@ export class FrontpageController {
       if (!res && this.net?.saveOrSelectCharacter) {
         res = await this.net.saveOrSelectCharacter({
           name: charName,
-          faction: faction || 'Solari',
+          faction: facToSend,
           classId: cls.id,
           orderTag: tag,
           loadout: cls.defaultLoadout,
@@ -811,14 +812,17 @@ export class FrontpageController {
         window._landing.close();
       }
 
+      const actualFac = faction || cls.faction || 'Solari';
+      const presetColors = { Solari: '#facc15', Umbri: '#c084fc', Terra: '#4ade80', Aether: '#38bdf8' };
+      const presetOrders = { Solari: 'Order of Dawn', Umbri: 'Duskveil Cabal', Terra: 'Ironwood Watch', Aether: 'Chronocore Wardens' };
       const prof = (res && res.ok && res.profile) ? res.profile : {
         id: res?.character?.id || `mp_${Date.now()}`,
         displayName: charName,
-        faction: faction || 'Solari',
+        faction: actualFac,
         classId: cls.id,
         orderTag: tag,
-        orderName: `Order of ${faction || 'Solari'}`,
-        orderColor: '#facc15',
+        orderName: presetOrders[actualFac] || `Order of ${actualFac}`,
+        orderColor: presetColors[actualFac] || '#facc15',
         loadout: cls.defaultLoadout,
         equipment: cls.defaultEquipment,
         inventory: [],

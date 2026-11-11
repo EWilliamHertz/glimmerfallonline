@@ -979,6 +979,7 @@ export const socialAndTickMethods = {
         team: p.team,
         bubble: p.speechBubble ? p.speechBubble.text : null,
         emote: p.activeEmote ? p.activeEmote.emoteId : null,
+        title: p.title || null,
       });
     }
 

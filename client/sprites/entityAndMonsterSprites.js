@@ -157,11 +157,18 @@ export function buildEntityAndMonsterSprites(sprites) {
     }
     return frames;
   };
+  sprites.treeBlossom = buildTreeNode('#271b12', '#451a03', '#831843', '#be185d', '#ec4899', '#fbcfe8');
   sprites.treeGlimmerwood = buildTreeNode('#451a03', '#78350f', '#14532d', '#16a34a', '#4ade80', '#fde047');
+  sprites.treePine = buildTreeNode('#1c1917', '#44403c', '#14532d', '#166534', '#22c55e', '#86efac');
   sprites.treeIronbark = buildTreeNode('#1c1917', '#44403c', '#15803d', '#166534', '#86efac', '#a16207');
+  sprites.treeAncientOak = buildTreeNode('#271b12', '#451a03', '#166534', '#15803d', '#4ade80', '#ca8a04');
   sprites.treeDuskveil = buildTreeNode('#1e1b4b', '#312e81', '#3b0764', '#7e22ce', '#c084fc', '#e879f9');
   sprites.treeSunforged = buildTreeNode('#78350f', '#b45309', '#a16207', '#d97706', '#facc15', '#ffffff');
   sprites.treeStarlight = buildTreeNode('#0f172a', '#1e293b', '#0369a1', '#0284c7', '#38bdf8', '#ffffff');
+  // Aliases for prop compatibility
+  sprites.blossomTree = sprites.treeBlossom;
+  sprites.pineTree = sprites.treePine;
+  sprites.ancientOak = sprites.treeAncientOak;
   {
     const { c, ctx } = makeCanvas(28, 32);
     // Tree stump with cut axe ring

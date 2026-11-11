@@ -130,5 +130,473 @@
     "pathname": "glimmerfall/audio/Umbri_Faction_Umbral_Assassin.m4a",
     "sizeMb": 3.51,
     "uploadedAt": "2026-11-11T15:35:33.188Z"
+  },
+  "abyss.m4a": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/abyss.m4a",
+    "pathname": "glimmerfall/audio/abyss.m4a",
+    "sizeMb": 3.01,
+    "uploadedAt": "2026-11-11T20:21:02.670Z"
+  },
+  "aether.m4a": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/aether.m4a",
+    "pathname": "glimmerfall/audio/aether.m4a",
+    "sizeMb": 3.15,
+    "uploadedAt": "2026-11-11T20:21:09.824Z"
+  },
+  "boss.m4a": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/boss.m4a",
+    "pathname": "glimmerfall/audio/boss.m4a",
+    "sizeMb": 3.06,
+    "uploadedAt": "2026-11-11T20:21:16.883Z"
+  },
+  "grand_finale.m4a": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/grand_finale.m4a",
+    "pathname": "glimmerfall/audio/grand_finale.m4a",
+    "sizeMb": 2.67,
+    "uploadedAt": "2026-11-11T20:21:22.771Z"
+  },
+  "master_suite.m4a": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/master_suite.m4a",
+    "pathname": "glimmerfall/audio/master_suite.m4a",
+    "sizeMb": 2.12,
+    "uploadedAt": "2026-11-11T20:21:26.978Z"
+  },
+  "sanctuary.m4a": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/sanctuary.m4a",
+    "pathname": "glimmerfall/audio/sanctuary.m4a",
+    "sizeMb": 2.95,
+    "uploadedAt": "2026-11-11T20:21:33.171Z"
+  },
+  "solari.m4a": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/solari.m4a",
+    "pathname": "glimmerfall/audio/solari.m4a",
+    "sizeMb": 3.16,
+    "uploadedAt": "2026-11-11T20:21:40.494Z"
+  },
+  "tcg_duel.m4a": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/tcg_duel.m4a",
+    "pathname": "glimmerfall/audio/tcg_duel.m4a",
+    "sizeMb": 3.34,
+    "uploadedAt": "2026-11-11T20:21:48.469Z"
+  },
+  "terra.m4a": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/terra.m4a",
+    "pathname": "glimmerfall/audio/terra.m4a",
+    "sizeMb": 3.05,
+    "uploadedAt": "2026-11-11T20:21:57.419Z"
+  },
+  "the_bridge.m4a": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/the_bridge.m4a",
+    "pathname": "glimmerfall/audio/the_bridge.m4a",
+    "sizeMb": 2.51,
+    "uploadedAt": "2026-11-11T20:22:03.100Z"
+  },
+  "title.m4a": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/title.m4a",
+    "pathname": "glimmerfall/audio/title.m4a",
+    "sizeMb": 3.01,
+    "uploadedAt": "2026-11-11T20:22:11.691Z"
+  },
+  "trailer.m4a": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/trailer.m4a",
+    "pathname": "glimmerfall/audio/trailer.m4a",
+    "sizeMb": 2.04,
+    "uploadedAt": "2026-11-11T20:22:16.688Z"
+  },
+  "umbri.m4a": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/umbri.m4a",
+    "pathname": "glimmerfall/audio/umbri.m4a",
+    "sizeMb": 3.51,
+    "uploadedAt": "2026-11-11T20:22:24.703Z"
+  },
+  "victory.m4a": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/victory.m4a",
+    "pathname": "glimmerfall/audio/victory.m4a",
+    "sizeMb": 2.19,
+    "uploadedAt": "2026-11-11T20:22:30.002Z"
+  },
+  "warzone.m4a": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/warzone.m4a",
+    "pathname": "glimmerfall/audio/warzone.m4a",
+    "sizeMb": 2.91,
+    "uploadedAt": "2026-11-11T20:22:37.034Z"
+  },
+  "01_Holo_Rootbound_Mystic_Terra.jpg": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/production_cards/01_Holo_Rootbound_Mystic_Terra.jpg",
+    "pathname": "glimmerfall/production_cards/01_Holo_Rootbound_Mystic_Terra.jpg",
+    "sizeMb": 0.06,
+    "uploadedAt": "2026-11-11T20:22:37.658Z"
+  },
+  "02_Holo_Graveglass_Oracle_Umbri.jpg": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/production_cards/02_Holo_Graveglass_Oracle_Umbri.jpg",
+    "pathname": "glimmerfall/production_cards/02_Holo_Graveglass_Oracle_Umbri.jpg",
+    "sizeMb": 0.05,
+    "uploadedAt": "2026-11-11T20:22:37.962Z"
+  },
+  "03_Holo_Emberwing_Courier_Solari.jpg": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/production_cards/03_Holo_Emberwing_Courier_Solari.jpg",
+    "pathname": "glimmerfall/production_cards/03_Holo_Emberwing_Courier_Solari.jpg",
+    "sizeMb": 0.04,
+    "uploadedAt": "2026-11-11T20:22:38.310Z"
+  },
+  "04_Solar_Flare_Solari.jpg": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/production_cards/04_Solar_Flare_Solari.jpg",
+    "pathname": "glimmerfall/production_cards/04_Solar_Flare_Solari.jpg",
+    "sizeMb": 0.04,
+    "uploadedAt": "2026-11-11T20:22:38.534Z"
+  },
+  "05_Radiant_Shield_Solari.jpg": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/production_cards/05_Radiant_Shield_Solari.jpg",
+    "pathname": "glimmerfall/production_cards/05_Radiant_Shield_Solari.jpg",
+    "sizeMb": 0.02,
+    "uploadedAt": "2026-11-11T20:22:38.804Z"
+  },
+  "05_Singularity_Engine_Aether.jpg": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/production_cards/05_Singularity_Engine_Aether.jpg",
+    "pathname": "glimmerfall/production_cards/05_Singularity_Engine_Aether.jpg",
+    "sizeMb": 0.01,
+    "uploadedAt": "2026-11-11T20:22:38.974Z"
+  },
+  "06_Radiant_Shield_Solari.jpg": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/production_cards/06_Radiant_Shield_Solari.jpg",
+    "pathname": "glimmerfall/production_cards/06_Radiant_Shield_Solari.jpg",
+    "sizeMb": 0.03,
+    "uploadedAt": "2026-11-11T20:22:39.214Z"
+  },
+  "06_Singularity_Engine_Aether.jpg": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/production_cards/06_Singularity_Engine_Aether.jpg",
+    "pathname": "glimmerfall/production_cards/06_Singularity_Engine_Aether.jpg",
+    "sizeMb": 0.02,
+    "uploadedAt": "2026-11-11T20:22:39.400Z"
+  },
+  "07_Shadow_Cloak_Umbri.jpg": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/production_cards/07_Shadow_Cloak_Umbri.jpg",
+    "pathname": "glimmerfall/production_cards/07_Shadow_Cloak_Umbri.jpg",
+    "sizeMb": 0.03,
+    "uploadedAt": "2026-11-11T20:22:39.703Z"
+  },
+  "07_The_Nightfall_King_Umbri.jpg": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/production_cards/07_The_Nightfall_King_Umbri.jpg",
+    "pathname": "glimmerfall/production_cards/07_The_Nightfall_King_Umbri.jpg",
+    "sizeMb": 0.03,
+    "uploadedAt": "2026-11-11T20:22:39.912Z"
+  },
+  "IMG_6781.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/screenshots/IMG_6781.png",
+    "pathname": "glimmerfall/screenshots/IMG_6781.png",
+    "sizeMb": 0.96,
+    "uploadedAt": "2026-11-11T20:22:42.384Z"
+  },
+  "IMG_6817.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/screenshots/IMG_6817.png",
+    "pathname": "glimmerfall/screenshots/IMG_6817.png",
+    "sizeMb": 0.67,
+    "uploadedAt": "2026-11-11T20:22:44.760Z"
+  },
+  "IMG_6818.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/screenshots/IMG_6818.png",
+    "pathname": "glimmerfall/screenshots/IMG_6818.png",
+    "sizeMb": 0.83,
+    "uploadedAt": "2026-11-11T20:22:47.212Z"
+  },
+  "IMG_6819.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/screenshots/IMG_6819.png",
+    "pathname": "glimmerfall/screenshots/IMG_6819.png",
+    "sizeMb": 0.81,
+    "uploadedAt": "2026-11-11T20:22:49.455Z"
+  },
+  "Holo cards for decks.jpeg": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/Holo_cards_for_decks.jpeg",
+    "pathname": "glimmerfall/user_media/Holo_cards_for_decks.jpeg",
+    "sizeMb": 0.22,
+    "uploadedAt": "2026-11-11T20:22:50.305Z"
+  },
+  "IMG_6812.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/IMG_6812.png",
+    "pathname": "glimmerfall/user_media/IMG_6812.png",
+    "sizeMb": 3.21,
+    "uploadedAt": "2026-11-11T20:22:58.341Z"
+  },
+  "IMG_6827.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/IMG_6827.png",
+    "pathname": "glimmerfall/user_media/IMG_6827.png",
+    "sizeMb": 0.92,
+    "uploadedAt": "2026-11-11T20:23:01.818Z"
+  },
+  "IMG_6830.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/IMG_6830.png",
+    "pathname": "glimmerfall/user_media/IMG_6830.png",
+    "sizeMb": 1.33,
+    "uploadedAt": "2026-11-11T20:23:04.537Z"
+  },
+  "IMG_6834.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/IMG_6834.png",
+    "pathname": "glimmerfall/user_media/IMG_6834.png",
+    "sizeMb": 1.47,
+    "uploadedAt": "2026-11-11T20:23:08.338Z"
+  },
+  "IMG_6846.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/IMG_6846.png",
+    "pathname": "glimmerfall/user_media/IMG_6846.png",
+    "sizeMb": 0.6,
+    "uploadedAt": "2026-11-11T20:23:10.197Z"
+  },
+  "IMG_6849.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/IMG_6849.png",
+    "pathname": "glimmerfall/user_media/IMG_6849.png",
+    "sizeMb": 2.2,
+    "uploadedAt": "2026-11-11T20:23:15.770Z"
+  },
+  "IMG_6850.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/IMG_6850.png",
+    "pathname": "glimmerfall/user_media/IMG_6850.png",
+    "sizeMb": 2.12,
+    "uploadedAt": "2026-11-11T20:23:20.950Z"
+  },
+  "IMG_6851.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/IMG_6851.png",
+    "pathname": "glimmerfall/user_media/IMG_6851.png",
+    "sizeMb": 0.5,
+    "uploadedAt": "2026-11-11T20:23:22.301Z"
+  },
+  "IMG_6852.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/IMG_6852.png",
+    "pathname": "glimmerfall/user_media/IMG_6852.png",
+    "sizeMb": 1.93,
+    "uploadedAt": "2026-11-11T20:23:26.873Z"
+  },
+  "IMG_6853.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/IMG_6853.png",
+    "pathname": "glimmerfall/user_media/IMG_6853.png",
+    "sizeMb": 0.81,
+    "uploadedAt": "2026-11-11T20:23:29.467Z"
+  },
+  "IMG_6854.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/IMG_6854.png",
+    "pathname": "glimmerfall/user_media/IMG_6854.png",
+    "sizeMb": 0.49,
+    "uploadedAt": "2026-11-11T20:23:30.862Z"
+  },
+  "IMG_6857.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/IMG_6857.png",
+    "pathname": "glimmerfall/user_media/IMG_6857.png",
+    "sizeMb": 0.36,
+    "uploadedAt": "2026-11-11T20:23:31.906Z"
+  },
+  "Solar Singularity 02.jpeg": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/Solar_Singularity_02.jpeg",
+    "pathname": "glimmerfall/user_media/Solar_Singularity_02.jpeg",
+    "sizeMb": 0.32,
+    "uploadedAt": "2026-11-11T20:23:32.936Z"
+  },
+  "b_left.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/b_left.png",
+    "pathname": "glimmerfall/user_media/b_left.png",
+    "sizeMb": 0.04,
+    "uploadedAt": "2026-11-11T20:23:33.277Z"
+  },
+  "banner.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/banner.png",
+    "pathname": "glimmerfall/user_media/banner.png",
+    "sizeMb": 0.01,
+    "uploadedAt": "2026-11-11T20:23:33.688Z"
+  },
+  "banner_content.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/banner_content.png",
+    "pathname": "glimmerfall/user_media/banner_content.png",
+    "sizeMb": 0.01,
+    "uploadedAt": "2026-11-11T20:23:33.833Z"
+  },
+  "banner_text.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/banner_text.png",
+    "pathname": "glimmerfall/user_media/banner_text.png",
+    "sizeMb": 0,
+    "uploadedAt": "2026-11-11T20:23:34.015Z"
+  },
+  "c0.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/c0.png",
+    "pathname": "glimmerfall/user_media/c0.png",
+    "sizeMb": 0.04,
+    "uploadedAt": "2026-11-11T20:23:34.252Z"
+  },
+  "c2.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/c2.png",
+    "pathname": "glimmerfall/user_media/c2.png",
+    "sizeMb": 0.01,
+    "uploadedAt": "2026-11-11T20:23:34.419Z"
+  },
+  "c3.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/c3.png",
+    "pathname": "glimmerfall/user_media/c3.png",
+    "sizeMb": 0.02,
+    "uploadedAt": "2026-11-11T20:23:34.610Z"
+  },
+  "forge_cut_crop.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/forge_cut_crop.png",
+    "pathname": "glimmerfall/user_media/forge_cut_crop.png",
+    "sizeMb": 0.11,
+    "uploadedAt": "2026-11-11T20:23:35.199Z"
+  },
+  "forge_cut_edge.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/forge_cut_edge.png",
+    "pathname": "glimmerfall/user_media/forge_cut_edge.png",
+    "sizeMb": 0.01,
+    "uploadedAt": "2026-11-11T20:23:35.391Z"
+  },
+  "forge_header.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/forge_header.png",
+    "pathname": "glimmerfall/user_media/forge_header.png",
+    "sizeMb": 0.04,
+    "uploadedAt": "2026-11-11T20:23:35.640Z"
+  },
+  "header_crop.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/header_crop.png",
+    "pathname": "glimmerfall/user_media/header_crop.png",
+    "sizeMb": 0.07,
+    "uploadedAt": "2026-11-11T20:23:36.043Z"
+  },
+  "headline.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/headline.png",
+    "pathname": "glimmerfall/user_media/headline.png",
+    "sizeMb": 0.01,
+    "uploadedAt": "2026-11-11T20:23:36.225Z"
+  },
+  "img6849_mid.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/img6849_mid.png",
+    "pathname": "glimmerfall/user_media/img6849_mid.png",
+    "sizeMb": 0.71,
+    "uploadedAt": "2026-11-11T20:23:38.140Z"
+  },
+  "img6849_top.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/img6849_top.png",
+    "pathname": "glimmerfall/user_media/img6849_top.png",
+    "sizeMb": 0.05,
+    "uploadedAt": "2026-11-11T20:23:38.546Z"
+  },
+  "img6849_url.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/img6849_url.png",
+    "pathname": "glimmerfall/user_media/img6849_url.png",
+    "sizeMb": 0.01,
+    "uploadedAt": "2026-11-11T20:23:38.761Z"
+  },
+  "img6849_warn.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/img6849_warn.png",
+    "pathname": "glimmerfall/user_media/img6849_warn.png",
+    "sizeMb": 0.25,
+    "uploadedAt": "2026-11-11T20:23:39.838Z"
+  },
+  "img6851_main.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/img6851_main.png",
+    "pathname": "glimmerfall/user_media/img6851_main.png",
+    "sizeMb": 0.15,
+    "uploadedAt": "2026-11-11T20:23:40.509Z"
+  },
+  "img6851_url.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/img6851_url.png",
+    "pathname": "glimmerfall/user_media/img6851_url.png",
+    "sizeMb": 0.02,
+    "uploadedAt": "2026-11-11T20:23:40.925Z"
+  },
+  "line_284_313.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/line_284_313.png",
+    "pathname": "glimmerfall/user_media/line_284_313.png",
+    "sizeMb": 0.01,
+    "uploadedAt": "2026-11-11T20:23:41.146Z"
+  },
+  "line_335_359.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/line_335_359.png",
+    "pathname": "glimmerfall/user_media/line_335_359.png",
+    "sizeMb": 0.01,
+    "uploadedAt": "2026-11-11T20:23:41.492Z"
+  },
+  "line_362_364.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/line_362_364.png",
+    "pathname": "glimmerfall/user_media/line_362_364.png",
+    "sizeMb": 0,
+    "uploadedAt": "2026-11-11T20:23:41.633Z"
+  },
+  "line_438_466.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/line_438_466.png",
+    "pathname": "glimmerfall/user_media/line_438_466.png",
+    "sizeMb": 0.01,
+    "uploadedAt": "2026-11-11T20:23:41.840Z"
+  },
+  "line_490_512.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/line_490_512.png",
+    "pathname": "glimmerfall/user_media/line_490_512.png",
+    "sizeMb": 0.01,
+    "uploadedAt": "2026-11-11T20:23:42.039Z"
+  },
+  "line_591_620.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/line_591_620.png",
+    "pathname": "glimmerfall/user_media/line_591_620.png",
+    "sizeMb": 0.02,
+    "uploadedAt": "2026-11-11T20:23:42.238Z"
+  },
+  "line_643_665.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/line_643_665.png",
+    "pathname": "glimmerfall/user_media/line_643_665.png",
+    "sizeMb": 0.01,
+    "uploadedAt": "2026-11-11T20:23:42.423Z"
+  },
+  "line_667_670.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/line_667_670.png",
+    "pathname": "glimmerfall/user_media/line_667_670.png",
+    "sizeMb": 0,
+    "uploadedAt": "2026-11-11T20:23:42.584Z"
+  },
+  "line_68_124.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/line_68_124.png",
+    "pathname": "glimmerfall/user_media/line_68_124.png",
+    "sizeMb": 0.01,
+    "uploadedAt": "2026-11-11T20:23:42.836Z"
+  },
+  "para.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/para.png",
+    "pathname": "glimmerfall/user_media/para.png",
+    "sizeMb": 0.03,
+    "uploadedAt": "2026-11-11T20:23:43.146Z"
+  },
+  "strip_200_600.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/strip_200_600.png",
+    "pathname": "glimmerfall/user_media/strip_200_600.png",
+    "sizeMb": 0.2,
+    "uploadedAt": "2026-11-11T20:23:43.968Z"
+  },
+  "strip_600_1000.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/strip_600_1000.png",
+    "pathname": "glimmerfall/user_media/strip_600_1000.png",
+    "sizeMb": 0.07,
+    "uploadedAt": "2026-11-11T20:23:44.332Z"
+  },
+  "top_bar.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/top_bar.png",
+    "pathname": "glimmerfall/user_media/top_bar.png",
+    "sizeMb": 0.05,
+    "uploadedAt": "2026-11-11T20:23:44.650Z"
+  },
+  "top_right_box.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/top_right_box.png",
+    "pathname": "glimmerfall/user_media/top_right_box.png",
+    "sizeMb": 0.02,
+    "uploadedAt": "2026-11-11T20:23:45.009Z"
+  },
+  "url_bar.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/url_bar.png",
+    "pathname": "glimmerfall/user_media/url_bar.png",
+    "sizeMb": 0.01,
+    "uploadedAt": "2026-11-11T20:23:45.401Z"
+  },
+  "url_text_crop.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/url_text_crop.png",
+    "pathname": "glimmerfall/user_media/url_text_crop.png",
+    "sizeMb": 0,
+    "uploadedAt": "2026-11-11T20:23:45.573Z"
+  },
+  "warn_title.png": {
+    "url": "https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/user_media/warn_title.png",
+    "pathname": "glimmerfall/user_media/warn_title.png",
+    "sizeMb": 0.01,
+    "uploadedAt": "2026-11-11T20:23:45.767Z"
   }
 }

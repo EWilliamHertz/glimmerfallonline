@@ -12,6 +12,7 @@ export function drawPixelNameplateAndBubbles(ctx, {
   sx,
   topY,
   name,
+  title = '',
   faction = 'Solari',
   orderTag = '',
   orderColor = '#facc15',
@@ -87,13 +88,35 @@ export function drawPixelNameplateAndBubbles(ctx, {
     ctx.fillText(label, rx, ny);
   }
 
-  // 2b. Tibia Infamy Skull Badge (above nameplate)
+  // 2b. Cosmetic Player Title (<The Forest Warden>, <Crimson Arborist>, etc.)
+  let topBadgeY = plateY;
+  if (title) {
+    const titleFontPx = isHd ? 9.5 : 8.5;
+    ctx.font = `600 italic ${titleFontPx}px "Outfit", system-ui, -apple-system, sans-serif`;
+    const titleLabel = `<${title}>`;
+    const titleW = Math.ceil(ctx.measureText(titleLabel).width);
+    const titlePadX = isHd ? 8 : 6;
+    const titlePlateW = titleW + titlePadX;
+    const titlePlateH = isHd ? 12 : 10;
+    const titlePlateX = Math.round(rx - titlePlateW / 2);
+    const titlePlateY = Math.round(plateY - titlePlateH - 2);
+
+    ctx.fillStyle = 'rgba(5, 7, 15, 0.88)';
+    ctx.fillRect(titlePlateX, titlePlateY, titlePlateW, titlePlateH);
+    ctx.fillStyle = '#fde047';
+    ctx.fillRect(titlePlateX, titlePlateY, titlePlateW, 1);
+    ctx.fillStyle = '#fde047';
+    ctx.fillText(titleLabel, rx, titlePlateY + titlePlateH - (isHd ? 2 : 1));
+    topBadgeY = titlePlateY;
+  }
+
+  // 2c. Tibia Infamy Skull Badge (above nameplate & title)
   if (skull === 'white' || skull === 'red') {
     const isRed = skull === 'red';
     const skullColor = isRed ? '#ef4444' : '#f8fafc';
     const skullBorder = isRed ? '#7f1d1d' : '#475569';
     const eyeColor = '#05070f';
-    const skY = Math.round(plateY - (isHd ? 12 : 10));
+    const skY = Math.round(topBadgeY - (isHd ? 12 : 10));
     const skX = Math.round(rx - 6);
 
     ctx.fillStyle = 'rgba(5, 7, 15, 0.95)';
@@ -126,11 +149,11 @@ export function drawPixelNameplateAndBubbles(ctx, {
     }
   }
 
-  // 3. Pixel Emote Badge (bouncing above nameplate)
+  // 3. Pixel Emote Badge (bouncing above nameplate & title)
   if (emote && EMOTES_CATALOG[emote]) {
     const em = EMOTES_CATALOG[emote];
     const bounce = Math.round(Math.sin(globalTime * 10) * 2);
-    const ey = ny - 20 + bounce;
+    const ey = topBadgeY - 12 + bounce;
     ctx.fillStyle = '#05070f';
     ctx.fillRect(sx - 8, ey - 7, 16, 12);
     ctx.fillStyle = em.color || '#fde047';
@@ -235,7 +258,7 @@ export function renderAccountModal({ profile, authTab = 'register', statusMsg = 
   if (!container) return;
 
   const p = profile || {
-    displayName: 'Solari Vanguard',
+    displayName: 'Champion',
     isGuest: true,
     faction: 'Solari',
     orderTag: 'SUN',
@@ -284,11 +307,11 @@ export function renderAccountModal({ profile, authTab = 'register', statusMsg = 
         </div>
         <div>
           <label style="font-size:8px; color:#94a3b8;">&lt;TAG&gt;</label>
-          <input id="prof-order-tag" class="pixel-input" value="${p.orderTag || 'SUN'}" maxlength="5" />
+          <input id="prof-order-tag" class="pixel-input" value="${p.orderTag || (p.faction === 'Umbri' ? 'VOID' : p.faction === 'Terra' ? 'ROOT' : p.faction === 'Aether' ? 'AETH' : 'SUN')}" maxlength="5" />
         </div>
         <div>
           <label style="font-size:8px; color:#94a3b8;">GUILD / ORDER NAME</label>
-          <input id="prof-order-name" class="pixel-input" value="${p.orderName || 'Order of Dawn'}" maxlength="18" />
+          <input id="prof-order-name" class="pixel-input" value="${p.orderName || (p.faction === 'Umbri' ? 'Duskveil Cabal' : p.faction === 'Terra' ? 'Ironwood Watch' : p.faction === 'Aether' ? 'Chronocore Wardens' : 'Order of Dawn')}" maxlength="18" />
         </div>
       </div>
 

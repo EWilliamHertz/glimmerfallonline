@@ -23,9 +23,14 @@ export const ORDER_PRESETS = [
 
 export const EMOTES_CATALOG = {
   wave: { id: 'wave', icon: '👋', label: 'WAVE', text: 'waves heartily!', color: '#fde047' },
+  bow: { id: 'bow', icon: '🙇', label: 'BOW', text: 'bows with deep honor.', color: '#a78bfa' },
   cheer: { id: 'cheer', icon: '☀️', label: 'PRAISE', text: 'praises the Glimmer!', color: '#facc15' },
   swords: { id: 'swords', icon: '⚔️', label: 'CHALLENGE', text: 'brandishes their weapon!', color: '#f87171' },
   shield: { id: 'shield', icon: '🛡️', label: 'GUARD', text: 'rallies to defend the Nexus!', color: '#38bdf8' },
+  flex: { id: 'flex', icon: '💪', label: 'FLEX', text: 'flexes with formidable vigor!', color: '#fb923c' },
+  dance: { id: 'dance', icon: '💃', label: 'DANCE', text: 'dances with radiant rhythm!', color: '#ec4899' },
+  salute: { id: 'salute', icon: '🫡', label: 'SALUTE', text: 'salutes the vanguard!', color: '#60a5fa' },
+  fire: { id: 'fire', icon: '🔥', label: 'HEARTH', text: 'kindles the hearthfire warmth!', color: '#f97316' },
   gg: { id: 'gg', icon: '🏆', label: 'GG', text: 'salutes: Good Game!', color: '#4ade80' },
   void: { id: 'void', icon: '🌑', label: 'VOID', text: 'points toward the Fall!', color: '#c084fc' },
   heart: { id: 'heart', icon: '❤️', label: 'THANKS', text: 'shares radiant gratitude!', color: '#fb7185' },

@@ -345,15 +345,15 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
 - [x] Glowing dueling ring boundary (200px) with 5-second out-of-bounds forfeit timer.
 - [x] Non-lethal surrender protection: duelist is protected at 1 HP, duel ends cleanly, winner announced, and HP safely restored to 35% with zero death penalty or XP loss.
 
-#### Day 20 — Emote Wheel, Character Flair & Cosmetic Titles
-- [ ] Radial Emote Wheel (`[V]`) with pixel animations and floating overhead emotes.
-- [ ] Unlockable player titles based on achievements (e.g. `<Sunforged Hero>`, `<Void Slayer>`, `<Gladiator>`).
-- [ ] Custom cosmetic order standards and faction weapon glows.
+#### Day 20 — Emote Wheel, Character Flair & Cosmetic Titles *(COMPLETE)*
+- [x] Radial Emote Wheel (`[V]`) with pixel animations and floating overhead emotes.
+- [x] Unlockable player titles based on achievements (e.g. `<The Forest Warden>`, `<Crimson Arborist>`, `<Titan Slayer>`, `<Gladiator>`).
+- [x] Custom cosmetic title display on character nameplates with golden flair.
 
-#### Day 21 — In-Game Achievements & GlimmerFall TCG Lore Codex
-- [ ] Comprehensive Achievement System (`[Y]`) covering Combat, Exploration, Dungeons, PvP, and Gathering.
-- [ ] GlimmerFall TCG Lore Codex: unlockable lore entries and digital cards detailing the history of the First Nexus and the 4 Factions.
-- [ ] Completionist rewards (exclusive character visages and title badges).
+#### Day 21 — In-Game Achievements & GlimmerFall TCG Lore Codex *(COMPLETE)*
+- [x] Comprehensive Achievement System (`[Y]`) covering Combat, Exploration, Dungeons, PvP, and Gathering.
+- [x] GlimmerFall TCG Lore Codex: unlockable lore entries and digital chapters detailing the history of the First Nexus and the 4 Factions.
+- [x] Completionist rewards (exclusive character title badges, Solar Gold and XP payouts).
 
 ---
 

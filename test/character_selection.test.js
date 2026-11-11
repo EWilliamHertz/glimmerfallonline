@@ -262,3 +262,89 @@ test('Landing Page & Champion Forge: buildSpriteSheet and forge hero buttons wor
     globalThis.document.getElementById = prevGetElementById;
   }
 });
+
+test('Terra Faction Integrity: Terra characters, typos ("terro"), and action bars NEVER transform to Solari', async () => {
+  const { resolveFactionAndClass } = await import('../shared/protocol.js');
+  const { normalizeClassAndFaction, getOrderPresetForFaction, AccountsStore } = await import('../server/accountsStore.js');
+  const { getCharacterSprites } = await import('../client/sprites/characterSprites.js');
+
+  // 1. resolveFactionAndClass checks
+  const resTerra = resolveFactionAndClass({ faction: 'Terra' });
+  assert.equal(resTerra.faction, 'Terra');
+  assert.equal(resTerra.classId, 'forest_warden');
+
+  // Handles 'terro' typo and lowercase
+  const resTerro = resolveFactionAndClass({ faction: 'terro' });
+  assert.equal(resTerro.faction, 'Terra');
+  assert.equal(resTerro.classId, 'forest_warden');
+
+  // Loadout with Solari flare_strike does NOT hijack a Terra character
+  const resCrossLoadout = resolveFactionAndClass({
+    faction: 'Terra',
+    classId: 'forest_warden',
+    loadout: { 1: 'flare_strike', 2: 'solar_flare' },
+    orderTag: 'SUN',
+  });
+  assert.equal(resCrossLoadout.faction, 'Terra', 'Action bar must not overwrite Terra faction');
+  assert.equal(resCrossLoadout.classId, 'forest_warden', 'Archetype must stay forest_warden');
+
+  // 2. normalizeClassAndFaction checks
+  const normTerro = normalizeClassAndFaction(null, 'terro');
+  assert.equal(normTerro.faction, 'Terra');
+  assert.equal(normTerro.classId, 'forest_warden');
+
+  // Bad default classId does not hijack Terra
+  const normProtected = normalizeClassAndFaction('solari_vanguard', 'Terra');
+  assert.equal(normProtected.faction, 'Terra');
+  assert.equal(normProtected.classId, 'forest_warden');
+
+  // 3. getOrderPresetForFaction checks
+  const presetTerra = getOrderPresetForFaction('Terra');
+  assert.equal(presetTerra.tag, 'ROOT');
+  assert.equal(presetTerra.name, 'Ironwood Watch');
+  assert.equal(presetTerra.color, '#4ade80');
+
+  const presetTerro = getOrderPresetForFaction('terro');
+  assert.equal(presetTerro.tag, 'ROOT');
+  assert.equal(presetTerro.name, 'Ironwood Watch');
+  assert.equal(presetTerro.color, '#4ade80');
+
+  // 4. AccountsStore creation and default character checks
+  const store = new AccountsStore();
+  const acc = {
+    id: 'acc_dynamite_test',
+    username: 'DynamiteOrc',
+    displayName: 'DynamiteOrc',
+    faction: 'Terra',
+    classId: 'forest_warden',
+    orderTag: 'ROOT',
+    loadout: { 1: 'tectonic_slam' },
+    equipment: {},
+    inventory: [],
+    bank: [],
+    progression: protocol.createDefaultProgression(),
+    statsMeta: { kills: 0, arenaWins: 0 },
+  };
+  store.accountsById.set(acc.id, acc);
+  store.ensureDefaultCharacter(acc);
+
+  const charMap = store.charactersByAccount.get(acc.id);
+  assert.ok(charMap && charMap.size >= 1);
+  const createdChar = charMap.values().next().value;
+  assert.equal(createdChar.faction, 'Terra', 'Default character faction must be Terra');
+  assert.equal(createdChar.classId, 'forest_warden', 'Default character classId must be forest_warden');
+  assert.notEqual(createdChar.name, 'Solari Vanguard', 'Character name must not default to Solari Vanguard');
+  assert.equal(createdChar.orderName, 'Ironwood Watch', 'Order name must be Ironwood Watch');
+  assert.equal(createdChar.orderColor, '#4ade80', 'Order color must be #4ade80');
+
+  // Public profile check
+  const pub = store.toPublicProfile(acc);
+  assert.equal(pub.faction, 'Terra');
+  assert.equal(pub.classId, 'forest_warden');
+  assert.equal(pub.orderName, 'Ironwood Watch');
+  assert.equal(pub.orderColor, '#4ade80');
+
+  // 5. Sprite paperdoll fallback check: empty equipment uses Terra ironwood gear
+  const sprites = getCharacterSprites('Terra', 'forest_warden', {});
+  assert.ok(sprites.down && sprites.down.length === 3);
+});

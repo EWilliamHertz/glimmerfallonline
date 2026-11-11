@@ -1,4 +1,4 @@
-import { EQUIPMENT_CATALOG } from "../../shared/protocol.js";
+import { EQUIPMENT_CATALOG, CLASSES_CATALOG } from "../../shared/protocol.js";
 import { makeCanvas, px, rect, addPixelOutline } from "./pixelCanvas.js";
 
 // ==========================================
@@ -56,16 +56,25 @@ export const BASE_FACTION_PALETTES = {
 };
 
 export function getCharacterSprites(faction = 'Solari', classId = 'solari_vanguard', equipment = {}) {
-  const wepId = equipment?.weapon || 'solari_spellblade';
-  const armId = equipment?.body || equipment?.armor || 'sunforged_plate';
-  const offId = equipment?.shield || equipment?.offhand || 'radiant_shield';
-  const cacheKey = `${faction}|${classId}|${wepId}|${armId}|${offId}`;
+  const cleanFac = String(faction || '').trim().toLowerCase();
+  let canonicalFac = 'Solari';
+  if (cleanFac === 'terra' || cleanFac === 'terro' || cleanFac === 'earth' || cleanFac === 'root') canonicalFac = 'Terra';
+  else if (cleanFac === 'umbri' || cleanFac === 'shadow' || cleanFac === 'void') canonicalFac = 'Umbri';
+  else if (cleanFac === 'aether' || cleanFac === 'magic' || cleanFac === 'arcane') canonicalFac = 'Aether';
+
+  const clsSpec = CLASSES_CATALOG[classId] || Object.values(CLASSES_CATALOG).find(c => c.faction === canonicalFac) || CLASSES_CATALOG.solari_vanguard;
+  const defEquip = clsSpec?.defaultEquipment || {};
+
+  const wepId = equipment?.weapon || defEquip.weapon || 'solari_spellblade';
+  const armId = equipment?.body || equipment?.armor || defEquip.armor || 'sunforged_plate';
+  const offId = equipment?.shield || equipment?.offhand || defEquip.offhand || 'radiant_shield';
+  const cacheKey = `${canonicalFac}|${clsSpec.id}|${wepId}|${armId}|${offId}`;
   if (paperdollCache.has(cacheKey)) return paperdollCache.get(cacheKey);
 
-  const basePal = BASE_FACTION_PALETTES[faction] || BASE_FACTION_PALETTES.Solari;
+  const basePal = BASE_FACTION_PALETTES[canonicalFac] || BASE_FACTION_PALETTES.Solari;
   const armSpec = EQUIPMENT_CATALOG[armId];
-  const wepSpec = EQUIPMENT_CATALOG[wepId] || EQUIPMENT_CATALOG.solari_spellblade;
-  const offSpec = EQUIPMENT_CATALOG[offId] || EQUIPMENT_CATALOG.radiant_shield;
+  const wepSpec = EQUIPMENT_CATALOG[wepId] || EQUIPMENT_CATALOG[defEquip.weapon] || EQUIPMENT_CATALOG.solari_spellblade;
+  const offSpec = EQUIPMENT_CATALOG[offId] || EQUIPMENT_CATALOG[defEquip.offhand] || EQUIPMENT_CATALOG.radiant_shield;
 
   const armorDark = armSpec?.armorDark || basePal.armorDark;
   const armorHi = armSpec?.armorHi || basePal.armorHi;

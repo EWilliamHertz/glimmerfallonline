@@ -75,13 +75,51 @@ export {
   maskProfanity,
 };
 
-export function normalizeClassAndFaction(classId, faction) {
-  let cls = CLASSES_CATALOG[classId];
-  if (!cls) {
-    const byFac = Object.values(CLASSES_CATALOG).find((c) => c.faction === faction);
-    cls = byFac || CLASSES_CATALOG.solari_vanguard;
+export function getOrderPresetForFaction(faction, orderTag = null) {
+  const cleanTag = sanitizeOrderTag(orderTag);
+  if (cleanTag) {
+    const byTag = ORDER_PRESETS.find((o) => o.tag === cleanTag);
+    if (byTag) return byTag;
   }
-  return { classId: cls.id, faction: cls.faction, cls };
+  const cleanFac = String(faction || '').trim().toLowerCase();
+  if (cleanFac === 'terra' || cleanFac === 'terro' || cleanFac === 'earth' || cleanFac === 'root') {
+    return ORDER_PRESETS.find((o) => o.tag === 'ROOT') || ORDER_PRESETS[2];
+  }
+  if (cleanFac === 'umbri' || cleanFac === 'shadow' || cleanFac === 'void') {
+    return ORDER_PRESETS.find((o) => o.tag === 'VOID') || ORDER_PRESETS[1];
+  }
+  if (cleanFac === 'aether' || cleanFac === 'magic' || cleanFac === 'arcane') {
+    return ORDER_PRESETS.find((o) => o.tag === 'AETH') || ORDER_PRESETS[3];
+  }
+  return ORDER_PRESETS.find((o) => o.tag === 'SUN') || ORDER_PRESETS[0];
+}
+
+export function normalizeClassAndFaction(classId, faction) {
+  const cleanFac = String(faction || '').trim().toLowerCase();
+  let canonicalFac = null;
+  if (cleanFac === 'solari' || cleanFac === 'sun') canonicalFac = 'Solari';
+  else if (cleanFac === 'umbri' || cleanFac === 'shadow' || cleanFac === 'void') canonicalFac = 'Umbri';
+  else if (cleanFac === 'terra' || cleanFac === 'terro' || cleanFac === 'earth' || cleanFac === 'root') canonicalFac = 'Terra';
+  else if (cleanFac === 'aether' || cleanFac === 'magic' || cleanFac === 'arcane') canonicalFac = 'Aether';
+
+  let cls = CLASSES_CATALOG[classId];
+  // If classId is valid and matches canonicalFac (or no canonicalFac specified), keep it
+  if (cls && (!canonicalFac || cls.faction === canonicalFac)) {
+    return { classId: cls.id, faction: cls.faction, cls };
+  }
+
+  // If a canonical faction is specified, find its primary class
+  if (canonicalFac) {
+    const byFac = Object.values(CLASSES_CATALOG).find((c) => c.faction === canonicalFac);
+    if (byFac) return { classId: byFac.id, faction: byFac.faction, cls: byFac };
+  }
+
+  // If classId is valid without matching faction
+  if (cls) {
+    return { classId: cls.id, faction: cls.faction, cls };
+  }
+
+  return { classId: 'solari_vanguard', faction: 'Solari', cls: CLASSES_CATALOG.solari_vanguard };
 }
 
 // Loadouts are sanitized in one place so offline and server characters agree on
@@ -218,6 +256,13 @@ export class AccountsStore {
     if (!this.db) return;
     const accRes = await this.db.query('SELECT * FROM glimmerfall_accounts');
     for (const row of accRes.rows) {
+      const resolvedAcc = resolveFactionAndClass({
+        faction: row.faction,
+        classId: row.class_id,
+        loadout: row.loadout,
+        orderTag: row.order_tag,
+      });
+      const accPreset = getOrderPresetForFaction(resolvedAcc.faction, row.order_tag);
       const acc = {
         id: row.id,
         username: row.username,
@@ -230,14 +275,14 @@ export class AccountsStore {
         tcgHandle: row.tcg_handle,
         tcgEmail: row.tcg_email,
         tcgSyncedAt: row.tcg_synced_at ? new Date(row.tcg_synced_at).toISOString() : null,
-        faction: row.faction || 'Solari',
-        classId: row.class_id || 'solari_vanguard',
-        orderTag: row.order_tag || 'SUN',
-        orderName: row.order_name || 'Order of Dawn',
-        orderColor: row.order_color || '#facc15',
-        loadout: normalizeLoadout(row.loadout, row.class_id),
-        equipment: normalizeEquipment(row.equipment, row.class_id),
-        inventory: normalizeInventory(row.inventory || getDefaultStarterInventory(row.class_id)),
+        faction: resolvedAcc.faction,
+        classId: resolvedAcc.classId,
+        orderTag: row.order_tag || accPreset.tag,
+        orderName: row.order_name || accPreset.name,
+        orderColor: row.order_color || accPreset.color,
+        loadout: normalizeLoadout(row.loadout, resolvedAcc.classId),
+        equipment: normalizeEquipment(row.equipment, resolvedAcc.classId),
+        inventory: normalizeInventory(row.inventory || getDefaultStarterInventory(resolvedAcc.classId)),
         bank: normalizeBank(row.bank || []),
         questState: row.quest_state || {},
         progression: this.mergeValidProgression(createDefaultProgression(), row.progression),
@@ -259,15 +304,16 @@ export class AccountsStore {
         loadout: row.loadout,
         orderTag: row.order_tag,
       });
+      const chPreset = getOrderPresetForFaction(resolved.faction, row.order_tag);
       const ch = {
         id: row.id,
         accountId: row.account_id,
         name: row.name,
         faction: resolved.faction,
         classId: resolved.classId,
-        orderTag: row.order_tag || (resolved.faction === 'Umbri' ? 'VOID' : resolved.faction === 'Terra' ? 'ROOT' : resolved.faction === 'Aether' ? 'AETH' : 'SUN'),
-        orderName: row.order_name || `Order of ${resolved.faction}`,
-        orderColor: row.order_color || '#facc15',
+        orderTag: row.order_tag || chPreset.tag,
+        orderName: row.order_name || chPreset.name,
+        orderColor: row.order_color || chPreset.color,
         homeBiome: row.home_biome || ROOM_TYPES.SANCTUARY_HUB,
         loadout: normalizeLoadout(row.loadout, resolved.classId),
         equipment: normalizeEquipment(row.equipment, resolved.classId),
@@ -311,9 +357,9 @@ export class AccountsStore {
       tcgSyncedAt: row.tcg_synced_at ? new Date(row.tcg_synced_at).toISOString() : null,
       faction: resolved.faction,
       classId: resolved.classId,
-      orderTag: row.order_tag || (resolved.faction === 'Umbri' ? 'VOID' : resolved.faction === 'Terra' ? 'ROOT' : resolved.faction === 'Aether' ? 'AETH' : 'SUN'),
-      orderName: row.order_name || `Order of ${resolved.faction}`,
-      orderColor: row.order_color || '#facc15',
+      orderTag: row.order_tag || getOrderPresetForFaction(resolved.faction, row.order_tag).tag,
+      orderName: row.order_name || getOrderPresetForFaction(resolved.faction, row.order_tag).name,
+      orderColor: row.order_color || getOrderPresetForFaction(resolved.faction, row.order_tag).color,
       loadout: normalizeLoadout(row.loadout, resolved.classId),
       equipment: normalizeEquipment(row.equipment, resolved.classId),
       inventory: normalizeInventory(row.inventory || getDefaultStarterInventory(resolved.classId)),
@@ -597,19 +643,25 @@ export class AccountsStore {
     const cmap = this.charactersByAccount.get(acc.id);
     if (cmap.size === 0) {
       const chId = `chr_${crypto.randomUUID().slice(0, 10)}`;
+      const norm = normalizeClassAndFaction(acc.classId, acc.faction);
+      const preset = getOrderPresetForFaction(norm.faction, acc.orderTag);
+      let cleanName = acc.displayName;
+      if (!cleanName || (cleanName === 'Solari Vanguard' && norm.faction !== 'Solari')) {
+        cleanName = acc.username || norm.cls.name;
+      }
       const ch = {
         id: chId,
         accountId: acc.id,
-        name: acc.displayName,
-        faction: acc.faction,
-        classId: acc.classId || 'solari_vanguard',
-        orderTag: acc.orderTag || 'SUN',
-        orderName: acc.orderName || 'Order of Dawn',
-        orderColor: acc.orderColor || '#facc15',
+        name: cleanName,
+        faction: norm.faction,
+        classId: norm.classId,
+        orderTag: acc.orderTag || preset.tag,
+        orderName: (acc.orderName && acc.orderName !== 'Order of Dawn') ? acc.orderName : preset.name,
+        orderColor: (acc.orderColor && acc.orderColor !== '#facc15') ? acc.orderColor : preset.color,
         homeBiome: ROOM_TYPES.SANCTUARY_HUB,
-        loadout: normalizeLoadout(acc.loadout, acc.classId),
-        equipment: normalizeEquipment(acc.equipment, acc.classId),
-        inventory: normalizeInventory(acc.inventory || getDefaultStarterInventory(acc.classId)),
+        loadout: normalizeLoadout(acc.loadout, norm.classId),
+        equipment: normalizeEquipment(acc.equipment, norm.classId),
+        inventory: normalizeInventory(acc.inventory || getDefaultStarterInventory(norm.classId)),
         bank: normalizeBank(acc.bank || []),
         unlockedGear: Object.keys(EQUIPMENT_CATALOG),
         progression: acc.progression,
@@ -757,13 +809,8 @@ export class AccountsStore {
       throw new Error('Maximum of 8 characters per GlimmerFall ID reached.');
     }
 
-    const norm = normalizeClassAndFaction(classId || 'solari_vanguard', faction || 'Solari');
-    const preset = ORDER_PRESETS.find((o) =>
-      (norm.faction === 'Solari' && o.tag === 'SUN') ||
-      (norm.faction === 'Umbri' && o.tag === 'VOID') ||
-      (norm.faction === 'Terra' && o.tag === 'ROOT') ||
-      (norm.faction === 'Aether' && o.tag === 'AETH')
-    ) || ORDER_PRESETS[0];
+    const norm = normalizeClassAndFaction(classId, faction);
+    const preset = getOrderPresetForFaction(norm.faction, orderTag);
 
     const chId = `chr_${crypto.randomUUID().slice(0, 10)}`;
     const candidateName = name || norm.cls.name;
@@ -1023,7 +1070,7 @@ export class AccountsStore {
     return acc;
   }
 
-  updateProfile(accountId, { displayName, faction, classId, orderTag, orderName, orderColor, loadout, equipment, inventory, bank }) {
+  updateProfile(accountId, { displayName, faction, classId, orderTag, orderName, orderColor, loadout, equipment, inventory, bank, title }) {
     const acc = this.accountsById.get(accountId);
     if (!acc) throw new Error('Account not found.');
     this.ensureDefaultCharacter(acc);
@@ -1057,6 +1104,10 @@ export class AccountsStore {
     }
     if (orderName !== undefined) acc.orderName = sanitizeName(orderName, acc.orderName || 'Freelance');
     if (orderColor && /^#[0-9a-fA-F]{6}$/.test(orderColor)) acc.orderColor = orderColor;
+    if (title !== undefined) {
+      acc.title = title ? String(title).trim() : null;
+      if (ch) ch.title = acc.title;
+    }
 
     if (ch) {
       ch.name = acc.displayName;
@@ -1480,6 +1531,7 @@ export class AccountsStore {
       loadout: activeChar?.loadout || acc.loadout,
       orderTag: activeChar?.orderTag || acc.orderTag,
     });
+    const preset = getOrderPresetForFaction(resolved.faction, activeChar?.orderTag || acc.orderTag);
     return {
       id: acc.id,
       username: acc.username,
@@ -1490,9 +1542,9 @@ export class AccountsStore {
       tcgEmail: acc.tcgEmail,
       faction: resolved.faction,
       classId: resolved.classId,
-      orderTag: activeChar?.orderTag || acc.orderTag || (resolved.faction === 'Umbri' ? 'VOID' : resolved.faction === 'Terra' ? 'ROOT' : resolved.faction === 'Aether' ? 'AETH' : 'SUN'),
-      orderName: activeChar?.orderName || acc.orderName || `Order of ${resolved.faction}`,
-      orderColor: activeChar?.orderColor || acc.orderColor || '#facc15',
+      orderTag: activeChar?.orderTag || acc.orderTag || preset.tag,
+      orderName: activeChar?.orderName || acc.orderName || preset.name,
+      orderColor: activeChar?.orderColor || acc.orderColor || preset.color,
       loadout: activeChar?.loadout || acc.loadout || {},
       equipment: activeChar?.equipment || acc.equipment || {},
       inventory: activeChar?.inventory || acc.inventory || [],
@@ -1500,6 +1552,7 @@ export class AccountsStore {
       questState: activeChar?.questState || acc.questState || {},
       progression: activeChar?.progression || acc.progression || {},
       statsMeta: activeChar?.statsMeta || acc.statsMeta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
+      title: activeChar?.title || acc.title || null,
       activeCharacterId: acc.activeCharacterId,
       hp: typeof activeChar?.hp === 'number' ? activeChar.hp : (typeof acc.hp === 'number' ? acc.hp : null),
       solarCharge: typeof activeChar?.solarCharge === 'number' ? activeChar.solarCharge : (typeof acc.solarCharge === 'number' ? acc.solarCharge : null),

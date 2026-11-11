@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Swords,
   Shield,
@@ -12,6 +12,14 @@ import {
   ArrowRight,
   Play,
   Pause,
+  SkipBack,
+  SkipForward,
+  Repeat,
+  Shuffle,
+  ListMusic,
+  ListPlus,
+  Trash2,
+  Search,
   Music,
   Film,
   Layers,
@@ -25,6 +33,7 @@ import {
   Check,
   RotateCcw,
   Volume2,
+  Volume1,
   VolumeX,
   Crosshair,
   Heart,
@@ -51,16 +60,231 @@ const LOGO_PATH = '/GlimmerFall_official_multicolor_logo.png';
 // GOOGLE FLOW SOUNDTRACK DIRECTORY & METADATA
 // ==========================================
 export const LANDING_OST_TRACKS = [
-  { id: 'title', name: 'Awakening of the Cosmos', zone: 'Title Theme', bpm: 105, key: 'D min', icon: '🌌', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/title.m4a', desc: 'Symphonic cosmic overture capturing the birth of the crystal realm and the great fracture.' },
-  { id: 'sanctuary', name: 'Starlight Sanctuary', zone: 'Sanctuary Haven', bpm: 85, key: 'D maj', icon: '🏛️', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/sanctuary.m4a', desc: 'Ethereal harp and celesta harmonies echoing across the tranquil starlit pavilion and artisan stalls.' },
-  { id: 'solari', name: 'Sun Cathedral March', zone: 'Solari Citadel', bpm: 128, key: 'D mixo', icon: '☀️', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/solari.m4a', desc: 'Heroic French horn and sweeping strings marching beneath the blinding noon-fire of the Sunspire.' },
-  { id: 'umbri', name: 'Crypt of Shadowweaver', zone: 'Umbri Undercity', bpm: 95, key: 'F# min', icon: '🌑', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/umbri.m4a', desc: 'Gothic cello and harpsichord resonating in subterranean crypts lit by flickering violet graveglass lanterns.' },
-  { id: 'terra', name: 'Druidic Forest Bodhran', zone: 'Terra Deepwoods', bpm: 110, key: 'E min', icon: '🌿', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/terra.m4a', desc: 'Acoustic guitar and wooden flute pulsing with organic bodhran earth-drums in ancient primeval groves.' },
-  { id: 'aether', name: 'Quantum Shimmer', zone: 'Aether Spire', bpm: 140, key: 'A min', icon: '🔮', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/aether.m4a', desc: 'Cosmic quantum glockenspiel accelerating through temporal rifts and celestial mirrorgate spires.' },
-  { id: 'abyss', name: 'Cosmic Dread Drone', zone: 'Starfall Abyss', bpm: 80, key: 'Eb min', icon: '🕳️', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/abyss.m4a', desc: 'Low-frequency sawtooth drone vibrating with descending cosmic dread and abyssal tension.' },
-  { id: 'warzone', name: 'Martial Taiko Clash', zone: 'Nexus Warzone', bpm: 135, key: 'A min', icon: '⚔️', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/warzone.m4a', desc: 'Thunderous taiko rhythms and martial brass driving high-intensity 3v3 Outpost siege skirmishes.' },
-  { id: 'boss', name: 'Relentless Timpani Climax', zone: 'World Boss Siege', bpm: 150, key: 'E min', icon: '👹', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/boss.m4a', desc: 'Cataclysmic string ostinato and relentless timpani pulsing at the desperate brink of continental obliteration.' },
-  { id: 'victory', name: 'Fanfare of Triumph', zone: 'Victory Fanfare', bpm: 130, key: 'D maj', icon: '🏆', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/victory.m4a', desc: 'Triumphant brass fanfare celebrating boss collapse, quest completion, and spoils of war.' },
+  {
+    id: 'title',
+    name: 'Awakening of the Cosmos',
+    zone: 'The Primordial Shattering',
+    category: 'Cinematic Themes',
+    bpm: 105,
+    key: 'D min',
+    duration: '2:58',
+    durationSec: 178,
+    icon: '🌌',
+    color: '#818cf8',
+    localUrl: '/audio/title.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/title.m4a',
+    desc: 'Symphonic cosmic overture capturing the birth of the crystal realm, the celestial detonation, and the great fracture into 4 light aspects.'
+  },
+  {
+    id: 'sanctuary',
+    name: 'Starlight Sanctuary Haven',
+    zone: 'Sanctuary Hub & Haven',
+    category: 'Biomes & Havens',
+    bpm: 85,
+    key: 'D maj',
+    duration: '3:39',
+    durationSec: 219,
+    icon: '🏛️',
+    color: '#38bdf8',
+    localUrl: '/audio/sanctuary.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/sanctuary.m4a',
+    desc: 'Ethereal harp and celesta harmonies echoing across the tranquil starlit pavilion, player bazaars, and peaceful fountain commons.'
+  },
+  {
+    id: 'solari',
+    name: 'Sun Cathedral March (Emberwing)',
+    zone: 'Solari Golden Citadel',
+    category: 'Factions',
+    bpm: 128,
+    key: 'D mixo',
+    duration: '3:00',
+    durationSec: 180,
+    icon: '☀️',
+    color: '#facc15',
+    localUrl: '/audio/solari.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Solari_Faction_Emberwing_Courier.m4a',
+    desc: 'Heroic French horn, golden heraldry brass, and sweeping strings marching beneath the blinding noon-fire of the Sunspire.'
+  },
+  {
+    id: 'umbri',
+    name: 'Crypt of Shadowweaver (Umbral)',
+    zone: 'Umbri Duskveil Undercity',
+    category: 'Factions',
+    bpm: 95,
+    key: 'F# min',
+    duration: '2:57',
+    durationSec: 177,
+    icon: '🌑',
+    color: '#c084fc',
+    localUrl: '/audio/umbri.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Umbri_Faction_Umbral_Assassin.m4a',
+    desc: 'Gothic cello and harpsichord resonating in subterranean crypts lit by flickering violet graveglass lanterns and void leylines.'
+  },
+  {
+    id: 'terra',
+    name: 'Druidic Forest Bodhran (Warden)',
+    zone: 'Terra Rootdeep Expanse',
+    category: 'Factions',
+    bpm: 110,
+    key: 'E min',
+    duration: '2:50',
+    durationSec: 170,
+    icon: '🌿',
+    color: '#4ade80',
+    localUrl: '/audio/terra.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Terra_Faction_Forest_Warden.m4a',
+    desc: 'Acoustic guitar and wooden flute pulsing with organic bodhran earth-drums in ancient primeval ironwood groves.'
+  },
+  {
+    id: 'aether',
+    name: 'Quantum Shimmer (Nexus Weaver)',
+    zone: 'Aether Mirrorgate Spire',
+    category: 'Factions',
+    bpm: 140,
+    key: 'A min',
+    duration: '2:58',
+    durationSec: 178,
+    icon: '🔮',
+    color: '#38bdf8',
+    localUrl: '/audio/aether.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Aether_Faction_Nexus_Weaver.m4a',
+    desc: 'Cosmic quantum glockenspiel accelerating through temporal chronoflux rifts and celestial mirrorgate spires.'
+  },
+  {
+    id: 'abyss',
+    name: 'Cosmic Dread Drone',
+    zone: 'Starfall Caldera Abyss',
+    category: 'Biomes & Havens',
+    bpm: 80,
+    key: 'Eb min',
+    duration: '2:55',
+    durationSec: 175,
+    icon: '🕳️',
+    color: '#a855f7',
+    localUrl: '/audio/abyss.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/abyss.m4a',
+    desc: 'Low-frequency sawtooth drone vibrating with descending cosmic dread and abyssal tension at the crater rift.'
+  },
+  {
+    id: 'warzone',
+    name: 'Martial Taiko Clash (Siege)',
+    zone: 'Nexus Outpost Caldera',
+    category: 'Combat & Arenas',
+    bpm: 135,
+    key: 'A min',
+    duration: '2:37',
+    durationSec: 157,
+    icon: '⚔️',
+    color: '#ef4444',
+    localUrl: '/audio/warzone.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/3v3_Outpost_Siege_Warzone_Monolith_Clash.m4a',
+    desc: 'Thunderous taiko rhythms and martial brass driving high-intensity 3v3 Outpost siege skirmishes and Monolith overloads.'
+  },
+  {
+    id: 'boss',
+    name: 'Granite Colossus Climax',
+    zone: 'World Boss Caldera',
+    category: 'Combat & Arenas',
+    bpm: 150,
+    key: 'E min',
+    duration: '2:56',
+    durationSec: 176,
+    icon: '👹',
+    color: '#f97316',
+    localUrl: '/audio/boss.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Apex_World_Boss_Granite_Colossus_Emergence.m4a',
+    desc: 'Cataclysmic string ostinato and relentless timpani pulsing as the ancient titan awakens and shakes the continent.'
+  },
+  {
+    id: 'tcg_duel',
+    name: 'Tactical Card Duel',
+    zone: 'The Grand Card Arena',
+    category: 'Combat & Arenas',
+    bpm: 120,
+    key: 'G min',
+    duration: '2:46',
+    durationSec: 166,
+    icon: '🃏',
+    color: '#eab308',
+    localUrl: '/audio/tcg_duel.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Authentic_TCG_Tactical_Card_Duel.m4a',
+    desc: 'High-stakes tabletop duel arrangement pulsing with kinetic strategy, mana shifts, and holographic spell casts.'
+  },
+  {
+    id: 'the_bridge',
+    name: 'The Bridge: Card to Pixel',
+    zone: 'Dimensional Transmutation',
+    category: 'Cinematic Themes',
+    bpm: 115,
+    key: 'C maj',
+    duration: '3:00',
+    durationSec: 180,
+    icon: '✨',
+    color: '#06b6d4',
+    localUrl: '/audio/the_bridge.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/The_Bridge_Holographic_Card_to_Pixel_Sprite.m4a',
+    desc: 'Atmospheric theme depicting holographic trading card relics materializing directly into living pixel avatars.'
+  },
+  {
+    id: 'victory',
+    name: 'Fanfare of Triumph & Spoils',
+    zone: 'Victory Fanfare',
+    category: 'Combat & Arenas',
+    bpm: 130,
+    key: 'D maj',
+    duration: '2:03',
+    durationSec: 123,
+    icon: '🏆',
+    color: '#eab308',
+    localUrl: '/audio/victory.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Triumph__Spoils_Colossus_Defeated.m4a',
+    desc: 'Triumphant brass fanfare celebrating boss collapse, quest completion, shard extraction, and continental spoils.'
+  },
+  {
+    id: 'trailer',
+    name: 'Dual Launch Reveal Anthem',
+    zone: 'Official Launch Trailer',
+    category: 'Cinematic Themes',
+    bpm: 130,
+    key: 'D min',
+    duration: '1:49',
+    durationSec: 109,
+    icon: '🎬',
+    color: '#f43f5e',
+    localUrl: '/audio/trailer.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/GlimmerFall_Trailer.m4a',
+    desc: 'The official Dual Launch trailer anthem showcasing the unified universe of GlimmerFall Online and the physical TCG.'
+  },
+  {
+    id: 'grand_finale',
+    name: 'Grand Finale Title Card',
+    zone: 'Launch Dec 5, 2026',
+    category: 'Cinematic Themes',
+    bpm: 125,
+    key: 'G maj',
+    duration: '3:00',
+    durationSec: 180,
+    icon: '🌟',
+    color: '#fbbf24',
+    localUrl: '/audio/grand_finale.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Grand_Finale_Title_Card_Launching_Dec_5_2026.m4a',
+    desc: 'Grand orchestral finale celebrating the official release countdown to December 5, 2026.'
+  },
+  {
+    id: 'master_suite',
+    name: '11-Clip Master OST Suite',
+    zone: 'Official Master Collection',
+    category: 'Cinematic Themes',
+    bpm: 120,
+    key: 'D min',
+    duration: '1:02',
+    durationSec: 62,
+    icon: '💿',
+    color: '#38bdf8',
+    localUrl: '/audio/master_suite.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Glimmerfall_11_Clip_Master_Soundtrack.m4a',
+    desc: 'Comprehensive orchestral suite blending signature motifs across all biomes, classes, and battle climaxes.'
+  }
 ];
 
 // ==========================================
@@ -393,85 +617,263 @@ export default function LandingPage() {
   const [activeLoreTab, setActiveLoreTab] = useState('shattering');
   const [hoveredItem, setHoveredItem] = useState(null);
 
-  // Google Flow OST Jukebox & 1080p Cinematics Theatre State
+  // Google Flow OST Jukebox & Official Media Player State
   const [currentOstTrackId, setCurrentOstTrackId] = useState('title');
   const [isOstPlaying, setIsOstPlaying] = useState(false);
-  const [ostAudio, setOstAudio] = useState(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(178);
+  const [volume, setVolume] = useState(0.75);
+  const [isMuted, setIsMuted] = useState(false);
+  const [repeatMode, setRepeatMode] = useState('all'); // 'all', 'one', 'off'
+  const [isShuffle, setIsShuffle] = useState(false);
+  const [queue, setQueue] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [trackCategoryFilter, setTrackCategoryFilter] = useState('all');
+  const [trackSearchQuery, setTrackSearchQuery] = useState('');
+  const [showQueueDrawer, setShowQueueDrawer] = useState(false);
   const [selectedCinematicId, setSelectedCinematicId] = useState('crystal_heart');
   const [isTheatreAutoplay, setIsTheatreAutoplay] = useState(false);
 
-  const setTab = (tabId) => {
-    const aliasMap = {
-      'prologue-hero': 'overview',
-      'theatre': 'theatre',
-      'forge': 'forge',
-      'systems': 'systems',
-      'game-encyclopedia': 'systems',
-      'lore-tcg': 'atlas',
-      'lore-chronicle': 'atlas',
-      'tcg-cards': 'armory',
-      'armory': 'armory',
-      'arena': 'atlas',
-      'atlas': 'atlas',
-      'settings': 'settings',
-    };
-    setActiveTab(aliasMap[tabId] || tabId);
-    playSfx('click');
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
+  const audioRef = useRef(null);
+  const queueRef = useRef([]);
+  queueRef.current = queue;
+  const repeatModeRef = useRef('all');
+  repeatModeRef.current = repeatMode;
+  const isShuffleRef = useRef(false);
+  isShuffleRef.current = isShuffle;
+  const currentTrackRef = useRef('title');
+  currentTrackRef.current = currentOstTrackId;
+  const isDraggingScrubberRef = useRef(false);
+  const audioFailoverRef = useRef(0);
 
-  const playOstTrack = (trackId) => {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const audio = new Audio();
+    audio.preload = 'metadata';
+    audio.volume = isMuted ? 0 : volume;
+    audioRef.current = audio;
+
+    const onTimeUpdate = () => {
+      if (!isDraggingScrubberRef.current && audio) {
+        setCurrentTime(audio.currentTime || 0);
+      }
+    };
+    const onLoadedMetadata = () => {
+      if (audio && !isNaN(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+      }
+    };
+    const onDurationChange = () => {
+      if (audio && !isNaN(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+      }
+    };
+    const onPlay = () => setIsOstPlaying(true);
+    const onPause = () => setIsOstPlaying(false);
+    const onEnded = () => {
+      if (queueRef.current.length > 0) {
+        const nextId = queueRef.current[0];
+        setQueue((prev) => prev.slice(1));
+        playOstTrack(nextId, { fromQueue: true });
+      } else if (repeatModeRef.current === 'one') {
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+      } else if (repeatModeRef.current === 'all') {
+        playNextTrack();
+      } else {
+        setIsOstPlaying(false);
+        setCurrentTime(0);
+      }
+    };
+    const onError = () => {
+      const track = LANDING_OST_TRACKS.find((t) => t.id === currentTrackRef.current);
+      if (audioFailoverRef.current === 0 && track && track.url && audio.src !== track.url) {
+        audioFailoverRef.current = 1;
+        audio.src = track.url;
+        audio.play().catch(() => setIsOstPlaying(false));
+      } else {
+        setIsOstPlaying(false);
+      }
+    };
+
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('durationchange', onDurationChange);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('ended', onEnded);
+    audio.addEventListener('error', onError);
+
+    return () => {
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('durationchange', onDurationChange);
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('error', onError);
+      try { audio.pause(); } catch (_) {}
+    };
+  }, []);
+
+  const playOstTrack = (trackId, { fromQueue = false } = {}) => {
     const track = LANDING_OST_TRACKS.find((t) => t.id === trackId);
     if (!track) return;
 
-    if (currentOstTrackId === trackId && ostAudio && !ostAudio.paused) {
-      ostAudio.pause();
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (currentOstTrackId === trackId && !audio.paused) {
+      audio.pause();
       setIsOstPlaying(false);
       return;
     }
 
-    if (ostAudio) {
-      try {
-        ostAudio.pause();
-        ostAudio.currentTime = 0;
-      } catch (_) {}
+    if (currentOstTrackId && currentOstTrackId !== trackId) {
+      setHistory((prev) => [...prev.slice(-30), currentOstTrackId]);
     }
 
     setCurrentOstTrackId(trackId);
-    try {
-      const audio = new Audio(track.url);
-      audio.loop = true;
-      audio.volume = 0.65;
-      setOstAudio(audio);
-      setIsOstPlaying(true);
-      audio.play().catch((err) => {
-        console.warn('[Jukebox] Play failed:', err);
-        setIsOstPlaying(false);
-      });
-    } catch (err) {
-      console.warn('[Jukebox] Init failed:', err);
-      setIsOstPlaying(false);
+    setDuration(track.durationSec || 180);
+    setCurrentTime(0);
+    audioFailoverRef.current = 0;
+    setIsOstPlaying(true);
+
+    const src = track.localUrl || track.url;
+    if (audio.src !== src && !audio.src.endsWith(src)) {
+      audio.src = src;
     }
+    audio.volume = isMuted ? 0 : volume;
+    audio.play().catch((err) => {
+      console.warn('[MediaPlayer] Local play error, trying CDN fallback:', err);
+      if (audio.src !== track.url) {
+        audioFailoverRef.current = 1;
+        audio.src = track.url;
+        audio.play().catch((err2) => {
+          console.warn('[MediaPlayer] CDN fallback failed:', err2);
+          setIsOstPlaying(false);
+        });
+      } else {
+        setIsOstPlaying(false);
+      }
+    });
   };
 
   const toggleOstPlay = () => {
-    if (isOstPlaying && ostAudio) {
-      ostAudio.pause();
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isOstPlaying) {
+      audio.pause();
       setIsOstPlaying(false);
+    } else if (audio.src && !audio.ended) {
+      audio.play().then(() => setIsOstPlaying(true)).catch(() => {
+        playOstTrack(currentOstTrackId || 'title');
+      });
     } else {
       playOstTrack(currentOstTrackId || 'title');
     }
   };
 
-  useEffect(() => {
-    return () => {
-      if (ostAudio) {
-        try { ostAudio.pause(); } catch (_) {}
-      }
-    };
-  }, [ostAudio]);
+  const playNextTrack = () => {
+    if (queueRef.current.length > 0) {
+      const nextId = queueRef.current[0];
+      setQueue((prev) => prev.slice(1));
+      playOstTrack(nextId, { fromQueue: true });
+      return;
+    }
+    const tracks = LANDING_OST_TRACKS;
+    if (isShuffleRef.current) {
+      const pool = tracks.filter((t) => t.id !== currentTrackRef.current);
+      const rand = pool[Math.floor(Math.random() * pool.length)] || tracks[0];
+      playOstTrack(rand.id);
+      return;
+    }
+    const curIdx = tracks.findIndex((t) => t.id === currentTrackRef.current);
+    const nextIdx = (curIdx + 1) % tracks.length;
+    playOstTrack(tracks[nextIdx].id);
+  };
+
+  const playPrevTrack = () => {
+    const audio = audioRef.current;
+    if (audio && audio.currentTime > 3) {
+      audio.currentTime = 0;
+      setCurrentTime(0);
+      return;
+    }
+    const tracks = LANDING_OST_TRACKS;
+    const curIdx = tracks.findIndex((t) => t.id === currentTrackRef.current);
+    const prevIdx = (curIdx - 1 + tracks.length) % tracks.length;
+    playOstTrack(tracks[prevIdx].id);
+  };
+
+  const seekTrack = (seconds) => {
+    isDraggingScrubberRef.current = false;
+    const s = Number(seconds);
+    const audio = audioRef.current;
+    if (audio && !isNaN(s)) {
+      try {
+        audio.currentTime = s;
+        setCurrentTime(s);
+      } catch (_) {}
+    }
+  };
+
+  const onScrubberInput = (seconds) => {
+    isDraggingScrubberRef.current = true;
+    const s = Number(seconds);
+    if (!isNaN(s)) {
+      setCurrentTime(s);
+    }
+  };
+
+  const handleVolumeChange = (newVol) => {
+    const v = Math.max(0, Math.min(1, Number(newVol)));
+    setVolume(v);
+    setIsMuted(v === 0);
+    if (audioRef.current) audioRef.current.volume = v;
+  };
+
+  const toggleMute = () => {
+    const nextMute = !isMuted;
+    setIsMuted(nextMute);
+    if (audioRef.current) audioRef.current.volume = nextMute ? 0 : volume;
+  };
+
+  const toggleRepeatMode = () => {
+    setRepeatMode((prev) => (prev === 'all' ? 'one' : prev === 'one' ? 'off' : 'all'));
+  };
+
+  const toggleShuffle = () => {
+    setIsShuffle((prev) => !prev);
+  };
+
+  const addToQueue = (trackId) => {
+    setQueue((prev) => [...prev, trackId]);
+    if (!isOstPlaying && (!audioRef.current || audioRef.current.paused)) {
+      playOstTrack(trackId, { fromQueue: true });
+    }
+  };
+
+  const removeFromQueue = (index) => {
+    setQueue((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const clearQueue = () => {
+    setQueue([]);
+  };
+
+  const playQueuedItem = (index) => {
+    const item = queue[index];
+    removeFromQueue(index);
+    if (item) playOstTrack(item, { fromQueue: true });
+  };
+
+  const formatTime = (seconds) => {
+    if (isNaN(seconds) || seconds < 0) return '00:00';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+  };
 
   // Load initial preferences
   useEffect(() => {
@@ -1073,68 +1475,436 @@ export default function LandingPage() {
               </button>
             </div>
 
-            {/* INTERACTIVE GOOGLE FLOW OST JUKEBOX */}
-            <div className="mt-8 p-5 rounded-2xl bg-gradient-to-br from-[#0E172E]/95 to-[#070B18]/98 border border-[#38BDF8]/40 shadow-[0_12px_35px_rgba(0,0,0,0.6)]">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-11 h-11 rounded-full bg-gradient-to-br from-[#FACC15] via-[#080D1A] to-[#38BDF8] border-2 border-[#FACC15]/60 flex items-center justify-center text-lg shadow-[0_0_16px_rgba(250,204,21,0.4)] ${isOstPlaying ? 'animate-spin' : ''}`}>
-                    🎵
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-display font-bold text-sm text-[#FDE047]">
-                        {activeOstTrack.name}
-                      </span>
-                      <div className="flex items-end gap-0.5 h-4">
-                        <span className={`w-1 bg-[#38BDF8] rounded-full transition-all ${isOstPlaying ? 'h-3 animate-pulse' : 'h-1'}`} />
-                        <span className={`w-1 bg-[#FACC15] rounded-full transition-all ${isOstPlaying ? 'h-4 animate-bounce' : 'h-1.5'}`} />
-                        <span className={`w-1 bg-[#38BDF8] rounded-full transition-all ${isOstPlaying ? 'h-2 animate-pulse' : 'h-1'}`} />
-                        <span className={`w-1 bg-[#4ADE80] rounded-full transition-all ${isOstPlaying ? 'h-3.5 animate-bounce' : 'h-1'}`} />
-                      </div>
-                    </div>
-                    <div className="text-[11px] font-semibold text-[#38BDF8]">
-                      {activeOstTrack.zone} &bull; {activeOstTrack.bpm} BPM &bull; Key: {activeOstTrack.key}
-                    </div>
-                    <div className="text-[10px] text-white/60">
-                      {activeOstTrack.desc}
-                    </div>
-                  </div>
+            {/* OFFICIAL GLIMMERFALL MEDIA PLAYER & SOUNDTRACK CATALOG */}
+            <div className="mt-8 rounded-2xl bg-gradient-to-br from-[#0F172A]/95 via-[#0A0F22]/98 to-[#060A16] border-2 border-[#F2A900]/40 p-5 sm:p-7 shadow-[0_16px_45px_rgba(0,0,0,0.7),0_0_30px_rgba(242,169,0,0.15)] space-y-5">
+              {/* Top Header */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl">🎼</span>
+                  <h3 className="font-display font-black text-base sm:text-lg text-white tracking-wide">
+                    GLIMMERFALL MASTER REALM JUKEBOX &amp; MEDIA PLAYER
+                  </h3>
+                  <span className="text-[9.5px] font-bold px-2 py-0.5 rounded bg-[#FACC15]/15 border border-[#FACC15]/40 text-[#FDE047] hidden sm:inline">
+                    15 Master Tracks
+                  </span>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={toggleOstPlay}
-                    className={`py-2 px-4 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${
-                      isOstPlaying
-                        ? 'bg-[#38BDF8]/20 border-[#38BDF8] text-[#7DD3FC] shadow-[0_0_15px_rgba(56,189,248,0.3)]'
-                        : 'bg-[#F2A900]/20 border-[#F2A900] text-[#FDE047] shadow-[0_0_15px_rgba(242,169,0,0.3)]'
-                    }`}
-                  >
-                    {isOstPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-                    {isOstPlaying ? 'Pause Audio' : 'Play Soundtrack'}
-                  </button>
-                  <span className="text-[10px] text-white/40 font-bold hidden sm:inline">Official Master OST</span>
+                <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border ${
+                  isOstPlaying
+                    ? 'bg-[#4ADE80]/15 border-[#4ADE80]/40 text-[#4ADE80]'
+                    : 'bg-[#FACC15]/15 border-[#FACC15]/40 text-[#FACC15]'
+                }`}>
+                  <span className={`w-2 h-2 rounded-full bg-current ${isOstPlaying ? 'animate-pulse' : ''}`} />
+                  <span>{isOstPlaying ? 'Now Playing' : 'Paused'}</span>
                 </div>
               </div>
 
-              {/* 10 Zone Track Pills */}
-              <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/10">
-                {LANDING_OST_TRACKS.map((t) => {
-                  const isSel = currentOstTrackId === t.id;
+              {/* Main Player Deck */}
+              <div className="grid grid-cols-1 sm:grid-cols-[100px_1fr] gap-5 items-center">
+                {/* Rotating Vinyl Disc */}
+                <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
+                  <div
+                    className={`w-24 h-24 rounded-full border-2 border-[#FACC15]/50 bg-gradient-to-br from-[#1E293B] via-[#0F172A] to-black shadow-[0_0_20px_rgba(0,0,0,0.8),0_0_15px_rgba(242,169,0,0.25)] flex items-center justify-center relative transition-transform ${
+                      isOstPlaying ? 'animate-spin' : ''
+                    }`}
+                    style={{ animationDuration: '4.5s' }}
+                  >
+                    <div className="absolute inset-2 rounded-full border border-dashed border-white/20" />
+                    <div className="absolute inset-4 rounded-full border border-white/10" />
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#FACC15] via-[#CA8A04] to-[#1E293B] border-2 border-white flex items-center justify-center text-base shadow-[0_0_10px_rgba(250,204,21,0.6)] z-10">
+                      {activeOstTrack.icon}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Track Details & Controls */}
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[9.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#38BDF8]/15 border border-[#38BDF8]/40 text-[#7DD3FC]">
+                      {activeOstTrack.category}
+                    </span>
+                    <span className="text-[9.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[#38BDF8]">
+                      {activeOstTrack.zone}
+                    </span>
+                    <span className="text-[10px] font-bold text-[#FACC15] bg-[#FACC15]/10 px-2 py-0.5 rounded border border-[#FACC15]/30">
+                      {activeOstTrack.bpm} BPM &bull; Key: {activeOstTrack.key}
+                    </span>
+                    <span className="text-[10px] text-white/40 font-mono hidden md:inline">
+                      High-Fidelity M4A / 48kHz
+                    </span>
+                  </div>
+
+                  <div>
+                    <h4 className="font-display font-black text-xl text-[#FEF08A] tracking-wide">
+                      {activeOstTrack.name}
+                    </h4>
+                    <p className="text-xs text-white/60 line-clamp-2 mt-0.5">
+                      {activeOstTrack.desc}
+                    </p>
+                  </div>
+
+                  {/* Scrubber Timeline */}
+                  <div className="flex items-center gap-3 w-full pt-1">
+                    <span className="text-[11.5px] font-mono font-bold text-[#7DD3FC] min-w-[42px]">
+                      {formatTime(currentTime)}
+                    </span>
+                    <div className="relative flex-1 h-2 bg-[#0F172A] border border-white/20 rounded-full flex items-center">
+                      <div
+                        className="h-full bg-gradient-to-r from-[#FACC15] to-[#38BDF8] rounded-full shadow-[0_0_8px_rgba(56,189,248,0.5)] pointer-events-none"
+                        style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+                      />
+                      <input
+                        type="range"
+                        min="0"
+                        max={duration || 180}
+                        step="0.5"
+                        value={currentTime || 0}
+                        onInput={(e) => onScrubberInput(e.target.value)}
+                        onChange={(e) => seekTrack(e.target.value)}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                    </div>
+                    <span className="text-[11.5px] font-mono font-bold text-white/50 min-w-[42px] text-right">
+                      {formatTime(duration)}
+                    </span>
+                  </div>
+
+                  {/* Controls Bar */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/10">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <button
+                        type="button"
+                        onClick={toggleShuffle}
+                        title="Shuffle Playlist"
+                        className={`p-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${
+                          isShuffle
+                            ? 'bg-[#F2A900]/25 border-[#F2A900] text-[#FEF08A] shadow-[0_0_12px_rgba(242,169,0,0.35)]'
+                            : 'bg-black/40 border-white/10 text-white/60 hover:text-white hover:border-[#38BDF8]'
+                        }`}
+                      >
+                        <Shuffle className="w-3.5 h-3.5" />
+                        <span className="hidden md:inline text-[10px]">Shuffle</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={playPrevTrack}
+                        title="Previous Track"
+                        className="p-2 rounded-xl text-xs font-bold border bg-black/40 border-white/10 text-white/70 hover:text-white hover:border-[#38BDF8] transition-all"
+                      >
+                        <SkipBack className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={toggleOstPlay}
+                        className={`py-2 px-5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all flex items-center gap-2 shadow-lg ${
+                          isOstPlaying
+                            ? 'bg-gradient-to-r from-[#38BDF8] to-[#0284C7] border-[#BAE6FD] text-black shadow-[0_0_18px_rgba(56,189,248,0.5)]'
+                            : 'bg-gradient-to-r from-[#FACC15] to-[#CA8A04] border-[#FEF08A] text-black shadow-[0_0_18px_rgba(250,204,21,0.5)]'
+                        }`}
+                      >
+                        {isOstPlaying ? <Pause className="w-4 h-4 fill-black" /> : <Play className="w-4 h-4 fill-black" />}
+                        <span>{isOstPlaying ? 'Pause' : 'Play'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={playNextTrack}
+                        title="Next Track"
+                        className="p-2 rounded-xl text-xs font-bold border bg-black/40 border-white/10 text-white/70 hover:text-white hover:border-[#38BDF8] transition-all"
+                      >
+                        <SkipForward className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={toggleRepeatMode}
+                        title="Repeat Mode"
+                        className={`p-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${
+                          repeatMode !== 'off'
+                            ? 'bg-[#F2A900]/25 border-[#F2A900] text-[#FEF08A] shadow-[0_0_12px_rgba(242,169,0,0.35)]'
+                            : 'bg-black/40 border-white/10 text-white/60 hover:text-white hover:border-[#38BDF8]'
+                        }`}
+                      >
+                        <Repeat className="w-3.5 h-3.5" />
+                        <span className="text-[10px] font-mono">
+                          {repeatMode === 'one' ? '1' : (repeatMode === 'all' ? 'ALL' : 'OFF')}
+                        </span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      {/* Volume Slider */}
+                      <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-black/50 border border-white/10">
+                        <button
+                          type="button"
+                          onClick={toggleMute}
+                          className="text-white/70 hover:text-[#38BDF8] transition-colors"
+                          title={isMuted ? 'Unmute' : 'Mute'}
+                        >
+                          {isMuted || volume === 0 ? <VolumeX className="w-4 h-4 text-[#F87171]" /> : <Volume2 className="w-4 h-4 text-[#7DD3FC]" />}
+                        </button>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={isMuted ? 0 : volume}
+                          onChange={(e) => handleVolumeChange(e.target.value)}
+                          className="w-16 h-1.5 cursor-pointer accent-[#FACC15]"
+                          title="Volume"
+                        />
+                      </div>
+
+                      {/* Queue Drawer Toggle */}
+                      <button
+                        type="button"
+                        onClick={() => setShowQueueDrawer((prev) => !prev)}
+                        className={`py-1.5 px-3 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                          showQueueDrawer
+                            ? 'bg-[#38BDF8]/25 border-[#38BDF8] text-[#7DD3FC] shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                            : 'bg-black/40 border-white/10 text-white/70 hover:border-[#38BDF8] hover:text-white'
+                        }`}
+                      >
+                        <ListMusic className="w-4 h-4" />
+                        <span>Queue</span>
+                        <span className="text-[9.5px] px-1.5 py-0.2 rounded-full bg-[#FACC15]/20 text-[#FEF08A] border border-[#FACC15]/40">
+                          {queue.length}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Queue Drawer */}
+              {showQueueDrawer && (
+                <div className="rounded-xl bg-[#060A16]/95 border border-[#38BDF8]/30 p-4 space-y-3 shadow-inner">
+                  <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                    <div className="flex items-center gap-2 text-xs font-display font-bold text-[#7DD3FC]">
+                      <ListMusic className="w-4 h-4" />
+                      <span>Active Playback Queue ({queue.length} Track{queue.length !== 1 ? 's' : ''})</span>
+                    </div>
+                    {queue.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={clearQueue}
+                        className="text-[10px] font-bold text-[#F87171] hover:underline flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" /> Clear Queue
+                      </button>
+                    )}
+                  </div>
+
+                  {queue.length === 0 ? (
+                    <div className="text-center py-4 text-xs text-white/50">
+                      Queue is currently empty. Click <b className="text-[#38BDF8]">+ Queue</b> on any track below to line up your playlist.
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {queue.map((qTrackId, qIdx) => {
+                        const qTrack = LANDING_OST_TRACKS.find((t) => t.id === qTrackId) || { name: qTrackId, duration: '2:50', icon: '🎵', zone: 'Realm' };
+                        return (
+                          <div
+                            key={`${qTrackId}-${qIdx}`}
+                            className="flex items-center justify-between p-2 rounded-lg bg-black/40 border border-white/10 text-xs hover:border-[#38BDF8]/40 transition-colors"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#FACC15]/15 text-[#FDE047] border border-[#FACC15]/30">
+                                #{qIdx + 1}
+                              </span>
+                              <span>{qTrack.icon}</span>
+                              <span className="font-semibold text-white/90">{qTrack.name}</span>
+                              <span className="text-[10px] text-[#38BDF8] hidden sm:inline">&bull; {qTrack.zone}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-white/50 font-mono">{qTrack.duration}</span>
+                              <button
+                                type="button"
+                                onClick={() => playQueuedItem(qIdx)}
+                                className="py-1 px-2 rounded bg-[#F2A900]/20 hover:bg-[#F2A900]/30 border border-[#F2A900]/50 text-[#FDE047] text-[10px] font-bold transition-all"
+                              >
+                                Play Now
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeFromQueue(qIdx)}
+                                className="p-1 rounded text-white/40 hover:text-[#F87171] transition-colors"
+                                title="Remove from Queue"
+                              >
+                                &times;
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* TRACKS LIST UNDERNEATH (QUEUEABLE REPOSITORY) */}
+            <div className="mt-6 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🎼</span>
+                  <h3 className="font-display font-black text-base sm:text-lg text-white">
+                    OFFICIAL SOUNDTRACK CATALOG (15 MASTER TRACKS)
+                  </h3>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={trackSearchQuery}
+                    onChange={(e) => setTrackSearchQuery(e.target.value)}
+                    placeholder="Search tracks by name, key, lore..."
+                    className="py-1.5 px-3 pl-8 rounded-xl bg-black/50 border border-white/15 text-xs text-white placeholder-white/40 focus:border-[#38BDF8] outline-none w-64 transition-all"
+                  />
+                  <Search className="w-3.5 h-3.5 text-white/40 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Category Filter Pills */}
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'all', label: 'All Tracks (15)' },
+                  { id: 'Factions', label: '☀️ Factions (4)' },
+                  { id: 'Biomes & Havens', label: '🗺️ Biomes & Havens (4)' },
+                  { id: 'Combat & Arenas', label: '⚔️ Combat & Arenas (4)' },
+                  { id: 'Cinematic Themes', label: '🎬 Cinematic Themes (3)' },
+                ].map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setTrackCategoryFilter(cat.id)}
+                    className={`py-1.5 px-3.5 rounded-full text-xs font-bold border transition-all ${
+                      trackCategoryFilter === cat.id
+                        ? 'bg-gradient-to-r from-[#FACC15]/25 to-[#38BDF8]/25 border-[#FACC15] text-[#FEF08A] shadow-[0_0_12px_rgba(250,204,21,0.35)]'
+                        : 'bg-black/40 border-white/10 text-white/70 hover:border-[#38BDF8] hover:text-white'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Track Table / List */}
+              <div className="space-y-2">
+                {LANDING_OST_TRACKS.filter((t) => {
+                  if (trackCategoryFilter !== 'all' && t.category !== trackCategoryFilter) return false;
+                  if (trackSearchQuery) {
+                    const q = trackSearchQuery.toLowerCase();
+                    return (
+                      t.name.toLowerCase().includes(q) ||
+                      t.zone.toLowerCase().includes(q) ||
+                      t.desc.toLowerCase().includes(q) ||
+                      t.key.toLowerCase().includes(q) ||
+                      String(t.bpm).includes(q)
+                    );
+                  }
+                  return true;
+                }).map((t, idx) => {
+                  const isCurrent = currentOstTrackId === t.id;
+                  const isPlayingThis = isCurrent && isOstPlaying;
+                  const qPos = queue.indexOf(t.id);
+                  const isQueued = qPos !== -1;
+
                   return (
-                    <button
+                    <div
                       key={t.id}
                       onClick={() => playOstTrack(t.id)}
-                      className={`py-1.5 px-3 rounded-full text-[10.5px] font-bold border transition-all flex items-center gap-1.5 ${
-                        isSel
-                          ? 'bg-gradient-to-r from-[#FACC15]/25 to-[#38BDF8]/25 border-[#FACC15] text-[#FEF08A] shadow-[0_0_12px_rgba(250,204,21,0.4)]'
-                          : 'bg-black/40 border-white/10 text-white/70 hover:border-[#38BDF8] hover:text-white'
+                      className={`group flex items-center justify-between p-3 sm:p-3.5 rounded-xl border transition-all cursor-pointer ${
+                        isCurrent
+                          ? 'bg-gradient-to-r from-[#FACC15]/15 via-[#0F172A] to-[#38BDF8]/15 border-[#FACC15] shadow-[0_0_18px_rgba(250,204,21,0.25)]'
+                          : 'bg-[#0B1020]/70 border-white/10 hover:border-[#38BDF8]/40 hover:bg-[#0F172A]'
                       }`}
                     >
-                      <span>{t.icon}</span>
-                      <span>{t.name.split(' • ')[0]}</span>
-                      <span className="text-[9px] opacity-60">({t.bpm} BPM)</span>
-                    </button>
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        {/* Track Index or Playing Indicator */}
+                        <div className="w-7 text-center font-mono font-bold text-xs flex items-center justify-center">
+                          {isPlayingThis ? (
+                            <div className="flex items-end gap-0.5 h-3.5">
+                              <span className="w-0.5 bg-[#38BDF8] h-3 animate-pulse rounded-full" />
+                              <span className="w-0.5 bg-[#FACC15] h-3.5 animate-bounce rounded-full" />
+                              <span className="w-0.5 bg-[#4ADE80] h-2 animate-pulse rounded-full" />
+                            </div>
+                          ) : (
+                            <span className={isCurrent ? 'text-[#FACC15]' : 'text-white/40'}>
+                              {isCurrent ? '▶' : `#${idx + 1}`}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Track Info */}
+                        <div className="text-xl flex-shrink-0">{t.icon}</div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h5 className={`font-display font-bold text-sm tracking-wide truncate ${isCurrent ? 'text-[#FEF08A]' : 'text-white'}`}>
+                              {t.name}
+                            </h5>
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-white/5 border border-white/10 text-[#38BDF8] hidden md:inline">
+                              {t.zone}
+                            </span>
+                          </div>
+                          <p className="text-[10.5px] text-white/50 truncate max-w-xl">
+                            {t.desc}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Right Meta & Actions */}
+                      <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <div className="hidden lg:flex items-center gap-2 text-[10px] font-mono">
+                          <span className="text-[#FACC15] font-bold bg-[#FACC15]/10 px-2 py-0.5 rounded border border-[#FACC15]/30">
+                            {t.bpm} BPM &bull; {t.key}
+                          </span>
+                        </div>
+
+                        <span className="text-xs font-mono font-semibold text-white/50 min-w-[36px] text-right">
+                          {t.duration}
+                        </span>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => playOstTrack(t.id)}
+                            className={`py-1.5 px-3 rounded-lg text-xs font-bold border transition-all flex items-center gap-1 ${
+                              isPlayingThis
+                                ? 'bg-[#38BDF8]/20 border-[#38BDF8] text-[#7DD3FC]'
+                                : 'bg-[#F2A900]/15 hover:bg-[#F2A900]/25 border-[#F2A900]/40 text-[#FDE047]'
+                            }`}
+                          >
+                            {isPlayingThis ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 fill-current" />}
+                            <span className="hidden sm:inline">{isPlayingThis ? 'Pause' : 'Play'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => (isQueued ? removeFromQueue(qPos) : addToQueue(t.id))}
+                            className={`py-1.5 px-3 rounded-lg text-xs font-bold border transition-all flex items-center gap-1 ${
+                              isQueued
+                                ? 'bg-[#4ADE80]/20 border-[#4ADE80] text-[#86EFAC]'
+                                : 'bg-black/40 hover:bg-[#38BDF8]/15 border-white/10 hover:border-[#38BDF8] text-white/70 hover:text-white'
+                            }`}
+                          >
+                            {isQueued ? (
+                              <>
+                                <Check className="w-3 h-3 text-[#4ADE80]" />
+                                <span>Queue #{qPos + 1}</span>
+                              </>
+                            ) : (
+                              <>
+                                <ListPlus className="w-3 h-3" />
+                                <span>+ Queue</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
               </div>

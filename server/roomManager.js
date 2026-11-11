@@ -79,6 +79,7 @@ import { gatheringAndCraftingMethods } from './rooms/gatheringAndCrafting.js';
 import { lootAndMythicMethods } from './rooms/lootAndMythic.js';
 import { entityDeathAndProgressionMethods } from './rooms/entityDeathAndProgression.js';
 import { socialAndTickMethods } from './rooms/socialAndTick.js';
+import { getOrderPresetForFaction } from './accountsStore.js';
 
 export class RoomManager {
   constructor(opts = {}) {
@@ -354,9 +355,9 @@ export class RoomManager {
       equipment,
       inventory: ch?.inventory || account.inventory || [],
       bank: ch?.bank || account.bank || [],
-      orderTag: ch?.orderTag || account.orderTag || 'SUN',
-      orderName: ch?.orderName || account.orderName || 'Order of Dawn',
-      orderColor: ch?.orderColor || account.orderColor || '#facc15',
+      orderTag: ch?.orderTag || account.orderTag || getOrderPresetForFaction(faction, ch?.orderTag || account.orderTag).tag,
+      orderName: ch?.orderName || account.orderName || getOrderPresetForFaction(faction, ch?.orderTag || account.orderTag).name,
+      orderColor: ch?.orderColor || account.orderColor || getOrderPresetForFaction(faction, ch?.orderTag || account.orderTag).color,
       prog,
       questState: ch?.questState || account.questState || {},
       x: spawnX,
@@ -459,9 +460,10 @@ export class RoomManager {
     client.equipment = ch?.equipment || acc.equipment || CLASSES_CATALOG[client.classId]?.defaultEquipment || {};
     client.inventory = ch?.inventory || acc.inventory || [];
     client.bank = ch?.bank || acc.bank || [];
-    client.orderTag = ch?.orderTag || acc.orderTag || 'SUN';
-    client.orderName = ch?.orderName || acc.orderName || 'Order of Dawn';
-    client.orderColor = ch?.orderColor || acc.orderColor || '#facc15';
+    const preset = getOrderPresetForFaction(resolved.faction, ch?.orderTag || acc.orderTag);
+    client.orderTag = ch?.orderTag || acc.orderTag || preset.tag;
+    client.orderName = ch?.orderName || acc.orderName || preset.name;
+    client.orderColor = ch?.orderColor || acc.orderColor || preset.color;
     client.prog = ch?.progression || acc.progression;
     client.questState = ch?.questState || acc.questState || {};
     client.maxHp = calcMaxHp(client.prog, client.equipment, client.classId);

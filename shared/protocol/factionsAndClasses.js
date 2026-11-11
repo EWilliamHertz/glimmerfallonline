@@ -202,7 +202,39 @@ export function sanitizeLoadout(rawLoadout, classId) {
 // Canonical Faction & Archetype Resolution
 // ==========================================
 export function resolveFactionAndClass({ faction = null, classId = null, loadout = null, orderTag = null } = {}) {
-  // Check any equipped canonical ability across the action bar to determine faction
+  // Normalize faction name (handle case-insensitivity, whitespace, and typos like 'terro')
+  const cleanFac = String(faction || '').trim().toLowerCase();
+  let canonicalFac = null;
+  if (cleanFac === 'solari' || cleanFac === 'sun') canonicalFac = 'Solari';
+  else if (cleanFac === 'umbri' || cleanFac === 'shadow' || cleanFac === 'void') canonicalFac = 'Umbri';
+  else if (cleanFac === 'terra' || cleanFac === 'terro' || cleanFac === 'earth' || cleanFac === 'root') canonicalFac = 'Terra';
+  else if (cleanFac === 'aether' || cleanFac === 'magic' || cleanFac === 'arcane') canonicalFac = 'Aether';
+
+  // 1. Authoritative classId if valid and matches faction (or if no faction explicitly specified)
+  let cls = CLASSES_CATALOG[classId];
+  if (cls && (!canonicalFac || cls.faction === canonicalFac)) {
+    return { faction: cls.faction, classId: cls.id };
+  }
+
+  // 2. Authoritative faction: pick the primary archetype for this faction
+  if (canonicalFac) {
+    const byFac = Object.values(CLASSES_CATALOG).find((c) => c.faction === canonicalFac);
+    if (byFac) return { faction: byFac.faction, classId: byFac.id };
+  }
+
+  // 3. If classId is valid (even without faction), use its faction
+  if (cls) {
+    return { faction: cls.faction, classId: cls.id };
+  }
+
+  // 4. Canonical Order Tag checks
+  const tag = String(orderTag || '').toUpperCase();
+  if (tag === 'VOID') return { faction: 'Umbri', classId: 'umbral_assassin' };
+  if (tag === 'ROOT') return { faction: 'Terra', classId: 'forest_warden' };
+  if (tag === 'AETH') return { faction: 'Aether', classId: 'chronomancer_sage' };
+  if (tag === 'SUN') return { faction: 'Solari', classId: 'solari_vanguard' };
+
+  // 5. Fallback for legacy v0 records without faction or class: inspect canonical ability on action bar
   let firstEquipped = null;
   if (loadout && typeof loadout === 'object') {
     for (const slot of ACTION_SLOTS) {
@@ -215,40 +247,10 @@ export function resolveFactionAndClass({ faction = null, classId = null, loadout
   }
   if (firstEquipped) {
     const abFac = ABILITIES_CATALOG[firstEquipped].faction;
-    if (classId && CLASSES_CATALOG[classId] && CLASSES_CATALOG[classId].faction === abFac) {
-      return { faction: abFac, classId };
-    }
     const defClass = abFac === 'Umbri' ? 'umbral_assassin' : abFac === 'Terra' ? 'forest_warden' : abFac === 'Aether' ? 'chronomancer_sage' : 'solari_vanguard';
     return { faction: abFac, classId: defClass };
   }
 
-  // Canonical Order Tag checks if slot 1 was not conclusive
-  const tag = String(orderTag || '').toUpperCase();
-  if (tag === 'VOID') {
-    const cid = classId && CLASSES_CATALOG[classId]?.faction === 'Umbri' ? classId : 'umbral_assassin';
-    return { faction: 'Umbri', classId: cid };
-  }
-  if (tag === 'ROOT') {
-    const cid = classId && CLASSES_CATALOG[classId]?.faction === 'Terra' ? classId : 'forest_warden';
-    return { faction: 'Terra', classId: cid };
-  }
-  if (tag === 'AETH') {
-    const cid = classId && CLASSES_CATALOG[classId]?.faction === 'Aether' ? classId : 'chronomancer_sage';
-    return { faction: 'Aether', classId: cid };
-  }
-  if (tag === 'SUN') {
-    const cid = classId && CLASSES_CATALOG[classId]?.faction === 'Solari' ? classId : 'solari_vanguard';
-    return { faction: 'Solari', classId: cid };
-  }
-
-  // Catalog normalization fallback
-  let cls = CLASSES_CATALOG[classId];
-  if (!cls) {
-    cls = Object.values(CLASSES_CATALOG).find((c) => c.faction === faction) || CLASSES_CATALOG.solari_vanguard;
-  }
-  const resolvedFac = faction || cls.faction || 'Solari';
-  if (cls.faction !== resolvedFac) {
-    cls = Object.values(CLASSES_CATALOG).find((c) => c.faction === resolvedFac) || CLASSES_CATALOG.solari_vanguard;
-  }
-  return { faction: resolvedFac, classId: cls.id };
+  // 6. Absolute default
+  return { faction: 'Solari', classId: 'solari_vanguard' };
 }

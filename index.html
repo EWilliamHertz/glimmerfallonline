@@ -94,6 +94,23 @@
                 location.href = '/?loadout=1';
               }
             };
+            window.landingPlayOstTrack = function (id) {
+              if (window._landing) {
+                window._landing.playOstTrack(id);
+              } else {
+                window._pendingOstTrack = id;
+              }
+            };
+            window.landingToggleOstPlay = function () {
+              if (window._landing) {
+                window._landing.toggleOstPlay();
+              }
+            };
+            window.landingAddToQueue = function (id) {
+              if (window._landing) {
+                window._landing.addToQueue(id);
+              }
+            };
 
             window.openLandingPage = window.openLandingPage || function (tab) {
               var fp = document.getElementById('frontpage-overlay');
@@ -209,6 +226,55 @@
                             <button type="button" class="hero-btn-secondary" onclick="window.landingSetTab('forge')"><span>⚔️</span> FORGE LOADOUT</button>
                             <button type="button" class="id-mini-btn" style="padding:10px 18px; font-size:12px; font-weight:800; border-color:#facc15; color:#fde047; cursor:pointer;" onclick="window.playCinematicModal && window.playCinematicModal('crystal_heart')"><span>🎬</span> WATCH 1080P PROLOGUE</button>
                             <button type="button" class="id-mini-btn" style="padding:10px 18px; font-size:12px; font-weight:800; border-color:#38bdf8; color:#7dd3fc; cursor:pointer;" onclick="window.landingSetTab('theatre')"><span>🎞️</span> THEATRE (12 SCENES)</button>
+                          </div>
+
+                          <!-- OFFICIAL GLIMMERFALL MEDIA PLAYER & SOUNDTRACK CATALOG -->
+                          <div class="gf-media-player" id="gf-media-player">
+                            <div class="gf-player-header">
+                              <div class="gf-player-header-title">
+                                <span style="font-size:18px;">🎼</span>
+                                <h3>GLIMMERFALL MASTER REALM JUKEBOX &amp; MEDIA PLAYER</h3>
+                                <span class="gf-player-chip" style="color:#facc15; border-color:rgba(250,204,21,0.4);">15 Master Tracks</span>
+                              </div>
+                              <div class="gf-player-status-badge paused">
+                                <span class="gf-player-status-dot"></span>
+                                <span>Ready to Play</span>
+                              </div>
+                            </div>
+                            <div class="gf-player-deck">
+                              <div class="gf-player-disc-wrap">
+                                <div class="gf-player-disc">
+                                  <div class="gf-player-disc-center">
+                                    <span>🌌</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div class="gf-player-meta">
+                                <div class="gf-player-tagline">
+                                  <span class="gf-player-chip">Cinematic Themes</span>
+                                  <span class="gf-player-chip" style="color:#38bdf8; border-color:rgba(56,189,248,0.4);">The Primordial Shattering</span>
+                                  <span class="gf-player-bpm-key">105 BPM • Key: D min</span>
+                                  <span style="font-size:10px; color:#94a3b8; font-family:'Rajdhani', monospace;">High-Fidelity M4A / 48kHz</span>
+                                </div>
+                                <div class="gf-player-track-name">Awakening of the Cosmos</div>
+                                <div class="gf-player-track-desc">Symphonic cosmic overture capturing the birth of the crystal realm, the celestial detonation, and the great fracture into 4 light aspects.</div>
+                                <div class="gf-player-controls-row">
+                                  <div class="gf-player-btn-group">
+                                    <button type="button" class="gf-player-btn gf-player-btn-hero" onclick="window.landingPlayOstTrack('title')">
+                                      <span>▶ PLAY SOUNDTRACK</span>
+                                    </button>
+                                  </div>
+                                  <div class="gf-player-btn-group">
+                                    <button type="button" class="gf-player-btn" onclick="window.landingPlayOstTrack('sanctuary')">
+                                      <span>🏛️ Starlight Sanctuary</span>
+                                    </button>
+                                    <button type="button" class="gf-player-btn" onclick="window.landingPlayOstTrack('solari')">
+                                      <span>☀️ Solari March</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                           </div>
 
                           <!-- 4 Canonical Factions Cards -->
@@ -732,6 +798,12 @@
         </button>
         <button class="util-btn micro-nav-btn" id="btn-skills-tab" style="border-color:#38bdf8; color:#7dd3fc;" onclick="toggleSkillsTab()" title="Open Skill Progression & Entity Level [N]">
           <span class="nav-icon">✨</span><span class="nav-label">SKILLS</span><span class="nav-key">[N]</span>
+        </button>
+        <button class="util-btn micro-nav-btn" style="border-color:#ec4899; color:#fbcfe8;" onclick="window.toggleEmoteWheel && window.toggleEmoteWheel()" title="Radial Emote Wheel [V]">
+          <span class="nav-icon">🎭</span><span class="nav-label">EMOTE</span><span class="nav-key">[V]</span>
+        </button>
+        <button class="util-btn micro-nav-btn" style="border-color:#facc15; color:#fef08a;" onclick="window.toggleAchievementsModal && window.toggleAchievementsModal()" title="Achievements &amp; Lore Codex [Y]">
+          <span class="nav-icon">🏆</span><span class="nav-label">AWARDS</span><span class="nav-key">[Y]</span>
         </button>
         <button class="util-btn micro-nav-btn" style="border-color:#f59e0b; color:#fef3c7;" onclick="toggleModal('inventory-modal')" title="Backpack Inventory [B]">
           <span class="nav-icon">🎒</span><span class="nav-label">BAG</span><span class="nav-key">[B]</span><span id="inv-count-pip" class="pt-pip" style="background:#b45309; display:none;">0</span>
@@ -1440,6 +1512,9 @@
       </div>
       <div id="inspect-modal-body" style="margin-top: 8px; overflow-y: auto; max-height: calc(90vh - 105px); padding-right: 4px;"></div>
     </div>
+
+    <!-- MODAL 13: Achievements, Titles & TCG Lore Codex [Y] -->
+    <div id="achievements-modal" class="modal panel" style="width: 860px; max-width: 96vw; max-height: 90vh; display: none;"></div>
   </div>
 
   <!-- Glimmerfall Legendary Quest Complete Scroll Modal -->

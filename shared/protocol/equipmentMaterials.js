@@ -177,6 +177,16 @@ export const EQUIPMENT_MATERIALS = {
   },
 
   // --- RUNESCAPE SKILLING: ARBOREAL TIMBERCRAFT (LOGS & RESINS) ---
+  blossom_logs: {
+    id: 'blossom_logs',
+    slot: 'material',
+    name: 'Crimson Blossom Logs',
+    icon: '🪵',
+    rarity: 'Common',
+    stackable: true,
+    guidePrice: 6,
+    desc: 'Sweet-scented, rose-grained timber felled from Crimson Blossom trees in Sanctuary and peaceful plazas (Lv. 1 Resonance Extraction). Burns with a fragrant pink-tinted flame.',
+  },
   glimmerwood_logs: {
     id: 'glimmerwood_logs',
     slot: 'material',
@@ -187,6 +197,16 @@ export const EQUIPMENT_MATERIALS = {
     guidePrice: 5,
     desc: 'Aromatic softwood timber felled from Sanctuary & Timberlands groves (Lv. 1 Resonance Extraction). Essential for campfires and woodcraft.',
   },
+  pine_logs: {
+    id: 'pine_logs',
+    slot: 'material',
+    name: 'Mountain Pine Logs',
+    icon: '🪵',
+    rarity: 'Common',
+    stackable: true,
+    guidePrice: 11,
+    desc: 'Sturdy, resinous evergreen timber felled from Alpine Pine trees across Caldera and mountain cliffs (Lv. 10 Resonance Extraction).',
+  },
   amber_resin: {
     id: 'amber_resin',
     slot: 'material',
@@ -195,7 +215,17 @@ export const EQUIPMENT_MATERIALS = {
     rarity: 'Uncommon',
     stackable: true,
     guidePrice: 15,
-    desc: 'Fragrant golden tree sap harvested while felling Glimmerwood. Used in alchemical salves and binding keystones.',
+    desc: 'Fragrant golden tree sap harvested while felling Glimmerwood and Blossom trees. Used in alchemical salves and binding keystones.',
+  },
+  oak_logs: {
+    id: 'oak_logs',
+    slot: 'material',
+    name: 'Ancient Oak Logs',
+    icon: '🪵',
+    rarity: 'Uncommon',
+    stackable: true,
+    guidePrice: 20,
+    desc: 'Dense, time-hardened ancient oak logs felled from primal parklands and continental border groves (Lv. 25 Resonance Extraction).',
   },
   ironbark_logs: {
     id: 'ironbark_logs',

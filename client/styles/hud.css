@@ -1080,3 +1080,102 @@
   font-size: 8px;
   color: #94a3b8;
 }
+
+/* ==========================================
+   RADIAL EMOTE WHEEL [V]
+   ========================================== */
+.emote-wheel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+.emote-wheel-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.75);
+  backdrop-filter: blur(4px);
+}
+.emote-wheel-container {
+  position: relative;
+  width: 360px;
+  height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.emote-wheel-hub {
+  position: absolute;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #0f172a;
+  border: 2px solid #facc15;
+  box-shadow: 0 0 20px rgba(250, 204, 21, 0.4), inset 0 0 10px rgba(0,0,0,0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 3;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.emote-wheel-hub:hover {
+  transform: scale(1.08);
+  border-color: #ffffff;
+}
+.hub-icon {
+  font-size: 20px;
+}
+.hub-label {
+  font-family: var(--font-header);
+  font-size: 7.5px;
+  color: #fde047;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.emote-wheel-petals {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.emote-wheel-petal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(calc(-50% + var(--petal-x)), calc(-50% + var(--petal-y)));
+  width: 62px;
+  height: 62px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1.5px solid var(--petal-color, #facc15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.emote-wheel-petal:hover {
+  transform: translate(calc(-50% + var(--petal-x)), calc(-50% + var(--petal-y))) scale(1.18);
+  background: rgba(30, 41, 59, 0.98);
+  box-shadow: 0 0 16px var(--petal-color, #facc15);
+}
+.petal-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+.petal-label {
+  font-family: var(--font-header);
+  font-size: 8px;
+  font-weight: 800;
+  color: #f8fafc;
+  margin-top: 3px;
+  letter-spacing: 0.5px;
+}

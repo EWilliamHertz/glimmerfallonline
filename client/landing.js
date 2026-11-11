@@ -64,16 +64,231 @@ const FACTION_ELEMENTS = {
 };
 
 export const LANDING_OST_TRACKS = [
-  { id: 'title', name: 'Awakening of the Cosmos', zone: 'Title Theme', bpm: 105, key: 'D min', icon: '🌌', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/title.m4a', desc: 'Symphonic cosmic overture capturing the birth of the crystal realm and the great fracture.' },
-  { id: 'sanctuary', name: 'Starlight Sanctuary', zone: 'Sanctuary Haven', bpm: 85, key: 'D maj', icon: '🏛️', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/sanctuary.m4a', desc: 'Ethereal harp and celesta harmonies echoing across the tranquil starlit pavilion and artisan stalls.' },
-  { id: 'solari', name: 'Sun Cathedral March', zone: 'Solari Citadel', bpm: 128, key: 'D mixo', icon: '☀️', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/solari.m4a', desc: 'Heroic French horn and sweeping strings marching beneath the blinding noon-fire of the Sunspire.' },
-  { id: 'umbri', name: 'Crypt of Shadowweaver', zone: 'Umbri Undercity', bpm: 95, key: 'F# min', icon: '🌑', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/umbri.m4a', desc: 'Gothic cello and harpsichord resonating in subterranean crypts lit by flickering violet graveglass lanterns.' },
-  { id: 'terra', name: 'Druidic Forest Bodhran', zone: 'Terra Deepwoods', bpm: 110, key: 'E min', icon: '🌿', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/terra.m4a', desc: 'Acoustic guitar and wooden flute pulsing with organic bodhran earth-drums in ancient primeval groves.' },
-  { id: 'aether', name: 'Quantum Shimmer', zone: 'Aether Spire', bpm: 140, key: 'A min', icon: '🔮', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/aether.m4a', desc: 'Cosmic quantum glockenspiel accelerating through temporal rifts and celestial mirrorgate spires.' },
-  { id: 'abyss', name: 'Cosmic Dread Drone', zone: 'Starfall Abyss', bpm: 80, key: 'Eb min', icon: '🕳️', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/abyss.m4a', desc: 'Low-frequency sawtooth drone vibrating with descending cosmic dread and abyssal tension.' },
-  { id: 'warzone', name: 'Martial Taiko Clash', zone: 'Nexus Warzone', bpm: 135, key: 'A min', icon: '⚔️', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/warzone.m4a', desc: 'Thunderous taiko rhythms and martial brass driving high-intensity 3v3 Outpost siege skirmishes.' },
-  { id: 'boss', name: 'Relentless Timpani Climax', zone: 'World Boss Siege', bpm: 150, key: 'E min', icon: '👹', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/boss.m4a', desc: 'Cataclysmic string ostinato and relentless timpani pulsing at the desperate brink of continental obliteration.' },
-  { id: 'victory', name: 'Fanfare of Triumph', zone: 'Victory Fanfare', bpm: 130, key: 'D maj', icon: '🏆', url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/victory.m4a', desc: 'Triumphant brass fanfare celebrating boss collapse, quest completion, and spoils of war.' },
+  {
+    id: 'title',
+    name: 'Awakening of the Cosmos',
+    zone: 'The Primordial Shattering',
+    category: 'Cinematic Themes',
+    bpm: 105,
+    key: 'D min',
+    duration: '2:58',
+    durationSec: 178,
+    icon: '🌌',
+    color: '#818cf8',
+    localUrl: '/audio/title.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/title.m4a',
+    desc: 'Symphonic cosmic overture capturing the birth of the crystal realm, the celestial detonation, and the great fracture into 4 light aspects.'
+  },
+  {
+    id: 'sanctuary',
+    name: 'Starlight Sanctuary Haven',
+    zone: 'Sanctuary Hub & Haven',
+    category: 'Biomes & Havens',
+    bpm: 85,
+    key: 'D maj',
+    duration: '3:39',
+    durationSec: 219,
+    icon: '🏛️',
+    color: '#38bdf8',
+    localUrl: '/audio/sanctuary.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/sanctuary.m4a',
+    desc: 'Ethereal harp and celesta harmonies echoing across the tranquil starlit pavilion, player bazaars, and peaceful fountain commons.'
+  },
+  {
+    id: 'solari',
+    name: 'Sun Cathedral March (Emberwing)',
+    zone: 'Solari Golden Citadel',
+    category: 'Factions',
+    bpm: 128,
+    key: 'D mixo',
+    duration: '3:00',
+    durationSec: 180,
+    icon: '☀️',
+    color: '#facc15',
+    localUrl: '/audio/solari.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Solari_Faction_Emberwing_Courier.m4a',
+    desc: 'Heroic French horn, golden heraldry brass, and sweeping strings marching beneath the blinding noon-fire of the Sunspire.'
+  },
+  {
+    id: 'umbri',
+    name: 'Crypt of Shadowweaver (Umbral)',
+    zone: 'Umbri Duskveil Undercity',
+    category: 'Factions',
+    bpm: 95,
+    key: 'F# min',
+    duration: '2:57',
+    durationSec: 177,
+    icon: '🌑',
+    color: '#c084fc',
+    localUrl: '/audio/umbri.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Umbri_Faction_Umbral_Assassin.m4a',
+    desc: 'Gothic cello and harpsichord resonating in subterranean crypts lit by flickering violet graveglass lanterns and void leylines.'
+  },
+  {
+    id: 'terra',
+    name: 'Druidic Forest Bodhran (Warden)',
+    zone: 'Terra Rootdeep Expanse',
+    category: 'Factions',
+    bpm: 110,
+    key: 'E min',
+    duration: '2:50',
+    durationSec: 170,
+    icon: '🌿',
+    color: '#4ade80',
+    localUrl: '/audio/terra.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Terra_Faction_Forest_Warden.m4a',
+    desc: 'Acoustic guitar and wooden flute pulsing with organic bodhran earth-drums in ancient primeval ironwood groves.'
+  },
+  {
+    id: 'aether',
+    name: 'Quantum Shimmer (Nexus Weaver)',
+    zone: 'Aether Mirrorgate Spire',
+    category: 'Factions',
+    bpm: 140,
+    key: 'A min',
+    duration: '2:58',
+    durationSec: 178,
+    icon: '🔮',
+    color: '#38bdf8',
+    localUrl: '/audio/aether.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Aether_Faction_Nexus_Weaver.m4a',
+    desc: 'Cosmic quantum glockenspiel accelerating through temporal chronoflux rifts and celestial mirrorgate spires.'
+  },
+  {
+    id: 'abyss',
+    name: 'Cosmic Dread Drone',
+    zone: 'Starfall Caldera Abyss',
+    category: 'Biomes & Havens',
+    bpm: 80,
+    key: 'Eb min',
+    duration: '2:55',
+    durationSec: 175,
+    icon: '🕳️',
+    color: '#a855f7',
+    localUrl: '/audio/abyss.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/abyss.m4a',
+    desc: 'Low-frequency sawtooth drone vibrating with descending cosmic dread and abyssal tension at the crater rift.'
+  },
+  {
+    id: 'warzone',
+    name: 'Martial Taiko Clash (Siege)',
+    zone: 'Nexus Outpost Caldera',
+    category: 'Combat & Arenas',
+    bpm: 135,
+    key: 'A min',
+    duration: '2:37',
+    durationSec: 157,
+    icon: '⚔️',
+    color: '#ef4444',
+    localUrl: '/audio/warzone.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/3v3_Outpost_Siege_Warzone_Monolith_Clash.m4a',
+    desc: 'Thunderous taiko rhythms and martial brass driving high-intensity 3v3 Outpost siege skirmishes and Monolith overloads.'
+  },
+  {
+    id: 'boss',
+    name: 'Granite Colossus Climax',
+    zone: 'World Boss Caldera',
+    category: 'Combat & Arenas',
+    bpm: 150,
+    key: 'E min',
+    duration: '2:56',
+    durationSec: 176,
+    icon: '👹',
+    color: '#f97316',
+    localUrl: '/audio/boss.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Apex_World_Boss_Granite_Colossus_Emergence.m4a',
+    desc: 'Cataclysmic string ostinato and relentless timpani pulsing as the ancient titan awakens and shakes the continent.'
+  },
+  {
+    id: 'tcg_duel',
+    name: 'Tactical Card Duel',
+    zone: 'The Grand Card Arena',
+    category: 'Combat & Arenas',
+    bpm: 120,
+    key: 'G min',
+    duration: '2:46',
+    durationSec: 166,
+    icon: '🃏',
+    color: '#eab308',
+    localUrl: '/audio/tcg_duel.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Authentic_TCG_Tactical_Card_Duel.m4a',
+    desc: 'High-stakes tabletop duel arrangement pulsing with kinetic strategy, mana shifts, and holographic spell casts.'
+  },
+  {
+    id: 'the_bridge',
+    name: 'The Bridge: Card to Pixel',
+    zone: 'Dimensional Transmutation',
+    category: 'Cinematic Themes',
+    bpm: 115,
+    key: 'C maj',
+    duration: '3:00',
+    durationSec: 180,
+    icon: '✨',
+    color: '#06b6d4',
+    localUrl: '/audio/the_bridge.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/The_Bridge_Holographic_Card_to_Pixel_Sprite.m4a',
+    desc: 'Atmospheric theme depicting holographic trading card relics materializing directly into living pixel avatars.'
+  },
+  {
+    id: 'victory',
+    name: 'Fanfare of Triumph & Spoils',
+    zone: 'Victory Fanfare',
+    category: 'Combat & Arenas',
+    bpm: 130,
+    key: 'D maj',
+    duration: '2:03',
+    durationSec: 123,
+    icon: '🏆',
+    color: '#eab308',
+    localUrl: '/audio/victory.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Triumph__Spoils_Colossus_Defeated.m4a',
+    desc: 'Triumphant brass fanfare celebrating boss collapse, quest completion, shard extraction, and continental spoils.'
+  },
+  {
+    id: 'trailer',
+    name: 'Dual Launch Reveal Anthem',
+    zone: 'Official Launch Trailer',
+    category: 'Cinematic Themes',
+    bpm: 130,
+    key: 'D min',
+    duration: '1:49',
+    durationSec: 109,
+    icon: '🎬',
+    color: '#f43f5e',
+    localUrl: '/audio/trailer.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/GlimmerFall_Trailer.m4a',
+    desc: 'The official Dual Launch trailer anthem showcasing the unified universe of GlimmerFall Online and the physical TCG.'
+  },
+  {
+    id: 'grand_finale',
+    name: 'Grand Finale Title Card',
+    zone: 'Launch Dec 5, 2026',
+    category: 'Cinematic Themes',
+    bpm: 125,
+    key: 'G maj',
+    duration: '3:00',
+    durationSec: 180,
+    icon: '🌟',
+    color: '#fbbf24',
+    localUrl: '/audio/grand_finale.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Grand_Finale_Title_Card_Launching_Dec_5_2026.m4a',
+    desc: 'Grand orchestral finale celebrating the official release countdown to December 5, 2026.'
+  },
+  {
+    id: 'master_suite',
+    name: '11-Clip Master OST Suite',
+    zone: 'Official Master Collection',
+    category: 'Cinematic Themes',
+    bpm: 120,
+    key: 'D min',
+    duration: '1:02',
+    durationSec: 62,
+    icon: '💿',
+    color: '#38bdf8',
+    localUrl: '/audio/master_suite.m4a',
+    url: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/Glimmerfall_11_Clip_Master_Soundtrack.m4a',
+    desc: 'Comprehensive orchestral suite blending signature motifs across all biomes, classes, and battle climaxes.'
+  }
 ];
 
 export const LANDING_CINEMATICS = [
@@ -199,10 +414,23 @@ export class LandingPageController {
     this.selectedOrderTag = 'SUN';
     this.soundEnabled = true;
 
-    // Interactive OST Jukebox & 1080p Cinematics Theatre
+    // Interactive OST Jukebox & Official Media Player
     this.currentOstTrackId = 'title';
     this.isOstPlaying = false;
+    this.currentTime = 0;
+    this.duration = 178;
+    this.volume = 0.75;
+    this.isMuted = false;
+    this.repeatMode = 'all'; // 'all', 'one', 'off'
+    this.isShuffle = false;
+    this.queue = [];
+    this.history = [];
+    this.trackFilter = 'all';
+    this.searchQuery = '';
+    this.showQueue = false;
     this._ostAudio = null;
+    this._audioFailoverCount = 0;
+    this._isDraggingScrubber = false;
     this.selectedCinematicId = 'crystal_heart';
     this.isTheatreAutoplay = false;
 
@@ -296,7 +524,8 @@ export class LandingPageController {
         'button, a, input, select, textarea, video, canvas, [role="button"], ' +
         '.pixel-gear-slot, .faction-select-card, ' +
         '.class-select-card, .order-select-btn, .enc-switch-btn, .tcg-card-item, ' +
-        '.sidebar-mode-btn, .sidebar-cta-btn, .sidebar-nav-link, .hero-btn-primary, .hero-btn-secondary'
+        '.sidebar-mode-btn, .sidebar-cta-btn, .sidebar-nav-link, .hero-btn-primary, .hero-btn-secondary, ' +
+        '.gf-player-btn, .gf-track-act-btn, .gf-track-row, .gf-filter-btn, .gf-scrubber-track, .gf-scrubber-input, .gf-volume-slider, .ost-track-pill, .ost-play-btn, .dock-play-btn, [data-track-action]'
       );
       if (interactive) return;
 
@@ -483,6 +712,11 @@ export class LandingPageController {
       window._pendingLandingFaction = null;
       this.setFaction(pendingFac);
     }
+    if (typeof window !== 'undefined' && window._pendingOstTrack) {
+      const pendingTrack = window._pendingOstTrack;
+      window._pendingOstTrack = null;
+      this.playOstTrack(pendingTrack);
+    }
 
     if (this.frontpage) {
       this.frontpage.close();
@@ -531,107 +765,725 @@ export class LandingPageController {
     }
   }
 
-  playOstTrack(trackId) {
+  initAudioEngine() {
+    if (this._ostAudio || typeof window === 'undefined') return;
+    try {
+      this._ostAudio = new Audio();
+      this._ostAudio.preload = 'metadata';
+      this._ostAudio.volume = this.isMuted ? 0 : this.volume;
+
+      this._ostAudio.addEventListener('timeupdate', () => {
+        if (!this._isDraggingScrubber && this._ostAudio) {
+          this.currentTime = this._ostAudio.currentTime || 0;
+          this.updatePlaybackProgressUI();
+        }
+      });
+
+      this._ostAudio.addEventListener('durationchange', () => {
+        if (this._ostAudio && !isNaN(this._ostAudio.duration) && this._ostAudio.duration > 0) {
+          this.duration = this._ostAudio.duration;
+          this.updatePlaybackProgressUI();
+        }
+      });
+
+      this._ostAudio.addEventListener('loadedmetadata', () => {
+        if (this._ostAudio && !isNaN(this._ostAudio.duration) && this._ostAudio.duration > 0) {
+          this.duration = this._ostAudio.duration;
+          this.updatePlaybackProgressUI();
+        }
+      });
+
+      this._ostAudio.addEventListener('play', () => {
+        this.isOstPlaying = true;
+        this.updateJukeboxUI();
+      });
+
+      this._ostAudio.addEventListener('pause', () => {
+        this.isOstPlaying = false;
+        this.updateJukeboxUI();
+      });
+
+      this._ostAudio.addEventListener('ended', () => {
+        this.handleTrackEnded();
+      });
+
+      this._ostAudio.addEventListener('error', (e) => {
+        console.warn('[MediaPlayer] Audio element error:', e);
+        this.handleAudioError();
+      });
+    } catch (err) {
+      console.warn('[MediaPlayer] Failed to initialize Audio engine:', err);
+    }
+  }
+
+  handleTrackEnded() {
+    if (this.queue.length > 0) {
+      const nextTrackId = this.queue.shift();
+      this.playOstTrack(nextTrackId, { fromQueue: true });
+    } else if (this.repeatMode === 'one') {
+      if (this._ostAudio) {
+        this._ostAudio.currentTime = 0;
+        this._ostAudio.play().catch(() => {});
+      }
+    } else if (this.repeatMode === 'all') {
+      this.playNextTrack();
+    } else {
+      this.isOstPlaying = false;
+      this.currentTime = 0;
+      this.updateJukeboxUI();
+    }
+  }
+
+  handleAudioError() {
+    if (!this._ostAudio) return;
+    const track = LANDING_OST_TRACKS.find((t) => t.id === this.currentOstTrackId);
+    if (!track) return;
+
+    if (this._audioFailoverCount === 0 && track.url && this._ostAudio.src !== track.url) {
+      this._audioFailoverCount = 1;
+      console.log(`[MediaPlayer] Failing over ${track.name} to CDN: ${track.url}`);
+      this._ostAudio.src = track.url;
+      this._ostAudio.play().catch((err) => {
+        console.warn('[MediaPlayer] CDN fallback failed:', err);
+        this.isOstPlaying = false;
+        this.updateJukeboxUI();
+      });
+      return;
+    }
+
+    this.isOstPlaying = false;
+    this.updateJukeboxUI();
+  }
+
+  playOstTrack(trackId, { fromQueue = false } = {}) {
+    this.initAudioEngine();
     const track = LANDING_OST_TRACKS.find((t) => t.id === trackId);
     if (!track) return;
 
-    if (this.currentOstTrackId === trackId && this._ostAudio && !this._ostAudio.paused) {
-      // Toggle pause if clicking already playing track
-      this._ostAudio.pause();
+    if (this.currentOstTrackId === trackId && this.isOstPlaying) {
+      if (this._ostAudio) {
+        try { this._ostAudio.pause(); } catch (_) {}
+      }
       this.isOstPlaying = false;
       this.updateJukeboxUI();
       return;
     }
 
-    if (this._ostAudio) {
-      try {
-        this._ostAudio.pause();
-        this._ostAudio.currentTime = 0;
-      } catch (_) {}
+    if (this.currentOstTrackId && this.currentOstTrackId !== trackId) {
+      this.history.push(this.currentOstTrackId);
+      if (this.history.length > 40) this.history.shift();
     }
 
     this.currentOstTrackId = trackId;
+    this.duration = track.durationSec || 180;
+    this.currentTime = 0;
+    this._audioFailoverCount = 0;
     this.isOstPlaying = true;
 
-    try {
-      this._ostAudio = new Audio(track.url);
-      this._ostAudio.loop = true;
-      this._ostAudio.volume = 0.65;
-      const p = this._ostAudio.play();
-      if (p !== undefined) {
-        p.catch((e) => {
-          console.warn('[Jukebox] Audio play rejected (autoplay policy):', e);
-          this.isOstPlaying = false;
-          this.updateJukeboxUI();
-        });
+    if (this._ostAudio) {
+      try {
+        const audioSrc = track.localUrl || track.url;
+        if (this._ostAudio.src !== audioSrc && !this._ostAudio.src.endsWith(audioSrc)) {
+          this._ostAudio.src = audioSrc;
+        }
+        this._ostAudio.volume = this.isMuted ? 0 : this.volume;
+        const p = this._ostAudio.play();
+        if (p !== undefined) {
+          p.catch((e) => {
+            console.warn('[MediaPlayer] Local audio play rejected, testing CDN:', e);
+            if (this._ostAudio.src !== track.url) {
+              this._audioFailoverCount = 1;
+              this._ostAudio.src = track.url;
+              this._ostAudio.play().catch((err2) => {
+                console.warn('[MediaPlayer] CDN play also failed:', err2);
+                this.isOstPlaying = false;
+                this.updateJukeboxUI();
+              });
+            } else {
+              this.isOstPlaying = false;
+              this.updateJukeboxUI();
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('[MediaPlayer] Failed to play audio:', err);
+        this.isOstPlaying = false;
       }
-    } catch (err) {
-      console.warn('[Jukebox] Failed to create audio:', err);
-      this.isOstPlaying = false;
     }
 
     this.updateJukeboxUI();
   }
 
   toggleOstPlay() {
-    if (this.isOstPlaying && this._ostAudio) {
-      this._ostAudio.pause();
+    this.initAudioEngine();
+    if (this.isOstPlaying) {
+      if (this._ostAudio) {
+        try { this._ostAudio.pause(); } catch (_) {}
+      }
       this.isOstPlaying = false;
+      this.updateJukeboxUI();
+    } else if (this._ostAudio && this._ostAudio.src && !this._ostAudio.ended) {
+      this.isOstPlaying = true;
+      this._ostAudio.play().then(() => {
+        this.updateJukeboxUI();
+      }).catch(() => {
+        this.playOstTrack(this.currentOstTrackId || 'title');
+      });
       this.updateJukeboxUI();
     } else {
       this.playOstTrack(this.currentOstTrackId || 'title');
     }
   }
 
+  playNextTrack() {
+    if (this.queue.length > 0) {
+      const nextTrackId = this.queue.shift();
+      this.playOstTrack(nextTrackId, { fromQueue: true });
+      return;
+    }
+
+    const tracks = LANDING_OST_TRACKS;
+    if (this.isShuffle) {
+      const pool = tracks.filter((t) => t.id !== this.currentOstTrackId);
+      const rand = pool[Math.floor(Math.random() * pool.length)] || tracks[0];
+      this.playOstTrack(rand.id);
+      return;
+    }
+
+    const curIdx = tracks.findIndex((t) => t.id === this.currentOstTrackId);
+    const nextIdx = (curIdx + 1) % tracks.length;
+    this.playOstTrack(tracks[nextIdx].id);
+  }
+
+  playPrevTrack() {
+    if (this._ostAudio && this._ostAudio.currentTime > 3) {
+      this._ostAudio.currentTime = 0;
+      this.currentTime = 0;
+      this.updatePlaybackProgressUI();
+      return;
+    }
+
+    if (this.history.length > 0) {
+      const prevId = this.history.pop();
+      this.playOstTrack(prevId);
+      return;
+    }
+
+    const tracks = LANDING_OST_TRACKS;
+    const curIdx = tracks.findIndex((t) => t.id === this.currentOstTrackId);
+    const prevIdx = (curIdx - 1 + tracks.length) % tracks.length;
+    this.playOstTrack(tracks[prevIdx].id);
+  }
+
+  seekTrack(seconds) {
+    const target = Number(seconds);
+    this._isDraggingScrubber = false;
+    if (!isNaN(target)) {
+      this.currentTime = target;
+      if (this._ostAudio) {
+        try {
+          this._ostAudio.currentTime = target;
+        } catch (_) {}
+      }
+      this.updatePlaybackProgressUI();
+    }
+  }
+
+  onScrubberInput(val) {
+    this._isDraggingScrubber = true;
+    const s = Number(val);
+    if (!isNaN(s)) {
+      this.currentTime = s;
+      this.updatePlaybackProgressUI();
+    }
+  }
+
+  setVolume(val) {
+    const v = Math.max(0, Math.min(1, Number(val)));
+    this.volume = v;
+    this.isMuted = v === 0;
+    if (this._ostAudio) {
+      this._ostAudio.volume = v;
+    }
+    this.updateJukeboxUI();
+  }
+
+  toggleMute() {
+    this.isMuted = !this.isMuted;
+    if (this._ostAudio) {
+      this._ostAudio.volume = this.isMuted ? 0 : this.volume;
+    }
+    this.updateJukeboxUI();
+  }
+
+  toggleRepeatMode() {
+    if (this.repeatMode === 'all') this.repeatMode = 'one';
+    else if (this.repeatMode === 'one') this.repeatMode = 'off';
+    else this.repeatMode = 'all';
+    this.updateJukeboxUI();
+  }
+
+  toggleShuffle() {
+    this.isShuffle = !this.isShuffle;
+    this.updateJukeboxUI();
+  }
+
+  toggleQueueDrawer() {
+    this.showQueue = !this.showQueue;
+    this.updateJukeboxUI();
+  }
+
+  addToQueue(trackId) {
+    const track = LANDING_OST_TRACKS.find((t) => t.id === trackId);
+    if (!track) return;
+    this.queue.push(trackId);
+    if (!this.isOstPlaying && (!this._ostAudio || this._ostAudio.paused)) {
+      this.playOstTrack(this.queue.shift(), { fromQueue: true });
+    } else {
+      this.updateJukeboxUI();
+    }
+  }
+
+  removeFromQueue(index) {
+    if (index >= 0 && index < this.queue.length) {
+      this.queue.splice(index, 1);
+      this.updateJukeboxUI();
+    }
+  }
+
+  clearQueue() {
+    this.queue = [];
+    this.updateJukeboxUI();
+  }
+
+  playQueuedItem(index) {
+    if (index >= 0 && index < this.queue.length) {
+      const trackId = this.queue.splice(index, 1)[0];
+      this.playOstTrack(trackId, { fromQueue: true });
+    }
+  }
+
+  setTrackFilter(cat) {
+    this.trackFilter = cat;
+    this.renderTracklistSectionOnly();
+  }
+
+  setTrackSearch(query) {
+    this.searchQuery = (query || '').toLowerCase().trim();
+    this.renderTracklistSectionOnly();
+  }
+
+  formatTime(seconds) {
+    if (isNaN(seconds) || seconds < 0) return '00:00';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+  }
+
+  updatePlaybackProgressUI() {
+    if (typeof document === 'undefined') return;
+    const curTimeEl = document.getElementById('gf-cur-time');
+    if (curTimeEl) curTimeEl.textContent = this.formatTime(this.currentTime);
+
+    const totalTimeEl = document.getElementById('gf-total-time');
+    if (totalTimeEl) totalTimeEl.textContent = this.formatTime(this.duration);
+
+    const progressPct = this.duration > 0 ? Math.min(100, Math.max(0, (this.currentTime / this.duration) * 100)) : 0;
+    const fillEl = document.getElementById('gf-scrubber-fill');
+    if (fillEl) fillEl.style.width = `${progressPct}%`;
+
+    const thumbEl = document.getElementById('gf-scrubber-thumb');
+    if (thumbEl) thumbEl.style.left = `${progressPct}%`;
+
+    const inputEl = document.getElementById('gf-scrubber-input');
+    if (inputEl && !this._isDraggingScrubber) {
+      inputEl.value = this.currentTime;
+      inputEl.max = this.duration || 180;
+    }
+  }
+
   updateJukeboxUI() {
     if (typeof document === 'undefined') return;
-    const card = document.querySelector('.ost-jukebox-card');
-    if (!card) return;
-
     const track = LANDING_OST_TRACKS.find((t) => t.id === this.currentOstTrackId) || LANDING_OST_TRACKS[0];
 
-    const titleEl = card.querySelector('.ost-track-name');
+    const badgeEl = document.querySelector('.gf-player-status-badge');
+    if (badgeEl) {
+      badgeEl.className = `gf-player-status-badge ${this.isOstPlaying ? 'playing' : 'paused'}`;
+      const textSpan = badgeEl.querySelector('span:last-child');
+      if (textSpan) textSpan.textContent = this.isOstPlaying ? 'Now Playing' : 'Paused';
+    }
+
+    const discEl = document.querySelector('.gf-player-disc');
+    if (discEl) {
+      if (this.isOstPlaying) discEl.classList.add('playing');
+      else discEl.classList.remove('playing');
+      const centerSpan = discEl.querySelector('.gf-player-disc-center span');
+      if (centerSpan) centerSpan.textContent = track.icon;
+    }
+
+    const titleEl = document.querySelector('.gf-player-track-name');
     if (titleEl) titleEl.textContent = track.name;
 
-    const metaEl = card.querySelector('.ost-track-meta');
-    if (metaEl) metaEl.textContent = `${track.zone} • ${track.bpm} BPM • Key: ${track.key}`;
-
-    const descEl = card.querySelector('.ost-track-desc');
+    const descEl = document.querySelector('.gf-player-track-desc');
     if (descEl) descEl.textContent = track.desc;
 
-    const discEl = card.querySelector('.ost-disc-icon');
-    if (discEl) {
-      if (this.isOstPlaying) {
-        discEl.classList.add('playing');
-      } else {
-        discEl.classList.remove('playing');
-      }
+    const heroBtn = document.querySelector('.gf-player-btn-hero');
+    if (heroBtn) {
+      heroBtn.innerHTML = this.isOstPlaying ? '<span>⏸ PAUSE</span>' : '<span>▶ PLAY</span>';
+      if (this.isOstPlaying) heroBtn.classList.add('playing');
+      else heroBtn.classList.remove('playing');
     }
 
-    const eqEl = card.querySelector('.ost-equalizer');
-    if (eqEl) {
-      if (this.isOstPlaying) {
-        eqEl.classList.add('playing');
-      } else {
-        eqEl.classList.remove('playing');
-      }
+    const repeatBtn = document.getElementById('gf-repeat-btn');
+    if (repeatBtn) {
+      repeatBtn.innerHTML = `<span>${this.repeatMode === 'one' ? '🔂 ONE' : (this.repeatMode === 'all' ? '🔁 ALL' : '➡️ OFF')}</span>`;
+      if (this.repeatMode !== 'off') repeatBtn.classList.add('active');
+      else repeatBtn.classList.remove('active');
     }
 
-    const playBtn = card.querySelector('.ost-play-btn');
-    if (playBtn) {
-      playBtn.innerHTML = this.isOstPlaying ? '⏸️ PAUSE' : '▶️ PLAY';
-      playBtn.style.borderColor = this.isOstPlaying ? '#38bdf8' : '#facc15';
+    const shuffleBtn = document.getElementById('gf-shuffle-btn');
+    if (shuffleBtn) {
+      if (this.isShuffle) shuffleBtn.classList.add('active');
+      else shuffleBtn.classList.remove('active');
     }
 
-    const pills = card.querySelectorAll('.ost-track-pill');
-    pills.forEach((p) => {
-      const pId = p.getAttribute('data-track');
-      if (pId === this.currentOstTrackId) {
-        p.classList.add('active');
-      } else {
-        p.classList.remove('active');
-      }
-    });
+    const queueBtn = document.getElementById('gf-queue-toggle-btn');
+    if (queueBtn) {
+      queueBtn.innerHTML = `<span>📑 Queue</span> <span style="background:rgba(250,204,21,0.2); color:#fde047; padding:1px 6px; border-radius:9999px; font-size:9.5px; border:1px solid #ca8a04;">${this.queue.length}</span>`;
+      if (this.showQueue) queueBtn.classList.add('active');
+      else queueBtn.classList.remove('active');
+    }
+
+    const queueDrawer = document.getElementById('gf-queue-drawer');
+    if (queueDrawer) {
+      queueDrawer.style.display = this.showQueue ? 'flex' : 'none';
+      queueDrawer.innerHTML = this.renderQueueDrawerContent();
+    }
+
+    const dockEl = document.querySelector('.persistent-music-dock');
+    if (dockEl) {
+      dockEl.style.display = this.isOstPlaying ? 'flex' : 'none';
+      const dName = dockEl.querySelector('.dock-track-name');
+      if (dName) dName.textContent = track.name;
+      const dBtn = dockEl.querySelector('.dock-play-btn');
+      if (dBtn) dBtn.innerHTML = this.isOstPlaying ? '⏸️' : '▶️';
+    }
+
+    this.updatePlaybackProgressUI();
+    this.renderTracklistSectionOnly();
+  }
+
+  renderQueueDrawerContent() {
+    if (this.queue.length === 0) {
+      return `
+        <div class="gf-queue-header">
+          <div class="gf-queue-title"><span>📑</span> <span>Active Queue (0 Tracks)</span></div>
+        </div>
+        <div style="text-align:center; padding:12px; color:#94a3b8; font-size:11px;">
+          Queue is empty. Click <b>+ Queue</b> on any track below to line up your playlist.
+        </div>
+      `;
+    }
+
+    return `
+      <div class="gf-queue-header">
+        <div class="gf-queue-title">
+          <span>📑</span>
+          <span>Active Queue (${this.queue.length} Track${this.queue.length > 1 ? 's' : ''})</span>
+        </div>
+        <button type="button" class="gf-player-btn" style="padding:3px 8px; font-size:10px; color:#f87171;" onclick="window._landing.clearQueue()">
+          Clear Queue ✕
+        </button>
+      </div>
+      <div class="gf-queue-list">
+        ${this.queue.map((tId, idx) => {
+          const t = LANDING_OST_TRACKS.find((tr) => tr.id === tId) || { name: tId, duration: '2:50', icon: '🎵', zone: 'Realm' };
+          return `
+            <div class="gf-queue-item">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="gf-queue-pos">#${idx + 1}</span>
+                <span>${t.icon}</span>
+                <span class="gf-queue-item-name">${this.escapeHtml(t.name)}</span>
+                <span style="font-size:10px; color:#38bdf8;">• ${this.escapeHtml(t.zone)}</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:10px; color:#94a3b8;">${t.duration}</span>
+                <button type="button" class="gf-track-act-btn play-btn" style="padding:2px 6px; font-size:9.5px;" onclick="window._landing.playQueuedItem(${idx})">
+                  ▶ Play
+                </button>
+                <button type="button" class="gf-track-act-btn" style="padding:2px 6px; font-size:9.5px; color:#f87171;" onclick="window._landing.removeFromQueue(${idx})">
+                  ✕
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  renderTracklistSectionOnly() {
+    if (typeof document === 'undefined') return;
+    const container = document.getElementById('gf-track-table-container');
+    if (container) {
+      container.innerHTML = this.renderTrackRows();
+    }
+  }
+
+  renderMediaPlayerSection(activeOstTrack) {
+    const progressPct = this.duration > 0 ? Math.min(100, Math.max(0, (this.currentTime / this.duration) * 100)) : 0;
+    return `
+      <div class="gf-media-player" id="gf-media-player">
+        <div class="gf-player-header">
+          <div class="gf-player-header-title">
+            <span style="font-size:18px;">🎼</span>
+            <h3>GLIMMERFALL MASTER REALM JUKEBOX & MEDIA PLAYER</h3>
+            <span class="gf-player-chip" style="color:#facc15; border-color:rgba(250,204,21,0.4);">15 Master Tracks</span>
+          </div>
+          <div class="gf-player-status-badge ${this.isOstPlaying ? 'playing' : 'paused'}">
+            <span class="gf-player-status-dot"></span>
+            <span>${this.isOstPlaying ? 'Now Playing' : 'Paused'}</span>
+          </div>
+        </div>
+
+        <div class="gf-player-deck">
+          <div class="gf-player-disc-wrap">
+            <div class="gf-player-disc ${this.isOstPlaying ? 'playing' : ''}">
+              <div class="gf-player-disc-center">
+                <span>${activeOstTrack.icon}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="gf-player-meta">
+            <div class="gf-player-tagline">
+              <span class="gf-player-chip">${this.escapeHtml(activeOstTrack.category)}</span>
+              <span class="gf-player-chip" style="color:#38bdf8; border-color:rgba(56,189,248,0.4);">${this.escapeHtml(activeOstTrack.zone)}</span>
+              <span class="gf-player-bpm-key">${activeOstTrack.bpm} BPM &bull; Key: ${activeOstTrack.key}</span>
+              <span style="font-size:10px; color:#94a3b8; font-family:'Rajdhani', monospace;">High-Fidelity M4A / 48kHz</span>
+            </div>
+
+            <div class="gf-player-track-name">${this.escapeHtml(activeOstTrack.name)}</div>
+            <div class="gf-player-track-desc">${this.escapeHtml(activeOstTrack.desc)}</div>
+
+            <!-- Scrubber Timeline -->
+            <div class="gf-player-scrubber-row">
+              <span class="gf-time-label" id="gf-cur-time">${this.formatTime(this.currentTime)}</span>
+              <div class="gf-scrubber-track" id="gf-scrubber-track">
+                <div class="gf-scrubber-fill" id="gf-scrubber-fill" style="width:${progressPct}%;"></div>
+                <div class="gf-scrubber-thumb" id="gf-scrubber-thumb" style="left:${progressPct}%;"></div>
+                <input
+                  type="range"
+                  class="gf-scrubber-input"
+                  id="gf-scrubber-input"
+                  min="0"
+                  max="${this.duration || 180}"
+                  step="0.5"
+                  value="${this.currentTime || 0}"
+                  oninput="window._landing.onScrubberInput(this.value)"
+                  onchange="window._landing.seekTrack(this.value)"
+                />
+              </div>
+              <span class="gf-time-label total" id="gf-total-time">${this.formatTime(this.duration)}</span>
+            </div>
+
+            <!-- Controls Row -->
+            <div class="gf-player-controls-row">
+              <div class="gf-player-btn-group">
+                <button type="button" class="gf-player-btn ${this.isShuffle ? 'active' : ''}" id="gf-shuffle-btn" onclick="window._landing.toggleShuffle()" title="Shuffle">
+                  <span>🔀</span> <span style="font-size:10px;">Shuffle</span>
+                </button>
+                <button type="button" class="gf-player-btn" onclick="window._landing.playPrevTrack()" title="Previous Track">
+                  <span>⏮</span>
+                </button>
+                <button type="button" class="gf-player-btn gf-player-btn-hero ${this.isOstPlaying ? 'playing' : ''}" onclick="window._landing.toggleOstPlay()">
+                  <span>${this.isOstPlaying ? '⏸ PAUSE' : '▶ PLAY'}</span>
+                </button>
+                <button type="button" class="gf-player-btn" onclick="window._landing.playNextTrack()" title="Next Track">
+                  <span>⏭</span>
+                </button>
+                <button type="button" class="gf-player-btn ${this.repeatMode !== 'off' ? 'active' : ''}" id="gf-repeat-btn" onclick="window._landing.toggleRepeatMode()" title="Repeat Mode">
+                  <span>${this.repeatMode === 'one' ? '🔂 ONE' : (this.repeatMode === 'all' ? '🔁 ALL' : '➡️ OFF')}</span>
+                </button>
+              </div>
+
+              <div class="gf-player-btn-group">
+                <div class="gf-volume-box">
+                  <button type="button" style="background:none; border:none; color:#cbd5e1; cursor:pointer; font-size:13px; padding:0;" onclick="window._landing.toggleMute()">
+                    ${this.isMuted || this.volume === 0 ? '🔇' : '🔊'}
+                  </button>
+                  <input
+                    type="range"
+                    class="gf-volume-slider"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value="${this.isMuted ? 0 : this.volume}"
+                    oninput="window._landing.setVolume(this.value)"
+                    title="Volume"
+                  />
+                </div>
+
+                <button type="button" class="gf-player-btn ${this.showQueue ? 'active' : ''}" id="gf-queue-toggle-btn" onclick="window._landing.toggleQueueDrawer()">
+                  <span>📑 Queue</span>
+                  <span style="background:rgba(250,204,21,0.2); color:#fde047; padding:1px 6px; border-radius:9999px; font-size:9.5px; border:1px solid #ca8a04;">
+                    ${this.queue.length}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Queue Drawer -->
+        <div class="gf-queue-drawer" id="gf-queue-drawer" style="${this.showQueue ? 'display:flex;' : 'display:none;'}">
+          ${this.renderQueueDrawerContent()}
+        </div>
+      </div>
+    `;
+  }
+
+  renderTracklistSection(activeOstTrack) {
+    return `
+      <div class="gf-tracklist-section" id="gf-tracklist-section">
+        <div class="gf-tracklist-header-row">
+          <div class="gf-tracklist-title">
+            <span>🎼</span>
+            <span>OFFICIAL SOUNDTRACK CATALOG (15 MASTER TRACKS)</span>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <input
+              type="text"
+              class="gf-tracklist-search"
+              placeholder="🔍 Search tracks by name, key, lore..."
+              value="${this.escapeHtml(this.searchQuery)}"
+              oninput="window._landing.setTrackSearch(this.value)"
+            />
+          </div>
+        </div>
+
+        <div class="gf-tracklist-filters">
+          <button type="button" class="gf-filter-btn ${this.trackFilter === 'all' ? 'active' : ''}" onclick="window._landing.setTrackFilter('all')">
+            All Tracks (15)
+          </button>
+          <button type="button" class="gf-filter-btn ${this.trackFilter === 'factions' ? 'active' : ''}" onclick="window._landing.setTrackFilter('factions')">
+            ☀️ Factions (4)
+          </button>
+          <button type="button" class="gf-filter-btn ${this.trackFilter === 'zones' ? 'active' : ''}" onclick="window._landing.setTrackFilter('zones')">
+            🗺️ Biomes &amp; Havens (4)
+          </button>
+          <button type="button" class="gf-filter-btn ${this.trackFilter === 'combat' ? 'active' : ''}" onclick="window._landing.setTrackFilter('combat')">
+            ⚔️ Combat &amp; Arenas (4)
+          </button>
+          <button type="button" class="gf-filter-btn ${this.trackFilter === 'cinematics' ? 'active' : ''}" onclick="window._landing.setTrackFilter('cinematics')">
+            🎬 Cinematic Themes (3)
+          </button>
+        </div>
+
+        <div class="gf-track-table" id="gf-track-table-container">
+          ${this.renderTrackRows()}
+        </div>
+      </div>
+    `;
+  }
+
+  renderTrackRows() {
+    let filtered = LANDING_OST_TRACKS;
+    if (this.trackFilter === 'factions') {
+      filtered = filtered.filter((t) => t.category === 'Factions');
+    } else if (this.trackFilter === 'zones') {
+      filtered = filtered.filter((t) => t.category === 'Biomes & Havens');
+    } else if (this.trackFilter === 'combat') {
+      filtered = filtered.filter((t) => t.category === 'Combat & Arenas');
+    } else if (this.trackFilter === 'cinematics') {
+      filtered = filtered.filter((t) => t.category === 'Cinematic Themes');
+    }
+
+    if (this.searchQuery) {
+      filtered = filtered.filter((t) =>
+        t.name.toLowerCase().includes(this.searchQuery) ||
+        t.zone.toLowerCase().includes(this.searchQuery) ||
+        t.desc.toLowerCase().includes(this.searchQuery) ||
+        t.key.toLowerCase().includes(this.searchQuery) ||
+        String(t.bpm).includes(this.searchQuery)
+      );
+    }
+
+    if (filtered.length === 0) {
+      return `
+        <div style="text-align:center; padding:24px; color:#94a3b8; font-size:12px; background:rgba(15,23,42,0.6); border-radius:12px; border:1px solid rgba(255,255,255,0.08);">
+          No soundtrack entries found matching "${this.escapeHtml(this.searchQuery)}".
+        </div>
+      `;
+    }
+
+    return filtered.map((t, index) => {
+      const isCur = this.currentOstTrackId === t.id;
+      const isPlay = isCur && this.isOstPlaying;
+      const qIdx = this.queue.indexOf(t.id);
+      const isQueued = qIdx !== -1;
+
+      return `
+        <div class="gf-track-row ${isCur ? 'active' : ''}"
+             onclick="window._landing.playOstTrack('${t.id}')">
+          <div class="gf-track-col-num">
+            ${isPlay ? `
+              <div class="ost-equalizer playing" style="height:14px; gap:2px;">
+                <div class="ost-eq-bar" style="width:2.5px;"></div>
+                <div class="ost-eq-bar" style="width:2.5px;"></div>
+                <div class="ost-eq-bar" style="width:2.5px;"></div>
+              </div>
+            ` : (isCur ? '▶' : `#${index + 1}`)}
+          </div>
+
+          <div class="gf-track-info-cell">
+            <span class="gf-track-icon">${t.icon}</span>
+            <div class="gf-track-name-box">
+              <div class="gf-track-row-title">${this.escapeHtml(t.name)}</div>
+              <div class="gf-track-row-desc">${this.escapeHtml(t.desc)}</div>
+            </div>
+          </div>
+
+          <div class="gf-track-col-zone">
+            <span class="gf-player-chip" style="font-size:9px; border-color:rgba(56,189,248,0.3); color:#7dd3fc;">
+              ${this.escapeHtml(t.zone)}
+            </span>
+          </div>
+
+          <div class="gf-track-col-meta">
+            <span style="font-size:9.5px; font-weight:700; color:#facc15; font-family:'Rajdhani', monospace;">
+              ${t.bpm} BPM &bull; ${t.key}
+            </span>
+          </div>
+
+          <div class="gf-track-col-dur">
+            <span style="font-size:11px; color:#94a3b8; font-family:'Rajdhani', monospace; font-weight:600;">
+              ${t.duration}
+            </span>
+          </div>
+
+          <div class="gf-track-actions" onclick="event.stopPropagation()">
+            <button
+              type="button"
+              class="gf-track-act-btn ${isPlay ? 'play-btn' : ''}"
+              onclick="window._landing.playOstTrack('${t.id}')"
+              title="${isPlay ? 'Pause' : 'Play Immediately'}"
+            >
+              ${isPlay ? '⏸ Pause' : '▶ Play'}
+            </button>
+            <button
+              type="button"
+              class="gf-track-act-btn ${isQueued ? 'queued' : ''}"
+              onclick="${isQueued ? `window._landing.removeFromQueue(${qIdx})` : `window._landing.addToQueue('${t.id}')`}"
+              title="${isQueued ? 'Remove from Queue' : 'Add to Queue'}"
+            >
+              ${isQueued ? `✓ Queue #${qIdx + 1}` : '+ Queue'}
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
   selectCinematic(sceneId) {
@@ -1309,55 +2161,11 @@ export class LandingPageController {
             </button>
           </div>
 
-          <!-- INTERACTIVE GOOGLE FLOW OST JUKEBOX -->
-          <div class="ost-jukebox-card">
-            <div class="ost-player-row">
-              <div class="ost-track-info">
-                <div class="ost-disc-icon ${this.isOstPlaying ? 'playing' : ''}">
-                  <span>🎵</span>
-                </div>
-                <div>
-                  <div style="display:flex; align-items:center; gap:8px;">
-                    <span class="ost-track-name" style="font-family:var(--font-header); font-size:13.5px; font-weight:bold; color:#fde047;">${activeOstTrack.name}</span>
-                    <div class="ost-equalizer ${this.isOstPlaying ? 'playing' : ''}">
-                      <div class="ost-eq-bar"></div>
-                      <div class="ost-eq-bar"></div>
-                      <div class="ost-eq-bar"></div>
-                      <div class="ost-eq-bar"></div>
-                    </div>
-                  </div>
-                  <div class="ost-track-meta" style="font-size:10px; color:#38bdf8; font-weight:bold; margin-top:2px;">
-                    ${activeOstTrack.zone} &bull; ${activeOstTrack.bpm} BPM &bull; Key: ${activeOstTrack.key}
-                  </div>
-                  <div class="ost-track-desc" style="font-size:9.5px; color:#94a3b8; margin-top:2px;">
-                    ${activeOstTrack.desc}
-                  </div>
-                </div>
-              </div>
+          <!-- OFFICIAL GLIMMERFALL MEDIA PLAYER & QUEUE -->
+          ${this.renderMediaPlayerSection(activeOstTrack)}
 
-              <div style="display:flex; align-items:center; gap:8px;">
-                <button type="button" class="id-mini-btn ost-play-btn" style="padding:6px 14px; font-size:11px; font-weight:bold; border-color:${this.isOstPlaying ? '#38bdf8' : '#facc15'}; color:${this.isOstPlaying ? '#7dd3fc' : '#fde047'}; cursor:pointer;" onclick="window._landing.toggleOstPlay()">
-                  ${this.isOstPlaying ? '⏸️ PAUSE' : '▶️ PLAY'}
-                </button>
-              </div>
-            </div>
-
-            <!-- 10 Zone Track Pills -->
-            <div class="ost-pills-row">
-              ${LANDING_OST_TRACKS.map((t) => {
-                const isSel = this.currentOstTrackId === t.id;
-                return `
-                  <div class="ost-track-pill ${isSel ? 'active' : ''}"
-                       data-track="${t.id}"
-                       onclick="window._landing.playOstTrack('${t.id}')">
-                    <span>${t.icon}</span>
-                    <span>${t.name.split(' • ')[0]}</span>
-                    <span style="opacity:0.6; font-size:9px;">(${t.bpm} BPM)</span>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
+          <!-- TRACKS LIST UNDERNEATH (QUEUEABLE REPOSITORY) -->
+          ${this.renderTracklistSection(activeOstTrack)}
         </div>
       </section>
 

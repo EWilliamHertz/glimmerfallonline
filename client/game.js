@@ -57,7 +57,19 @@ import {
   SKILLING_LAYOUTS,
   ELITE_AFFIXES,
   BOUNTY_CONTRACTS,
+  ACHIEVEMENTS_CATALOG,
+  ACHIEVEMENT_CATEGORIES,
+  LORE_CODEX_ENTRIES,
+  getUnlockedTitles,
 } from '../shared/protocol.js';
+import {
+  initEmoteWheel,
+  openEmoteWheel,
+  closeEmoteWheel,
+  toggleEmoteWheel,
+  renderAchievementsModal,
+  recordAchievementStat,
+} from './achievementsAndEmotes.js';
 import { renderBankModal } from './bankUi.js';
 import {
   renderCraftingModal,
@@ -1026,6 +1038,16 @@ export function initGame() {
     // Combat Mastery: every hostile kill advances the first-blood trial.
     questState.combatKills = (questState.combatKills || 0) + 1;
     changed = true;
+
+    // Vanquishing & Combat Hunt Achievements
+    recordAchievementStat(prog, 'monsters_slain_total', 1, onAchievementUnlocked);
+    if (isBoss) {
+      recordAchievementStat(prog, 'bosses_slain_total', 1, onAchievementUnlocked);
+    }
+    const killedEnt = entities.find((e) => e.name === mobName || (mobId && e.id === mobId));
+    if (killedEnt?.eliteAffix) {
+      recordAchievementStat(prog, 'elites_slain_total', 1, onAchievementUnlocked);
+    }
     if (questCounter('quest_skill_combat', 'combatKills') === 3 && questState.activeQuests?.quest_skill_combat) {
       logMessage('📜 [Quest Objective] Combat foes banished (3/3)! Return to Commander Valerius!', 'log-quest', 'chat');
       spawnFCT(player.x, player.y - 14, '✨ COMBAT TRIAL COMPLETE (3/3)!', '#facc15', true);
@@ -2593,8 +2615,8 @@ export function initGame() {
     const resolved = resolveFactionAndClass({
       faction: prof.faction,
       classId: prof.classId,
-      loadout: prof.loadout || localProfile.loadout,
-      orderTag: prof.orderTag || localProfile.orderTag,
+      loadout: prof.loadout,
+      orderTag: prof.orderTag,
     });
     const cls = CLASSES_CATALOG[resolved.classId] || CLASSES_CATALOG.solari_vanguard;
     const pId = prof.activeCharacterId || prof.id || 'default';
@@ -2890,6 +2912,104 @@ export function initGame() {
       player.emote = em.id;
       player.emoteTimer = 3.6;
       logMessage(`${em.icon} ${localProfile.displayName} ${em.text}`, 'log-solari', 'chat');
+    }
+  };
+
+  window.toggleEmoteWheel = function () {
+    toggleEmoteWheel((emId) => window.triggerEmote(emId));
+  };
+  window.openEmoteWheel = openEmoteWheel;
+  window.closeEmoteWheel = closeEmoteWheel;
+
+  function onAchievementUnlocked(ach) {
+    if (!ach) return;
+    audio.playLevelUp?.();
+    if (audio.playQuestCompleteFanfare) audio.playQuestCompleteFanfare();
+    spawnSparkBurst(player.x, player.y - 14, ['#fde047', '#facc15', '#ffffff', '#38bdf8'], 32);
+    spawnFCT(player.x, player.y - 18, `🏆 ACHIEVEMENT: ${ach.name.toUpperCase()}!`, '#facc15', true);
+    logMessage(`🏆 [ACHIEVEMENT UNLOCKED] ${ach.name}! Claimed +${ach.rewardGold} Gold & +${ach.rewardXp} XP${ach.unlockedTitle ? ` (Title Unlocked: <${ach.unlockedTitle}>)` : ''}!`, 'log-gain', 'chat');
+    addPlayerGold(ach.rewardGold || 50);
+    awardXP(ach.rewardXp || 60, ach.name);
+    saveProgressionLocal();
+    if (document.getElementById('achievements-modal')?.style.display === 'block') {
+      window.renderAchievementsModalUI();
+    }
+  }
+
+  window.equipTitleAction = function (titleName) {
+    localProfile.title = titleName || null;
+    if (prog) prog.equippedTitle = titleName || null;
+    saveProgressionLocal();
+    audio.playChime?.();
+    if (titleName) {
+      spawnFCT(player.x, player.y - 14, `TITLE: <${titleName}>`, '#fde047', true);
+      logMessage(`👑 [Cosmetic Title] Equipped title: <${titleName}>!`, 'log-solari', 'chat');
+    } else {
+      logMessage('👑 [Cosmetic Title] Unequipped cosmetic title.', 'log-combat', 'chat');
+    }
+    if (net.connected) {
+      net.send({ type: 'update_profile', title: localProfile.title });
+    }
+    window.renderAchievementsModalUI();
+  };
+
+  window.toggleAchievementsModal = function () {
+    const m = document.getElementById('achievements-modal');
+    if (!m) return;
+    if (m.style.display === 'none' || !m.style.display) {
+      m.style.display = 'block';
+      audio.playInventory?.();
+      window.renderAchievementsModalUI();
+    } else {
+      m.style.display = 'none';
+    }
+  };
+
+  window.renderAchievementsModalUI = function () {
+    renderAchievementsModal({
+      prog,
+      profile: localProfile,
+      onEquipTitle: window.equipTitleAction,
+    });
+  };
+
+  window.switchAchievementsTab = function (tab) {
+    renderAchievementsModal({
+      prog,
+      profile: localProfile,
+      activeTab: tab,
+      onEquipTitle: window.equipTitleAction,
+    });
+  };
+
+  window.filterAchievementsCategory = function (cat) {
+    renderAchievementsModal({
+      prog,
+      profile: localProfile,
+      category: cat,
+      onEquipTitle: window.equipTitleAction,
+    });
+  };
+
+  window.selectCodexEntry = function (id) {
+    renderAchievementsModal({
+      prog,
+      profile: localProfile,
+      activeTab: 'codex',
+      onEquipTitle: window.equipTitleAction,
+    });
+  };
+
+  window.claimAchievementPrompt = function (achId) {
+    const ach = ACHIEVEMENTS_CATALOG.find((a) => a.id === achId);
+    if (!ach) return;
+    prog.achievements = prog.achievements || { completed: {}, unlockedTitles: [] };
+    if (!prog.achievements.completed[ach.id]) {
+      prog.achievements.completed[ach.id] = { unlockedAt: new Date().toISOString() };
+      if (ach.unlockedTitle && !prog.achievements.unlockedTitles.includes(ach.unlockedTitle)) {
+        prog.achievements.unlockedTitles.push(ach.unlockedTitle);
+      }
+      onAchievementUnlocked(ach);
     }
   };
 
@@ -4799,6 +4919,15 @@ export function initGame() {
     mapBounds.halfH = cfg.halfH;
     audio.setBgmTheme(cfg.bgm || 'sanctuary');
 
+    // Record Continental Waygate & Zone Exploration Achievements
+    recordAchievementStat(prog, `zone_${resolvedRoomType}_visited`, 1, onAchievementUnlocked);
+    prog.stats = prog.stats || {};
+    prog.stats._visited_zones_set = prog.stats._visited_zones_set || {};
+    if (!prog.stats._visited_zones_set[resolvedRoomType]) {
+      prog.stats._visited_zones_set[resolvedRoomType] = true;
+      recordAchievementStat(prog, 'zones_discovered_count', 1, onAchievementUnlocked);
+    }
+
     if (!questState.visitedBiomes) questState.visitedBiomes = {};
     if (resolvedRoomType === ROOM_TYPES.SOLARI_CITADEL) questState.visitedBiomes.solari = true;
     if (resolvedRoomType === ROOM_TYPES.UMBRI_UNDERCITY) questState.visitedBiomes.umbri = true;
@@ -6038,6 +6167,38 @@ export function initGame() {
 
     // Populate Cosmic Skilling Veins, Herb Clusters & Silk Blooms + Elite Monster Champions
     populateWorldSkillingNodes(currentRoomType, entities);
+
+    // Cleanly convert any remaining static tree props into interactive choppable skilling nodes
+    for (let i = props.length - 1; i >= 0; i--) {
+      const pr = props[i];
+      let skKey = null;
+      if (pr.type === 'blossomTree') skKey = 'tree_blossom';
+      else if (pr.type === 'pineTree') skKey = 'tree_pine';
+      else if (pr.type === 'ancientOak') skKey = 'tree_ancient_oak';
+
+      if (skKey && SKILLING_NODE_TYPES[skKey]) {
+        const existing = entities.find((e) => e.type === 'node' && Math.hypot(e.x - pr.x, e.y - pr.y) <= 24);
+        if (!existing) {
+          const spec = SKILLING_NODE_TYPES[skKey];
+          entities.push({
+            id: `sknode_${currentRoomType}_prop_tree_${i + 1}`,
+            name: spec.name,
+            sub: `${spec.sub || 'Sacred Timber Node [E]'} • Req Lv.${spec.reqLevel}`,
+            type: 'node',
+            skillingType: skKey,
+            spriteKey: spec.spriteReady,
+            x: pr.x,
+            y: pr.y,
+            charges: spec.charges || 3,
+            maxCharges: spec.charges || 3,
+            radius: 16,
+            hitFlash: 0,
+          });
+        }
+        props.splice(i, 1);
+      }
+    }
+
     applyEliteChampionsToZone(currentRoomType, entities);
 
     camera.x = player.x;
@@ -9031,6 +9192,25 @@ export function initGame() {
         }
       }
       advanceBountyProgress('harvests', 1);
+
+      // Track Arboreal & Gathering Achievements
+      if (node.skillingType.startsWith('tree_')) {
+        recordAchievementStat(prog, 'trees_cut_total', 1, onAchievementUnlocked);
+        if (node.skillingType === 'tree_blossom') {
+          recordAchievementStat(prog, 'trees_blossom_cut', 1, onAchievementUnlocked);
+        } else if (node.skillingType === 'tree_ancient_oak') {
+          recordAchievementStat(prog, 'trees_oak_cut', 1, onAchievementUnlocked);
+        }
+      } else if (node.skillingType.includes('vein')) {
+        recordAchievementStat(prog, 'veins_mined_total', 1, onAchievementUnlocked);
+      } else if (node.skillingType.startsWith('fish_')) {
+        recordAchievementStat(prog, 'fish_caught_total', 1, onAchievementUnlocked);
+      }
+      const extractionLvl = getProfessionLevelFromXp(Number(prog?.professions?.resonance_extraction?.xp) || 0);
+      if (extractionLvl >= 10) {
+        recordAchievementStat(prog, 'prof_extraction_level_10', 1, onAchievementUnlocked);
+      }
+
       saveQuestState();
       updateQuestTrackerHUD();
       spawnSparkBurst(node.x, node.y - 8, skSpec.sparkColors || ['#facc15', '#ffffff'], 16);
@@ -10875,11 +11055,14 @@ export function initGame() {
     }
 
     let clicked = null;
-    let bestD = 26;
+    let bestD = 34;
     for (const ent of entities) {
       if (ent.isDying || ent.type === 'ally_nexus') continue;
-      const d = Math.hypot(ent.x - wx, ent.y - 10 - wy);
-      if (d < bestD) {
+      const isTree = ent.type === 'node' && ent.skillingType && ent.skillingType.startsWith('tree_');
+      const yOffset = isTree ? 16 : 10;
+      const hitRadius = isTree ? 36 : 28;
+      const d = Math.hypot(ent.x - wx, ent.y - yOffset - wy);
+      if (d < hitRadius && d < bestD) {
         bestD = d;
         clicked = ent;
       }
@@ -11075,6 +11258,12 @@ export function initGame() {
       e.preventDefault();
       e.stopPropagation();
 
+      const emoteWheel = document.getElementById('emote-wheel-overlay');
+      if (emoteWheel && emoteWheel.style.display !== 'none') {
+        window.closeEmoteWheel?.();
+        return;
+      }
+
       const modalSelector = '.modal, #paperdoll-modal, #cards-modal, #audio-mixer-modal, #settings-modal, #crafting-modal';
       const openModal = Array.from(document.querySelectorAll(modalSelector)).find((m) => {
         if (!m) return false;
@@ -11154,9 +11343,8 @@ export function initGame() {
     if (e.repeat) return;
 
     if (key === 't') window.interactNearestNpc();
-    if (key === 'v') {
-      spawnFCT(player.x, player.y - 18, '🏛️ Visit an AetherVault Bank in the city!', '#fde047', true);
-    }
+    if (key === 'v') window.toggleEmoteWheel();
+    if (key === 'y') window.toggleAchievementsModal();
     if (key === 'u') window.toggleUiEditMode();
     if (key === 'n') window.toggleSkillsTab();
     if (key === 'b') window.toggleModal('inventory-modal');
@@ -13777,6 +13965,7 @@ export function initGame() {
             sx: activeTextCtx ? worldToScreen(rp.renderX, rp.renderY).sx : sx,
             topY: activeTextCtx ? worldToScreen(rp.renderX, rp.renderY - (rp.z || 0) - img.height + 2).sy : (sy - (rp.z || 0) - img.height + 2),
             name: rp.name,
+            title: rp.title || '',
             faction: rp.faction,
             orderTag: rp.orderTag,
             orderColor: rp.orderColor,
@@ -13851,6 +14040,7 @@ export function initGame() {
             sx: activeTextCtx ? worldToScreen(player.x, player.y).sx : sx,
             topY: activeTextCtx ? worldToScreen(player.x, player.y - player.z - img.height + 2).sy : (sy - player.z - img.height + 2),
             name: localProfile.displayName,
+            title: localProfile.title || '',
             faction: localProfile.faction,
             orderTag: localProfile.orderTag,
             orderColor: localProfile.orderColor,
