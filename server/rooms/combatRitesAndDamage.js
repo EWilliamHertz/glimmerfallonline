@@ -572,6 +572,25 @@ export const combatRitesAndDamageMethods = {
         attackerX: attackerRef ? attackerRef.x : undefined,
         attackerY: attackerRef ? attackerRef.y : undefined,
       });
+
+      // Tibia Infamy: Attacking an unflagged player in an open PvP zone flags attacker with White Skull (15m)
+      const isAttackerPlayer = attackerRef && attackerRef.ws && attackerRef.id !== targetPlayer.id;
+      if (isAttackerPlayer && room.pvp && room.type !== ROOM_TYPES.ARENA_3V3 && !isDueling) {
+        if (!targetPlayer.skull) {
+          if (attackerRef.skull !== 'red') {
+            attackerRef.skull = 'white';
+            attackerRef.skullTimer = 900;
+            attackerRef.send({
+              type: 'sys_msg',
+              category: 'combat',
+              text: '💀 [Tibia Infamy] You attacked an unflagged traveler! You have received a WHITE SKULL for 15 minutes.',
+            });
+            room.fxQueue.push({ kind: 'fct', x: attackerRef.x, y: attackerRef.y - 16, text: '💀 WHITE SKULL (15m)', color: '#ffffff', isCrit: true });
+          } else {
+            attackerRef.skullTimer = 1800;
+          }
+        }
+      }
     }
 
     this.parties.syncPlayerVitals(targetPlayer.id);
@@ -579,6 +598,24 @@ export const combatRitesAndDamageMethods = {
     if (targetPlayer.hp <= 0) {
       targetPlayer.isDead = true;
       targetPlayer.respawnTimer = 3.0;
+
+      const isAttackerPlayer = attackerRef && attackerRef.ws && attackerRef.id !== targetPlayer.id;
+      if (isAttackerPlayer && room.pvp && room.type !== ROOM_TYPES.ARENA_3V3 && !isDueling) {
+        if (!targetPlayer.skull) {
+          attackerRef.pkCount = (attackerRef.pkCount || 0) + 1;
+          if (attackerRef.pkCount >= 3) {
+            attackerRef.skull = 'red';
+            attackerRef.skullTimer = 1800;
+            attackerRef.send({
+              type: 'sys_msg',
+              category: 'combat',
+              text: '☠️ [Tibia Infamy] RED SKULL ACQUIRED! Multiple unprovoked kills! You will forfeit all inventory upon death!',
+            });
+            room.fxQueue.push({ kind: 'fct', x: attackerRef.x, y: attackerRef.y - 18, text: '☠️ RED SKULL INFAMY!', color: '#ef4444', isCrit: true });
+          }
+        }
+      }
+
       for (const ent of room.entities) {
         if (ent.type === 'mob') {
           if (ent.dammers) ent.dammers.delete(targetPlayer.id);
@@ -595,6 +632,82 @@ export const combatRitesAndDamageMethods = {
         category: 'combat',
         text: `[Combat] ${targetPlayer.displayName} was cast into the Fall by ${attackerName}!`,
       });
+
+      // Tibia Graveglass Tombstone Drop (outside 3v3 Arena)
+      if (room.type !== ROOM_TYPES.ARENA_3V3) {
+        const bag = Array.isArray(targetPlayer.inventory) ? targetPlayer.inventory : [];
+        let droppedItems = [];
+        let droppedGold = 0;
+        const currentGold = targetPlayer.prog?.solarGold || 0;
+
+        if (targetPlayer.skull === 'red') {
+          droppedItems = [...bag];
+          targetPlayer.inventory = [];
+          droppedGold = Math.max(10, Math.round(currentGold * 0.20));
+        } else if (targetPlayer.skull === 'white') {
+          const dropCount = Math.min(bag.length, 3);
+          for (let k = 0; k < dropCount; k++) {
+            if (targetPlayer.inventory.length > 0) {
+              const randIdx = Math.floor(Math.random() * targetPlayer.inventory.length);
+              droppedItems.push(targetPlayer.inventory.splice(randIdx, 1)[0]);
+            }
+          }
+          droppedGold = Math.max(10, Math.round(currentGold * 0.10));
+        } else {
+          const matIndices = [];
+          for (let k = 0; k < targetPlayer.inventory.length; k++) {
+            const itId = typeof targetPlayer.inventory[k] === 'string' ? targetPlayer.inventory[k] : targetPlayer.inventory[k]?.id;
+            if (EQUIPMENT_CATALOG[itId]?.slot === 'material') {
+              matIndices.push(k);
+            }
+          }
+          matIndices.reverse();
+          for (let k = 0; k < Math.min(3, matIndices.length); k++) {
+            droppedItems.push(targetPlayer.inventory.splice(matIndices[k], 1)[0]);
+          }
+          droppedGold = currentGold > 0 ? Math.max(25, Math.round(currentGold * 0.05)) : 0;
+        }
+
+        if (droppedGold > 0 && targetPlayer.prog) {
+          targetPlayer.prog.solarGold = Math.max(0, (targetPlayer.prog.solarGold || 0) - droppedGold);
+        }
+
+        const tombstoneId = `tomb_${crypto.randomUUID().slice(0, 8)}`;
+        const tombstone = {
+          id: tombstoneId,
+          type: 'graveglass_tombstone',
+          name: `${targetPlayer.displayName}'s Tombstone`,
+          ownerId: targetPlayer.id,
+          ownerName: targetPlayer.displayName,
+          x: Math.round(targetPlayer.x),
+          y: Math.round(targetPlayer.y),
+          gold: droppedGold,
+          items: droppedItems,
+          roomType: room.type,
+          createdAt: Date.now(),
+          expiresAt: Date.now() + 900000,
+        };
+        room.entities.push(tombstone);
+
+        targetPlayer.activeTombstone = {
+          id: tombstone.id,
+          x: tombstone.x,
+          y: tombstone.y,
+          roomType: room.type,
+          roomId: room.id,
+          gold: droppedGold,
+          itemCount: droppedItems.length,
+        };
+
+        targetPlayer.send({
+          type: 'corpse_tombstone_spawned',
+          tombstone: targetPlayer.activeTombstone,
+        });
+
+        if (this.accounts?.syncBankAndInventory) {
+          this.accounts.syncBankAndInventory(targetPlayer.id, targetPlayer.bank, targetPlayer.inventory, targetPlayer.equipment);
+        }
+      }
     }
   },
 };

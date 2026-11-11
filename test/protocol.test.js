@@ -1873,6 +1873,127 @@ test('RuneScape skilling variations: Arboreal Timbercraft, Cosmic Angling, and C
   assert.equal(coralCoast.edgeTransitions.west, protocol.ROOM_TYPES.IRONWOOD_TIMBERLANDS);
 });
 
+test('RuneScape Bank Vault Depot & Deposit All Materials', async () => {
+  const bankUi = await import('../client/bankUi.js');
+  const protocol = await import('../shared/protocol.js');
+
+  const testProfile = {
+    id: 'test_player',
+    inventory: [
+      { id: 'iron_broadsword', qty: 1 }, // weapon (gear)
+      { id: 'glimmerwood_logs', qty: 25 }, // material
+      { id: 'sun_copper_ore', qty: 14 }, // material
+      { id: 'minor_healing_salve', qty: 3 }, // consumable
+      { id: 'raw_prism_salmon', qty: 5 }, // material
+    ],
+    bank: [
+      { id: 'glimmerwood_logs', qty: 10 },
+    ],
+  };
+
+  // Run depositAllMaterialsToBank
+  bankUi.depositAllMaterialsToBank(testProfile);
+
+  // Material items should have been transferred to bank and stacked
+  const bankWood = testProfile.bank.find((b) => b.id === 'glimmerwood_logs');
+  assert.ok(bankWood, 'Wood must be in bank');
+  assert.equal(bankWood.qty, 35, 'Wood should stack 10 + 25 = 35');
+
+  const bankOre = testProfile.bank.find((b) => b.id === 'sun_copper_ore');
+  assert.ok(bankOre, 'Ore must be added to bank');
+  assert.equal(bankOre.qty, 14);
+
+  const bankFish = testProfile.bank.find((b) => b.id === 'raw_prism_salmon');
+  assert.ok(bankFish, 'Raw fish must be added to bank');
+  assert.equal(bankFish.qty, 5);
+
+  // Non-material items must remain in inventory!
+  assert.equal(testProfile.inventory.length, 2, 'Weapon and potion must remain in bag');
+  assert.equal(testProfile.inventory[0].id, 'iron_broadsword');
+  assert.equal(testProfile.inventory[1].id, 'minor_healing_salve');
+});
+
+test('Tibia Skull Infamy rules & Graveglass Tombstone retrieval run', async () => {
+  const protocol = await import('../shared/protocol.js');
+  const { RoomManager } = await import('../server/roomManager.js');
+  const { AccountsStore } = await import('../server/accountsStore.js');
+
+  // 1. Constants
+  assert.equal(protocol.SKULL_TYPES.WHITE, 'white');
+  assert.equal(protocol.SKULL_TYPES.RED, 'red');
+  assert.equal(protocol.WHITE_SKULL_DURATION_SEC, 900);
+  assert.equal(protocol.RED_SKULL_DURATION_SEC, 1800);
+
+  // 2. RoomManager player skull initialization
+  const store = new AccountsStore();
+  const rm = new RoomManager({
+    accountsStore: store,
+    partyManager: {
+      getPartyForMember: () => null,
+      leaveParty: () => {},
+      syncPlayerVitals: () => {},
+      getPartyMembers: () => [],
+      areInSameParty: () => false,
+    },
+  });
+
+  const reg1 = store.registerAccount({ username: 'pker_test_user', password: 'Pass123!456', displayName: 'Ruthless PKer', faction: 'Solari', classId: 'solari_paladin' });
+  const reg2 = store.registerAccount({ username: 'miner_test_user', password: 'Pass123!456', displayName: 'Peaceful Miner', faction: 'Terra', classId: 'terra_warden' });
+
+  const dummyWs = { readyState: 1, send: () => {}, close: () => {} };
+  const victimWs = { readyState: 1, send: () => {}, close: () => {} };
+
+  const attacker = rm.attachConnection(dummyWs, reg1.account, 'nexus_warzone');
+  const victim = rm.attachConnection(victimWs, reg2.account, 'nexus_warzone');
+
+  attacker.prog.solarGold = 500;
+  victim.prog.solarGold = 300;
+  victim.inventory = [{ id: 'glimmerwood_logs', qty: 8 }];
+
+  assert.equal(attacker.skull, null, 'New player must start unskulled');
+  assert.equal(attacker.skullTimer, 0);
+  assert.equal(attacker.pkCount, 0);
+
+  const warzoneRoom = rm.rooms.get(attacker.roomId);
+  assert.ok(warzoneRoom, 'Must be in warzone room');
+
+  // 3. Attacker damages unflagged victim in PvP zone -> White Skull (15m)
+  rm.damagePlayerSession(warzoneRoom, victim, 10, attacker.displayName, false, attacker);
+  assert.equal(attacker.skull, 'white', 'Attacking innocent player flags White Skull');
+  assert.equal(attacker.skullTimer, 900, 'White Skull lasts 900 seconds (15 minutes)');
+
+  // 4. Victim dies -> Graveglass Tombstone spawned with dropped materials & gold
+  victim.hp = 1;
+  rm.damagePlayerSession(warzoneRoom, victim, 50, attacker.displayName, false, attacker);
+  assert.equal(victim.isDead, true, 'Victim should be dead');
+  assert.ok(victim.activeTombstone, 'Victim must receive an active tombstone record');
+
+  const tombstone = warzoneRoom.entities.find((e) => e.type === 'graveglass_tombstone');
+  assert.ok(tombstone, 'Graveglass Tombstone entity must be spawned in room');
+  assert.equal(tombstone.ownerId, victim.id);
+  assert.ok(tombstone.gold > 0, 'Tombstone must contain dropped gold');
+  assert.ok(tombstone.items.length > 0, 'Tombstone must contain dropped materials');
+
+  // 5. Graveglass Tombstone retrieval run
+  victim.isDead = false;
+  victim.x = tombstone.x;
+  victim.y = tombstone.y;
+  const prevGold = victim.prog.solarGold;
+
+  // Tick the room to process proximity retrieval
+  rm.tickRoom(warzoneRoom, 0.05, Date.now());
+  assert.equal(warzoneRoom.entities.find((e) => e.type === 'graveglass_tombstone'), undefined, 'Tombstone should be removed after retrieval');
+  assert.equal(victim.prog.solarGold, prevGold + tombstone.gold, 'Gold should be restored to player upon corpse retrieval');
+
+  // 6. 3 Unprovoked Kills triggers Red Skull (30m)
+  attacker.pkCount = 2;
+  victim.skull = null;
+  victim.hp = 1;
+  rm.damagePlayerSession(warzoneRoom, victim, 50, attacker.displayName, false, attacker);
+  assert.equal(attacker.skull, 'red', '3 unprovoked kills grants Red Skull');
+  assert.equal(attacker.skullTimer, 1800, 'Red skull lasts 1800 seconds (30m)');
+});
+
 
 
 

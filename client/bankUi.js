@@ -183,6 +183,54 @@ export function depositAllInventoryToBank(profile) {
   safeRenderInventory(profile);
 }
 
+export function depositAllMaterialsToBank(profile) {
+  if (!profile || !profile.inventory || profile.inventory.length === 0) return;
+  const inv = [...profile.inventory];
+  let depositedCount = 0;
+
+  for (let i = inv.length - 1; i >= 0; i--) {
+    const itemObj = inv[i];
+    const itemId = typeof itemObj === 'string' ? itemObj : itemObj?.id;
+    const itemDef = EQUIPMENT_CATALOG[itemId];
+    if (!itemDef || itemDef.slot !== 'material') continue;
+
+    const inBagQty = typeof itemObj === 'object' && itemObj.qty ? itemObj.qty : 1;
+    const bank = getBankItems(profile);
+
+    let existing = bank.find((b) => (typeof b === 'string' ? b : b.id) === itemId);
+    if (existing) {
+      if (typeof existing === 'string') {
+        const bIdx = bank.indexOf(existing);
+        bank[bIdx] = { id: itemId, qty: 1 + inBagQty };
+      } else {
+        existing.qty = (existing.qty || 1) + inBagQty;
+      }
+      inv.splice(i, 1);
+      depositedCount++;
+    } else if (bank.length < MAX_BANK_CAPACITY) {
+      bank.push({ id: itemId, qty: inBagQty });
+      inv.splice(i, 1);
+      depositedCount++;
+    }
+  }
+
+  profile.inventory = inv;
+  saveBank(profile, getBankItems(profile));
+
+  if (depositedCount > 0) {
+    safePlay('playShield');
+    safeFCT(`DEPOSITED ${depositedCount} MATERIAL TYPES TO VAULT`, '#4ade80');
+  } else {
+    safeFCT('NO RAW MATERIALS IN BACKPACK', '#94a3b8');
+  }
+
+  if (typeof window !== 'undefined' && window.clearHoveredEquipment) {
+    window.clearHoveredEquipment();
+  }
+  renderBankModal({ profile });
+  safeRenderInventory(profile);
+}
+
 export function depositWornGearToBank(profile) {
   if (!profile || !profile.equipment) return;
   const eq = { ...profile.equipment };
@@ -307,8 +355,9 @@ export function renderBankModal({ profile }) {
 
     if (currentBankTab !== 'all') {
       if (currentBankTab === 'gear' && !['weapon', 'body', 'legs', 'head', 'shield', 'offhand', 'cape', 'neck', 'ring', 'hands', 'feet'].includes(it.slot)) return false;
-      if (currentBankTab === 'currency' && it.slot !== 'currency') return false;
+      if (currentBankTab === 'material' && it.slot !== 'material') return false;
       if (currentBankTab === 'consumable' && it.slot !== 'consumable') return false;
+      if (currentBankTab === 'currency' && it.slot !== 'currency') return false;
     }
 
     if (currentBankFilter) {
@@ -344,7 +393,10 @@ export function renderBankModal({ profile }) {
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap;">
         <div style="display:flex; gap:6px;">
           <button class="util-btn" style="border-color:#38bdf8; color:#7dd3fc; font-size:8.5px; padding:4px 8px; font-weight:bold;" onclick="window.depositAllInventoryToBank()">
-            🎒 DEPOSIT ALL INVENTORY
+            🎒 DEPOSIT ALL
+          </button>
+          <button class="util-btn" style="border-color:#4ade80; color:#86efac; font-size:8.5px; padding:4px 8px; font-weight:bold;" onclick="window.depositAllMaterialsToBank()">
+            🪵 DEPOSIT ALL MATERIALS
           </button>
           <button class="util-btn" style="border-color:#fb923c; color:#fed7aa; font-size:8.5px; padding:4px 8px; font-weight:bold;" onclick="window.depositWornGearToBank()">
             🛡️ DEPOSIT WORN GEAR
@@ -366,8 +418,9 @@ export function renderBankModal({ profile }) {
         ${[
           { key: 'all', label: '🌐 ALL ITEMS' },
           { key: 'gear', label: '⚔️ WEAPONS & ARMOR' },
+          { key: 'material', label: '🪵 MATERIALS & SKILLING' },
+          { key: 'consumable', label: '🧪 CONSUMABLES & FOOD' },
           { key: 'currency', label: '🪙 CURRENCIES & GEMS' },
-          { key: 'consumable', label: '🧪 CONSUMABLES & SUPPLIES' },
         ].map((t) => `
           <button type="button" class="id-mini-btn"
                   style="font-size:8.5px; padding:3px 10px; border-color:${currentBankTab === t.key ? '#fde047' : '#334155'}; color:${currentBankTab === t.key ? '#fde047' : '#94a3b8'}; background:${currentBankTab === t.key ? '#1c1917' : 'transparent'}; font-weight:bold;"
@@ -475,6 +528,9 @@ if (typeof window !== 'undefined') {
   };
   window.depositAllInventoryToBank = function () {
     if (window.localProfile) depositAllInventoryToBank(window.localProfile);
+  };
+  window.depositAllMaterialsToBank = function () {
+    if (window.localProfile) depositAllMaterialsToBank(window.localProfile);
   };
   window.depositWornGearToBank = function () {
     if (window.localProfile) depositWornGearToBank(window.localProfile);

@@ -23,6 +23,7 @@ export function drawPixelNameplateAndBubbles(ctx, {
   isParty = false,
   isHostile = false,
   tcgLinked = false,
+  skull = null,
   bubble = null,
   emote = null,
   globalTime = 0,
@@ -84,6 +85,45 @@ export function drawPixelNameplateAndBubbles(ctx, {
     ctx.fillText(label, rx + 1, ny + 1);
     ctx.fillStyle = isHostile ? textColor : isParty ? textColor : facColor;
     ctx.fillText(label, rx, ny);
+  }
+
+  // 2b. Tibia Infamy Skull Badge (above nameplate)
+  if (skull === 'white' || skull === 'red') {
+    const isRed = skull === 'red';
+    const skullColor = isRed ? '#ef4444' : '#f8fafc';
+    const skullBorder = isRed ? '#7f1d1d' : '#475569';
+    const eyeColor = '#05070f';
+    const skY = Math.round(plateY - (isHd ? 12 : 10));
+    const skX = Math.round(rx - 6);
+
+    ctx.fillStyle = 'rgba(5, 7, 15, 0.95)';
+    ctx.fillRect(skX - 2, skY - 1, 16, 11);
+    ctx.fillStyle = skullBorder;
+    ctx.fillRect(skX - 1, skY, 14, 9);
+    ctx.fillStyle = skullColor;
+
+    // Skull forehead & jaw
+    ctx.fillRect(skX + 1, skY + 1, 10, 4);
+    ctx.fillRect(skX + 3, skY + 5, 6, 2);
+    // Eye sockets & nose
+    ctx.fillStyle = eyeColor;
+    ctx.fillRect(skX + 3, skY + 2, 2, 2);
+    ctx.fillRect(skX + 7, skY + 2, 2, 2);
+    ctx.fillRect(skX + 5, skY + 4, 2, 1);
+    // Teeth slits
+    if (isRed) {
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(skX + 4, skY + 6, 1, 1);
+      ctx.fillRect(skX + 6, skY + 6, 1, 1);
+      const pulseAlpha = 0.35 + Math.sin(globalTime * 8) * 0.25;
+      ctx.strokeStyle = `rgba(239, 68, 68, ${pulseAlpha.toFixed(2)})`;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(skX - 3, skY - 2, 18, 13);
+    } else {
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(skX + 4, skY + 6, 1, 1);
+      ctx.fillRect(skX + 6, skY + 6, 1, 1);
+    }
   }
 
   // 3. Pixel Emote Badge (bouncing above nameplate)

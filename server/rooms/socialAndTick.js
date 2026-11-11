@@ -269,6 +269,83 @@ export const socialAndTickMethods = {
       if (p.speechBubble && p.speechBubble.expiresAt <= now) p.speechBubble = null;
       if (p.activeEmote && p.activeEmote.expiresAt <= now) p.activeEmote = null;
 
+      // Tibia Infamy Skull countdown timer
+      if (p.skullTimer > 0) {
+        p.skullTimer = Math.max(0, p.skullTimer - dt);
+        if (p.skullTimer <= 0) {
+          if (p.skull === 'white') {
+            p.skull = null;
+            p.pkCount = Math.max(0, (p.pkCount || 0) - 1);
+            p.send({
+              type: 'sys_msg',
+              category: 'combat',
+              text: '🕊️ [Tibia Infamy] Your White Skull has expired! You are once again an unflagged peaceful traveler.',
+            });
+            room.fxQueue.push({ kind: 'fct', x: p.x, y: p.y - 12, text: '🕊️ UNFLAGGED', color: '#4ade80' });
+          } else if (p.skull === 'red') {
+            p.skull = 'white';
+            p.skullTimer = 900;
+            p.pkCount = 2;
+            p.send({
+              type: 'sys_msg',
+              category: 'combat',
+              text: '💀 [Tibia Infamy] Your Red Skull has subsided to a White Skull (15m remaining).',
+            });
+            room.fxQueue.push({ kind: 'fct', x: p.x, y: p.y - 12, text: '💀 WHITE SKULL (15m)', color: '#ffffff' });
+          }
+        }
+      }
+
+      // Tibia Graveglass Tombstone retrieval proximity check (within 34px)
+      if (!p.isDead) {
+        for (let i = room.entities.length - 1; i >= 0; i--) {
+          const ent = room.entities[i];
+          if (ent.type === 'graveglass_tombstone' && (ent.ownerId === p.id || (Date.now() - ent.createdAt > 300000))) {
+            const distTomb = Math.hypot(ent.x - p.x, ent.y - p.y);
+            if (distTomb <= 34) {
+              const restoredGold = ent.gold || 0;
+              const restoredItems = Array.isArray(ent.items) ? ent.items : [];
+              if (restoredGold > 0) {
+                p.prog.solarGold = (p.prog.solarGold || 0) + restoredGold;
+              }
+              if (restoredItems.length > 0) {
+                p.inventory = Array.isArray(p.inventory) ? p.inventory : [];
+                for (const it of restoredItems) {
+                  if (p.inventory.length < 28) {
+                    p.inventory.push(it);
+                  }
+                }
+              }
+              p.activeTombstone = null;
+              room.entities.splice(i, 1);
+              room.fxQueue.push({ kind: 'smoke', x: ent.x, y: ent.y, count: 24 });
+              room.fxQueue.push({
+                kind: 'fct',
+                x: p.x,
+                y: p.y - 16,
+                text: `✨ CORPSE RETRIEVED! (+${restoredGold} 🪙, ${restoredItems.length} Items)`,
+                color: '#38bdf8',
+                isCrit: true,
+              });
+              p.send({
+                type: 'tombstone_retrieved',
+                gold: restoredGold,
+                itemCount: restoredItems.length,
+              });
+              p.send({
+                type: 'sys_msg',
+                category: 'combat',
+                text: `🪦 [Graveglass Retrieval] Recovered ${restoredGold} Solar Gold and ${restoredItems.length} items from your fallen tombstone!`,
+              });
+              if (this.accounts?.syncBankAndInventory) {
+                this.accounts.syncBankAndInventory(p.id, p.bank, p.inventory, p.equipment);
+              }
+              break;
+            }
+          }
+        }
+      }
+
       if (p.isDead) {
         p.respawnTimer -= dt;
         if (p.respawnTimer <= 0) {
@@ -584,6 +661,16 @@ export const socialAndTickMethods = {
                 telColor = '#e879f9';
                 shockRadius = e.enraged ? 112 : 84;
                 warnDuration = 1.5;
+              } else if (e.spriteKey === 'elderBarkhide' || e.id === 'iw_boss') {
+                telLabel = e.enraged ? '🌲 ANCIENT FOREST STRANGLE' : '🌿 PRIMAL ROOT BIND';
+                telColor = '#22c55e';
+                shockRadius = e.enraged ? 104 : 76;
+                warnDuration = 1.65;
+              } else if (e.spriteKey === 'tideReaverBoss' || e.id === 'cc_boss') {
+                telLabel = e.enraged ? '🌊 TSUNAMI CATACLYSM' : '🌀 TIDAL MAELSTROM';
+                telColor = '#06b6d4';
+                shockRadius = e.enraged ? 110 : 80;
+                warnDuration = 1.5;
               }
 
               const shockDmg = Math.round((e.damage || 7) * (e.enraged ? 1.9 : 1.35));
@@ -612,7 +699,7 @@ export const socialAndTickMethods = {
                 damage: shockDmg,
                 bossName: e.name,
                 bossRef: e,
-                snare: e.spriteKey === 'graniteBoss' ? 2.0 : 0,
+                snare: (e.spriteKey === 'graniteBoss' || e.spriteKey === 'elderBarkhide') ? 2.5 : 0,
               });
             }
           } else if (e.eliteAffix || (e.maxHp >= 100 && e.type === 'mob')) {
@@ -887,6 +974,8 @@ export const socialAndTickMethods = {
         thornbark: p.thornbarkTimer > 0,
         zenith: p.zenithTimer > 0,
         frozen: p.freezeTimer > 0,
+        skull: p.skull || null,
+        skullTimer: Math.round(p.skullTimer || 0),
         team: p.team,
         bubble: p.speechBubble ? p.speechBubble.text : null,
         emote: p.activeEmote ? p.activeEmote.emoteId : null,
@@ -898,6 +987,9 @@ export const socialAndTickMethods = {
       name: e.name,
       sub: e.sub,
       type: e.type,
+      ownerId: e.ownerId || null,
+      gold: e.gold || 0,
+      itemCount: Array.isArray(e.items) ? e.items.length : (e.itemCount || 0),
       skillingType: e.skillingType || null,
       eliteAffix: e.eliteAffix || null,
       targetRoom: e.targetRoom,

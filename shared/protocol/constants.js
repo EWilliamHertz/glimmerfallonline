@@ -47,3 +47,16 @@ export function isSlotUnlocked(prog, slot) {
   return (prog?.level || 1) >= req;
 }
 
+// Tibia Infamy Skull Rules & Graveglass Tombstones
+export const SKULL_TYPES = {
+  NONE: null,
+  WHITE: 'white',
+  RED: 'red',
+};
+
+export const WHITE_SKULL_DURATION_SEC = 900; // 15 minutes of white skull infamy
+export const RED_SKULL_DURATION_SEC = 1800;  // 30 minutes of red skull infamy
+export const RED_SKULL_PK_THRESHOLD = 3;     // 3 unprovoked player kills triggers Red Skull
+export const TOMBSTONE_RETRIEVAL_EXPIRY_SEC = 900; // 15 minutes to retrieve fallen corpse
+
+

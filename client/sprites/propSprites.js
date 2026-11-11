@@ -963,4 +963,49 @@ export function buildPropSprites(sprites) {
 
     sprites.props.flowerBed = addPixelOutline(c);
   }
+
+  // ==========================================
+  // Tibia Graveglass Tombstone (24x28 pixel art)
+  // Crystalline obsidian gravestone marking player fallen ground
+  // ==========================================
+  {
+    const c = makeCanvas(24, 28);
+    const ctx = c.getContext('2d');
+
+    // Stone base pedestal
+    rect(ctx, 4, 24, 16, 4, '#1e293b');
+    rect(ctx, 5, 23, 14, 1, '#334155');
+    rect(ctx, 6, 25, 12, 2, '#0f172a');
+
+    // Rounded crystalline tombstone slab
+    rect(ctx, 6, 4, 12, 19, '#1e1b4b');
+    rect(ctx, 7, 2, 10, 2, '#2e1065');
+    rect(ctx, 8, 1, 8, 1, '#3b0764');
+    rect(ctx, 9, 0, 6, 1, '#581c87');
+
+    // Inner bevel & highlight
+    rect(ctx, 7, 4, 1, 18, '#4c1d95');
+    rect(ctx, 8, 3, 8, 1, '#6b21a8');
+    rect(ctx, 8, 5, 8, 17, '#0f172a');
+
+    // Luminous Graveglass Leyline Cross / Rune
+    rect(ctx, 11, 7, 2, 12, '#a855f7');
+    rect(ctx, 8, 11, 8, 2, '#a855f7');
+    rect(ctx, 11, 8, 2, 10, '#c084fc');
+    rect(ctx, 9, 11, 6, 2, '#c084fc');
+
+    // Glowing core crystal
+    px(ctx, 11, 11, '#ffffff');
+    px(ctx, 12, 11, '#fde047');
+    px(ctx, 11, 12, '#38bdf8');
+    px(ctx, 12, 12, '#ffffff');
+
+    // Ancient runic notches on edges
+    px(ctx, 6, 9, '#7e22ce');
+    px(ctx, 17, 14, '#7e22ce');
+    px(ctx, 6, 17, '#3b0764');
+    px(ctx, 17, 8, '#3b0764');
+
+    sprites.props.graveglassTombstone = addPixelOutline(c);
+  }
 }

@@ -414,6 +414,8 @@ export function initGame() {
     bubbleTimer: 0,
     emote: null,
     emoteTimer: 0,
+    skull: null,
+    skullTimer: 0,
   };
   window.player = player;
 
@@ -424,6 +426,7 @@ export function initGame() {
   let activeTradeSession = null;
   let pendingDuelInvite = null;
   let activeDuelSession = null;
+  let activeCorpseTombstone = null;
   let inspectedPlayerData = null;
   let accountAuthTab = 'register';
   let accountStatusMsg = '';
@@ -6273,6 +6276,8 @@ export function initGame() {
         player.frozen = Boolean(sp.frozen);
         player.bubble = sp.bubble;
         player.emote = sp.emote;
+        player.skull = sp.skull || null;
+        player.skullTimer = sp.skullTimer || 0;
 
         if (sp.isDead && !player.isDead) {
           player.isDead = true;
@@ -6746,6 +6751,17 @@ export function initGame() {
           hideDeathScreen();
           audio.playChime();
           updatePlayerUI();
+          break;
+
+        case 'corpse_tombstone_spawned':
+          activeCorpseTombstone = msg.tombstone;
+          logMessage(`🪦 [Graveglass Drop] Fallen tombstone anchored at (${msg.tombstone.x}, ${msg.tombstone.y}). Make your corpse run to retrieve lost belongings!`, 'log-combat');
+          break;
+
+        case 'tombstone_retrieved':
+          activeCorpseTombstone = null;
+          if (audio?.playQuestCompleteFanfare) audio.playQuestCompleteFanfare();
+          logMessage(`✨ [Corpse Retrieved] Recovered ${msg.gold} Solar Gold & ${msg.itemCount} backpack items!`, 'log-combat');
           break;
 
         case 'queue_state': {
@@ -11721,6 +11737,16 @@ export function initGame() {
                   telColor = '#e879f9';
                   shockRad = e.enraged ? 112 : 84;
                   warnDuration = 1.5;
+                } else if (e.spriteKey === 'elderBarkhide' || e.id === 'iw_boss') {
+                  telLabel = e.enraged ? '🌲 ANCIENT FOREST STRANGLE' : '🌿 PRIMAL ROOT BIND';
+                  telColor = '#22c55e';
+                  shockRad = e.enraged ? 104 : 76;
+                  warnDuration = 1.65;
+                } else if (e.spriteKey === 'tideReaverBoss' || e.id === 'cc_boss') {
+                  telLabel = e.enraged ? '🌊 TSUNAMI CATACLYSM' : '🌀 TIDAL MAELSTROM';
+                  telColor = '#06b6d4';
+                  shockRad = e.enraged ? 110 : 80;
+                  warnDuration = 1.5;
                 }
 
                 const shockDmg = Math.round((e.damage || 7) * (e.enraged ? 1.9 : 1.35));
@@ -11742,7 +11768,7 @@ export function initGame() {
                   damage: shockDmg,
                   bossName: e.name,
                   bossRef: e,
-                  snare: e.spriteKey === 'graniteBoss' ? 2.0 : 0,
+                  snare: (e.spriteKey === 'graniteBoss' || e.spriteKey === 'elderBarkhide') ? 2.5 : 0,
                 });
               }
             } else if (e.eliteAffix || (e.maxHp >= 100 && e.type === 'mob')) {
@@ -12302,6 +12328,79 @@ export function initGame() {
     ctx.fillStyle = '#fef08a';
     ctx.fillRect(ox + tip.c * scale, oy + tip.r * scale, scale, scale);
     ctx.restore();
+  }
+
+  // ==========================================
+  // Tibia Corpse Run Compass & HUD Banner
+  // Directs the resurrected player to their fallen Graveglass Tombstone
+  // ==========================================
+  function drawCorpseCompass() {
+    if (!activeCorpseTombstone || frontpage.isOpen) return;
+
+    const tCtx = activeTextCtx || ctx;
+    const isHd = Boolean(activeTextCtx);
+
+    if (activeCorpseTombstone.roomType === currentRoomType) {
+      const dist = Math.round(Math.hypot(activeCorpseTombstone.x - player.x, activeCorpseTombstone.y - player.y));
+      const bannerW = isHd ? 330 : 260;
+      const bannerH = isHd ? 24 : 18;
+      const bx = Math.round((viewW - bannerW) / 2);
+      const by = isHd ? 12 : 8;
+
+      tCtx.save();
+      tCtx.fillStyle = 'rgba(15, 7, 30, 0.92)';
+      tCtx.fillRect(bx, by, bannerW, bannerH);
+      tCtx.fillStyle = '#a855f7';
+      tCtx.fillRect(bx, by, bannerW, 1);
+      tCtx.fillRect(bx, by + bannerH - 1, bannerW, 1);
+      tCtx.fillRect(bx, by, 1, bannerH);
+      tCtx.fillRect(bx + bannerW - 1, by, 1, bannerH);
+
+      tCtx.font = isHd ? '700 11.5px "Outfit", system-ui, sans-serif' : '700 9.5px "Outfit", system-ui, sans-serif';
+      tCtx.textAlign = 'center';
+      tCtx.textBaseline = 'middle';
+      tCtx.fillStyle = '#f8fafc';
+      const label = `🪦 CORPSE RUN: ${dist}y to Graveglass Tombstone (${activeCorpseTombstone.gold} 🪙, ${activeCorpseTombstone.itemCount} items)`;
+      tCtx.fillText(label, viewW / 2, by + bannerH / 2);
+      tCtx.restore();
+
+      if (dist > 100) {
+        const p = worldToScreen(activeCorpseTombstone.x, activeCorpseTombstone.y);
+        const margin = 36;
+        if (p.x < margin || p.x > viewW - margin || p.y < margin || p.y > viewH - margin) {
+          const ax = Math.max(margin, Math.min(viewW - margin, Math.round(p.x)));
+          const ay = Math.max(margin, Math.min(viewH - margin, Math.round(p.y)));
+          ctx.save();
+          ctx.fillStyle = '#a855f7';
+          ctx.fillRect(ax - 5, ay - 5, 10, 10);
+          ctx.fillStyle = '#fde047';
+          ctx.fillRect(ax - 3, ay - 3, 6, 6);
+          ctx.restore();
+        }
+      }
+    } else {
+      const bannerW = isHd ? 340 : 270;
+      const bannerH = isHd ? 24 : 18;
+      const bx = Math.round((viewW - bannerW) / 2);
+      const by = isHd ? 12 : 8;
+      const targetRoomTitle = ROOM_CONFIGS[activeCorpseTombstone.roomType]?.shortTitle || ROOM_CONFIGS[activeCorpseTombstone.roomType]?.title || activeCorpseTombstone.roomType;
+
+      tCtx.save();
+      tCtx.fillStyle = 'rgba(15, 7, 30, 0.92)';
+      tCtx.fillRect(bx, by, bannerW, bannerH);
+      tCtx.fillStyle = '#ef4444';
+      tCtx.fillRect(bx, by, bannerW, 1);
+      tCtx.fillRect(bx, by + bannerH - 1, bannerW, 1);
+      tCtx.fillRect(bx, by, 1, bannerH);
+      tCtx.fillRect(bx + bannerW - 1, by, 1, bannerH);
+
+      tCtx.font = isHd ? '700 11.5px "Outfit", system-ui, sans-serif' : '700 9.5px "Outfit", system-ui, sans-serif';
+      tCtx.textAlign = 'center';
+      tCtx.textBaseline = 'middle';
+      tCtx.fillStyle = '#fed7aa';
+      tCtx.fillText(`🪦 CORPSE LOST: Return to ${targetRoomTitle} to recover tombstone!`, viewW / 2, by + bannerH / 2);
+      tCtx.restore();
+    }
   }
 
   // Static ground is baked into 256px chunk canvases once per room. This collapses
@@ -13322,6 +13421,8 @@ export function initGame() {
             img = list[Math.floor(globalTime * 3.0) % list.length];
           } else if (ent.type === 'dummy') {
             img = sprites.dummy[ent.hitFlash > 0 ? 1 : 0];
+          } else if (ent.type === 'graveglass_tombstone') {
+            img = sprites.props.graveglassTombstone || sprites.props.pillar;
           } else {
             const arr = sprites[ent.spriteKey] || sprites.voidStalker;
             img = Array.isArray(arr) ? arr[Math.floor(globalTime * (ent.type === 'portal' ? 1.8 : 3.5)) % arr.length] : arr;
@@ -13343,6 +13444,16 @@ export function initGame() {
             ctx.beginPath();
             ctx.ellipse(sx, sy, (auraW - 8) * pulse, (auraH - 2) * pulse, 0, 0, Math.PI * 2);
             ctx.fill();
+            ctx.restore();
+          }
+          if (ent.type === 'graveglass_tombstone') {
+            const pulse = 0.85 + Math.sin(globalTime * 3.5) * 0.15;
+            ctx.save();
+            ctx.strokeStyle = `rgba(168, 85, 247, ${pulse.toFixed(2)})`;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.ellipse(sx, sy, 14 * pulse, 6 * pulse, 0, 0, Math.PI * 2);
+            ctx.stroke();
             ctx.restore();
           }
           drawPixelEllipseShadow(sx, sy, Math.round(img.width * 0.36), 4);
@@ -13462,6 +13573,7 @@ export function initGame() {
               tCtx.fillText(subStr, rx, by + 20);
             }
           } else if (!ent.isDying) {
+            const isTombstone = ent.type === 'graveglass_tombstone';
             const val = ent.hp ?? ent.charges ?? 0;
             const max = ent.maxHp ?? ent.maxCharges ?? 1;
             const isBossOrCore = ent.isBoss || ent.type === 'nexus' || ent.type === 'ally_nexus' || ent.type === 'outpost_nexus' || ent.type === 'siege_shard';
@@ -13469,49 +13581,55 @@ export function initGame() {
             const bx = Math.round(sx - bw / 2);
             const by = Math.round(sy - img.height - 5);
 
-            // Dark border & healthbar fill
-            ctx.fillStyle = '#070a12';
-            ctx.fillRect(bx - 1, by - 1, bw + 2, 5);
-            ctx.fillStyle = '#1e293b';
-            ctx.fillRect(bx, by, bw, 3);
-            const skSpecDraw = ent.type === 'node' && ent.skillingType ? SKILLING_NODE_TYPES[ent.skillingType] : null;
-            const eliteSpecDraw = ent.eliteAffix ? ELITE_AFFIXES[ent.eliteAffix] : null;
-            ctx.fillStyle =
-              ent.type === 'node' ? (skSpecDraw?.sparkColors?.[0] || '#c084fc') :
-              ent.type === 'siege_shard' ? '#fde047' :
-              ent.type === 'outpost_nexus' ? (FACTIONS_META[ent.faction]?.color || '#38bdf8') :
-              ent.type === 'ally_nexus' ? '#38bdf8' :
-              eliteSpecDraw ? (eliteSpecDraw.color || '#facc15') :
-              '#ef4444';
-            ctx.fillRect(bx, by, Math.round((val / max) * bw), 3);
+            if (!isTombstone) {
+              // Dark border & healthbar fill
+              ctx.fillStyle = '#070a12';
+              ctx.fillRect(bx - 1, by - 1, bw + 2, 5);
+              ctx.fillStyle = '#1e293b';
+              ctx.fillRect(bx, by, bw, 3);
+              const skSpecDraw = ent.type === 'node' && ent.skillingType ? SKILLING_NODE_TYPES[ent.skillingType] : null;
+              const eliteSpecDraw = ent.eliteAffix ? ELITE_AFFIXES[ent.eliteAffix] : null;
+              ctx.fillStyle =
+                ent.type === 'node' ? (skSpecDraw?.sparkColors?.[0] || '#c084fc') :
+                ent.type === 'siege_shard' ? '#fde047' :
+                ent.type === 'outpost_nexus' ? (FACTIONS_META[ent.faction]?.color || '#38bdf8') :
+                ent.type === 'ally_nexus' ? '#38bdf8' :
+                eliteSpecDraw ? (eliteSpecDraw.color || '#facc15') :
+                '#ef4444';
+              ctx.fillRect(bx, by, Math.round((val / max) * bw), 3);
+            }
 
-            // Overhead entity label for Bosses, Objectives, Targeted entity, Dummy, or nearby entities
+            // Overhead entity label for Bosses, Objectives, Targeted entity, Dummy, Tombstones, or nearby entities
             const isTargeted = currentTarget && currentTarget.id === ent.id;
             const dPlayer = Math.hypot(ent.x - player.x, ent.y - player.y);
-            const showName = isBossOrCore || Boolean(eliteSpecDraw) || isTargeted || dPlayer < 95 || ent.type === 'dummy' || (ent.type === 'node' && dPlayer < (isGrandNode ? 220 : 125));
+            const showName = isTombstone || isBossOrCore || Boolean(eliteSpecDraw) || isTargeted || dPlayer < 95 || ent.type === 'dummy' || (ent.type === 'node' && dPlayer < (isGrandNode ? 220 : 125));
 
             if (showName) {
-              const label = ent.type === 'dummy'
-                ? 'Training Dummy'
-                : ent.type === 'shrine'
-                  ? (ent.charges > 0 ? `${ent.name} [${getHarvestKeyLabel()}]` : `${ent.name} (Depleted)`)
-                  : ent.type === 'node'
-                    ? (ent.charges > 0 ? `${ent.isGrand ? 'Grand Font' : ent.name.replace(/Awakening |East /i, '')} [${getHarvestKeyLabel()}] (${ent.charges}/${ent.maxCharges})` : `Depleted ${skSpecDraw ? ent.name.replace(/Awakening |East /i, '') : ent.isGrand ? 'Grand Font' : 'Node'}`)
-                    : ent.isBoss
-                      ? (isEnraged ? `★ ${ent.name} 🔥 ENRAGED` : `★ ${ent.name}`)
-                      : ent.name;
+              const label = isTombstone
+                ? `🪦 ${ent.name} (${ent.gold || 0}🪙)`
+                : ent.type === 'dummy'
+                  ? 'Training Dummy'
+                  : ent.type === 'shrine'
+                    ? (ent.charges > 0 ? `${ent.name} [${getHarvestKeyLabel()}]` : `${ent.name} (Depleted)`)
+                    : ent.type === 'node'
+                      ? (ent.charges > 0 ? `${ent.isGrand ? 'Grand Font' : ent.name.replace(/Awakening |East /i, '')} [${getHarvestKeyLabel()}] (${ent.charges}/${ent.maxCharges})` : `Depleted ${skSpecDraw ? ent.name.replace(/Awakening |East /i, '') : ent.isGrand ? 'Grand Font' : 'Node'}`)
+                      : ent.isBoss
+                        ? (isEnraged ? `★ ${ent.name} 🔥 ENRAGED` : `★ ${ent.name}`)
+                        : ent.name;
 
-              const badgeColor = isBossOrCore
-                ? (isEnraged ? '#ef4444' : '#facc15')
-                : eliteSpecDraw
-                  ? (eliteSpecDraw.color || '#facc15')
-                  : isTargeted
-                    ? '#38bdf8'
-                    : ent.type === 'shrine'
-                      ? '#facc15'
-                      : ent.type === 'node'
-                        ? (isGrandNode ? '#fde047' : (skSpecDraw?.sparkColors?.[0] || '#c084fc'))
-                        : '#ffffff';
+              const badgeColor = isTombstone
+                ? '#c084fc'
+                : isBossOrCore
+                  ? (isEnraged ? '#ef4444' : '#facc15')
+                  : eliteSpecDraw
+                    ? (eliteSpecDraw.color || '#facc15')
+                    : isTargeted
+                      ? '#38bdf8'
+                      : ent.type === 'shrine'
+                        ? '#facc15'
+                        : ent.type === 'node'
+                          ? (isGrandNode ? '#fde047' : (skSpecDraw?.sparkColors?.[0] || '#c084fc'))
+                          : '#ffffff';
 
               const tCtx = activeTextCtx || ctx;
               const isHd = Boolean(activeTextCtx);
@@ -13634,6 +13752,7 @@ export function initGame() {
             isParty: inSquad,
             isHostile: hostile,
             tcgLinked: rp.tcgLinked,
+            skull: rp.skull,
             bubble: rp.bubble,
             emote: rp.emote,
             globalTime,
@@ -13702,6 +13821,7 @@ export function initGame() {
             level: prog.level,
             isSelf: true,
             tcgLinked: localProfile.tcgLinked,
+            skull: player.skull,
             bubble: player.bubble,
             emote: player.emote,
             globalTime,
@@ -14044,6 +14164,7 @@ export function initGame() {
     try {
       drawWorld();
       drawQuestCompass();
+      drawCorpseCompass();
     } catch (err) {
       console.error('[Frame Error drawWorld]:', err);
     }

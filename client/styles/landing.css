@@ -433,18 +433,19 @@
    2. MAIN SCROLLABLE CONTENT AREA
    ========================================== */
 .landing-main-scroll {
-  flex: 1;
+  flex: 1 1 0%;
   min-width: 0;
   width: 100%;
-  max-width: calc(100vw - 250px);
+  max-width: 100%;
   box-sizing: border-box;
   min-height: 100vh;
   padding: 20px 24px 80px;
-  margin: 0 auto;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 32px;
   overflow-x: hidden;
+  overflow-y: visible;
 }
 
 /* Hero Banner */
@@ -458,11 +459,17 @@
               #080e1e;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
   overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .hero-content-wrap {
   position: relative;
   z-index: 10;
-  max-width: 780px;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 .hero-logo-row {
   display: flex;
@@ -586,6 +593,10 @@
   border: 1px solid #1e293b;
   background: #090e1f;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .section-header-row {
   display: flex;
@@ -596,6 +607,8 @@
   margin-bottom: 24px;
   flex-wrap: wrap;
   gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
 }
 .section-tag {
   font-size: 9.5px;
@@ -607,10 +620,12 @@
 }
 .section-heading {
   font-family: var(--font-header, 'Cinzel', serif);
-  font-size: 22px;
+  font-size: clamp(18px, 2.2vw, 24px);
   font-weight: 900;
   color: #fff;
   margin-top: 4px;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 /* ==========================================
@@ -618,11 +633,13 @@
    ========================================== */
 .forge-layout-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+  gap: 24px;
   min-width: 0;
   width: 100%;
+  max-width: 100%;
   box-sizing: border-box;
+  align-items: start;
 }
 .forge-controls-col {
   display: flex;
@@ -731,7 +748,7 @@
 
 .order-tags-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 8px;
 }
 .order-select-btn {
@@ -921,13 +938,16 @@
 }
 
 /* Responsive Breakpoints */
-@media (max-width: 1180px) {
+@media (max-width: 1024px) {
   .forge-layout-grid {
     grid-template-columns: 1fr;
   }
+  .pedestal-sticky-card {
+    position: static;
+  }
   .landing-main-scroll {
     padding: 16px 20px 80px;
-    max-width: calc(100vw - 250px);
+    max-width: 100%;
   }
 }
 
@@ -1415,6 +1435,13 @@
 }
 
 .landing-tab-content {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
   animation: tabFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
