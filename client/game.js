@@ -7027,6 +7027,10 @@ export function initGame() {
         updateNetStatusPill();
         logMessage('[Realm] Entered Single Player Realm (Offline • 0ms). Instant local response!', 'log-solari', 'chat');
       } else {
+        // Pre-render Sanctuary Hub tiles & scenery so canvas is NEVER pitch black while multiplayer handshake connects
+        if (!currentRoomId || !currentRoomType) {
+          buildOfflineZone(targetRealm, startX, startY);
+        }
         camera.x = player.x;
         camera.y = player.y;
         if (net.connected && startingRealm && !currentRoomId?.startsWith(startingRealm)) {

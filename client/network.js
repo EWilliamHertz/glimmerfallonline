@@ -6,6 +6,25 @@
 const TOKEN_STORAGE_KEY = 'glimmerfall_auth_token';
 const PROFILE_CACHE_KEY = 'glimmerfall_cached_mp_profile_v1';
 
+export function normalizeServerUrl(rawUrl) {
+  if (!rawUrl) return '';
+  let url = String(rawUrl).trim().replace(/\/+$/, '');
+  const isPageHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+
+  // If accessing or configured with Oracle raw IP:
+  if (url.includes('79.76.40.148') && !url.includes('sslip.io')) {
+    if (isPageHttps || url.startsWith('https:')) {
+      url = url.replace('79.76.40.148:8080', '79.76.40.148.sslip.io')
+               .replace('79.76.40.148', '79.76.40.148.sslip.io');
+      if (!url.startsWith('https://')) {
+        url = url.replace(/^http:\/\//i, 'https://');
+        if (!url.startsWith('https://')) url = 'https://' + url;
+      }
+    }
+  }
+  return url;
+}
+
 export class MultiplayerClient {
   constructor({ onPacket, onStatusChange }) {
     this.onPacket = onPacket;
@@ -64,8 +83,19 @@ export class MultiplayerClient {
   getDefaultServerBase() {
     try {
       const env = import.meta.env?.VITE_GAME_SERVER_URL;
-      if (env) return String(env).trim().replace(/\/+$/, '');
+      if (env) return normalizeServerUrl(String(env));
     } catch (_) {}
+    if (typeof window !== 'undefined') {
+      const isHttps = window.location.protocol === 'https:';
+      const host = (window.location.hostname || '').toLowerCase();
+      // If deployed on Vercel or custom domain:
+      if (isHttps && (host.includes('vercel.app') || host.includes('glimmerfall.online'))) {
+        return 'https://79.76.40.148.sslip.io';
+      }
+      if (host === '79.76.40.148' || host.includes('sslip.io')) {
+        return `${window.location.protocol}//${window.location.host}`;
+      }
+    }
     return '';
   }
 
@@ -83,7 +113,7 @@ export class MultiplayerClient {
       const params = new URLSearchParams(window.location.search);
       const qServer = params.get('server');
       if (qServer) {
-        const clean = qServer.trim().replace(/\/+$/, '');
+        const clean = normalizeServerUrl(qServer);
         if (this.isLocalOrigin()) {
           // An explicit ?server= is honored for this tab only.
           sessionStorage.setItem('glimmerfall_server_url', clean);
@@ -98,11 +128,11 @@ export class MultiplayerClient {
         // localhost. Local dev uses its own origin so Vite can proxy /api and /ws.
         localStorage.removeItem('glimmerfall_server_url');
         const sessionBase = sessionStorage.getItem('glimmerfall_server_url');
-        if (sessionBase) return sessionBase.trim().replace(/\/+$/, '');
+        if (sessionBase) return normalizeServerUrl(sessionBase);
         return this.getDefaultServerBase();
       }
       const stored = localStorage.getItem('glimmerfall_server_url');
-      if (stored) return stored.trim().replace(/\/+$/, '');
+      if (stored) return normalizeServerUrl(stored);
     } catch (_) {}
     return this.getDefaultServerBase();
   }
@@ -223,13 +253,20 @@ export class MultiplayerClient {
     const serverBase = this.getServerBase();
     let url;
     if (serverBase) {
-      const isHttps = serverBase.startsWith('https:');
+      const isHttps = serverBase.startsWith('https:') || (typeof window !== 'undefined' && window.location.protocol === 'https:');
       const wsProto = isHttps ? 'wss:' : 'ws:';
-      const cleanHost = serverBase.replace(/^https?:\/\//i, '');
+      let cleanHost = serverBase.replace(/^https?:\/\//i, '');
+      if (isHttps && cleanHost.includes('79.76.40.148') && !cleanHost.includes('sslip.io')) {
+        cleanHost = cleanHost.replace('79.76.40.148:8080', '79.76.40.148.sslip.io').replace('79.76.40.148', '79.76.40.148.sslip.io');
+      }
       url = `${wsProto}//${cleanHost}/ws${qStr}`;
     } else {
       const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      url = `${wsProto}//${window.location.host}/ws${qStr}`;
+      let host = window.location.host;
+      if (wsProto === 'wss:' && host.includes('79.76.40.148') && !host.includes('sslip.io')) {
+        host = host.replace('79.76.40.148:8080', '79.76.40.148.sslip.io').replace('79.76.40.148', '79.76.40.148.sslip.io');
+      }
+      url = `${wsProto}//${host}/ws${qStr}`;
     }
 
     let sock;

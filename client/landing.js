@@ -849,22 +849,10 @@ export class LandingPageController {
       localStorage.setItem(PLAY_MODE_KEY, this.playMode);
     } catch (_) {}
 
-    // Check if player has seen the prologue cinematic
-    let seen = false;
+    // Auto-mark prologue as seen so no blocking animation or video ever delays entering realm
     try {
-      seen = localStorage.getItem('glimmerfall_seen_prologue') === 'true';
+      localStorage.setItem('glimmerfall_seen_prologue', 'true');
     } catch (_) {}
-
-    if (!seen && typeof window !== 'undefined' && typeof window.playPrologueCinematic === 'function') {
-      this.close();
-      window.playPrologueCinematic({
-        isReplay: false,
-        onComplete: async () => {
-          await this._executeLaunch(finalName, order, cls);
-        },
-      });
-      return;
-    }
 
     await this._executeLaunch(finalName, order, cls);
   }

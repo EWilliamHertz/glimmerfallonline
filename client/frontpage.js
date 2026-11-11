@@ -286,20 +286,9 @@ export class FrontpageController {
   // State Machine Transitions
   // ==========================================
   beginCharacterCreation() {
-    let seen = false;
     try {
-      seen = localStorage.getItem('glimmerfall_seen_prologue') === 'true';
+      localStorage.setItem('glimmerfall_seen_prologue', 'true');
     } catch (_) {}
-
-    if (!seen && typeof window !== 'undefined' && typeof window.playPrologueCinematic === 'function') {
-      window.playPrologueCinematic({
-        isReplay: false,
-        onComplete: () => {
-          this.transitionTo(FRONTPAGE_STATES.CHARACTER_CREATE);
-        },
-      });
-      return;
-    }
 
     this.transitionTo(FRONTPAGE_STATES.CHARACTER_CREATE);
   }

@@ -1483,7 +1483,7 @@
   </div>
 
   <!-- Dedicated Prologue Cinematic Modal Overlay (Always Skippable) -->
-  <div id="prologue-modal-overlay" style="display:none; position:fixed; inset:0; z-index:1000000; background:rgba(3,7,18,0.96); backdrop-filter:blur(14px); align-items:center; justify-content:center; padding:16px;">
+  <div id="prologue-modal-overlay" style="display:none !important; pointer-events:none !important; position:fixed; inset:0; z-index:1000000; background:rgba(3,7,18,0.96); backdrop-filter:blur(14px); align-items:center; justify-content:center; padding:16px;">
     <div class="panel" style="width:960px; max-width:98vw; background:#080e1c; border:2px solid #facc15; box-shadow:0 0 60px rgba(250,204,21,0.4), 0 24px 60px rgba(0,0,0,0.95); border-radius:14px; overflow:hidden; display:flex; flex-direction:column;">
       <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 20px; border-bottom:1px solid #1e293b; background:linear-gradient(90deg, rgba(250,204,21,0.18), transparent);">
         <div style="display:flex; align-items:center; gap:10px;">
@@ -1519,7 +1519,7 @@
   </div>
 
   <!-- Cinematic Video Modal Overlay -->
-  <div id="cinematic-modal-overlay" style="display:none; position:fixed; inset:0; z-index:100000; background:rgba(3,7,18,0.92); backdrop-filter:blur(10px); align-items:center; justify-content:center; padding:18px;">
+  <div id="cinematic-modal-overlay" style="display:none !important; pointer-events:none !important; position:fixed; inset:0; z-index:100000; background:rgba(3,7,18,0.92); backdrop-filter:blur(10px); align-items:center; justify-content:center; padding:18px;">
     <div class="panel" style="width:900px; max-width:96vw; background:#080e1c; border:2px solid #facc15; box-shadow:0 0 50px rgba(250,204,21,0.3), 0 24px 60px rgba(0,0,0,0.95); border-radius:12px; overflow:hidden; display:flex; flex-direction:column;">
       <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 18px; border-bottom:1px solid #1e293b; background:linear-gradient(90deg, rgba(250,204,21,0.12), transparent);">
         <div style="display:flex; align-items:center; gap:10px;">
@@ -1659,106 +1659,37 @@
       var cinematicModalCallback = null;
 
       window.playPrologueCinematic = function(options) {
-        var onComplete = (typeof options === 'function') ? options : (options && options.onComplete);
-        prologueCallback = onComplete || null;
-
-        var overlay = document.getElementById('prologue-modal-overlay');
-        var video = document.getElementById('prologue-modal-video');
-        if (!overlay || !video) {
-          try { localStorage.setItem('glimmerfall_seen_prologue', 'true'); } catch(_) {}
-          if (prologueCallback) {
-            var cb = prologueCallback;
-            prologueCallback = null;
-            cb();
-          } else if (window._fp) {
-            window._fp.open();
-            window._fp.transitionTo('CHARACTER_CREATE');
-          }
-          return;
-        }
-
-        video.src = PROLOGUE_URL;
-        video.currentTime = 0;
-        overlay.style.display = 'flex';
-        video.play().catch(function() {});
-      };
-
-      window.skipPrologueCinematic = function() {
         try { localStorage.setItem('glimmerfall_seen_prologue', 'true'); } catch(_) {}
-        var overlay = document.getElementById('prologue-modal-overlay');
-        var video = document.getElementById('prologue-modal-video');
-        if (video) {
-          try { video.pause(); } catch(_) {}
-          video.removeAttribute('src');
-          try { video.load(); } catch(_) {}
-        }
-        if (overlay) overlay.style.display = 'none';
-
-        if (prologueCallback) {
-          var cb = prologueCallback;
-          prologueCallback = null;
-          cb();
+        var onComplete = (typeof options === 'function') ? options : (options && options.onComplete);
+        if (onComplete) {
+          onComplete();
         } else if (window._fp) {
           window._fp.open();
           window._fp.transitionTo('CHARACTER_CREATE');
         }
       };
 
-      document.getElementById('prologue-skip-btn-top')?.addEventListener('click', window.skipPrologueCinematic);
-      document.getElementById('prologue-skip-btn-bottom')?.addEventListener('click', window.skipPrologueCinematic);
-      document.getElementById('prologue-floating-skip-btn')?.addEventListener('click', window.skipPrologueCinematic);
-      document.getElementById('prologue-modal-video')?.addEventListener('ended', window.skipPrologueCinematic);
+      window.skipPrologueCinematic = function() {
+        try { localStorage.setItem('glimmerfall_seen_prologue', 'true'); } catch(_) {}
+        var overlay = document.getElementById('prologue-modal-overlay');
+        if (overlay) overlay.style.display = 'none';
+        if (window._fp) {
+          window._fp.open();
+          window._fp.transitionTo('CHARACTER_CREATE');
+        }
+      };
 
       window.playCinematicModal = function(type, onComplete) {
-        cinematicModalCallback = onComplete || null;
-        var data = CINEMATICS[type] || CINEMATICS.crystal_heart;
-        var overlay = document.getElementById('cinematic-modal-overlay');
-        var title = document.getElementById('cinematic-modal-title');
-        var badge = document.getElementById('cinematic-modal-badge');
-        var caption = document.getElementById('cinematic-modal-caption');
-        var video = document.getElementById('cinematic-modal-video');
-        if (!overlay || !video) return;
-
-        if (title) title.textContent = data.title;
-        if (badge) badge.textContent = data.badge;
-        if (caption) caption.textContent = data.caption;
-
-        // Try primary URL, fallback smoothly if not yet uploaded
-        video.onerror = function() {
-          if (data.fallbackUrl && video.src !== data.fallbackUrl) {
-            console.log('[Cinematics] Primary not found, using fallback:', data.fallbackUrl);
-            video.src = data.fallbackUrl;
-            video.play().catch(function() {});
-          }
-        };
-
-        video.src = data.url;
-        video.currentTime = 0;
-        overlay.style.display = 'flex';
-        video.play().catch(function() {});
+        if (typeof onComplete === 'function') onComplete();
       };
 
       window.playClassAwakening = function(classId, callback) {
-        var key = 'awakening_' + classId;
-        if (!CINEMATICS[key]) key = classId;
-        window.playCinematicModal(key, callback);
+        if (typeof callback === 'function') callback();
       };
 
       window.closeCinematicModal = function() {
         var overlay = document.getElementById('cinematic-modal-overlay');
-        var video = document.getElementById('cinematic-modal-video');
-        if (video) {
-          try { video.pause(); } catch(_) {}
-          video.removeAttribute('src');
-          try { video.load(); } catch(_) {}
-        }
         if (overlay) overlay.style.display = 'none';
-
-        if (cinematicModalCallback) {
-          var cb = cinematicModalCallback;
-          cinematicModalCallback = null;
-          cb();
-        }
       };
 
       document.getElementById('cinematic-modal-video')?.addEventListener('ended', window.closeCinematicModal);
