@@ -26,35 +26,13 @@
   <!-- GAME FRONTPAGE: Character Roster, Faction, Class, Name, Paperdoll & Loadout -->
   <div id="frontpage-overlay" style="display:none;">
     <div class="fp-shell panel">
-      <div class="fp-header">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <img src="/GlimmerFall_official_multicolor_logo.png" alt="GlimmerFall" style="height:36px; width:auto; object-fit:contain; filter:drop-shadow(0 0 10px rgba(250,204,21,0.5));" />
-          <div>
-            <div class="fp-logo">⚔️ GLIMMERFALL ONLINE — 2D PIXEL MMORPG</div>
-            <div class="fp-sub">4 Canonical Factions • 8 Archetypes • Seamless World Traversal</div>
-          </div>
-        </div>
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <label style="display:inline-flex; align-items:center; gap:5px; font-size:10px; color:#cbd5e1; cursor:pointer; background:#080e1c; padding:3px 8px; border:1px solid #334155; border-radius:3px;" title="When checked, visits go directly to this loadout. When unchecked, you start at the landing page.">
-            <input type="checkbox" id="fp-start-on-site-cb" class="start-on-site-cb" onchange="if(window._fp){window._fp.setStartOnSite(this.checked);}else{try{localStorage.setItem('glimmerfall_start_on_loadout', this.checked?'true':'false');}catch(_){}}" />
-            <span>Start on this site</span>
-          </label>
-          <button type="button" class="util-btn" style="font-size:10px; padding:3px 8px; border-color:#38bdf8; color:#7dd3fc; font-weight:bold;" onclick="if(window.openLandingPage){window.openLandingPage();}else if(window._landing){window._landing.open();}">
-            📖 LANDING &amp; ENCYCLOPEDIAS
-          </button>
-          <a href="/landing" class="util-btn" style="text-decoration:none; border-color:#a855f7; color:#c084fc; font-size:10px; padding:3px 8px; font-weight:bold;" title="Explore the Next.js marketing showcase">
-            🌟 MARKETING PAGE ↗
-          </a>
-          <a href="https://www.glimmerfalltcg.com" target="_blank" rel="noreferrer" class="util-btn" style="text-decoration:none; border-color:#facc15; color:#fde047;">
-            🃏 GLIMMERFALLTCG.COM ↗
-          </a>
-        </div>
-      </div>
       <div id="frontpage-body">
         <div style="text-align:center; padding:40px 20px; font-family:var(--font-header); font-size:11px; color:#facc15;">
           ⚔️ INITIALIZING REALM CHAMPION SELECTION...
         </div>
       </div>
+    </div>
+  </div>
       <script>
         (function () {
           try {
@@ -73,8 +51,8 @@
             if (landingEl) {
               landingEl.style.display = shouldShowLoadout ? 'none' : 'block';
             }
-            var cb = document.getElementById('fp-start-on-site-cb');
-            if (cb) cb.checked = startOnSite;
+            var cbs = document.querySelectorAll('.start-on-site-cb');
+            cbs.forEach(function (cb) { cb.checked = startOnSite; });
 
             window.openLandingPage = window.openLandingPage || function (tab) {
               var fp = document.getElementById('frontpage-overlay');
@@ -102,61 +80,26 @@
                         </div>
                         <div>
                           <div class="sidebar-brand-name">GLIMMER<span class="text-gold">FALL</span></div>
-                          <div class="sidebar-server-pill"><span class="sidebar-dot"></span>20Hz Server &bull; 0ms Local</div>
+                          <div class="sidebar-server-pill"><span class="sidebar-dot"></span>Official MMORPG Realm</div>
                         </div>
                       </div>
                       <div class="sidebar-mode-grid">
-                        <button type="button" class="sidebar-mode-btn active single" onclick="if(window._landing){window._landing.setPlayMode('singleplayer');}">🕹️ Offline 0ms</button>
-                        <button type="button" class="sidebar-mode-btn" onclick="if(window._landing){window._landing.setPlayMode('multiplayer');}">🌐 Online 20Hz</button>
+                        <button type="button" class="sidebar-mode-btn active single" onclick="if(window._landing){window._landing.setPlayMode('singleplayer');}">🕹️ Offline</button>
+                        <button type="button" class="sidebar-mode-btn" onclick="if(window._landing){window._landing.setPlayMode('multiplayer');}">🌐 Online</button>
                       </div>
-                      <button type="button" class="sidebar-cta-btn" onclick="if(window._landing){window._landing.launchGame();}else{location.href='/?autostart=1';}">⚡ AWAKEN IN REALM</button>
+                      <button type="button" class="sidebar-cta-btn" onclick="if(window._landing){window._landing.startJourney();}else{location.href='/?autostart=1';}">⚡ START JOURNEY NOW</button>
                     </div>
                     <div class="sidebar-section">
-                      <div class="sidebar-section-title"><span>EXPLORE REALM</span></div>
+                      <div class="sidebar-section-title"><span>EXPLORE AREAS</span></div>
                       <div class="sidebar-nav-list">
-                        <a href="#prologue-hero" class="sidebar-nav-link" onclick="document.getElementById('prologue-hero')?.scrollIntoView({behavior:'smooth'})"><span>🎬 Prologue &amp; Reel</span><span style="color:#fde047;">▸</span></a>
-                        <a href="#forge" class="sidebar-nav-link" onclick="document.getElementById('forge')?.scrollIntoView({behavior:'smooth'})"><span>⚔️ Character Forge</span><span style="color:#facc15;">▸</span></a>
-                        <a href="#game-encyclopedia" class="sidebar-nav-link" onclick="document.getElementById('game-encyclopedia')?.scrollIntoView({behavior:'smooth'})"><span>🎮 Game Systems Enc.</span><span style="color:#38bdf8;">▸</span></a>
-                        <a href="#lore-tcg" class="sidebar-nav-link" onclick="document.getElementById('lore-tcg')?.scrollIntoView({behavior:'smooth'})"><span>📜 Cosmic Lore &amp; TCG</span><span style="color:#c084fc;">▸</span></a>
-                        <a href="#armory" class="sidebar-nav-link" onclick="document.getElementById('armory')?.scrollIntoView({behavior:'smooth'})"><span>🛡️ Continental Armory</span><span style="color:#4ade80;">▸</span></a>
-                        <a href="#arena" class="sidebar-nav-link" onclick="document.getElementById('arena')?.scrollIntoView({behavior:'smooth'})"><span>⚡ 3v3 Nexus Arena</span><span style="color:#f87171;">▸</span></a>
-                        <a href="#atlas" class="sidebar-nav-link" onclick="document.getElementById('atlas')?.scrollIntoView({behavior:'smooth'})"><span>🗺️ World Atlas</span><span style="color:#38bdf8;">▸</span></a>
+                        <button type="button" class="sidebar-nav-link active" onclick="if(window._landing){window._landing.setTab('overview');}"><span>🏛️ Overview &amp; Music</span><span style="color:#fde047;">▸</span></button>
+                        <button type="button" class="sidebar-nav-link" onclick="if(window._landing){window._landing.setTab('theatre');}"><span>🎬 1080p Theatre</span><span style="color:#38bdf8;">▸</span></button>
+                        <button type="button" class="sidebar-nav-link" onclick="if(window._landing){window._landing.setTab('forge');}"><span>⚔️ Champion Forge</span><span style="color:#facc15;">▸</span></button>
+                        <button type="button" class="sidebar-nav-link" onclick="if(window._landing){window._landing.setTab('systems');}"><span>⚙️ Game Systems</span><span style="color:#4ade80;">▸</span></button>
+                        <button type="button" class="sidebar-nav-link" onclick="if(window._landing){window._landing.setTab('armory');}"><span>🛡️ Armory &amp; TCG</span><span style="color:#38bdf8;">▸</span></button>
+                        <button type="button" class="sidebar-nav-link" onclick="if(window._landing){window._landing.setTab('atlas');}"><span>🗺️ Atlas &amp; Lore</span><span style="color:#c084fc;">▸</span></button>
+                        <button type="button" class="sidebar-nav-link" onclick="if(window._landing){window._landing.setTab('settings');}"><span>⚙️ Preferences &amp; Settings</span><span style="color:#facc15;">▸</span></button>
                         <button type="button" class="sidebar-nav-link special" onclick="if(window._landing){window._landing.openLoadout();}else if(window._fp){window._fp.open();}else{location.href='/?loadout=1';}"><span>👤 Open Hero Loadout</span><span>⚙️</span></button>
-                      </div>
-                    </div>
-                    <div class="sidebar-section">
-                      <div class="sidebar-section-title"><span>PIXEL ARMORY</span><span style="color:#facc15; font-size:9.5px;">HOVER INFO</span></div>
-                      <div class="pixel-gear-grid">
-                        <div class="pixel-gear-slot"><span>🗡️</span><span class="slot-corner-tag">W</span></div>
-                        <div class="pixel-gear-slot"><span>🛡️</span><span class="slot-corner-tag">S</span></div>
-                        <div class="pixel-gear-slot"><span>👑</span><span class="slot-corner-tag">H</span></div>
-                        <div class="pixel-gear-slot"><span>🦹</span><span class="slot-corner-tag">C</span></div>
-                        <div class="pixel-gear-slot"><span>🥾</span><span class="slot-corner-tag">B</span></div>
-                        <div class="pixel-gear-slot"><span>💍</span><span class="slot-corner-tag">R</span></div>
-                        <div class="pixel-gear-slot"><span>📜</span><span class="slot-corner-tag">U</span></div>
-                        <div class="pixel-gear-slot"><span>💎</span><span class="slot-corner-tag">P</span></div>
-                      </div>
-                    </div>
-                    <div class="sidebar-section">
-                      <div class="sidebar-section-title"><span style="color:#38bdf8;">CURRENCIES</span><span style="font-size:9px; color:#94a3b8;">TREASURY</span></div>
-                      <div class="sidebar-currency-list">
-                        <div class="sidebar-currency-item"><div class="currency-left"><span>🪙</span><span>Solar Gold</span></div><span class="currency-val" style="color:#F2A900">1,420,500</span></div>
-                        <div class="sidebar-currency-item"><div class="currency-left"><span>🔮</span><span>Glimmer Shards</span></div><span class="currency-val" style="color:#00BFFF">350</span></div>
-                        <div class="sidebar-currency-item"><div class="currency-left"><span>🌀</span><span>Chrono Cores</span></div><span class="currency-val" style="color:#38bdf8">28</span></div>
-                        <div class="sidebar-currency-item"><div class="currency-left"><span>🖤</span><span>Void Remnants</span></div><span class="currency-val" style="color:#9B30FF">115</span></div>
-                        <div class="sidebar-currency-item"><div class="currency-left"><span>🌿</span><span>Root Stones</span></div><span class="currency-val" style="color:#22E07B">42</span></div>
-                      </div>
-                    </div>
-                    <div class="sidebar-section">
-                      <div class="sidebar-section-title"><span style="color:#4ade80;">7 DISCIPLINES</span><span style="color:#facc15; font-size:9.5px;">MAX 99</span></div>
-                      <div class="sidebar-skills-list">
-                        <div class="sidebar-skill-item"><div class="sidebar-skill-header"><span>⛏️ Resonance Extraction</span><span style="color:#00BFFF">Lv. 48/99</span></div><div class="sidebar-skill-bar-wrap"><div class="sidebar-skill-bar-fill" style="width:48%; background:#00BFFF;"></div></div></div>
-                        <div class="sidebar-skill-item"><div class="sidebar-skill-header"><span>🔨 Star-Forging</span><span style="color:#F2A900">Lv. 35/99</span></div><div class="sidebar-skill-bar-wrap"><div class="sidebar-skill-bar-fill" style="width:35%; background:#F2A900;"></div></div></div>
-                        <div class="sidebar-skill-item"><div class="sidebar-skill-header"><span>🧵 Leyline Weaving</span><span style="color:#22E07B">Lv. 42/99</span></div><div class="sidebar-skill-bar-wrap"><div class="sidebar-skill-bar-fill" style="width:42%; background:#22E07B;"></div></div></div>
-                        <div class="sidebar-skill-item"><div class="sidebar-skill-header"><span>📜 Void Inscription</span><span style="color:#9B30FF">Lv. 29/99</span></div><div class="sidebar-skill-bar-wrap"><div class="sidebar-skill-bar-fill" style="width:29%; background:#9B30FF;"></div></div></div>
-                        <div class="sidebar-skill-item"><div class="sidebar-skill-header"><span>🧪 Celestial Alchemy</span><span style="color:#ec4899">Lv. 51/99</span></div><div class="sidebar-skill-bar-wrap"><div class="sidebar-skill-bar-fill" style="width:51%; background:#ec4899;"></div></div></div>
-                        <div class="sidebar-skill-item"><div class="sidebar-skill-header"><span>⚔️ Rites Mastery</span><span style="color:#facc15">Lv. 64/99</span></div><div class="sidebar-skill-bar-wrap"><div class="sidebar-skill-bar-fill" style="width:64%; background:#facc15;"></div></div></div>
-                        <div class="sidebar-skill-item"><div class="sidebar-skill-header"><span>⚡ Flashes Mastery</span><span style="color:#38bdf8">Lv. 58/99</span></div><div class="sidebar-skill-bar-wrap"><div class="sidebar-skill-bar-fill" style="width:58%; background:#38bdf8;"></div></div></div>
                       </div>
                     </div>
                     <div class="sidebar-footer">
@@ -172,67 +115,111 @@
                   </aside>
 
                   <main class="landing-main-scroll">
-                    <!-- HERO BANNER & 1080P PROLOGUE VIDEO SHOWCASE -->
-                    <section id="prologue-hero" class="landing-hero-card">
-                      <div class="hero-content-wrap">
-                        <div class="hero-logo-row">
-                          <div class="hero-logo-badge">
-                            <img src="/GlimmerFall_official_multicolor_logo.png" alt="GlimmerFall Logo" class="hero-logo-img" width="48" height="48" style="max-width:48px; max-height:48px;" />
-                          </div>
-                          <div>
-                            <span class="hero-chip-badge">✨ OFFICIAL 2D PIXEL MMORPG • 16-BIT DARK FANTASY</span>
-                            <h1 class="hero-title">AWAKEN YOUR <span style="color:#facc15;">CHAMPION</span> IN THE REALM OF GLIMMER</h1>
-                          </div>
-                        </div>
-                        <p class="hero-desc">
-                          Step into an authentic top-down action MMORPG inspired by classic 16-bit RPG masterworks.
-                          Before the continental caldera took shape, the celestial <b>Crystal Heart shattered</b> in an apocalyptic detonation, fracturing unified light into four elemental aspects:
-                          <b style="color:#facc15;">Solar Light</b>, <b style="color:#c084fc;">Void</b>, <b style="color:#4ade80;">Verdant Root</b>, and <b style="color:#38bdf8;">Celestial Mist</b>.
-                          Harvest living Glimmer leylines, socket authentic trading card relics from
-                          <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" style="color:#38bdf8; text-decoration:underline; font-weight:bold;">glimmerfalltcg.com</a>,
-                          master 7 disciplines to Level 99, and battle in 3v3 Outpost Nexus destruction arenas.
-                        </p>
-                        <div class="hero-specs-row">
-                          <div class="hero-spec-pill"><div class="spec-val" style="color:#38bdf8;">0ms</div><div class="spec-lbl">Single Player</div></div>
-                          <div class="hero-spec-pill"><div class="spec-val" style="color:#4ade80;">20 Hz</div><div class="spec-lbl">Server MMO</div></div>
-                          <div class="hero-spec-pill"><div class="spec-val" style="color:#facc15;">Lv. 99</div><div class="spec-lbl">Max Mastery</div></div>
-                          <div class="hero-spec-pill"><div class="spec-val" style="color:#f87171;">25 HP</div><div class="spec-lbl">Nexus Rule</div></div>
-                        </div>
-                        <div class="hero-cta-row">
-                          <button type="button" class="hero-btn-primary" onclick="if(window._landing){window._landing.launchGame();}else{location.href='/?autostart=1';}"><span>⚡</span> AWAKEN CHAMPION NOW</button>
-                          <button type="button" class="hero-btn-secondary" onclick="if(window._landing){window._landing.openLoadout();}else if(window._fp){window._fp.open();}else{location.href='/?loadout=1';}"><span>👤</span> OPEN HERO LOADOUT</button>
-                          <button type="button" class="id-mini-btn" style="padding:10px 18px; font-size:12px; font-weight:800; border-color:#facc15; color:#fde047; cursor:pointer;" onclick="window.playCinematicModal && window.playCinematicModal('crystal_heart')"><span>🎬</span> WATCH 1080P PROLOGUE</button>
-                        </div>
-
-                        <!-- Hero Video & Reel Showcase Grid -->
-                        <div class="hero-media-showcase-grid">
-                          <div class="hero-media-card">
-                            <div class="hero-media-header">
-                              <b style="font-size:11px; color:#fde047; font-family:var(--font-header);">🎬 THE SHATTERED CRYSTAL HEART (1080P)</b>
-                              <button type="button" class="id-mini-btn" style="font-size:9.5px; padding:2px 8px; border-color:#facc15; color:#fde047; cursor:pointer;" onclick="window.playCinematicModal && window.playCinematicModal('crystal_heart')">⛶ Theater Mode</button>
-                            </div>
-                            <div class="hero-media-video-wrap">
-                              <video src="https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/crystal_heart_shattering_1080p.mp4" poster="/GlimmerFall_official_multicolor_logo.png" controls playsinline preload="metadata" class="hero-media-video"></video>
-                            </div>
-                            <div class="hero-media-caption">
-                              Official 1080p cinematic prologue: the apocalyptic detonation of the Crystal Heart fracturing into falling iridescent meteor shards.
-                            </div>
-                          </div>
-                          <div class="hero-media-card">
-                            <div class="hero-media-header">
-                              <b style="font-size:11px; color:#38bdf8; font-family:var(--font-header);">⚔️ 60 FPS HERO COMBAT SPRITE REEL</b>
-                              <button type="button" class="id-mini-btn" style="font-size:9.5px; padding:2px 8px; border-color:#38bdf8; color:#7dd3fc; cursor:pointer;" onclick="window.playCinematicModal && window.playCinematicModal('sprite_sheet')">⛶ Cinema Mode</button>
-                            </div>
-                            <div class="hero-media-video-wrap">
-                              <video src="https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/cinematics/pixel_art_animation_sheet_1080p.mp4" poster="/GlimmerFall_official_multicolor_logo.png" controls playsinline preload="metadata" class="hero-media-video"></video>
-                            </div>
-                            <div class="hero-media-caption">
-                              Live 60 FPS pixel animation showcase: 8-directional tactical sprints, combat slashes, and spellcasting rites.
-                            </div>
-                          </div>
-                        </div>
+                    <!-- TOP TAB HEADER -->
+                    <header class="landing-tabs-header">
+                      <nav class="landing-tabs-nav">
+                        <button type="button" class="landing-tab-btn active" onclick="if(window._landing){window._landing.setTab('overview');}"><span>🏛️ Overview &amp; Music</span><span class="landing-tab-btn-badge">OST</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="if(window._landing){window._landing.setTab('theatre');}"><span>🎬 1080p Theatre</span><span class="landing-tab-btn-badge">12 Scenes</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="if(window._landing){window._landing.setTab('forge');}"><span>⚔️ Champion Forge</span><span class="landing-tab-btn-badge">Hero</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="if(window._landing){window._landing.setTab('systems');}"><span>⚙️ Game Systems</span><span class="landing-tab-btn-badge">Lv.99</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="if(window._landing){window._landing.setTab('armory');}"><span>🛡️ Armory &amp; TCG</span><span class="landing-tab-btn-badge">8 Slots</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="if(window._landing){window._landing.setTab('atlas');}"><span>🗺️ Atlas &amp; Lore</span><span class="landing-tab-btn-badge">8 Biomes</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="if(window._landing){window._landing.setTab('settings');}"><span>⚙️ Settings</span><span class="landing-tab-btn-badge">Prefs</span></button>
+                      </nav>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <button type="button" class="hero-btn-primary" style="padding:6px 14px; font-size:11px;" onclick="if(window._landing){window._landing.startJourney();}else{location.href='/?autostart=1';}">
+                          <span>⚡</span> START JOURNEY
+                        </button>
                       </div>
-                    </section>
+                    </header>
+
+                    <!-- TAB 1: OVERVIEW & OST JUKEBOX -->
+                    <div class="landing-tab-content">
+                      <section id="prologue-hero" class="landing-hero-card">
+                        <div class="hero-content-wrap">
+                          <div class="hero-logo-row">
+                            <div class="hero-logo-badge">
+                              <img src="/GlimmerFall_official_multicolor_logo.png" alt="GlimmerFall Logo" class="hero-logo-img" width="48" height="48" style="max-width:48px; max-height:48px;" />
+                            </div>
+                            <div>
+                              <span class="hero-chip-badge">✨ OFFICIAL 16-BIT ACTION MMORPG</span>
+                              <h1 class="hero-title">GLIMMER<span style="color:#facc15;">FALL</span> ONLINE</h1>
+                            </div>
+                          </div>
+                          <p class="hero-desc">
+                            Step into an authentic top-down action MMORPG inspired by classic 16-bit masterworks.
+                            Before the continental caldera took shape, the celestial <b>Crystal Heart shattered</b>, fracturing unified light into four elemental aspects:
+                            <b style="color:#facc15;">Solar Light</b>, <b style="color:#c084fc;">Void</b>, <b style="color:#4ade80;">Verdant Root</b>, and <b style="color:#38bdf8;">Celestial Mist</b>.
+                            Harvest living Glimmer leylines, socket authentic trading card relics from
+                            <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" style="color:#38bdf8; text-decoration:underline; font-weight:bold;">glimmerfalltcg.com</a>,
+                            master 7 disciplines to Level 99, and defend your 2500-HP Outpost Nexus (Last-Hit Wins) in 3v3 destruction arenas.
+                          </p>
+                          <div class="hero-specs-row">
+                            <div class="hero-spec-pill"><div class="spec-val" style="color:#38bdf8;">Offline</div><div class="spec-lbl">Single Player</div></div>
+                            <div class="hero-spec-pill"><div class="spec-val" style="color:#4ade80;">Online</div><div class="spec-lbl">Server MMO</div></div>
+                            <div class="hero-spec-pill"><div class="spec-val" style="color:#facc15;">Lv. 99</div><div class="spec-lbl">Max Mastery</div></div>
+                            <div class="hero-spec-pill"><div class="spec-val" style="color:#f87171;">2500 HP</div><div class="spec-lbl">Nexus Rule</div></div>
+                          </div>
+                          <div class="hero-cta-row">
+                            <button type="button" class="hero-btn-primary" onclick="if(window._landing){window._landing.startJourney();}else{location.href='/?autostart=1';}"><span>⚡</span> START JOURNEY NOW</button>
+                            <button type="button" class="hero-btn-secondary" onclick="if(window._landing){window._landing.setTab('forge');}"><span>⚔️</span> FORGE LOADOUT</button>
+                            <button type="button" class="id-mini-btn" style="padding:10px 18px; font-size:12px; font-weight:800; border-color:#facc15; color:#fde047; cursor:pointer;" onclick="window.playCinematicModal && window.playCinematicModal('crystal_heart')"><span>🎬</span> WATCH 1080P PROLOGUE</button>
+                            <button type="button" class="id-mini-btn" style="padding:10px 18px; font-size:12px; font-weight:800; border-color:#38bdf8; color:#7dd3fc; cursor:pointer;" onclick="if(window._landing){window._landing.setTab('theatre');}"><span>🎞️</span> THEATRE (12 SCENES)</button>
+                          </div>
+
+                          <!-- 4 Canonical Factions Cards -->
+                          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px; margin-top:20px;">
+                            <div class="enc-article-card" style="border-left:4px solid #facc15; padding:16px;">
+                              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                                <b style="color:#facc15; font-size:13px; font-family:var(--font-header);">☀️ Solari</b>
+                                <span style="font-size:9px; font-weight:bold; color:#facc15; background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:4px; border:1px solid #facc1540;">Solar Light / Gold</span>
+                              </div>
+                              <div style="font-size:10.5px; font-weight:600; color:#fff; margin-bottom:4px;">The Sunspire Dominion</div>
+                              <p style="font-size:10.5px; color:#cbd5e1; line-height:1.45; margin-bottom:12px;">Dawn-fire sentinels channeling Zenith Radiance and sunforged armor.</p>
+                              <button type="button" class="id-mini-btn" style="width:100%; font-size:10px; padding:6px; border-color:#facc15; color:#facc15; cursor:pointer;" onclick="if(window._landing){window._landing.setFaction('Solari'); window._landing.setTab('forge');}">
+                                Forge Solari Champion ➔
+                              </button>
+                            </div>
+
+                            <div class="enc-article-card" style="border-left:4px solid #c084fc; padding:16px;">
+                              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                                <b style="color:#c084fc; font-size:13px; font-family:var(--font-header);">🌑 Umbri</b>
+                                <span style="font-size:9px; font-weight:bold; color:#c084fc; background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:4px; border:1px solid #c084fc40;">Void / Amethyst</span>
+                              </div>
+                              <div style="font-size:10.5px; font-weight:600; color:#fff; margin-bottom:4px;">The Duskveil Syndicate</div>
+                              <p style="font-size:10.5px; color:#cbd5e1; line-height:1.45; margin-bottom:12px;">Nether assassins and graveglass mystics striking unseen from Dusk Shroud.</p>
+                              <button type="button" class="id-mini-btn" style="width:100%; font-size:10px; padding:6px; border-color:#c084fc; color:#c084fc; cursor:pointer;" onclick="if(window._landing){window._landing.setFaction('Umbri'); window._landing.setTab('forge');}">
+                                Forge Umbri Champion ➔
+                              </button>
+                            </div>
+
+                            <div class="enc-article-card" style="border-left:4px solid #4ade80; padding:16px;">
+                              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                                <b style="color:#4ade80; font-size:13px; font-family:var(--font-header);">🌿 Terra</b>
+                                <span style="font-size:9px; font-weight:bold; color:#4ade80; background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:4px; border:1px solid #4ade8040;">Verdant Root / Emerald</span>
+                              </div>
+                              <div style="font-size:10.5px; font-weight:600; color:#fff; margin-bottom:4px;">The Rootdeep Collective</div>
+                              <p style="font-size:10.5px; color:#cbd5e1; line-height:1.45; margin-bottom:12px;">Primeval forest guardians wielding Ironwood resilience and Thornbark reflection.</p>
+                              <button type="button" class="id-mini-btn" style="width:100%; font-size:10px; padding:6px; border-color:#4ade80; color:#4ade80; cursor:pointer;" onclick="if(window._landing){window._landing.setFaction('Terra'); window._landing.setTab('forge');}">
+                                Forge Terra Champion ➔
+                              </button>
+                            </div>
+
+                            <div class="enc-article-card" style="border-left:4px solid #38bdf8; padding:16px;">
+                              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                                <b style="color:#38bdf8; font-size:13px; font-family:var(--font-header);">🔮 Aether</b>
+                                <span style="font-size:9px; font-weight:bold; color:#38bdf8; background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:4px; border:1px solid #38bdf840;">Celestial Mist / Cyan</span>
+                              </div>
+                              <div style="font-size:10.5px; font-weight:600; color:#fff; margin-bottom:4px;">The Astral Conclave</div>
+                              <p style="font-size:10.5px; color:#cbd5e1; line-height:1.45; margin-bottom:12px;">Temporal weavers commanding Chronoflux acceleration and Astral Tempo.</p>
+                              <button type="button" class="id-mini-btn" style="width:100%; font-size:10px; padding:6px; border-color:#38bdf8; color:#38bdf8; cursor:pointer;" onclick="if(window._landing){window._landing.setFaction('Aether'); window._landing.setTab('forge');}">
+                                Forge Aether Champion ➔
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+                    </div>
                   </main>
                 </div>
               `;
@@ -720,12 +707,12 @@
     <div id="arena-banner" class="panel">
       <div class="arena-team">
         <span class="team-blue-txt">SOLARI NEXUS</span>
-        <span id="blue-nexus-hp" style="font-family: var(--font-header); font-size: 10px; color: #38bdf8;">25 / 25</span>
+        <span id="blue-nexus-hp" style="font-family: var(--font-header); font-size: 10px; color: #38bdf8;">2500 / 2500</span>
       </div>
       <div style="font-family: var(--font-header); font-size: 10px; color: #facc15;">VS</div>
       <div class="arena-team">
         <span class="team-red-txt">UMBRI NEXUS</span>
-        <span id="red-nexus-hp" style="font-family: var(--font-header); font-size: 10px; color: #ef4444;">25 / 25</span>
+        <span id="red-nexus-hp" style="font-family: var(--font-header); font-size: 10px; color: #ef4444;">2500 / 2500</span>
       </div>
     </div>
 
@@ -1101,7 +1088,6 @@
             <button class="util-btn" style="font-size: 9px; padding: 4px 8px; border-color: #ef4444; color: #f87171;" onclick="playCinematicModal('colossus_emergence')">🗿 Colossus Emergence</button>
             <button class="util-btn" style="font-size: 9px; padding: 4px 8px; border-color: #eab308; color: #fde047;" onclick="playCinematicModal('boss_defeated')">🏆 Boss Defeated</button>
             <button class="util-btn" style="font-size: 9px; padding: 4px 8px; border-color: #f43f5e; color: #fb7185;" onclick="playCinematicModal('monolith_explosion')">💥 Monolith Cataclysm</button>
-            <button class="util-btn" style="font-size: 9px; padding: 4px 8px;" onclick="playCinematicModal('sprite_sheet')">🎞️ Hero Sprite Reel</button>
           </div>
         </div>
 
@@ -1211,8 +1197,8 @@
       <div id="equipment-modal-body"></div>
     </div>
     <!-- Backwards compatible IDs -->
-    <div id="paperdoll-modal" style="display:none;"><div id="paperdoll-modal-body"></div></div>
-    <div id="cards-modal" style="display:none;"></div>
+    <div id="paperdoll-modal" class="modal panel" style="display:none;"><div id="paperdoll-modal-body"></div></div>
+    <div id="cards-modal" class="modal panel" style="display:none;"></div>
 
     <!-- MODAL 4C: Canonical 28-Slot Inventory Backpack [B] -->
     <div id="inventory-modal" class="modal panel" style="width: 480px; max-width: 96vw; max-height: 88vh; display: none;" onmouseleave="window.clearHoveredEquipment && window.clearHoveredEquipment()">
@@ -1655,14 +1641,6 @@
           url: BLOB_BASE + 'scene5_monolith_explosion_1080p.mp4',
           fallbackUrl: FALLBACK_URL,
           caption: 'Overloaded by conflicting continental leylines, the central Nexus Monolith implodes, unleashing a blinding prismatic blast that reshapes the warzone.'
-        },
-
-        // Bonus: Hero Sprite Reel
-        sprite_sheet: {
-          title: 'CANONICAL HERO SPRITE ANIMATION REEL (1080P)',
-          badge: '60 FPS PIXEL ANIMATION SHOWCASE',
-          url: BLOB_BASE + 'pixel_art_animation_sheet_1080p.mp4',
-          caption: 'Official 60 FPS pixel art animation sheet showcasing idle stances, 8-directional sprints, slashing melee strikes, and spellcasting rites across the realm\'s archetypes.'
         }
       };
 
@@ -1789,12 +1767,17 @@
         if (e.key === 'Escape') {
           var pOverlay = document.getElementById('prologue-modal-overlay');
           if (pOverlay && pOverlay.style.display !== 'none') {
+            e.preventDefault();
+            e.stopPropagation();
             window.skipPrologueCinematic();
             return;
           }
           var overlay = document.getElementById('cinematic-modal-overlay');
           if (overlay && overlay.style.display !== 'none') {
+            e.preventDefault();
+            e.stopPropagation();
             window.closeCinematicModal();
+            return;
           }
         }
       });

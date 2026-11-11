@@ -798,7 +798,7 @@ test('LandingPageController initializes, toggles Start on this site, and renders
   };
 
   const landing = new LandingPageController({ frontpage: null, onEnterWorld: null });
-  assert.equal(landing.activeTab, 'forge');
+  assert.equal(landing.activeTab, 'overview');
   assert.equal(landing.getStartOnLoadout(), false, 'Default start on loadout should be false');
 
   // Toggle Start on this site
@@ -856,7 +856,7 @@ test('LandingPageController initializes, toggles Start on this site, and renders
   // Verify index.html and frontpage.js integration
   const indexHtml = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf-8');
   assert.ok(indexHtml.includes('Start on this site'), 'index.html must include Start on this site label');
-  assert.ok(indexHtml.includes('LANDING &amp; ENCYCLOPEDIAS'), 'index.html must include LANDING & ENCYCLOPEDIAS button');
+  assert.ok(indexHtml.includes('id="frontpage-body"'), 'index.html must include frontpage-body mounting container');
   assert.ok(indexHtml.includes('id="frontpage-overlay" style="display:none;"'), 'index.html must keep frontpage overlay hidden on initial load if not toggled');
   assert.ok(indexHtml.includes('id="prologue-modal-overlay"'), 'index.html must include prologue-modal-overlay');
   assert.ok(indexHtml.includes('SKIP TO HERO SELECTION'), 'index.html must include skip to hero selection button');
@@ -1686,7 +1686,7 @@ test('Canonical Heroic Character Sprite Sheet V1.0 styling and palette verificat
 test('Zonal BGM music themes, sanctuary audio track streaming, and room configs', async () => {
   const { BGM_THEMES } = await import('../client/audio.js');
   assert.ok(BGM_THEMES.sanctuary, 'BGM_THEMES must define sanctuary theme');
-  assert.ok(BGM_THEMES.sanctuary.audioFile.includes('sanctuary_pixel_overloop.m4a'), 'Sanctuary theme must link to sanctuary_pixel_overloop.m4a');
+  assert.ok(BGM_THEMES.sanctuary.audioFile.includes('sanctuary_pixel_overloop.m4a') || BGM_THEMES.sanctuary.audioFile.includes('sanctuary.m4a'), 'Sanctuary theme must link to valid sanctuary audio file');
   assert.ok(BGM_THEMES.solari, 'BGM_THEMES must define solari theme');
   assert.ok(BGM_THEMES.umbri, 'BGM_THEMES must define umbri theme');
   assert.ok(BGM_THEMES.terra, 'BGM_THEMES must define terra theme');

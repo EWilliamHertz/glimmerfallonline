@@ -12,6 +12,17 @@
 // ==========================================
 
 export const BGM_THEMES = {
+  title: {
+    name: 'The Dawn of Glimmer (Main Theme)',
+    audioFile: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/title.m4a',
+    stepMs: 220,
+    leadType: 'triangle',
+    harmonyType: 'sine',
+    bassType: 'sine',
+    leadGain: 0.045,
+    harmonyGain: 0.022,
+    bassGain: 0.04,
+  },
   sanctuary: {
     name: 'Pixel Overloop (Sanctuary Haven)',
     audioFile: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/sanctuary_pixel_overloop.m4a',
@@ -49,6 +60,7 @@ export const BGM_THEMES = {
   },
   solari: {
     name: 'Daybreak at the Sunspire (Golden Citadel)',
+    audioFile: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/solari.m4a',
     stepMs: 175,
     leadType: 'square',
     harmonyType: 'triangle',
@@ -83,6 +95,7 @@ export const BGM_THEMES = {
   },
   umbri: {
     name: 'Shadows in the Sepulcher (Umbri Undercity)',
+    audioFile: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/umbri.m4a',
     stepMs: 215,
     leadType: 'triangle',
     harmonyType: 'sine',
@@ -117,6 +130,7 @@ export const BGM_THEMES = {
   },
   terra: {
     name: 'The Rootdeep Hymn (Terra Orchard)',
+    audioFile: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/terra.m4a',
     stepMs: 195,
     leadType: 'triangle',
     harmonyType: 'triangle',
@@ -151,6 +165,7 @@ export const BGM_THEMES = {
   },
   aether: {
     name: 'Mirrorgate Continuum (Aether Spire)',
+    audioFile: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/aether.m4a',
     stepMs: 160,
     leadType: 'sine',
     harmonyType: 'sine',
@@ -185,6 +200,7 @@ export const BGM_THEMES = {
   },
   abyss: {
     name: 'Cataclysm at Starfall (Abyssal Rift)',
+    audioFile: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/abyss.m4a',
     stepMs: 185,
     leadType: 'sawtooth',
     harmonyType: 'triangle',
@@ -219,6 +235,7 @@ export const BGM_THEMES = {
   },
   warzone: {
     name: 'Continental Caldera (Heroic Battle)',
+    audioFile: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/warzone.m4a',
     stepMs: 165,
     leadType: 'square',
     harmonyType: 'triangle',
@@ -253,6 +270,7 @@ export const BGM_THEMES = {
   },
   boss: {
     name: 'Nexus Climax (World Boss & Siege)',
+    audioFile: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/boss.m4a',
     stepMs: 130,
     leadType: 'square',
     harmonyType: 'sawtooth',
@@ -823,7 +841,17 @@ export class PixelSoundEngine {
     });
   }
 
+  playOneShotAudio(url, volume = 0.8) {
+    if (this.muted || typeof window === 'undefined') return;
+    try {
+      const snd = new Audio(url);
+      snd.volume = Math.max(0, Math.min(1, this.sfxVolume * this.masterVolume * volume));
+      snd.play().catch(() => {});
+    } catch (_) {}
+  }
+
   playQuestCompleteFanfare() {
+    this.playOneShotAudio('https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/victory.m4a', 0.85);
     this.init();
     if (!this.ctx || this.muted) return;
     // Continental Quest Complete Fanfare (C4 - E4 - G4 - C5 - E5 - G5 - C6)

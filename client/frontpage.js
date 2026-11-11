@@ -326,7 +326,7 @@ export class FrontpageController {
     }
   }
 
-  transitionTo(newState) {
+  transitionTo(newState, initialDraft = {}) {
     if (!Object.values(FRONTPAGE_STATES).includes(newState)) return;
     this.state = newState;
     this.creationError = '';
@@ -334,14 +334,15 @@ export class FrontpageController {
 
     if (newState === FRONTPAGE_STATES.CHARACTER_CREATE) {
       // Build fresh, unattached draft object - DOES NOT bind to any existing character
-      const defaultFaction = 'Solari';
-      const defaultClass = CLASSES_CATALOG.solari_vanguard;
+      const defaultFaction = initialDraft.faction && FACTIONS_META[initialDraft.faction] ? initialDraft.faction : 'Solari';
+      const firstCls = Object.values(CLASSES_CATALOG).find((c) => c.faction === defaultFaction) || CLASSES_CATALOG.solari_vanguard;
+      const defaultTags = { Solari: 'SUN', Umbri: 'VOID', Terra: 'ROOT', Aether: 'AETH' };
       this.creationDraft = {
-        name: '',
+        name: initialDraft.name || '',
         faction: defaultFaction,
-        classId: defaultClass.id,
-        orderTag: 'SUN',
-        startingRealm: ROOM_TYPES.SANCTUARY_HUB,
+        classId: initialDraft.classId || firstCls.id,
+        orderTag: initialDraft.orderTag || defaultTags[defaultFaction] || 'SUN',
+        startingRealm: initialDraft.startingRealm || ROOM_TYPES.SANCTUARY_HUB,
       };
       if (this.audio?.playChime) this.audio.playChime();
     } else {
@@ -973,6 +974,8 @@ export class FrontpageController {
     if (window._landing) {
       window._landing.setStartOnLoadout(checked);
     }
+    const cbs = document.querySelectorAll('.start-on-site-cb');
+    cbs.forEach((cb) => { cb.checked = checked; });
   }
 
   // ==========================================
@@ -980,6 +983,9 @@ export class FrontpageController {
   // ==========================================
   open() {
     this.isOpen = true;
+    if (this.audio && typeof this.audio.setBgmTheme === 'function') {
+      this.audio.setBgmTheme('title');
+    }
     if (typeof window !== 'undefined' && window._landing && window._landing.isOpen) {
       window._landing.close();
     }
@@ -1196,14 +1202,24 @@ export class FrontpageController {
     const selectedLvl = selectedChar ? (selectedChar.progression?.level || selectedChar.level || 1) : 1;
 
     return `
-      <!-- TOP CONTROL BAR: Account & Realm Selector -->
-      <div style="background:#060a16; border:1px solid #1e293b; border-bottom:2px solid #ca8a04; padding:8px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+      <!-- UNIFIED HERO LOADOUT & REALM CONTROL HEADER -->
+      <div class="fp-unified-header" style="background:#060a16; border:1px solid #1e293b; border-bottom:2px solid #ca8a04; padding:8px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; border-radius:4px;">
         <div style="display:flex; align-items:center; gap:10px;">
-          <div style="font-family:var(--font-header); font-size:12px; color:#facc15; font-weight:bold; letter-spacing:0.5px;">
-            ⚔️ CHARACTER SELECTION
-          </div>
-          <div style="font-size:10px; color:#94a3b8;">
-            (${activeRoster.length}/8 Champions in ${isSingle ? 'Offline Realm' : 'Online Realm'})
+          <img src="/GlimmerFall_official_multicolor_logo.png" alt="GlimmerFall" style="height:34px; width:auto; object-fit:contain; filter:drop-shadow(0 0 8px rgba(250,204,21,0.5));" />
+          <div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span style="font-family:var(--font-header); font-size:13px; font-weight:800; color:#facc15; letter-spacing:0.6px; text-shadow:1px 1px 0 #000;">
+                GLIMMERFALL ONLINE
+              </span>
+              <span style="font-size:9px; padding:1px 5px; border-radius:3px; background:rgba(56,189,248,0.15); border:1px solid rgba(56,189,248,0.4); color:#38bdf8; font-weight:bold;">
+                2D PIXEL MMORPG
+              </span>
+            </div>
+            <div style="font-size:10px; color:#94a3b8; margin-top:2px; display:flex; align-items:center; gap:5px;">
+              <span style="color:#fde047; font-weight:bold;">⚔️ CHARACTER SELECTION</span>
+              <span>&bull;</span>
+              <span>(${activeRoster.length}/8 Champions in ${isSingle ? 'Offline Realm' : 'Online Realm'})</span>
+            </div>
           </div>
         </div>
 
@@ -1221,7 +1237,7 @@ export class FrontpageController {
           </button>
         </div>
 
-        <!-- Start on this site toggle & Landing Link -->
+        <!-- Start on this site toggle, Landing Link, TCG & Auth Controls -->
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
           <label style="display:inline-flex; align-items:center; gap:5px; font-size:10px; color:#cbd5e1; cursor:pointer; background:#080e1c; padding:3px 8px; border:1px solid #334155; border-radius:3px;" title="When checked, visits go directly to this loadout. When unchecked, you start at the landing page.">
             <input type="checkbox" class="start-on-site-cb" ${this.getStartOnSite() ? 'checked' : ''} onchange="window._fp.setStartOnSite(this.checked)">
@@ -1230,30 +1246,33 @@ export class FrontpageController {
           <button type="button" class="util-btn" style="font-size:10px; padding:3px 8px; border-color:#38bdf8; color:#7dd3fc; font-weight:bold;" onclick="if(window.openLandingPage){window.openLandingPage();}else if(window._landing){window._landing.open();}else{var lp=document.getElementById('landing-overlay');var fp=document.getElementById('frontpage-overlay');if(fp)fp.style.display='none';if(lp)lp.style.display='block';}">
             📖 LANDING &amp; ENCYCLOPEDIAS
           </button>
-        </div>
+          <a href="https://www.glimmerfalltcg.com" target="_blank" rel="noreferrer" class="util-btn" style="text-decoration:none; border-color:#facc15; color:#fde047; font-size:10px; padding:3px 8px; font-weight:bold;" title="Official GlimmerFall Trading Card Game">
+            🃏 GLIMMERFALLTCG.COM ↗
+          </a>
 
-        <!-- Account Badge / Quick Auth -->
-        ${prof && !prof.isGuest ? `
-          <div style="display:flex; gap:8px; align-items:center;">
-            <div style="font-size:10.5px; color:#38bdf8; font-weight:bold;">
-              👤 @${prof.username}
+          <!-- Account Badge / Quick Auth -->
+          ${prof && !prof.isGuest ? `
+            <div style="display:flex; gap:8px; align-items:center; background:#0f172a; padding:3px 8px; border:1px solid #334155; border-radius:4px;">
+              <div style="font-size:10.5px; color:#38bdf8; font-weight:bold;">
+                👤 @${prof.username}
+              </div>
+              <button class="id-mini-btn" style="border-color:#ef4444; color:#fca5a5; font-size:9.5px; padding:2px 6px;" onclick="window._fp.handleLogout()">
+                LOGOUT
+              </button>
             </div>
-            <button class="id-mini-btn" style="border-color:#ef4444; color:#fca5a5; font-size:9.5px;" onclick="window._fp.handleLogout()">
-              LOGOUT
-            </button>
-          </div>
-        ` : `
-          <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-            <input id="fp-auth-user" class="pixel-input" placeholder="GlimmerFall ID" value="${this.savedUsername || prof?.username || ''}" maxlength="18" style="font-size:10px; padding:3px 6px; width:100px;" />
-            <input id="fp-auth-pass" class="pixel-input" type="password" placeholder="Password" value="${this.savedPassword || ''}" maxlength="48" style="font-size:10px; padding:3px 6px; width:80px;" />
-            <button class="util-btn" style="font-size:9.5px; border-color:#38bdf8; color:#bae6fd; padding:3px 6px;" onclick="window._fp.handleQuickAuth('login')">LOGIN</button>
-            <button class="util-btn" style="font-size:9.5px; border-color:#facc15; color:#fde047; padding:3px 6px;" onclick="window._fp.handleQuickAuth('register')">REGISTER</button>
-            <label style="display:flex; align-items:center; gap:4px; font-size:10px; color:#cbd5e1; cursor:pointer; user-select:none; margin-left:3px; background:#080e1e; border:1px solid #1e293b; padding:2px 6px; border-radius:3px;" title="Remember login credentials and stay signed in">
-              <input id="fp-remember-me" type="checkbox" ${this.rememberMe ? 'checked' : ''} onchange="window._fp.toggleRememberMe(this.checked)" style="accent-color:#38bdf8; cursor:pointer; width:12px; height:12px; margin:0;" />
-              <span style="font-size:9.5px; color:${this.rememberMe ? '#38bdf8' : '#94a3b8'}; font-weight:600;">Remember me</span>
-            </label>
-          </div>
-        `}
+          ` : `
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+              <input id="fp-auth-user" class="pixel-input" placeholder="GlimmerFall ID" value="${this.savedUsername || prof?.username || ''}" maxlength="18" style="font-size:10px; padding:3px 6px; width:100px;" />
+              <input id="fp-auth-pass" class="pixel-input" type="password" placeholder="Password" value="${this.savedPassword || ''}" maxlength="48" style="font-size:10px; padding:3px 6px; width:80px;" />
+              <button class="util-btn" style="font-size:9.5px; border-color:#38bdf8; color:#bae6fd; padding:3px 6px;" onclick="window._fp.handleQuickAuth('login')">LOGIN</button>
+              <button class="util-btn" style="font-size:9.5px; border-color:#facc15; color:#fde047; padding:3px 6px;" onclick="window._fp.handleQuickAuth('register')">REGISTER</button>
+              <label style="display:flex; align-items:center; gap:4px; font-size:10px; color:#cbd5e1; cursor:pointer; user-select:none; margin-left:3px; background:#080e1e; border:1px solid #1e293b; padding:2px 6px; border-radius:3px;" title="Remember login credentials and stay signed in">
+                <input id="fp-remember-me" type="checkbox" ${this.rememberMe ? 'checked' : ''} onchange="window._fp.toggleRememberMe(this.checked)" style="accent-color:#38bdf8; cursor:pointer; width:12px; height:12px; margin:0;" />
+                <span style="font-size:9.5px; color:${this.rememberMe ? '#38bdf8' : '#94a3b8'}; font-weight:600;">Remember me</span>
+              </label>
+            </div>
+          `}
+        </div>
       </div>
 
       ${this.authMessage ? `<div style="font-size:10.5px; color:#fde047; margin-bottom:8px; text-align:center;">${this.authMessage}</div>` : ''}
@@ -1453,13 +1472,17 @@ export class FrontpageController {
 
     return `
       <!-- CREATION TOP BAR: Title & Cancel Navigation -->
-      <div style="background:#060a16; border:1px solid #1e293b; border-bottom:2px solid #38bdf8; padding:8px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <div style="font-family:var(--font-header); font-size:12.5px; color:#38bdf8; font-weight:bold; letter-spacing:0.5px;">
-            ✨ FORGE A NEW CHAMPION
-          </div>
-          <div style="font-size:10px; color:#94a3b8;">
-            (Isolated Creation State — Will not affect existing champions)
+      <div style="background:#060a16; border:1px solid #1e293b; border-bottom:2px solid #38bdf8; padding:8px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; border-radius:4px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <img src="/GlimmerFall_official_multicolor_logo.png" alt="GlimmerFall" style="height:32px; width:auto; object-fit:contain; filter:drop-shadow(0 0 8px rgba(56,189,248,0.5));" />
+          <div>
+            <div style="font-family:var(--font-header); font-size:13px; color:#38bdf8; font-weight:bold; letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
+              <span>✨ FORGE A NEW CHAMPION</span>
+              <span style="font-size:9px; padding:1px 5px; border-radius:3px; background:rgba(56,189,248,0.15); border:1px solid rgba(56,189,248,0.4); color:#38bdf8; font-weight:bold;">CREATION LAB</span>
+            </div>
+            <div style="font-size:10px; color:#94a3b8; margin-top:2px;">
+              Isolated Creation State &bull; Choose your Faction, Role &amp; Name
+            </div>
           </div>
         </div>
 

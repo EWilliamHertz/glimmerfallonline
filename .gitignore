@@ -25,3 +25,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .eslintcache
+
+# Marketing & Trailer Production Guides
+GLIMMERFALL_TRAILER_MASTER_GUIDE.md
+public/production_cards/
+production_cards/
+

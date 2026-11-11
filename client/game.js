@@ -466,6 +466,7 @@ export function initGame() {
   let activeDialogueSpriteKey = 'heraldNpc';
   let activeDialogueNpcId = null;
   let introShown = false;
+  let hasEnteredWorld = false;
 
   // ==========================================
   // MMORPG Quest & State Persistence Engine
@@ -5682,8 +5683,8 @@ export function initGame() {
         player.y = 175;
       }
       entities.push(
-        { id: 'blue_nexus', name: 'Solari Sanctuary Nexus', sub: '25 HP Ally Core', type: 'ally_nexus', spriteKey: 'nexusBlue', x: 0, y: 220, hp: 25, maxHp: 25, radius: 22, hitFlash: 0 },
-        { id: 'red_nexus', name: 'Umbri Dominion Nexus', sub: '25 HP Enemy Core', type: 'nexus', spriteKey: 'nexusRed', x: 0, y: -215, hp: 25, maxHp: 25, xpReward: 220, radius: 22, hitFlash: 0 },
+        { id: 'blue_nexus', name: 'Solari Sanctuary Nexus', sub: '2500 HP Ally Core', type: 'ally_nexus', spriteKey: 'nexusBlue', x: 0, y: 220, hp: 2500, maxHp: 2500, radius: 22, hitFlash: 0 },
+        { id: 'red_nexus', name: 'Umbri Dominion Nexus', sub: '2500 HP Enemy Core', type: 'nexus', spriteKey: 'nexusRed', x: 0, y: -215, hp: 2500, maxHp: 2500, xpReward: 220, radius: 22, hitFlash: 0 },
         { id: 'enemy_1', name: 'Void Stalker [Umbri]', sub: 'Enemy Vanguard', type: 'mob', spriteKey: 'voidStalker', x: -64, y: -85, origX: -64, origY: -85, hp: 25, maxHp: 25, damage: 4, xpReward: 65, speed: 54, aggroRange: 230, attackRange: 28, radius: 15, hitFlash: 0 },
         { id: 'enemy_2', name: 'Gloam Reaper [Umbri]', sub: 'Enemy Harvester', type: 'mob', spriteKey: 'voidStalker', x: 0, y: -105, origX: 0, origY: -105, hp: 22, maxHp: 22, damage: 4, xpReward: 65, speed: 60, aggroRange: 230, attackRange: 26, radius: 14, hitFlash: 0 },
         { id: 'enemy_3', name: 'Brambleheart Behemoth', sub: 'Enemy Terra Titan', type: 'mob', isBoss: true, spriteKey: 'graniteBoss', x: 64, y: -85, origX: 64, origY: -85, hp: 34, maxHp: 34, damage: 5, xpReward: 110, speed: 42, aggroRange: 230, attackRange: 32, radius: 20, hitFlash: 0 }
@@ -6252,8 +6253,8 @@ export function initGame() {
     if (currentRoomType === ROOM_TYPES.ARENA_3V3) {
       const blueN = entities.find((e) => e.id === 'blue_nexus');
       const redN = entities.find((e) => e.id === 'red_nexus');
-      if (blueN) document.getElementById('blue-nexus-hp').innerText = `${blueN.hp} / 25`;
-      if (redN) document.getElementById('red-nexus-hp').innerText = `${redN.hp} / 25`;
+      if (blueN) document.getElementById('blue-nexus-hp').innerText = `${blueN.hp} / ${blueN.maxHp || 2500}`;
+      if (redN) document.getElementById('red-nexus-hp').innerText = `${redN.hp} / ${redN.maxHp || 2500}`;
     }
 
     if (snap.siegeState) {
@@ -6858,6 +6859,8 @@ export function initGame() {
     net,
     audio,
     onEnterWorld({ profile, startingRealm, playMode, startX, startY }) {
+      hasEnteredWorld = true;
+      if (typeof window !== 'undefined') window._hasEnteredWorld = true;
       isSinglePlayer = playMode === 'singleplayer';
       if (profile) applyProfile(profile, true);
       const targetRealm = startingRealm || ROOM_TYPES.SANCTUARY_HUB;
@@ -6929,7 +6932,8 @@ export function initGame() {
   // Default is Landing Page unless user toggles "Start on this site" (glimmerfall_start_on_loadout)
   const startOnLoadout = localStorage.getItem('glimmerfall_start_on_loadout') === 'true';
   const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-  const forceLanding = urlParams?.get('landing') === '1';
+  const isLandingPath = typeof window !== 'undefined' && (window.location.pathname.startsWith('/landing') || window.location.hash === '#landing');
+  const forceLanding = urlParams?.get('landing') === '1' || isLandingPath;
   const forceLoadout = urlParams?.get('loadout') === '1' || urlParams?.get('autostart') === '1' || (typeof window !== 'undefined' && window._pendingPlayOnBoot);
 
   if (forceLoadout || (startOnLoadout && !forceLanding)) {
@@ -10810,43 +10814,82 @@ export function initGame() {
       return;
     }
 
+    // 2. Escape on landing page or frontpage
     if (landingPage && landingPage.isOpen) {
       if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
         landingPage.close();
+        if (!hasEnteredWorld && frontpage) {
+          frontpage.open();
+        }
       }
       return;
     }
 
-    if (frontpage.isOpen) {
+    if (frontpage && frontpage.isOpen) {
       if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
         if (frontpage.state === 'CHARACTER_CREATE') {
           frontpage.transitionTo('CHARACTER_SELECT');
-        } else if (introShown) {
+        } else if (hasEnteredWorld || introShown) {
           frontpage.close();
         }
       }
       return;
     }
 
-    // Dismiss Quest Complete scroll modal on Space, Enter, or Escape
+    // 3. Dismiss video cinematics or prologue on Escape
+    const pOverlay = document.getElementById('prologue-modal-overlay');
+    if (pOverlay && pOverlay.style.display !== 'none') {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        window.skipPrologueCinematic?.();
+        return;
+      }
+    }
+    const cOverlay = document.getElementById('cinematic-modal-overlay');
+    if (cOverlay && cOverlay.style.display !== 'none') {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        window.closeCinematicModal?.();
+        return;
+      }
+    }
+
+    // 4. Dismiss Quest Complete scroll modal on Space, Enter, or Escape
     const qcModal = document.getElementById('quest-complete-modal');
     if (qcModal && qcModal.style.display === 'flex') {
       if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
+        e.stopPropagation();
         window.closeQuestCompleteModal(true);
         return;
       }
     }
 
+    // 5. Active inputs & form controls
     const activeTag = document.activeElement?.tagName;
     if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') {
       if (e.key === 'Enter' && document.activeElement.id === 'chat-input') {
         e.preventDefault();
         window.submitChatInput();
+        return;
       } else if (e.key === 'Escape') {
+        const isChat = document.activeElement.id === 'chat-input';
         document.activeElement.blur();
+        if (isChat) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        // Fall through to dismiss any open modal below!
+      } else {
+        return;
       }
-      return;
     }
 
     if (e.key === 'Enter') {
@@ -10860,18 +10903,35 @@ export function initGame() {
     const normKey = normalizeKeyEvent(e);
 
     if (key === 'escape') {
-      const openModal = Array.from(document.querySelectorAll('.modal')).find((m) => m.style.display === 'block');
+      e.preventDefault();
+      e.stopPropagation();
+
+      const modalSelector = '.modal, #paperdoll-modal, #cards-modal, #audio-mixer-modal, #settings-modal, #crafting-modal';
+      const openModal = Array.from(document.querySelectorAll(modalSelector)).find((m) => {
+        if (!m) return false;
+        if (m.style.display === 'none') return false;
+        if (m.style.display && m.style.display !== '') return true;
+        try {
+          return window.getComputedStyle(m).display !== 'none';
+        } catch (_) {
+          return false;
+        }
+      });
+
       const skPopup = document.getElementById('skills-tab-popup');
       const isSkOpen = skPopup && skPopup.style.display !== 'none' && skPopup.classList.contains('active');
       if (openModal || currentTarget || dialogueOpen || isSkOpen) {
         setTarget(null);
         window.closeDialogue();
         window.clearHoveredEquipment?.();
+        window.closeCraftingModal?.();
         if (skPopup) {
           skPopup.classList.remove('active');
           skPopup.style.display = 'none';
         }
-        document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
+        document.querySelectorAll(modalSelector).forEach((m) => {
+          m.style.display = 'none';
+        });
       } else {
         window.toggleModal('settings-modal');
       }

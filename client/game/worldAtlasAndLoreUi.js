@@ -771,14 +771,14 @@ export function setupWorldAtlasAndLoreUi({
         <div style="background:#080c18; border:2px solid #38bdf8; padding:10px; border-radius:4px;">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
             <b style="color:#38bdf8; font-family:var(--font-header); font-size:12px;">
-              IV. HEROIC ARCHETYPES &amp; 60 FPS COMBAT SPRITE REEL
+              IV. 1080P CANONICAL CINEMATICS THEATRE
             </b>
-            <button type="button" class="util-btn" style="background:#082f49; border:1px solid #38bdf8; color:#7dd3fc; font-size:9.5px; padding:4px 10px; font-weight:800; cursor:pointer;" onclick="window.playCinematicModal && window.playCinematicModal('sprite_sheet')">
-              ▶ WATCH SPRITE ANIMATION REEL (1080P HD)
+            <button type="button" class="util-btn" style="background:#082f49; border:1px solid #38bdf8; color:#7dd3fc; font-size:9.5px; padding:4px 10px; font-weight:800; cursor:pointer;" onclick="if(window._landing){window._landing.open('theatre');}else if(window.playCinematicModal){window.playCinematicModal('crystal_heart');}">
+              ▶ WATCH PROLOGUE &amp; 12 SCENES
             </button>
           </div>
           <div style="font-size:10.5px; color:#94a3b8; margin-top:4px; line-height:1.4;">
-            Inspect official 60 FPS animation states for all realm champions: idle stances, 8-directional tactical sprints, weapon strikes, and ability casting rites.
+            Screen official 1080p full-definition story scenes and faction awakenings covering all four elemental realms, world bosses, and monolith overloads.
           </div>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:10px;">

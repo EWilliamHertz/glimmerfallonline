@@ -220,10 +220,29 @@ export const entityDeathAndProgressionMethods = {
         isCrit: true,
       });
 
+      if (killerPlayer) {
+        this.awardPlayerXP(killerPlayer, 250, 'Nexus Final Blow (Last Hit)', { addKills: 1 });
+        room.fxQueue.push({
+          kind: 'fct',
+          x: ent.x,
+          y: ent.y - 18,
+          text: `🎯 FINAL BLOW: ${killerPlayer.displayName || 'Champion'}!`,
+          color: '#f87171',
+          isCrit: true,
+        });
+      }
+
       for (const p of room.players.values()) {
         const won = (p.team || 'blue') === winningTeam;
-        p.send({ type: 'arena_result', won, winningTeam });
+        p.send({ type: 'arena_result', won, winningTeam, lastHitBy: killerPlayer?.displayName });
         if (won) this.awardPlayerXP(p, 120, '3v3 Arena Victory', { addArenaWins: 1 });
+        if (killerPlayer) {
+          p.send({
+            type: 'sys_msg',
+            category: 'combat',
+            text: `💥 [3v3 Arena] ${killerPlayer.displayName} landed the LAST HIT on the ${ent.name} to claim the victory!`,
+          });
+        }
       }
 
       const arenaExitTimer = setTimeout(() => {

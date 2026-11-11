@@ -40,8 +40,24 @@ const DEFAULT_BLOB_TOKEN =
 // Google DeepMind Lyria Prompt Catalog for all 8 GlimmerFall Zones
 // ============================================================================
 export const MUSIC_PROMPT_CATALOG = {
+  title: {
+    name: 'The Dawn of Glimmer (Main Theme & Loadout)',
+    bpm: 92,
+    key: 'D major / B minor',
+    timeSignature: '4/4',
+    durationSeconds: 90,
+    loopable: true,
+    prompt:
+      'Breathtaking fantasy RPG main theme soundtrack, studio master quality, 92 BPM. ' +
+      'Sweeping symphonic strings building into an awe-inspiring melodic French horn anthem, ' +
+      'warm acoustic concert harp arpeggios, shimmering celesta stardust drops, rich ambient low-end cellos, ' +
+      'and delicate choral humming. Evokes ancient cosmic mystery, noble heroic awakening, and vast continental wonder. ' +
+      'Seamless loop, wide stereo field, cinematic orchestral production, crystalline high end.',
+    negativePrompt:
+      'harsh distortion, electric guitars, aggressive drums, vocals, lyrics, speech, clipping, muddy bass, sudden stop',
+  },
   sanctuary: {
-    name: 'Awakening Sanctuary Haven (Pixel Overloop)',
+    name: 'Awakening Sanctuary Haven (Pixel Overloop & Starlight Stasis)',
     bpm: 85,
     key: 'D major / B minor',
     timeSignature: '4/4',
@@ -49,117 +65,132 @@ export const MUSIC_PROMPT_CATALOG = {
     loopable: true,
     audioFile: 'https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/sanctuary_pixel_overloop.m4a',
     prompt:
-      'Lush, ethereal video game soundtrack for a peaceful starlight sanctuary. ' +
-      'Warm acoustic concert harp, gentle celesta arpeggios, soft ambient starlight synth pad, ' +
-      'melodic 16-bit chiptune triangle lead, distant choir humming, peaceful contemplative atmosphere. ' +
-      'Seamless loop, studio master quality, warm low end, pristine high frequencies, 85 BPM.',
+      'Peaceful, restorative video game soundtrack for a celestial safe haven, 85 BPM. ' +
+      'Gentle fingerstyle acoustic nylon guitar paired with warm concert harp glissandos, crystalline glass bells, ' +
+      'soft analog synth pads, and subtle 16-bit melodic triangle wave accents. Ethereal, contemplative, ' +
+      'and soothing atmosphere of starlight stasis and ancient sanctuary. Seamless loop, warm sub-bass, immaculate dynamic range.',
     negativePrompt:
-      'harsh distortion, aggressive drums, electric guitars, vocals, talking, abrupt silence, clipping',
+      'heavy drums, aggressive percussion, dark minor key, horror, distortion, techno, modern trap, loud brass',
   },
   solari: {
     name: 'Daybreak at the Sunspire (Golden Citadel)',
-    bpm: 128,
+    bpm: 126,
     key: 'D mixolydian / D major',
     timeSignature: '4/4',
     durationSeconds: 90,
     loopable: true,
     prompt:
-      'Heroic, triumphant medieval fantasy orchestral march with crisp 16-bit square wave accents. ' +
-      'Golden french horn fanfares, soaring symphonic violins, radiant cathedral choir chords, ' +
-      'martial snare drum roll, crisp timpani hits, radiant solar energy, uplifting adventure anthem. ' +
-      'Seamless loop, bright triumphant mix, wide stereo brass, 128 BPM.',
+      'Triumphant, uplifting medieval fantasy orchestral march, 126 BPM. ' +
+      'Soaring golden French horn fanfares, heroic first violin section melodies, regal brass counterpoint, ' +
+      'radiant cathedral choir chords, crisp marching snare drum rolls, and resonant orchestral timpani strikes. ' +
+      'Blazing with the radiant warmth of morning sunfire and noble valor. Seamless loop, punchy percussion, majestic stereo brass mix.',
     negativePrompt:
-      'dark, gloomy, minor key, horror, speech, heavy metal, low bitrate, mono',
+      'gloomy, dark, melancholic, horror, screams, modern EDM, heavy metal guitars, muddy bass, mono',
   },
   umbri: {
-    name: 'Shadows in the Sepulcher (Umbri Undercity)',
-    bpm: 95,
+    name: 'Shadows in the Nether Sepulcher (Umbri Undercity)',
+    bpm: 94,
     key: 'F# minor / C# minor',
     timeSignature: '4/4',
     durationSeconds: 105,
     loopable: true,
     prompt:
-      'Atmospheric gothic dark-fantasy dungeon crawler soundtrack. Haunting solo cello melody, ' +
-      'echoing cavern water droplets, subtle detuned harpsichord runs, deep sub-bass drone, ' +
-      'distant ethereal whispers, melancholic violet mystery, brooding tension, medieval crypt ambience. ' +
-      'Seamless loop, cavernous reverb, dynamic dark mix, 95 BPM.',
+      'Atmospheric gothic dark fantasy dungeon soundtrack, 94 BPM. ' +
+      'Haunting solo cello playing an expressive, melancholic melody, echoing subterranean water droplets, ' +
+      'delicate detuned baroque harpsichord runs, deep resonant sub-bass drones, and distant ethereal whispering choral textures. ' +
+      'Brooding violet mystery and forgotten subterranean tombs. Seamless loop, cavernous natural reverb, dynamic dark cinematic mix.',
     negativePrompt:
-      'upbeat pop, celebratory brass, bright sunshine, dance EDM, loud screaming, modern synths',
+      'upbeat pop, bright trumpet, happy sunshine, dance music, loud distorted beats, modern synthwave, clipping',
   },
   terra: {
-    name: 'The Rootdeep Hymn (Terra Orchard & Deepwoods)',
-    bpm: 110,
+    name: 'The Rootdeep Hymn (Terra Deepwoods & Glimmer Orchard)',
+    bpm: 108,
     key: 'E minor / G major',
     timeSignature: '4/4',
     durationSeconds: 100,
     loopable: true,
     prompt:
-      'Organic druidic ancient forest video game soundtrack. Warm fingerpicked acoustic guitar, ' +
-      'wooden pan flute melody, earthy bodhran and djembe hand percussion, gentle wind chimes, ' +
-      'lush natural foliage atmosphere, ancient titan trees, emerald sunlight filtering through boughs. ' +
-      'Seamless loop, organic warm acoustic timbre, 110 BPM.',
+      'Lush organic Celtic druidic forest soundtrack, 108 BPM. ' +
+      'Warm fingerpicked acoustic 12-string guitar, enchanting wooden Irish low whistle flute melody, ' +
+      'earthy bodhran hand drums, gentle willow wood chimes, and deep cello basslines. ' +
+      'Sunbeams filtering through massive ancient titan pines and glowing moss. Seamless loop, rich organic woody timbres, warm analog recording.',
     negativePrompt:
-      'heavy synths, aggressive distortion, 808 sub, metallic industrial noise, screeching',
+      'electronic synths, autotune, 808 sub, industrial metallic sounds, screeching electric guitars, distortion',
   },
   aether: {
     name: 'Mirrorgate Continuum (Aether Spire)',
-    bpm: 140,
+    bpm: 138,
     key: 'A minor / C major',
     timeSignature: '4/4',
     durationSeconds: 88,
     loopable: true,
     prompt:
-      'Cosmic celestial sci-fantasy progressive soundtrack. Shimmering glass glockenspiel, ' +
-      'fast quantum arpeggios, swirling analog sine leads, crystalline reverberation, ' +
-      'hypnotic forward momentum, starry nebula expanse, temporal distortion swells, wonder and speed. ' +
-      'Seamless loop, sparkling pristine high end, immersive stereo panning, 140 BPM.',
+      'Cosmic progressive sci-fantasy adventure soundtrack, 138 BPM. ' +
+      'Shimmering glass glockenspiel arpeggios, swirling analog sine wave leads, crystalline starlight reverb, ' +
+      'driving rhythmic pizzicato strings, and hypnotic upward-flowing momentum. Wonder, astronomical equations, ' +
+      'and dimensional portals across a starry nebula. Seamless loop, sparkling pristine high frequencies, immersive stereo panning.',
     negativePrompt:
-      'muddy bass, muffled, acoustic guitar, dark gothic horror, heavy metal drums',
+      'muffled, muddy low end, acoustic folk, gloomy gothic horror, heavy metal drums, abrupt stop',
   },
   abyss: {
     name: 'Cataclysm at Starfall (Abyssal Rift)',
-    bpm: 80,
+    bpm: 78,
     key: 'Eb minor / diminished',
     timeSignature: '4/4',
     durationSeconds: 110,
     loopable: true,
     prompt:
-      'Dark ambient cosmic horror and cataclysmic rift soundtrack. Distorted sawtooth sub-bass drones, ' +
-      'ominous descending orchestral dissonance, crushing meteor impact pulses, discordant strings, ' +
-      'alien void frequencies, deep dread, slow heavy industrial percussion, cosmic void emptiness. ' +
-      'Seamless loop, massive deep sub-frequencies, cinematic tension, 80 BPM.',
+      'Deep cinematic cosmic dread and abyssal rift soundtrack, 78 BPM. ' +
+      'Low distorted sawtooth sub-bass drones, slow menacing orchestral cello ostinatos, eerie descending microtonal string dissonance, ' +
+      'distant subterranean meteor rumbles, and cavernous industrial pulse hits. The crushing void of fractured cosmic gravity. ' +
+      'Seamless loop, massive deep sub-frequencies, intense cinematic tension.',
     negativePrompt:
-      'happy, bright, acoustic folk, pop song, vocals, fast techno, cheesy synth',
+      'cheerful, upbeat, acoustic pop, happy brass, vocals, fast dance beat, video game chiptune bleeps',
   },
   warzone: {
-    name: 'Continental Caldera (Heroic Battle March)',
-    bpm: 135,
+    name: 'Caldera Battle March (Nexus Continental Warzone)',
+    bpm: 136,
     key: 'A minor / D minor',
     timeSignature: '4/4',
     durationSeconds: 96,
     loopable: true,
     prompt:
-      'Pounding cinematic battle music for an epic faction warzone clash. Massive taiko and orchestral war drums, ' +
-      'soaring brass horn motifs, aggressive rhythmic cello ostinatos, clashing shields and steel accents, ' +
-      'driving chiptune arpeggios, adrenaline-pumping heroic battle pulse. ' +
-      'Seamless loop, punchy transient percussion, wide epic mix, 135 BPM.',
+      'Adrenaline-pumping cinematic battle march for an epic fantasy warzone, 136 BPM. ' +
+      'Thunderous Japanese taiko drums and colossal orchestral war drums, aggressive rhythmic cello and double-bass ostinatos, ' +
+      'heroic brass horn section countermelodies, clashing shields and steel accents, and driving momentum. ' +
+      'Epic clash of continental armies fighting for supreme glory. Seamless loop, punchy transient percussion, wide cinematic stereo master.',
     negativePrompt:
-      'silent, slow lullaby, solo acoustic, romantic, talking, modern trap beats',
+      'peaceful, romantic, solo piano, lullaby, speech, hip hop trap beats, silence, lo-fi',
   },
   boss: {
-    name: 'Nexus Climax (World Boss & Siege Supernova)',
-    bpm: 150,
+    name: 'Supernova Climax (World Boss & Nexus Monolith)',
+    bpm: 152,
     key: 'E minor / G harmonic minor',
     timeSignature: '4/4',
     durationSeconds: 84,
     loopable: true,
     prompt:
-      'Relentless apocalyptic boss fight climax soundtrack. Rapid sixteenth-note string ostinatos, ' +
-      'blistering double-time timpani and percussion, catastrophic brass fanfares, gothic choir chanting in Latin, ' +
-      'desperate heroic battle against impossible odds, frantic tempo, monumental power. ' +
-      'Seamless loop, maximum orchestral dynamic range, intense climax, 150 BPM.',
+      'Relentless, apocalyptic orchestral boss fight climax soundtrack, 152 BPM. ' +
+      'Rapid sixteenth-note violin and viola ostinatos, furious double-kick orchestral timpani, ' +
+      'catastrophic brass horn and trombone fanfares, epic gothic choir chanting Latin incantations, ' +
+      'and monumental climactic battle tension against impossible cosmic odds. Frantic high tempo, maximum dynamic impact, seamless loop.',
     negativePrompt:
-      'quiet, casual elevator music, chillhop, lo-fi, acoustic ballads, slow tempo',
+      'elevator music, chillhop, acoustic guitar, quiet, slow tempo, happy pop, lo-fi, silence',
+  },
+  victory: {
+    name: 'Spoils of the Stars (Victory Fanfare)',
+    bpm: 118,
+    key: 'C major / G major',
+    timeSignature: '4/4',
+    durationSeconds: 24,
+    loopable: false,
+    prompt:
+      'Triumphant, short heroic fantasy victory fanfare, 118 BPM. ' +
+      'Soaring golden trumpet fanfare over rolling symphonic timpani, cascading celestial harp glissandos, ' +
+      'sparkling starlight celesta, and rich celebratory orchestral brass cadence resolving in radiant major harmony. ' +
+      'Evokes legendary conquest, celestial loot prisms, and epic MMORPG reward celebration. Studio master quality, crisp stereo reverb tail.',
+    negativePrompt:
+      'defeat, sad minor key, horror, distortion, techno, speech, screeching',
   },
 };
 
@@ -291,14 +322,18 @@ async function uploadToVercelBlob(themeKey, audioBuffer, filename) {
     return null;
   }
 
-  const destinationPath = `glimmerfall/audio/${filename || `${themeKey}.mp3`}`;
-  console.log(`☁️  Uploading to Vercel Blob: ${destinationPath}...`);
+  const cleanName = filename || `${themeKey}.mp3`;
+  const destinationPath = `glimmerfall/audio/${cleanName}`;
+  const ext = path.extname(cleanName).toLowerCase();
+  const contentType = ext === '.m4a' ? 'audio/mp4' : ext === '.wav' ? 'audio/wav' : 'audio/mpeg';
+
+  console.log(`☁️  Uploading to Vercel Blob: ${destinationPath} (${contentType})...`);
 
   try {
     const blob = await put(destinationPath, audioBuffer, {
       access: 'public',
       token: DEFAULT_BLOB_TOKEN,
-      contentType: 'audio/mpeg',
+      contentType,
     });
     console.log(`   ✓ Uploaded successfully!`);
     console.log(`   🔗 Live Public URL: ${blob.url}`);
@@ -355,12 +390,37 @@ async function main() {
     if (isUpload && res?.buffer) {
       await uploadToVercelBlob(themeKey, res.buffer, `${themeKey}.mp3`);
     } else if (isUpload && !res?.buffer) {
-      const localFile = path.join(ROOT_DIR, 'assets', 'audio', `${themeKey}.mp3`);
-      if (fs.existsSync(localFile)) {
-        const fileBuf = fs.readFileSync(localFile);
-        await uploadToVercelBlob(themeKey, fileBuf, `${themeKey}.mp3`);
+      const candidateExts = ['.m4a', '.mp3', '.wav', '.ogg'];
+      let foundPath = null;
+      let foundExt = null;
+      for (const ext of candidateExts) {
+        const candidate = path.join(ROOT_DIR, 'assets', 'audio', `${themeKey}${ext}`);
+        if (fs.existsSync(candidate)) {
+          foundPath = candidate;
+          foundExt = ext;
+          break;
+        }
+      }
+
+      // Also search root directory or assets/audio for filenames containing the theme key
+      if (!foundPath) {
+        const audioDir = path.join(ROOT_DIR, 'assets', 'audio');
+        if (fs.existsSync(audioDir)) {
+          const files = fs.readdirSync(audioDir);
+          const match = files.find((f) => f.toLowerCase().includes(themeKey.toLowerCase()));
+          if (match) {
+            foundPath = path.join(audioDir, match);
+            foundExt = path.extname(match);
+          }
+        }
+      }
+
+      if (foundPath) {
+        const fileBuf = fs.readFileSync(foundPath);
+        const destFilename = `${themeKey}${foundExt || '.m4a'}`;
+        await uploadToVercelBlob(themeKey, fileBuf, destFilename);
       } else {
-        console.log(`   ℹ No local audio file found at ${localFile} to upload.`);
+        console.log(`   ℹ No local audio file found for ${themeKey} (.m4a, .mp3, .wav) in assets/audio/ to upload.`);
       }
     }
   }

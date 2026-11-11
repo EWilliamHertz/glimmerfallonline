@@ -410,8 +410,12 @@ export function createGlimmerFallServer() {
 
     // Production static file serving from dist/
     if (fs.existsSync(DIST_DIR)) {
-      const rel = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
-      const fullPath = path.resolve(DIST_DIR, rel);
+      let rel = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
+      if (rel === 'game.html' || rel === 'game') rel = 'index.html';
+      let fullPath = path.resolve(DIST_DIR, rel);
+      if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
+        fullPath = path.join(fullPath, 'index.html');
+      }
       if (fullPath.startsWith(DIST_DIR) && fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
         const ext = path.extname(fullPath).toLowerCase();
         res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' });
