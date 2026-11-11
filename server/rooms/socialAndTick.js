@@ -251,15 +251,19 @@ export const socialAndTickMethods = {
       if (p.phaseShiftTimer > 0) p.phaseShiftTimer = Math.max(0, p.phaseShiftTimer - dt);
       if (p.temporalApotheosisTimer > 0) p.temporalApotheosisTimer = Math.max(0, p.temporalApotheosisTimer - dt);
 
-      // Vitality Health Regeneration (+2.5 HP/s baseline + 0.5 HP/s per Terra Bulwark point)
-      const hpRegen = calcHpRegenPerSec(p.prog);
+      // Campfire Resting Warmth (+5.0 HP/s and +5.0 Glimmer/s while resting near a campfire)
+      const nearCampfire = room.entities.some((e) => (e.type === 'campfire' || (e.name && e.name.includes('Campfire'))) && Math.hypot(e.x - p.x, e.y - p.y) <= 85);
+      const campfireRegen = nearCampfire ? 5.0 : 0;
+
+      // Vitality Health Regeneration (+2.5 HP/s baseline + 0.5 HP/s per Terra Bulwark point + Campfire Warmth)
+      const hpRegen = calcHpRegenPerSec(p.prog) + campfireRegen;
       if (hpRegen > 0 && !p.isDead && p.hp < p.maxHp) {
         p.hp = Math.min(p.maxHp, p.hp + hpRegen * dt);
       }
 
-      // Baseline Glimmer resonance recovery (+3.5 Glimmer/s)
+      // Baseline Glimmer resonance recovery (+3.5 Glimmer/s + Campfire Warmth)
       if (!p.isDead && p.solarCharge < p.maxSolarCharge) {
-        p.solarCharge = Math.min(p.maxSolarCharge, p.solarCharge + 3.5 * dt);
+        p.solarCharge = Math.min(p.maxSolarCharge, p.solarCharge + (3.5 + campfireRegen) * dt);
       }
 
       if (p.speechBubble && p.speechBubble.expiresAt <= now) p.speechBubble = null;

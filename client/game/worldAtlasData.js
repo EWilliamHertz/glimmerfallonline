@@ -90,7 +90,7 @@
         north: null,
         south: null,
         west: 'SANCTUARY_HUB',
-        east: null
+        east: 'CORAL_COAST'
       },
       landmarks: [
         { x: 50, y: 38, icon: '🌑', name: 'Wraithmother Vespera', sub: 'Shadow Mystic', desc: 'Mistress of Abyssal Shroud and Soul Tithes.' },
@@ -119,7 +119,7 @@
       gridPos: { col: 1, row: 5 },
       neighbors: {
         north: 'SANCTUARY_HUB',
-        south: null,
+        south: 'IRONWOOD_TIMBERLANDS',
         west: null,
         east: null
       },
@@ -333,6 +333,70 @@
       ],
       objectives: 'Harvest Empyrean Starleaf & Celestial Gossamer, conquer Elite Rift Champions, vanquish Xal\'Korath.',
       travel: 'Walk East across the eastern edge of the Continental Nexus Caldera (or North beyond the Celestial Ascent).'
+    },
+    IRONWOOD_TIMBERLANDS: {
+      id: 'IRONWOOD_TIMBERLANDS',
+      name: 'Ironwood Timberlands',
+      sub: 'Ancient Primordial Forest & Woodcraft Haven',
+      level: 'Lv. 8 – 18',
+      dangerTag: 'ARBOREAL GROVE',
+      color: '#22c55e',
+      borderColor: '#4ade80',
+      faction: '🌲 Order of the Green Bough',
+      desc: 'Dense primordial woodland south of Terra Orchard teeming with towering Glimmerwood, ancient Ironbark oaks, and Duskveil willows. Home to Forester Silas and the Lumberjack Camp.',
+      gridPos: { col: 1, row: 6 },
+      neighbors: {
+        north: 'TERRA_ORCHARD',
+        south: null,
+        west: null,
+        east: 'CORAL_COAST'
+      },
+      landmarks: [
+        { x: 50, y: 32, icon: '🪵', name: 'Elder Barkhide the Treant', sub: '★ Lv.16 Forest Boss', desc: 'Ancient primordial treant dropping the Ironwood Quarterstaff.' },
+        { x: 42, y: 70, icon: '🪓', name: 'Forester Silas & Lumberjack Camp', sub: 'Master Woodcrafter', desc: 'Oversees timbercraft bounties & campfire recipes.' },
+        { x: 68, y: 52, icon: '🌲', name: 'Ancient Ironbark Groves', sub: 'High-Tier Timber Nodes [E]', desc: 'Fell Glimmerwood, Ironbark & Duskveil trees for logs & resins.' },
+        { x: 50, y: 8, icon: '▲', name: 'Orchard Ridge Pass', sub: 'To Terra Orchard [North]', desc: 'Walk North back to Terra Orchard.' },
+        { x: 92, y: 50, icon: '▶', name: 'Coastal Forest Trail', sub: 'To Coral Coast [East]', desc: 'Walk East along the coast into the Coral Coast.' }
+      ],
+      entities: [
+        { name: 'Elder Barkhide the Treant', type: 'Forest Boss', hp: '580 HP', desc: 'Drops the Primeval Ironwood Quarterstaff and Hardened Sap.' },
+        { name: 'Treant Saplings & Ironbark Prowlers', type: 'Forest Mob', hp: '95 – 135 HP', desc: 'Defend the timber groves and drop Glimmerwood logs & amber resin.' },
+        { name: 'Forester Silas', type: 'Woodcraft Mentor', hp: 'Immortal', desc: 'Issues timber bounties and guides campfire crafting.' }
+      ],
+      objectives: 'Fell Glimmerwood & Ironbark trees, build campfires, vanquish Elder Barkhide.',
+      travel: 'Walk South from Terra Orchard (or West from Coral Coast).'
+    },
+    CORAL_COAST: {
+      id: 'CORAL_COAST',
+      name: 'Coral Coast & Maritime Docks',
+      sub: 'Tidal Atolls & Cosmic Angler Haven',
+      level: 'Lv. 12 – 24',
+      dangerTag: 'OCEANIC SHALLOWS',
+      color: '#06b6d4',
+      borderColor: '#38bdf8',
+      faction: '🌊 Tide-Seekers of the Deep',
+      desc: 'Sunlit maritime coastline east of Umbri Undercity where gentle tides lap against living coral reefs. Angler Finn teaches cosmic fishing at the oceanic boardwalk pier.',
+      gridPos: { col: 2, row: 5 },
+      neighbors: {
+        north: 'UMBRI_UNDERCITY',
+        south: null,
+        west: 'IRONWOOD_TIMBERLANDS',
+        east: null
+      },
+      landmarks: [
+        { x: 50, y: 28, icon: '🔱', name: 'Triton the Tide-Reaver', sub: '★ Lv.20 Reef World Boss', desc: 'Sovereign of the Atoll dropping the Coral Tide-Reaver Trident.' },
+        { x: 38, y: 68, icon: '🎣', name: 'Angler Finn & Pier Docks', sub: 'Master Cosmic Angler', desc: 'Teaches angling, baiting, and coastal bounties.' },
+        { x: 70, y: 50, icon: '🐟', name: 'Prismatic Coral Reefs', sub: 'Tidal Angling Pools [E]', desc: 'Angle Minnows, Solar Trout & Prismatic Salmon.' },
+        { x: 50, y: 8, icon: '▲', name: 'Sepulcher Coastal Path', sub: 'To Umbri Undercity [North]', desc: 'Walk North back into the Duskveil Bog.' },
+        { x: 8, y: 50, icon: '◀', name: 'Forest Ridge Way', sub: 'To Ironwood Timberlands [West]', desc: 'Walk West into the ancient timber groves.' }
+      ],
+      entities: [
+        { name: 'Triton the Tide-Reaver', type: 'Reef Boss', hp: '760 HP', desc: 'Drops the Coral Tide-Reaver Trident & Shimmering Atoll Ring.' },
+        { name: 'Brine Crawlers & Coral Sirens', type: 'Oceanic Mob', hp: '140 – 175 HP', desc: 'Guard tidal pools and drop pearls, minnows & shells.' },
+        { name: 'Angler Finn', type: 'Angling Mentor', hp: 'Immortal', desc: 'Guides cosmic fishing and coastal fish recipes.' }
+      ],
+      objectives: 'Angle raw minnows & solar trout, cook feasts on campfire hearths, vanquish Triton.',
+      travel: 'Walk East from Umbri Undercity (or East from Ironwood Timberlands).'
     }
   };
 

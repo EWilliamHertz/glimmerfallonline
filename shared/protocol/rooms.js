@@ -16,6 +16,8 @@ export const ROOM_TYPES = {
   CELESTIAL_ASCENT: 'celestial_ascent',
   STARFALL_CRATER: 'starfall_crater',
   ABYSSAL_RIFT: 'abyssal_rift',
+  IRONWOOD_TIMBERLANDS: 'ironwood_timberlands',
+  CORAL_COAST: 'coral_coast',
 };
 
 // Three shared Grand Fonts per realm, placed away from spawn crowds and quest NPCs.
@@ -89,6 +91,16 @@ export const GRAND_FONT_POSITIONS = {
     { x: 0, y: -320 },
     { x: -420, y: 200 },
     { x: 420, y: 200 },
+  ],
+  [ROOM_TYPES.IRONWOOD_TIMBERLANDS]: [
+    { x: 0, y: -240 },
+    { x: -320, y: 140 },
+    { x: 320, y: 140 },
+  ],
+  [ROOM_TYPES.CORAL_COAST]: [
+    { x: 0, y: -260 },
+    { x: -360, y: 160 },
+    { x: 360, y: 160 },
   ],
   [ROOM_TYPES.ARENA_3V3]: [],
 };
@@ -173,6 +185,7 @@ export const ROOM_CONFIGS = {
     edgeTransitions: {
       west: ROOM_TYPES.SANCTUARY_HUB,
       north: ROOM_TYPES.UMBRI_SHADOW_LABYRINTH,
+      east: ROOM_TYPES.CORAL_COAST,
     },
   },
   [ROOM_TYPES.TERRA_ORCHARD]: {
@@ -192,6 +205,7 @@ export const ROOM_CONFIGS = {
     edgeTransitions: {
       north: ROOM_TYPES.SANCTUARY_HUB,
       west: ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY,
+      south: ROOM_TYPES.IRONWOOD_TIMBERLANDS,
     },
   },
   [ROOM_TYPES.AETHER_SPIRE]: {
@@ -382,10 +396,57 @@ export const ROOM_CONFIGS = {
       south: ROOM_TYPES.CELESTIAL_ASCENT,
     },
   },
+  [ROOM_TYPES.IRONWOOD_TIMBERLANDS]: {
+    type: ROOM_TYPES.IRONWOOD_TIMBERLANDS,
+    title: 'IRONWOOD TIMBERLANDS & LUMBERJACK GROVE (LV. 8–18)',
+    shortTitle: 'IRONWOOD TIMBERLANDS',
+    biomeTheme: 'terra_grove',
+    bgm: 'terra',
+    maxPlayers: 35,
+    width: 72,
+    height: 72,
+    halfW: 576,
+    halfH: 576,
+    pvp: false,
+    spawnX: 0,
+    spawnY: 180,
+    edgeTransitions: {
+      north: ROOM_TYPES.TERRA_ORCHARD,
+      east: ROOM_TYPES.CORAL_COAST,
+    },
+  },
+  [ROOM_TYPES.CORAL_COAST]: {
+    type: ROOM_TYPES.CORAL_COAST,
+    title: 'CORAL COAST & BRINELIGHT SHALLOWS (LV. 12–24)',
+    shortTitle: 'CORAL COAST',
+    biomeTheme: 'solari',
+    bgm: 'solari',
+    maxPlayers: 35,
+    width: 72,
+    height: 72,
+    halfW: 576,
+    halfH: 576,
+    pvp: false,
+    spawnX: 0,
+    spawnY: 180,
+    edgeTransitions: {
+      north: ROOM_TYPES.UMBRI_UNDERCITY,
+      west: ROOM_TYPES.IRONWOOD_TIMBERLANDS,
+    },
+  },
 };
 
 // Deep Water & Abyss Collision Detection
 export function isWaterTile(x, y, roomType = ROOM_TYPES.NEXUS_WARZONE) {
+  if (roomType === ROOM_TYPES.CORAL_COAST) {
+    // Eastern and Southern open tidal sea blocks foot movement, except along the fishing pier & docks
+    const isDeepSea = y <= -320 || x >= 360;
+    if (!isDeepSea) return false;
+    // Central Fishing Pier extends from (x: -40 to 60, y: -220 to -420)
+    const isPier = x >= -48 && x <= 64 && y >= -440 && y <= -180;
+    if (isPier) return false;
+    return true;
+  }
   if (roomType === ROOM_TYPES.NEXUS_WARZONE) {
     const tx = Math.floor(x / TILE_SIZE);
     const ty = Math.floor(y / TILE_SIZE);

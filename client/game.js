@@ -2918,24 +2918,39 @@ export function initGame() {
     if (item.slot === 'keystone') return useKeystoneItem(item, idx, inv);
     if (item.slot !== 'consumable') return 'not-consumable';
 
-    if (item.healHp) {
-      if (player.hp >= player.maxHp) {
-        spawnFCT(player.x, player.y - 14, 'HEALTH ALREADY FULL!', '#94a3b8');
+    if (item.placeCampfire || item.id === 'campfire_kit') {
+      props.push({
+        type: 'campfire',
+        stationId: 'campfire_hearth',
+        x: Math.round(player.x),
+        y: Math.round(player.y),
+        label: '🔥 Player Campfire Hearth [Click / E]',
+        lifeTimer: 180,
+        isTemporaryCampfire: true,
+      });
+      spawnSparkBurst(player.x, player.y - 8, ['#f97316', '#facc15', '#ffffff'], 20);
+      spawnFCT(player.x, player.y - 14, '🔥 CAMPFIRE LIT (3 MIN)!', '#fb923c', true);
+      logMessage('🔥 Lit a crackling Campfire Hearth! Rest beside it to recover vitals and roast caught fish.', 'log-gain', 'chat');
+    } else if (item.healHp || item.restoreGlimmer) {
+      if (item.healHp && player.hp >= player.maxHp && (!item.restoreGlimmer || player.solarCharge >= player.maxSolarCharge)) {
+        spawnFCT(player.x, player.y - 14, 'VITALS ALREADY FULL!', '#94a3b8');
         return 'blocked';
       }
-      player.hp = Math.min(player.maxHp, player.hp + item.healHp);
-      spawnFCT(player.x, player.y - 14, `+${item.healHp} HEALTH!`, '#4ade80', true);
-      const actionVerb = item.id.includes('bread') || item.id.includes('apple') || item.id.includes('ration') ? 'Ate' : 'Consumed';
-      const actionIcon = item.id.includes('bread') ? '🍞' : item.id.includes('apple') ? '🍎' : item.id.includes('ration') ? '🥩' : '🧪';
-      logMessage(`${actionIcon} ${actionVerb} ${item.name} (+${item.healHp} Health)!`, 'log-gain', 'combat');
-    } else if (item.restoreGlimmer) {
-      if (player.solarCharge >= player.maxSolarCharge) {
-        spawnFCT(player.x, player.y - 14, 'GLIMMER ALREADY FULL!', '#94a3b8');
-        return 'blocked';
+      const msgParts = [];
+      if (item.healHp && player.hp < player.maxHp) {
+        player.hp = Math.min(player.maxHp, player.hp + item.healHp);
+        spawnFCT(player.x, player.y - 14, `+${item.healHp} HEALTH!`, '#4ade80', true);
+        msgParts.push(`+${item.healHp} Health`);
       }
-      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + item.restoreGlimmer);
-      spawnFCT(player.x, player.y - 14, `+${item.restoreGlimmer} GLIMMER!`, '#38bdf8', true);
-      logMessage(`⚗️ Consumed ${item.name} (+${item.restoreGlimmer} Glimmer)!`, 'log-gain', 'combat');
+      if (item.restoreGlimmer && player.solarCharge < player.maxSolarCharge) {
+        player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + item.restoreGlimmer);
+        spawnFCT(player.x, player.y - 28, `+${item.restoreGlimmer} GLIMMER!`, '#38bdf8', true);
+        msgParts.push(`+${item.restoreGlimmer} Glimmer`);
+      }
+      const isFood = item.id.includes('bread') || item.id.includes('apple') || item.id.includes('ration') || item.id.includes('minnow') || item.id.includes('trout') || item.id.includes('salmon') || item.id.includes('eel') || item.id.includes('koi') || item.id.includes('banquet');
+      const actionVerb = isFood ? 'Ate' : 'Consumed';
+      const actionIcon = item.icon || (isFood ? '🍖' : '🧪');
+      logMessage(`${actionIcon} ${actionVerb} ${item.name} (${msgParts.join(', ') || 'Restored vitals'})!`, 'log-gain', 'combat');
     } else {
       return 'not-usable';
     }
@@ -5290,6 +5305,80 @@ export function initGame() {
           },
         ],
       });
+    } else if (resolvedRoomType === ROOM_TYPES.IRONWOOD_TIMBERLANDS) {
+      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'IRONWOOD TIMBERLANDS & LUMBERJACK GROVE';
+      if (zoneLabel) zoneLabel.innerText = 'To Orchard';
+      arenaBanner.style.display = 'none';
+
+      props.push(
+        { type: 'campfire', stationId: 'campfire_hearth', x: -55, y: 155, label: '🔥 Lumberjack Campfire Hearth [Click / E]' },
+        { type: 'bountyBoard', isBountyBoard: true, x: 55, y: 155, label: '📜 Timberlands Bounty Board [Click / E]' },
+        { type: 'celestialLoom', stationId: 'celestial_loom', x: -115, y: 155, label: '🧵 Green Bough Loom & Workshop [Click / E]' },
+        { type: 'woodenSign', x: 0, y: 185, label: '🪧 N: Terra Orchard | E: Coral Coast | S: Ancient Treant Glade' },
+        { type: 'ancientOak', x: -180, y: 80 },
+        { type: 'ancientOak', x: 180, y: 80 },
+        { type: 'ancientOak', x: -210, y: -120 },
+        { type: 'ancientOak', x: 210, y: -120 },
+        { type: 'stoneBench', x: 0, y: 125 },
+        { type: 'brazier', x: -75, y: 135 },
+        { type: 'brazier', x: 75, y: 135 }
+      );
+      npcs.push({
+        id: 'npc_silas',
+        name: 'Forester Silas',
+        role: 'Master Woodcrafter [Click / T]',
+        spriteKey: 'foresterSilasNpc',
+        x: 0,
+        y: 145,
+        dialogue: [
+          {
+            speaker: 'FORESTER SILAS • IRONWOOD TIMBERLANDS',
+            spriteKey: 'foresterSilasNpc',
+            text: 'Welcome to the Ironwood Timberlands! Grab your axe and fell Glimmerwood, ancient Ironbark, and Duskveil willows across the grove. Bundle logs into Campfire Kits or roast fresh fish over our crackling campfire hearth!',
+            actions: [
+              { label: '🔥 OPEN CAMPFIRE HEARTH', action: 'openStation_campfire_hearth', style: 'border-color:#fb923c; color:#fed7aa; font-weight:bold;' },
+              { label: '🧵 TIMBERCRAFT WORKSHOP', action: 'openStation_celestial_loom', style: 'border-color:#22c55e; color:#86efac; font-weight:bold;' },
+              { label: '📜 TIMBER BOUNTIES', action: 'openBountyBoard', style: 'border-color:#4ade80; color:#86efac; font-weight:bold;' },
+              { label: '👋 SAFE JOURNEYS', action: 'close' },
+            ],
+          },
+        ],
+      });
+    } else if (resolvedRoomType === ROOM_TYPES.CORAL_COAST) {
+      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'CORAL COAST & BRINELIGHT SHALLOWS';
+      if (zoneLabel) zoneLabel.innerText = 'To Undercity';
+      arenaBanner.style.display = 'none';
+
+      props.push(
+        { type: 'campfire', stationId: 'campfire_hearth', x: -60, y: 150, label: '🔥 Seaside Campfire Hearth [Click / E]' },
+        { type: 'bountyBoard', isBountyBoard: true, x: 60, y: 150, label: '📜 Coastal Bounty Board [Click / E]' },
+        { type: 'woodenSign', x: 0, y: 185, label: '🪧 N: Umbri Undercity | W: Ironwood Timberlands | S: Ocean Pier' },
+        { type: 'ancientWell', x: -140, y: 120 },
+        { type: 'streetLantern', x: -85, y: 150 },
+        { type: 'streetLantern', x: 85, y: 150 },
+        { type: 'crystalPillar', x: -160, y: -40 },
+        { type: 'crystalPillar', x: 160, y: -40 }
+      );
+      npcs.push({
+        id: 'npc_finn',
+        name: 'Angler Finn',
+        role: 'Master Cosmic Angler [Click / T]',
+        spriteKey: 'anglerFinnNpc',
+        x: 0,
+        y: 145,
+        dialogue: [
+          {
+            speaker: 'ANGLER FINN • CORAL COAST',
+            spriteKey: 'anglerFinnNpc',
+            text: 'Cast your line into these shimmering tidal currents! From silvery Glimmer Minnows to radiant Solar Trout and Prismatic Reef Salmon, the ocean provides for patient souls. Roast your catch right here at our seaside hearth!',
+            actions: [
+              { label: '🔥 OPEN SEASIDE HEARTH', action: 'openStation_campfire_hearth', style: 'border-color:#38bdf8; color:#bae6fd; font-weight:bold;' },
+              { label: '📜 COASTAL BOUNTIES', action: 'openBountyBoard', style: 'border-color:#06b6d4; color:#a5f3fc; font-weight:bold;' },
+              { label: '👋 FAIR WINDS', action: 'close' },
+            ],
+          },
+        ],
+      });
     } else {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || cfg.shortTitle || 'NEXUS WARZONE';
       if (zoneLabel) zoneLabel.innerText = 'To Sanctuary';
@@ -5839,6 +5928,32 @@ export function initGame() {
         { id: 'aby_node_1', name: 'Abyssal Singularity Font', sub: 'Voidstar Glimmer Spire [E]', type: 'node', spriteKey: 'node', x: 0, y: -30, charges: 6, maxCharges: 6, radius: 18, hitFlash: 0 },
         { id: 'aby_boss', name: 'Xal\'Korath the Void Architect', sub: '★ Lv.42 Sovereign of the Rift', type: 'mob', isBoss: true, dropGear: 'abyssal_voidstar_scythe', spriteKey: 'abyssalArchitectBoss', x: 0, y: -340, origX: 0, origY: -340, hp: 3800, maxHp: 3800, damage: 38, xpReward: 2200, speed: 45, aggroRange: 175, attackRange: 42, radius: 28, hitFlash: 0 }
       );
+    } else if (currentRoomType === ROOM_TYPES.IRONWOOD_TIMBERLANDS) {
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 180;
+      }
+      entities.push(
+        { id: 'iw_mob_1', name: 'Treant Sapling', sub: 'Lv.9 Primordial Treant', type: 'mob', spriteKey: 'treantSapling', x: -125, y: 45, origX: -125, origY: 45, hp: 95, maxHp: 95, damage: 8, xpReward: 95, speed: 48, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'iw_mob_2', name: 'Treant Sapling', sub: 'Lv.9 Primordial Treant', type: 'mob', spriteKey: 'treantSapling', x: 125, y: 45, origX: 125, origY: 45, hp: 95, maxHp: 95, damage: 8, xpReward: 95, speed: 48, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'iw_mob_3', name: 'Ironbark Prowler', sub: 'Lv.12 Ancient Forest Beast', type: 'mob', spriteKey: 'ironbarkTreant', x: -140, y: -85, origX: -140, origY: -85, hp: 135, maxHp: 135, damage: 10, xpReward: 145, speed: 52, aggroRange: 120, attackRange: 30, radius: 16, hitFlash: 0 },
+        { id: 'iw_mob_4', name: 'Ironbark Prowler', sub: 'Lv.12 Ancient Forest Beast', type: 'mob', spriteKey: 'ironbarkTreant', x: 140, y: -85, origX: 140, origY: -85, hp: 135, maxHp: 135, damage: 10, xpReward: 145, speed: 52, aggroRange: 120, attackRange: 30, radius: 16, hitFlash: 0 },
+        { id: 'iw_node_1', name: 'Ironwood Primeval Font', sub: 'Ancient Arboreal Font [E]', type: 'node', spriteKey: 'node', x: 0, y: -40, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
+        { id: 'iw_boss', name: 'Elder Barkhide the Primeval Treant', sub: '★ Lv.16 Ancient Timberlands Boss', type: 'mob', isBoss: true, dropGear: 'ironwood_quarterstaff', spriteKey: 'elderBarkhide', x: 0, y: -240, origX: 0, origY: -240, hp: 580, maxHp: 580, damage: 16, xpReward: 540, speed: 40, aggroRange: 140, attackRange: 34, radius: 24, hitFlash: 0 }
+      );
+    } else if (currentRoomType === ROOM_TYPES.CORAL_COAST) {
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 180;
+      }
+      entities.push(
+        { id: 'cc_mob_1', name: 'Brine Crawler', sub: 'Lv.13 Tidal Scuttler', type: 'mob', spriteKey: 'brineCrawler', x: -130, y: 50, origX: -130, origY: 50, hp: 140, maxHp: 140, damage: 10, xpReward: 145, speed: 50, aggroRange: 118, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'cc_mob_2', name: 'Brine Crawler', sub: 'Lv.13 Tidal Scuttler', type: 'mob', spriteKey: 'brineCrawler', x: 130, y: 50, origX: 130, origY: 50, hp: 140, maxHp: 140, damage: 10, xpReward: 145, speed: 50, aggroRange: 118, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'cc_mob_3', name: 'Coral Siren', sub: 'Lv.16 Reef Enchantress', type: 'mob', spriteKey: 'coralSiren', x: -145, y: -80, origX: -145, origY: -80, hp: 175, maxHp: 175, damage: 12, xpReward: 185, speed: 54, aggroRange: 125, attackRange: 32, radius: 16, hitFlash: 0 },
+        { id: 'cc_mob_4', name: 'Coral Siren', sub: 'Lv.16 Reef Enchantress', type: 'mob', spriteKey: 'coralSiren', x: 145, y: -80, origX: 145, origY: -80, hp: 175, maxHp: 175, damage: 12, xpReward: 185, speed: 54, aggroRange: 125, attackRange: 32, radius: 16, hitFlash: 0 },
+        { id: 'cc_node_1', name: 'Brinelight Abyssal Font', sub: 'Tidal Glimmer Font [E]', type: 'node', spriteKey: 'node', x: 0, y: -40, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
+        { id: 'cc_boss', name: 'Triton the Tide-Reaver', sub: '★ Lv.20 Sovereign of the Reef', type: 'mob', isBoss: true, dropGear: 'tide_reaver_trident', spriteKey: 'tideReaverBoss', x: 0, y: -240, origX: 0, origY: -240, hp: 760, maxHp: 760, damage: 19, xpReward: 700, speed: 46, aggroRange: 150, attackRange: 36, radius: 24, hitFlash: 0 }
+      );
     } else {
       player.x = 0;
       player.y = 1740;
@@ -5955,7 +6070,7 @@ export function initGame() {
     const candidates = targetList.filter((e) => e.type === 'mob' && !e.isBoss);
     if (!candidates.length) return;
     // Promote 1 deterministic / semi-random champion per dungeon/zone (2 in Warzone/Abyssal/Starfall)
-    const maxElites = (roomType === ROOM_TYPES.NEXUS_WARZONE || roomType === ROOM_TYPES.ABYSSAL_RIFT || roomType === ROOM_TYPES.STARFALL_CRATER) ? 2 : 1;
+    const maxElites = (roomType === ROOM_TYPES.NEXUS_WARZONE || roomType === ROOM_TYPES.ABYSSAL_RIFT || roomType === ROOM_TYPES.STARFALL_CRATER || roomType === ROOM_TYPES.IRONWOOD_TIMBERLANDS || roomType === ROOM_TYPES.CORAL_COAST) ? 2 : 1;
     for (let i = 0; i < Math.min(maxElites, candidates.length); i++) {
       const mob = candidates[candidates.length - 1 - i];
       if (!mob || mob.eliteAffix) continue;
@@ -5984,6 +6099,12 @@ export function initGame() {
     }
     if (currentRoomType === ROOM_TYPES.ABYSSAL_RIFT) {
       return ` • <span style="color:#e879f9; font-weight:800;">[ABYSSAL BREACH]</span>`;
+    }
+    if (currentRoomType === ROOM_TYPES.IRONWOOD_TIMBERLANDS) {
+      return ` • <span style="color:#22c55e; font-weight:800;">[TIMBER GROVE]</span>`;
+    }
+    if (currentRoomType === ROOM_TYPES.CORAL_COAST) {
+      return ` • <span style="color:#06b6d4; font-weight:800;">[CORAL SHALLOWS]</span>`;
     }
     if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
       return ` • <span style="color:#f97316; font-weight:800;">[OPEN WARZONE]</span>`;
@@ -11136,15 +11257,31 @@ export function initGame() {
     if (player.phaseShiftTimer > 0) player.phaseShiftTimer = Math.max(0, player.phaseShiftTimer - dt);
     if (player.temporalApotheosisTimer > 0) player.temporalApotheosisTimer = Math.max(0, player.temporalApotheosisTimer - dt);
 
-    // Vitality Health Regeneration (+2.5 HP/s baseline + 0.5 HP/s per Terra Bulwark point)
-    const hpRegen = calcHpRegenPerSec(prog);
+    // Temporary Campfires ticking & despawn
+    for (let i = props.length - 1; i >= 0; i--) {
+      const pr = props[i];
+      if (pr.isTemporaryCampfire && pr.lifeTimer > 0) {
+        pr.lifeTimer -= dt;
+        if (pr.lifeTimer <= 0) {
+          spawnSparkBurst(pr.x, pr.y - 8, ['#94a3b8', '#475569'], 10);
+          props.splice(i, 1);
+        }
+      }
+    }
+
+    // Campfire Hearth Warmth (+5 HP/s and +5 Glimmer/s while resting near any campfire)
+    const isRestingByCampfire = props.some((pr) => pr.type === 'campfire' && Math.hypot(pr.x - player.x, pr.y - player.y) <= 85);
+    const campfireRegen = isRestingByCampfire ? 5.0 : 0;
+
+    // Vitality Health Regeneration (+2.5 HP/s baseline + 0.5 HP/s per Terra Bulwark point + Campfire Warmth)
+    const hpRegen = calcHpRegenPerSec(prog) + campfireRegen;
     if (hpRegen > 0 && !player.isDead && player.hp < player.maxHp) {
       player.hp = Math.min(player.maxHp, player.hp + hpRegen * dt);
     }
 
-    // Baseline Glimmer resonance recovery (+3.5 Glimmer/s)
+    // Baseline Glimmer resonance recovery (+3.5 Glimmer/s + Campfire Warmth)
     if (!player.isDead && player.solarCharge < player.maxSolarCharge) {
-      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 3.5 * dt);
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + (3.5 + campfireRegen) * dt);
     }
 
     if (player.slashTimer > 0) player.slashTimer = Math.max(0, player.slashTimer - dt);

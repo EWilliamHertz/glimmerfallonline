@@ -485,7 +485,9 @@ export function setupWorldAtlasAndLoreUi({
       'SANCTUARY_HUB',
       'SOLARI_CITADEL',
       'UMBRI_UNDERCITY',
-      'TERRA_ORCHARD'
+      'TERRA_ORCHARD',
+      'IRONWOOD_TIMBERLANDS',
+      'CORAL_COAST'
     ];
 
     return `

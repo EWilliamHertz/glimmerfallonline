@@ -422,7 +422,9 @@ export const worldPopulationMethods = {
       room.type === ROOM_TYPES.AETHER_FRACTURED_ARCHIVE ||
       room.type === ROOM_TYPES.CELESTIAL_ASCENT ||
       room.type === ROOM_TYPES.STARFALL_CRATER ||
-      room.type === ROOM_TYPES.ABYSSAL_RIFT
+      room.type === ROOM_TYPES.ABYSSAL_RIFT ||
+      room.type === ROOM_TYPES.IRONWOOD_TIMBERLANDS ||
+      room.type === ROOM_TYPES.CORAL_COAST
     ) {
       this.populateSubZoneDungeon(room);
     } else if (room.type === ROOM_TYPES.ARENA_3V3) {

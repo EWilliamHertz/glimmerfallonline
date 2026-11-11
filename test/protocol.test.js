@@ -313,6 +313,17 @@ test('Starfall Crater and Abyssal Rift are configured with reciprocal seamless e
   assert.equal(protocol.ROOM_CONFIGS[abyssal].edgeTransitions.west, protocol.ROOM_TYPES.NEXUS_WARZONE);
   assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.CELESTIAL_ASCENT].edgeTransitions.north, abyssal);
   assert.equal(protocol.ROOM_CONFIGS[abyssal].edgeTransitions.south, protocol.ROOM_TYPES.CELESTIAL_ASCENT);
+
+  const timberlands = protocol.ROOM_TYPES.IRONWOOD_TIMBERLANDS;
+  const coral = protocol.ROOM_TYPES.CORAL_COAST;
+  assert.ok(protocol.ROOM_CONFIGS[timberlands], 'missing Ironwood Timberlands config');
+  assert.ok(protocol.ROOM_CONFIGS[coral], 'missing Coral Coast config');
+  assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.TERRA_ORCHARD].edgeTransitions.south, timberlands);
+  assert.equal(protocol.ROOM_CONFIGS[timberlands].edgeTransitions.north, protocol.ROOM_TYPES.TERRA_ORCHARD);
+  assert.equal(protocol.ROOM_CONFIGS[timberlands].edgeTransitions.east, coral);
+  assert.equal(protocol.ROOM_CONFIGS[coral].edgeTransitions.west, timberlands);
+  assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.UMBRI_UNDERCITY].edgeTransitions.east, coral);
+  assert.equal(protocol.ROOM_CONFIGS[coral].edgeTransitions.north, protocol.ROOM_TYPES.UMBRI_UNDERCITY);
 });
 
 test('Leyline socket gems grant flat HP, Glimmer, and combat stats in socket slots', () => {
@@ -341,16 +352,22 @@ test('RoomManager initializes Starfall Crater, Abyssal Rift, skilling veins, and
     partyManager: { getPartyForMember: () => null },
   });
   try {
-    assert.equal(rm.rooms.size, 14);
+    assert.equal(rm.rooms.size, 16);
     const starfall = rm.rooms.get('starfall_crater_1');
     const abyssal = rm.rooms.get('abyssal_rift_1');
     const hub = rm.rooms.get('sanctuary_hub_1');
-    assert.ok(starfall && abyssal && hub);
+    const timberlands = rm.rooms.get('ironwood_timberlands_1');
+    const coral = rm.rooms.get('coral_coast_1');
+    assert.ok(starfall && abyssal && hub && timberlands && coral);
 
     assert.ok(starfall.entities.some((e) => e.id === 'sf_boss' && e.isBoss));
     assert.ok(abyssal.entities.some((e) => e.id === 'aby_boss' && e.isBoss));
+    assert.ok(timberlands.entities.some((e) => e.id === 'iw_boss' && e.isBoss));
+    assert.ok(coral.entities.some((e) => e.id === 'cc_boss' && e.isBoss));
     assert.ok(starfall.entities.filter((e) => e.skillingType).length >= 5);
     assert.ok(abyssal.entities.filter((e) => e.skillingType).length >= 5);
+    assert.ok(timberlands.entities.filter((e) => e.skillingType).length >= 5);
+    assert.ok(coral.entities.filter((e) => e.skillingType).length >= 5);
     assert.ok(hub.entities.filter((e) => e.skillingType).length >= 4);
     assert.equal(starfall.entities.filter((e) => e.eliteAffix).length, 2);
     assert.equal(abyssal.entities.filter((e) => e.eliteAffix).length, 2);
@@ -459,6 +476,8 @@ test('SKILLING_LAYOUTS defines spread-out nodes across all continental realms re
     protocol.ROOM_TYPES.AETHER_SPIRE,
     protocol.ROOM_TYPES.STARFALL_CRATER,
     protocol.ROOM_TYPES.ABYSSAL_RIFT,
+    protocol.ROOM_TYPES.IRONWOOD_TIMBERLANDS,
+    protocol.ROOM_TYPES.CORAL_COAST,
     protocol.ROOM_TYPES.NEXUS_WARZONE,
   ];
 
@@ -1789,6 +1808,69 @@ test('Character Name validation, profanity filter, reserved words, and cross-acc
       classId: 'solari_vanguard',
     });
   }, /already taken/i);
+});
+
+test('RuneScape skilling variations: Arboreal Timbercraft, Cosmic Angling, and Campfire Hearthcraft', () => {
+  // 1. Five Tiers of Arboreal Timbercraft Trees
+  const treeKeys = ['tree_glimmerwood', 'tree_ironbark', 'tree_duskveil', 'tree_sunforged', 'tree_starlight'];
+  const expectedLogs = ['glimmerwood_logs', 'ironbark_logs', 'duskveil_logs', 'sunforged_logs', 'starlight_logs'];
+  treeKeys.forEach((tKey, idx) => {
+    const spec = protocol.SKILLING_NODE_TYPES[tKey];
+    assert.ok(spec, `Missing skilling node ${tKey}`);
+    assert.equal(spec.profession, 'resonance_extraction');
+    assert.equal(spec.secondaryProfession, 'glimmerweaving');
+    assert.ok(spec.reqLevel >= 1);
+    assert.ok(spec.yields.some((y) => y.id === expectedLogs[idx]), `${tKey} must yield ${expectedLogs[idx]}`);
+    assert.ok(protocol.EQUIPMENT_CATALOG[expectedLogs[idx]], `Missing catalog item ${expectedLogs[idx]}`);
+  });
+
+  // 2. Five Tiers of Cosmic Angling Fishing Spots
+  const fishKeys = ['fish_shallows', 'fish_river', 'fish_reef', 'fish_abyss', 'fish_celestial'];
+  const expectedRawFish = ['raw_glimmer_minnow', 'raw_solar_trout', 'raw_prism_salmon', 'raw_void_eel', 'raw_celestial_koi'];
+  fishKeys.forEach((fKey, idx) => {
+    const spec = protocol.SKILLING_NODE_TYPES[fKey];
+    assert.ok(spec, `Missing skilling node ${fKey}`);
+    assert.equal(spec.profession, 'resonance_extraction');
+    assert.equal(spec.secondaryProfession, 'glimmerweaving');
+    assert.ok(spec.reqLevel >= 1);
+    assert.ok(spec.yields.some((y) => y.id === expectedRawFish[idx]), `${fKey} must yield ${expectedRawFish[idx]}`);
+    assert.ok(protocol.EQUIPMENT_CATALOG[expectedRawFish[idx]], `Missing catalog item ${expectedRawFish[idx]}`);
+  });
+
+  // 3. Campfire Hearth Station & Cooking Recipes
+  const hearthStation = protocol.CRAFTING_STATIONS.campfire_hearth;
+  assert.ok(hearthStation, 'CRAFTING_STATIONS must define campfire_hearth');
+  assert.equal(hearthStation.professionId, 'glimmerweaving');
+
+  const cookedFoods = ['grilled_glimmer_minnow', 'smoked_solar_trout', 'pan_seared_prism_salmon', 'abyssal_eel_skewer', 'celestial_koi_banquet'];
+  cookedFoods.forEach((foodId) => {
+    const item = protocol.EQUIPMENT_CATALOG[foodId];
+    assert.ok(item, `Missing cooked food ${foodId}`);
+    assert.equal(item.slot, 'consumable');
+    assert.ok(item.healHp > 0, `${foodId} must restore HP`);
+    assert.ok(item.restoreGlimmer > 0, `${foodId} must restore Glimmer`);
+
+    const recipe = protocol.CRAFTING_RECIPES.find((r) => r.station === 'campfire_hearth' && r.outputId === foodId);
+    assert.ok(recipe, `campfire_hearth recipe missing for ${foodId}`);
+    assert.equal(recipe.profession, 'glimmerweaving');
+  });
+
+  // 4. Deployable Campfire Kit
+  const campfireKit = protocol.EQUIPMENT_CATALOG.campfire_kit;
+  assert.ok(campfireKit, 'Missing campfire_kit catalog item');
+  assert.equal(campfireKit.placeCampfire, true);
+  const kitRecipe = protocol.CRAFTING_RECIPES.find((r) => r.outputId === 'campfire_kit');
+  assert.ok(kitRecipe, 'campfire_kit must be craftable');
+
+  // 5. New Explorable Zones (Ironwood Timberlands & Coral Coast)
+  const timberlands = protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.IRONWOOD_TIMBERLANDS];
+  const coralCoast = protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.CORAL_COAST];
+  assert.ok(timberlands, 'Missing Ironwood Timberlands room config');
+  assert.ok(coralCoast, 'Missing Coral Coast room config');
+  assert.equal(timberlands.edgeTransitions.north, protocol.ROOM_TYPES.TERRA_ORCHARD);
+  assert.equal(timberlands.edgeTransitions.east, protocol.ROOM_TYPES.CORAL_COAST);
+  assert.equal(coralCoast.edgeTransitions.north, protocol.ROOM_TYPES.UMBRI_UNDERCITY);
+  assert.equal(coralCoast.edgeTransitions.west, protocol.ROOM_TYPES.IRONWOOD_TIMBERLANDS);
 });
 
 
