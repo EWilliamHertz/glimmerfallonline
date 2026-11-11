@@ -7168,11 +7168,14 @@ export function initGame() {
 
   function updateTargetUI() {
     if (!currentTarget) return;
-    const hp = currentTarget.hp ?? currentTarget.charges ?? 0;
-    const max = currentTarget.maxHp ?? currentTarget.maxCharges ?? 1;
+    const isNodeOrShrine = currentTarget.type === 'node' || currentTarget.type === 'shrine';
+    const hp = isNodeOrShrine ? (currentTarget.charges ?? 0) : (currentTarget.hp ?? currentTarget.charges ?? 0);
+    const max = isNodeOrShrine ? (currentTarget.maxCharges ?? 1) : (currentTarget.maxHp ?? currentTarget.maxCharges ?? 1);
     const pct = Math.max(0, Math.round((hp / max) * 100));
-    document.getElementById('target-hp-txt').innerText = `${hp} / ${max} (${pct}%)`;
-    document.getElementById('target-hp-fill').style.width = `${pct}%`;
+    const txtEl = document.getElementById('target-hp-txt');
+    if (txtEl) txtEl.innerText = `${hp} / ${max} (${pct}%)`;
+    const fillEl = document.getElementById('target-hp-fill');
+    if (fillEl) fillEl.style.width = `${pct}%`;
   }
 
   // Vitals are rounded for display only: regeneration stays fractional internally so
@@ -8950,6 +8953,10 @@ export function initGame() {
       audio.playZenith?.();
       shrine.charges--;
       if (shrine.charges === 0) shrine.rechargeTimer = 15;
+      if (currentTarget && currentTarget.id === shrine.id) {
+        currentTarget.charges = shrine.charges;
+        updateTargetUI();
+      }
       player.shrineBuff = { affinity: shrine.affinity, name: shrine.buffName, timer: 60 };
       spawnSparkBurst(shrine.x, shrine.y - 12, ['#facc15', '#ffffff', '#38bdf8', '#c084fc'], 32);
       spawnFCT(player.x, player.y - 14, `✨ ${shrine.buffName.toUpperCase()} BLESSING!`, '#facc15', true);
@@ -9008,6 +9015,10 @@ export function initGame() {
       audio.playChime();
       node.charges--;
       if (node.charges === 0) node.rechargeTimer = skSpec.respawnSec || 14;
+      if (currentTarget && currentTarget.id === node.id) {
+        currentTarget.charges = node.charges;
+        updateTargetUI();
+      }
       questState.extractionNodesHarvested = (questState.extractionNodesHarvested || 0) + 1;
       if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !questState.nodeHarvested) {
         questState.nodeHarvested = true;
@@ -9077,6 +9088,10 @@ export function initGame() {
     const profXp = isGrand ? 100 : 25;
     node.charges--;
     if (node.charges === 0) node.rechargeTimer = isGrand ? 45 : 11;
+    if (currentTarget && currentTarget.id === node.id) {
+      currentTarget.charges = node.charges;
+      updateTargetUI();
+    }
     questState.extractionNodesHarvested = (questState.extractionNodesHarvested || 0) + 1;
     advanceBountyProgress('harvests', 1);
     if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && !questState.nodeHarvested) {
@@ -11249,6 +11264,23 @@ export function initGame() {
         if (e.rechargeTimer <= 0) {
           e.charges = e.maxCharges || (e.type === 'shrine' ? 5 : 3);
           e.rechargeTimer = 0;
+          if (currentTarget && currentTarget.id === e.id) {
+            currentTarget.charges = e.charges;
+            updateTargetUI();
+          }
+        }
+      }
+    }
+
+    if (currentTarget && !currentTarget.isRemotePlayer) {
+      const match = entities.find((e) => e.id === currentTarget.id);
+      if (match) {
+        if (currentTarget.charges !== match.charges || currentTarget.hp !== match.hp) {
+          currentTarget.charges = match.charges;
+          currentTarget.hp = match.hp;
+          currentTarget.maxCharges = match.maxCharges;
+          currentTarget.maxHp = match.maxHp;
+          updateTargetUI();
         }
       }
     }
