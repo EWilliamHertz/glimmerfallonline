@@ -1,6 +1,6 @@
 import { ACTION_SLOTS } from "./constants.js";
 import { ROOM_TYPES } from "./rooms.js";
-import { ABILITIES_CATALOG } from "./abilitiesCatalog.js";
+import { ABILITIES_CATALOG, getAbilityRank } from "./abilitiesCatalog.js";
 
 export const FACTIONS_META = {
   Solari: {
@@ -177,7 +177,8 @@ export const CLASSES_CATALOG = {
 
 // Normalizes a stored loadout, preserving player abilities across all slots
 // without duplication, and ensuring starter ability in slot 1 for empty bars.
-export function sanitizeLoadout(rawLoadout, classId) {
+// When `prog` is provided, strips any ability that has not been learned (rank < 1).
+export function sanitizeLoadout(rawLoadout, classId, prog = null) {
   const cls = CLASSES_CATALOG[classId] || CLASSES_CATALOG.solari_vanguard;
   const raw = rawLoadout && typeof rawLoadout === 'object' ? rawLoadout : null;
 
@@ -186,7 +187,12 @@ export function sanitizeLoadout(rawLoadout, classId) {
   if (raw) {
     for (const slot of ACTION_SLOTS) {
       const candidate = raw[slot] ?? raw[String(slot)];
-      if (candidate && ABILITIES_CATALOG[candidate] && !seen.has(candidate)) {
+      const spec = candidate ? ABILITIES_CATALOG[candidate] : null;
+      if (spec && !seen.has(candidate)) {
+        if (prog && typeof prog === 'object') {
+          if (spec.faction && spec.faction !== 'All' && spec.faction !== cls.faction) continue;
+          if (getAbilityRank(prog, candidate) < 1) continue;
+        }
         out[slot] = candidate;
         seen.add(candidate);
       }

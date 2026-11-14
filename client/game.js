@@ -114,6 +114,7 @@ import {
   getSlotAbilitySpec,
   getAbilityRank,
   canUpgradeAbility,
+  sanitizeProgressionSkills,
   getRankStats,
   getEffectiveStats,
   createDefaultProgression,
@@ -2674,13 +2675,17 @@ export function initGame() {
       professions: { ...createDefaultProgression().professions, ...(prof.progression?.professions || {}) },
       paragon: { ...(prof.progression?.paragon || {}) },
     };
-    // Ensure starter ability in loadout is registered at least Rank 1 in prog.skills
-    for (const [slotKey, abId] of Object.entries(localProfile.loadout || {})) {
-      if (abId && ABILITIES_CATALOG[abId] && !prog.skills[abId]) {
-        prog.skills[abId] = Math.max(1, getAbilityRank(prog, abId));
-      }
-      if (abId && prog.ranks) {
-        prog.ranks[slotKey] = getAbilityRank(prog, abId);
+    // Sanitize progression skills (strip unlearned / over-level / phantom abilities) and sanitize loadout
+    sanitizeProgressionSkills(prog);
+    const starterId = cls.defaultLoadout?.[1];
+    if (starterId && ABILITIES_CATALOG[starterId]) {
+      prog.skills[starterId] = Math.max(1, getAbilityRank(prog, starterId));
+    }
+    localProfile.loadout = sanitizeLoadout(localProfile.loadout, localProfile.classId, prog);
+    if (prog.ranks) {
+      for (const s of ACTION_SLOTS) {
+        const abId = localProfile.loadout?.[s] ?? localProfile.loadout?.[String(s)];
+        prog.ranks[s] = abId ? getAbilityRank(prog, abId) : 0;
       }
     }
     saveProgressionLocal();
@@ -9927,34 +9932,11 @@ export function initGame() {
     }
   };
 
-  // One-time restore so characters created before the slot-1-only bar change get their learned kit back.
+  // Ensure action bar only holds legitimately learned Rites/Flashes for the character's level and skill points.
   function restoreLearnedBarOnce() {
     if (!localProfile || !prog) return;
-    if ((prog.level || 1) < 5) return;
-    const charKey = localProfile.activeCharacterId || localProfile.id || 'local_hero';
-    const flagKey = `glimmerfall_bar_restored_${charKey}`;
-    try {
-      if (localStorage.getItem(flagKey)) return;
-    } catch (_) {
-      return;
-    }
-    // Recover learned ranks from the pre-migration slot progression so old
-    // characters keep every ability they had, not just the ones they invested in.
-    const cls = CLASSES_CATALOG[localProfile.classId] || CLASSES_CATALOG.solari_vanguard;
-    const legacyMap = cls.legacyDefaultLoadout || {};
-    if (!prog.skills) prog.skills = {};
-    for (const [slotStr, abilityId] of Object.entries(legacyMap)) {
-      const slotRank = Number(prog.ranks?.[slotStr] || 0);
-      if (slotRank > 0) prog.skills[abilityId] = Math.max(prog.skills[abilityId] || 0, Math.min(5, slotRank));
-    }
-
-    const added = autoFillLearnedSlots();
-    try {
-      localStorage.setItem(flagKey, '1');
-    } catch (_) {}
-    if (added > 0) {
-      logMessage(`[Action Bar] Restored ${added} learned Rite/Flash${added === 1 ? '' : 'es'} to your bar. Click a slot or press its key to cast, right-click to clear, SHIFT+click to rebind.`, 'log-gain');
-    }
+    sanitizeProgressionSkills(prog);
+    localProfile.loadout = sanitizeLoadout(localProfile.loadout, localProfile.classId, prog);
   }
 
   function handleActionBarDrop(ev, slotKind, slot) {

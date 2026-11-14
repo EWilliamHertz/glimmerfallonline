@@ -22,6 +22,7 @@ import {
   PROFESSIONS_CATALOG,
   getProfessionLevelFromXp,
   sanitizeLoadout,
+  sanitizeProgressionSkills,
   validateCharacterName,
   isReservedName,
   isProfane,
@@ -124,8 +125,8 @@ export function normalizeClassAndFaction(classId, faction) {
 
 // Loadouts are sanitized in one place so offline and server characters agree on
 // the "slot 1 only" starting bar and on legacy default migrations.
-export function normalizeLoadout(rawLoadout, classId) {
-  return sanitizeLoadout(rawLoadout, classId);
+export function normalizeLoadout(rawLoadout, classId, prog = null) {
+  return sanitizeLoadout(rawLoadout, classId, prog);
 }
 
 export const VALID_EQUIP_SLOTS = [
@@ -263,6 +264,7 @@ export class AccountsStore {
         orderTag: row.order_tag,
       });
       const accPreset = getOrderPresetForFaction(resolvedAcc.faction, row.order_tag);
+      const accProg = this.mergeValidProgression(createDefaultProgression(), row.progression);
       const acc = {
         id: row.id,
         username: row.username,
@@ -280,12 +282,12 @@ export class AccountsStore {
         orderTag: row.order_tag || accPreset.tag,
         orderName: row.order_name || accPreset.name,
         orderColor: row.order_color || accPreset.color,
-        loadout: normalizeLoadout(row.loadout, resolvedAcc.classId),
+        loadout: normalizeLoadout(row.loadout, resolvedAcc.classId, accProg),
         equipment: normalizeEquipment(row.equipment, resolvedAcc.classId),
         inventory: normalizeInventory(row.inventory || getDefaultStarterInventory(resolvedAcc.classId)),
         bank: normalizeBank(row.bank || []),
         questState: row.quest_state || {},
-        progression: this.mergeValidProgression(createDefaultProgression(), row.progression),
+        progression: accProg,
         statsMeta: row.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
         activeCharacterId: row.active_character_id || null,
         createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
@@ -305,6 +307,7 @@ export class AccountsStore {
         orderTag: row.order_tag,
       });
       const chPreset = getOrderPresetForFaction(resolved.faction, row.order_tag);
+      const chProg = this.mergeValidProgression(createDefaultProgression(), row.progression);
       const ch = {
         id: row.id,
         accountId: row.account_id,
@@ -315,13 +318,13 @@ export class AccountsStore {
         orderName: row.order_name || chPreset.name,
         orderColor: row.order_color || chPreset.color,
         homeBiome: row.home_biome || ROOM_TYPES.SANCTUARY_HUB,
-        loadout: normalizeLoadout(row.loadout, resolved.classId),
+        loadout: normalizeLoadout(row.loadout, resolved.classId, chProg),
         equipment: normalizeEquipment(row.equipment, resolved.classId),
         inventory: normalizeInventory(row.inventory || getDefaultStarterInventory(resolved.classId)),
         bank: normalizeBank(row.bank || []),
         questState: row.quest_state || {},
         unlockedGear: Array.isArray(row.unlocked_gear) ? row.unlocked_gear : Object.keys(EQUIPMENT_CATALOG),
-        progression: this.mergeValidProgression(createDefaultProgression(), row.progression),
+        progression: chProg,
         statsMeta: row.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
       };
       if (!this.charactersByAccount.has(ch.accountId)) {
@@ -343,6 +346,7 @@ export class AccountsStore {
       loadout: row.loadout,
       orderTag: row.order_tag,
     });
+    const accProg = this.mergeValidProgression(createDefaultProgression(), row.progression);
     const acc = {
       id: row.id,
       username: row.username,
@@ -360,12 +364,12 @@ export class AccountsStore {
       orderTag: row.order_tag || getOrderPresetForFaction(resolved.faction, row.order_tag).tag,
       orderName: row.order_name || getOrderPresetForFaction(resolved.faction, row.order_tag).name,
       orderColor: row.order_color || getOrderPresetForFaction(resolved.faction, row.order_tag).color,
-      loadout: normalizeLoadout(row.loadout, resolved.classId),
+      loadout: normalizeLoadout(row.loadout, resolved.classId, accProg),
       equipment: normalizeEquipment(row.equipment, resolved.classId),
       inventory: normalizeInventory(row.inventory || getDefaultStarterInventory(resolved.classId)),
       bank: normalizeBank(row.bank || []),
       questState: row.quest_state || {},
-      progression: this.mergeValidProgression(createDefaultProgression(), row.progression),
+      progression: accProg,
       statsMeta: row.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
       activeCharacterId: row.active_character_id || null,
       hp: row.hp != null ? Number(row.hp) : null,
@@ -407,6 +411,7 @@ export class AccountsStore {
             loadout: r.loadout,
             orderTag: r.order_tag,
           });
+          const charProg = this.mergeValidProgression(createDefaultProgression(), r.progression);
           cmap.set(r.id, {
             id: r.id,
             accountId: r.account_id,
@@ -417,13 +422,13 @@ export class AccountsStore {
             orderName: r.order_name || `Order of ${charResolved.faction}`,
             orderColor: r.order_color || '#facc15',
             homeBiome: r.home_biome || ROOM_TYPES.SANCTUARY_HUB,
-            loadout: normalizeLoadout(r.loadout, charResolved.classId),
+            loadout: normalizeLoadout(r.loadout, charResolved.classId, charProg),
             equipment: normalizeEquipment(r.equipment, charResolved.classId),
             inventory: normalizeInventory(r.inventory || getDefaultStarterInventory(charResolved.classId)),
             bank: normalizeBank(r.bank || []),
             questState: r.quest_state || {},
             unlockedGear: Array.isArray(r.unlocked_gear) ? r.unlocked_gear : Object.keys(EQUIPMENT_CATALOG),
-            progression: this.mergeValidProgression(createDefaultProgression(), r.progression),
+            progression: charProg,
             statsMeta: r.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
             hp: r.hp != null ? Number(r.hp) : null,
             solarCharge: r.solar_charge != null ? Number(r.solar_charge) : null,
@@ -1435,7 +1440,8 @@ export class AccountsStore {
     if (incoming.ranks && typeof incoming.ranks === 'object') {
       for (const k of ACTION_SLOTS) {
         if (incoming.ranks[k] !== undefined) {
-          ranks[k] = Math.max(1, Math.min(5, Math.floor(Number(incoming.ranks[k]) || 1)));
+          const minRank = k === 1 || k === '1' ? 1 : 0;
+          ranks[k] = Math.max(minRank, Math.min(5, Math.floor(Number(incoming.ranks[k]) || 0)));
         }
       }
     }
@@ -1468,7 +1474,7 @@ export class AccountsStore {
         }
       }
     }
-    return { level: lvl, xp, statPoints, skillPoints, stats, ranks, skills, professions };
+    return sanitizeProgressionSkills({ level: lvl, xp, statPoints, skillPoints, stats, ranks, skills, professions });
   }
 
   saveProgression(accountId, progression, statsMetaPatch = null) {

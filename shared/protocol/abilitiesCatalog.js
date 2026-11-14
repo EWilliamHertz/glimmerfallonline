@@ -489,6 +489,85 @@ export function getAbilityRank(prog, abilityId) {
   return 0;
 }
 
+export function sanitizeProgressionSkills(prog) {
+  if (!prog || typeof prog !== 'object') return prog;
+  if (!prog.skills || typeof prog.skills !== 'object') prog.skills = {};
+  const charLevel = Math.max(1, Math.floor(Number(prog.level) || 1));
+
+  // 1. Strip unknown abilities and any non-starter ability whose reqLevel exceeds charLevel
+  for (const [abId, rawRank] of Object.entries(prog.skills)) {
+    const spec = ABILITIES_CATALOG[abId];
+    if (!spec) {
+      delete prog.skills[abId];
+      continue;
+    }
+    const rank = Math.max(0, Math.min(spec.maxRank || 5, Math.floor(Number(rawRank) || 0)));
+    if ((spec.tier || 1) === 1) {
+      prog.skills[abId] = Math.max(1, rank);
+    } else if (charLevel < (spec.reqLevel || 1) || rank <= 0) {
+      delete prog.skills[abId];
+    } else {
+      prog.skills[abId] = rank;
+    }
+  }
+
+  // 2. Enforce prerequisite chain from Tier 2 -> Tier 7
+  const nonStarters = Object.keys(prog.skills)
+    .map((id) => ABILITIES_CATALOG[id])
+    .filter((s) => s && (s.tier || 1) > 1)
+    .sort((a, b) => (a.tier || 1) - (b.tier || 1));
+
+  for (const spec of nonStarters) {
+    if (spec.prereq) {
+      const preSpec = ABILITIES_CATALOG[spec.prereq];
+      const preRank = (preSpec?.tier || 1) === 1 ? Math.max(1, prog.skills[spec.prereq] || 1) : (prog.skills[spec.prereq] || 0);
+      if (preRank < 1) {
+        delete prog.skills[spec.prereq ? spec.id : ''];
+      }
+    }
+  }
+
+  // 3. Enforce total skill point budget (charLevel total points earned across levels 1..charLevel)
+  const unspent = Math.max(0, Math.floor(Number(prog.skillPoints) || 0));
+  const maxSpent = Math.max(0, charLevel - unspent);
+
+  const calcSpent = () => {
+    let total = 0;
+    for (const [abId, r] of Object.entries(prog.skills)) {
+      const s = ABILITIES_CATALOG[abId];
+      if (!s) continue;
+      total += (s.tier || 1) === 1 ? Math.max(0, r - 1) : Math.max(0, r);
+    }
+    return total;
+  };
+
+  if (calcSpent() > maxSpent) {
+    // Trim excess phantom ranks starting from highest tier/reqLevel downward, and later-injected entries first
+    const candidates = Object.keys(prog.skills)
+      .reverse()
+      .map((id) => ABILITIES_CATALOG[id])
+      .filter(Boolean)
+      .sort((a, b) => (b.tier || 1) - (a.tier || 1) || (b.reqLevel || 1) - (a.reqLevel || 1));
+
+    for (const spec of candidates) {
+      while (calcSpent() > maxSpent) {
+        const cur = prog.skills[spec.id] || 0;
+        const minAllowed = (spec.tier || 1) === 1 ? 1 : 0;
+        if (cur <= minAllowed) break;
+        if (cur - 1 <= 0 && minAllowed === 0) {
+          delete prog.skills[spec.id];
+          break;
+        } else {
+          prog.skills[spec.id] = cur - 1;
+        }
+      }
+      if (calcSpent() <= maxSpent) break;
+    }
+  }
+
+  return prog;
+}
+
 export function canUpgradeAbility(prog, abilityId) {
   const spec = ABILITIES_CATALOG[abilityId];
   if (!spec) return false;

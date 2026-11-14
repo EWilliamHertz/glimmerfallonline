@@ -1,6 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  EQUIPMENT_CATALOG,
+  BARROWS_SETS,
+  RUNEWORD_SYNERGIES,
+} from '../data/canonicalCatalog';
 import {
   Swords,
   Shield,
@@ -633,6 +639,73 @@ export default function LandingPage() {
   const [showQueueDrawer, setShowQueueDrawer] = useState(false);
   const [selectedCinematicId, setSelectedCinematicId] = useState('crystal_heart');
   const [isTheatreAutoplay, setIsTheatreAutoplay] = useState(false);
+  const [armorySlotFilter, setArmorySlotFilter] = useState('all');
+  const [armoryRarityFilter, setArmoryRarityFilter] = useState('all');
+  const [armorySearch, setArmorySearch] = useState('');
+  const [serverStatus, setServerStatus] = useState({
+    online: true,
+    onlinePlayers: 1,
+    tickRate: 20,
+    pingMs: 18,
+  });
+
+  const wearableArmoryItems = useMemo(() => {
+    const validSlots = new Set([
+      'weapon', 'shield', 'offhand', 'head', 'body', 'armor',
+      'legs', 'gloves', 'boots', 'cape', 'ring', 'amulet',
+      'gem', 'rune', 'relic'
+    ]);
+    return Object.values(EQUIPMENT_CATALOG || {}).filter((it) => it && validSlots.has(it.slot));
+  }, []);
+
+  const filteredArmoryItems = useMemo(() => {
+    return wearableArmoryItems.filter((it) => {
+      if (armorySlotFilter !== 'all') {
+        if (armorySlotFilter === 'shield' && it.slot !== 'shield' && it.slot !== 'offhand') return false;
+        else if (armorySlotFilter === 'body' && it.slot !== 'body' && it.slot !== 'armor') return false;
+        else if (armorySlotFilter === 'jewelry' && it.slot !== 'ring' && it.slot !== 'amulet') return false;
+        else if (armorySlotFilter === 'sockets' && it.slot !== 'gem' && it.slot !== 'rune' && it.slot !== 'relic') return false;
+        else if (!['shield', 'body', 'jewelry', 'sockets'].includes(armorySlotFilter) && it.slot !== armorySlotFilter) return false;
+      }
+      if (armoryRarityFilter !== 'all' && (it.rarity || '').toLowerCase() !== armoryRarityFilter.toLowerCase()) {
+        return false;
+      }
+      if (armorySearch.trim()) {
+        const q = armorySearch.toLowerCase();
+        const hay = `${it.name || ''} ${it.slot || ''} ${it.rarity || ''} ${it.faction || ''} ${it.desc || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [wearableArmoryItems, armorySlotFilter, armoryRarityFilter, armorySearch]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let alive = true;
+    const pollStatus = async () => {
+      const t0 = performance.now();
+      try {
+        const res = await fetch('/api/status', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const rtt = Math.max(1, Math.round(performance.now() - t0));
+        if (alive && data?.ok) {
+          setServerStatus({
+            online: true,
+            onlinePlayers: Math.max(1, Number(data.onlinePlayers) || 0),
+            tickRate: data.tickRate || 20,
+            pingMs: rtt,
+          });
+        }
+      } catch (_) {}
+    };
+    pollStatus();
+    const timer = setInterval(pollStatus, 15000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, []);
 
   const audioRef = useRef(null);
   const queueRef = useRef([]);
@@ -1398,16 +1471,52 @@ export default function LandingPage() {
           {/* TAB 1: OVERVIEW & OST JUKEBOX                            */}
           {/* ======================================================== */}
           {activeTab === 'overview' && (
-            <div className="space-y-8">
+            <motion.div
+              key="tab-overview"
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+              className="space-y-8"
+            >
               {/* HERO BANNER SECTION */}
         <section id="prologue-hero" className="relative rounded-3xl p-8 lg:p-14 overflow-hidden border border-[#1E293B] bg-radial from-[#131D38] via-[#090E1E] to-[#050814] shadow-2xl">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-[#F2A900]/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#38BDF8]/10 rounded-full blur-3xl pointer-events-none" />
+          <motion.div
+            animate={{ scale: [1, 1.12, 1], opacity: [0.14, 0.24, 0.14] }}
+            transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute top-0 right-0 w-[28rem] h-[28rem] rounded-full blur-3xl pointer-events-none"
+            style={{ backgroundColor: currentFaction.color }}
+          />
+          <motion.div
+            animate={{ scale: [1.08, 0.96, 1.08], opacity: [0.10, 0.20, 0.10] }}
+            transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute bottom-0 left-0 w-96 h-96 bg-[#38BDF8]/20 rounded-full blur-3xl pointer-events-none"
+          />
 
-          <div className="relative z-10 max-w-3xl">
+          <div className="relative z-10 max-w-4xl">
+            {/* Live Stockholm Realm Status Pill */}
+            <div className="inline-flex flex-wrap items-center gap-3 px-3.5 py-1.5 rounded-full bg-black/60 border border-[#1E293B] mb-5 text-[11px] font-mono shadow-lg backdrop-blur-md">
+              <span className="flex items-center gap-1.5 text-[#4ADE80] font-bold">
+                <span className="w-2 h-2 rounded-full bg-[#4ADE80] animate-ping" />
+                STOCKHOLM REALM ONLINE
+              </span>
+              <span className="text-white/30">|</span>
+              <span className="text-[#38BDF8] font-bold">{serverStatus.tickRate}Hz Authoritative Tick</span>
+              <span className="text-white/30">|</span>
+              <span className="text-[#FDE047] font-bold">{serverStatus.onlinePlayers} Vanguard{serverStatus.onlinePlayers === 1 ? '' : 's'} Active</span>
+              {serverStatus.pingMs && (
+                <>
+                  <span className="text-white/30">|</span>
+                  <span className="text-white/70">{serverStatus.pingMs}ms RTT</span>
+                </>
+              )}
+            </div>
+
             {/* Header with Official Logo */}
             <div className="flex items-center gap-4 mb-6">
-              <div className="p-2 rounded-2xl bg-black/60 border border-[#F2A900]/40 shadow-[0_0_25px_rgba(242,169,0,0.3)]">
+              <motion.div
+                whileHover={{ scale: 1.06, rotate: 2 }}
+                className="p-2 rounded-2xl bg-black/60 border border-[#F2A900]/40 shadow-[0_0_25px_rgba(242,169,0,0.3)]"
+              >
                 <img
                   src={LOGO_PATH}
                   alt="GlimmerFall Official Logo"
@@ -1416,10 +1525,10 @@ export default function LandingPage() {
                   style={{ maxWidth: 48, maxHeight: 48 }}
                   className="hero-logo-img w-12 h-12 sm:w-16 sm:h-16 object-contain filter drop-shadow(0 0 10px #F2A900)"
                 />
-              </div>
+              </motion.div>
               <div>
                 <span className="text-[10px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full bg-[#F2A900]/15 border border-[#F2A900]/40 text-[#F2A900]">
-                  ✨ Official 16-Bit Action MMORPG
+                  ✨ Canonical 16-Bit Action MMORPG &bull; glimmerfall.online
                 </span>
                 <h1 className="font-display font-black text-3xl sm:text-5xl tracking-wide text-white mt-1">
                   GLIMMER<span className="text-[#F2A900]">FALL</span> ONLINE
@@ -1428,7 +1537,7 @@ export default function LandingPage() {
             </div>
 
             <p className="text-base sm:text-lg text-white/80 leading-relaxed font-head">
-              Step into an authentic top-down action MMORPG inspired by classic 16-bit masterworks.
+              Step into an authentic top-down action MMORPG set in the official <b>GlimmerFall Trading Card Game</b> universe.
               Before the continent formed, the celestial <b>Crystal Heart shattered</b>, fracturing unified light into four elemental aspects:
               <span className="text-[#F2A900] font-bold"> Solar Light</span>,
               <span className="text-[#9B30FF] font-bold"> Void</span>,
@@ -1442,39 +1551,170 @@ export default function LandingPage() {
 
             {/* Spec Highlights Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
-              <div className="p-3.5 rounded-xl bg-black/40 border border-[#1E293B]">
-                <div className="text-xl sm:text-2xl font-mono font-black text-[#38BDF8]">Offline</div>
-                <div className="text-[11px] text-white/60 font-semibold uppercase">Single Player</div>
+              {[
+                { val: 'Offline', sub: 'Single Player', col: '#38BDF8' },
+                { val: '20Hz MMO', sub: 'Stockholm Realm', col: '#4ADE80' },
+                { val: 'Lv. 99', sub: '7 Disciplines', col: '#F2A900' },
+                { val: `${wearableArmoryItems.length}+`, sub: 'Canonical Relics', col: '#C084FC' },
+              ].map((stat) => (
+                <motion.div
+                  key={stat.sub}
+                  whileHover={{ y: -3, scale: 1.02 }}
+                  className="p-3.5 rounded-xl bg-black/50 border border-[#1E293B] hover:border-white/25 transition-colors backdrop-blur-md"
+                >
+                  <div className="text-xl sm:text-2xl font-mono font-black" style={{ color: stat.col }}>{stat.val}</div>
+                  <div className="text-[11px] text-white/60 font-semibold uppercase">{stat.sub}</div>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Interactive 4-Faction Live Switcher Deck */}
+            <div className="mt-8 p-5 rounded-2xl bg-black/55 border border-[#1E293B] backdrop-blur-xl space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-display font-bold uppercase tracking-wider text-white/80">
+                  ⚔️ Choose Your Canonical Faction Allegiance
+                </span>
+                <span className="text-[11px] font-mono font-bold" style={{ color: currentFaction.color }}>
+                  Order Crest: [{currentOrder.tag}] {currentOrder.name}
+                </span>
               </div>
-              <div className="p-3.5 rounded-xl bg-black/40 border border-[#1E293B]">
-                <div className="text-xl sm:text-2xl font-mono font-black text-[#4ADE80]">Online</div>
-                <div className="text-[11px] text-white/60 font-semibold uppercase">Server MMO</div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {Object.values(FACTIONS_DATA).map((fac) => {
+                  const isSel = selectedFaction === fac.id;
+                  return (
+                    <motion.button
+                      key={fac.id}
+                      whileHover={{ y: -2 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => handleFactionSelect(fac.id)}
+                      className={`relative p-3 rounded-xl border text-left transition-all overflow-hidden ${
+                        isSel ? 'bg-white/10 shadow-lg' : 'bg-black/40 border-[#1E293B] opacity-75 hover:opacity-100'
+                      }`}
+                      style={{ borderColor: isSel ? fac.color : undefined }}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <img src={fac.logo} alt={fac.id} className="w-7 h-7 object-contain" />
+                        <div>
+                          <div className="font-display font-bold text-xs text-white">{fac.id}</div>
+                          <div className="text-[9.5px] font-semibold" style={{ color: fac.color }}>{fac.aspect.split('/')[0]}</div>
+                        </div>
+                      </div>
+                    </motion.button>
+                  );
+                })}
               </div>
-              <div className="p-3.5 rounded-xl bg-black/40 border border-[#1E293B]">
-                <div className="text-xl sm:text-2xl font-mono font-black text-[#F2A900]">Lv. 99</div>
-                <div className="text-[11px] text-white/60 font-semibold uppercase">Max Mastery</div>
-              </div>
-              <div className="p-3.5 rounded-xl bg-black/40 border border-[#1E293B]">
-                <div className="text-xl sm:text-2xl font-mono font-black text-[#F87171]">2500 HP</div>
-                <div className="text-[11px] text-white/60 font-semibold uppercase">Nexus Rule</div>
-              </div>
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentFaction.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.22 }}
+                  className="p-4 rounded-xl bg-[#070B18]/90 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-display font-black text-sm" style={{ color: currentFaction.color }}>
+                        {currentFaction.name}
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-white/70 border border-white/10">
+                        {currentFaction.resource}
+                      </span>
+                    </div>
+                    <p className="text-xs text-white/70 leading-relaxed max-w-xl">
+                      {currentFaction.desc}
+                    </p>
+                  </div>
+                  <div className="flex sm:flex-col gap-2 flex-shrink-0">
+                    {currentFaction.classes.map((c) => (
+                      <div key={c.id} className="px-3 py-1.5 rounded-lg bg-black/60 border border-[#1E293B] text-[11px]">
+                        <div className="font-display font-bold text-white">{c.name}</div>
+                        <div className="text-[9.5px]" style={{ color: currentFaction.color }}>{c.role}</div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              </AnimatePresence>
             </div>
 
             {/* Launch Actions */}
             <div className="flex flex-wrap items-center gap-4 mt-8">
-              <button
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={handleLaunchGame}
-                className="py-4 px-8 rounded-2xl bg-gradient-to-r from-[#F2A900] via-[#EAB308] to-[#CA8A04] text-black font-display font-black text-sm uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shadow-[0_0_30px_rgba(242,169,0,0.4)] flex items-center gap-3"
+                className="py-4 px-8 rounded-2xl bg-gradient-to-r from-[#F2A900] via-[#EAB308] to-[#CA8A04] text-black font-display font-black text-sm uppercase tracking-wider hover:brightness-110 transition-all shadow-[0_0_30px_rgba(242,169,0,0.4)] flex items-center gap-3"
               >
-                <Play className="w-5 h-5 fill-black" /> Start Journey Now
-              </button>
+                <Play className="w-5 h-5 fill-black" /> Awaken as {currentFaction.id} Now
+              </motion.button>
 
-              <button
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={handleOpenLoadout}
                 className="py-4 px-6 rounded-2xl bg-black/60 border border-[#38BDF8]/40 text-[#7DD3FC] font-display font-bold text-sm tracking-wide hover:border-[#38BDF8] hover:bg-[#38BDF8]/10 transition-all flex items-center gap-2"
               >
                 <UserCheck className="w-4 h-4" /> Open In-Game Loadout
-              </button>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setTab('armory')}
+                className="py-4 px-5 rounded-2xl bg-black/60 border border-[#C084FC]/40 text-[#E9D5FF] font-display font-bold text-sm tracking-wide hover:border-[#C084FC] hover:bg-[#C084FC]/10 transition-all flex items-center gap-2"
+              >
+                <Boxes className="w-4 h-4" /> Inspect {wearableArmoryItems.length} Armory Items
+              </motion.button>
+            </div>
+
+            {/* CANONICAL EDITION & FREE STARTER TRIAL STOREFRONT PREVIEW */}
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-5 rounded-2xl bg-black/50 border border-[#38BDF8]/35 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded bg-[#38BDF8]/15 text-[#7DD3FC] border border-[#38BDF8]/30">
+                      Instant Browser Access
+                    </span>
+                    <span className="font-mono font-black text-lg text-[#4ADE80]">FREE TRIAL</span>
+                  </div>
+                  <h4 className="font-display font-bold text-base text-white mt-2">
+                    Vanguard Starter Trial (Offline &amp; Sanctuary Hub)
+                  </h4>
+                  <p className="text-xs text-white/65 mt-1 leading-relaxed">
+                    Create heroes across all 4 canonical factions, explore Sanctuary Metropolis, test every class Rite &amp; 0-GCD Flash, and train all 7 disciplines in browser or offline mode.
+                  </p>
+                </div>
+                <button
+                  onClick={handleLaunchGame}
+                  className="mt-4 w-full py-2.5 rounded-xl bg-[#38BDF8]/20 hover:bg-[#38BDF8]/30 border border-[#38BDF8] text-[#7DD3FC] font-display font-bold text-xs uppercase tracking-wider transition-all"
+                >
+                  Play Free Trial in Browser →
+                </button>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-gradient-to-br from-[#F2A900]/15 via-black/60 to-[#9B30FF]/15 border border-[#F2A900]/50 flex flex-col justify-between shadow-[0_0_25px_rgba(242,169,0,0.15)]">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded bg-[#F2A900]/20 text-[#FDE047] border border-[#F2A900]/40">
+                      👑 Canonical Full Edition
+                    </span>
+                    <span className="font-mono font-black text-lg text-[#FDE047]">FOUNDER&apos;S PASS</span>
+                  </div>
+                  <h4 className="font-display font-bold text-base text-white mt-2">
+                    GlimmerFall Online: Shattered Crystalheart Edition
+                  </h4>
+                  <p className="text-xs text-white/70 mt-1 leading-relaxed">
+                    Full access to all 8 Continental Realms, Lv. 99 Mastery Capes, AetherSwap Exchange, 3v3 Ranked Warzone Seasons, and exclusive <code className="text-[#FDE047]">&lt;GLIM&gt;</code> Founder Heraldry.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setTab('forge')}
+                  className="mt-4 w-full py-2.5 rounded-xl bg-gradient-to-r from-[#F2A900] to-[#EAB308] text-black font-display font-black text-xs uppercase tracking-wider hover:brightness-110 transition-all"
+                >
+                  Forge Your Founder Champion →
+                </button>
+              </div>
             </div>
 
             {/* OFFICIAL GLIMMERFALL MEDIA PLAYER & SOUNDTRACK CATALOG */}
@@ -2006,7 +2246,7 @@ export default function LandingPage() {
                   })}
                 </div>
               </section>
-            </div>
+            </motion.div>
           )}
 
           {/* ======================================================== */}
@@ -2604,35 +2844,204 @@ export default function LandingPage() {
     {/* TAB 5: ARMORY & TCG RELICS */}
     {/* ======================================================== */}
     {activeTab === 'armory' && (
-      <div className="space-y-8 animate-fade-in">
+      <motion.div
+        key="tab-armory"
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: 'easeOut' }}
+        className="space-y-8"
+      >
         {/* CONTINENTAL ARMORY SECTION (#armory) */}
         <section id="armory" className="rounded-3xl p-6 lg:p-10 border border-[#1E293B] bg-[#0A0F22]/90 space-y-6">
-          <div className="flex justify-between items-center pb-6 border-b border-[#1E293B]">
+          <div className="flex flex-wrap justify-between items-center gap-4 pb-6 border-b border-[#1E293B]">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#22E07B] px-2.5 py-1 rounded bg-[#22E07B]/10 border border-[#22E07B]/30">
-                16-Bit Equipment Catalog
+                Complete Canonical Equipment Database
               </span>
               <h2 className="font-display font-bold text-2xl sm:text-3xl text-white mt-1">
-                🛡️ CONTINENTAL ARMORY &amp; CRAFTING VAULT
+                🛡️ CONTINENTAL ARMORY &amp; RELIC VAULT ({filteredArmoryItems.length} / {wearableArmoryItems.length})
               </h2>
             </div>
-            <span className="text-xs text-white/50">8 Slots • Socketable Runes</span>
+            <div className="relative">
+              <input
+                type="text"
+                value={armorySearch}
+                onChange={(e) => setArmorySearch(e.target.value)}
+                placeholder="Search gear, slot, faction, rarity..."
+                className="py-2 px-3.5 pl-9 rounded-xl bg-black/60 border border-[#1E293B] focus:border-[#F2A900] text-xs text-white placeholder-white/40 outline-none w-64 transition-all"
+              />
+              <Search className="w-3.5 h-3.5 text-white/40 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {PIXEL_ITEMS.map((item) => (
-              <div key={item.id} className="p-5 rounded-2xl bg-black/40 border border-[#1E293B] hover:border-[#F2A900] transition-all">
-                <div className="flex justify-between items-start">
-                  <span className="text-2xl p-2 rounded-xl bg-black/60 border border-white/5">{item.icon}</span>
-                  <span className="text-[9.5px] px-2 py-0.5 rounded font-bold" style={{ backgroundColor: `${item.color}20`, color: item.color }}>
-                    {item.rarity}
-                  </span>
-                </div>
-                <div className="font-display font-bold text-sm text-white mt-3">{item.name}</div>
-                <div className="text-[11px] font-semibold text-[#38BDF8] mt-1">{item.stat}</div>
-                <p className="text-[10.5px] text-white/60 mt-2 leading-relaxed">{item.desc}</p>
-              </div>
+          {/* Slot Filter Pills */}
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { id: 'all', label: `All (${wearableArmoryItems.length})` },
+              { id: 'weapon', label: '⚔️ Weapons' },
+              { id: 'shield', label: '🛡️ Shields & Offhands' },
+              { id: 'head', label: '🪖 Helms' },
+              { id: 'body', label: '🥋 Chestplates' },
+              { id: 'legs', label: '👖 Greaves' },
+              { id: 'gloves', label: '🧤 Gauntlets' },
+              { id: 'boots', label: '🥾 Treads' },
+              { id: 'cape', label: '🧣 Mastery Capes' },
+              { id: 'jewelry', label: '💍 Rings & Amulets' },
+              { id: 'sockets', label: '💎 Gems, Runes & Relics' },
+            ].map((slot) => (
+              <button
+                key={slot.id}
+                onClick={() => setArmorySlotFilter(slot.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                  armorySlotFilter === slot.id
+                    ? 'bg-[#F2A900]/20 border-[#F2A900] text-[#FDE047] shadow-[0_0_12px_rgba(242,169,0,0.3)]'
+                    : 'bg-black/40 border-[#1E293B] text-white/65 hover:text-white hover:border-white/25'
+                }`}
+              >
+                {slot.label}
+              </button>
             ))}
+          </div>
+
+          {/* Rarity Filter Pills */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">Rarity:</span>
+            {['all', 'mythic', 'legendary', 'epic', 'rare', 'uncommon', 'common'].map((rar) => (
+              <button
+                key={rar}
+                onClick={() => setArmoryRarityFilter(rar)}
+                className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold uppercase border transition-all ${
+                  armoryRarityFilter === rar
+                    ? 'bg-[#38BDF8]/20 border-[#38BDF8] text-[#7DD3FC]'
+                    : 'bg-black/30 border-white/10 text-white/50 hover:text-white'
+                }`}
+              >
+                {rar === 'all' ? 'All Tiers' : rar}
+              </button>
+            ))}
+          </div>
+
+          {/* Complete Canonical Armory Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 max-h-[680px] overflow-y-auto pr-1">
+            {filteredArmoryItems.map((item) => {
+              const rar = (item.rarity || 'common').toLowerCase();
+              const rarColor =
+                rar === 'mythic' ? '#f43f5e' :
+                rar === 'legendary' ? '#facc15' :
+                rar === 'epic' ? '#c084fc' :
+                rar === 'rare' ? '#38bdf8' :
+                rar === 'uncommon' ? '#4ade80' : '#94a3b8';
+              const slotIcons = {
+                weapon: '⚔️', shield: '🛡️', offhand: '🛡️', head: '🪖',
+                body: '🥋', armor: '🥋', legs: '👖', gloves: '🧤',
+                boots: '🥾', cape: '🧣', ring: '💍', amulet: '📿',
+                gem: '💎', rune: '🪨', relic: '🃏',
+              };
+              const icon = item.icon || slotIcons[item.slot] || '🛡️';
+              const statsObj = item.stats || {};
+              const statBadges = [];
+              if (item.damage || statsObj.damage) statBadges.push(`+${item.damage || statsObj.damage} Dmg`);
+              if (item.armor || statsObj.armor) statBadges.push(`+${item.armor || statsObj.armor} Armor`);
+              if (statsObj.power) statBadges.push(`+${statsObj.power} Power`);
+              if (statsObj.bastion) statBadges.push(`+${statsObj.bastion} Bastion`);
+              if (statsObj.resonance) statBadges.push(`+${statsObj.resonance} Resonance`);
+              if (statsObj.tempo) statBadges.push(`+${statsObj.tempo} Tempo`);
+              if (statsObj.maxHp) statBadges.push(`+${statsObj.maxHp} HP`);
+              if (statsObj.critChance) statBadges.push(`+${Math.round(statsObj.critChance * 100)}% Crit`);
+
+              return (
+                <motion.div
+                  key={item.id}
+                  whileHover={{ y: -3, scale: 1.01 }}
+                  className="p-4 rounded-2xl bg-black/50 border transition-all flex flex-col justify-between"
+                  style={{ borderColor: `${rarColor}45` }}
+                >
+                  <div>
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="text-xl p-2 rounded-xl bg-black/70 border border-white/10">{icon}</span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span
+                          className="text-[9px] px-2 py-0.5 rounded font-bold uppercase"
+                          style={{ backgroundColor: `${rarColor}20`, color: rarColor, border: `1px solid ${rarColor}50` }}
+                        >
+                          {item.rarity || 'Common'}
+                        </span>
+                        <span className="text-[9px] text-white/45 font-mono uppercase">
+                          {item.slot} {item.reqLevel ? `• Lv.${item.reqLevel}` : ''}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="font-display font-bold text-xs text-white mt-2.5" style={{ color: rarColor }}>
+                      {item.name}
+                    </div>
+                    {statBadges.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {statBadges.map((sb) => (
+                          <span key={sb} className="text-[9.5px] px-1.5 py-0.5 rounded bg-[#0F172A] border border-white/10 text-[#7DD3FC] font-mono font-bold">
+                            {sb}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {item.desc && (
+                      <p className="text-[10px] text-white/60 mt-2 leading-relaxed line-clamp-3">{item.desc}</p>
+                    )}
+                  </div>
+                  {item.faction && (
+                    <div className="mt-2 pt-2 border-t border-white/5 text-[9.5px] font-bold text-white/50 flex justify-between">
+                      <span>Faction Alignment</span>
+                      <span className="text-[#FDE047]">{item.faction}</span>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+
+          {/* CANONICAL 4-PIECE BARROWS ARMOR SETS & 3-SOCKET RUNEWORDS */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4">
+            <div className="p-5 rounded-2xl bg-black/50 border border-[#F2A900]/30 space-y-3">
+              <h4 className="font-display font-bold text-sm text-[#FDE047] flex items-center gap-2">
+                <Shield className="w-4 h-4 text-[#FDE047]" /> Canonical 4-Piece Barrows Armor Sets
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {Object.values(BARROWS_SETS || {}).map((setObj) => (
+                  <div key={setObj.id} className="p-3.5 rounded-xl bg-[#080E1C] border border-[#1E293B] space-y-1">
+                    <div className="font-display font-bold text-xs" style={{ color: setObj.color || '#FDE047' }}>
+                      {setObj.name}
+                    </div>
+                    <div className="text-[10px] text-[#4ADE80] font-semibold">
+                      4-Piece Set Bonus: {setObj.bonusTitle || setObj.effectName || 'Awakened Synergy'}
+                    </div>
+                    <p className="text-[10px] text-white/60 leading-snug">
+                      {setObj.bonusDesc || setObj.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-black/50 border border-[#38BDF8]/30 space-y-3">
+              <h4 className="font-display font-bold text-sm text-[#7DD3FC] flex items-center gap-2">
+                <Gem className="w-4 h-4 text-[#7DD3FC]" /> Ancient 3-Socket Runeword Synergies
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {Object.values(RUNEWORD_SYNERGIES || {}).map((rw) => (
+                  <div key={rw.id || rw.word} className="p-3.5 rounded-xl bg-[#080E1C] border border-[#1E293B] space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-display font-bold text-xs" style={{ color: rw.color || '#38BDF8' }}>
+                        {rw.name}
+                      </span>
+                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-white/10 text-[#FDE047]">
+                        {rw.word}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-[#38BDF8] font-semibold">{rw.perkTitle}</div>
+                    <p className="text-[10px] text-white/60 leading-snug">{rw.perkDesc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* LEYLINE CURRENCIES TREASURY */}
@@ -2714,7 +3123,7 @@ export default function LandingPage() {
             ))}
           </div>
         </section>
-      </div>
+      </motion.div>
     )}
 
     {/* ======================================================== */}
