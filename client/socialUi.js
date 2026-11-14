@@ -5,6 +5,7 @@
 import {
   FACTIONS_META,
   ORDER_PRESETS,
+  getOrderPresetsForFaction,
   EMOTES_CATALOG,
 } from '../shared/protocol.js';
 
@@ -328,7 +329,7 @@ export function renderAccountModal({ profile, authTab = 'register', statusMsg = 
       <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; flex-wrap:wrap;">
         <div style="display:flex; gap:4px; align-items:center; font-size:8px; color:#94a3b8;">
           PRESET ORDERS:
-          ${ORDER_PRESETS.map((o) => `
+          ${getOrderPresetsForFaction(p.faction || 'Solari').map((o) => `
             <button class="id-mini-btn" style="border-color:${o.color}; color:${o.color};" onclick="applyOrderPreset('${o.tag}', '${o.name}', '${o.color}')">
               &lt;${o.tag}&gt;
             </button>

@@ -348,3 +348,29 @@ test('Terra Faction Integrity: Terra characters, typos ("terro"), and action bar
   const sprites = getCharacterSprites('Terra', 'forest_warden', {});
   assert.ok(sprites.down && sprites.down.length === 3);
 });
+
+test('FrontpageController: open() never silently auto-logs into multiplayer without explicit user action', async () => {
+  let apiCalls = 0;
+  const fp = new FrontpageController({
+    net: {
+      profile: null,
+      connected: false,
+      token: 'stale-token',
+      async apiCall() {
+        apiCalls++;
+        return { ok: true, profile: { id: 'mp_acc', isGuest: false, username: 'testuser', characters: [] } };
+      },
+    },
+    audio: {},
+    onEnterWorld: () => {},
+  });
+  fp.rememberMe = true;
+  fp.savedUsername = 'testuser';
+  fp.savedPassword = 'secret';
+  fp.playMode = 'singleplayer';
+  fp.open();
+  await new Promise((r) => setTimeout(r, 15));
+  assert.equal(apiCalls, 0, 'open() must not call /api/auth/* automatically before user chooses');
+  assert.equal(fp.playMode, 'singleplayer', 'playMode must remain singleplayer');
+  fp.close();
+});

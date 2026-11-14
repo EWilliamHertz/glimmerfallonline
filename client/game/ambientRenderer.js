@@ -387,7 +387,7 @@ export function createAmbientRenderer({
 
   function ambientMotePalette() {
     switch (getCurrentBiomeTheme()) {
-      case 'sanctuary': return ['#fde68a', '#a7f3d0'];
+      case 'sanctuary': return ['#fda4af', '#fde68a', '#a7f3d0'];
       case 'terra':
       case 'terra_grove': return ['#bef264', '#86efac'];
       case 'umbri':
@@ -407,6 +407,7 @@ export function createAmbientRenderer({
 
   function drawAirMotes(camLeft, camTop) {
     const t = getGlobalTime();
+    const biome = getCurrentBiomeTheme();
     const { halfW, halfH } = getMapBounds();
     const { viewW, viewH } = getViewSize();
     const palette = ambientMotePalette();
@@ -427,12 +428,20 @@ export function createAmbientRenderer({
         const wy = gy * cell + 6 + h3 * (cell - 12);
         const outside = wx < -halfW || wx >= halfW || wy < -halfH || wy >= halfH;
 
+        let driftY = Math.cos(t * 0.70 + h2 * 20) * 4;
+        if (!outside && (biome === 'sanctuary' || biome === 'starfall' || biome === 'celestial')) {
+          driftY += ((t * (7 + h3 * 5) + h * 40) % 24) - 12;
+        } else if (!outside && (biome === 'solari' || biome === 'solari_vault' || biome === 'warzone')) {
+          driftY -= ((t * (8 + h3 * 5) + h * 40) % 24) - 12;
+        }
+
         const sx = Math.round(wx - camLeft + Math.sin(t * 0.55 + h * 20) * (outside ? 9 : 6));
-        const sy = Math.round(wy - camTop + Math.cos(t * 0.70 + h2 * 20) * 4);
+        const sy = Math.round(wy - camTop + driftY);
         if (sx < -4 || sx > viewW + 4 || sy < -4 || sy > viewH + 4) continue;
 
         const twinkle = 0.5 + 0.5 * Math.sin(t * 2.4 + h3 * 30);
-        const color = outside ? (h2 > 0.5 ? '#7dd3fc' : '#e0f2fe') : palette[h2 > 0.5 ? 0 : 1];
+        const palIdx = Math.floor(h2 * palette.length) % palette.length;
+        const color = outside ? (h2 > 0.5 ? '#7dd3fc' : '#e0f2fe') : palette[palIdx];
         ctx.globalAlpha = outside ? 0.16 + twinkle * 0.20 : 0.28 + twinkle * 0.28;
         ctx.fillStyle = color;
         const big = h3 > 0.82;

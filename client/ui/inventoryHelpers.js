@@ -56,6 +56,17 @@ export function getRarityColor(rarity = '') {
 // ==========================================
 // 2. CONTINENTAL 28-SLOT INVENTORY BACKPACK [B]
 // ==========================================
+let currentInvTab = 'all';
+
+if (typeof window !== 'undefined') {
+  window.setInventoryFilterTab = function (tab) {
+    currentInvTab = tab || 'all';
+    if (typeof window.renderInventoryModal === 'function' && window.localProfile) {
+      window.renderInventoryModal({ profile: window.localProfile });
+    }
+  };
+}
+
 export function renderInventoryModal({ profile }) {
   const container = document.getElementById('inventory-modal-body');
   if (!container) return;
@@ -68,14 +79,49 @@ export function renderInventoryModal({ profile }) {
     countPip.style.display = inv.length > 0 ? 'inline-block' : 'none';
   }
 
+  const goldTotal = getPlayerGold(profile);
+  const pct = Math.min(100, Math.round((inv.length / capacity) * 100));
+  const tabs = [
+    { id: 'all', label: 'All' },
+    { id: 'gear', label: 'Gear' },
+    { id: 'consumable', label: 'Potions' },
+    { id: 'material', label: 'Materials' },
+    { id: 'gem', label: 'Gems/Runes' },
+  ];
+
+  const matchesTab = (item) => {
+    if (!item || currentInvTab === 'all') return true;
+    if (currentInvTab === 'gear') return !['currency', 'consumable', 'material', 'socket_gem', 'keystone'].includes(item.slot);
+    if (currentInvTab === 'consumable') return item.slot === 'consumable';
+    if (currentInvTab === 'material') return item.slot === 'material';
+    if (currentInvTab === 'gem') return item.slot === 'socket_gem' || item.slot === 'keystone' || item.slot === 'currency';
+    return true;
+  };
+
   container.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-size:9.5px;">
-      <span style="color:#fde047; font-family:var(--font-header);">
-        🎒 BACKPACK SLOTS: <b style="color:${inv.length >= 28 ? '#ef4444' : '#4ade80'};">${inv.length} / ${capacity}</b>
-      </span>
-      <span style="color:#94a3b8; font-size:8.5px;">
-        Left-Click to Equip • Drag to Action Bar • Right-Click to Drop
-      </span>
+    <div style="background:#0c0a09; border:1px solid #44403c; border-radius:4px; padding:7px 9px; margin-bottom:8px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; font-size:9.5px;">
+        <span style="color:#fde047; font-family:var(--font-header);">
+          🎒 BACKPACK: <b style="color:${inv.length >= 28 ? '#ef4444' : '#4ade80'};">${inv.length} / ${capacity}</b>
+        </span>
+        <span style="color:#fde047; font-weight:700;">🪙 ${goldTotal.toLocaleString()} Solar Gold</span>
+      </div>
+      <div style="height:4px; background:#1c1917; border-radius:2px; overflow:hidden; margin-top:5px;">
+        <div style="height:100%; width:${pct}%; background:${inv.length >= 26 ? '#ef4444' : inv.length >= 20 ? '#f59e0b' : '#4ade80'};"></div>
+      </div>
+      <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:7px;">
+        ${tabs.map((t) => `
+          <button type="button" class="id-mini-btn"
+                  style="font-size:8px; padding:2px 7px; border-color:${currentInvTab === t.id ? '#fde047' : '#334155'}; color:${currentInvTab === t.id ? '#fde047' : '#94a3b8'}; background:${currentInvTab === t.id ? '#1c1917' : 'transparent'};"
+                  onclick="window.setInventoryFilterTab && window.setInventoryFilterTab('${t.id}')">
+            ${t.label}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+
+    <div style="color:#94a3b8; font-size:8px; margin-bottom:6px; text-align:center;">
+      Left-Click to Equip/Use • Drag to Action Bar • Right-Click to Drop
     </div>
 
     <!-- 4x7 Continental Grid = 28 Slots -->
@@ -84,8 +130,9 @@ export function renderInventoryModal({ profile }) {
         const itemObj = inv[i];
         const itemId = typeof itemObj === 'string' ? itemObj : itemObj?.id;
         const item = itemId ? EQUIPMENT_CATALOG[itemId] : null;
+        const visible = item && matchesTab(item);
 
-        if (item) {
+        if (item && visible) {
           const borderCol = getRarityColor(item.rarity);
           return `
             <div class="rs-inv-slot"
@@ -107,7 +154,7 @@ export function renderInventoryModal({ profile }) {
         }
 
         return `
-          <div class="rs-inv-slot empty">
+          <div class="rs-inv-slot empty" style="${item && !visible ? 'opacity:0.25;' : ''}">
             <span style="color:#44403c; font-size:9px; font-family:var(--font-header);">${i + 1}</span>
           </div>
         `;

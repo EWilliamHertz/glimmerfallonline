@@ -142,6 +142,8 @@ import {
   getProfessionLevelFromXp,
   getXpForProfessionLevel,
   getTotalProfessionLevel,
+  ORDER_PRESETS,
+  getOrderPresetsForFaction,
 } from '../shared/protocol.js';
 
 import {
@@ -3418,6 +3420,54 @@ export function initGame() {
     }
   };
 
+  window.saveLoadoutPreset = function (slotIdx) {
+    try {
+      const key = `glimmerfall_build_preset_${localProfile.id || 'local'}_${slotIdx}`;
+      const payload = {
+        loadout: { ...(localProfile.loadout || {}) },
+        equipment: { ...(localProfile.equipment || {}) },
+        savedAt: Date.now(),
+      };
+      localStorage.setItem(key, JSON.stringify(payload));
+      spawnFCT(player.x, player.y - 18, `💾 Saved Build ${slotIdx}!`, '#7dd3fc');
+      audio.playClick?.();
+    } catch (_) {}
+  };
+
+  window.applyLoadoutPreset = async function (slotIdx) {
+    try {
+      const key = `glimmerfall_build_preset_${localProfile.id || 'local'}_${slotIdx}`;
+      const raw = localStorage.getItem(key);
+      if (!raw) {
+        spawnFCT(player.x, player.y - 18, `Build ${slotIdx} is empty — click Save first!`, '#fbbf24');
+        return;
+      }
+      const saved = JSON.parse(raw);
+      if (saved.loadout) {
+        localProfile.loadout = { ...saved.loadout };
+        updateActionBarBadges();
+      }
+      // Equip any saved gear currently sitting in the player's backpack
+      if (saved.equipment && typeof window.equipFromBag === 'function') {
+        const inv = localProfile.inventory || [];
+        for (const itemId of Object.values(saved.equipment)) {
+          if (!itemId) continue;
+          const alreadyWorn = Object.values(localProfile.equipment || {}).includes(itemId);
+          if (alreadyWorn) continue;
+          const bagIdx = inv.findIndex((it) => (typeof it === 'string' ? it : it?.id) === itemId);
+          if (bagIdx >= 0) {
+            window.equipFromBag(bagIdx);
+          }
+        }
+      }
+      if (net.connected) {
+        await net.updateProfile({ loadout: localProfile.loadout });
+      }
+      spawnFCT(player.x, player.y - 18, `⚡ Swapped to Build ${slotIdx}!`, '#4ade80');
+      audio.playClick?.();
+    } catch (_) {}
+  };
+
   window.unequipSlot = function (slotKey) {
     const inv = localProfile.inventory || [];
     const currentEquip = { ...(localProfile.equipment || {}) };
@@ -4060,6 +4110,15 @@ export function initGame() {
       localProfile.loadout = { ...firstCls.defaultLoadout };
       localProfile.equipment = { ...firstCls.defaultEquipment };
     }
+    const allowedOrders = getOrderPresetsForFaction(factionId);
+    if (!allowedOrders.some((o) => o.tag === localProfile.orderTag)) {
+      const defOrder = allowedOrders[0];
+      if (defOrder) {
+        localProfile.orderTag = defOrder.tag;
+        localProfile.orderName = defOrder.name;
+        localProfile.orderColor = defOrder.color;
+      }
+    }
     refreshHeroPortrait();
     updatePlayerUI();
     updateActionBarBadges();
@@ -4070,12 +4129,21 @@ export function initGame() {
         classId: localProfile.classId,
         loadout: localProfile.loadout,
         equipment: localProfile.equipment,
+        orderTag: localProfile.orderTag,
+        orderName: localProfile.orderName,
+        orderColor: localProfile.orderColor,
       });
       applyProfile(updated);
     } catch (_) {}
   };
 
   window.applyOrderPreset = function (tag, name, color) {
+    const allowed = getOrderPresetsForFaction(localProfile.faction || 'Solari');
+    const matched = ORDER_PRESETS.find((o) => o.tag === tag);
+    if (matched && !allowed.some((o) => o.tag === tag)) {
+      addFloatingText?.(player?.x || 0, (player?.y || 0) - 34, `Only ${matched.faction} can use <${tag}>!`, '#f87171');
+      return;
+    }
     const tEl = document.getElementById('prof-order-tag');
     const nEl = document.getElementById('prof-order-name');
     if (tEl) tEl.value = tag;
@@ -4084,8 +4152,19 @@ export function initGame() {
   };
 
   window.saveProfileChanges = async function () {
-    const orderTag = document.getElementById('prof-order-tag')?.value?.trim();
-    const orderName = document.getElementById('prof-order-name')?.value?.trim();
+    let orderTag = document.getElementById('prof-order-tag')?.value?.trim();
+    let orderName = document.getElementById('prof-order-name')?.value?.trim();
+    const matchedOther = ORDER_PRESETS.find(
+      (o) => o.tag.toUpperCase() === (orderTag || '').toUpperCase() && o.faction && o.faction !== (localProfile.faction || 'Solari')
+    );
+    if (matchedOther) {
+      const fallback = getOrderPresetsForFaction(localProfile.faction || 'Solari')[0];
+      if (fallback) {
+        orderTag = fallback.tag;
+        orderName = fallback.name;
+        localProfile.orderColor = fallback.color;
+      }
+    }
     try {
       const updated = await net.updateProfile({
         faction: localProfile.faction,
@@ -4904,6 +4983,43 @@ export function initGame() {
   // ==========================================
   let lastDecorRoomType = null;
   let isTransitioningZone = false;
+  let zoneEntryCardTimer = null;
+
+  function showZoneEntryCard(resolvedRoomType, cfg, roomTitleOverride = null) {
+    const card = document.getElementById('zone-entry-card');
+    if (!card || document.body.classList.contains('frontpage-active')) return;
+    const kickerEl = document.getElementById('zone-entry-kicker');
+    const titleEl = document.getElementById('zone-entry-title');
+    const subEl = document.getElementById('zone-entry-sub');
+
+    const zoneMeta = {
+      [ROOM_TYPES.SANCTUARY_HUB]: { kicker: 'SAFE HAVEN', title: 'SANCTUARY METROPOLIS', sub: 'Safe Zone • Crafting, Exchange & Guild Halls', color: '#facc15' },
+      [ROOM_TYPES.SOLARI_CITADEL]: { kicker: 'SOLARI REALM', title: 'SUNSPIRE CITADEL', sub: 'Lv. 1–20 • Radiant Bastion & Solar Groves', color: '#facc15' },
+      [ROOM_TYPES.UMBRI_UNDERCITY]: { kicker: 'UMBRI REALM', title: 'UMBRI UNDERCITY', sub: 'Lv. 10–30 • Shadowfang Caverns & Duskveil Ruins', color: '#c084fc' },
+      [ROOM_TYPES.TERRA_ORCHARD]: { kicker: 'TERRA REALM', title: 'IRONWOOD ORCHARD', sub: 'Lv. 15–35 • Ancient Timber, Ore & Verdant Glades', color: '#4ade80' },
+      [ROOM_TYPES.AETHER_SPIRE]: { kicker: 'AETHER REALM', title: 'CHRONOCORE SPIRE', sub: 'Lv. 25–45 • Leyline Rifts & Arcane Forges', color: '#38bdf8' },
+      [ROOM_TYPES.CELESTIAL_ASCENT]: { kicker: 'ENDGAME REALM', title: 'CELESTIAL ASCENT', sub: 'Lv. 40+ • High-Tier Bosses & Mythic Shards', color: '#fbbf24' },
+      [ROOM_TYPES.NEXUS_WARZONE]: { kicker: 'CONTESTED PVP ZONE', title: 'SHATTERED NEXUS WARZONE', sub: '4-Faction Open Siege • Full Outpost Warfare', color: '#f87171' },
+      [ROOM_TYPES.ARENA_3V3]: { kicker: 'COMPETITIVE ARENA', title: '3V3 NEXUS ARENA', sub: 'Ranked Skirmish • Destroy the Enemy Nexus', color: '#fb7185' },
+    };
+    const meta = zoneMeta[resolvedRoomType] || {
+      kicker: 'ENTERING ZONE',
+      title: (cfg?.name || resolvedRoomType || 'REALM').toUpperCase(),
+      sub: cfg?.isPvp ? 'Contested PvP Territory' : 'Exploration Zone',
+      color: '#38bdf8',
+    };
+
+    card.style.setProperty('--zone-accent', meta.color);
+    if (kickerEl) kickerEl.textContent = meta.kicker;
+    if (titleEl) titleEl.textContent = roomTitleOverride || meta.title;
+    if (subEl) subEl.textContent = meta.sub;
+
+    card.classList.add('visible');
+    if (zoneEntryCardTimer) clearTimeout(zoneEntryCardTimer);
+    zoneEntryCardTimer = setTimeout(() => {
+      card.classList.remove('visible');
+    }, 2600);
+  }
 
   function setupZoneDecor(zoneType, roomTitleOverride = null) {
     const resolvedRoomType = ROOM_CONFIGS[zoneType]
@@ -4932,6 +5048,7 @@ export function initGame() {
     mapBounds.halfW = cfg.halfW;
     mapBounds.halfH = cfg.halfH;
     audio.setBgmTheme(cfg.bgm || 'sanctuary');
+    showZoneEntryCard(resolvedRoomType, cfg, roomTitleOverride);
 
     // Record Continental Waygate & Zone Exploration Achievements
     recordAchievementStat(prog, `zone_${resolvedRoomType}_visited`, 1, onAchievementUnlocked);
@@ -6778,14 +6895,18 @@ export function initGame() {
           break;
 
         case 'welcome':
-          applyProfile(msg.profile, false);
-          frontpage.syncFromProfile(msg.profile);
-          publicRoomsList = msg.rooms || [];
+          if (!isSinglePlayer) {
+            applyProfile(msg.profile, false);
+            frontpage.syncFromProfile(msg.profile);
+            publicRoomsList = msg.rooms || [];
+          }
           break;
 
         case 'profile_updated':
-          applyProfile(msg.profile, false);
-          frontpage.syncFromProfile(msg.profile);
+          if (!isSinglePlayer) {
+            applyProfile(msg.profile, false);
+            frontpage.syncFromProfile(msg.profile);
+          }
           break;
 
         case 'room_joined': {
@@ -7194,6 +7315,12 @@ export function initGame() {
 
       if (window._landing && window._landing.isOpen) window._landing.close();
       frontpage.close();
+      const landEl = document.getElementById('landing-overlay');
+      if (landEl) landEl.style.display = 'none';
+      const fpEl = document.getElementById('frontpage-overlay');
+      if (fpEl) fpEl.style.display = 'none';
+      const pEl = document.getElementById('prologue-modal-overlay');
+      if (pEl) pEl.style.display = 'none';
       hideDeathScreen();
 
       if (isSinglePlayer) {
@@ -7279,12 +7406,9 @@ export function initGame() {
     }
   }
 
-  // Handle instant enter click if triggered before engine mount
+  // Clear any stale auto-boot flag so the player always chooses Realm, Account, and Character cleanly.
   if (typeof window !== 'undefined' && window._pendingPlayOnBoot) {
     window._pendingPlayOnBoot = false;
-    setTimeout(() => {
-      frontpage.playSelectedCharacter();
-    }, 10);
   }
 
   // ==========================================
@@ -10903,72 +11027,76 @@ export function initGame() {
     window.clearHoveredEquipment?.();
     document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
     if (opening) {
-      if (id === 'char-modal') renderStatsModal();
-      if (id === 'spellbook-modal') switchSkillTreeTab(currentSkillTreeTab || 'flashes');
-      if (id === 'arena-modal') renderArenaModal();
-      if (id === 'equipment-modal' || id === 'paperdoll-modal' || id === 'cards-modal') {
-        renderEquipmentModal({ profile: localProfile });
-        const targetEl = document.getElementById('equipment-modal') || el;
-        targetEl.style.display = 'block';
-        return;
-      }
-      if (id === 'inventory-modal') {
-        renderInventoryModal({ profile: localProfile });
-      }
-      if (id === 'exchange-modal') {
-        if (net.connected) net.send({ type: 'exchange_open' });
-        renderExchangeModal({ profile: localProfile });
-      }
-      if (id === 'trade-modal') {
-        if (activeTradeSession) renderTradeModal({ session: activeTradeSession, profile: localProfile });
-      }
-      if (id === 'inspect-modal') {
-        if (inspectedPlayerData) renderInspectModal({ targetData: inspectedPlayerData });
-      }
-      if (id === 'bank-modal') {
-        renderBankModal({ profile: localProfile });
-      }
-      if (id === 'merchant-modal') {
-        renderMerchantModal();
-      }
-      if (id === 'account-modal') {
-        renderAccountModal({ profile: localProfile, authTab: accountAuthTab, statusMsg: accountStatusMsg });
-      }
-      if (id === 'social-modal') {
-        if (net.connected) net.send({ type: 'list_rooms' });
-        refreshSocialModalView();
-      }
-      if (id === 'lore-modal') {
-        renderLoreModal();
-      }
-      if (id === 'skills-modal') {
-        window.renderSkillsModal?.();
-      }
-      if (id === 'skill-guide-modal') {
-        window.renderSkillGuide?.();
-      }
-      if (id === 'skill-training-modal') {
-        window.renderSkillTrainingGuide?.();
-      }
-      if (id === 'audio-mixer-modal') {
-        syncAudioMixerUI();
-      }
-      if (id === 'settings-modal') {
-        const touchCb = document.getElementById('settings-touch-checkbox');
-        if (touchCb) touchCb.checked = document.body.classList.contains('touch-mode');
-        const compassCb = document.getElementById('settings-compass-checkbox');
-        if (compassCb) compassCb.checked = questCompassEnabled;
-        const crtCb = document.getElementById('settings-crt-checkbox');
-        if (crtCb) crtCb.checked = document.getElementById('crt-overlay')?.style.display === 'block';
-        const aaCb = document.getElementById('settings-antialiasing-checkbox');
-        if (aaCb) aaCb.checked = isTextAntiAliased;
-        const zLbl = document.getElementById('zoom-label');
-        if (zLbl) zLbl.innerText = `${zoom}x`;
-        if (typeof window.getUiScale === 'function') {
-          const sObj = window.getUiScale();
-          const sLbl = document.getElementById('ui-scale-label');
-          if (sLbl) sLbl.innerText = sObj.label;
+      try {
+        if (id === 'char-modal') renderStatsModal();
+        if (id === 'spellbook-modal') switchSkillTreeTab(currentSkillTreeTab || 'flashes');
+        if (id === 'arena-modal') renderArenaModal();
+        if (id === 'equipment-modal' || id === 'paperdoll-modal' || id === 'cards-modal') {
+          renderEquipmentModal({ profile: localProfile });
+          const targetEl = document.getElementById('equipment-modal') || el;
+          targetEl.style.display = 'block';
+          return;
         }
+        if (id === 'inventory-modal') {
+          renderInventoryModal({ profile: localProfile });
+        }
+        if (id === 'exchange-modal') {
+          if (net.connected) net.send({ type: 'exchange_open' });
+          renderExchangeModal({ profile: localProfile });
+        }
+        if (id === 'trade-modal') {
+          if (activeTradeSession) renderTradeModal({ session: activeTradeSession, profile: localProfile });
+        }
+        if (id === 'inspect-modal') {
+          if (inspectedPlayerData) renderInspectModal({ targetData: inspectedPlayerData });
+        }
+        if (id === 'bank-modal') {
+          renderBankModal({ profile: localProfile });
+        }
+        if (id === 'merchant-modal') {
+          renderMerchantModal();
+        }
+        if (id === 'account-modal') {
+          renderAccountModal({ profile: localProfile, authTab: accountAuthTab, statusMsg: accountStatusMsg });
+        }
+        if (id === 'social-modal') {
+          if (net.connected) net.send({ type: 'list_rooms' });
+          refreshSocialModalView();
+        }
+        if (id === 'lore-modal') {
+          renderLoreModal();
+        }
+        if (id === 'skills-modal') {
+          window.renderSkillsModal?.();
+        }
+        if (id === 'skill-guide-modal') {
+          window.renderSkillGuide?.();
+        }
+        if (id === 'skill-training-modal') {
+          window.renderSkillTrainingGuide?.();
+        }
+        if (id === 'audio-mixer-modal') {
+          syncAudioMixerUI();
+        }
+        if (id === 'settings-modal') {
+          const touchCb = document.getElementById('settings-touch-checkbox');
+          if (touchCb) touchCb.checked = document.body.classList.contains('touch-mode');
+          const compassCb = document.getElementById('settings-compass-checkbox');
+          if (compassCb) compassCb.checked = questCompassEnabled;
+          const crtCb = document.getElementById('settings-crt-checkbox');
+          if (crtCb) crtCb.checked = document.getElementById('crt-overlay')?.style.display === 'block';
+          const aaCb = document.getElementById('settings-antialiasing-checkbox');
+          if (aaCb) aaCb.checked = isTextAntiAliased;
+          const zLbl = document.getElementById('zoom-label');
+          if (zLbl) zLbl.innerText = `${zoom}x`;
+          if (typeof window.getUiScale === 'function') {
+            const sObj = window.getUiScale();
+            const sLbl = document.getElementById('ui-scale-label');
+            if (sLbl) sLbl.innerText = sObj.label;
+          }
+        }
+      } catch (err) {
+        console.warn('[toggleModal] Non-fatal modal render error:', id, err);
       }
       el.style.display = 'block';
     }
@@ -11182,7 +11310,7 @@ export function initGame() {
 
     // 2. HIGHEST PRIORITY DISMISSAL ON ESCAPE: Video Cinematics or Prologue
     const pOverlay = document.getElementById('prologue-modal-overlay');
-    if (pOverlay && pOverlay.style.display !== 'none') {
+    if (pOverlay && pOverlay.style.display && pOverlay.style.display !== 'none') {
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
@@ -11191,7 +11319,7 @@ export function initGame() {
       }
     }
     const cOverlay = document.getElementById('cinematic-modal-overlay');
-    if (cOverlay && cOverlay.style.display !== 'none') {
+    if (cOverlay && cOverlay.style.display && cOverlay.style.display !== 'none') {
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
@@ -11273,7 +11401,7 @@ export function initGame() {
     const key = e.key.toLowerCase();
     const normKey = normalizeKeyEvent(e);
 
-    if (key === 'escape') {
+    if (key === 'escape' || key === 'esc' || e.code === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
 
@@ -13215,6 +13343,9 @@ export function initGame() {
     }
 
     for (const ent of entities) {
+      if (ent.type === 'node' && ent.skillingType === 'tree_blossom' && (ent.charges ?? 0) <= 0) {
+        continue;
+      }
       renderables.push({
         y: ent.y,
         draw: () => {
@@ -13884,6 +14015,7 @@ export function initGame() {
 
     for (const e of entities) {
       if (e.isDying) continue;
+      if (e.type === 'node' && e.skillingType === 'tree_blossom' && (e.charges ?? 0) <= 0) continue;
       const ex = Math.round(cx + (e.x - player.x) * scale);
       const ey = Math.round(cy + (e.y - player.y) * scale);
       if (ex < 2 || ex > mw - 4 || ey < 2 || ey > mh - 4) continue;
@@ -13953,13 +14085,13 @@ export function initGame() {
   renderPartyHud(null, localProfile.id);
   updateQuestTrackerHUD();
 
-  if (frontpage.playMode === 'multiplayer') {
-    net.bootstrapAndConnect(prog).then((prof) => {
-      if (prof) frontpage.syncFromProfile(prof);
-    }).catch(() => {});
-  } else {
-    isSinglePlayer = true;
+  if (frontpage.playMode !== 'multiplayer' || frontpage.isOpen || (window._landing && window._landing.isOpen)) {
+    isSinglePlayer = frontpage.playMode !== 'multiplayer';
     updateNetStatusPill();
+  } else {
+    net.bootstrapAndConnect(prog).then((prof) => {
+      if (prof && !isSinglePlayer) frontpage.syncFromProfile(prof);
+    }).catch(() => {});
   }
 
   let lastTs = performance.now();

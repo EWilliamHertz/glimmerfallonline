@@ -106,6 +106,20 @@ export async function handleApiRequest(req, res, { accounts, rooms = null }) {
 
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
   const pathname = url.pathname;
+  if (pathname === '/health' && req.method === 'GET') {
+    sendJson(res, 200, {
+      ok: true,
+      service: 'glimmerfall-online-2d-mmo',
+      uptimeSec: Math.round(process.uptime()),
+      tickRate: TICK_RATE,
+      dbConnected: accounts.dbConnected,
+      onlinePlayers: rooms ? rooms.clients.size : 0,
+      activeRooms: rooms ? rooms.rooms.size : 0,
+      timestamp: new Date().toISOString(),
+    });
+    return true;
+  }
+
   if (!pathname.startsWith('/api/')) return false;
 
   const verifyWithRefresh = async (rawTok) => {

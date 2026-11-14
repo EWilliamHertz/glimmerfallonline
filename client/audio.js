@@ -506,7 +506,33 @@ export class PixelSoundEngine {
         this.trackEl.src = url;
       }
       this.trackEl.loop = loop;
-      this.trackEl.volume = Math.max(0, Math.min(1, this.musicVolume * this.masterVolume));
+      const targetVol = Math.max(0, Math.min(1, this.musicVolume * this.masterVolume));
+      if (this._fadeTimer) {
+        clearInterval(this._fadeTimer);
+        this._fadeTimer = null;
+      }
+      this.trackEl.volume = 0;
+
+      const startVolumeRamp = () => {
+        if (token !== this._trackToken || this.bgmMuted || this.muted || !this.trackEl) return;
+        const steps = 10;
+        const stepMs = 35;
+        let step = 0;
+        this._fadeTimer = setInterval(() => {
+          if (token !== this._trackToken || this.bgmMuted || this.muted || !this.trackEl) {
+            clearInterval(this._fadeTimer);
+            this._fadeTimer = null;
+            return;
+          }
+          step += 1;
+          const maxVol = Math.max(0, Math.min(1, this.musicVolume * this.masterVolume));
+          this.trackEl.volume = Math.min(maxVol, (maxVol * step) / steps);
+          if (step >= steps) {
+            clearInterval(this._fadeTimer);
+            this._fadeTimer = null;
+          }
+        }, stepMs);
+      };
 
       const seekAndPlay = () => {
         if (token !== this._trackToken || this.bgmMuted || this.muted || this.currentTrackUrl !== url) return;
@@ -520,15 +546,19 @@ export class PixelSoundEngine {
           } catch (_) {}
         }
         const playPromise = this.trackEl.play();
-        if (playPromise && typeof playPromise.catch === 'function') {
-          playPromise.catch((err) => {
-            if (token !== this._trackToken || this.bgmMuted || this.muted) return;
-            // Do not fall back to procedural chiptune on browser autoplay block or track-switch abort
-            if (err?.name === 'AbortError' || err?.name === 'NotAllowedError') return;
-            console.warn('[AudioEngine] Track audio playback deferred/fallback:', err?.message || err);
-            this.stopTrackAudio(false);
-            this.startBgmLoop();
-          });
+        if (playPromise && typeof playPromise.then === 'function') {
+          playPromise
+            .then(() => startVolumeRamp())
+            .catch((err) => {
+              if (token !== this._trackToken || this.bgmMuted || this.muted) return;
+              // Do not fall back to procedural chiptune on browser autoplay block or track-switch abort
+              if (err?.name === 'AbortError' || err?.name === 'NotAllowedError') return;
+              console.warn('[AudioEngine] Track audio playback deferred/fallback:', err?.message || err);
+              this.stopTrackAudio(false);
+              this.startBgmLoop();
+            });
+        } else {
+          startVolumeRamp();
         }
       };
 
@@ -551,6 +581,10 @@ export class PixelSoundEngine {
 
   stopTrackAudio(resetPosition = false) {
     this._trackToken = (this._trackToken || 0) + 1;
+    if (this._fadeTimer) {
+      clearInterval(this._fadeTimer);
+      this._fadeTimer = null;
+    }
     if (this.trackEl) {
       if (this._pendingMetaListener) {
         this.trackEl.removeEventListener('loadedmetadata', this._pendingMetaListener);

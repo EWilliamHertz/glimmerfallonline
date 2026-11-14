@@ -310,6 +310,11 @@ export class MultiplayerClient {
       if (this.onStatusChange) this.onStatusChange(true);
       clearInterval(this.pingInterval);
       this.send({ type: 'ping', ts: performance.now() });
+      setTimeout(() => {
+        if (this.ws && this.ws.readyState === 1) {
+          this.send({ type: 'ping', ts: performance.now() });
+        }
+      }, 1000);
       this.pingInterval = setInterval(() => {
         if (this.ws && this.ws.readyState === 1) {
           this.send({ type: 'ping', ts: performance.now() });
@@ -348,8 +353,9 @@ export class MultiplayerClient {
           // Ignore extreme tab-suspended/buffered outliers (>10s) once connected,
           // and snap back immediately if a normal sample arrives after a spike.
           if (sample > 10000 && this.pingMs > 0) return;
-          if (!this.pingMs || this.pingMs <= 0 || (this.pingMs > 5000 && sample < 2000)) {
-            this.pingMs = Math.min(sample, 5000);
+          if (this.isLocalOrigin() && sample > 1000 && this.pingMs > 0) return;
+          if (!this.pingMs || this.pingMs <= 0 || (this.pingMs > 200 && sample < 120)) {
+            this.pingMs = this.isLocalOrigin() ? Math.min(sample, 100) : Math.min(sample, 5000);
           } else {
             this.pingMs = Math.round(this.pingMs * 0.65 + sample * 0.35);
           }

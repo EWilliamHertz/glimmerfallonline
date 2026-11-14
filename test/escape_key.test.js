@@ -58,3 +58,47 @@ test('Escape Key Integrity: Modals, settings, audio mixer, inputs, cinematics, a
     'landing.js must dismiss video cinematics on Escape before closing landing page'
   );
 });
+
+test('renderEquipmentModal renders full paperdoll and bonuses without ReferenceError on high-level characters', async () => {
+  const prevDoc = globalThis.document;
+  try {
+    const bodyEl = { innerHTML: '' };
+    const ctxMock = {
+      imageSmoothingEnabled: false,
+      fillStyle: '',
+      fillRect() {},
+      clearRect() {},
+      drawImage() {},
+      getImageData: (_x, _y, w, h) => ({ data: new Uint8ClampedArray((w || 16) * (h || 16) * 4) }),
+      putImageData() {},
+    };
+    const canvasEl = { width: 64, height: 68, getContext: () => ctxMock, toDataURL: () => 'data:image/png;base64,' };
+    globalThis.document = {
+      createElement: () => canvasEl,
+      getElementById: (id) => {
+        if (id === 'equipment-modal-body') return bodyEl;
+        if (id === 'rs-paperdoll-canvas') return canvasEl;
+        return null;
+      },
+    };
+    const { renderEquipmentModal } = await import('../client/equipmentUi.js');
+    renderEquipmentModal({
+      profile: {
+        displayName: 'Ewach',
+        faction: 'Aether',
+        classId: 'aether_chronomancer',
+        equipment: {
+          head: 'chrono_astral_hood',
+          body: 'chrono_astral_robes',
+          legs: 'chrono_astral_skirt',
+          weapon: 'chrono_warp_staff',
+        },
+      },
+    });
+    assert.ok(bodyEl.innerHTML.includes('WORN EQUIPMENT SLOTS'), 'Equipment modal body must render paperdoll slots');
+    assert.ok(bodyEl.innerHTML.includes('TOTAL COMBAT STAT BONUSES'), 'Equipment modal body must render stat bonuses');
+    assert.ok(bodyEl.innerHTML.includes('ANCIENT RUNEWORD CODEX'), 'Equipment modal body must render runeword codex');
+  } finally {
+    if (prevDoc === undefined) delete globalThis.document; else globalThis.document = prevDoc;
+  }
+});

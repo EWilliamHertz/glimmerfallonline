@@ -1028,9 +1028,6 @@ export class FrontpageController {
       console.error('[Frontpage] Error during render:', err);
     }
     this.startPreviewLoop();
-    if (this.rememberMe && (!this.net?.profile || this.net.profile.isGuest)) {
-      this.tryAutoLogin();
-    }
   }
 
   close() {
@@ -1294,6 +1291,7 @@ export class FrontpageController {
               <input id="fp-auth-user" class="pixel-input" placeholder="GlimmerFall ID" value="${this.savedUsername || prof?.username || ''}" maxlength="18" style="font-size:10px; padding:3px 6px; width:100px;" />
               <input id="fp-auth-pass" class="pixel-input" type="password" placeholder="Password" value="${this.savedPassword || ''}" maxlength="48" style="font-size:10px; padding:3px 6px; width:80px;" />
               <button class="util-btn" style="font-size:9.5px; border-color:#38bdf8; color:#bae6fd; padding:3px 6px;" onclick="window._fp.handleQuickAuth('login')">LOGIN</button>
+              ${(this.savedUsername && this.savedPassword) ? `<button class="util-btn" style="font-size:9.5px; border-color:#4ade80; color:#bbf7d0; padding:3px 6px;" onclick="window._fp.tryAutoLogin()">CONTINUE @${this.savedUsername}</button>` : ''}
               <button class="util-btn" style="font-size:9.5px; border-color:#facc15; color:#fde047; padding:3px 6px;" onclick="window._fp.handleQuickAuth('register')">REGISTER</button>
               <label style="display:flex; align-items:center; gap:4px; font-size:10px; color:#cbd5e1; cursor:pointer; user-select:none; margin-left:3px; background:#080e1e; border:1px solid #1e293b; padding:2px 6px; border-radius:3px;" title="Remember login credentials and stay signed in">
                 <input id="fp-remember-me" type="checkbox" ${this.rememberMe ? 'checked' : ''} onchange="window._fp.toggleRememberMe(this.checked)" style="accent-color:#38bdf8; cursor:pointer; width:12px; height:12px; margin:0;" />

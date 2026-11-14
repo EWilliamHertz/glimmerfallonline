@@ -1179,3 +1179,51 @@
   margin-top: 3px;
   letter-spacing: 0.5px;
 }
+
+/* ==========================================
+   DYNAMIC ZONE ENTRY TITLE CARD
+   ========================================== */
+.zone-entry-card {
+  position: fixed;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-10px);
+  z-index: 420;
+  pointer-events: none;
+  opacity: 0;
+  min-width: 280px;
+  max-width: min(460px, 86vw);
+  padding: 10px 22px;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(8, 12, 24, 0.94), rgba(15, 23, 42, 0.88));
+  border: 2px solid var(--zone-accent, #facc15);
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.72), 0 0 18px rgba(250, 204, 21, 0.18);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.zone-entry-card.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.zone-entry-kicker {
+  font-family: var(--font-header);
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--zone-accent, #facc15);
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.zone-entry-title {
+  font-family: var(--font-header);
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  color: #f8fafc;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+}
+.zone-entry-sub {
+  font-size: 10px;
+  color: #cbd5e1;
+  margin-top: 3px;
+  letter-spacing: 0.3px;
+}

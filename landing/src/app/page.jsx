@@ -589,11 +589,11 @@ const PROFESSIONS = [
 ];
 
 const ORDER_PRESETS = [
-  { tag: 'SUN', name: 'Order of Dawn', color: '#F2A900', emblem: '☀️' },
-  { tag: 'VOID', name: 'Duskveil Cabal', color: '#9B30FF', emblem: '🌑' },
-  { tag: 'ROOT', name: 'Ironwood Watch', color: '#22E07B', emblem: '🌿' },
-  { tag: 'AETH', name: 'Chronocore Wardens', color: '#00BFFF', emblem: '🔮' },
-  { tag: 'GLIM', name: 'GlimmerFall Founders', color: '#FB923C', emblem: '⚡' },
+  { tag: 'SUN', name: 'Order of Dawn', color: '#F2A900', emblem: '☀️', faction: 'Solari' },
+  { tag: 'VOID', name: 'Duskveil Cabal', color: '#9B30FF', emblem: '🌑', faction: 'Umbri' },
+  { tag: 'ROOT', name: 'Ironwood Watch', color: '#22E07B', emblem: '🌿', faction: 'Terra' },
+  { tag: 'AETH', name: 'Chronocore Wardens', color: '#00BFFF', emblem: '🔮', faction: 'Aether' },
+  { tag: 'GLIM', name: 'GlimmerFall Founders', color: '#FB923C', emblem: '⚡', faction: null },
 ];
 
 const RANDOM_NAMES = [
@@ -1049,7 +1049,8 @@ export default function LandingPage() {
 
     try {
       const finalName = characterName.trim() || 'Vanguard';
-      const order = ORDER_PRESETS.find((o) => o.tag === selectedOrderTag) || ORDER_PRESETS[0];
+      const allowedOrders = ORDER_PRESETS.filter((o) => !o.faction || o.faction === selectedFaction);
+      const order = allowedOrders.find((o) => o.tag === selectedOrderTag) || allowedOrders[0] || ORDER_PRESETS[0];
       const activeClass = FACTIONS_DATA[selectedFaction].classes.find((c) => c.id === selectedClassId) || FACTIONS_DATA[selectedFaction].classes[0];
 
       if (typeof window !== 'undefined') {
@@ -1108,7 +1109,8 @@ export default function LandingPage() {
 
   const currentFaction = FACTIONS_DATA[selectedFaction];
   const activeClassObj = currentFaction.classes.find((c) => c.id === selectedClassId) || currentFaction.classes[0];
-  const currentOrder = ORDER_PRESETS.find((o) => o.tag === selectedOrderTag) || ORDER_PRESETS[0];
+  const allowedOrdersForFaction = ORDER_PRESETS.filter((o) => !o.faction || o.faction === selectedFaction);
+  const currentOrder = allowedOrdersForFaction.find((o) => o.tag === selectedOrderTag) || allowedOrdersForFaction[0] || ORDER_PRESETS[0];
   const activeOstTrack = LANDING_OST_TRACKS.find((t) => t.id === currentOstTrackId) || LANDING_OST_TRACKS[0];
   const activeCinematic = LANDING_CINEMATICS.find((s) => s.id === selectedCinematicId) || LANDING_CINEMATICS[0];
 
@@ -2294,8 +2296,8 @@ export default function LandingPage() {
                 <label className="block text-xs font-extrabold uppercase tracking-wider text-white/70 mb-2">
                   4. ORDER CREST &bull; HERALDRY TAG
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-                  {ORDER_PRESETS.map((o) => {
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {allowedOrdersForFaction.map((o) => {
                     const isSelected = selectedOrderTag === o.tag;
                     return (
                       <button

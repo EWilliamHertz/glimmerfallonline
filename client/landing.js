@@ -11,9 +11,15 @@ import {
   CLASSES_CATALOG,
   PROFESSIONS_CATALOG,
   ORDER_PRESETS,
+  getOrderPresetsForFaction,
+  EQUIPMENT_CATALOG,
+  BARROWS_SETS,
+  RUNEWORD_SYNERGIES,
   createDefaultProgression,
   validateCharacterName,
 } from '../shared/protocol.js';
+import { getItemIconDataUrl } from './itemSprites.js';
+import { getRarityColor } from './ui/inventoryHelpers.js';
 
 const START_ON_LOADOUT_KEY = 'glimmerfall_start_on_loadout';
 const SP_ROSTER_KEY = 'glimmerfall_sp_roster_v2';
@@ -433,6 +439,8 @@ export class LandingPageController {
     this._isDraggingScrubber = false;
     this.selectedCinematicId = 'crystal_heart';
     this.isTheatreAutoplay = false;
+    this.armorySlotFilter = 'all';
+    this.armorySearch = '';
 
     try {
       const savedMode = localStorage.getItem(PLAY_MODE_KEY);
@@ -1653,6 +1661,8 @@ export class LandingPageController {
   }
 
   setOrder(tag) {
+    const allowed = getOrderPresetsForFaction(this.selectedFaction);
+    if (!allowed.some((o) => o.tag === tag)) return;
     this.selectedOrderTag = tag;
     this.playSfx('click');
     this.render();
@@ -1702,7 +1712,8 @@ export class LandingPageController {
       return;
     }
     const finalName = vRes.cleanName;
-    const order = ORDER_PRESETS.find((o) => o.tag === this.selectedOrderTag) || ORDER_PRESETS[0];
+    const allowedOrders = getOrderPresetsForFaction(this.selectedFaction);
+    const order = allowedOrders.find((o) => o.tag === this.selectedOrderTag) || allowedOrders[0] || ORDER_PRESETS[0];
     const cls = CLASSES_CATALOG[this.selectedClassId] || CLASSES_CATALOG.solari_vanguard;
 
     try {
@@ -1798,7 +1809,8 @@ export class LandingPageController {
     const fm = FACTIONS_META[this.selectedFaction] || FACTIONS_META.Solari;
     const fe = FACTION_ELEMENTS[this.selectedFaction] || FACTION_ELEMENTS.Solari;
     const cls = CLASSES_CATALOG[this.selectedClassId] || CLASSES_CATALOG.solari_vanguard;
-    const order = ORDER_PRESETS.find((o) => o.tag === this.selectedOrderTag) || ORDER_PRESETS[0];
+    const allowedOrders = getOrderPresetsForFaction(this.selectedFaction);
+    const order = allowedOrders.find((o) => o.tag === this.selectedOrderTag) || allowedOrders[0] || ORDER_PRESETS[0];
     const factionClasses = Object.values(CLASSES_CATALOG).filter((c) => c.faction === this.selectedFaction);
     const hoveredItemObj = PIXEL_ITEMS.find((it) => it.id === this.hoveredItemId);
     const activeOstTrack = LANDING_OST_TRACKS.find((t) => t.id === this.currentOstTrackId) || LANDING_OST_TRACKS[0];
@@ -2445,7 +2457,7 @@ export class LandingPageController {
                 4. ORDER CREST &bull; HERALDRY
               </label>
               <div class="order-tags-row">
-                ${ORDER_PRESETS.map((o) => {
+                ${getOrderPresetsForFaction(this.selectedFaction).map((o) => {
                   const isSel = this.selectedOrderTag === o.tag;
                   return `
                     <button type="button"
@@ -2586,33 +2598,145 @@ export class LandingPageController {
     `;
   }
 
+  setArmorySlotFilter(slot) {
+    this.armorySlotFilter = slot || 'all';
+    if (this.isOpen) this.render();
+  }
+
+  setArmorySearch(q) {
+    this.armorySearch = String(q || '');
+    if (this.isOpen) this.render();
+  }
+
   renderArmoryTab({ hoveredItemObj }) {
+    const allEquipment = Object.values(EQUIPMENT_CATALOG || {}).filter((item) => item && item.id);
+    const gearItems = allEquipment.filter((item) => {
+      if (!['currency', 'consumable', 'material'].includes(item.slot)) return true;
+      return false;
+    });
+    const filterGroups = [
+      { id: 'all', label: `All Gear (${gearItems.length})` },
+      { id: 'weapon', label: 'Weapons' },
+      { id: 'body', label: 'Armor / Body' },
+      { id: 'head', label: 'Head' },
+      { id: 'shield', label: 'Shield / Offhand' },
+      { id: 'legs', label: 'Legs' },
+      { id: 'accessories', label: 'Capes, Rings & Gear' },
+      { id: 'socket_gem', label: 'Gems & Runes' },
+      { id: 'keystone', label: 'Keystones' },
+    ];
+    const query = (this.armorySearch || '').trim().toLowerCase();
+    const filteredGear = gearItems.filter((item) => {
+      const f = this.armorySlotFilter || 'all';
+      if (f === 'body' && item.slot !== 'body' && item.slot !== 'armor') return false;
+      else if (f === 'shield' && item.slot !== 'shield' && item.slot !== 'offhand') return false;
+      else if (f === 'accessories' && !['cape', 'neck', 'hands', 'feet', 'ring', 'ammo'].includes(item.slot)) return false;
+      else if (f !== 'all' && f !== 'body' && f !== 'shield' && f !== 'accessories' && item.slot !== f) return false;
+      if (query) {
+        const hay = `${item.name || ''} ${item.rarity || ''} ${item.slot || ''} ${item.desc || ''} ${item.setId || ''}`.toLowerCase();
+        if (!hay.includes(query)) return false;
+      }
+      return true;
+    });
+
+    const formatGearStats = (item) => {
+      const parts = [];
+      if (item.stats && typeof item.stats === 'object') {
+        if (item.stats.atk) parts.push(`+${item.stats.atk} ATK`);
+        if (item.stats.def) parts.push(`+${item.stats.def} DEF`);
+        if (item.stats.mag) parts.push(`+${item.stats.mag} MAG`);
+        if (item.stats.spd) parts.push(`+${item.stats.spd} SPD`);
+        if (item.stats.hp) parts.push(`+${item.stats.hp} HP`);
+        if (item.stats.glimmer) parts.push(`+${item.stats.glimmer} Glimmer`);
+        if (item.stats.crit) parts.push(`+${item.stats.crit}% Crit`);
+      }
+      if (item.attack) parts.push(`+${item.attack} ATK`);
+      if (item.defense) parts.push(`+${item.defense} DEF`);
+      if (item.hpBonus) parts.push(`+${item.hpBonus} HP`);
+      if (item.critBonus) parts.push(`+${item.critBonus}% Crit`);
+      return parts.length ? parts.join(' • ') : `${String(item.slot || 'gear').toUpperCase()} SLOT`;
+    };
+
+    const setsList = Object.values(BARROWS_SETS || {});
+    const runewordsList = Object.values(RUNEWORD_SYNERGIES || {});
+
     return `
       <!-- CONTINENTAL ARMORY -->
       <section id="armory" class="landing-section-box">
         <div class="section-header-row">
           <div>
             <span class="section-tag" style="background:rgba(74,222,128,0.15); color:#4ade80; border:1px solid rgba(74,222,128,0.3);">
-              EQUIPMENT CATALOG
+              COMPLETE EQUIPMENT CATALOG (${gearItems.length} ITEMS)
             </span>
             <h2 class="section-heading">🛡️ CONTINENTAL ARMORY &amp; RELICS</h2>
           </div>
-          <span style="font-size:11px; color:#94a3b8;">8 Item Slots &bull; Runeword Synergy</span>
+          <span style="font-size:11px; color:#94a3b8;">11 Paperdoll Slots &bull; ${setsList.length} Sets &bull; ${runewordsList.length} Runewords</span>
         </div>
 
-        <div class="armory-items-catalog">
-          ${PIXEL_ITEMS.map((item) => `
-            <div class="armory-catalog-card">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-size:24px; padding:6px; background:#080e1c; border-radius:8px; border:1px solid #1e293b;">${item.icon}</span>
-                <span style="font-size:9px; padding:2px 6px; border-radius:4px; font-weight:bold; background:${item.color}20; color:${item.color};">${item.rarity}</span>
-              </div>
-              <div style="font-family:var(--font-header); font-weight:bold; font-size:12.5px; color:#fff; margin-top:10px;">${item.name}</div>
-              <div style="font-size:10.5px; font-weight:bold; color:#38bdf8; margin-top:2px;">${item.stat}</div>
-              <p style="font-size:10px; color:#cbd5e1; margin-top:6px; line-height:1.4;">${item.desc}</p>
-            </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:12px;">
+          <input type="text"
+                 value="${this.armorySearch.replace(/"/g, '&quot;')}"
+                 oninput="window._landing && window._landing.setArmorySearch(this.value)"
+                 placeholder="Search all ${gearItems.length} gear, sets, gems..."
+                 style="background:#080e1c; color:#e2e8f0; border:1px solid #334155; border-radius:4px; padding:5px 9px; font-size:11px; min-width:210px; outline:none;" />
+          ${filterGroups.map((g) => `
+            <button type="button"
+                    class="gf-filter-btn ${this.armorySlotFilter === g.id ? 'active' : ''}"
+                    onclick="window._landing && window._landing.setArmorySlotFilter('${g.id}')">
+              ${g.label}
+            </button>
           `).join('')}
         </div>
+
+        <div class="armory-items-catalog" style="max-height:540px; overflow-y:auto; padding-right:4px;">
+          ${filteredGear.length ? filteredGear.map((item) => {
+            const rColor = getRarityColor(item.rarity);
+            const iconUrl = typeof document !== 'undefined' ? getItemIconDataUrl(item.id, 32) : '';
+            return `
+              <div class="armory-catalog-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+                  <span style="display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; background:#080e1c; border-radius:8px; border:1px solid ${rColor}55;">
+                    ${iconUrl ? `<img src="${iconUrl}" width="32" height="32" alt="${item.name}" style="image-rendering:pixelated;" />` : `<span style="font-size:20px;">${item.icon || '⚔️'}</span>`}
+                  </span>
+                  <span style="font-size:9px; padding:2px 6px; border-radius:4px; font-weight:bold; background:${rColor}20; color:${rColor}; text-align:right;">${item.rarity || 'Common'}</span>
+                </div>
+                <div style="font-family:var(--font-header); font-weight:bold; font-size:12px; color:#fff; margin-top:8px;">${item.name}</div>
+                <div style="font-size:9.5px; color:#94a3b8; text-transform:uppercase; margin-top:1px;">${item.slot}${item.reqLevel ? ` • Lv.${item.reqLevel}` : ''}</div>
+                <div style="font-size:10.5px; font-weight:bold; color:#38bdf8; margin-top:3px;">${formatGearStats(item)}</div>
+                <p style="font-size:10px; color:#cbd5e1; margin-top:5px; line-height:1.4;">${item.desc || ''}</p>
+              </div>
+            `;
+          }).join('') : `<div style="color:#94a3b8; font-size:12px; padding:16px;">No gear matched your filter.</div>`}
+        </div>
+
+        ${setsList.length ? `
+          <div style="margin-top:18px; border-top:1px solid #1e293b; padding-top:14px;">
+            <div style="font-family:var(--font-header); font-size:12px; color:#facc15; margin-bottom:8px;">✦ CANONICAL FACTION SETS (4-PIECE BONUSES)</div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:8px;">
+              ${setsList.map((s) => `
+                <div style="background:#080e1c; border:1px solid #334155; border-radius:6px; padding:9px 11px;">
+                  <div style="font-weight:bold; font-size:11.5px; color:#fde047;">${s.name}</div>
+                  <div style="font-size:10px; color:#cbd5e1; margin-top:3px; line-height:1.4;">${s.perk || s.desc || ''}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        ${runewordsList.length ? `
+          <div style="margin-top:14px; border-top:1px solid #1e293b; padding-top:14px;">
+            <div style="font-family:var(--font-header); font-size:12px; color:#c084fc; margin-bottom:8px;">🔮 ANCIENT LEYLINE RUNEWORDS (3-SOCKET SYNERGIES)</div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:8px;">
+              ${runewordsList.map((rw) => `
+                <div style="background:#080e1c; border:1px solid #4c1d95; border-radius:6px; padding:9px 11px;">
+                  <div style="font-weight:bold; font-size:11.5px; color:#e9d5ff;">${rw.name}</div>
+                  <div style="font-size:9.5px; color:#38bdf8; margin-top:2px;">${(rw.runes || []).join(' + ')}</div>
+                  <div style="font-size:10px; color:#cbd5e1; margin-top:3px; line-height:1.4;">${rw.desc || rw.bonusText || ''}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
       </section>
 
       <!-- AUTHENTIC TCG CARDS SECTION -->

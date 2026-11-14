@@ -346,6 +346,19 @@ export function renderBankModal({ profile }) {
   const bank = getBankItems(profile);
   const inv = Array.isArray(profile?.inventory) ? profile.inventory : [];
   const totalValue = calculateBankValue(profile);
+  const gearSlots = new Set(['weapon', 'body', 'armor', 'legs', 'head', 'shield', 'offhand', 'cape', 'neck', 'ring', 'hands', 'feet', 'ammo']);
+  const counts = { all: 0, gear: 0, material: 0, consumable: 0, currency: 0 };
+  for (const entry of bank) {
+    const id = typeof entry === 'string' ? entry : entry?.id;
+    const it = EQUIPMENT_CATALOG[id];
+    if (!it) continue;
+    counts.all++;
+    if (gearSlots.has(it.slot)) counts.gear++;
+    else if (it.slot === 'material') counts.material++;
+    else if (it.slot === 'consumable') counts.consumable++;
+    else if (['currency', 'socket_gem', 'keystone'].includes(it.slot)) counts.currency++;
+  }
+  const capPct = Math.min(100, Math.round((bank.length / MAX_BANK_CAPACITY) * 100));
 
   // Filter bank items
   const filtered = bank.map((entry, idx) => ({ entry, originalIndex: idx })).filter(({ entry }) => {
@@ -354,10 +367,10 @@ export function renderBankModal({ profile }) {
     if (!it) return false;
 
     if (currentBankTab !== 'all') {
-      if (currentBankTab === 'gear' && !['weapon', 'body', 'legs', 'head', 'shield', 'offhand', 'cape', 'neck', 'ring', 'hands', 'feet'].includes(it.slot)) return false;
+      if (currentBankTab === 'gear' && !gearSlots.has(it.slot)) return false;
       if (currentBankTab === 'material' && it.slot !== 'material') return false;
       if (currentBankTab === 'consumable' && it.slot !== 'consumable') return false;
-      if (currentBankTab === 'currency' && it.slot !== 'currency') return false;
+      if (currentBankTab === 'currency' && !['currency', 'socket_gem', 'keystone'].includes(it.slot)) return false;
     }
 
     if (currentBankFilter) {
@@ -380,8 +393,11 @@ export function renderBankModal({ profile }) {
           </div>
         </div>
         <div style="display:flex; gap:14px; align-items:center;">
-          <div style="font-size:9.5px; color:#94a3b8;">
+          <div style="font-size:9.5px; color:#94a3b8; min-width:110px;">
             Capacity: <b style="color:${bank.length >= MAX_BANK_CAPACITY ? '#ef4444' : '#4ade80'};">${bank.length} / ${MAX_BANK_CAPACITY}</b>
+            <div style="height:3px; background:#1c1917; border-radius:2px; overflow:hidden; margin-top:3px;">
+              <div style="height:100%; width:${capPct}%; background:${bank.length >= MAX_BANK_CAPACITY - 10 ? '#ef4444' : '#38bdf8'};"></div>
+            </div>
           </div>
           <div style="font-size:9.5px; color:#fde047; font-weight:bold;">
             Net Worth: <b>${totalValue.toLocaleString()} 🪙</b>
@@ -401,6 +417,9 @@ export function renderBankModal({ profile }) {
           <button class="util-btn" style="border-color:#fb923c; color:#fed7aa; font-size:8.5px; padding:4px 8px; font-weight:bold;" onclick="window.depositWornGearToBank()">
             🛡️ DEPOSIT WORN GEAR
           </button>
+          <button class="util-btn" style="border-color:#c084fc; color:#e9d5ff; font-size:8.5px; padding:4px 8px; font-weight:bold;" onclick="window.sortBankVault && window.sortBankVault()">
+            ↕️ SORT VAULT
+          </button>
         </div>
 
         <div style="display:flex; gap:6px; align-items:center; flex:1; max-width:320px;">
@@ -414,13 +433,13 @@ export function renderBankModal({ profile }) {
       </div>
 
       <!-- Bank Tabs Navigation -->
-      <div style="display:flex; gap:6px; margin-top:10px; border-top:1px solid #1e293b; padding-top:8px;">
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; border-top:1px solid #1e293b; padding-top:8px;">
         ${[
-          { key: 'all', label: '🌐 ALL ITEMS' },
-          { key: 'gear', label: '⚔️ WEAPONS & ARMOR' },
-          { key: 'material', label: '🪵 MATERIALS & SKILLING' },
-          { key: 'consumable', label: '🧪 CONSUMABLES & FOOD' },
-          { key: 'currency', label: '🪙 CURRENCIES & GEMS' },
+          { key: 'all', label: `🌐 ALL (${counts.all})` },
+          { key: 'gear', label: `⚔️ GEAR (${counts.gear})` },
+          { key: 'material', label: `🪵 MATERIALS (${counts.material})` },
+          { key: 'consumable', label: `🧪 CONSUMABLES (${counts.consumable})` },
+          { key: 'currency', label: `🪙 CURRENCIES & GEMS (${counts.currency})` },
         ].map((t) => `
           <button type="button" class="id-mini-btn"
                   style="font-size:8.5px; padding:3px 10px; border-color:${currentBankTab === t.key ? '#fde047' : '#334155'}; color:${currentBankTab === t.key ? '#fde047' : '#94a3b8'}; background:${currentBankTab === t.key ? '#1c1917' : 'transparent'}; font-weight:bold;"
@@ -537,5 +556,19 @@ if (typeof window !== 'undefined') {
   };
   window.withdrawBankItem = function (bankIndex, qty = 1) {
     if (window.localProfile) withdrawBankItemToInventory(window.localProfile, bankIndex, qty);
+  };
+  window.sortBankVault = function () {
+    const profile = window.localProfile;
+    if (!profile) return;
+    const bank = getBankItems(profile).slice().sort((a, b) => {
+      const ia = EQUIPMENT_CATALOG[typeof a === 'string' ? a : a?.id] || {};
+      const ib = EQUIPMENT_CATALOG[typeof b === 'string' ? b : b?.id] || {};
+      const sa = String(ia.slot || 'zzz');
+      const sb = String(ib.slot || 'zzz');
+      if (sa !== sb) return sa.localeCompare(sb);
+      return String(ia.name || '').localeCompare(String(ib.name || ''));
+    });
+    saveBank(profile, bank);
+    renderBankModal({ profile });
   };
 }

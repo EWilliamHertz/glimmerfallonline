@@ -489,3 +489,35 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
 - **Minimum Daily Cadence**: 1 hour of focused coding and testing per calendar day.
 - **Zero Jargon**: Never expose backend, database, or infrastructure terminology to players.
 - **Purity of Experience**: Keep fonts crisp, combat snappy, and manual progression rewarding.
+
+---
+
+## 🌍 International MMORPG Transformation Roadmap (v2.0)
+
+A prioritized engineering & product roadmap to elevate *GlimmerFall Online* from a regional prototype into a scalable, globally playable MMORPG.
+
+### 1. Immediate Fixes & Core UX Stability (P0)
+- [x] **Audio Overlap Elimination**: Strict mutual exclusion between streamed `.m4a` BGM (`trackEl`) and procedural WebAudio chiptune (`bgmTimer`), plus stale `loadedmetadata` / `AbortError` / `NotAllowedError` guards.
+- [x] **Multiplayer Latency Display**: Bounded RTT ping sampling in `client/network.js` to prevent `30,000–50,000 ms` outlier latching.
+- [x] **Gear & Escape Menu Reliability**: Harden `window.toggleModal('settings-modal')`, `window.toggleModal('equipment-modal')`, `⚙️ MENU [ESC]` / `⚔️ GEAR [K]` dock buttons, and `Escape` key dismissal/open hierarchy in `client/game.js` & `index.html`.
+- [ ] **HUD Overlap & Viewport Scaling Audit**: Test 1280×720, 1920×1080, ultrawide, and tablet viewports so `#micro-menu`, `#target-unit-frame`, and `#minimap` never collide or clip.
+- [ ] **Tooltip & Modal Keyboard Accessibility**: Consistent `Escape` to close any open modal/drawer, `Tab` target cycling, and focus restoration back to the game canvas.
+
+### 2. Stockholm Oracle Server Netcode & Infrastructure (P1)
+- [ ] **Single-Authority Stockholm Server Hardening**: Optimize the Stockholm Oracle VM (`pm2` + Neon PostgreSQL) as the canonical global realm without multi-region server sprawl.
+- [ ] **Delta-Compressed Snapshots**: Replace full JSON entity broadcasts with delta-encoded position/HP/state updates to cut bandwidth by 60–80% for high-player-count zones and overseas connections.
+- [ ] **Graceful Reconnect & Session Handoff**: Automatic WebSocket reconnect with exponential backoff, state resync, and seamless realm-transfer handshake without dropping party/combat state.
+- [ ] **HTTPS / WSS on Standard Port 443**: Serve the Stockholm realm behind TLS/WSS on port `443` with a domain name so institutional/strict firewalls that block raw IPs or custom ports can connect cleanly.
+- [ ] **Production Observability**: Structured server metrics (tick duration p95/p99, room population, WebSocket drop rate, Neon DB query latency) and client error reporting.
+
+### 3. True MMORPG Core Loop & Endgame (P1)
+- [ ] **Role Trinity & Group Finder (LFG)**: Build on the authoritative Threat Table & GCD system to launch an automated **Party / Dungeon Finder** (1 Tank, 1 Healer, 3 DPS) with ready-checks and cross-zone teleportation.
+- [ ] **Instanced 5-Player Dungeons & 10-Player Raids**: Multi-boss encounters with telegraphed mechanics, enrage timers, loot lockouts, and personal/need-greed loot rolls.
+- [ ] **Guilds / Clans & Alliance Diplomacy**: Persistent guild rosters, officer ranks, guild bank vault, guild chat (`/g`), and faction-aligned Guild Territory buffs.
+- [ ] **Player-Driven Economy Hardening**: Expand `AetherSwap` Continental Exchange with price-history charts, buy/sell order filtering, anti-bot rate limits, and gold-sink crafting/repair loops.
+- [ ] **Ranked 3v3 Arena & Seasonal Ladders**: MMR matchmaking, seasonal rating decay, spectator mode, and end-of-season titles/cosmetics.
+
+### 4. Social Trust, Safety & Live Ops (P2)
+- [ ] **Moderation & Anti-Abuse Suite**: In-game player report UI, server-side mute/ban enforcement, trade/whisper spam heuristics, and profanity filter localization.
+- [ ] **Friends List, Whispers & Offline Mail**: Persistent cross-zone friends list with online/zone status, `/w` whispers, and in-game mail for auction payouts and gifts.
+- [ ] **Zero-Downtime Rolling Deploys & Content Hot-Reload**: Drain active arenas/dungeons cleanly before server restarts and store tuning tables in versioned config.

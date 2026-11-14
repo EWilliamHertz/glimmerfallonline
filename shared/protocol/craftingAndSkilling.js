@@ -1520,6 +1520,38 @@ export const BOUNTY_CONTRACTS = [
       { id: 'empyrean_starleaf', qty: 2 },
     ],
   },
+  {
+    id: 'bounty_starlight_expedition',
+    title: 'Starlight Grove: Astral Extraction',
+    category: 'Skilling',
+    icon: '🌟',
+    desc: 'Harvest 10 high-yield Mithril Veins, Celestial Trees, or Leyline Nodes across Starlight Grove and outer realms.',
+    kind: 'harvests',
+    targetCount: 10,
+    rewardGold: 140,
+    rewardXp: 180,
+    rewardProf: { id: 'resonance_extraction', xp: 210 },
+    rewardItems: [
+      { id: 'mithril_astral_ore', qty: 3 },
+      { id: 'empyrean_starleaf', qty: 2 },
+    ],
+  },
+  {
+    id: 'bounty_chronocore_vanguard',
+    title: 'Chronocore Citadel: Rift Purge',
+    category: 'Endgame',
+    icon: '⏳',
+    desc: 'Purge 8 Rift horrors or Elite Champions across Chronocore Citadel and the Abyssal Rift.',
+    kind: 'abyssal_or_elite_kills',
+    targetCount: 8,
+    rewardGold: 300,
+    rewardXp: 480,
+    rewardProf: { id: 'combat_mastery', xp: 340 },
+    rewardItems: [
+      { id: 'celestial_runite_ore', qty: 3 },
+      { id: 'ancient_relic_fragment', qty: 3 },
+    ],
+  },
 ];
 
 // Level-99 mastery capes are the concrete reward behind each skill guide's final milestone.

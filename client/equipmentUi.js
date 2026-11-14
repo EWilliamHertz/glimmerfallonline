@@ -179,6 +179,7 @@ export function renderEquipmentModal({ profile }) {
 
   const statBonuses = getEquipmentStatBonuses(equip, classId);
   const { active: activeSets, progress: setProgress } = getActiveSetBonuses(equip);
+  const activeRuneword = getActiveRuneword(equip);
 
   container.innerHTML = `
     <div class="rs-paperdoll-wrapper">
@@ -267,10 +268,13 @@ export function renderEquipmentModal({ profile }) {
         </div>
 
         <!-- Live Player Animated Sprite Canvas -->
-        <div style="display:flex; align-items:center; gap:10px; background:#141210; border:2px solid #57534e; border-radius:4px; padding:8px 12px; margin-top:10px;">
+        <div style="display:flex; align-items:center; gap:10px; background:linear-gradient(135deg, #141210 0%, #0f172a 100%); border:2px solid #57534e; border-radius:4px; padding:8px 12px; margin-top:10px;">
           <canvas id="rs-paperdoll-canvas" width="64" height="68" style="background:#090f20; border:2px solid #78350f; border-radius:3px; image-rendering:pixelated;"></canvas>
-          <div style="font-size:9.5px; line-height:1.45;">
-            <div style="color:#fde047; font-family:var(--font-header); font-weight:700;">${profile?.displayName || 'Champion'}</div>
+          <div style="font-size:9.5px; line-height:1.45; flex:1;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+              <div style="color:#fde047; font-family:var(--font-header); font-weight:700;">${profile?.displayName || 'Champion'}</div>
+              <span style="background:#172554; border:1px solid #38bdf8; color:#7dd3fc; font-size:8px; font-weight:800; padding:1px 6px; border-radius:3px;">GS ${(statBonuses.power || 0) + (statBonuses.bastion || 0) + (statBonuses.resonance || 0) + (statBonuses.tempo || 0)}</span>
+            </div>
             <div style="color:#94a3b8; font-size:8.5px;">${cls.name} • ${faction}</div>
             <div style="color:#4ade80; font-size:8px; margin-top:3px;">Sprites reflect equipped weapons &amp; armors in real time.</div>
           </div>
@@ -279,6 +283,28 @@ export function renderEquipmentModal({ profile }) {
         <button class="util-btn" style="width:100%; margin-top:10px; border-color:#d97706; color:#fed7aa;" onclick="toggleModal('inventory-modal')">
           🎒 OPEN 28-SLOT BACKPACK [B]
         </button>
+
+        <!-- Quick-Swap Build / Loadout Presets -->
+        <div style="background:#141210; border:1px solid #44403c; border-radius:4px; padding:7px 9px; margin-top:8px;">
+          <div style="font-family:var(--font-header); font-size:8.5px; color:#fde047; margin-bottom:5px; display:flex; justify-content:space-between;">
+            <span>⚡ QUICK-SWAP BUILD PRESETS</span>
+            <span style="color:#94a3b8; font-size:7.5px;">BAR + GEAR</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+            ${[
+              { idx: 1, label: 'Build 1 (Solo)' },
+              { idx: 2, label: 'Build 2 (Group)' },
+            ].map((b) => `
+              <div style="background:#0c0a09; border:1px solid #292524; border-radius:3px; padding:5px 6px;">
+                <div style="font-size:8px; color:#e2e8f0; font-weight:700; margin-bottom:4px;">${b.label}</div>
+                <div style="display:flex; gap:4px;">
+                  <button class="util-btn" style="flex:1; font-size:7.5px; padding:3px 4px; border-color:#38bdf8; color:#7dd3fc;" onclick="window.saveLoadoutPreset(${b.idx})">💾 Save</button>
+                  <button class="util-btn" style="flex:1; font-size:7.5px; padding:3px 4px; border-color:#4ade80; color:#86efac;" onclick="window.applyLoadoutPreset(${b.idx})">⚡ Swap</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
       </div>
 
       <!-- RIGHT: Combat Bonuses & Canonical Faction Set Perks -->
@@ -299,22 +325,30 @@ export function renderEquipmentModal({ profile }) {
           <div style="font-family:var(--font-header); font-size:10px; color:#fde047; margin-bottom:6px; border-bottom:1px solid #292524; padding-bottom:4px;">
             📊 TOTAL COMBAT STAT BONUSES
           </div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:9.5px;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:9.5px;">
             <div style="background:#1c1917; border:1px solid #292524; padding:5px 8px; border-radius:3px;">
-              <span style="color:#94a3b8;">⚔️ Attack / Power:</span>
-              <b style="color:#fde047; float:right;">+${statBonuses.power}</b>
+              <span style="color:#94a3b8;">⚔️ Power:</span>
+              <b style="color:#fde047; float:right;">+${statBonuses.power || 0}</b>
             </div>
             <div style="background:#1c1917; border:1px solid #292524; padding:5px 8px; border-radius:3px;">
-              <span style="color:#94a3b8;">🛡️ Defense / Bastion:</span>
-              <b style="color:#4ade80; float:right;">+${statBonuses.bastion}</b>
+              <span style="color:#94a3b8;">🛡️ Bastion:</span>
+              <b style="color:#4ade80; float:right;">+${statBonuses.bastion || 0}</b>
             </div>
             <div style="background:#1c1917; border:1px solid #292524; padding:5px 8px; border-radius:3px;">
-              <span style="color:#94a3b8;">🔮 Magic / Resonance:</span>
-              <b style="color:#38bdf8; float:right;">+${statBonuses.resonance}</b>
+              <span style="color:#94a3b8;">🔮 Resonance:</span>
+              <b style="color:#38bdf8; float:right;">+${statBonuses.resonance || 0}</b>
             </div>
             <div style="background:#1c1917; border:1px solid #292524; padding:5px 8px; border-radius:3px;">
-              <span style="color:#94a3b8;">⚡ Speed / Tempo:</span>
-              <b style="color:#c084fc; float:right;">+${statBonuses.tempo}</b>
+              <span style="color:#94a3b8;">⚡ Tempo:</span>
+              <b style="color:#c084fc; float:right;">+${statBonuses.tempo || 0}</b>
+            </div>
+            <div style="background:#1c1917; border:1px solid #292524; padding:5px 8px; border-radius:3px;">
+              <span style="color:#94a3b8;">❤️ Max HP:</span>
+              <b style="color:#f87171; float:right;">+${statBonuses.maxHp || 0}</b>
+            </div>
+            <div style="background:#1c1917; border:1px solid #292524; padding:5px 8px; border-radius:3px;">
+              <span style="color:#94a3b8;">✨ Glimmer / 🎯 Crit:</span>
+              <b style="color:#fbbf24; float:right;">+${statBonuses.maxGlimmer || 0} / +${Math.round((statBonuses.critPct || 0) * 100)}%</b>
             </div>
           </div>
         </div>
