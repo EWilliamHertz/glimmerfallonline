@@ -1193,40 +1193,40 @@ export default function LandingPage() {
       {/* UNIFIED STICKY GLASSMORPHIC TOP NAVBAR                   */}
       {/* ======================================================== */}
       <header className="sticky top-0 z-50 w-full bg-[#060A16]/85 backdrop-blur-2xl border-b border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.65)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4 flex-wrap">
+        <div className="max-w-7xl mx-auto px-3 sm:px-5 py-2.5 flex items-center justify-between gap-2.5 flex-nowrap overflow-x-auto scrollbar-none">
           <div
             onClick={() => setTab('overview')}
-            className="flex items-center gap-3.5 cursor-pointer group"
+            className="flex items-center gap-2.5 cursor-pointer group flex-shrink-0"
           >
-            <div className="relative w-11 h-11 flex-shrink-0 p-1.5 rounded-xl bg-black/50 border border-[#F2A900]/45 shadow-[0_0_18px_rgba(242,169,0,0.25)] group-hover:scale-105 transition-transform">
+            <div className="relative w-9 h-9 flex-shrink-0 p-1 rounded-xl bg-black/50 border border-[#F2A900]/45 shadow-[0_0_18px_rgba(242,169,0,0.25)] group-hover:scale-105 transition-transform">
               <img
                 src={LOGO_PATH}
                 alt="GlimmerFall Official Logo"
-                width={40}
-                height={40}
+                width={32}
+                height={32}
                 className="sidebar-logo-img w-full h-full object-contain filter drop-shadow(0 0 6px #F2A900)"
               />
             </div>
             <div>
-              <div className="font-display font-black text-lg tracking-wider text-white">
-                GLIMMER<span className="text-[#F2A900]">FALL</span> ONLINE
+              <div className="font-display font-black text-sm tracking-wider text-white whitespace-nowrap leading-tight">
+                GLIMMER<span className="text-[#F2A900]">FALL</span>
               </div>
-              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#10B981]/15 border border-[#10B981]/40 text-[10px] text-[#6EE7B7] font-bold">
+              <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#10B981]/15 border border-[#10B981]/40 text-[9px] text-[#6EE7B7] font-bold whitespace-nowrap">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-ping" />
-                STOCKHOLM REALM ({serverStatus.online ? `${serverStatus.latencyMs || 18}ms` : '20Hz'}) &bull; LIVE
+                Online
               </div>
             </div>
           </div>
 
-          <nav className="flex items-center gap-1.5 bg-[#0B1122]/80 p-1.5 rounded-2xl border border-white/10 overflow-x-auto scrollbar-none">
+          <nav className="flex items-center gap-1 bg-[#0B1122]/80 p-1 rounded-xl border border-white/10 flex-nowrap flex-shrink-0">
             {[
-              { id: 'overview', label: 'Overview', icon: Music, badge: 'Portal' },
-              { id: 'forge', label: 'Champion Forge', icon: Sparkles, badge: '8 Classes' },
-              { id: 'theatre', label: '1080p Theatre', icon: Film, badge: '12 HD' },
-              { id: 'systems', label: 'Game Systems', icon: Zap, badge: 'Lv.99' },
-              { id: 'armory', label: 'Armory & Relics', icon: Boxes, badge: '200+' },
-              { id: 'atlas', label: 'Atlas & Lore', icon: Globe, badge: '8 Realms' },
-              { id: 'settings', label: 'Settings', icon: Settings, badge: 'Prefs' },
+              { id: 'overview', label: 'Overview', icon: Music },
+              { id: 'forge', label: 'Entities', icon: Sparkles },
+              { id: 'theatre', label: 'Theatre', icon: Film },
+              { id: 'systems', label: 'Systems', icon: Zap },
+              { id: 'armory', label: 'Armory', icon: Boxes },
+              { id: 'atlas', label: 'Lore', icon: Globe },
+              { id: 'settings', label: 'Settings', icon: Settings },
             ].map((tab) => {
               const Icon = tab.icon;
               const isSel = activeTab === tab.id;
@@ -1234,7 +1234,7 @@ export default function LandingPage() {
                 <button
                   key={tab.id}
                   onClick={() => setTab(tab.id)}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-display font-bold transition-all whitespace-nowrap ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-display font-bold transition-all whitespace-nowrap ${
                     isSel
                       ? 'bg-gradient-to-r from-[#F2A900]/25 to-[#38BDF8]/20 border border-[#F2A900]/60 text-[#FDE047] shadow-[0_4px_16px_rgba(242,169,0,0.2)]'
                       : 'border border-transparent text-white/65 hover:text-white hover:bg-white/5'
@@ -1242,21 +1242,16 @@ export default function LandingPage() {
                 >
                   <Icon className={`w-3.5 h-3.5 ${isSel ? 'text-[#FDE047]' : 'text-white/50'}`} />
                   <span>{tab.label}</span>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full border ${
-                    isSel ? 'bg-black/50 border-[#F2A900]/50 text-[#FDE047]' : 'bg-black/40 border-white/10 text-white/40'
-                  }`}>
-                    {tab.badge}
-                  </span>
                 </button>
               );
             })}
           </nav>
 
-          <div className="flex items-center gap-2.5 flex-shrink-0">
-            <div className="inline-flex bg-[#080D1A] p-1 rounded-xl border border-white/10">
+          <div className="flex items-center gap-1.5 flex-shrink-0 flex-nowrap">
+            <div className="inline-flex bg-[#080D1A] p-0.5 rounded-lg border border-white/10">
               <button
                 onClick={() => { setPlayMode('singleplayer'); playSfx('click'); }}
-                className={`text-[11px] py-1.5 px-2.5 rounded-lg font-bold transition-all ${
+                className={`text-[11px] py-1 px-2 rounded-md font-bold transition-all whitespace-nowrap ${
                   playMode === 'singleplayer'
                     ? 'bg-[#38BDF8]/20 border border-[#38BDF8]/50 text-[#7DD3FC]'
                     : 'text-white/50 hover:text-white'
@@ -1266,7 +1261,7 @@ export default function LandingPage() {
               </button>
               <button
                 onClick={() => { setPlayMode('multiplayer'); playSfx('click'); }}
-                className={`text-[11px] py-1.5 px-2.5 rounded-lg font-bold transition-all ${
+                className={`text-[11px] py-1 px-2 rounded-md font-bold transition-all whitespace-nowrap ${
                   playMode === 'multiplayer'
                     ? 'bg-[#22E07B]/20 border border-[#22E07B]/50 text-[#86EFAC]'
                     : 'text-white/50 hover:text-white'
@@ -1278,16 +1273,16 @@ export default function LandingPage() {
 
             <button
               onClick={handleOpenLoadout}
-              className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-xs font-bold text-white/90 transition-all flex items-center gap-1.5"
+              className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/15 text-xs font-bold text-white/90 transition-all flex items-center gap-1 whitespace-nowrap"
             >
               <UserCheck className="w-3.5 h-3.5 text-[#38BDF8]" /> Roster
             </button>
 
             <button
               onClick={handleLaunchGame}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#FDE047] via-[#FACC15] to-[#CA8A04] text-black font-display font-black text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 shadow-[0_8px_24px_rgba(250,204,21,0.35)] flex items-center gap-1.5"
+              className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#FDE047] via-[#FACC15] to-[#CA8A04] text-black font-display font-black text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 shadow-[0_8px_24px_rgba(250,204,21,0.35)] flex items-center gap-1 whitespace-nowrap"
             >
-              <Zap className="w-3.5 h-3.5 fill-black" /> Play Free Now
+              <Zap className="w-3.5 h-3.5 fill-black" /> Play Now
             </button>
           </div>
         </div>

@@ -137,27 +137,27 @@
                     <div class="gf-top-navbar-inner">
                       <div class="gf-brand-cluster" onclick="window.landingSetTab('overview')">
                         <div class="gf-brand-crest">
-                          <img src="/GlimmerFall_official_multicolor_logo.png" alt="GlimmerFall Logo" width="40" height="40" />
+                          <img src="/GlimmerFall_official_multicolor_logo.png" alt="GlimmerFall Logo" width="32" height="32" />
                         </div>
                         <div>
-                          <div class="gf-brand-title">GLIMMER<span>FALL</span> ONLINE</div>
+                          <div class="gf-brand-title">GLIMMER<span>FALL</span></div>
                           <div class="gf-telemetry-pill">
                             <span class="gf-telemetry-dot"></span>
-                            <span>STOCKHOLM REALM (79.76.40.148) &bull; 20Hz LIVE</span>
+                            <span>Online</span>
                           </div>
                         </div>
                       </div>
                       <nav class="landing-tabs-nav">
                         <button type="button" class="landing-tab-btn active" onclick="window.landingSetTab('overview')"><span>🏛️ Overview</span></button>
-                        <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('forge')"><span>⚔️ Champion Forge</span><span class="landing-tab-btn-badge">8 Classes</span></button>
-                        <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('theatre')"><span>🎬 1080p Theatre</span><span class="landing-tab-btn-badge">12 Scenes</span></button>
-                        <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('systems')"><span>⚙️ Game Systems</span><span class="landing-tab-btn-badge">Lv.99</span></button>
-                        <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('armory')"><span>🛡️ Armory &amp; Relics</span><span class="landing-tab-btn-badge">200 Items</span></button>
-                        <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('atlas')"><span>🗺️ Atlas &amp; Lore</span><span class="landing-tab-btn-badge">8 Realms</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('forge')"><span>⚔️ Entities</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('theatre')"><span>🎬 Theatre</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('systems')"><span>⚙️ Systems</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('armory')"><span>🛡️ Armory</span></button>
+                        <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('atlas')"><span>🗺️ Lore</span></button>
                         <button type="button" class="landing-tab-btn" onclick="window.landingSetTab('settings')"><span>⚙️ Settings</span></button>
                       </nav>
                       <div class="gf-navbar-actions">
-                        <label style="display:inline-flex; align-items:center; gap:6px; font-size:11px; color:#94a3b8; cursor:pointer;">
+                        <label style="display:none; align-items:center; gap:6px; font-size:11px; color:#94a3b8; cursor:pointer;">
                           <input type="checkbox" class="start-on-site-cb" onchange="if(window._landing){window._landing.setStartOnLoadout(this.checked);}else{localStorage.setItem('glimmerfall_start_on_loadout', this.checked?'true':'false');}" />
                           <span>Start on this site</span>
                         </label>
@@ -165,8 +165,8 @@
                           <button type="button" class="sidebar-mode-btn active single" onclick="window.landingSetPlayMode('singleplayer')">🕹️ Offline</button>
                           <button type="button" class="sidebar-mode-btn" onclick="window.landingSetPlayMode('multiplayer')">🌐 Online</button>
                         </div>
-                        <button type="button" class="id-mini-btn" onclick="window.landingOpenLoadout()"><span>👤</span> Roster</button>
-                        <button type="button" class="hero-btn-primary" style="padding:9px 18px; font-size:12px;" onclick="window.landingStartJourney()"><span>⚡</span> PLAY FREE NOW</button>
+                        <button type="button" class="id-mini-btn" style="padding:6px 10px; font-size:11.5px;" onclick="window.landingOpenLoadout()"><span>👤</span> Roster</button>
+                        <button type="button" class="hero-btn-primary" style="padding:7px 14px; font-size:11.5px; white-space:nowrap;" onclick="window.landingStartJourney()"><span>⚡</span> PLAY NOW</button>
                       </div>
                     </div>
                   </header>

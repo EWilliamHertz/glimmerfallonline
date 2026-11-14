@@ -1,8 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
-  basePath: '/landing',
-  assetPrefix: '/landing',
   reactStrictMode: true,
   images: {
     unoptimized: true,

@@ -1825,13 +1825,13 @@ export class LandingPageController {
           <div class="gf-top-navbar-inner">
             <div class="gf-brand-cluster" onclick="window._landing.setTab('overview')">
               <div class="gf-brand-crest">
-                <img src="${LOGO_SRC}" alt="GlimmerFall Official Logo" width="40" height="40" />
+                <img src="${LOGO_SRC}" alt="GlimmerFall Official Logo" width="32" height="32" />
               </div>
               <div>
-                <div class="gf-brand-title">GLIMMER<span>FALL</span> ONLINE</div>
+                <div class="gf-brand-title">GLIMMER<span>FALL</span></div>
                 <div class="gf-telemetry-pill">
                   <span class="gf-telemetry-dot"></span>
-                  <span>STOCKHOLM REALM (79.76.40.148) &bull; 20Hz LIVE</span>
+                  <span>Online</span>
                 </div>
               </div>
             </div>
@@ -1841,24 +1841,19 @@ export class LandingPageController {
                 <span>🏛️ Overview</span>
               </button>
               <button type="button" class="landing-tab-btn ${this.activeTab === 'forge' ? 'active' : ''}" onclick="window._landing.setTab('forge')">
-                <span>⚔️ Champion Forge</span>
-                <span class="landing-tab-btn-badge">8 Classes</span>
+                <span>⚔️ Entities</span>
               </button>
               <button type="button" class="landing-tab-btn ${this.activeTab === 'theatre' ? 'active' : ''}" onclick="window._landing.setTab('theatre')">
-                <span>🎬 1080p Theatre</span>
-                <span class="landing-tab-btn-badge">12 Scenes</span>
+                <span>🎬 Theatre</span>
               </button>
               <button type="button" class="landing-tab-btn ${this.activeTab === 'systems' ? 'active' : ''}" onclick="window._landing.setTab('systems')">
-                <span>⚙️ Game Systems</span>
-                <span class="landing-tab-btn-badge">Lv.99</span>
+                <span>⚙️ Systems</span>
               </button>
               <button type="button" class="landing-tab-btn ${this.activeTab === 'armory' ? 'active' : ''}" onclick="window._landing.setTab('armory')">
-                <span>🛡️ Armory &amp; Relics</span>
-                <span class="landing-tab-btn-badge">200 Items</span>
+                <span>🛡️ Armory</span>
               </button>
               <button type="button" class="landing-tab-btn ${this.activeTab === 'atlas' ? 'active' : ''}" onclick="window._landing.setTab('atlas')">
-                <span>🗺️ Atlas &amp; Lore</span>
-                <span class="landing-tab-btn-badge">8 Realms</span>
+                <span>🗺️ Lore</span>
               </button>
               <button type="button" class="landing-tab-btn ${this.activeTab === 'settings' ? 'active' : ''}" onclick="window._landing.setTab('settings')">
                 <span>⚙️ Settings</span>
@@ -1878,11 +1873,11 @@ export class LandingPageController {
                   🌐 Online
                 </button>
               </div>
-              <button type="button" class="id-mini-btn" onclick="window._landing.openLoadout()">
+              <button type="button" class="id-mini-btn" style="padding:6px 10px; font-size:11.5px;" onclick="window._landing.openLoadout()">
                 <span>👤</span> Roster
               </button>
-              <button type="button" class="hero-btn-primary" style="padding:9px 18px; font-size:12px;" onclick="window._landing.startJourney()">
-                <span>⚡</span> PLAY FREE NOW
+              <button type="button" class="hero-btn-primary" style="padding:7px 14px; font-size:11.5px; white-space:nowrap;" onclick="window._landing.startJourney()">
+                <span>⚡</span> PLAY NOW
               </button>
             </div>
           </div>

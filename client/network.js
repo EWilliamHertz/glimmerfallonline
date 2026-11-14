@@ -93,19 +93,16 @@ export class MultiplayerClient {
     } catch (_) {}
     if (typeof window !== 'undefined') {
       const host = (window.location.hostname || '').toLowerCase();
-      // If visited directly on official domain, stay on same origin!
-      if (host.includes('glimmerfall.online')) {
+      // If visited directly on the game server subdomain, stay on same origin.
+      if (host === 'ws.glimmerfall.online') {
         return `${window.location.protocol}//${window.location.host}`;
       }
-      // If deployed on Vercel or external host:
-      if (host.includes('vercel.app')) {
-        return 'https://glimmerfall.online';
-      }
-      if (host === '79.76.40.148' || host.includes('sslip.io')) {
-        return 'https://glimmerfall.online';
+      // If deployed on Vercel, main storefront domain, or raw Oracle IP:
+      if (host.includes('glimmerfall.online') || host.includes('vercel.app') || host === '79.76.40.148' || host.includes('sslip.io')) {
+        return 'https://ws.glimmerfall.online';
       }
     }
-    return 'https://glimmerfall.online';
+    return 'https://ws.glimmerfall.online';
   }
 
   isLocalOrigin() {
@@ -276,14 +273,14 @@ export class MultiplayerClient {
       const wsProto = isHttps ? 'wss:' : 'ws:';
       let cleanHost = serverBase.replace(/^https?:\/\//i, '');
       if (cleanHost.includes('79.76.40.148') || cleanHost.includes('sslip.io')) {
-        cleanHost = 'glimmerfall.online';
+        cleanHost = 'ws.glimmerfall.online';
       }
       url = `${wsProto}//${cleanHost}/ws${qStr}`;
     } else {
       const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       let host = window.location.host;
       if (host.includes('79.76.40.148') || host.includes('sslip.io')) {
-        host = 'glimmerfall.online';
+        host = 'ws.glimmerfall.online';
       }
       url = `${wsProto}//${host}/ws${qStr}`;
     }

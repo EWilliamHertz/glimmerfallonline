@@ -66,6 +66,24 @@ PORT=8080 pm2 start server/index.js --name "glimmerfall" --update-env || pm2 res
 pm2 save
 sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $USER --hp $HOME || true
 
+# 8. Install & configure Caddy for https://ws.glimmerfall.online (wss:// -> localhost:8080)
+if ! command -v caddy &> /dev/null; then
+  echo "🔒 Installing Caddy reverse proxy for automatic TLS..."
+  sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+  sudo apt-get update -y
+  sudo apt-get install -y caddy
+fi
+
+sudo tee /etc/caddy/Caddyfile > /dev/null <<'EOF'
+ws.glimmerfall.online {
+    reverse_proxy localhost:8080
+}
+EOF
+sudo systemctl enable --now caddy
+sudo systemctl reload caddy
+
 PUBLIC_IP=$(curl -s https://ifconfig.me || curl -s https://api.ipify.org || echo "YOUR_SERVER_IP")
 
 echo ""
