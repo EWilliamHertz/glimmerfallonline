@@ -56,7 +56,7 @@
       gridPos: { col: 0, row: 4 },
       neighbors: {
         north: 'SOLARI_SUNKEN_VAULT',
-        south: null,
+        south: 'SOLAR_HIGHLANDS',
         west: 'STARFALL_CRATER',
         east: 'SANCTUARY_HUB'
       },
@@ -121,7 +121,7 @@
         north: 'SANCTUARY_HUB',
         south: 'IRONWOOD_TIMBERLANDS',
         west: null,
-        east: null
+        east: 'SUNKEN_OASIS'
       },
       landmarks: [
         { x: 50, y: 40, icon: '🌿', name: 'Elder Druid Sylvanus', sub: 'Primal Shaman', desc: 'Teacher of Rooted Bastion and Bramble Reversals.' },
@@ -255,7 +255,7 @@
         north: 'ABYSSAL_RIFT',
         south: 'NEXUS_WARZONE',
         west: null,
-        east: null
+        east: 'CHRONOCORE_CITADEL'
       },
       landmarks: [
         { x: 50, y: 35, icon: '👑', name: 'AURELIUS THE SOVEREIGN', sub: '★ Lv.35 World Raid Boss', desc: '3200 HP Apex Sovereign dealing 65 holy DMG. Drops Crown of Dawn!' },
@@ -348,7 +348,7 @@
       neighbors: {
         north: 'TERRA_ORCHARD',
         south: null,
-        west: null,
+        west: 'STARLIGHT_GROVE',
         east: 'CORAL_COAST'
       },
       landmarks: [
@@ -379,7 +379,7 @@
       gridPos: { col: 2, row: 5 },
       neighbors: {
         north: 'UMBRI_UNDERCITY',
-        south: null,
+        south: 'SUNKEN_OASIS',
         west: 'IRONWOOD_TIMBERLANDS',
         east: null
       },
@@ -397,6 +397,147 @@
       ],
       objectives: 'Angle raw minnows & solar trout, cook feasts on campfire hearths, vanquish Triton.',
       travel: 'Walk East from Umbri Undercity (or East from Ironwood Timberlands).'
+    },
+    SUNKEN_OASIS: {
+      id: 'SUNKEN_OASIS',
+      name: 'Whispering Springs & Sunken Oasis',
+      sub: 'Lush Oasis Pools, Healing Springs & Timber Groves',
+      level: 'Lv. 12 – 28',
+      dangerTag: 'TERRA SANCTUM',
+      color: '#38bdf8',
+      borderColor: '#4ade80',
+      faction: '🌿 Terra (The Earth)',
+      desc: 'A tranquil sunken oasis east of Terra Orchard and south of Coral Coast fed by crystal restorative springs, flowering lily-pads, and choppable glimmerwood groves.',
+      gridPos: { col: 2, row: 6 },
+      neighbors: {
+        north: 'CORAL_COAST',
+        south: 'STARLIGHT_GROVE',
+        west: 'TERRA_ORCHARD',
+        east: null
+      },
+      landmarks: [
+        { x: 50, y: 26, icon: '🪷', name: 'Sylphira the Spring Matriarch', sub: '★ Lv.24 Oasis Boss', desc: 'Guardian of the Sunken Oasis dropping Primordial Bark Armor.' },
+        { x: 35, y: 55, icon: '💧', name: 'Luminous Restorative Springs', sub: 'Healing Spring [E] (+HP & Glimmer)', desc: 'Stand near to regenerate +6 HP/s & +6 Glimmer/s, or channel [E].' },
+        { x: 70, y: 52, icon: '🌳', name: 'Oasis Timber Groves', sub: 'Choppable Blossom & Glimmerwood [E]', desc: 'Lush oasis trees doubling as scenery and timber nodes.' }
+      ],
+      entities: [
+        { name: 'Sylphira the Spring Matriarch', type: 'Oasis Boss', hp: '720 HP', desc: 'Drops Primordial Bark Chestplate.' },
+        { name: 'Oasis Bloomwardens & Mistwater Striders', type: 'Terra Protector', hp: '155 – 185 HP', desc: 'Peaceful toward Terra heroes unless provoked.' }
+      ],
+      objectives: 'Rest by the Luminous Healing Springs, fell glimmerwood trees, defeat Sylphira.',
+      travel: 'Walk East from Terra Orchard or South from Coral Coast.'
+    },
+    SOLAR_HIGHLANDS: {
+      id: 'SOLAR_HIGHLANDS',
+      name: 'Ambergris Crags & Sunspire Highlands',
+      sub: 'Radiant Mountain Ridges & Thermal Springs',
+      level: 'Lv. 16 – 32',
+      dangerTag: 'SOLARI HIGHLANDS',
+      color: '#facc15',
+      borderColor: '#fde047',
+      faction: '☀️ Solari (The Light)',
+      desc: 'Sun-drenched plateau cliffs south of Solari Sun-Citadel lined with golden Sunforged trees, crag veins of Mithril and Starmetal, and warm thermal springs.',
+      gridPos: { col: 0, row: 5 },
+      neighbors: {
+        north: 'SOLARI_CITADEL',
+        south: null,
+        west: 'STARFALL_CRATER',
+        east: 'MOONWELL_SANCTUM'
+      },
+      landmarks: [
+        { x: 50, y: 26, icon: '☀️', name: 'Helios-Vanguard the Sunspire Titan', sub: '★ Lv.28 Highlands Boss', desc: 'Towering golden guardian dropping the Sunfire Greatsword.' },
+        { x: 36, y: 60, icon: '💧', name: 'Thermal Healing Springs', sub: 'Healing Spring [E] (+HP & Glimmer)', desc: 'Mineral thermal pools restoring HP & Glimmer.' },
+        { x: 70, y: 48, icon: '🌲', name: 'Sunforged & Pine Timberlands', sub: 'Highland Timber [E]', desc: 'Chop radiant Sunforged trees and Alpine Pines.' }
+      ],
+      entities: [
+        { name: 'Helios-Vanguard the Sunspire Titan', type: 'Highlands Boss', hp: '890 HP', desc: 'Drops the Sunfire Greatsword.' },
+        { name: 'Sunspire Crag-Watchers', type: 'Solari Protector', hp: '180 – 215 HP', desc: 'Allied with Solari champions unless attacked.' }
+      ],
+      objectives: 'Mine highlands Mithril/Starmetal, chop Sunforged timber, challenge Helios-Vanguard.',
+      travel: 'Walk South from Solari Sun-Citadel or East from Starfall Crater.'
+    },
+    STARLIGHT_GROVE: {
+      id: 'STARLIGHT_GROVE',
+      name: 'Starlight Grove & Ancient Timber Sanctuary',
+      sub: 'Luminous Druid Groves & Whispering Canopies',
+      level: 'Lv. 22 – 45',
+      dangerTag: 'PRIMAL SANCTUARY',
+      color: '#86efac',
+      borderColor: '#4ade80',
+      faction: '🌿 Terra (The Earth)',
+      desc: 'A silver-lit starlight forest southwest of Ironwood Timberlands brimming with celestial timber, ancient oaks, and restorative glades.',
+      gridPos: { col: 0, row: 6 },
+      neighbors: {
+        north: 'SUNKEN_OASIS',
+        south: 'MOONWELL_SANCTUM',
+        west: null,
+        east: 'IRONWOOD_TIMBERLANDS'
+      },
+      landmarks: [
+        { x: 50, y: 28, icon: '🌟', name: 'Arch-Treant Sylvanor', sub: '★ Lv.36 Grove Sovereign', desc: 'Ancient canopy warden.' },
+        { x: 65, y: 55, icon: '🌲', name: 'Starlight Timber Groves', sub: 'Choppable Starlight Trees [E]', desc: 'Harvest luminous starlight timber and healing spring herbs.' }
+      ],
+      entities: [
+        { name: 'Starlight Guardians & Elder Dryads', type: 'Terra Protector', hp: '240 – 380 HP', desc: 'Protect the grove; peaceful toward Terra heroes unless provoked.' }
+      ],
+      objectives: 'Harvest Starlight timber, channel sacred springs, conquer the Grove Sovereign.',
+      travel: 'Walk West from Ironwood Timberlands or South from Sunken Oasis.'
+    },
+    CHRONOCORE_CITADEL: {
+      id: 'CHRONOCORE_CITADEL',
+      name: 'Chronocore Citadel & Astral Trial Spire',
+      sub: 'High-Altitude Temporal Fortress',
+      level: 'Lv. 32 – 60',
+      dangerTag: 'AETHER CITADEL',
+      color: '#38bdf8',
+      borderColor: '#a5b4fc',
+      faction: '🔮 Aether (The Magic)',
+      desc: 'A suspended citadel of crystalline astrolabes east of Celestial Ascent where Aether chronomancers temper spacetime anomalies.',
+      gridPos: { col: 2, row: 0 },
+      neighbors: {
+        north: null,
+        south: 'AETHER_SPIRE',
+        west: 'CELESTIAL_ASCENT',
+        east: null
+      },
+      landmarks: [
+        { x: 50, y: 28, icon: '⏳', name: 'Chrono-Archon Vaelen', sub: '★ Lv.48 Temporal Boss', desc: 'Master of temporal rifts.' },
+        { x: 50, y: 65, icon: '💧', name: 'Chronal Restorative Spring', sub: 'Healing Spring [E]', desc: 'Restores HP & Glimmer rapidly.' }
+      ],
+      entities: [
+        { name: 'Chronocore Construct Sentinels', type: 'Aether Protector', hp: '360 – 520 HP', desc: 'Friendly toward Aether heroes unless attacked.' }
+      ],
+      objectives: 'Extract Starmetal veins, temper Chronal springs, challenge Chrono-Archon Vaelen.',
+      travel: 'Walk East from Celestial Ascent or step through the Chronocore Citadel gateway.'
+    },
+    MOONWELL_SANCTUM: {
+      id: 'MOONWELL_SANCTUM',
+      name: 'Silvermist Moonwell & Druid Sanctum',
+      sub: 'Moonlit Healing Springs & Sacred Timber Glades',
+      level: 'Lv. 20 – 38',
+      dangerTag: 'MOONWELL SANCTUM',
+      color: '#4ade80',
+      borderColor: '#7dd3fc',
+      faction: '🌿 Terra (The Earth)',
+      desc: 'A serene glade ringed by silver-leaf Starlight and Crimson Blossom trees, fed by four Luminous Restorative Springs and guarded by Archdruid Elaria.',
+      gridPos: { col: 1, row: 7 },
+      neighbors: {
+        north: 'STARLIGHT_GROVE',
+        south: null,
+        west: 'SOLAR_HIGHLANDS',
+        east: 'CORAL_COAST'
+      },
+      landmarks: [
+        { x: 50, y: 26, icon: '🌙', name: 'Archdruid Elaria of the Silvermist', sub: '★ Lv.32 Moonwell Matriarch', desc: 'Druid Sovereign dropping the Elder Treant Staff.' },
+        { x: 35, y: 56, icon: '💧', name: 'Four Moonwell Healing Springs', sub: 'Sacred Healing Springs [E]', desc: 'Channel [E] or rest beside the waters for rapid +6 HP/s & +6 Glimmer/s regen.' },
+        { x: 68, y: 52, icon: '🌳', name: 'Silvermist Blossom & Starlight Groves', sub: 'Choppable Scenic Trees [E]', desc: 'Ringed with choppable Starlight, Blossom, Glimmerwood & Ironbark trees.' }
+      ],
+      entities: [
+        { name: 'Archdruid Elaria of the Silvermist', type: 'Moonwell Boss', hp: '960 HP', desc: 'Drops Elder Treant Staff.' },
+        { name: 'Silvermist Grove-Keepers', type: 'Terra Protector', hp: '210 – 245 HP', desc: 'Friendly toward Terra heroes unless provoked.' }
+      ],
+      objectives: 'Channel Moonwell Healing Springs, harvest Starlight timber & herbs, challenge Archdruid Elaria.',
+      travel: 'Walk South from Starlight Grove or East from Ambergris Crags (Sunspire Highlands).'
     }
   };
 

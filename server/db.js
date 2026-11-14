@@ -136,6 +136,15 @@ export async function initDatabaseSchema() {
 
   await db.query(`
     CREATE INDEX IF NOT EXISTS idx_gf_chars_account ON glimmerfall_characters(account_id);
+    CREATE TABLE IF NOT EXISTS glimmerfall_serial_keys (
+      key_code TEXT PRIMARY KEY,
+      tier TEXT NOT NULL DEFAULT 'founder',
+      note TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      redeemed_by TEXT,
+      redeemed_username TEXT,
+      redeemed_at TIMESTAMPTZ
+    );
   `);
 
   return true;

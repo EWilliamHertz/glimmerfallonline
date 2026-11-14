@@ -296,9 +296,21 @@ body {
   transition: width 0.12s steps(8);
 }
 
+#party-hud {
+  position: absolute;
+  top: 106px;
+  left: 12px;
+  width: 262px;
+  padding: 6px 8px;
+  border-color: #1e293b;
+  transform-origin: top left;
+  transform: scale(var(--hud-scale, 1));
+  z-index: 15;
+}
+
 #quest-tracker {
   position: absolute;
-  top: 118px;
+  top: 184px;
   left: 12px;
   width: 280px;
   max-height: 48vh;

@@ -40,7 +40,7 @@ const MIME_TYPES = {
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-GlimmerFall-Token, ngrok-skip-browser-warning',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-GlimmerFall-Token, X-Admin-Password, ngrok-skip-browser-warning',
   'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
 };
 
@@ -343,6 +343,88 @@ export async function handleApiRequest(req, res, { accounts, rooms = null }) {
       return true;
     }
 
+    if (pathname === '/api/admin/auth' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const pw = req.headers['x-admin-password'] || body.password || '';
+      if (!accounts.verifyAdminPassword(pw)) {
+        sendJson(res, 401, { ok: false, error: 'Invalid admin password.' });
+        return true;
+      }
+      const summary = await accounts.listSerialKeys();
+      sendJson(res, 200, { ok: true, ...summary });
+      return true;
+    }
+
+    if (pathname === '/api/admin/keys' && req.method === 'GET') {
+      const pw = req.headers['x-admin-password'] || url.searchParams.get('password') || '';
+      if (!accounts.verifyAdminPassword(pw)) {
+        sendJson(res, 401, { ok: false, error: 'Unauthorized: invalid admin password.' });
+        return true;
+      }
+      const summary = await accounts.listSerialKeys();
+      sendJson(res, 200, { ok: true, ...summary });
+      return true;
+    }
+
+    if (pathname === '/api/admin/keys/generate' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const pw = req.headers['x-admin-password'] || body.password || '';
+      if (!accounts.verifyAdminPassword(pw)) {
+        sendJson(res, 401, { ok: false, error: 'Unauthorized: invalid admin password.' });
+        return true;
+      }
+      const created = await accounts.generateSerialKeys({
+        count: body.count || 1,
+        note: body.note || '',
+        tier: body.tier || 'founder',
+      });
+      const summary = await accounts.listSerialKeys();
+      sendJson(res, 200, { ok: true, created, ...summary });
+      return true;
+    }
+
+    if ((pathname === '/api/admin/keys/revoke' && req.method === 'POST') || (pathname === '/api/admin/keys' && req.method === 'DELETE')) {
+      const body = await readJsonBody(req);
+      const pw = req.headers['x-admin-password'] || body.password || url.searchParams.get('password') || '';
+      if (!accounts.verifyAdminPassword(pw)) {
+        sendJson(res, 401, { ok: false, error: 'Unauthorized: invalid admin password.' });
+        return true;
+      }
+      const targetKey = body.key || url.searchParams.get('key') || '';
+      const result = await accounts.revokeSerialKey(targetKey);
+      if (result.error) {
+        sendJson(res, 400, { ok: false, error: result.error });
+        return true;
+      }
+      const summary = await accounts.listSerialKeys();
+      sendJson(res, 200, { ok: true, revoked: result.key, ...summary });
+      return true;
+    }
+
+    if (pathname === '/api/account/redeem-key' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const currentAcc = await verifyWithRefresh(extractRequestToken(req, body));
+      const result = await accounts.redeemSerialKey(
+        currentAcc?.id || null,
+        body.key,
+        body.displayName || currentAcc?.displayName || 'Adventurer'
+      );
+      if (result.error) {
+        sendJson(res, 400, { ok: false, error: result.error });
+        return true;
+      }
+      if (currentAcc && rooms) {
+        rooms.refreshClientFromAccount(currentAcc.id);
+      }
+      sendJson(res, 200, {
+        ok: true,
+        key: result.key,
+        editionTier: result.editionTier,
+        profile: result.profile || null,
+      });
+      return true;
+    }
+
     sendJson(res, 404, { ok: false, error: `Unknown API endpoint: ${pathname}` });
     return true;
   } catch (err) {
@@ -421,6 +503,18 @@ export function createGlimmerFallServer() {
     await ready;
     const handledApi = await handleApiRequest(req, res, { accounts, rooms });
     if (handledApi) return;
+
+    // Serve hidden /admin portal directly from public/admin/index.html or dist/admin/index.html
+    if (pathname === '/admin' || pathname === '/admin/' || pathname === '/admin/index.html') {
+      const pubAdmin = path.resolve(__dirname, '../public/admin/index.html');
+      const distAdmin = path.resolve(DIST_DIR, 'admin/index.html');
+      const targetAdmin = fs.existsSync(pubAdmin) ? pubAdmin : (fs.existsSync(distAdmin) ? distAdmin : null);
+      if (targetAdmin) {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        fs.createReadStream(targetAdmin).pipe(res);
+        return;
+      }
+    }
 
     // Production static file serving from dist/
     if (fs.existsSync(DIST_DIR)) {

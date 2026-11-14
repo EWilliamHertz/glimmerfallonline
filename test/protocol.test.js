@@ -352,13 +352,16 @@ test('RoomManager initializes Starfall Crater, Abyssal Rift, skilling veins, and
     partyManager: { getPartyForMember: () => null },
   });
   try {
-    assert.equal(rm.rooms.size, 18);
+    assert.equal(rm.rooms.size, 21);
     const starfall = rm.rooms.get('starfall_crater_1');
     const abyssal = rm.rooms.get('abyssal_rift_1');
     const hub = rm.rooms.get('sanctuary_hub_1');
     const timberlands = rm.rooms.get('ironwood_timberlands_1');
     const coral = rm.rooms.get('coral_coast_1');
-    assert.ok(starfall && abyssal && hub && timberlands && coral);
+    const sunkenOasis = rm.rooms.get('sunken_oasis_1');
+    const solarHighlands = rm.rooms.get('solar_highlands_1');
+    const moonwell = rm.rooms.get('moonwell_sanctum_1');
+    assert.ok(starfall && abyssal && hub && timberlands && coral && sunkenOasis && solarHighlands && moonwell);
 
     assert.ok(starfall.entities.some((e) => e.id === 'sf_boss' && e.isBoss));
     assert.ok(abyssal.entities.some((e) => e.id === 'aby_boss' && e.isBoss));
@@ -1622,7 +1625,7 @@ test('Dead player exploit prevention, anti-aliased world text, and Graveglass Or
 
   const gameJs = fs.readFileSync(new URL('../client/game.js', import.meta.url), 'utf8');
   assert.ok(gameJs.includes('renderClassGuideUI'), 'game.js must implement renderClassGuideUI');
-  assert.ok(gameJs.includes('GRAVEGLASS ORACLE — OFFICIAL TACTICAL CODEX'), 'game.js must contain official Graveglass Oracle tactical guide');
+  assert.ok(gameJs.includes('TACTICAL CODEX') && gameJs.includes('EXCLUSIVE TO YOUR'), 'game.js must contain faction-scoped Tactical Codex guide');
   assert.ok(gameJs.includes('activeTextCtx || ctx'), 'game.js must route overhead badges and loot labels to activeTextCtx for anti-aliasing');
 });
 
@@ -2053,6 +2056,260 @@ test('World of Warcraft Boss Multi-Phase Mechanics & Telegraphed AoE Ground Dang
 
   rm.stop();
 });
+
+test('Faction-Scoped Spellbook/Skill Guides, Covenant Sets, Story Quests, and €6.99 Founder Serial Keys', async () => {
+  const { AccountsStore } = await import('../server/accountsStore.js');
+  const { QUEST_CATALOG } = await import('../client/game/questCatalogData.js');
+
+  // 1. Verify Covenant Story Questlines exist and chain properly
+  assert.ok(QUEST_CATALOG.quest_covenant_conclave, 'Covenant Chapter I quest must exist');
+  assert.ok(QUEST_CATALOG.quest_starfall_meteor_convergence, 'Covenant Chapter II Starfall Meteor quest must exist');
+  assert.equal(QUEST_CATALOG.quest_reforge_crystalheart_shard.nextQuestId, 'quest_covenant_conclave');
+  assert.equal(QUEST_CATALOG.quest_covenant_conclave.nextQuestId, 'quest_starfall_meteor_convergence');
+
+  // 2. Verify no user-facing "Barrows" string in landing.js or page.jsx, and €6.99 Founder price is set
+  const landingSrc = fs.readFileSync(new URL('../client/landing.js', import.meta.url), 'utf8');
+  assert.ok(!landingSrc.includes('Barrows 4-piece'), 'landing.js must not mention Barrows sets');
+  assert.ok(landingSrc.includes('€6.99'), 'landing.js must display €6.99 Founder Edition price');
+
+  // 3. Verify Admin Password & Serial Key Generation / Redemption / Revocation
+  const store = new AccountsStore();
+  assert.equal(store.verifyAdminPassword('Yb07tw44!'), true, 'Default admin password must verify');
+  assert.equal(store.verifyAdminPassword('wrong_pass'), false, 'Invalid admin password must be rejected');
+
+  const generated = await store.generateSerialKeys({ count: 2, note: 'Unit Test Batch', tier: 'founder' });
+  assert.equal(generated.length, 2, 'Should generate 2 serial keys');
+  assert.match(generated[0].key, /^GF-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/, 'Key must match GF-XXXX-XXXX-XXXX format');
+
+  const reg = store.registerAccount({
+    username: 'founder_tester',
+    password: 'Pass123!456',
+    displayName: 'ZudranTester',
+    faction: 'Terra',
+    classId: 'ironbark_warden',
+  });
+  const redeemRes = await store.redeemSerialKey(reg.account.id, generated[0].key);
+  assert.equal(redeemRes.ok, true, 'Redeeming valid serial key must succeed');
+  assert.equal(redeemRes.editionTier, 'founder', 'Redeemed key must grant founder tier');
+  assert.equal(redeemRes.profile.editionTier, 'founder', 'Public profile must reflect founder editionTier');
+  assert.equal(redeemRes.profile.title, 'FOUNDER', 'Founder redemption must unlock FOUNDER title');
+
+  // Re-redeeming same key must fail
+  const dupRes = await store.redeemSerialKey(reg.account.id, generated[0].key);
+  assert.ok(dupRes.error, 'Already redeemed key must not be redeemable again');
+
+  // Revoke unused second key
+  const revRes = await store.revokeSerialKey(generated[1].key);
+  assert.equal(revRes.ok, true, 'Revoking unredeemed key must succeed');
+});
+
+test('Party Roster Modal, Faction City Aggro Protection (Single-Creep Provocation), Healing Springs & New Areas', async () => {
+  const { RoomManager } = await import('../server/roomManager.js');
+  const { renderPartyHud, renderSocialModal } = await import('../client/socialUi.js');
+
+  // 1. Verify Party HUD & Social Modal render the active 3-player Party Roster clearly
+  const headerEl = { innerText: '' };
+  const leaveBtnEl = { style: { display: 'none' } };
+  const listEl = { innerHTML: '' };
+  const modalBodyEl = { innerHTML: '' };
+  const prevDoc = globalThis.document;
+  globalThis.document = {
+    getElementById: (id) => {
+      if (id === 'party-header-txt') return headerEl;
+      if (id === 'btn-party-leave') return leaveBtnEl;
+      if (id === 'party-members-list') return listEl;
+      if (id === 'social-modal-body') return modalBodyEl;
+      return null;
+    },
+  };
+  try {
+    const sampleParty = {
+      leaderId: 'p1',
+      members: [
+        { id: 'p1', name: 'Zudran', faction: 'Aether', level: 18, hp: 140, maxHp: 140 },
+        { id: 'p2', name: 'Aurelia', faction: 'Solari', level: 16, hp: 110, maxHp: 125 },
+      ],
+    };
+    renderPartyHud(sampleParty, 'p1');
+    assert.ok(headerEl.innerText.includes('2/3'), 'Party HUD header must show 2/3 members');
+    assert.ok(listEl.innerHTML.includes('Zudran') && listEl.innerHTML.includes('Aurelia'), 'Party HUD must list party members');
+
+    renderSocialModal({
+      rooms: [],
+      currentRoomId: 'aether_spire_1',
+      roomPlayers: [
+        { id: 'p1', name: 'Zudran', faction: 'Aether', level: 18, hp: 140, maxHp: 140 },
+        { id: 'p2', name: 'Aurelia', faction: 'Solari', level: 16, hp: 110, maxHp: 125 },
+        { id: 'p3', name: 'Vaelen', faction: 'Umbri', level: 15, hp: 100, maxHp: 100 },
+      ],
+      selfId: 'p1',
+      party: sampleParty,
+    });
+    assert.ok(modalBodyEl.innerHTML.includes('YOUR ACTIVE PARTY / SQUAD ROSTER (2/3 CHAMPIONS)'), 'Social modal must display the active party roster');
+    assert.ok(modalBodyEl.innerHTML.includes('Zudran') && modalBodyEl.innerHTML.includes('Aurelia'), 'Social modal party cards must show member names');
+    assert.ok(modalBodyEl.innerHTML.includes('EMPTY PARTY SLOT #3'), 'Social modal must show remaining empty party slot');
+    assert.ok(modalBodyEl.innerHTML.includes('✓ IN PARTY'), 'Social modal player list must mark current party members');
+  } finally {
+    globalThis.document = prevDoc;
+  }
+
+  // 2. Verify Faction City Aggro Protection & Single-Creep Provocation
+  const rm = new RoomManager({
+    accountsStore: { saveQuestState: () => {}, addItemToInventory: () => true },
+    partyManager: { getPartyForMember: () => null, syncPlayerVitals: () => {}, areInSameParty: () => false },
+  });
+  try {
+    const aetherRoom = rm.rooms.get('aether_spire_1');
+    const solariRoom = rm.rooms.get('solari_citadel_1');
+    assert.ok(aetherRoom && solariRoom);
+
+    const aetherMobs = aetherRoom.entities.filter((e) => e.type === 'mob' && !e.isBoss);
+    assert.ok(aetherMobs.length >= 2, 'Aether Spire should have multiple Aether creeps');
+    const [creep1, creep2] = aetherMobs;
+
+    // Aether player in Aether Spire is protected from unprovoked Aether creeps
+    assert.equal(protocol.isSameFactionProtectedMob(protocol.ROOM_TYPES.AETHER_SPIRE, creep1, 'Aether', 'aether_p1'), true);
+    assert.equal(protocol.isSameFactionProtectedMob(protocol.ROOM_TYPES.AETHER_SPIRE, creep2, 'Aether', 'aether_p1'), true);
+    // Solari player in Solari Citadel is protected from unprovoked Solari creeps
+    const solariCreep = solariRoom.entities.find((e) => e.type === 'mob');
+    assert.equal(protocol.isSameFactionProtectedMob(protocol.ROOM_TYPES.SOLARI_CITADEL, solariCreep, 'Solari', 'solari_p1'), true);
+    // Cross-faction player in Aether Spire is NOT protected
+    assert.equal(protocol.isSameFactionProtectedMob(protocol.ROOM_TYPES.AETHER_SPIRE, creep1, 'Solari', 'solari_p1'), false);
+
+    // Place an Aether player right next to creep1 & creep2 and tick the room: neither creep should proximity-aggro!
+    creep1.x = 0; creep1.y = 0; creep1.origX = 0; creep1.origY = 0; creep1.inCombat = false;
+    creep2.x = 12; creep2.y = 0; creep2.origX = 12; creep2.origY = 0; creep2.inCombat = false;
+    const aetherPlayer = {
+      id: 'aether_p1',
+      displayName: 'ZudranAether',
+      faction: 'Aether',
+      classId: 'nexus_weaver',
+      x: 5,
+      y: 0,
+      hp: 150,
+      maxHp: 150,
+      solarCharge: 50,
+      maxSolarCharge: 100,
+      isDead: false,
+      stealthedTimer: 0,
+      cooldowns: {},
+      prog: protocol.createDefaultProgression(),
+      equipment: {},
+      loadout: protocol.CLASSES_CATALOG.nexus_weaver.defaultLoadout,
+      ws: { readyState: 1, send: () => {} },
+      send: () => {},
+    };
+    aetherRoom.players.set(aetherPlayer.id, aetherPlayer);
+    rm.tickRoom(aetherRoom, 0.1, Date.now());
+    assert.equal(creep1.inCombat, false, 'Unprovoked Aether creep1 must NOT aggro Aether player in Aether Spire');
+    assert.equal(creep2.inCombat, false, 'Unprovoked Aether creep2 must NOT aggro Aether player in Aether Spire');
+
+    // Now Aether player attacks ONLY creep1: creep1 must aggro, while creep2 right next to it remains peaceful!
+    const hostilesBefore = rm.getAllHostilesInRadius(aetherRoom, aetherPlayer, 0, 0, 80, creep1.id);
+    assert.equal(hostilesBefore.length, 1, 'Targeting creep1 must only include creep1 in cleave/AoE radius, not unprovoked creep2');
+    assert.equal(hostilesBefore[0].ref.id, creep1.id);
+
+    rm.applyAuthoritativeDamage(aetherRoom, aetherPlayer, { kind: 'entity', ref: creep1 }, 8, false, 'Reality Fracture', false);
+    assert.equal(creep1.inCombat, true, 'Attacked creep1 must enter combat and aggro onto the Aether player');
+    assert.equal(protocol.isSameFactionProtectedMob(protocol.ROOM_TYPES.AETHER_SPIRE, creep1, 'Aether', aetherPlayer.id), false, 'Provoked creep1 is now hostile to attacker');
+    assert.equal(creep2.inCombat, false, 'Nearby creep2 must NOT aggro when creep1 is attacked');
+    assert.equal(protocol.isSameFactionProtectedMob(protocol.ROOM_TYPES.AETHER_SPIRE, creep2, 'Aether', aetherPlayer.id), true, 'Nearby creep2 remains peaceful');
+
+    // 3. Verify New Areas (SUNKEN_OASIS & SOLAR_HIGHLANDS), Healing Springs & Choppable Trees
+    assert.ok(protocol.SKILLING_NODE_TYPES.healing_spring?.isSpring, 'healing_spring node type must be defined');
+    const oasisRoom = rm.rooms.get('sunken_oasis_1');
+    const highlandsRoom = rm.rooms.get('solar_highlands_1');
+    assert.ok(oasisRoom.entities.some((e) => e.skillingType === 'healing_spring'), 'Sunken Oasis must contain healing springs');
+    assert.ok(oasisRoom.entities.some((e) => e.skillingType && e.skillingType.startsWith('tree_')), 'Sunken Oasis must contain choppable decorative trees');
+    assert.ok(highlandsRoom.entities.some((e) => e.skillingType === 'healing_spring'), 'Solar Highlands must contain healing springs');
+    assert.ok(highlandsRoom.entities.some((e) => e.skillingType === 'tree_sunforged'), 'Solar Highlands must contain choppable Sunforged trees');
+  } finally {
+    rm.stop();
+  }
+});
+
+test('Black screen fixes, click-only Atlas edges, Healing Springs sprites/aura, Sanctuary road fix & Moonwell Sanctum', async () => {
+  const gameSrc = fs.readFileSync(new URL('../client/game.js', import.meta.url), 'utf-8');
+  const atlasUiSrc = fs.readFileSync(new URL('../client/game/worldAtlasAndLoreUi.js', import.meta.url), 'utf-8');
+  const questCatalogSrc = fs.readFileSync(new URL('../client/game/questCatalogData.js', import.meta.url), 'utf-8');
+  const spritesSrc = fs.readFileSync(new URL('../client/sprites/entityAndMonsterSprites.js', import.meta.url), 'utf-8');
+  const tickSrc = fs.readFileSync(new URL('../server/rooms/socialAndTick.js', import.meta.url), 'utf-8');
+  const { WORLD_ATLAS_REGIONS } = await import('../client/game/worldAtlasData.js');
+
+  // 1. Black screen fixes, Party HUD identity sync & snapshot entity identity sync
+  assert.ok(gameSrc.includes("set: (v) => { if (v && typeof v === 'object') questState = v; }"), 'window.questState property must have a setter so strict-mode assignment cannot crash initGame');
+  assert.ok(gameSrc.includes('name: localProfile.displayName || localProfile.name'), 'updatePlayerUI must keep Party HUD synced with active character name & level');
+  assert.ok(questCatalogSrc.includes('const ARTISAN_PROFESSION_IDS ='), 'questCatalogData.js must define ARTISAN_PROFESSION_IDS locally');
+  const tombBlockIdx = gameSrc.indexOf('const isTombstone = ent.type === \'graveglass_tombstone\';');
+  const ifNotTombIdx = gameSrc.indexOf('if (!isTombstone) {', tombBlockIdx);
+  const eliteDeclIdx = gameSrc.indexOf('const eliteSpecDraw =', tombBlockIdx);
+  assert.ok(eliteDeclIdx > tombBlockIdx && eliteDeclIdx < ifNotTombIdx, 'eliteSpecDraw and skSpecDraw must be declared before if (!isTombstone)');
+  assert.ok(gameSrc.includes('if (se.name) prev.name = se.name;'), 'applyServerSnapshot must sync entity name on merge');
+  assert.ok(gameSrc.includes('if (se.spriteKey) prev.spriteKey = se.spriteKey;'), 'applyServerSnapshot must sync entity spriteKey on merge');
+
+  // 2. Click-only World Atlas map edges (no hover scrolling)
+  assert.ok(!atlasUiSrc.includes('onmouseenter="edgeHoverScroll'), 'worldAtlasAndLoreUi.js must not hover-scroll map edges');
+  assert.ok(!gameSrc.includes('onmouseenter="edgeHoverScroll'), 'game.js must not hover-scroll map edges');
+
+  // 3. Dedicated healingSpring sprites + passive aura + Sanctuary road fix
+  assert.ok(spritesSrc.includes('sprites.healingSpring ='), 'entityAndMonsterSprites.js must build healingSpring sprite frames');
+  assert.ok(spritesSrc.includes('sprites.healingSpringEmpty ='), 'entityAndMonsterSprites.js must build healingSpringEmpty sprite');
+  assert.equal(protocol.SKILLING_NODE_TYPES.healing_spring.spriteReady, 'healingSpring');
+  assert.equal(protocol.SKILLING_NODE_TYPES.healing_spring.spriteEmpty, 'healingSpringEmpty');
+  assert.ok(tickSrc.includes('const nearHealingSpring ='), 'Server tick must compute passive healing spring proximity regen');
+  assert.ok(gameSrc.includes('const isNearHealingSpring ='), 'Client update must compute passive healing spring proximity regen');
+  const sanctuaryLayout = protocol.SKILLING_LAYOUTS[protocol.ROOM_TYPES.SANCTUARY_HUB];
+  assert.ok(!sanctuaryLayout.some(([, x, y]) => x === 0 && y === 310), 'No skilling node may sit on the center cobblestone road at (0, 310)');
+
+  // 4. World Atlas coverage & Moonwell Sanctum
+  for (const key of ['SUNKEN_OASIS', 'SOLAR_HIGHLANDS', 'STARLIGHT_GROVE', 'CHRONOCORE_CITADEL', 'MOONWELL_SANCTUM']) {
+    assert.ok(WORLD_ATLAS_REGIONS[key], `WORLD_ATLAS_REGIONS must include ${key}`);
+  }
+  assert.ok(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.MOONWELL_SANCTUM], 'ROOM_CONFIGS must include MOONWELL_SANCTUM');
+  assert.equal(protocol.getZoneFaction(protocol.ROOM_TYPES.MOONWELL_SANCTUM), 'Terra');
+
+  const rm = new RoomManager({
+    accountsStore: { saveQuestState: () => {}, addItemToInventory: () => true },
+    partyManager: { getPartyForMember: () => null, syncPlayerVitals: () => {}, areInSameParty: () => false },
+  });
+  try {
+    const moonwell = rm.rooms.get('moonwell_sanctum_1');
+    assert.ok(moonwell, 'RoomManager must instantiate moonwell_sanctum_1');
+    assert.ok(moonwell.entities.some((e) => e.skillingType === 'healing_spring'), 'Moonwell Sanctum must have healing springs');
+    assert.ok(moonwell.entities.some((e) => e.isBoss && e.name.includes('Elaria')), 'Moonwell Sanctum must spawn Archdruid Elaria');
+
+    // Verify passive Healing Spring regeneration heals player inside 75px radius on server tick
+    const terraCls = Object.values(protocol.CLASSES_CATALOG).find((c) => c.faction === 'Terra');
+    const p = {
+      id: 'spring_tester',
+      displayName: 'SpringHealer',
+      faction: 'Terra',
+      classId: terraCls.id,
+      x: -105,
+      y: 85,
+      hp: 80,
+      maxHp: 200,
+      solarCharge: 20,
+      maxSolarCharge: 100,
+      isDead: false,
+      stealthedTimer: 0,
+      cooldowns: {},
+      prog: protocol.createDefaultProgression(),
+      equipment: {},
+      loadout: terraCls.defaultLoadout,
+      ws: { readyState: 1, send: () => {} },
+      send: () => {},
+    };
+    moonwell.players.set(p.id, p);
+    rm.tickRoom(moonwell, 1.0, Date.now());
+    const expectedHpMin = 80 + protocol.calcHpRegenPerSec(p.prog) + 5.9;
+    assert.ok(p.hp >= expectedHpMin, `Player near healing spring should regen baseline + 6.0 HP/s (got ${p.hp}, expected >= ${expectedHpMin})`);
+    assert.ok(p.solarCharge >= 29.4, `Player near healing spring should regen baseline + 6.0 Glimmer/s (got ${p.solarCharge})`);
+  } finally {
+    rm.stop();
+  }
+});
+
 
 
 

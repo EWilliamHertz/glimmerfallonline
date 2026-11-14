@@ -448,6 +448,10 @@ export const combatRitesAndDamageMethods = {
       t.hp = Math.max(0, t.hp - dmg);
       t.hitFlash = 0.14;
       if (t.type === 'mob') {
+        if (attackerPlayer) {
+          if (!t.provokedBy) t.provokedBy = new Set();
+          t.provokedBy.add(attackerPlayer.id);
+        }
         if (!t.inCombat) {
           room.fxQueue.push({ kind: 'fct', x: t.x, y: t.y - 12, text: 'AGGRO!', color: '#ef4444' });
         }

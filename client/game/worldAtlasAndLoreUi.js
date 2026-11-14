@@ -239,10 +239,8 @@ export function setupWorldAtlasAndLoreUi({
 
     return `
       <div style="display:flex; flex-direction:column; gap:0; background:#060a14; border:2px solid ${reg.borderColor}; border-radius:6px; overflow:hidden; box-shadow:0 0 20px rgba(0,0,0,0.8);">
-        <!-- TOP EDGE SCROLL BAR (NORTH) -->
+        <!-- TOP EDGE CLICK BAR (NORTH) -->
         <div class="map-edge-scroll north"
-          onmouseenter="edgeHoverScroll('north')"
-          onmouseleave="cancelEdgeHoverScroll()"
           onclick="if ('${n.north || ''}') selectMapRegion('${n.north}', true)"
           style="
             height: 26px;
@@ -259,16 +257,14 @@ export function setupWorldAtlasAndLoreUi({
             user-select: none;
             letter-spacing: 0.5px;
           "
-          title="${northReg ? 'Hover or click to scroll North into ' + northReg.name : 'Northern Boundary'}">
-          ${northReg ? `▲ HOVER EDGE TO SCROLL NORTH: ${northReg.name.toUpperCase()} [${northReg.level}] ▲` : '— NORTHERN SEA BOUNDARY (THE FALL) —'}
+          title="${northReg ? 'Click to view North: ' + northReg.name : 'Northern Boundary'}">
+          ${northReg ? `▲ CLICK NORTH: ${northReg.name.toUpperCase()} [${northReg.level}] ▲` : '— NORTHERN SEA BOUNDARY (THE FALL) —'}
         </div>
 
         <!-- MIDDLE ROW: WEST BAR + SQUARE MAP CANVAS + EAST BAR -->
         <div style="display:flex; height: 340px; position:relative;">
-          <!-- LEFT EDGE SCROLL BAR (WEST) -->
+          <!-- LEFT EDGE CLICK BAR (WEST) -->
           <div class="map-edge-scroll west"
-            onmouseenter="edgeHoverScroll('west')"
-            onmouseleave="cancelEdgeHoverScroll()"
             onclick="if ('${n.west || ''}') selectMapRegion('${n.west}', true)"
             style="
               width: 26px;
@@ -287,7 +283,7 @@ export function setupWorldAtlasAndLoreUi({
               user-select: none;
               letter-spacing: 0.5px;
             "
-            title="${westReg ? 'Hover or click to scroll West into ' + westReg.name : 'Western Boundary'}">
+            title="${westReg ? 'Click to view West: ' + westReg.name : 'Western Boundary'}">
             ${westReg ? `◀ WEST: ${westReg.name.toUpperCase()}` : '— WEST BOUNDARY —'}
           </div>
 
@@ -421,10 +417,8 @@ export function setupWorldAtlasAndLoreUi({
             </div>
           </div>
 
-          <!-- RIGHT EDGE SCROLL BAR (EAST) -->
+          <!-- RIGHT EDGE CLICK BAR (EAST) -->
           <div class="map-edge-scroll east"
-            onmouseenter="edgeHoverScroll('east')"
-            onmouseleave="cancelEdgeHoverScroll()"
             onclick="if ('${n.east || ''}') selectMapRegion('${n.east}', true)"
             style="
               width: 26px;
@@ -442,15 +436,13 @@ export function setupWorldAtlasAndLoreUi({
               user-select: none;
               letter-spacing: 0.5px;
             "
-            title="${eastReg ? 'Hover or click to scroll East into ' + eastReg.name : 'Eastern Boundary'}">
+            title="${eastReg ? 'Click to view East: ' + eastReg.name : 'Eastern Boundary'}">
             ${eastReg ? `▶ EAST: ${eastReg.name.toUpperCase()}` : '— EAST BOUNDARY —'}
           </div>
         </div>
 
-        <!-- BOTTOM EDGE SCROLL BAR (SOUTH) -->
+        <!-- BOTTOM EDGE CLICK BAR (SOUTH) -->
         <div class="map-edge-scroll south"
-          onmouseenter="edgeHoverScroll('south')"
-          onmouseleave="cancelEdgeHoverScroll()"
           onclick="if ('${n.south || ''}') selectMapRegion('${n.south}', true)"
           style="
             height: 26px;
@@ -467,8 +459,8 @@ export function setupWorldAtlasAndLoreUi({
             user-select: none;
             letter-spacing: 0.5px;
           "
-          title="${southReg ? 'Hover or click to scroll South into ' + southReg.name : 'Southern Boundary'}">
-          ${southReg ? `▼ HOVER EDGE TO SCROLL SOUTH: ${southReg.name.toUpperCase()} [${southReg.level}] ▼` : '— SOUTHERN FRONTIER BOUNDARY —'}
+          title="${southReg ? 'Click to view South: ' + southReg.name : 'Southern Boundary'}">
+          ${southReg ? `▼ CLICK SOUTH: ${southReg.name.toUpperCase()} [${southReg.level}] ▼` : '— SOUTHERN FRONTIER BOUNDARY —'}
         </div>
       </div>
     `;
@@ -480,14 +472,23 @@ export function setupWorldAtlasAndLoreUi({
       'CELESTIAL_ASCENT',
       'NEXUS_WARZONE',
       'STARFALL_CRATER',
+      'ABYSSAL_RIFT',
+      'CELESTIAL_ASCENT',
+      'CHRONOCORE_CITADEL',
+      'NEXUS_WARZONE',
+      'STARFALL_CRATER',
       'NEXUS_FORGOTTEN_RUINS',
       'AETHER_SPIRE',
       'SANCTUARY_HUB',
       'SOLARI_CITADEL',
       'UMBRI_UNDERCITY',
       'TERRA_ORCHARD',
+      'SOLAR_HIGHLANDS',
+      'SUNKEN_OASIS',
       'IRONWOOD_TIMBERLANDS',
-      'CORAL_COAST'
+      'CORAL_COAST',
+      'STARLIGHT_GROVE',
+      'MOONWELL_SANCTUM'
     ];
 
     return `

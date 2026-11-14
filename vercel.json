@@ -8,6 +8,10 @@
       "destination": "/landing/index.html"
     },
     {
+      "source": "/admin",
+      "destination": "/admin/index.html"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api"
     },
@@ -21,7 +25,7 @@
       "source": "/api/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, X-GlimmerFall-Token, ngrok-skip-browser-warning" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, X-GlimmerFall-Token, X-Admin-Password, ngrok-skip-browser-warning" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PATCH, DELETE, OPTIONS" }
       ]
     }

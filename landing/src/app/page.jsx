@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   EQUIPMENT_CATALOG,
-  BARROWS_SETS,
+  CANONICAL_SETS,
   RUNEWORD_SYNERGIES,
 } from '../data/canonicalCatalog';
 import {
@@ -1380,7 +1380,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
               {[
                 { val: 'Offline', sub: 'Single Player', col: '#38BDF8' },
-                { val: '20Hz MMO', sub: 'Stockholm Realm', col: '#4ADE80' },
+                { val: 'Online MMO', sub: 'Stockholm Realm', col: '#4ADE80' },
                 { val: 'Lv. 99', sub: '7 Disciplines', col: '#F2A900' },
                 { val: `${wearableArmoryItems.length}+`, sub: 'Canonical Relics', col: '#C084FC' },
               ].map((stat) => (
@@ -1526,7 +1526,7 @@ export default function LandingPage() {
                     <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded bg-[#F2A900]/20 text-[#FDE047] border border-[#F2A900]/40">
                       👑 Canonical Full Edition
                     </span>
-                    <span className="font-mono font-black text-lg text-[#FDE047]">FOUNDER&apos;S PASS</span>
+                    <span className="font-mono font-black text-lg text-[#FDE047]">€6.99 • FOUNDER&apos;S PASS</span>
                   </div>
                   <h4 className="font-display font-bold text-base text-white mt-2">
                     GlimmerFall Online: Shattered Crystalheart Edition
@@ -2564,7 +2564,7 @@ export default function LandingPage() {
                 <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
                   <h4 className="font-display font-bold text-sm text-[#F2A900] mb-1">🗡️ Attack Cleave Arcs &amp; Hitboxes</h4>
                   <p className="text-xs text-white/70 leading-relaxed">
-                    Melee strikes deliver a 90-degree frontal cleave covering 34 pixels. Projectiles track omni-directional vectors with 16px radius hitboxes. Real-time client prediction synchronizes seamlessly with the 20Hz server.
+                    Melee strikes deliver a 90-degree frontal cleave covering 34 pixels. Projectiles track omni-directional vectors with 16px radius hitboxes. Real-time client prediction synchronizes seamlessly with the online server.
                   </p>
                 </div>
                 <div className="p-5 rounded-2xl bg-black/40 border border-[#1E293B]">
@@ -2825,14 +2825,14 @@ export default function LandingPage() {
             })}
           </div>
 
-          {/* CANONICAL 4-PIECE BARROWS ARMOR SETS & 3-SOCKET RUNEWORDS */}
+          {/* CANONICAL 4-PIECE COVENANT ARMOR SETS & 3-SOCKET RUNEWORDS */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4">
             <div className="p-5 rounded-2xl bg-black/50 border border-[#F2A900]/30 space-y-3">
               <h4 className="font-display font-bold text-sm text-[#FDE047] flex items-center gap-2">
-                <Shield className="w-4 h-4 text-[#FDE047]" /> Canonical 4-Piece Barrows Armor Sets
+                <Shield className="w-4 h-4 text-[#FDE047]" /> Canonical 4-Piece Covenant Armor Sets
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {Object.values(BARROWS_SETS || {}).map((setObj) => (
+                {Object.values(CANONICAL_SETS || {}).map((setObj) => (
                   <div key={setObj.id} className="p-3.5 rounded-xl bg-[#080E1C] border border-[#1E293B] space-y-1">
                     <div className="font-display font-bold text-xs" style={{ color: setObj.color || '#FDE047' }}>
                       {setObj.name}
@@ -3260,7 +3260,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex justify-between p-2 rounded-lg bg-black/40 border border-white/5">
                   <span>Network Sync:</span>
-                  <b className="text-[#4ADE80]">20Hz Authoritative Tick Loop</b>
+                  <b className="text-[#4ADE80]">Authoritative Real-Time Sync</b>
                 </div>
                 <div className="flex justify-between p-2 rounded-lg bg-black/40 border border-white/5">
                   <span>Artisan Cooldown:</span>

@@ -115,6 +115,9 @@ export class RoomManager {
     this.getOrCreatePublicRoom(ROOM_TYPES.CORAL_COAST);
     this.getOrCreatePublicRoom(ROOM_TYPES.STARLIGHT_GROVE);
     this.getOrCreatePublicRoom(ROOM_TYPES.CHRONOCORE_CITADEL);
+    this.getOrCreatePublicRoom(ROOM_TYPES.SUNKEN_OASIS);
+    this.getOrCreatePublicRoom(ROOM_TYPES.SOLAR_HIGHLANDS);
+    this.getOrCreatePublicRoom(ROOM_TYPES.MOONWELL_SANCTUM);
 
     this.tickInterval = setInterval(() => this.tickAllRooms(), TICK_MS);
   }

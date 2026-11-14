@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>GlimmerFall Online — Founder Key Vault (/admin)</title>
+  <style>
+    :root {
+      --bg: #050811;
+      --panel: #0b1120;
+      --border: #1e293b;
+      --gold: #facc15;
+      --gold-dim: rgba(250, 204, 21, 0.16);
+      --sky: #38bdf8;
+      --green: #4ade80;
+      --red: #f87171;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(circle at 50% 0%, #111a34 0%, #050811 70%);
+      color: var(--text);
+      padding: 28px 16px;
+    }
+    .container {
+      max-width: 1020px;
+      margin: 0 auto;
+    }
+    .card {
+      background: rgba(11, 17, 32, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+      margin-bottom: 20px;
+    }
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+      margin-bottom: 18px;
+    }
+    .title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--gold);
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .subtitle {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .btn {
+      appearance: none;
+      border: 1px solid rgba(250, 204, 21, 0.45);
+      background: linear-gradient(135deg, #facc15 0%, #eab308 100%);
+      color: #050811;
+      font-weight: 800;
+      font-size: 12.5px;
+      padding: 9px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .btn-secondary {
+      background: rgba(30, 41, 59, 0.8);
+      color: var(--text);
+      border: 1px solid #334155;
+    }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.14);
+      color: var(--red);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      padding: 5px 10px;
+      font-size: 11px;
+    }
+    .input {
+      background: #060a14;
+      border: 1px solid #334155;
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+    }
+    .input:focus { border-color: var(--gold); }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .stat-box {
+      background: #070b16;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+    .stat-value { font-size: 24px; font-weight: 900; margin-top: 4px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid #1e293b;
+    }
+    th {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .key-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 800;
+      color: var(--gold);
+      background: rgba(250, 204, 21, 0.1);
+      border: 1px solid rgba(250, 204, 21, 0.3);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+    }
+    .badge-avail {
+      color: var(--green);
+      background: rgba(74, 222, 128, 0.12);
+      border: 1px solid rgba(74, 222, 128, 0.35);
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge-used {
+      color: var(--sky);
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .toast {
+      margin-top: 10px;
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- LOGIN GATE -->
+    <div id="login-card" class="card" style="max-width: 440px; margin: 60px auto;">
+      <div class="title">🔐 GlimmerFall Admin Vault</div>
+      <div class="subtitle">Restricted Founder's Edition (€6.99) Serial Key Generator</div>
+      <form id="login-form" style="margin-top: 18px; display: flex; flex-direction: column; gap: 12px;">
+        <input id="admin-pw-input" type="password" class="input" placeholder="Enter Admin Password..." required autocomplete="current-password" />
+        <button type="submit" class="btn">Unlock Key Vault →</button>
+        <div id="login-error" class="toast" style="color: var(--red); display: none;"></div>
+      </form>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" style="display: none;">
+      <div class="card">
+        <div class="header-bar">
+          <div>
+            <div class="title">👑 GlimmerFall Online — Founder Serial Key Generator (€6.99 Edition)</div>
+            <div class="subtitle">Generate giveaway &amp; Founder's Edition (`GF-XXXX-XXXX-XXXX`) license keys. Keys unlock [FOUNDER] title &amp; full progression.</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <a href="/" class="btn btn-secondary" style="text-decoration: none;">← Back to Game</a>
+            <button id="logout-btn" type="button" class="btn btn-secondary">Lock Vault</button>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-label">Total Keys Generated</div>
+            <div id="stat-total" class="stat-value" style="color: var(--gold);">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Available to Give Away</div>
+            <div id="stat-avail" class="stat-value" style="color: var(--green);">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Redeemed by Players</div>
+            <div id="stat-used" class="stat-value" style="color: var(--sky);">0</div>
+          </div>
+        </div>
+
+        <div style="background: #070b16; border: 1px solid var(--border); border-radius: 10px; padding: 16px;">
+          <div style="font-weight: 800; font-size: 13px; color: var(--gold); margin-bottom: 10px;">⚡ Generate New Founder Serial Keys</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+            <input id="gen-note" type="text" class="input" placeholder="Optional note (e.g. Discord Giveaway, Creator Key, Tester)" style="flex: 1; min-width: 220px;" />
+            <select id="gen-count" class="input">
+              <option value="1">1 Serial Key</option>
+              <option value="5">5 Serial Keys</option>
+              <option value="10">10 Serial Keys</option>
+              <option value="25">25 Serial Keys</option>
+            </select>
+            <button id="gen-btn" type="button" class="btn">+ Generate Keys</button>
+            <button id="copy-avail-btn" type="button" class="btn btn-secondary">📋 Copy All Available Keys</button>
+          </div>
+          <div id="gen-status" class="toast" style="color: var(--green); display: none;"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div style="font-weight: 800; font-size: 14px;">📜 Generated Serial Keys Registry</div>
+          <button id="refresh-btn" type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 11.5px;">↻ Refresh</button>
+        </div>
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Serial Key</th>
+                <th>Edition</th>
+                <th>Status</th>
+                <th>Note / Batch</th>
+                <th>Created</th>
+                <th>Redeemed By</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="keys-tbody">
+              <tr><td colspan="7" style="color: var(--muted); text-align: center; padding: 24px;">No serial keys generated yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'gf_admin_vault_pw';
+    let currentPassword = sessionStorage.getItem(STORAGE_KEY) || '';
+    let latestKeys = [];
+
+    const loginCard = document.getElementById('login-card');
+    const dashboard = document.getElementById('dashboard');
+    const loginForm = document.getElementById('login-form');
+    const pwInput = document.getElementById('admin-pw-input');
+    const loginError = document.getElementById('login-error');
+    const genStatus = document.getElementById('gen-status');
+
+    function showStatus(msg, isErr = false) {
+      genStatus.style.display = 'block';
+      genStatus.style.color = isErr ? '#f87171' : '#4ade80';
+      genStatus.textContent = msg;
+    }
+
+    function renderKeysTable(data) {
+      latestKeys = data.keys || [];
+      document.getElementById('stat-total').textContent = data.total ?? latestKeys.length;
+      document.getElementById('stat-avail').textContent = data.available ?? latestKeys.filter(k => !k.redeemedAt).length;
+      document.getElementById('stat-used').textContent = data.redeemed ?? latestKeys.filter(k => k.redeemedAt).length;
+
+      const tbody = document.getElementById('keys-tbody');
+      if (!latestKeys.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="color: var(--muted); text-align: center; padding: 24px;">No serial keys generated yet. Click "+ Generate Keys" above!</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = latestKeys.map((k) => {
+        const isUsed = Boolean(k.redeemedAt);
+        const createdDate = k.createdAt ? new Date(k.createdAt).toLocaleString() : '—';
+        const redeemedInfo = isUsed
+          ? `<b>${k.redeemedUsername || k.redeemedBy || 'Player'}</b><br/><span style="font-size:10.5px; color:#94a3b8;">${new Date(k.redeemedAt).toLocaleString()}</span>`
+          : '<span style="color:#64748b;">Unclaimed</span>';
+        return `
+          <tr>
+            <td><span class="key-pill">${k.key}</span></td>
+            <td style="color:#fde047; font-weight:700;">FOUNDER (€6.99)</td>
+            <td>${isUsed ? '<span class="badge-used">✓ REDEEMED</span>' : '<span class="badge-avail">● AVAILABLE</span>'}</td>
+            <td style="color:#cbd5e1;">${k.note || '—'}</td>
+            <td style="color:#94a3b8; font-size:11.5px;">${createdDate}</td>
+            <td>${redeemedInfo}</td>
+            <td>
+              <div style="display:flex; gap:6px;">
+                <button type="button" class="btn btn-secondary" style="padding:4px 9px; font-size:11px;" onclick="window.copyKey('${k.key}')">Copy</button>
+                ${!isUsed ? `<button type="button" class="btn btn-danger" onclick="window.revokeKey('${k.key}')">Revoke</button>` : ''}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    window.copyKey = async function (keyStr) {
+      try {
+        await navigator.clipboard.writeText(keyStr);
+        showStatus(`Copied ${keyStr} to clipboard!`);
+      } catch (_) {
+        prompt('Copy serial key:', keyStr);
+      }
+    };
+
+    window.revokeKey = async function (keyStr) {
+      if (!confirm(`Revoke unredeemed key ${keyStr}?`)) return;
+      const res = await fetch('/api/admin/keys/revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': currentPassword },
+        body: JSON.stringify({ key: keyStr }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        showStatus(data.error || 'Failed to revoke key', true);
+        return;
+      }
+      renderKeysTable(data);
+      showStatus(`Revoked ${keyStr}.`);
+    };
+
+    async function unlockWithPassword(pw) {
+      loginError.style.display = 'none';
+      const res = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': pw },
+        body: JSON.stringify({ password: pw }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        sessionStorage.removeItem(STORAGE_KEY);
+        loginError.textContent = data.error || 'Invalid password.';
+        loginError.style.display = 'block';
+        return false;
+      }
+      currentPassword = pw;
+      sessionStorage.setItem(STORAGE_KEY, pw);
+      loginCard.style.display = 'none';
+      dashboard.style.display = 'block';
+      renderKeysTable(data);
+      return true;
+    }
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await unlockWithPassword(pwInput.value.trim());
+    });
+
+    document.getElementById('gen-btn').addEventListener('click', async () => {
+      const count = Number(document.getElementById('gen-count').value || 1);
+      const note = document.getElementById('gen-note').value.trim();
+      const res = await fetch('/api/admin/keys/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': currentPassword },
+        body: JSON.stringify({ count, note, tier: 'founder' }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        showStatus(data.error || 'Failed to generate keys.', true);
+        return;
+      }
+      renderKeysTable(data);
+      const newKeys = (data.created || []).map((k) => k.key).join(', ');
+      showStatus(`Generated ${data.created?.length || count} Founder key(s): ${newKeys}`);
+    });
+
+    document.getElementById('copy-avail-btn').addEventListener('click', async () => {
+      const avail = latestKeys.filter((k) => !k.redeemedAt).map((k) => k.key);
+      if (!avail.length) {
+        showStatus('No available unredeemed keys to copy.', true);
+        return;
+      }
+      await navigator.clipboard.writeText(avail.join('\n'));
+      showStatus(`Copied ${avail.length} available serial key(s) to clipboard!`);
+    });
+
+    document.getElementById('refresh-btn').addEventListener('click', async () => {
+      await unlockWithPassword(currentPassword);
+      showStatus('Key registry refreshed.');
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      sessionStorage.removeItem(STORAGE_KEY);
+      currentPassword = '';
+      dashboard.style.display = 'none';
+      loginCard.style.display = 'block';
+      pwInput.value = '';
+    });
+
+    if (currentPassword) {
+      unlockWithPassword(currentPassword);
+    }
+  </script>
+</body>
+</html>

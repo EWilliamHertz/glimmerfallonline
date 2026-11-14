@@ -235,9 +235,11 @@ export class AccountsStore {
     this.accountsById = new Map();
     this.idByUsername = new Map();
     this.charactersByAccount = new Map(); // accountId -> Map<charId, charObj>
+    this.serialKeys = new Map(); // keyCode -> { key, tier, note, createdAt, redeemedBy, redeemedUsername, redeemedAt }
     this.dirtyAccounts = new Set();
     this.dirtyCharacters = new Set();
     this.flushTimer = null;
+    this.loadSerialKeysLocal();
   }
 
   async init() {
@@ -246,6 +248,7 @@ export class AccountsStore {
       if (this.dbConnected) {
         this.db = getDbPool();
         await this.loadAllFromPostgres();
+        await this.loadSerialKeysFromPostgres();
       }
     } catch (err) {
       console.error('[AccountsStore] PostgreSQL init error:', err.message);
@@ -467,6 +470,7 @@ export class AccountsStore {
       this.flushTimer = null;
       this.flushToPostgres().catch((err) => console.error('[DB Flush Error]:', err.message));
     }, 300);
+    this.flushTimer?.unref?.();
   }
 
   async flushToPostgres() {
@@ -1538,6 +1542,11 @@ export class AccountsStore {
       orderTag: activeChar?.orderTag || acc.orderTag,
     });
     const preset = getOrderPresetForFaction(resolved.faction, activeChar?.orderTag || acc.orderTag);
+    const editionTier =
+      acc.statsMeta?.editionTier ||
+      activeChar?.statsMeta?.editionTier ||
+      (acc.tcgLinked ? 'founder' : 'free');
+    const defaultTitle = editionTier === 'founder' ? 'FOUNDER' : null;
     return {
       id: acc.id,
       username: acc.username,
@@ -1546,6 +1555,8 @@ export class AccountsStore {
       tcgLinked: acc.tcgLinked,
       tcgHandle: acc.tcgHandle,
       tcgEmail: acc.tcgEmail,
+      editionTier,
+      redeemedSerialKey: acc.statsMeta?.redeemedSerialKey || activeChar?.statsMeta?.redeemedSerialKey || null,
       faction: resolved.faction,
       classId: resolved.classId,
       orderTag: activeChar?.orderTag || acc.orderTag || preset.tag,
@@ -1558,13 +1569,225 @@ export class AccountsStore {
       questState: activeChar?.questState || acc.questState || {},
       progression: activeChar?.progression || acc.progression || {},
       statsMeta: activeChar?.statsMeta || acc.statsMeta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
-      title: activeChar?.title || acc.title || null,
+      title: activeChar?.title || acc.title || defaultTitle,
       activeCharacterId: acc.activeCharacterId,
       hp: typeof activeChar?.hp === 'number' ? activeChar.hp : (typeof acc.hp === 'number' ? acc.hp : null),
       solarCharge: typeof activeChar?.solarCharge === 'number' ? activeChar.solarCharge : (typeof acc.solarCharge === 'number' ? acc.solarCharge : null),
       lastPosition: activeChar?.lastPosition || acc.lastPosition || null,
       characters: this.listCharacters(acc.id),
       dbConnected: this.dbConnected,
+    };
+  }
+
+  // ==========================================
+  // Founder's Edition Serial Key Management (/admin & Redemption)
+  // ==========================================
+  verifyAdminPassword(rawPassword) {
+    const expected = String(process.env.ADMIN_PASSWORD || 'Yb07tw44!').trim();
+    const provided = String(rawPassword || '').trim();
+    return Boolean(expected && provided && provided === expected);
+  }
+
+  loadSerialKeysLocal() {
+    try {
+      ensureDataDir();
+      const file = path.join(DATA_DIR, 'serial_keys.json');
+      if (!fs.existsSync(file)) return;
+      const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (item && item.key) {
+            this.serialKeys.set(String(item.key).toUpperCase(), item);
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  saveSerialKeysLocal() {
+    try {
+      ensureDataDir();
+      const file = path.join(DATA_DIR, 'serial_keys.json');
+      const arr = Array.from(this.serialKeys.values());
+      fs.writeFileSync(file, JSON.stringify(arr, null, 2), 'utf8');
+    } catch (_) {}
+  }
+
+  async loadSerialKeysFromPostgres() {
+    if (!this.db) return;
+    try {
+      const res = await this.db.query('SELECT * FROM glimmerfall_serial_keys ORDER BY created_at DESC');
+      for (const row of res.rows) {
+        const keyCode = String(row.key_code || '').toUpperCase();
+        if (!keyCode) continue;
+        this.serialKeys.set(keyCode, {
+          key: keyCode,
+          tier: row.tier || 'founder',
+          note: row.note || '',
+          createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
+          redeemedBy: row.redeemed_by || null,
+          redeemedUsername: row.redeemed_username || null,
+          redeemedAt: row.redeemed_at ? new Date(row.redeemed_at).toISOString() : null,
+        });
+      }
+      this.saveSerialKeysLocal();
+    } catch (_) {}
+  }
+
+  async generateSerialKeys({ count = 1, note = '', tier = 'founder' } = {}) {
+    const safeCount = Math.max(1, Math.min(50, Math.floor(Number(count) || 1)));
+    const cleanNote = String(note || '').trim().slice(0, 120);
+    const cleanTier = String(tier || 'founder').trim().toLowerCase() || 'founder';
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const created = [];
+    const nowIso = new Date().toISOString();
+
+    for (let i = 0; i < safeCount; i++) {
+      let keyCode = '';
+      do {
+        const seg = () => {
+          let s = '';
+          const bytes = crypto.randomBytes(4);
+          for (let j = 0; j < 4; j++) s += alphabet[bytes[j] % alphabet.length];
+          return s;
+        };
+        keyCode = `GF-${seg()}-${seg()}-${seg()}`;
+      } while (this.serialKeys.has(keyCode));
+
+      const entry = {
+        key: keyCode,
+        tier: cleanTier,
+        note: cleanNote,
+        createdAt: nowIso,
+        redeemedBy: null,
+        redeemedUsername: null,
+        redeemedAt: null,
+      };
+      this.serialKeys.set(keyCode, entry);
+      created.push(entry);
+
+      if (this.db) {
+        try {
+          await this.db.query(
+            `INSERT INTO glimmerfall_serial_keys (key_code, tier, note, created_at)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (key_code) DO NOTHING`,
+            [entry.key, entry.tier, entry.note, entry.createdAt]
+          );
+        } catch (_) {}
+      }
+    }
+
+    this.saveSerialKeysLocal();
+    return created;
+  }
+
+  async listSerialKeys() {
+    if (this.db) {
+      await this.loadSerialKeysFromPostgres();
+    }
+    const keys = Array.from(this.serialKeys.values()).sort(
+      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+    const redeemedCount = keys.filter((k) => Boolean(k.redeemedAt)).length;
+    return {
+      keys,
+      total: keys.length,
+      available: keys.length - redeemedCount,
+      redeemed: redeemedCount,
+    };
+  }
+
+  async revokeSerialKey(rawKey) {
+    const cleanKey = String(rawKey || '').trim().toUpperCase();
+    if (!cleanKey) return { error: 'Serial key is required.' };
+    const existing = this.serialKeys.get(cleanKey);
+    if (!existing) return { error: 'Serial key not found.' };
+    if (existing.redeemedAt) return { error: 'Cannot revoke a key that has already been redeemed.' };
+    this.serialKeys.delete(cleanKey);
+    this.saveSerialKeysLocal();
+    if (this.db) {
+      try {
+        await this.db.query('DELETE FROM glimmerfall_serial_keys WHERE key_code = $1', [cleanKey]);
+      } catch (_) {}
+    }
+    return { ok: true, key: cleanKey };
+  }
+
+  async redeemSerialKey(accountId, rawKey, fallbackName = 'Adventurer') {
+    const cleanKey = String(rawKey || '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, '');
+    if (!cleanKey || !/^GF-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(cleanKey)) {
+      return { error: 'Invalid serial key format. Expected GF-XXXX-XXXX-XXXX.' };
+    }
+
+    if (this.db && !this.serialKeys.has(cleanKey)) {
+      await this.loadSerialKeysFromPostgres();
+    }
+
+    const entry = this.serialKeys.get(cleanKey);
+    if (!entry) {
+      return { error: 'Serial key not recognized. Double-check your code and try again.' };
+    }
+    if (entry.redeemedAt) {
+      return { error: 'This serial key has already been redeemed.' };
+    }
+
+    const acc = accountId ? this.accountsById.get(accountId) : null;
+    const nowIso = new Date().toISOString();
+    entry.redeemedBy = acc ? acc.id : `local_${crypto.randomUUID().slice(0, 8)}`;
+    entry.redeemedUsername = acc ? (acc.username || acc.displayName || fallbackName) : String(fallbackName || 'Adventurer').slice(0, 24);
+    entry.redeemedAt = nowIso;
+    this.serialKeys.set(cleanKey, entry);
+    this.saveSerialKeysLocal();
+
+    if (this.db) {
+      try {
+        await this.db.query(
+          `UPDATE glimmerfall_serial_keys
+           SET redeemed_by = $2, redeemed_username = $3, redeemed_at = $4
+           WHERE key_code = $1`,
+          [cleanKey, entry.redeemedBy, entry.redeemedUsername, entry.redeemedAt]
+        );
+      } catch (_) {}
+    }
+
+    if (acc) {
+      acc.statsMeta = {
+        ...(acc.statsMeta || { kills: 0, arenaWins: 0, siegeClaims: 0 }),
+        editionTier: entry.tier || 'founder',
+        redeemedSerialKey: cleanKey,
+        redeemedAt: nowIso,
+      };
+      acc.title = acc.title || 'FOUNDER';
+      const cmap = this.charactersByAccount.get(acc.id);
+      if (cmap) {
+        for (const ch of cmap.values()) {
+          ch.statsMeta = {
+            ...(ch.statsMeta || { kills: 0, arenaWins: 0, siegeClaims: 0 }),
+            editionTier: entry.tier || 'founder',
+            redeemedSerialKey: cleanKey,
+          };
+          ch.title = ch.title || 'FOUNDER';
+        }
+      }
+      const activeChar = cmap?.get(acc.activeCharacterId);
+      this.schedulePersist(acc.id, activeChar?.id);
+      await this.flushToPostgres();
+      return {
+        ok: true,
+        key: entry,
+        editionTier: entry.tier || 'founder',
+        profile: this.toPublicProfile(acc),
+      };
+    }
+
+    return {
+      ok: true,
+      key: entry,
+      editionTier: entry.tier || 'founder',
     };
   }
 

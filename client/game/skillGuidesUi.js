@@ -5,6 +5,10 @@
 import {
   PROFESSIONS_CATALOG,
   PROFESSION_MASTERY_CAPES,
+  ABILITIES_CATALOG,
+  FACTIONS_META,
+  CLASSES_CATALOG,
+  resolveFactionAndClass,
   getTotalProfessionLevel,
   getXpForProfessionLevel,
   calcEntityLevel,
@@ -13,7 +17,7 @@ import {
 import { getSkillIconSvg, SKILL_ICON_SVGS } from '../ui/skillIcons.js';
 import { getUnlockIconSvg } from '../ui/unlockIcons.js';
 
-export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
+export function setupSkillGuidesUi({ getProg, getProfile, audio, toggleModal }) {
   let currentSkillGuideId = 'resonance_extraction';
   let currentSkillGuideFilter = 'all';
   let currentSkillsModalFilter = 'all';
@@ -422,34 +426,72 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
       ],
     },
     rites: {
-      categories: ['All', 'Channeled Rites', 'Invocations', 'Ritual Mastery', 'Skillcape'],
-      unlocks: [
-        { level: 1, iconKey: 'smite_rite', cat: 'Channeled Rites', title: 'Solar Smite & Umbral Ruin Rites', desc: 'Channel focused radiant energy or shadow threads against enemies. Earns XP whenever a Rite is channeled.', method: 'Cast Rites in Combat', xp: '+25 XP / cast', icon: '☀️' },
-        { level: 10, iconKey: 'channel_focus', cat: 'Channeled Rites', title: 'Channeled Focus: Pushback Resistance', desc: 'Reduces cast-time pushback when sustaining enemy damage by 20%.', method: 'Passive Mastery', xp: 'Level 10 Unlock', icon: '🛡️' },
-        { level: 25, iconKey: 'radiant_cascade', cat: 'Invocations', title: 'Radiant Cascade & Void Eruption', desc: 'Channel devastating multi-strike area-of-effect rites that overwhelm target clusters.', method: 'Equip Tier 2 Rites', xp: '+45 XP / cast', icon: '✨' },
-        { level: 40, iconKey: 'resonance_amp', cat: 'Invocations', title: 'Astral Resonance Amplification', desc: 'Increases all spell damage from channeled rites by 12%.', method: 'Passive Mastery', xp: 'Level 40 Unlock', icon: '⚡' },
-        { level: 55, iconKey: 'terra_quake', cat: 'Channeled Rites', title: 'Terra Quake & Chrono Singularity Rites', desc: 'Channel seismic fissures and temporal gravitational vortexes in dungeon boss battles.', method: 'High-Tier Evocations', xp: '+85 XP / cast', icon: '🌀' },
-        { level: 70, iconKey: 'channel_cadence', cat: 'Ritual Mastery', title: 'Arch-Hierophant Channeling Cadence', desc: 'Drastically accelerates rite channel time by 15%, speeding up heavy damage cycles.', method: 'Passive Mastery', xp: 'Level 70 Unlock', icon: '⏳' },
-        { level: 85, iconKey: 'solar_nova', cat: 'Invocations', title: 'Cataclysmic Solar Nova & Void Collapse', desc: 'Summon continental-tier celestial flares incinerating high-level bosses.', method: 'Mythic Raids / Outer Biomes', xp: '+160 XP / cast', icon: '🌌' },
-        { level: 92, iconKey: 'overchannel_surge', cat: 'Ritual Mastery', title: 'Prismatic Overchanneling Surge', desc: 'Grants +25% Critical Strike Chance to fully channeled Rites.', method: 'Apex Spellcraft', xp: 'Level 92 Unlock', icon: '🔮' },
-        { level: 99, iconKey: 'cape_hierophant', cat: 'Skillcape', title: 'Skillcape of the Arch-Hierophant', desc: 'Equip the legendary 99 Rites Cape. Grants +5 All Stats, -20% Rite channel time, and makes channeled spells immune to interrupt.', method: 'Mastery Vendor / Auto-awarded', xp: 'Level 99 Mastery', icon: '👑' },
-      ],
+      categories: ['All', 'Faction Rites', 'Ritual Mastery', 'Skillcape'],
+      unlocks: [],
     },
     flashes: {
-      categories: ['All', 'Instant Strikes', 'Mobility & Escapes', 'Counter-Reflexes', 'Skillcape'],
-      unlocks: [
-        { level: 1, iconKey: 'flare_strike', cat: 'Instant Strikes', title: 'Flare Strike & Quick Strikes', desc: 'Trigger instant flash abilities during weapon swings and spell cooldowns.', method: 'Use Flashes in Combat', xp: '+20 XP / flash', icon: '⚡' },
-        { level: 10, iconKey: 'fleetfoot', cat: 'Mobility & Escapes', title: 'Fleetfoot Reaction Stance', desc: 'Gain +6% Movement Speed for 2.5s immediately after activating any Flash.', method: 'Passive Mastery', xp: 'Level 10 Unlock', icon: '💨' },
-        { level: 25, iconKey: 'phantom_blink', cat: 'Mobility & Escapes', title: 'Phantom Blink & Shadow Step', desc: 'Instantly warp short distances through enemies or ground hazards to reposition.', method: 'Equip Mobility Flashes', xp: '+40 XP / flash', icon: '✨' },
-        { level: 40, iconKey: 'counter_deflect', cat: 'Counter-Reflexes', title: 'Counter-Ward Deflection', desc: 'Deflect incoming spells if a flash ability is activated within 0.3s of impact.', method: 'Combat Reflex Timing', xp: 'Level 40 Unlock', icon: '🛡️' },
-        { level: 55, iconKey: 'tempest_flurry', cat: 'Instant Strikes', title: 'Tempest Flurry & Whirlwind Blitz', desc: 'Unleash rapid consecutive flash strikes that critically strike bleeding foes.', method: 'High-Speed Rotations', xp: '+75 XP / flash', icon: '🌪️' },
-        { level: 70, iconKey: 'chrono_snap', cat: 'Counter-Reflexes', title: 'Chrono-Snap Cooldown Recovery', desc: 'Reduces all Flash ability cooldowns across your entire action bar by 20%.', method: 'Passive Mastery', xp: 'Level 70 Unlock', icon: '⏱️' },
-        { level: 85, iconKey: 'horizon_blitz', cat: 'Instant Strikes', title: 'Horizon Blitz Behind Striking', desc: 'Instantly dash behind a target and land a guaranteed critical strike.', method: 'Outer Continent / Dungeons', xp: '+140 XP / flash', icon: '🗡️' },
-        { level: 92, iconKey: 'hyper_reflex', cat: 'Counter-Reflexes', title: 'Hyper-Reflex Surge Reset', desc: 'Defeating an enemy or successfully dodging a boss mechanic resets Flash cooldowns.', method: 'Apex Reflex Mastery', xp: 'Level 92 Unlock', icon: '⚡' },
-        { level: 99, iconKey: 'cape_tempest', cat: 'Skillcape', title: 'Skillcape of the Tempest Flash', desc: 'Equip the legendary 99 Flashes Cape. Grants +5 All Stats, +1 Flash charge, and 15% flash CDR.', method: 'Mastery Vendor / Auto-awarded', xp: 'Level 99 Mastery', icon: '👑' },
-      ],
+      categories: ['All', 'Faction Flashes', 'Counter-Reflexes', 'Skillcape'],
+      unlocks: [],
     },
   };
+
+  function resolvePlayerFaction() {
+    const prof = (typeof getProfile === 'function' ? getProfile() : null) || window.localProfile || {};
+    const resolved = resolveFactionAndClass({
+      faction: prof.faction,
+      classId: prof.classId,
+      loadout: prof.loadout,
+      orderTag: prof.orderTag,
+    });
+    return resolved.faction || 'Solari';
+  }
+
+  function getDynamicGuideData(skillId) {
+    const base = SKILL_TRAINING_GUIDES[skillId];
+    if (!base) return null;
+    if (skillId !== 'rites' && skillId !== 'flashes') return base;
+
+    const myFaction = resolvePlayerFaction();
+    const facMeta = FACTIONS_META[myFaction] || { name: myFaction, icon: '✨' };
+    const wantType = skillId === 'rites' ? 'Rite' : 'Flash';
+    const catName = skillId === 'rites' ? 'Faction Rites' : 'Faction Flashes';
+    const factionAbilities = Object.values(ABILITIES_CATALOG)
+      .filter((ab) => ab.id !== 'harvest' && ab.faction === myFaction && ab.type === wantType)
+      .sort((a, b) => (a.minLevel || 1) - (b.minLevel || 1) || (a.tier || 1) - (b.tier || 1));
+
+    const tierToSkillLvl = { 1: 1, 2: 12, 3: 25, 4: 40, 5: 55, 6: 72, 7: 85 };
+    const abilityUnlocks = factionAbilities.map((ab) => ({
+      level: tierToSkillLvl[ab.tier || 1] || Math.min(90, (ab.minLevel || 1) * 3),
+      iconKey: skillId === 'rites' ? 'smite_rite' : 'flare_strike',
+      cat: catName,
+      title: `${facMeta.icon || ''} ${ab.name} (${myFaction} Tier ${ab.tier || 1} ${wantType})`.trim(),
+      desc: `${ab.desc} (Unlocks in Spellbook [P] at Character Lv. ${ab.minLevel || 1}).`,
+      method: `Spellbook [P] • Char Lv. ${ab.minLevel || 1}`,
+      xp: skillId === 'rites' ? `+${20 + (ab.tier || 1) * 12} XP / cast` : `+${15 + (ab.tier || 1) * 10} XP / flash`,
+      icon: ab.icon || (skillId === 'rites' ? '☀️' : '⚡'),
+    }));
+
+    const masteryUnlocks = skillId === 'rites'
+      ? [
+          { level: 10, iconKey: 'channel_focus', cat: 'Ritual Mastery', title: 'Channeled Focus: Pushback Resistance', desc: 'Reduces cast-time pushback when sustaining enemy damage by 20%.', method: 'Passive Mastery', xp: 'Level 10 Unlock', icon: '🛡️' },
+          { level: 40, iconKey: 'resonance_amp', cat: 'Ritual Mastery', title: `${myFaction} Resonance Amplification`, desc: `Increases all spell output from channeled ${myFaction} Rites by 12%.`, method: 'Passive Mastery', xp: 'Level 40 Unlock', icon: '⚡' },
+          { level: 70, iconKey: 'channel_cadence', cat: 'Ritual Mastery', title: 'Arch-Hierophant Channeling Cadence', desc: 'Drastically accelerates Rite channel time by 15%, speeding up heavy invocation cycles.', method: 'Passive Mastery', xp: 'Level 70 Unlock', icon: '⏳' },
+          { level: 92, iconKey: 'overchannel_surge', cat: 'Ritual Mastery', title: 'Prismatic Overchanneling Surge', desc: 'Grants +25% Critical Strike Chance to fully channeled Rites.', method: 'Apex Spellcraft', xp: 'Level 92 Unlock', icon: '🔮' },
+          { level: 99, iconKey: 'cape_hierophant', cat: 'Skillcape', title: 'Skillcape of the Arch-Hierophant', desc: 'Equip the legendary 99 Rites Cape. Grants +5 All Stats, -20% Rite channel time, and makes channeled spells immune to interrupt.', method: 'Mastery Vendor / Auto-awarded', xp: 'Level 99 Mastery', icon: '👑' },
+        ]
+      : [
+          { level: 10, iconKey: 'fleetfoot', cat: 'Counter-Reflexes', title: 'Fleetfoot Reaction Stance', desc: 'Gain +6% Movement Speed for 2.5s immediately after activating any Flash.', method: 'Passive Mastery', xp: 'Level 10 Unlock', icon: '💨' },
+          { level: 40, iconKey: 'counter_deflect', cat: 'Counter-Reflexes', title: 'Counter-Ward Deflection', desc: 'Deflect incoming spells if a Flash ability is activated within 0.3s of impact.', method: 'Combat Reflex Timing', xp: 'Level 40 Unlock', icon: '🛡️' },
+          { level: 70, iconKey: 'chrono_snap', cat: 'Counter-Reflexes', title: 'Rapid Cooldown Recovery', desc: `Reduces all ${myFaction} Flash ability cooldowns across your entire action bar by 20%.`, method: 'Passive Mastery', xp: 'Level 70 Unlock', icon: '⏱️' },
+          { level: 92, iconKey: 'hyper_reflex', cat: 'Counter-Reflexes', title: 'Hyper-Reflex Surge Reset', desc: 'Defeating an enemy or successfully dodging a boss mechanic resets Flash cooldowns.', method: 'Apex Reflex Mastery', xp: 'Level 92 Unlock', icon: '⚡' },
+          { level: 99, iconKey: 'cape_tempest', cat: 'Skillcape', title: 'Skillcape of the Tempest Flash', desc: 'Equip the legendary 99 Flashes Cape. Grants +5 All Stats, +1 Flash charge, and 15% Flash CDR.', method: 'Mastery Vendor / Auto-awarded', xp: 'Level 99 Mastery', icon: '👑' },
+        ];
+
+    return {
+      categories: base.categories,
+      unlocks: [...abilityUnlocks, ...masteryUnlocks].sort((a, b) => a.level - b.level),
+    };
+  }
 
   window.openSkillGuide = function (skillId = 'resonance_extraction', filter = 'all') {
     currentSkillGuideId = skillId;
@@ -477,7 +519,7 @@ export function setupSkillGuidesUi({ getProg, audio, toggleModal }) {
     const prof = prog.professions?.[skillId] || { level: 1, xp: 0 };
     const curLevel = prof.level || 1;
     const pDef = PROFESSIONS_CATALOG[skillId];
-    const guideData = SKILL_TRAINING_GUIDES[skillId];
+    const guideData = getDynamicGuideData(skillId);
     if (!pDef || !guideData) return;
 
     const iconEl = document.getElementById('skill-guide-icon');

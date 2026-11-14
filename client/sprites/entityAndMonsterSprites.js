@@ -206,6 +206,40 @@ export function buildEntityAndMonsterSprites(sprites) {
     sprites.fishEmpty = addPixelOutline(c);
   }
 
+  // Luminous Restorative Springs — mossy stone basin + glowing aqua/emerald spring water + rising wisps
+  sprites.healingSpring = [0, 1].map((f) => {
+    const bob = f === 1 ? -1 : 0;
+    const { c, ctx } = makeCanvas(30, 28);
+    // Stone & moss rim basin
+    rect(ctx, 3, 14, 24, 9, '#334155');
+    rect(ctx, 5, 13, 20, 9, '#475569');
+    rect(ctx, 4, 14, 4, 3, '#15803d');
+    rect(ctx, 21, 15, 5, 3, '#166534');
+    // Crystal spring spout at back rim
+    rect(ctx, 12, 5, 6, 9, '#64748b');
+    rect(ctx, 13, 3, 4, 4, '#7dd3fc');
+    px(ctx, 14, 4, '#ffffff');
+    // Luminous aqua + emerald restorative water
+    rect(ctx, 6, 15, 18, 6, '#0284c7');
+    rect(ctx, 8, 16, 14, 4, '#38bdf8');
+    rect(ctx, 10 + f, 16, 8, 2, '#6ee7b7');
+    rect(ctx, 13, 12, 4, 4, '#7dd3fc'); // cascading spring stream
+    // Rising restorative motes
+    px(ctx, 9, 9 + bob, '#86efac');
+    px(ctx, 20, 8 - bob, '#7dd3fc');
+    px(ctx, 15, 6 + bob, '#fde047');
+    return addPixelOutline(c);
+  });
+  {
+    const { c, ctx } = makeCanvas(30, 28);
+    rect(ctx, 3, 14, 24, 9, '#1e293b');
+    rect(ctx, 5, 13, 20, 9, '#334155');
+    rect(ctx, 12, 6, 6, 8, '#475569');
+    rect(ctx, 6, 15, 18, 6, '#0f172a');
+    rect(ctx, 9, 16, 12, 3, '#1e293b');
+    sprites.healingSpringEmpty = addPixelOutline(c);
+  }
+
   // ==========================================
   // 6. CALM ASTRAL WAYGATE PORTAL (Smooth, Zero Strobe!)
   // ==========================================

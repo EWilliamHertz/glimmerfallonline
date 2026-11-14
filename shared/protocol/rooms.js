@@ -20,6 +20,9 @@ export const ROOM_TYPES = {
   CORAL_COAST: 'coral_coast',
   STARLIGHT_GROVE: 'starlight_grove',
   CHRONOCORE_CITADEL: 'chronocore_citadel',
+  SUNKEN_OASIS: 'sunken_oasis',
+  SOLAR_HIGHLANDS: 'solar_highlands',
+  MOONWELL_SANCTUM: 'moonwell_sanctum',
 };
 
 // Three shared Grand Fonts per realm, placed away from spawn crowds and quest NPCs.
@@ -114,6 +117,21 @@ export const GRAND_FONT_POSITIONS = {
     { x: -320, y: 160 },
     { x: 320, y: 160 },
   ],
+  [ROOM_TYPES.SUNKEN_OASIS]: [
+    { x: 0, y: -220 },
+    { x: -320, y: 150 },
+    { x: 320, y: 150 },
+  ],
+  [ROOM_TYPES.SOLAR_HIGHLANDS]: [
+    { x: 0, y: -220 },
+    { x: -320, y: 150 },
+    { x: 320, y: 150 },
+  ],
+  [ROOM_TYPES.MOONWELL_SANCTUM]: [
+    { x: 0, y: -240 },
+    { x: -330, y: 150 },
+    { x: 330, y: 150 },
+  ],
   [ROOM_TYPES.ARENA_3V3]: [],
 };
 
@@ -178,6 +196,7 @@ export const ROOM_CONFIGS = {
       east: ROOM_TYPES.SANCTUARY_HUB,
       north: ROOM_TYPES.SOLARI_SUNKEN_VAULT,
       west: ROOM_TYPES.STARFALL_CRATER,
+      south: ROOM_TYPES.SOLAR_HIGHLANDS,
     },
   },
   [ROOM_TYPES.UMBRI_UNDERCITY]: {
@@ -218,6 +237,7 @@ export const ROOM_CONFIGS = {
       north: ROOM_TYPES.SANCTUARY_HUB,
       west: ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY,
       south: ROOM_TYPES.IRONWOOD_TIMBERLANDS,
+      east: ROOM_TYPES.SUNKEN_OASIS,
     },
   },
   [ROOM_TYPES.AETHER_SPIRE]: {
@@ -446,6 +466,7 @@ export const ROOM_CONFIGS = {
     edgeTransitions: {
       north: ROOM_TYPES.UMBRI_UNDERCITY,
       west: ROOM_TYPES.IRONWOOD_TIMBERLANDS,
+      south: ROOM_TYPES.SUNKEN_OASIS,
     },
   },
   [ROOM_TYPES.STARLIGHT_GROVE]: {
@@ -464,7 +485,8 @@ export const ROOM_CONFIGS = {
     spawnY: 180,
     edgeTransitions: {
       east: ROOM_TYPES.IRONWOOD_TIMBERLANDS,
-      north: ROOM_TYPES.TERRA_ORCHARD,
+      north: ROOM_TYPES.SUNKEN_OASIS,
+      south: ROOM_TYPES.MOONWELL_SANCTUM,
     },
   },
   [ROOM_TYPES.CHRONOCORE_CITADEL]: {
@@ -486,7 +508,127 @@ export const ROOM_CONFIGS = {
       south: ROOM_TYPES.AETHER_SPIRE,
     },
   },
+  [ROOM_TYPES.SUNKEN_OASIS]: {
+    type: ROOM_TYPES.SUNKEN_OASIS,
+    title: 'WHISPERING SPRINGS & SUNKEN OASIS (LV. 14–28)',
+    shortTitle: 'SUNKEN OASIS',
+    biomeTheme: 'terra_grove',
+    bgm: 'terra',
+    maxPlayers: 35,
+    width: 74,
+    height: 74,
+    halfW: 592,
+    halfH: 592,
+    pvp: false,
+    spawnX: 0,
+    spawnY: 180,
+    edgeTransitions: {
+      west: ROOM_TYPES.TERRA_ORCHARD,
+      north: ROOM_TYPES.CORAL_COAST,
+      south: ROOM_TYPES.STARLIGHT_GROVE,
+    },
+  },
+  [ROOM_TYPES.SOLAR_HIGHLANDS]: {
+    type: ROOM_TYPES.SOLAR_HIGHLANDS,
+    title: 'AMBERGRIS CRAGS & SUNSPIRE HIGHLANDS (LV. 16–32)',
+    shortTitle: 'SUNSPIRE HIGHLANDS',
+    biomeTheme: 'solari',
+    bgm: 'solari',
+    maxPlayers: 35,
+    width: 74,
+    height: 74,
+    halfW: 592,
+    halfH: 592,
+    pvp: false,
+    spawnX: 0,
+    spawnY: 180,
+    edgeTransitions: {
+      north: ROOM_TYPES.SOLARI_CITADEL,
+      west: ROOM_TYPES.STARFALL_CRATER,
+      east: ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY,
+    },
+  },
+  [ROOM_TYPES.MOONWELL_SANCTUM]: {
+    type: ROOM_TYPES.MOONWELL_SANCTUM,
+    title: 'SILVERMIST MOONWELL & DRUID SANCTUM (LV. 20–38)',
+    shortTitle: 'SILVERMIST MOONWELL',
+    biomeTheme: 'terra_grove',
+    bgm: 'terra',
+    maxPlayers: 35,
+    width: 74,
+    height: 74,
+    halfW: 592,
+    halfH: 592,
+    pvp: false,
+    spawnX: 0,
+    spawnY: 185,
+    edgeTransitions: {
+      north: ROOM_TYPES.STARLIGHT_GROVE,
+      east: ROOM_TYPES.CORAL_COAST,
+      west: ROOM_TYPES.SOLAR_HIGHLANDS,
+    },
+  },
 };
+
+export const ZONE_FACTION_ALLEGIANCE = {
+  [ROOM_TYPES.SOLARI_CITADEL]: 'Solari',
+  [ROOM_TYPES.SOLARI_SUNKEN_VAULT]: 'Solari',
+  [ROOM_TYPES.SOLAR_HIGHLANDS]: 'Solari',
+  [ROOM_TYPES.UMBRI_UNDERCITY]: 'Umbri',
+  [ROOM_TYPES.UMBRI_SHADOW_LABYRINTH]: 'Umbri',
+  [ROOM_TYPES.TERRA_ORCHARD]: 'Terra',
+  [ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY]: 'Terra',
+  [ROOM_TYPES.IRONWOOD_TIMBERLANDS]: 'Terra',
+  [ROOM_TYPES.STARLIGHT_GROVE]: 'Terra',
+  [ROOM_TYPES.SUNKEN_OASIS]: 'Terra',
+  [ROOM_TYPES.MOONWELL_SANCTUM]: 'Terra',
+  [ROOM_TYPES.AETHER_SPIRE]: 'Aether',
+  [ROOM_TYPES.AETHER_FRACTURED_ARCHIVE]: 'Aether',
+  [ROOM_TYPES.CHRONOCORE_CITADEL]: 'Aether',
+};
+
+export function getZoneFaction(roomType) {
+  return ZONE_FACTION_ALLEGIANCE[roomType] || null;
+}
+
+export function getMobFaction(mob, roomType = null) {
+  if (!mob) return getZoneFaction(roomType);
+  if (mob.faction) return mob.faction;
+  const sp = String(mob.spriteKey || '');
+  if (sp === 'solariSentinel' || sp === 'solariBoss' || sp === 'mobSolari' || sp === 'bossSolari') return 'Solari';
+  if (sp === 'duskFiend' || sp === 'umbriBoss' || sp === 'bossUmbri' || sp === 'voidStalker') {
+    const zf = getZoneFaction(roomType);
+    if (sp === 'voidStalker' && zf && zf !== 'Umbri') return null;
+    return 'Umbri';
+  }
+  if (sp === 'terraWarden' || sp === 'graniteBoss' || sp === 'elderBarkhide' || sp === 'mobTerra') return 'Terra';
+  if (sp === 'aetherWeaver' || sp === 'aetherBoss' || sp === 'mobAether' || sp === 'bossAether' || sp === 'aetherSentinel') return 'Aether';
+  return getZoneFaction(roomType);
+}
+
+export function isMobProvokedByPlayer(mob, playerId = null) {
+  if (!mob) return false;
+  if (mob.provokedByLocalPlayer) return true;
+  if (playerId) {
+    if (mob.provokedBy instanceof Set && mob.provokedBy.has(playerId)) return true;
+    if (Array.isArray(mob.provokedBy) && mob.provokedBy.includes(playerId)) return true;
+    if (mob.dammers instanceof Set && mob.dammers.has(playerId)) return true;
+    if (mob.threatTable && (mob.threatTable[playerId] || 0) > 0) return true;
+    if (mob.inCombat && mob.targetPlayerId === playerId) return true;
+  }
+  return false;
+}
+
+export function isSameFactionProtectedMob(roomType, mob, playerFaction, playerId = null) {
+  if (!mob || !playerFaction) return false;
+  if (mob.type && mob.type !== 'mob') return false;
+  const zoneFaction = getZoneFaction(roomType);
+  if (!zoneFaction || zoneFaction !== playerFaction) return false;
+  const mobFaction = getMobFaction(mob, roomType);
+  if (mobFaction && mobFaction !== playerFaction) return false;
+  if (isMobProvokedByPlayer(mob, playerId)) return false;
+  return true;
+}
 
 // Deep Water & Abyss Collision Detection
 export function isWaterTile(x, y, roomType = ROOM_TYPES.NEXUS_WARZONE) {

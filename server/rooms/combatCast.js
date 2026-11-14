@@ -82,7 +82,7 @@ export const combatCastMethods = {
       return null;
     }
     const ent = room.entities.find((e) => e.id === targetId);
-    if (ent && this.canDamageEntity(room, player, ent)) {
+    if (ent && this.canDamageEntity(room, player, ent, targetId)) {
       return { kind: 'entity', ref: ent };
     }
     return null;
@@ -92,7 +92,7 @@ export const combatCastMethods = {
     let best = null;
     let bestD = maxDist;
     for (const e of room.entities) {
-      if (!this.canDamageEntity(room, player, e)) continue;
+      if (!this.canDamageEntity(room, player, e, null)) continue;
       const d = Math.hypot(e.x - player.x, e.y - player.y);
       if (d <= bestD) {
         bestD = d;
@@ -109,13 +109,23 @@ export const combatCastMethods = {
         }
       }
     }
+    if (!best) {
+      for (const e of room.entities) {
+        if (!this.canDamageEntity(room, player, e, e.id)) continue;
+        const d = Math.hypot(e.x - player.x, e.y - player.y);
+        if (d <= bestD) {
+          bestD = d;
+          best = { kind: 'entity', ref: e };
+        }
+      }
+    }
     return best;
   },
 
-  getAllHostilesInRadius(room, player, cx, cy, radius) {
+  getAllHostilesInRadius(room, player, cx, cy, radius, primaryTargetId = null) {
     const out = [];
     for (const e of room.entities) {
-      if (!this.canDamageEntity(room, player, e)) continue;
+      if (!this.canDamageEntity(room, player, e, primaryTargetId)) continue;
       if (Math.hypot(e.x - cx, e.y - cy) <= radius) {
         out.push({ kind: 'entity', ref: e });
       }
@@ -300,7 +310,8 @@ export const combatCastMethods = {
       room.fxQueue.push({ kind: 'slash', x: player.x, y: player.y - 6, angle, color: spec.color, actorId: player.id });
 
       let hitAny = false;
-      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, rangePx + 10)) {
+      const primaryId = tgt ? tgt.ref.id : targetId;
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, rangePx + 10, primaryId)) {
         const eAng = Math.atan2(h.ref.y - player.y, h.ref.x - player.x);
         const diff = Math.abs(Math.atan2(Math.sin(eAng - angle), Math.cos(eAng - angle)));
         if ((tgt && h.ref === tgt.ref) || diff < 1.25) {

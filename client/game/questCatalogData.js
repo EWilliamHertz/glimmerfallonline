@@ -2,6 +2,19 @@
 // GlimmerFall Online — Canonical Quest Catalog Data
 // ==========================================
 
+const questState = new Proxy({}, {
+  get(_, prop) {
+    return globalThis.questState ? globalThis.questState[prop] : undefined;
+  },
+});
+const questCounter = (...args) => (typeof globalThis.questCounter === 'function' ? globalThis.questCounter(...args) : 0);
+const questFlag = (...args) => (typeof globalThis.questFlag === 'function' ? globalThis.questFlag(...args) : false);
+const questNpcTalked = (...args) => (typeof globalThis.questNpcTalked === 'function' ? globalThis.questNpcTalked(...args) : false);
+const questVisited = (...args) => (typeof globalThis.questVisited === 'function' ? globalThis.questVisited(...args) : false);
+const questProfessionGain = (...args) => (typeof globalThis.questProfessionGain === 'function' ? globalThis.questProfessionGain(...args) : 0);
+const artisanQuestDone = (...args) => (typeof globalThis.artisanQuestDone === 'function' ? globalThis.artisanQuestDone(...args) : false);
+const ARTISAN_PROFESSION_IDS = ['relic_forging', 'rite_binding', 'glimmerweaving'];
+
   const QUEST_CATALOG = {
     quest_awakening: {
       id: 'quest_awakening',
@@ -1106,7 +1119,114 @@
         {
           speaker: 'ARTISAN MASTER ALDRIC • SANCTUARY WORKSHOP',
           spriteKey: 'merchantSmithNpc',
-          text: 'Take this bounty of artisan experience and Glimmer shards. You now walk as a true Guardian of the Crystalheart!',
+          text: 'Take this bounty of artisan experience and Glimmer shards. Report to Herald Lyra to convene the Covenant Conclave!',
+        },
+      ],
+      nextQuestId: 'quest_covenant_conclave',
+    },
+
+    quest_covenant_conclave: {
+      id: 'quest_covenant_conclave',
+      title: 'Covenant Chapter I: The Fourfold Oath',
+      giverId: 'npc_aurora',
+      turnInId: 'npc_archon',
+      prereqQuestId: 'quest_reforge_crystalheart_shard',
+      questPoints: 3,
+      unlocks: ['Next Quest: Starfall Meteor Convergence', 'Covenant Conclave Honors'],
+      description: 'Consult Herald Lyra and Commander Valerius to unite the four Covenants before the Starfall Meteor Shower strikes the northern crater.',
+      isComplete: () => questNpcTalked('quest_covenant_conclave', 'npc_archon'),
+      tasks: [
+        { text: 'Convene with Commander Valerius on the Starfall threat', done: () => questNpcTalked('quest_covenant_conclave', 'npc_archon') },
+      ],
+      rewards: { xp: 950, glimmer: 380, gold: 320 },
+      acceptDialogue: [
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'The reforged Crystal Core reveals a cosmic omen, Champion! Burning fragments of the Prime Star are hurtling toward Starfall Crater.',
+        },
+        {
+          speaker: 'HERALD LYRA • SUNSPIRE HERALD',
+          spriteKey: 'heraldNpc',
+          text: 'Speak with Commander Valerius at the Vanguard Post immediately to coordinate our Covenant expedition!',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'The skies above Starfall Crater burn with astral fire. Report in so we can launch the expedition!',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Every Covenant—Solari, Umbri, Terra, and Aether—has dispatched their finest champions to Starfall Crater.',
+        },
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'March into Starfall Crater during the Meteor Convergence, harvest a Celestial Meteor Cache, and push back the Void-corrupted Starfall horrors!',
+        },
+      ],
+      nextQuestId: 'quest_starfall_meteor_convergence',
+    },
+
+    quest_starfall_meteor_convergence: {
+      id: 'quest_starfall_meteor_convergence',
+      title: 'Covenant Chapter II: Starfall Meteor Convergence',
+      giverId: 'npc_archon',
+      turnInId: 'npc_archon',
+      prereqQuestId: 'quest_covenant_conclave',
+      questPoints: 4,
+      unlocks: ['Starfall Vanguard Title', 'Celestial Meteor Cache Mastery'],
+      description: 'Venture into Starfall Crater, mine 2 Astral/Meteor Veins during the Starfall Convergence, and vanquish 2 Starfall cosmic foes.',
+      isComplete: () =>
+        questCounter('quest_starfall_meteor_convergence', 'starfallVeins') >= 2 &&
+        questCounter('quest_starfall_meteor_convergence', 'starfallKills') >= 2,
+      tasks: [
+        {
+          text: 'Harvest 2 Starfall Meteor Caches or Astral Veins [E]',
+          done: () => questCounter('quest_starfall_meteor_convergence', 'starfallVeins') >= 2,
+          counter: () => `${Math.min(2, questCounter('quest_starfall_meteor_convergence', 'starfallVeins'))} / 2`,
+        },
+        {
+          text: 'Vanquish 2 Starfall Crater Cosmic Entities',
+          done: () => questCounter('quest_starfall_meteor_convergence', 'starfallKills') >= 2,
+          counter: () => `${Math.min(2, questCounter('quest_starfall_meteor_convergence', 'starfallKills'))} / 2`,
+        },
+      ],
+      rewards: {
+        xp: 1400,
+        glimmer: 520,
+        gold: 500,
+        professionXp: { resonance_extraction: 300, relic_forging: 300 },
+      },
+      acceptDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Periodic Starfall Meteor Showers rain Celestial Meteor Caches into Starfall Crater! Watch for the orbital impact warning, dodge the blast, and harvest the fallen Starmetal Core.',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Have you harvested 2 Starfall Meteor Caches/Veins and defeated 2 cosmic horrors in Starfall Crater yet?',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'By the Four Covenants! You survived the orbital meteor storm and recovered pure Celestial Starmetal from the crater heart!',
+        },
+        {
+          speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
+          spriteKey: 'warzoneArchonNpc',
+          text: 'Accept this Sovereign reward. Your name shall be etched into the Covenant Annals!',
         },
       ],
     },

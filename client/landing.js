@@ -13,7 +13,7 @@ import {
   ORDER_PRESETS,
   getOrderPresetsForFaction,
   EQUIPMENT_CATALOG,
-  BARROWS_SETS,
+  CANONICAL_SETS,
   RUNEWORD_SYNERGIES,
   createDefaultProgression,
   validateCharacterName,
@@ -318,7 +318,7 @@ export const SYSTEMS_SHOWCASE = [
     id: 'combat',
     icon: '⚔️',
     title: 'Action Combat & 0-GCD Flashes',
-    badge: '0ms Latency • Real-time Hitboxes',
+    badge: 'Instant Response • Real-time Hitboxes',
     badgeColor: '#facc15',
     color: '#facc15',
     desc: 'Top-down fluid combat featuring 90-degree 34px cleave arcs, projectile vector tracking, client-side prediction, and a 0.3s spell queuing buffer for responsive combos. Zero GCD Flashes let you sprint, blink, and parry without interrupting your primary rotation.',
@@ -1993,10 +1993,10 @@ export class LandingPageController {
               WHEN THE <span style="color:#facc15;">CRYSTAL HEART</span> SHATTERED, FOUR COVENANTS ROSE.
             </h1>
             <p class="hero-desc">
-              Enter a living 16-bit dark-fantasy continent powered by an authoritative <b>20Hz tick engine</b>.
+              Enter a living 16-bit dark-fantasy world powered by an authoritative <b>real-time MMO engine</b>.
               Pledge your allegiance to <b style="color:#facc15;">Solari</b>, <b style="color:#c084fc;">Umbri</b>,
               <b style="color:#4ade80;">Terra</b>, or <b style="color:#38bdf8;">Aether</b>. Master 7 artisan professions to
-              <b>Level 99</b>, forge 3-socket Runewords and Barrows 4-piece sets, trade on the continental Grand Exchange,
+              <b>Level 99</b>, forge 3-socket Runewords and Covenant 4-piece sets, trade on the continental Grand Exchange,
               and clash in 3v3 Outpost Nexus sieges.
             </p>
 
@@ -2014,8 +2014,8 @@ export class LandingPageController {
 
             <div class="hero-specs-row">
               <div class="hero-spec-pill">
-                <div class="spec-val" style="color:#4ade80;">20Hz Tick</div>
-                <div class="spec-lbl">Authoritative MMO</div>
+                <div class="spec-val" style="color:#4ade80;">Online MMO</div>
+                <div class="spec-lbl">Authoritative Realm</div>
               </div>
               <div class="hero-spec-pill">
                 <div class="spec-val" style="color:#facc15;">4 Covenants</div>
@@ -2163,7 +2163,7 @@ export class LandingPageController {
             </span>
             <h2 class="section-heading">👑 CHOOSE YOUR EDITION</h2>
           </div>
-          <span style="font-size:12px; color:#94a3b8;">Play free up to Level 10 or unlock the complete continent forever</span>
+          <span style="font-size:12px; color:#94a3b8;">Play free up to Level 10 or unlock the complete content forever</span>
         </div>
 
         <div class="gf-editions-grid">
@@ -2182,7 +2182,7 @@ export class LandingPageController {
               <ul class="system-card-bullets" style="font-size:13px; color:#cbd5e1; gap:9px;">
                 <li class="system-card-bullet"><span class="bullet-icon" style="color:#38bdf8;">✓</span><span>All 4 Elemental Covenants &amp; 8 Playable Classes</span></li>
                 <li class="system-card-bullet"><span class="bullet-icon" style="color:#38bdf8;">✓</span><span>Character Progression up to <b>Level 10</b> &amp; Artisan Skills to <b>Lv. 30</b></span></li>
-                <li class="system-card-bullet"><span class="bullet-icon" style="color:#38bdf8;">✓</span><span>Both 0ms Offline Singleplayer &amp; 20Hz Stockholm Online Realm</span></li>
+                <li class="system-card-bullet"><span class="bullet-icon" style="color:#38bdf8;">✓</span><span>Both Offline Singleplayer &amp; Stockholm Online Realm</span></li>
                 <li class="system-card-bullet"><span class="bullet-icon" style="color:#38bdf8;">✓</span><span>30-Slot Sanctuary Bank Vault &amp; Friendly 1-HP Dueling</span></li>
               </ul>
             </div>
@@ -2198,11 +2198,11 @@ export class LandingPageController {
                   ★ CANONICAL FOUNDER'S EDITION
                 </span>
                 <div style="text-align:right;">
-                  <span style="font-family:var(--font-header); font-size:26px; font-weight:900; color:#facc15;">$19.99</span>
+                  <span style="font-family:var(--font-header); font-size:26px; font-weight:900; color:#facc15;">€6.99</span>
                   <div style="font-size:10px; color:#94a3b8; font-weight:700;">ONE-TIME LICENSE</div>
                 </div>
               </div>
-              <h3 style="font-family:var(--font-header); font-size:20px; color:#fff; margin:0 0 8px;">Complete Continental Access</h3>
+              <h3 style="font-family:var(--font-header); font-size:20px; color:#fff; margin:0 0 8px;">Complete Content Access</h3>
               <p style="font-size:13.5px; color:#cbd5e1; line-height:1.6; margin:0 0 18px;">
                 Unlock every endgame biome, Grand Exchange trading, Level 99 Mastery Capes, and exclusive Founder cosmetics.
               </p>
@@ -2649,7 +2649,7 @@ export class LandingPageController {
       return parts.length ? parts.join(' • ') : `${String(item.slot || 'gear').toUpperCase()} SLOT`;
     };
 
-    const setsList = Object.values(BARROWS_SETS || {});
+    const setsList = Object.values(CANONICAL_SETS || {});
     const runewordsList = Object.values(RUNEWORD_SYNERGIES || {});
 
     return `
@@ -2915,7 +2915,7 @@ export class LandingPageController {
             <div class="settings-toggle-row">
               <div>
                 <b style="color:#fff; font-size:11.5px; display:block;">Default Play Mode</b>
-                <span style="font-size:10px; color:#94a3b8;">Choose 0ms Singleplayer or 20Hz Online Multiplayer.</span>
+                <span style="font-size:10px; color:#94a3b8;">Choose Offline Singleplayer or Online Multiplayer.</span>
               </div>
               <div style="display:flex; gap:6px;">
                 <button type="button"
@@ -2943,7 +2943,7 @@ export class LandingPageController {
               </div>
               <div style="display:flex; justify-content:space-between; padding:8px 10px; background:rgba(0,0,0,0.4); border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
                 <span style="color:#cbd5e1;">Network Sync:</span>
-                <b style="color:#4ade80;">20Hz Authoritative Tick Loop</b>
+                <b style="color:#4ade80;">Authoritative Real-Time Sync</b>
               </div>
               <div style="display:flex; justify-content:space-between; padding:8px 10px; background:rgba(0,0,0,0.4); border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
                 <span style="color:#cbd5e1;">Artisan Cadence:</span>

@@ -63,6 +63,7 @@ import {
   ACHIEVEMENT_CATEGORIES,
   LORE_CODEX_ENTRIES,
   getUnlockedTitles,
+  isSameFactionProtectedMob,
 } from '../shared/protocol.js';
 import {
   initEmoteWheel,
@@ -566,7 +567,11 @@ export function initGame() {
 
   // Merchant UI and other modules read/write quest flags through these globals.
   try {
-    Object.defineProperty(window, 'questState', { get: () => questState, configurable: true });
+    Object.defineProperty(window, 'questState', {
+      get: () => questState,
+      set: (v) => { if (v && typeof v === 'object') questState = v; },
+      configurable: true,
+    });
   } catch (_) {
     window.questState = questState;
   }
@@ -787,6 +792,13 @@ export function initGame() {
     );
   }
 
+  globalThis.questCounter = questCounter;
+  globalThis.questFlag = questFlag;
+  globalThis.questNpcTalked = questNpcTalked;
+  globalThis.questVisited = questVisited;
+  globalThis.questProfessionGain = questProfessionGain;
+  globalThis.artisanQuestDone = artisanQuestDone;
+
   function loadQuestState({ syncServer = true } = {}) {
     let needsSave = false;
     try {
@@ -906,6 +918,9 @@ export function initGame() {
       }
     } catch (_) {
       questState = createDefaultQuestState();
+    }
+    if (typeof window !== 'undefined' && globalThis !== window) {
+      globalThis.questState = questState;
     }
 
     // High-level or experienced characters (like EWACH) should never be stuck on the Awakening tutorial:
@@ -1841,10 +1856,8 @@ export function initGame() {
 
     return `
       <div style="display:flex; flex-direction:column; gap:0; background:#060a14; border:2px solid ${reg.borderColor}; border-radius:6px; overflow:hidden; box-shadow:0 0 20px rgba(0,0,0,0.8);">
-        <!-- TOP EDGE SCROLL BAR (NORTH) -->
+        <!-- TOP EDGE CLICK BAR (NORTH) -->
         <div class="map-edge-scroll north"
-          onmouseenter="edgeHoverScroll('north')"
-          onmouseleave="cancelEdgeHoverScroll()"
           onclick="if ('${n.north || ''}') selectMapRegion('${n.north}', true)"
           style="
             height: 26px;
@@ -1861,16 +1874,14 @@ export function initGame() {
             user-select: none;
             letter-spacing: 0.5px;
           "
-          title="${northReg ? 'Hover or click to scroll North into ' + northReg.name : 'Northern Boundary'}">
-          ${northReg ? `▲ HOVER EDGE TO SCROLL NORTH: ${northReg.name.toUpperCase()} [${northReg.level}] ▲` : '— NORTHERN SEA BOUNDARY (THE FALL) —'}
+          title="${northReg ? 'Click to view North: ' + northReg.name : 'Northern Boundary'}">
+          ${northReg ? `▲ CLICK NORTH: ${northReg.name.toUpperCase()} [${northReg.level}] ▲` : '— NORTHERN SEA BOUNDARY (THE FALL) —'}
         </div>
 
         <!-- MIDDLE ROW: WEST BAR + SQUARE MAP CANVAS + EAST BAR -->
         <div style="display:flex; height: 340px; position:relative;">
-          <!-- LEFT EDGE SCROLL BAR (WEST) -->
+          <!-- LEFT EDGE CLICK BAR (WEST) -->
           <div class="map-edge-scroll west"
-            onmouseenter="edgeHoverScroll('west')"
-            onmouseleave="cancelEdgeHoverScroll()"
             onclick="if ('${n.west || ''}') selectMapRegion('${n.west}', true)"
             style="
               width: 26px;
@@ -1889,7 +1900,7 @@ export function initGame() {
               user-select: none;
               letter-spacing: 0.5px;
             "
-            title="${westReg ? 'Hover or click to scroll West into ' + westReg.name : 'Western Boundary'}">
+            title="${westReg ? 'Click to view West: ' + westReg.name : 'Western Boundary'}">
             ${westReg ? `◀ WEST: ${westReg.name.toUpperCase()}` : '— WEST BOUNDARY —'}
           </div>
 
@@ -2023,10 +2034,8 @@ export function initGame() {
             </div>
           </div>
 
-          <!-- RIGHT EDGE SCROLL BAR (EAST) -->
+          <!-- RIGHT EDGE CLICK BAR (EAST) -->
           <div class="map-edge-scroll east"
-            onmouseenter="edgeHoverScroll('east')"
-            onmouseleave="cancelEdgeHoverScroll()"
             onclick="if ('${n.east || ''}') selectMapRegion('${n.east}', true)"
             style="
               width: 26px;
@@ -2044,15 +2053,13 @@ export function initGame() {
               user-select: none;
               letter-spacing: 0.5px;
             "
-            title="${eastReg ? 'Hover or click to scroll East into ' + eastReg.name : 'Eastern Boundary'}">
+            title="${eastReg ? 'Click to view East: ' + eastReg.name : 'Eastern Boundary'}">
             ${eastReg ? `▶ EAST: ${eastReg.name.toUpperCase()}` : '— EAST BOUNDARY —'}
           </div>
         </div>
 
-        <!-- BOTTOM EDGE SCROLL BAR (SOUTH) -->
+        <!-- BOTTOM EDGE CLICK BAR (SOUTH) -->
         <div class="map-edge-scroll south"
-          onmouseenter="edgeHoverScroll('south')"
-          onmouseleave="cancelEdgeHoverScroll()"
           onclick="if ('${n.south || ''}') selectMapRegion('${n.south}', true)"
           style="
             height: 26px;
@@ -2069,8 +2076,8 @@ export function initGame() {
             user-select: none;
             letter-spacing: 0.5px;
           "
-          title="${southReg ? 'Hover or click to scroll South into ' + southReg.name : 'Southern Boundary'}">
-          ${southReg ? `▼ HOVER EDGE TO SCROLL SOUTH: ${southReg.name.toUpperCase()} [${southReg.level}] ▼` : '— SOUTHERN FRONTIER BOUNDARY —'}
+          title="${southReg ? 'Click to view South: ' + southReg.name : 'Southern Boundary'}">
+          ${southReg ? `▼ CLICK SOUTH: ${southReg.name.toUpperCase()} [${southReg.level}] ▼` : '— SOUTHERN FRONTIER BOUNDARY —'}
         </div>
       </div>
     `;
@@ -2080,6 +2087,7 @@ export function initGame() {
     const realmOrder = [
       'ABYSSAL_RIFT',
       'CELESTIAL_ASCENT',
+      'CHRONOCORE_CITADEL',
       'NEXUS_WARZONE',
       'STARFALL_CRATER',
       'NEXUS_FORGOTTEN_RUINS',
@@ -2087,7 +2095,13 @@ export function initGame() {
       'SANCTUARY_HUB',
       'SOLARI_CITADEL',
       'UMBRI_UNDERCITY',
-      'TERRA_ORCHARD'
+      'TERRA_ORCHARD',
+      'SOLAR_HIGHLANDS',
+      'SUNKEN_OASIS',
+      'IRONWOOD_TIMBERLANDS',
+      'CORAL_COAST',
+      'STARLIGHT_GROVE',
+      'MOONWELL_SANCTUM'
     ];
 
     return `
@@ -4236,6 +4250,46 @@ export function initGame() {
     }
   };
 
+  window.submitRedeemSerialKey = async function () {
+    const val = document.getElementById('serial-key-input')?.value?.trim() || '';
+    if (!val) {
+      renderAccountModal({ profile: localProfile, authTab: accountAuthTab, statusMsg: '⚠️ Please enter a valid GF-XXXX-XXXX-XXXX serial key.' });
+      return;
+    }
+    try {
+      const token = net.token || localStorage.getItem('glimmerfall_id_token') || '';
+      const res = await fetch('/api/account/redeem-key', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'X-GlimmerFall-Token': token } : {}),
+        },
+        body: JSON.stringify({ key: val, displayName: localProfile.displayName }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || 'Serial key redemption failed');
+      }
+      localStorage.setItem('gf_founder_serial_key', data.key?.key || val.toUpperCase());
+      audio.playLevelUp();
+      if (data.profile) {
+        applyProfile(data.profile);
+      } else {
+        localProfile.editionTier = 'founder';
+        localProfile.redeemedSerialKey = data.key?.key || val.toUpperCase();
+        localProfile.title = localProfile.title || 'FOUNDER';
+      }
+      renderAccountModal({
+        profile: localProfile,
+        authTab: accountAuthTab,
+        statusMsg: `👑 Redeemed Founder Serial Key (${data.key?.key || val.toUpperCase()})! [FOUNDER] Title unlocked!`,
+      });
+      logMessage(`👑 [FOUNDER EDITION] Serial key ${data.key?.key || val.toUpperCase()} redeemed! Welcome to the Founder's Covenant!`, 'log-solari', 'chat');
+    } catch (err) {
+      renderAccountModal({ profile: localProfile, authTab: accountAuthTab, statusMsg: `⚠️ ${err.message}` });
+    }
+  };
+
   window.submitTcgSsoLink = async function () {
     const val = document.getElementById('sso-tcg-handle')?.value?.trim() || '';
     try {
@@ -4431,10 +4485,35 @@ export function initGame() {
   // ==========================================
   // XP, Stats & Skill Ranks
   // ==========================================
+  function announceSpellUnlocksOnLevelUp(prevLevel, nextLevel) {
+    if (!nextLevel || nextLevel <= (prevLevel || 1)) return;
+    const resolved = resolveFactionAndClass({
+      faction: localProfile.faction,
+      classId: localProfile.classId,
+      loadout: localProfile.loadout,
+      orderTag: localProfile.orderTag,
+    });
+    const myFaction = resolved.faction;
+    const newlyAvailable = Object.values(ABILITIES_CATALOG)
+      .filter((ab) => ab.id !== 'harvest' && ab.faction === myFaction)
+      .filter((ab) => {
+        const reqLvl = ab.minLevel || 1;
+        return reqLvl > (prevLevel || 1) && reqLvl <= nextLevel;
+      })
+      .sort((a, b) => (a.minLevel || 1) - (b.minLevel || 1));
+
+    if (newlyAvailable.length > 0) {
+      const names = newlyAvailable.map((ab) => `${ab.icon || '✨'} ${ab.name} (${ab.type})`).join(', ');
+      logMessage(`📖 [SPELLBOOK UNLOCK!] New ${myFaction} Rites & Flashes available at Lv. ${nextLevel}: ${names} — Press [P] to learn!`, 'log-solari', 'combat');
+      spawnFCT(player.x, player.y - 26, `📖 NEW ${myFaction.toUpperCase()} SPELLS [P]!`, '#38bdf8', true);
+    }
+  }
+
   function awardXP(amount, reason = '') {
     if (amount <= 0) return;
     let leveled = false;
     let paragonLeveled = false;
+    const prevBaseLevel = prog.level || 1;
 
     if ((prog.level || 1) < MAX_BASE_LEVEL) {
       prog.xp = (prog.xp || 0) + amount;
@@ -4472,9 +4551,11 @@ export function initGame() {
         logMessage(`[PARAGON RESONANCE!] Attained Paragon Level ${prog.paragonLevel}! +1 Paragon Point!`, 'log-solari');
       } else {
         logMessage(`[LEVEL UP!] Reached Level ${prog.level}! +3 Stat Pts & +1 Spell Pt!`, 'log-solari');
+        announceSpellUnlocksOnLevelUp(prevBaseLevel, prog.level);
       }
       renderStatsModal();
       renderKeybindUI();
+      if (typeof renderSkillTreeUI === 'function') renderSkillTreeUI();
     } else if (reason) {
       logMessage(`[XP] +${amount} XP (${reason})`, 'log-gain');
     }
@@ -4820,7 +4901,7 @@ export function initGame() {
     }
   };
 
-  setupSkillGuidesUi({ getProg: () => prog, audio, toggleModal: (id) => window.toggleModal(id) });
+  setupSkillGuidesUi({ getProg: () => prog, getProfile: () => localProfile, audio, toggleModal: (id) => window.toggleModal(id) });
 
   window.allocateStat = function (statKey) {
     if (prog.statPoints <= 0 || !(statKey in prog.stats)) return;
@@ -6007,6 +6088,61 @@ export function initGame() {
             dialogue: AETHER_SPIRE_DIALOGUE,
           }
         );
+      } else if (resolvedRoomType === ROOM_TYPES.SUNKEN_OASIS) {
+        props.push(
+          { type: 'fountain', x: 0, y: 55, label: '💧 Heart of the Whispering Springs' },
+          { type: 'campfire', x: 0, y: 125, label: '🔥 Oasis Traveler Hearth' },
+          { type: 'woodenSign', x: -45, y: 155, label: '🪧 W: Glimmer Orchard | N: Coral Coast | S: Starlight Grove' },
+          { type: 'bountyBoard', isBountyBoard: true, x: 75, y: 145, label: '📜 Oasis Expedition Board [Click / E]' },
+          { type: 'terraAltar', stationId: 'terra_altar', x: -125, y: 145, label: '🌿 Oasis Botanical Loom [Click / E]' },
+          { type: 'flowerBed', x: -85, y: 75 },
+          { type: 'flowerBed', x: 85, y: 75 },
+          { type: 'flowerBed', x: -135, y: -35 },
+          { type: 'flowerBed', x: 135, y: -35 },
+          { type: 'crystalPillar', x: -165, y: 95 },
+          { type: 'crystalPillar', x: 165, y: 95 },
+          { type: 'stoneBench', x: -42, y: 55 },
+          { type: 'stoneBench', x: 42, y: 55 },
+          { type: 'streetLantern', x: -65, y: 125 },
+          { type: 'streetLantern', x: 65, y: 125 }
+        );
+      } else if (resolvedRoomType === ROOM_TYPES.SOLAR_HIGHLANDS) {
+        props.push(
+          { type: 'solariSundial', x: 0, y: 65, label: '☀️ Sunspire Zenith Sundial' },
+          { type: 'campfire', x: 0, y: 130, label: '🔥 Highland Expedition Brazier' },
+          { type: 'woodenSign', x: -45, y: 158, label: '🪧 N: Golden Citadel | W: Starfall Crater | E: Primordial Hollow' },
+          { type: 'bountyBoard', isBountyBoard: true, x: 80, y: 148, label: '📜 Sunspire Vanguard Board [Click / E]' },
+          { type: 'solariAnvil', stationId: 'solari_forge', x: -125, y: 148, label: '⚒️ Sunspire Crag Forge [Click / E]' },
+          { type: 'solariBanner', x: -95, y: 85 },
+          { type: 'solariBanner', x: 95, y: 85 },
+          { type: 'crystalPillar', x: -165, y: -55 },
+          { type: 'crystalPillar', x: 165, y: -55 },
+          { type: 'flowerBed', x: -90, y: 135 },
+          { type: 'flowerBed', x: 90, y: 135 },
+          { type: 'streetLantern', x: -60, y: 125 },
+          { type: 'streetLantern', x: 60, y: 125 }
+        );
+      } else if (resolvedRoomType === ROOM_TYPES.MOONWELL_SANCTUM) {
+        if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'SILVERMIST MOONWELL';
+        if (zoneLabel) zoneLabel.innerText = 'Silvermist Moonwell';
+        arenaBanner.style.display = 'none';
+        props.push(
+          { type: 'grandFountain', x: 0, y: 55, label: '🌙 Heart of the Silvermist Moonwell' },
+          { type: 'campfire', x: 0, y: 132, label: '🔥 Druid Circle Hearth' },
+          { type: 'woodenSign', x: -45, y: 160, label: '🪧 N: Starlight Grove | W: Sunspire Highlands | E: Coral Coast' },
+          { type: 'bountyBoard', isBountyBoard: true, x: 78, y: 148, label: '📜 Moonwell Sanctum Board [Click / E]' },
+          { type: 'terraAltar', stationId: 'terra_altar', x: -128, y: 148, label: '🌿 Silvermist Botanical Loom [Click / E]' },
+          { type: 'stoneBench', x: -46, y: 55 },
+          { type: 'stoneBench', x: 46, y: 55 },
+          { type: 'flowerBed', x: -85, y: 95 },
+          { type: 'flowerBed', x: 85, y: 95 },
+          { type: 'flowerBed', x: -125, y: -35 },
+          { type: 'flowerBed', x: 125, y: -35 },
+          { type: 'crystalPillar', x: -165, y: -75 },
+          { type: 'crystalPillar', x: 165, y: -75 },
+          { type: 'streetLantern', x: -62, y: 128 },
+          { type: 'streetLantern', x: 62, y: 128 }
+        );
       }
     }
   }
@@ -6222,6 +6358,64 @@ export function initGame() {
         { id: 'cc_node_1', name: 'Brinelight Abyssal Font', sub: 'Tidal Glimmer Font [E]', type: 'node', spriteKey: 'node', x: 0, y: -40, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
         { id: 'cc_boss', name: 'Triton the Tide-Reaver', sub: '★ Lv.20 Sovereign of the Reef', type: 'mob', isBoss: true, dropGear: 'tide_reaver_trident', spriteKey: 'tideReaverBoss', x: 0, y: -240, origX: 0, origY: -240, hp: 760, maxHp: 760, damage: 19, xpReward: 700, speed: 46, aggroRange: 150, attackRange: 36, radius: 24, hitFlash: 0 }
       );
+    } else if (currentRoomType === ROOM_TYPES.STARLIGHT_GROVE) {
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 180;
+      }
+      entities.push(
+        { id: 'sg_node_1', name: 'Starlight Heartwood Font', sub: 'Astral Grove Spire [E]', type: 'node', spriteKey: 'node', x: 0, y: -35, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
+        { id: 'sg_mob_1', name: 'Starlight Treant', sub: 'Lv.24 Ancient Guardian', type: 'mob', spriteKey: 'terraWarden', x: -130, y: 40, origX: -130, origY: 40, hp: 220, maxHp: 220, damage: 15, xpReward: 210, speed: 48, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'sg_mob_2', name: 'Starlight Treant', sub: 'Lv.24 Ancient Guardian', type: 'mob', spriteKey: 'terraWarden', x: 130, y: 40, origX: 130, origY: 40, hp: 220, maxHp: 220, damage: 15, xpReward: 210, speed: 48, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'sg_boss', name: 'Aethelgard the Starlight Ancient', sub: '★ Lv.32 Sovereign of the Grove', type: 'mob', isBoss: true, dropGear: 'ironwood_armor', spriteKey: 'elderBarkhide', x: 0, y: -240, origX: 0, origY: -240, hp: 960, maxHp: 960, damage: 22, xpReward: 920, speed: 42, aggroRange: 145, attackRange: 36, radius: 24, hitFlash: 0 }
+      );
+    } else if (currentRoomType === ROOM_TYPES.CHRONOCORE_CITADEL) {
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 200;
+      }
+      entities.push(
+        { id: 'ccit_node_1', name: 'Chronocore Singularity Spire', sub: 'Temporal Core [E]', type: 'node', spriteKey: 'node', x: 0, y: -40, charges: 6, maxCharges: 6, radius: 16, hitFlash: 0 },
+        { id: 'ccit_mob_1', name: 'Chronocore Warden', sub: 'Lv.38 Astral Guardian', type: 'mob', spriteKey: 'aetherWeaver', x: -140, y: 35, origX: -140, origY: 35, hp: 340, maxHp: 340, damage: 20, xpReward: 220, speed: 48, aggroRange: 120, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'ccit_mob_2', name: 'Riftweaver Automaton', sub: 'Lv.42 Temporal Construct', type: 'mob', spriteKey: 'aetherWeaver', x: 140, y: 35, origX: 140, origY: 35, hp: 390, maxHp: 390, damage: 22, xpReward: 260, speed: 50, aggroRange: 120, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'ccit_boss', name: 'Grand Chronocore Sovereign', sub: '★ Lv.50 Temporal Apex Boss', type: 'mob', isBoss: true, dropGear: 'chronos_singularity_core', spriteKey: 'aetherBoss', x: 0, y: -260, origX: 0, origY: -260, hp: 1650, maxHp: 1650, damage: 29, xpReward: 1400, speed: 48, aggroRange: 160, attackRange: 38, radius: 24, hitFlash: 0 }
+      );
+    } else if (currentRoomType === ROOM_TYPES.SUNKEN_OASIS) {
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 180;
+      }
+      entities.push(
+        { id: 'oasis_node_1', name: 'Whispering Oasis Font', sub: 'Verdant Spring Leyline [E]', type: 'node', spriteKey: 'node', x: 0, y: -25, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
+        { id: 'oasis_mob_1', name: 'Oasis Bloomwarden', sub: 'Lv.15 Spring Guardian', type: 'mob', spriteKey: 'terraWarden', x: -115, y: 35, origX: -115, origY: 35, hp: 155, maxHp: 155, damage: 11, xpReward: 165, speed: 50, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'oasis_mob_2', name: 'Oasis Bloomwarden', sub: 'Lv.15 Spring Guardian', type: 'mob', spriteKey: 'terraWarden', x: 115, y: 35, origX: 115, origY: 35, hp: 155, maxHp: 155, damage: 11, xpReward: 165, speed: 50, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'oasis_mob_3', name: 'Mistwater Strider', sub: 'Lv.18 Oasis Sentinel', type: 'mob', spriteKey: 'mobTerra', x: -95, y: -90, origX: -95, origY: -90, hp: 185, maxHp: 185, damage: 13, xpReward: 195, speed: 52, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'oasis_boss', name: 'Sylphira the Spring Matriarch', sub: '★ Lv.24 Sovereign of the Sunken Oasis', type: 'mob', isBoss: true, dropGear: 'primordial_bark_chest', spriteKey: 'elderBarkhide', x: 0, y: -225, origX: 0, origY: -225, hp: 720, maxHp: 720, damage: 18, xpReward: 680, speed: 42, aggroRange: 140, attackRange: 34, radius: 24, hitFlash: 0 }
+      );
+    } else if (currentRoomType === ROOM_TYPES.SOLAR_HIGHLANDS) {
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 180;
+      }
+      entities.push(
+        { id: 'highlands_node_1', name: 'Sunspire Zenith Conduit', sub: 'Radiant Crag Spire [E]', type: 'node', spriteKey: 'node', x: 0, y: -25, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
+        { id: 'highlands_mob_1', name: 'Sunspire Crag-Watcher', sub: 'Lv.18 Highland Sentinel', type: 'mob', spriteKey: 'solariSentinel', x: -120, y: 40, origX: -120, origY: 40, hp: 180, maxHp: 180, damage: 13, xpReward: 190, speed: 52, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'highlands_mob_2', name: 'Sunspire Crag-Watcher', sub: 'Lv.18 Highland Sentinel', type: 'mob', spriteKey: 'solariSentinel', x: 120, y: 40, origX: 120, origY: 40, hp: 180, maxHp: 180, damage: 13, xpReward: 190, speed: 52, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'highlands_mob_3', name: 'Ambergris Sun-Drake', sub: 'Lv.22 Solar Construct', type: 'mob', spriteKey: 'mobSolari', x: 95, y: -90, origX: 95, origY: -90, hp: 215, maxHp: 215, damage: 15, xpReward: 230, speed: 54, aggroRange: 120, attackRange: 30, radius: 16, hitFlash: 0 },
+        { id: 'highlands_boss', name: 'Helios-Vanguard the Sunspire Titan', sub: '★ Lv.28 Lord of Ambergris Crags', type: 'mob', isBoss: true, dropGear: 'sunfire_greatsword', spriteKey: 'solariBoss', x: 0, y: -230, origX: 0, origY: -230, hp: 890, maxHp: 890, damage: 21, xpReward: 820, speed: 42, aggroRange: 145, attackRange: 36, radius: 24, hitFlash: 0 }
+      );
+    } else if (currentRoomType === ROOM_TYPES.MOONWELL_SANCTUM) {
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 185;
+      }
+      entities.push(
+        { id: 'moonwell_node_1', name: 'Silvermist Moonwell Conduit', sub: 'Sacred Druid Leyline [E]', type: 'node', spriteKey: 'node', x: 0, y: -25, charges: 6, maxCharges: 6, radius: 16, hitFlash: 0 },
+        { id: 'moonwell_mob_1', name: 'Silvermist Grove-Keeper', sub: 'Lv.22 Moonwell Sentinel', type: 'mob', spriteKey: 'terraWarden', x: -125, y: 35, origX: -125, origY: 35, hp: 210, maxHp: 210, damage: 14, xpReward: 230, speed: 52, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'moonwell_mob_2', name: 'Silvermist Grove-Keeper', sub: 'Lv.22 Moonwell Sentinel', type: 'mob', spriteKey: 'terraWarden', x: 125, y: 35, origX: 125, origY: 35, hp: 210, maxHp: 210, damage: 14, xpReward: 230, speed: 52, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'moonwell_mob_3', name: 'Lunar Briar-Stalker', sub: 'Lv.26 Wilds Guardian', type: 'mob', spriteKey: 'mobTerra', x: -95, y: -95, origX: -95, origY: -95, hp: 245, maxHp: 245, damage: 16, xpReward: 270, speed: 55, aggroRange: 122, attackRange: 30, radius: 16, hitFlash: 0 },
+        { id: 'moonwell_boss', name: 'Archdruid Elaria of the Silvermist', sub: '★ Lv.32 Matriarch of the Moonwell Sanctum', type: 'mob', isBoss: true, dropGear: 'elder_treant_staff', spriteKey: 'elderBarkhide', x: 0, y: -235, origX: 0, origY: -235, hp: 960, maxHp: 960, damage: 22, xpReward: 920, speed: 44, aggroRange: 145, attackRange: 36, radius: 24, hitFlash: 0 }
+      );
     } else {
       player.x = 0;
       player.y = 1740;
@@ -6405,6 +6599,21 @@ export function initGame() {
     }
     if (currentRoomType === ROOM_TYPES.CORAL_COAST) {
       return ` • <span style="color:#06b6d4; font-weight:800;">[CORAL SHALLOWS]</span>`;
+    }
+    if (currentRoomType === ROOM_TYPES.SUNKEN_OASIS) {
+      return ` • <span style="color:#38bdf8; font-weight:800;">[SUNKEN OASIS]</span>`;
+    }
+    if (currentRoomType === ROOM_TYPES.SOLAR_HIGHLANDS) {
+      return ` • <span style="color:#facc15; font-weight:800;">[SUNSPIRE HIGHLANDS]</span>`;
+    }
+    if (currentRoomType === ROOM_TYPES.MOONWELL_SANCTUM) {
+      return ` • <span style="color:#4ade80; font-weight:800;">[SILVERMIST MOONWELL]</span>`;
+    }
+    if (currentRoomType === ROOM_TYPES.STARLIGHT_GROVE) {
+      return ` • <span style="color:#86efac; font-weight:800;">[STARLIGHT GROVE]</span>`;
+    }
+    if (currentRoomType === ROOM_TYPES.CHRONOCORE_CITADEL) {
+      return ` • <span style="color:#38bdf8; font-weight:800;">[CHRONOCORE]</span>`;
     }
     if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
       return ` • <span style="color:#f97316; font-weight:800;">[OPEN WARZONE]</span>`;
@@ -6640,7 +6849,10 @@ export function initGame() {
         prev.maxCharges = se.maxCharges;
         prev.frozen = se.frozen;
         prev.inCombat = Boolean(se.inCombat);
-        if (se.skillingType) prev.skillingType = se.skillingType;
+        if (se.name) prev.name = se.name;
+        if (se.sub) prev.sub = se.sub;
+        if (se.spriteKey) prev.spriteKey = se.spriteKey;
+        if (se.skillingType !== undefined) prev.skillingType = se.skillingType;
         if (se.eliteAffix) {
           prev.eliteAffix = se.eliteAffix;
           prev.name = se.name;
@@ -6956,6 +7168,9 @@ export function initGame() {
             time: performance.now(),
           };
           setupZoneDecor(msg.roomType, msg.roomTitle);
+          if (roomChanged) {
+            entities = [];
+          }
           if (msg.roomType !== ROOM_TYPES.SANCTUARY_HUB && !questState.portalTraveled) {
             questState.portalTraveled = true;
             saveQuestState();
@@ -6978,7 +7193,8 @@ export function initGame() {
           updateMythicHud();
           break;
 
-        case 'progression_sync':
+        case 'progression_sync': {
+          const prevSyncLevel = prog.level || 1;
           prog = {
             ...prog,
             ...msg.progression,
@@ -6994,6 +7210,7 @@ export function initGame() {
           if (msg.leveled) {
             audio.playLevelUp();
             logMessage(`[LEVEL UP!] Reached Level ${prog.level}! +3 Stat Pts & +1 Spell Pt!`, 'log-solari', 'combat');
+            announceSpellUnlocksOnLevelUp(prevSyncLevel, prog.level);
           } else if (msg.xpGained && msg.reason) {
             logMessage(`[XP] +${msg.xpGained} XP (${msg.reason})`, 'log-gain', 'combat');
           }
@@ -7023,6 +7240,7 @@ export function initGame() {
           }
           if (typeof renderSkillTreeUI === 'function') renderSkillTreeUI();
           break;
+        }
 
         case 'mob_killed': {
           onPlayerKilledMob(msg.roomType, msg.mobName, msg.isBoss, msg.mobId, msg.mobType);
@@ -7148,7 +7366,17 @@ export function initGame() {
 
         case 'party_state':
           currentParty = msg.party;
-          renderPartyHud(currentParty, net.playerId || localProfile.id);
+          renderPartyHud(currentParty, net.playerId || localProfile.id, {
+            id: net.playerId || localProfile.id,
+            name: localProfile.displayName,
+            faction: localProfile.faction,
+            level: prog.level,
+            hp: player.hp,
+            maxHp: player.maxHp,
+          });
+          if (document.getElementById('social-modal')?.style.display === 'block') {
+            refreshSocialModalView();
+          }
           break;
 
         case 'rooms_list':
@@ -7419,9 +7647,15 @@ export function initGame() {
   // ==========================================
   // Targeting & UI Updates
   // ==========================================
-  function isHostileEntity(ent) {
+  function isHostileEntity(ent, allowCurrentTarget = true) {
     if (!ent || ent.isDying || ent.type === 'ally_nexus') return false;
     if (ent.type === 'outpost_nexus' && ent.faction === localProfile.faction) return false;
+    if (ent.type === 'mob' && isSameFactionProtectedMob(currentRoomType, ent, localProfile.faction)) {
+      if (allowCurrentTarget && currentTarget && currentTarget.id === ent.id) {
+        return true;
+      }
+      return false;
+    }
     return true;
   }
 
@@ -7558,6 +7792,15 @@ export function initGame() {
       invBadge.style.display = invLen > 0 ? 'inline-block' : 'none';
       invBadge.innerText = `${invLen}`;
     }
+    const partySelfId = window.net?.playerId || localProfile.id;
+    renderPartyHud(currentParty, partySelfId, {
+      id: partySelfId,
+      name: localProfile.displayName || localProfile.name || 'Champion',
+      faction: localProfile.faction,
+      level: prog.level,
+      hp: player.hp,
+      maxHp: player.maxHp,
+    });
   }
 
   // ==========================================
@@ -7581,7 +7824,7 @@ export function initGame() {
     if (currentTarget && !currentTarget.isDying && currentTarget.type !== 'node' && currentTarget.type !== 'portal') {
       if (currentTarget.isRemotePlayer) {
         if (isRemoteHostile(remotePlayers.get(currentTarget.playerId) || {})) return currentTarget;
-      } else if (isHostileEntity(currentTarget)) {
+      } else if (isHostileEntity(currentTarget, true)) {
         return currentTarget;
       }
     }
@@ -7589,11 +7832,21 @@ export function initGame() {
     let bestD = maxDist;
     for (const e of getTargetableEntities()) {
       if (e.type === 'node' || e.type === 'portal') continue;
-      if (!e.isRemotePlayer && !isHostileEntity(e)) continue;
+      if (!e.isRemotePlayer && !isHostileEntity(e, false)) continue;
       const d = Math.hypot(e.x - player.x, e.y - player.y);
       if (d <= bestD) {
         bestD = d;
         best = e;
+      }
+    }
+    if (!best) {
+      for (const e of getTargetableEntities()) {
+        if (e.type !== 'mob') continue;
+        const d = Math.hypot(e.x - player.x, e.y - player.y);
+        if (d <= bestD) {
+          bestD = d;
+          best = e;
+        }
       }
     }
     if (best) setTarget(best);
@@ -8391,6 +8644,7 @@ export function initGame() {
     ent.hp = Math.max(0, ent.hp - dmg);
     ent.hitFlash = 0.14;
     if (ent.type === 'mob') {
+      ent.provokedByLocalPlayer = true;
       if (!ent.inCombat) {
         spawnFCT(ent.x, ent.y - 12, 'AGGRO!', '#ef4444');
       }
@@ -9380,6 +9634,13 @@ export function initGame() {
         const chosenId = chosen.id || chosen.itemId || 'sun_copper_ore';
         const qty = chosen.qty || 1;
         player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + (skSpec.glimmer || 12));
+        if (skSpec.isSpring) {
+          const healAmt = Math.max(8, Math.round(player.maxHp * (skSpec.healPct || 0.45)));
+          player.hp = Math.min(player.maxHp, player.hp + healAmt);
+          spawnFCT(player.x, player.y - 20, `💧 +${healAmt} HP SPRING BLESSING!`, '#38bdf8', true);
+          logMessage(`💧 The ${skSpec.name} restores +${healAmt} HP and +${skSpec.glimmer || 35} Glimmer!`, 'log-gain', 'combat');
+          updatePlayerUI();
+        }
         const added = addItemToBackpack(localProfile, chosenId, qty);
         if (added) {
           saveProgressionLocal();
@@ -10686,10 +10947,7 @@ export function initGame() {
     }
   }
 
-  let selectedGuideClassId = 'graveglass_oracle';
-
-  window.selectGuideClass = function (classId) {
-    selectedGuideClassId = classId;
+  window.selectGuideClass = function () {
     renderClassGuideUI();
   };
 
@@ -10697,162 +10955,127 @@ export function initGame() {
     const container = document.getElementById('class-guide-content');
     if (!container) return;
 
-    const currentClass = selectedGuideClassId || localProfile.classId || 'graveglass_oracle';
-    const classes = Object.values(CLASSES_CATALOG);
+    const resolved = resolveFactionAndClass({
+      faction: localProfile.faction,
+      classId: localProfile.classId,
+      loadout: localProfile.loadout,
+      orderTag: localProfile.orderTag,
+    });
+    const currentClass = resolved.classId;
+    const myFaction = resolved.faction;
+    const clsMeta = CLASSES_CATALOG[currentClass] || Object.values(CLASSES_CATALOG)[0];
+    const facMeta = FACTIONS_META[myFaction] || {};
+    const facColor = facMeta.color || '#facc15';
 
-    let html = `
-      <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:10px; border-bottom:1px solid #1e293b;">
-        ${classes.map((c) => {
-          const isActive = c.id === currentClass;
-          const fac = FACTIONS_META[c.faction] || {};
-          return `
-            <button type="button" class="st-tab-btn ${isActive ? 'active' : ''}" style="white-space:nowrap; font-size:10px; padding:4px 8px; border-color:${isActive ? (fac.color || '#facc15') : '#334155'}; color:${isActive ? (fac.color || '#facc15') : '#cbd5e1'};"
-              onclick="window.selectGuideClass('${c.id}')">
-              ${fac.icon || '⚔️'} ${c.name}
-            </button>
-          `;
-        }).join('')}
+    const factionAbilities = Object.values(ABILITIES_CATALOG)
+      .filter((ab) => ab.id !== 'harvest' && ab.faction === myFaction)
+      .sort((a, b) => (a.tier || 1) - (b.tier || 1) || (a.minLevel || 1) - (b.minLevel || 1));
+
+    const slotLabels = ['[1]', '[2]', '[3]', '[4]', '[Q]', '[E]', '[R]', '[F]'];
+    const recIds = [1, 2, 3, 4, 5, 6, 7, 8]
+      .map((s) => clsMeta?.defaultLoadout?.[s])
+      .filter((id) => id && ABILITIES_CATALOG[id] && ABILITIES_CATALOG[id].faction === myFaction);
+    for (const ab of factionAbilities) {
+      if (recIds.length >= 8) break;
+      if (!recIds.includes(ab.id)) recIds.push(ab.id);
+    }
+
+    const slotRowsHtml = recIds.slice(0, 8).map((id, idx) => {
+      const ab = ABILITIES_CATALOG[id];
+      if (!ab) return '';
+      return `
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:3px 0; gap:8px;">
+          <span style="color:${ab.color || facColor};"><b>${slotLabels[idx] || `[${idx + 1}]`} ${ab.name}</b> (${ab.type} • Lv.${ab.minLevel || 1})</span>
+          <span style="color:#94a3b8; text-align:right;">${ab.cost > 0 ? `${ab.cost} Glimmer` : 'Generates Glimmer'} • ${ab.cooldown}s CD</span>
+        </div>
+      `;
+    }).join('');
+
+    const tier1Flash = factionAbilities.find((a) => a.type === 'Flash' && (a.tier || 1) === 1) || factionAbilities[0];
+    const tier1Rite = factionAbilities.find((a) => a.type === 'Rite' && (a.tier || 1) <= 2) || factionAbilities[1] || tier1Flash;
+    const midFlashes = factionAbilities.filter((a) => a.type === 'Flash' && (a.tier || 1) >= 2 && (a.tier || 1) <= 5);
+    const highRites = factionAbilities.filter((a) => a.type === 'Rite' && (a.tier || 1) >= 3 && (a.tier || 1) <= 6);
+    const apexAbilities = factionAbilities.filter((a) => (a.tier || 1) >= 7);
+
+    const html = `
+      <div style="background:rgba(15,23,42,0.85); border:2px solid ${facColor}; border-radius:6px; padding:12px; margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+          <div>
+            <div style="font-family:var(--font-header); font-size:14px; font-weight:800; color:${facColor}; letter-spacing:0.5px;">
+              ${facMeta.icon || '⚔️'} ${(clsMeta?.name || currentClass).toUpperCase()} — ${myFaction.toUpperCase()} TACTICAL CODEX
+            </div>
+            <div style="font-size:10.5px; color:#e2e8f0; margin-top:2px;">
+              Faction: <b>${facMeta.icon || ''} ${myFaction} (${facMeta.title || ''})</b> • Role: <b>${clsMeta?.role || 'Champion'}</b>
+            </div>
+          </div>
+          <div style="background:#0f172a; border:1px solid ${facColor}; padding:4px 8px; border-radius:4px; font-size:9.5px; color:#facc15;">
+            EXCLUSIVE TO YOUR ${myFaction.toUpperCase()} PATH
+          </div>
+        </div>
+        <div style="font-size:10px; color:#94a3b8; margin-top:6px; line-height:1.4;">
+          ${clsMeta?.desc || ''}
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+        <div style="background:#090d1a; border:1px solid #334155; padding:10px; border-radius:4px;">
+          <div style="font-weight:700; color:#facc15; font-size:11px; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
+            ⚡ RECOMMENDED ${myFaction.toUpperCase()} 8-SLOT LOADOUT
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px; font-size:9.5px;">
+            ${slotRowsHtml}
+          </div>
+        </div>
+
+        <div style="background:#090d1a; border:1px solid #334155; padding:10px; border-radius:4px;">
+          <div style="font-weight:700; color:#38bdf8; font-size:11px; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
+            📊 STAT ALLOCATION &amp; SCALING (${clsMeta?.name || currentClass})
+          </div>
+          <div style="display:flex; flex-direction:column; gap:5px; font-size:9.5px; color:#cbd5e1; line-height:1.4;">
+            <div>
+              <b style="color:#facc15;">Power (Base ${clsMeta?.baseStats?.power || 5}):</b> Directly amplifies damage dealt by all ${myFaction} Flashes and heavy physical/elemental strikes.
+            </div>
+            <div>
+              <b style="color:#c084fc;">Resonance (Base ${clsMeta?.baseStats?.resonance || 5}):</b> Scales ${myFaction} Rite potency, healing/shielding strength, and expands your Maximum Glimmer pool.
+            </div>
+            <div>
+              <b style="color:#4ade80;">Bastion (Base ${clsMeta?.baseStats?.bastion || 5}):</b> Increases Maximum Health and fortifies your defensive mitigation against boss telegraphs.
+            </div>
+            <div>
+              <b style="color:#38bdf8;">Tempo (Base ${clsMeta?.baseStats?.tempo || 5}):</b> Accelerates Rite channel speed, lowers cooldowns, and boosts critical strike cadence.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#090d1a; border:1px solid #1e293b; padding:12px; border-radius:4px; margin-bottom:8px;">
+        <div style="font-weight:700; color:#fde047; font-size:11.5px; margin-bottom:8px; font-family:var(--font-header);">
+          ⚔️ ${myFaction.toUpperCase()} COMBAT ROTATION &amp; SPELLBOOK PROGRESSION
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; font-size:10px; color:#cbd5e1; line-height:1.45;">
+          <div>
+            <b style="color:#facc15;">1. Glimmer Builder (Lv. 1 Starter Flash):</b>
+            Open with <b>${tier1Flash?.name || 'Starter Flash'} [1]</b> to strike immediately and generate Glimmer reserves without cast time.
+          </div>
+          <div>
+            <b style="color:#38bdf8;">2. Core Channeled Rite (Lv. ${tier1Rite?.minLevel || 1}+):</b>
+            Spend your Glimmer channeling <b>${tier1Rite?.name || 'Core Rite'}</b> (${tier1Rite?.desc || ''}).
+          </div>
+          <div>
+            <b style="color:#4ade80;">3. Tactical Utility &amp; Mobility Flashes (Lv. 3–18):</b>
+            Unlock ${midFlashes.map((a) => `<b>${a.name}</b> (Lv.${a.minLevel})`).join(', ') || `mid-tier ${myFaction} Flashes`} in the <b>⚡ Flashes</b> tab to dodge boss telegraphs, shield yourself, and control positioning.
+          </div>
+          <div>
+            <b style="color:#c084fc;">4. High-Tier ${myFaction} Rites (Lv. 6–24):</b>
+            Invest Skill Points into ${highRites.map((a) => `<b>${a.name}</b> (Lv.${a.minLevel})`).join(', ') || `high-tier ${myFaction} Rites`} in the <b>☀️ Rites</b> tab to dominate dungeon elites and multi-phase bosses.
+          </div>
+          <div>
+            <b style="color:#ef4444;">5. Level 30 Capstone Apex:</b>
+            At Level 30, unlock your ultimate ${myFaction} capstones: ${apexAbilities.map((a) => `<b>${a.name}</b> (${a.type})`).join(' &amp; ') || 'Tier 7 Apex Spells'}!
+          </div>
+        </div>
       </div>
     `;
-
-    if (currentClass === 'graveglass_oracle') {
-      html += `
-        <div style="background:rgba(15,23,42,0.85); border:2px solid #a855f7; border-radius:6px; padding:12px; margin-bottom:10px;">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
-            <div>
-              <div style="font-family:var(--font-header); font-size:14px; font-weight:800; color:#c084fc; letter-spacing:0.5px;">
-                🔮 GRAVEGLASS ORACLE — OFFICIAL TACTICAL CODEX
-              </div>
-              <div style="font-size:10.5px; color:#e9d5ff; margin-top:2px;">
-                Faction: <b>🌑 Umbri (The Shadow)</b> • Role: <b>Blood-Hex Reaper &amp; Life Drain Mystic</b>
-              </div>
-            </div>
-            <div style="background:#1e1b4b; border:1px solid #7c3aed; padding:4px 8px; border-radius:4px; font-size:9.5px; color:#facc15;">
-              STAT PRIORITY: Resonance ≫ Power ≫ Tempo ≫ Bastion
-            </div>
-          </div>
-          <div style="font-size:10px; color:#94a3b8; margin-top:6px; line-height:1.4;">
-            The Graveglass Oracle is an ancient Umbri sorcerer wielding shattered sepulcher crystal and necrotic rites. By draining the life-force of adversaries into their own health pool and collapsing wounded enemies with Void executions, the Oracle is virtually unkillable in sustained combat.
-          </div>
-        </div>
-
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-          <div style="background:#090d1a; border:1px solid #334155; padding:10px; border-radius:4px;">
-            <div style="font-weight:700; color:#facc15; font-size:11px; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
-              ⚡ RECOMMENDED 8-SLOT ACTION BAR
-            </div>
-            <div style="display:flex; flex-direction:column; gap:4px; font-size:9.5px;">
-              <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:2px 0;">
-                <span style="color:#c084fc;"><b>[1] Whisper of the Void</b> (Flash)</span>
-                <span style="color:#94a3b8;">Instant Cleave • Generates Glimmer</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:2px 0;">
-                <span style="color:#f43f5e;"><b>[2] Siphon Soul</b> (Rite)</span>
-                <span style="color:#4ade80;">20y Drain • Heals 60% of DMG dealt</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:2px 0;">
-                <span style="color:#e879f9;"><b>[3] Soul Tithe</b> (Rite)</span>
-                <span style="color:#38bdf8;">Void Bolt • Drains HP, +24 Glimmer</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:2px 0;">
-                <span style="color:#a855f7;"><b>[4] Nightfall Plague</b> (Rite)</span>
-                <span style="color:#fde047;">6s AoE Miasma • -45% Slow &amp; Void DoT</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:2px 0;">
-                <span style="color:#c084fc;"><b>[Q] Graveglass Ward</b> (Flash)</span>
-                <span style="color:#38bdf8;">Spectral Shield • Absorbs incoming hits</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:2px 0;">
-                <span style="color:#9333ea;"><b>[E] Veil of Dusk</b> (Flash)</span>
-                <span style="color:#a855f7;">3.5s Stealth • Drops Aggro • +35% Spd</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:2px 0;">
-                <span style="color:#c084fc;"><b>[R] Shadow Step</b> (Flash)</span>
-                <span style="color:#38bdf8;">16y Blink • Teleport behind target</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding:2px 0;">
-                <span style="color:#e11d48;"><b>[F] Unmake</b> (Rite)</span>
-                <span style="color:#ef4444;">Execute • +50% DMG if target &lt;50% HP</span>
-              </div>
-            </div>
-          </div>
-
-          <div style="background:#090d1a; border:1px solid #334155; padding:10px; border-radius:4px;">
-            <div style="font-weight:700; color:#38bdf8; font-size:11px; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
-              📊 STAT ALLOCATION &amp; SCALING
-            </div>
-            <div style="display:flex; flex-direction:column; gap:5px; font-size:9.5px; color:#cbd5e1; line-height:1.4;">
-              <div>
-                <b style="color:#c084fc;">Resonance:</b> Your primary attribute. Scales your Siphon Soul healing output, multiplies Nightfall Plague tick damage, and directly thickens your Graveglass Ward barrier.
-              </div>
-              <div>
-                <b style="color:#facc15;">Power:</b> Increases baseline necrotic damage on all Rites and pushes Unmake execute damage into lethal one-shot territory.
-              </div>
-              <div>
-                <b style="color:#38bdf8;">Tempo:</b> Lowers cast times on Siphon Soul (1.0s) and Unmake (1.3s) while speeding up global rite cycling.
-              </div>
-              <div>
-                <b style="color:#4ade80;">Bastion:</b> Provides passive defensive padding against unexpected physical bursts.
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div style="background:#090d1a; border:1px solid #1e293b; padding:12px; border-radius:4px; margin-bottom:8px;">
-          <div style="font-weight:700; color:#fde047; font-size:11.5px; margin-bottom:8px; font-family:var(--font-header);">
-            ⚔️ STEP-BY-STEP COMBAT ROTATION &amp; TACTICAL PLAYBOOK
-          </div>
-          <div style="display:flex; flex-direction:column; gap:6px; font-size:10px; color:#cbd5e1; line-height:1.45;">
-            <div>
-              <b style="color:#facc15;">1. The Opener (Area Control):</b>
-              Cast <b>Nightfall Plague [4]</b> at the start of any encounter or pack pull. The 45% slow shackles enemies in place while the Duskveil miasma continuously chips away at their health for 6 seconds.
-            </div>
-            <div>
-              <b style="color:#38bdf8;">2. Glimmer Harvest &amp; Ranged Poke:</b>
-              Fire <b>Soul Tithe [3]</b> on cooldown to drain health and generate <b>+24 Glimmer</b>. In close proximity, slash with <b>Whisper of the Void [1]</b> to sustain your Glimmer reserves without burning cast time.
-            </div>
-            <div>
-              <b style="color:#4ade80;">3. The Life-Drain Channel (Infinite Sustain):</b>
-              Whenever your health bar drops below 80%, channel <b>Siphon Soul [2]</b> from up to 20 yards away. It leeches vitality every fraction of a second and immediately heals you for <b>60% of all damage dealt</b>.
-            </div>
-            <div>
-              <b style="color:#c084fc;">4. Defensive Shielding &amp; Resetting:</b>
-              Activate <b>Graveglass Ward [Q]</b> when bosses begin wind-up telegraphs. If overwhelmed by mob swarms, press <b>Veil of Dusk [E]</b> to drop all monster aggro instantly, gain +35% sprint speed, and safely retreat.
-            </div>
-            <div>
-              <b style="color:#ef4444;">5. The Executioner's Rite (Unmake):</b>
-              Watch target health bars vigilantly. As soon as a boss or player dips below <b>50% HP</b>, cast <b>Unmake [F]</b> for a colossal void collapse that receives a <b>+50% damage amplification</b>, vaporizing targets instantly.
-            </div>
-            <div>
-              <b style="color:#a855f7;">6. Level 30 Endgame Apex:</b>
-              At Rank 30, activate <b>Avatar of the Void</b> for 8 seconds of doubled life leech, 100% critical strike chance, and +40% movement speed, then cast <b>Void Annihilation</b> to draw the entire battlefield into a catastrophic singularity!
-            </div>
-          </div>
-        </div>
-      `;
-    } else {
-      const clsMeta = CLASSES_CATALOG[currentClass];
-      const facMeta = FACTIONS_META[clsMeta?.faction] || {};
-      html += `
-        <div style="background:rgba(15,23,42,0.85); border:2px solid ${facMeta.color || '#38bdf8'}; border-radius:6px; padding:12px; margin-bottom:10px;">
-          <div style="font-family:var(--font-header); font-size:13.5px; font-weight:800; color:${facMeta.color || '#facc15'};">
-            ${facMeta.icon || '⚔️'} ${clsMeta?.name?.toUpperCase() || currentClass}
-          </div>
-          <div style="font-size:10.5px; color:#e2e8f0; margin-top:2px;">
-            Faction: <b>${clsMeta?.faction}</b> • Role: <b>${clsMeta?.role}</b>
-          </div>
-          <div style="font-size:10px; color:#94a3b8; margin-top:6px; line-height:1.4;">
-            ${clsMeta?.desc || ''}
-          </div>
-          <div style="font-size:9.5px; color:#facc15; margin-top:8px;">
-            Default Gear: ${clsMeta?.defaultEquipment?.weapon || 'Standard'} • ${clsMeta?.defaultEquipment?.armor || 'Standard'} • ${clsMeta?.defaultEquipment?.offhand || 'Standard'}
-          </div>
-        </div>
-        <div style="font-size:10.5px; color:#cbd5e1; background:#090d1a; padding:10px; border-radius:4px; border:1px solid #1e293b;">
-          Click <b>Graveglass Oracle</b> above to inspect detailed rotations, ability cards, stat weightings, and tactical combat guides.
-        </div>
-      `;
-    }
 
     container.innerHTML = html;
   }
@@ -10947,6 +11170,8 @@ export function initGame() {
         faction: localProfile.faction,
         orderTag: localProfile.orderTag,
         level: prog.level,
+        hp: player.hp,
+        maxHp: player.maxHp,
       },
       ...Array.from(remotePlayers.values()),
     ];
@@ -10955,6 +11180,7 @@ export function initGame() {
       currentRoomId,
       roomPlayers,
       selfId: net.playerId || localProfile.id,
+      party: currentParty,
     });
     updateTouchUiButtons(document.body.classList.contains('touch-mode'));
   }
@@ -11642,15 +11868,19 @@ export function initGame() {
     const isRestingByCampfire = props.some((pr) => pr.type === 'campfire' && Math.hypot(pr.x - player.x, pr.y - player.y) <= 85);
     const campfireRegen = isRestingByCampfire ? 5.0 : 0;
 
-    // Vitality Health Regeneration (+2.5 HP/s baseline + 0.5 HP/s per Terra Bulwark point + Campfire Warmth)
-    const hpRegen = calcHpRegenPerSec(prog) + campfireRegen;
+    // Sacred Healing Spring aura (+6.0 HP/s and +6.0 Glimmer/s near an active healing spring)
+    const isNearHealingSpring = entities.some((e) => e.type === 'node' && e.skillingType === 'healing_spring' && (e.charges ?? 0) > 0 && Math.hypot(e.x - player.x, e.y - player.y) <= 75);
+    const springRegen = isNearHealingSpring ? 6.0 : 0;
+
+    // Vitality Health Regeneration (+2.5 HP/s baseline + 0.5 HP/s per Terra Bulwark point + Campfire/Spring)
+    const hpRegen = calcHpRegenPerSec(prog) + campfireRegen + springRegen;
     if (hpRegen > 0 && !player.isDead && player.hp < player.maxHp) {
       player.hp = Math.min(player.maxHp, player.hp + hpRegen * dt);
     }
 
-    // Baseline Glimmer resonance recovery (+3.5 Glimmer/s + Campfire Warmth)
+    // Baseline Glimmer resonance recovery (+3.5 Glimmer/s + Campfire/Spring)
     if (!player.isDead && player.solarCharge < player.maxSolarCharge) {
-      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + (3.5 + campfireRegen) * dt);
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + (3.5 + campfireRegen + springRegen) * dt);
     }
 
     if (player.slashTimer > 0) player.slashTimer = Math.max(0, player.slashTimer - dt);
@@ -11974,8 +12204,9 @@ export function initGame() {
         const speed = e.speed || (e.isBoss ? 38 : 52);
         const playerStealthed = Boolean(player.stealthed);
 
-        // Proximity aggro trigger
-        if (!e.inCombat && !player.isDead && !playerStealthed && dist <= aggroRange) {
+        const protectedSameFaction = isSameFactionProtectedMob(currentRoomType, e, localProfile.faction);
+        // Proximity aggro trigger (skipped for unprovoked same-faction mobs in their faction's city/territory)
+        if (!e.inCombat && !protectedSameFaction && !player.isDead && !playerStealthed && dist <= aggroRange) {
           e.inCombat = true;
           spawnFCT(e.x, e.y - 12, 'AGGRO!', '#ef4444');
           audio.playHit(false);
@@ -11985,6 +12216,7 @@ export function initGame() {
         if (e.inCombat) {
           if (player.isDead || playerStealthed) {
             e.inCombat = false;
+            e.provokedByLocalPlayer = false;
           }
 
           // Leash check: return home if dragged too far
@@ -11994,6 +12226,7 @@ export function initGame() {
 
           if (distHome > 240) {
             e.inCombat = false;
+            e.provokedByLocalPlayer = false;
             e.x = origX;
             e.y = origY;
             e.hp = e.maxHp;
@@ -12007,12 +12240,12 @@ export function initGame() {
               const hpPercent = (e.hp / e.maxHp) * 100;
               e.phase = e.phase || 1;
 
-              // Phase 2: Frenzy & Minions at 65% HP
-              if (hpPercent <= 65 && e.phase === 1) {
+              // Phase 2: Awakened Covenant Wrath & Minions at 70% HP
+              if (hpPercent <= 70 && e.phase === 1) {
                 e.phase = 2;
                 e.baseDamage = e.baseDamage || e.damage || 7;
                 e.damage = Math.floor(e.baseDamage * 1.35);
-                logMessage(`⚡ ${e.name} roars into Phase 2, summoning guardians!`, 'log-combat');
+                logMessage(`⚡ ${e.name} enters Phase 2 (Awakened Covenant Wrath), summoning guardians & Twin Telegraph Barrage!`, 'log-combat');
                 spawnSparkBurst(e.x, e.y, ['#ef4444', '#f59e0b', '#facc15'], 28);
                 for (let m = 0; m < 3; m++) {
                   entities.push({
@@ -12039,16 +12272,16 @@ export function initGame() {
                 }
               }
 
-              // Phase 3: Enrage & Area Shockwaves at 40% HP (Shattered Nexus cannot enrage)
+              // Phase 3: Cataclysmic Overdrive & Multi-Ring Shockwaves at 35% HP (Shattered Nexus cannot enrage)
               const isNexusShard = e.type === 'siege_shard' || e.id === 'siege_shard' || (e.name && e.name.includes('Nexus'));
               if (isNexusShard) {
                 e.enraged = false;
-              } else if (hpPercent <= 40 && e.phase === 2) {
+              } else if (hpPercent <= 35 && e.phase === 2) {
                 e.phase = 3;
                 e.enraged = true;
                 e.baseDamage = e.baseDamage || e.damage || 7;
                 e.damage = Math.floor(e.baseDamage * 1.6);
-                logMessage(`🔥 BEWARE: ${e.name} has ENRAGED! Ground shockwaves inbound!`, 'log-combat');
+                logMessage(`🔥 BEWARE: ${e.name} has entered Phase 3 (Cataclysmic Overdrive)! Multi-ring ground shockwaves inbound!`, 'log-combat');
                 spawnSparkBurst(e.x, e.y, ['#dc2626', '#b91c1c', '#7f1d1d'], 36);
               }
 
@@ -12123,6 +12356,29 @@ export function initGame() {
                   bossRef: e,
                   snare: (e.spriteKey === 'graniteBoss' || e.spriteKey === 'elderBarkhide') ? 2.5 : 0,
                 });
+
+                if (e.phase >= 2) {
+                  const ringCount = e.enraged ? 2 : 1;
+                  for (let rIdx = 0; rIdx < ringCount; rIdx++) {
+                    const angle = (rIdx * Math.PI) + (Math.random() * Math.PI);
+                    const dist = 55 + Math.random() * 45;
+                    groundZones.push({
+                      id: `off_tel_${Date.now()}_${rIdx}_${Math.random().toString(36).slice(2, 5)}`,
+                      type: 'telegraph',
+                      color: telColor,
+                      label: `${telLabel} AFTERSHOCK`,
+                      x: tgtX + Math.cos(angle) * dist,
+                      y: tgtY + Math.sin(angle) * dist,
+                      radius: Math.round(shockRad * 0.65),
+                      age: 0,
+                      maxAge: warnDuration + 0.35,
+                      damage: Math.round(shockDmg * 0.75),
+                      bossName: e.name,
+                      bossRef: e,
+                      snare: 0,
+                    });
+                  }
+                }
               }
             } else if (e.eliteAffix || (e.maxHp >= 100 && e.type === 'mob')) {
               // High-tier / Elite Monster Telegraphed Ability (1.2-1.45s reactive dodge ring)
@@ -13363,6 +13619,21 @@ export function initGame() {
           if (Array.isArray(img)) img = img[0];
           if (!img || !(img instanceof HTMLCanvasElement || img instanceof HTMLImageElement || (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap))) return;
           const isGrandNode = ent.type === 'node' && Boolean(ent.isGrand);
+          const isHealingSpring = ent.type === 'node' && ent.skillingType === 'healing_spring';
+          if (isHealingSpring && (ent.charges ?? 0) > 0) {
+            const pulse = 0.85 + Math.sin(globalTime * 3.2 + Math.abs(ent.x)) * 0.15;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.ellipse(sx, sy, 20 * pulse, 8 * pulse, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(74, 222, 128, 0.18)';
+            ctx.beginPath();
+            ctx.ellipse(sx, sy, 15 * pulse, 6 * pulse, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
           if (isGrandNode) {
             const pulse = 0.82 + Math.sin(globalTime * 2.4) * 0.12;
             const auraW = Math.round(img.width * 1.05);
@@ -13507,6 +13778,8 @@ export function initGame() {
             }
           } else if (!ent.isDying) {
             const isTombstone = ent.type === 'graveglass_tombstone';
+            const skSpecDraw = ent.type === 'node' && ent.skillingType ? SKILLING_NODE_TYPES[ent.skillingType] : null;
+            const eliteSpecDraw = ent.eliteAffix ? ELITE_AFFIXES[ent.eliteAffix] : null;
             const val = ent.hp ?? ent.charges ?? 0;
             const max = ent.maxHp ?? ent.maxCharges ?? 1;
             const isBossOrCore = ent.isBoss || ent.type === 'nexus' || ent.type === 'ally_nexus' || ent.type === 'outpost_nexus' || ent.type === 'siege_shard';
@@ -13520,13 +13793,13 @@ export function initGame() {
               ctx.fillRect(bx - 1, by - 1, bw + 2, 5);
               ctx.fillStyle = '#1e293b';
               ctx.fillRect(bx, by, bw, 3);
-              const skSpecDraw = ent.type === 'node' && ent.skillingType ? SKILLING_NODE_TYPES[ent.skillingType] : null;
-              const eliteSpecDraw = ent.eliteAffix ? ELITE_AFFIXES[ent.eliteAffix] : null;
+              const isAlliedFactionMob = ent.type === 'mob' && isSameFactionProtectedMob(currentRoomType, ent, localProfile.faction, net.playerId || localProfile.id);
               ctx.fillStyle =
                 ent.type === 'node' ? (skSpecDraw?.sparkColors?.[0] || '#c084fc') :
                 ent.type === 'siege_shard' ? '#fde047' :
                 ent.type === 'outpost_nexus' ? (FACTIONS_META[ent.faction]?.color || '#38bdf8') :
                 ent.type === 'ally_nexus' ? '#38bdf8' :
+                isAlliedFactionMob ? '#4ade80' :
                 eliteSpecDraw ? (eliteSpecDraw.color || '#facc15') :
                 '#ef4444';
               ctx.fillRect(bx, by, Math.round((val / max) * bw), 3);
@@ -14064,7 +14337,14 @@ export function initGame() {
   updateActionBarBadges();
   renderKeybindUI();
   renderStatsModal();
-  renderPartyHud(null, localProfile.id);
+  renderPartyHud(currentParty, localProfile.id, {
+    id: localProfile.id,
+    name: localProfile.displayName,
+    faction: localProfile.faction,
+    level: prog.level,
+    hp: player.hp,
+    maxHp: player.maxHp,
+  });
   updateQuestTrackerHUD();
 
   if (frontpage.playMode !== 'multiplayer' || frontpage.isOpen || (window._landing && window._landing.isOpen)) {

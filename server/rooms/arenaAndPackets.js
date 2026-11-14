@@ -43,6 +43,7 @@ import {
   calcHolyRadianceBurstDmg,
   calcMoveSpeedMult,
   isWaterTile,
+  isSameFactionProtectedMob,
   PROFESSIONS_CATALOG,
   PROFESSION_MASTERY_CAPES,
   getProfessionLevelFromXp,
@@ -325,7 +326,7 @@ export const arenaAndPacketsMethods = {
     return pA.faction === pB.faction;
   },
 
-  canDamageEntity(room, player, ent) {
+  canDamageEntity(room, player, ent, primaryTargetId = null) {
     if (!ent || ent.isDying || ent.type === 'node' || ent.type === 'portal') return false;
     if (room.type === ROOM_TYPES.ARENA_3V3) {
       const pTeam = player.team || 'blue';
@@ -336,6 +337,10 @@ export const arenaAndPacketsMethods = {
       return false;
     } else if (ent.type === 'outpost_nexus' && ent.faction === player.faction) {
       // Cannot damage your own Faction's Outpost Nexus!
+      return false;
+    } else if (ent.type === 'mob' && player && isSameFactionProtectedMob(room.type, ent, player.faction, player.id)) {
+      // Unprovoked same-faction creeps in faction cities are only damaged if explicitly targeted
+      if (primaryTargetId && ent.id === primaryTargetId) return true;
       return false;
     }
     return true;

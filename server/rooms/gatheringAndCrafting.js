@@ -163,6 +163,19 @@ export const gatheringAndCraftingMethods = {
       const qty = chosen.qty || 1;
 
       this.addPlayerGlimmer(room, player, skSpec.glimmer || 12);
+      if (skSpec.isSpring) {
+        const healAmt = Math.max(8, Math.round(player.maxHp * (skSpec.healPct || 0.45)));
+        player.hp = Math.min(player.maxHp, player.hp + healAmt);
+        this.parties?.syncPlayerVitals?.(player.id);
+        room.fxQueue.push({
+          kind: 'fct',
+          x: player.x,
+          y: player.y - 16,
+          text: `💧 +${healAmt} HP SPRING REJUVENATION!`,
+          color: '#38bdf8',
+          isCrit: true,
+        });
+      }
       const added = this.accounts.addItemToInventory(player.id, chosenId, qty);
       const itemDef = EQUIPMENT_CATALOG[chosenId];
 

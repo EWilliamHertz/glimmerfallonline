@@ -1046,6 +1046,7 @@ export class FrontpageController {
       // Heroic stance: facing camera (down) in neutral stance (frame 0) matching in-game idle
       this.drawPaperdollPreviewCanvas('fp-paperdoll-canvas', 'down', 0);
     }, 500);
+    this.previewAnimTimer?.unref?.();
   }
 
   drawPaperdollPreviewCanvas(canvasId, dir = 'down', frameIdx = 0) {
@@ -1272,9 +1273,15 @@ export class FrontpageController {
           <button type="button" class="util-btn" style="font-size:10px; padding:3px 8px; border-color:#38bdf8; color:#7dd3fc; font-weight:bold;" onclick="if(window.openLandingPage){window.openLandingPage();}else if(window._landing){window._landing.open();}else{var lp=document.getElementById('landing-overlay');var fp=document.getElementById('frontpage-overlay');if(fp)fp.style.display='none';if(lp)lp.style.display='block';}">
             📖 LANDING &amp; ENCYCLOPEDIAS
           </button>
-          <a href="https://www.glimmerfalltcg.com" target="_blank" rel="noreferrer" class="util-btn" style="text-decoration:none; border-color:#facc15; color:#fde047; font-size:10px; padding:3px 8px; font-weight:bold;" title="Official GlimmerFall Trading Card Game">
-            🃏 GLIMMERFALLTCG.COM ↗
-          </a>
+          ${(prof?.editionTier === 'founder' || (typeof localStorage !== 'undefined' && localStorage.getItem('gf_founder_serial_key'))) ? `
+            <span class="util-btn" style="border-color:#facc15; background:rgba(250,204,21,0.16); color:#fde047; font-size:10px; padding:3px 8px; font-weight:bold;">
+              👑 FOUNDER EDITION ACTIVE
+            </span>
+          ` : `
+            <button type="button" class="util-btn" style="border-color:#facc15; color:#fde047; font-size:10px; padding:3px 8px; font-weight:bold;" onclick="window._fp.promptRedeemSerialKey()">
+              🔑 REDEEM SERIAL KEY (€6.99)
+            </button>
+          `}
 
           <!-- Account Badge / Quick Auth -->
           ${prof && !prof.isGuest ? `
@@ -1646,6 +1653,44 @@ export class FrontpageController {
         </div>
       </div>
     `;
+  }
+  async promptRedeemSerialKey() {
+    const rawKey = typeof window !== 'undefined' ? window.prompt('Enter your GlimmerFall Founder Serial Key (GF-XXXX-XXXX-XXXX):') : '';
+    if (!rawKey) return;
+    try {
+      const token = this.net?.token || localStorage.getItem('glimmerfall_id_token') || '';
+      const res = await fetch('/api/account/redeem-key', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'X-GlimmerFall-Token': token } : {}),
+        },
+        body: JSON.stringify({
+          key: rawKey.trim(),
+          displayName: this.net?.profile?.displayName || this.getSelectedCharacter()?.name || 'Adventurer',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        this.authMessage = `⚠️ ${data.error || 'Could not redeem serial key.'}`;
+        this.render();
+        return;
+      }
+      localStorage.setItem('gf_founder_serial_key', data.key?.key || rawKey.trim().toUpperCase());
+      if (data.profile && this.net) {
+        this.net.profile = data.profile;
+        this.syncFromProfile(data.profile);
+      } else if (this.net?.profile) {
+        this.net.profile.editionTier = 'founder';
+        this.net.profile.title = this.net.profile.title || 'FOUNDER';
+      }
+      if (this.audio?.playLevelUp) this.audio.playLevelUp();
+      this.authMessage = `👑 Founder's Edition Serial Key (${data.key?.key || rawKey.trim().toUpperCase()}) redeemed! [FOUNDER] Title & Full Access unlocked!`;
+      this.render();
+    } catch (err) {
+      this.authMessage = `⚠️ Redemption error: ${err.message}`;
+      this.render();
+    }
   }
 }
 

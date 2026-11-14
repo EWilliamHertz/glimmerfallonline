@@ -44,6 +44,7 @@ import {
   calcHolyRadianceBurstDmg,
   calcMoveSpeedMult,
   isWaterTile,
+  isSameFactionProtectedMob,
   PROFESSIONS_CATALOG,
   PROFESSION_MASTERY_CAPES,
   getProfessionLevelFromXp,
@@ -212,6 +213,61 @@ export const socialAndTickMethods = {
       }
     }
 
+    // Starfall Meteor Shower World Event in Starfall Crater
+    if (room.type === ROOM_TYPES.STARFALL_CRATER) {
+      room.meteorTimer = (room.meteorTimer ?? 25) - dt;
+      if (room.meteorTimer <= 0) {
+        room.meteorTimer = 75;
+        const mX = Math.round((Math.random() - 0.5) * 180);
+        const mY = Math.round((Math.random() - 0.5) * 140);
+        this.broadcastToRoom(room, {
+          type: 'chat',
+          channel: 'world',
+          sender: 'WORLD EVENT',
+          text: '☄️ [STARFALL METEOR SHOWER] A Celestial Meteor is plummeting into Starfall Crater! Dodge the blast and harvest the Celestial Meteor Cache [E]!',
+        });
+        room.groundZones.push({
+          id: `meteor_${crypto.randomUUID().slice(0, 6)}`,
+          type: 'telegraph',
+          color: '#fb923c',
+          label: '☄️ CELESTIAL METEOR IMPACT',
+          x: mX,
+          y: mY,
+          radius: 76,
+          age: 0,
+          maxAge: 1.8,
+          damage: 14,
+          bossName: 'Starfall Meteor',
+          snare: 0,
+        });
+        const existingCache = room.entities.find((e) => e.id === 'sf_meteor_cache');
+        if (existingCache) {
+          existingCache.x = mX;
+          existingCache.y = mY;
+          existingCache.depleted = false;
+          existingCache.respawnTimer = 0;
+        } else {
+          room.entities.push({
+            id: 'sf_meteor_cache',
+            name: 'Celestial Meteor Cache',
+            sub: 'World Event • Starmetal Core [E]',
+            type: 'node',
+            skillingType: 'starmetal_vein',
+            spriteKey: 'miningVeinNode',
+            x: mX,
+            y: mY,
+            radius: 18,
+            reqSkillLevel: 1,
+            xpReward: 180,
+            yieldItem: 'starmetal_ore',
+            yieldQty: 3,
+            depleted: false,
+            respawnTimer: 0,
+          });
+        }
+      }
+    }
+
     // Day 3: timed Mythic keystone runs
     if (room.mythic?.active) this.tickMythic(room, dt);
 
@@ -265,15 +321,19 @@ export const socialAndTickMethods = {
       const nearCampfire = room.entities.some((e) => (e.type === 'campfire' || (e.name && e.name.includes('Campfire'))) && Math.hypot(e.x - p.x, e.y - p.y) <= 85);
       const campfireRegen = nearCampfire ? 5.0 : 0;
 
-      // Vitality Health Regeneration (+2.5 HP/s baseline + 0.5 HP/s per Terra Bulwark point + Campfire Warmth)
-      const hpRegen = calcHpRegenPerSec(p.prog) + campfireRegen;
+      // Sacred Healing Spring aura (+6.0 HP/s and +6.0 Glimmer/s while standing near an active healing spring)
+      const nearHealingSpring = room.entities.some((e) => e.type === 'node' && e.skillingType === 'healing_spring' && (e.charges ?? 0) > 0 && Math.hypot(e.x - p.x, e.y - p.y) <= 75);
+      const springRegen = nearHealingSpring ? 6.0 : 0;
+
+      // Vitality Health Regeneration (+2.5 HP/s baseline + 0.5 HP/s per Terra Bulwark point + Campfire/Spring)
+      const hpRegen = calcHpRegenPerSec(p.prog) + campfireRegen + springRegen;
       if (hpRegen > 0 && !p.isDead && p.hp < p.maxHp) {
         p.hp = Math.min(p.maxHp, p.hp + hpRegen * dt);
       }
 
-      // Baseline Glimmer resonance recovery (+3.5 Glimmer/s + Campfire Warmth)
+      // Baseline Glimmer resonance recovery (+3.5 Glimmer/s + Campfire/Spring)
       if (!p.isDead && p.solarCharge < p.maxSolarCharge) {
-        p.solarCharge = Math.min(p.maxSolarCharge, p.solarCharge + (3.5 + campfireRegen) * dt);
+        p.solarCharge = Math.min(p.maxSolarCharge, p.solarCharge + (3.5 + campfireRegen + springRegen) * dt);
       }
 
       if (p.speechBubble && p.speechBubble.expiresAt <= now) p.speechBubble = null;
@@ -542,6 +602,7 @@ export const socialAndTickMethods = {
         for (const p of room.players.values()) {
           if (p.isDead || p.stealthedTimer > 0) continue; // Stealth drops mob aggro!
           if (room.type === ROOM_TYPES.ARENA_3V3 && p.team === 'red') continue;
+          if (isSameFactionProtectedMob(room.type, e, p.faction, p.id)) continue;
           const d = Math.hypot(p.x - e.x, p.y - e.y);
           if (d < bestD) {
             bestD = d;
@@ -584,6 +645,7 @@ export const socialAndTickMethods = {
           e.inCombat = false;
           e.targetPlayerId = null;
           e.threatTable = {};
+          e.provokedBy = new Set();
           e.tauntTargetId = null;
           e.tauntTimer = 0;
         } else if (e.inCombat && aggroTarget && aggroDist > (e.aggroRange || 110) * 1.8 && distHome > 120) {
@@ -591,6 +653,7 @@ export const socialAndTickMethods = {
           e.inCombat = false;
           e.targetPlayerId = null;
           e.threatTable = {};
+          e.provokedBy = new Set();
           e.tauntTargetId = null;
           e.tauntTimer = 0;
         } else if (nearestPlayer && !e.inCombat && bestD <= (e.aggroRange || 110)) {
@@ -609,8 +672,8 @@ export const socialAndTickMethods = {
             const hpPercent = (e.hp / e.maxHp) * 100;
             e.phase = e.phase || 1;
 
-            // Phase 2: Frenzy & Minions at 65% HP
-            if (hpPercent <= 65 && e.phase === 1) {
+            // Phase 2: Awakened Covenant Wrath & Minions at 70% HP
+            if (hpPercent <= 70 && e.phase === 1) {
               e.phase = 2;
               e.baseDamage = e.baseDamage || e.damage || 7;
               e.damage = Math.floor(e.baseDamage * 1.35);
@@ -619,7 +682,7 @@ export const socialAndTickMethods = {
                 type: 'chat',
                 channel: 'world',
                 sender: 'WORLD EVENT',
-                text: `⚡ ${e.name} roars into Phase 2, summoning guardians!`,
+                text: `⚡ ${e.name} enters Phase 2 (Awakened Covenant Wrath), summoning guardians & unleashing a Twin Telegraph Barrage!`,
               });
               room.fxQueue.push({ kind: 'smoke', x: e.x, y: e.y, count: 32 });
               for (let m = 0; m < 3; m++) {
@@ -650,11 +713,11 @@ export const socialAndTickMethods = {
               }
             }
 
-            // Phase 3: Enrage & Area Shockwaves at 40% HP (Shattered Nexus cannot enrage)
+            // Phase 3: Cataclysmic Overdrive & Orbital Shockwaves at 35% HP (Shattered Nexus cannot enrage)
             const isNexusShard = e.type === 'siege_shard' || e.id === 'siege_shard' || (e.name && e.name.includes('Nexus'));
             if (isNexusShard) {
               e.enraged = false;
-            } else if (hpPercent <= 40 && e.phase === 2) {
+            } else if (hpPercent <= 35 && e.phase === 2) {
               e.phase = 3;
               e.enraged = true;
               e.baseDamage = e.baseDamage || e.damage || 7;
@@ -664,7 +727,7 @@ export const socialAndTickMethods = {
                 type: 'chat',
                 channel: 'world',
                 sender: 'WORLD EVENT',
-                text: `🔥 BEWARE: ${e.name} has ENRAGED! Ground shockwaves inbound!`,
+                text: `🔥 BEWARE: ${e.name} has entered Phase 3 (Cataclysmic Overdrive)! Multi-ring ground shockwaves inbound!`,
               });
               room.fxQueue.push({ kind: 'smoke', x: e.x, y: e.y, count: 48 });
             }
@@ -747,6 +810,29 @@ export const socialAndTickMethods = {
                 bossRef: e,
                 snare: (e.spriteKey === 'graniteBoss' || e.spriteKey === 'elderBarkhide') ? 2.5 : 0,
               });
+
+              if (e.phase >= 2) {
+                const ringCount = e.enraged ? 2 : 1;
+                for (let rIdx = 0; rIdx < ringCount; rIdx++) {
+                  const angle = (rIdx * Math.PI) + (Math.random() * Math.PI);
+                  const dist = 55 + Math.random() * 45;
+                  room.groundZones.push({
+                    id: `tel_${crypto.randomUUID().slice(0, 6)}_${rIdx}`,
+                    type: 'telegraph',
+                    color: telColor,
+                    label: `${telLabel} AFTERSHOCK`,
+                    x: tgtX + Math.cos(angle) * dist,
+                    y: tgtY + Math.sin(angle) * dist,
+                    radius: Math.round(shockRadius * 0.65),
+                    age: 0,
+                    maxAge: warnDuration + 0.35,
+                    damage: Math.round(shockDmg * 0.75),
+                    bossName: e.name,
+                    bossRef: e,
+                    snare: 0,
+                  });
+                }
+              }
             }
           } else if (e.eliteAffix || (e.maxHp >= 100 && e.type === 'mob')) {
             // High-tier / Elite Monster Telegraphed Ability (1.2-1.45s reactive dodge ring)
@@ -826,6 +912,7 @@ export const socialAndTickMethods = {
             e.inCombat = false;
             e.targetPlayerId = null;
             e.threatTable = {};
+            e.provokedBy = new Set();
             e.tauntTargetId = null;
             e.tauntTimer = 0;
             e.x = origX;

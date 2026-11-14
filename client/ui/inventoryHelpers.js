@@ -2,7 +2,7 @@
 // 28-Slot Backpack Inventory Modal & Currency/Item Stack Helpers
 // ==========================================
 
-import { EQUIPMENT_CATALOG, MYTHIC_DUNGEONS, BARROWS_SETS } from '../../shared/protocol.js';
+import { EQUIPMENT_CATALOG, MYTHIC_DUNGEONS, CANONICAL_SETS } from '../../shared/protocol.js';
 import { getItemIconDataUrl } from '../itemSprites.js';
 
 export function formatItemStatsHtml(item, showSet = true) {
@@ -24,8 +24,8 @@ export function formatItemStatsHtml(item, showSet = true) {
   }
 
   let setHtml = '';
-  if (showSet && item.set && BARROWS_SETS[item.set]) {
-    const s = BARROWS_SETS[item.set];
+  if (showSet && item.set && CANONICAL_SETS[item.set]) {
+    const s = CANONICAL_SETS[item.set];
     setHtml = `
       <div style="margin-top:6px; padding:4px 7px; background:#1c1917; border-left:3px solid ${s.color}; border-radius:3px; font-size:8px;">
         <b style="color:${s.color};">👑 ${s.name}</b>

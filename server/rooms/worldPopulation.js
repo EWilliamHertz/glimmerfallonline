@@ -426,7 +426,10 @@ export const worldPopulationMethods = {
       room.type === ROOM_TYPES.IRONWOOD_TIMBERLANDS ||
       room.type === ROOM_TYPES.CORAL_COAST ||
       room.type === ROOM_TYPES.STARLIGHT_GROVE ||
-      room.type === ROOM_TYPES.CHRONOCORE_CITADEL
+      room.type === ROOM_TYPES.CHRONOCORE_CITADEL ||
+      room.type === ROOM_TYPES.SUNKEN_OASIS ||
+      room.type === ROOM_TYPES.SOLAR_HIGHLANDS ||
+      room.type === ROOM_TYPES.MOONWELL_SANCTUM
     ) {
       this.populateSubZoneDungeon(room);
     } else if (room.type === ROOM_TYPES.ARENA_3V3) {

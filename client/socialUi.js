@@ -217,35 +217,51 @@ export function drawPixelNameplateAndBubbles(ctx, {
   ctx.restore();
 }
 
-export function renderPartyHud(party, selfId) {
+export function renderPartyHud(party, selfId, fallbackSelf = null) {
   const header = document.getElementById('party-header-txt');
   const leaveBtn = document.getElementById('btn-party-leave');
   const listEl = document.getElementById('party-members-list');
   if (!header || !listEl) return;
 
   if (!party || !party.members || party.members.length <= 1) {
-    header.innerText = '🛡️ SQUAD (SOLO • MAX 3)';
+    header.innerText = '🛡️ PARTY / SQUAD (SOLO • 1/3)';
     if (leaveBtn) leaveBtn.style.display = 'none';
-    listEl.innerHTML = 'Click any player or press <b>[O]</b> to form a 3-player squad (+25% Co-op XP)!';
+    const soloMember = party?.members?.[0] || fallbackSelf;
+    const soloMeta = soloMember ? (FACTIONS_META[soloMember.faction] || FACTIONS_META.Solari) : null;
+    listEl.innerHTML = `
+      ${soloMember ? `
+        <div class="party-member-row" style="border-left:2px solid ${soloMeta.color}; padding-left:5px; margin-bottom:3px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; color:#f8fafc; font-size:9.5px;">
+            <span>👑 ${soloMeta.icon} <b style="color:${soloMeta.color};">${soloMember.name}</b> <span style="color:#fde047; font-size:8.5px;">(YOU)</span></span>
+            <span style="color:#94a3b8; font-size:8.5px;">Lv.${soloMember.level || 1}</span>
+          </div>
+        </div>
+      ` : ''}
+      <div style="font-size:8.5px; color:#94a3b8; line-height:1.3;">
+        Press <b style="color:#4ade80;">[O]</b> or click a player to invite up to 3 champions (<b style="color:#fde047;">+25% Co-op XP</b>).
+      </div>
+    `;
     return;
   }
 
-  header.innerText = `🛡️ 3-PLAYER SQUAD (${party.members.length}/3)`;
+  header.innerText = `🛡️ ACTIVE PARTY (${party.members.length}/3 • +25% XP)`;
   if (leaveBtn) leaveBtn.style.display = 'inline-block';
 
   listEl.innerHTML = party.members
     .map((m) => {
       const fMeta = FACTIONS_META[m.faction] || FACTIONS_META.Solari;
-      const pct = Math.max(0, Math.min(100, Math.round((m.hp / Math.max(1, m.maxHp)) * 100)));
-      const crown = m.id === party.leaderId ? '👑 ' : '';
-      const youTag = m.id === selfId ? ' (You)' : '';
+      const hp = Math.round(m.hp ?? 25);
+      const maxHp = Math.max(1, Math.round(m.maxHp ?? 25));
+      const pct = Math.max(0, Math.min(100, Math.round((hp / maxHp) * 100)));
+      const crown = m.id === party.leaderId ? '<span title="Party Leader">👑</span> ' : '';
+      const youTag = m.id === selfId ? ' <span style="color:#fde047; font-size:8.5px; font-weight:bold;">(YOU)</span>' : '';
       return `
-        <div class="party-member-row">
-          <div style="display:flex; justify-content:space-between; color:#f8fafc; font-size:8.5px;">
-            <span>${crown}${fMeta.icon} <b>${m.name}</b>${youTag}</span>
-            <span style="color:#94a3b8;">Lv.${m.level} • ${Math.round(m.hp)}/${Math.round(m.maxHp)}</span>
+        <div class="party-member-row" style="background:rgba(13,19,36,0.85); border:1px solid #1e293b; border-left:3px solid ${fMeta.color}; padding:4px 6px; margin-bottom:4px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; color:#f8fafc; font-size:9.5px;">
+            <span>${crown}${fMeta.icon} <b style="color:${fMeta.color};">${m.name}</b>${youTag}</span>
+            <span style="color:#cbd5e1; font-size:8.5px; font-weight:bold;">Lv.${m.level} • ${hp}/${maxHp}</span>
           </div>
-          <div class="bar-bg" style="height:6px; margin-top:2px;">
+          <div class="bar-bg" style="height:6px; margin-top:3px;">
             <div class="bar-hp ${m.shield > 0 ? 'shielded' : ''}" style="width:${pct}%;"></div>
           </div>
         </div>
@@ -361,16 +377,16 @@ export function renderAccountModal({ profile, authTab = 'register', statusMsg = 
       </div>
 
       <div style="background:#080c18; border:2px solid #1e293b; padding:10px 12px;">
-        <div style="font-family:var(--font-header); font-size:12px; font-weight:700; color:#38bdf8; margin-bottom:6px;">
-          3. GLIMMERFALLTCG.COM SSO LINK
+        <div style="font-family:var(--font-header); font-size:12px; font-weight:700; color:#facc15; margin-bottom:6px;">
+          3. FOUNDER'S EDITION SERIAL KEY (€6.99)
         </div>
         <p style="font-size:11px; color:#cbd5e1; line-height:1.45; margin-bottom:8px;">
-          Link your <b>glimmerfalltcg.com</b> Summoner handle/email to unify your MMO Champion &amp; Card Collection!
+          Redeem a <b>GF-XXXX-XXXX-XXXX</b> Founder Serial Key to unlock the <b>[FOUNDER]</b> title, 140-slot bank vault, and full progression!
         </p>
         <div style="display:flex; flex-direction:column; gap:6px;">
-          <input id="sso-tcg-handle" class="pixel-input" placeholder="glimmerfalltcg.com Handle or Email" value="${p.tcgHandle || ''}" style="font-size:11px; padding:6px 8px;" />
-          <button class="util-btn" style="border-color:#38bdf8; color:#bae6fd; font-size:11px; padding:6px;" onclick="submitTcgSsoLink()">
-            ⚡ LINK GLIMMERFALLTCG.COM ID
+          <input id="serial-key-input" class="pixel-input" placeholder="GF-XXXX-XXXX-XXXX" value="${p.redeemedSerialKey || ''}" style="font-size:11px; padding:6px 8px; text-transform:uppercase;" />
+          <button class="util-btn" style="border-color:#facc15; color:#fde047; font-size:11px; padding:6px;" onclick="submitRedeemSerialKey()">
+            ${(p.editionTier === 'founder' || p.redeemedSerialKey) ? '👑 FOUNDER EDITION ACTIVE' : '🔑 REDEEM SERIAL KEY'}
           </button>
         </div>
       </div>
@@ -378,13 +394,94 @@ export function renderAccountModal({ profile, authTab = 'register', statusMsg = 
   `;
 }
 
-export function renderSocialModal({ rooms = [], currentRoomId = '', roomPlayers = [], selfId = '' }) {
+export function renderSocialModal({ rooms = [], currentRoomId = '', roomPlayers = [], selfId = '', party = null }) {
   const container = document.getElementById('social-modal-body');
   if (!container) return;
 
   const others = roomPlayers.filter((p) => p.id !== selfId);
+  const selfPlayer = roomPlayers.find((p) => p.id === selfId) || null;
+  const activeMembers = (party && Array.isArray(party.members) && party.members.length > 0)
+    ? party.members
+    : (selfPlayer ? [{
+        id: selfPlayer.id,
+        name: selfPlayer.name || 'Champion',
+        faction: selfPlayer.faction || 'Solari',
+        level: selfPlayer.level || 1,
+        hp: selfPlayer.hp ?? 25,
+        maxHp: selfPlayer.maxHp ?? 25,
+      }] : []);
+  const leaderId = party?.leaderId || (activeMembers[0]?.id ?? selfId);
+  const inMultiParty = Boolean(party && Array.isArray(party.members) && party.members.length > 1);
+  const partyMemberIds = new Set(activeMembers.map((m) => m.id));
+
+  const partySlotsHtml = [0, 1, 2].map((slotIdx) => {
+    const member = activeMembers[slotIdx];
+    if (!member) {
+      return `
+        <div style="background:#0a0f1f; border:1px dashed #334155; padding:10px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; min-height:78px;">
+          <div style="color:#64748b; font-family:var(--font-header); font-size:10px; font-weight:700;">EMPTY PARTY SLOT #${slotIdx + 1}</div>
+          <div style="color:#475569; font-size:9.5px; margin-top:4px;">Invite a champion below or by name to unlock +25% Co-op XP</div>
+        </div>
+      `;
+    }
+    const fm = FACTIONS_META[member.faction] || FACTIONS_META.Solari;
+    const hp = Math.round(member.hp ?? 25);
+    const maxHp = Math.max(1, Math.round(member.maxHp ?? 25));
+    const pct = Math.max(0, Math.min(100, Math.round((hp / maxHp) * 100)));
+    const isLeader = member.id === leaderId;
+    const isSelf = member.id === selfId;
+    return `
+      <div style="background:#0d1324; border:2px solid ${isSelf ? '#4ade80' : fm.color}; padding:9px 10px; display:flex; flex-direction:column; justify-content:space-between; min-height:78px;">
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:4px;">
+            <span style="font-size:11.5px; font-weight:700; color:${fm.color};">
+              ${fm.icon} ${member.name}
+            </span>
+            <div style="display:flex; gap:3px; align-items:center;">
+              ${isLeader ? '<span style="background:#422006; border:1px solid #facc15; color:#fde047; font-size:8.5px; padding:1px 4px; font-weight:bold;">👑 LEADER</span>' : ''}
+              ${isSelf ? '<span style="background:#052e16; border:1px solid #4ade80; color:#86efac; font-size:8.5px; padding:1px 4px; font-weight:bold;">YOU</span>' : ''}
+            </div>
+          </div>
+          <div style="color:#94a3b8; font-size:10px; margin-top:3px;">
+            Lv.${member.level || 1} ${fm.name} Covenant
+          </div>
+        </div>
+        <div style="margin-top:6px;">
+          <div style="display:flex; justify-content:space-between; font-size:9.5px; color:#cbd5e1; margin-bottom:2px;">
+            <span>HEALTH</span>
+            <b>${hp} / ${maxHp} (${pct}%)</b>
+          </div>
+          <div class="bar-bg" style="height:7px;">
+            <div class="bar-hp ${member.shield > 0 ? 'shielded' : ''}" style="width:${pct}%;"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
 
   container.innerHTML = `
+    <!-- Active Party / Squad Roster Section -->
+    <div id="modal-party-roster" style="background:#080c18; border:2px solid ${inMultiParty ? '#4ade80' : '#1e293b'}; padding:10px 12px; margin-bottom:10px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+        <div>
+          <div style="font-family:var(--font-header); font-size:12px; font-weight:700; color:#4ade80;">
+            🛡️ YOUR ACTIVE PARTY / SQUAD ROSTER (${activeMembers.length}/3 CHAMPIONS)
+          </div>
+          <div style="font-size:10px; color:${inMultiParty ? '#fde047' : '#94a3b8'}; margin-top:2px;">
+            ${inMultiParty
+              ? '✨ +25% Co-op XP Bonus & Shared Boss/Quest Credit Active!'
+              : 'Currently Solo — Invite up to 2 allies below for +25% Co-op XP & Shared Boss Credit.'}
+          </div>
+        </div>
+        ${inMultiParty
+          ? `<button class="util-btn" style="border-color:#ef4444; color:#fca5a5; font-size:10px; padding:4px 9px;" onclick="window.leaveSquad && window.leaveSquad()">LEAVE PARTY ✕</button>`
+          : ''}
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
+        ${partySlotsHtml}
+      </div>
+    </div>
+
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
       <!-- Room Instances Browser -->
       <div style="background:#080c18; border:2px solid #1e293b; padding:10px;">
@@ -428,13 +525,16 @@ export function renderSocialModal({ rooms = [], currentRoomId = '', roomPlayers 
             ? '<div style="font-size:11px; color:#94a3b8; padding:8px 0;">No other champions in this room right now — invite friends by name to quest together!</div>'
             : others.map((pl) => {
                 const fm = FACTIONS_META[pl.faction] || FACTIONS_META.Solari;
+                const alreadyInParty = partyMemberIds.has(pl.id);
                 return `
-                  <div style="display:flex; justify-content:space-between; align-items:center; background:#0d1324; border:1px solid #334155; padding:5px 7px; font-size:11px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; background:#0d1324; border:1px solid ${alreadyInParty ? '#4ade80' : '#334155'}; padding:5px 7px; font-size:11px;">
                     <div>
                       <span>${fm.icon} <b style="color:${fm.color};">${pl.name}</b></span>
                       <span style="color:#94a3b8; font-size:10px;"> Lv.${pl.level} ${pl.orderTag ? `&lt;${pl.orderTag}&gt;` : ''}</span>
                     </div>
-                    <button class="id-mini-btn" style="border-color:#4ade80; color:#86efac; font-size:10px; padding:2px 6px;" onclick="sendPartyInviteTo('${pl.id}')">+SQUAD</button>
+                    ${alreadyInParty
+                      ? '<span style="color:#4ade80; font-size:10px; font-weight:bold;">✓ IN PARTY</span>'
+                      : `<button class="id-mini-btn" style="border-color:#4ade80; color:#86efac; font-size:10px; padding:2px 6px;" onclick="sendPartyInviteTo('${pl.id}')">+PARTY</button>`}
                   </div>
                 `;
               }).join('')}

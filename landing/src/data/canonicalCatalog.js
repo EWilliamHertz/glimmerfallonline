@@ -2642,7 +2642,7 @@ export const EQUIPMENT_CATALOG = {
   }
 };
 
-export const BARROWS_SETS = {
+export const CANONICAL_SETS = {
   "sunforged_daystar": {
     "id": "sunforged_daystar",
     "name": "Sunforged Daystar Bulwark",

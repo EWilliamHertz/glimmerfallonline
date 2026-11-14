@@ -4,7 +4,7 @@
 
 import {
   EQUIPMENT_CATALOG,
-  BARROWS_SETS,
+  CANONICAL_SETS,
   RUNEWORD_SYNERGIES,
   getActiveSetBonuses,
   getActiveRuneword,
@@ -381,7 +381,7 @@ export function renderEquipmentModal({ profile }) {
           <div style="display:flex; flex-direction:column; gap:6px;">
             ${(() => {
               const equippedIds = new Set(Object.values(equip));
-              const inProgressSets = Object.values(BARROWS_SETS).filter((s) => {
+              const inProgressSets = Object.values(CANONICAL_SETS).filter((s) => {
                 const count = s.pieces.filter((p) => equippedIds.has(p)).length;
                 return count > 0 && count < s.pieces.length;
               });
