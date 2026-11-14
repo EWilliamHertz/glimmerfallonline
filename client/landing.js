@@ -1819,221 +1819,79 @@ export class LandingPageController {
     overlay.innerHTML = `
       <div class="landing-shell-layout">
         <!-- ========================================== -->
-        <!-- 1. LEFT STICKY PIXEL SIDEBAR NAVIGATION -->
+        <!-- STICKY GLASSMORPHIC TOP NAVIGATION BAR     -->
         <!-- ========================================== -->
-        <aside class="landing-sidebar">
-          <!-- Sidebar Header & Logo -->
-          <div class="sidebar-header">
-            <div class="sidebar-brand-row">
-              <div class="sidebar-logo-box">
-                <img src="${LOGO_SRC}" alt="GlimmerFall Official Logo" class="sidebar-logo-img" width="48" height="48" style="max-width:48px; max-height:48px;" />
+        <header class="gf-top-navbar">
+          <div class="gf-top-navbar-inner">
+            <div class="gf-brand-cluster" onclick="window._landing.setTab('overview')">
+              <div class="gf-brand-crest">
+                <img src="${LOGO_SRC}" alt="GlimmerFall Official Logo" width="40" height="40" />
               </div>
               <div>
-                <div class="sidebar-brand-name">
-                  GLIMMER<span class="text-gold">FALL</span>
-                </div>
-                <div class="sidebar-server-pill">
-                  <span class="sidebar-dot"></span>
-                  Official MMORPG Realm
+                <div class="gf-brand-title">GLIMMER<span>FALL</span> ONLINE</div>
+                <div class="gf-telemetry-pill">
+                  <span class="gf-telemetry-dot"></span>
+                  <span>STOCKHOLM REALM (79.76.40.148) &bull; 20Hz LIVE</span>
                 </div>
               </div>
             </div>
 
-            <!-- Single vs Multiplayer Mode -->
-            <div class="sidebar-mode-grid">
-              <button type="button"
-                      class="sidebar-mode-btn ${isSingle ? 'active single' : ''}"
-                      onclick="window._landing.setPlayMode('singleplayer')">
-                🕹️ Offline
-              </button>
-              <button type="button"
-                      class="sidebar-mode-btn ${!isSingle ? 'active multi' : ''}"
-                      onclick="window._landing.setPlayMode('multiplayer')">
-                🌐 Online
-              </button>
-            </div>
-
-            <!-- Quick Start Journey CTA -->
-            <button type="button" class="sidebar-cta-btn" onclick="window._landing.startJourney()">
-              ⚡ START JOURNEY NOW
-            </button>
-          </div>
-
-          <!-- Navigation Tabs -->
-          <div class="sidebar-section">
-            <div class="sidebar-section-title">
-              <span>EXPLORE AREAS</span>
-            </div>
-            <div class="sidebar-nav-list">
-              <button type="button" class="sidebar-nav-link ${this.activeTab === 'overview' ? 'active' : ''}" onclick="window._landing.setTab('overview')">
-                <span>🏛️ Overview &amp; Music</span>
-                <span style="color:#fde047;">▸</span>
-              </button>
-              <button type="button" class="sidebar-nav-link ${this.activeTab === 'theatre' ? 'active' : ''}" onclick="window._landing.setTab('theatre')">
-                <span>🎬 1080p Theatre</span>
-                <span style="color:#38bdf8;">▸</span>
-              </button>
-              <button type="button" class="sidebar-nav-link ${this.activeTab === 'forge' ? 'active' : ''}" onclick="window._landing.setTab('forge')">
-                <span>⚔️ Champion Forge</span>
-                <span style="color:#facc15;">▸</span>
-              </button>
-              <button type="button" class="sidebar-nav-link ${this.activeTab === 'systems' ? 'active' : ''}" onclick="window._landing.setTab('systems')">
-                <span>⚙️ Game Systems</span>
-                <span style="color:#4ade80;">▸</span>
-              </button>
-              <button type="button" class="sidebar-nav-link ${this.activeTab === 'armory' ? 'active' : ''}" onclick="window._landing.setTab('armory')">
-                <span>🛡️ Armory &amp; TCG</span>
-                <span style="color:#38bdf8;">▸</span>
-              </button>
-              <button type="button" class="sidebar-nav-link ${this.activeTab === 'atlas' ? 'active' : ''}" onclick="window._landing.setTab('atlas')">
-                <span>🗺️ Atlas &amp; Lore</span>
-                <span style="color:#c084fc;">▸</span>
-              </button>
-              <button type="button" class="sidebar-nav-link ${this.activeTab === 'settings' ? 'active' : ''}" onclick="window._landing.setTab('settings')">
-                <span>⚙️ Preferences &amp; Settings</span>
-                <span style="color:#facc15;">▸</span>
-              </button>
-              <button type="button" class="sidebar-nav-link special" onclick="window._landing.openLoadout()">
-                <span>👤 Open Hero Loadout</span>
-                <span>⚙️</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Pixel Items Showcase -->
-          <div class="sidebar-section">
-            <div class="sidebar-section-title">
-              <span>PIXEL ARMORY</span>
-              <span style="color:#facc15; font-size:9.5px;">HOVER INFO</span>
-            </div>
-            <div class="pixel-gear-grid">
-              ${PIXEL_ITEMS.map((item) => `
-                <div class="pixel-gear-slot"
-                     style="${this.hoveredItemId === item.id ? `border-color:${item.color}; transform:scale(1.08);` : ''}"
-                     onmouseenter="window._landing.setHoveredItem('${item.id}')"
-                     onmouseleave="window._landing.setHoveredItem(null)">
-                  <span>${item.icon}</span>
-                  <span class="slot-corner-tag">${item.slot[0]}</span>
-                </div>
-              `).join('')}
-            </div>
-
-            ${hoveredItemObj ? `
-              <div class="pixel-gear-tooltip">
-                <div class="pixel-gear-tooltip-head" style="color:${hoveredItemObj.color}">
-                  <span>${hoveredItemObj.name}</span>
-                  <span style="font-size:8.5px; padding:1px 4px; background:rgba(255,255,255,0.1); border-radius:3px;">${hoveredItemObj.rarity}</span>
-                </div>
-                <div class="pixel-gear-tooltip-stat">${hoveredItemObj.stat}</div>
-                <div class="pixel-gear-tooltip-desc">${hoveredItemObj.desc}</div>
-              </div>
-            ` : `
-              <div style="font-size:9.5px; color:#94a3b8; text-align:center; margin-top:8px; font-style:italic;">
-                Hover over slots to inspect stats
-              </div>
-            `}
-          </div>
-
-          <!-- Currencies Vault -->
-          <div class="sidebar-section">
-            <div class="sidebar-section-title">
-              <span style="color:#38bdf8;">CURRENCIES</span>
-              <span style="font-size:9px; color:#94a3b8;">TREASURY</span>
-            </div>
-            <div class="sidebar-currency-list">
-              ${LEYLINE_CURRENCIES.map((c) => `
-                <div class="sidebar-currency-item">
-                  <div class="currency-left">
-                    <span>${c.icon}</span>
-                    <span>${c.name}</span>
-                  </div>
-                  <span class="currency-val" style="color:${c.color}">${c.val}</span>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-
-          <!-- 7 Disciplines Tracker -->
-          <div class="sidebar-section">
-            <div class="sidebar-section-title">
-              <span style="color:#4ade80;">7 DISCIPLINES</span>
-              <span style="color:#facc15; font-size:9.5px;">MAX 99</span>
-            </div>
-            <div class="sidebar-skills-list">
-              ${DISCIPLINES.map((d) => `
-                <div class="sidebar-skill-item">
-                  <div class="sidebar-skill-header">
-                    <span>${d.icon} ${d.name}</span>
-                    <span style="color:${d.color}">Lv. ${d.lvl}/99</span>
-                  </div>
-                  <div class="sidebar-skill-bar-wrap">
-                    <div class="sidebar-skill-bar-fill" style="width:${(d.lvl / 99) * 100}%; background:${d.color};"></div>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-
-          <!-- Sidebar Footer -->
-          <div class="sidebar-footer">
-            <label class="sidebar-pref-toggle">
-              <input type="checkbox"
-                     class="start-on-site-cb"
-                     ${startOnLoadout ? 'checked' : ''}
-                     onchange="window._landing.setStartOnLoadout(this.checked)" />
-              <span>Start on this site</span>
-            </label>
-            <div class="sidebar-footer-links">
-              <span>&copy; 2026 GlimmerFall</span>
-              <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer">glimmerfalltcg.com ↗</a>
-            </div>
-          </div>
-        </aside>
-
-        <!-- ========================================== -->
-        <!-- 2. MAIN SCROLLABLE CONTENT AREA (TABBED)  -->
-        <!-- ========================================== -->
-        <main class="landing-main-scroll">
-          <!-- TOP TAB HEADER -->
-          <header class="landing-tabs-header">
             <nav class="landing-tabs-nav">
               <button type="button" class="landing-tab-btn ${this.activeTab === 'overview' ? 'active' : ''}" onclick="window._landing.setTab('overview')">
-                <span>🏛️ Overview &amp; Music</span>
-                <span class="landing-tab-btn-badge">OST</span>
+                <span>🏛️ Overview</span>
+              </button>
+              <button type="button" class="landing-tab-btn ${this.activeTab === 'forge' ? 'active' : ''}" onclick="window._landing.setTab('forge')">
+                <span>⚔️ Champion Forge</span>
+                <span class="landing-tab-btn-badge">8 Classes</span>
               </button>
               <button type="button" class="landing-tab-btn ${this.activeTab === 'theatre' ? 'active' : ''}" onclick="window._landing.setTab('theatre')">
                 <span>🎬 1080p Theatre</span>
                 <span class="landing-tab-btn-badge">12 Scenes</span>
-              </button>
-              <button type="button" class="landing-tab-btn ${this.activeTab === 'forge' ? 'active' : ''}" onclick="window._landing.setTab('forge')">
-                <span>⚔️ Champion Forge</span>
-                <span class="landing-tab-btn-badge">Hero</span>
               </button>
               <button type="button" class="landing-tab-btn ${this.activeTab === 'systems' ? 'active' : ''}" onclick="window._landing.setTab('systems')">
                 <span>⚙️ Game Systems</span>
                 <span class="landing-tab-btn-badge">Lv.99</span>
               </button>
               <button type="button" class="landing-tab-btn ${this.activeTab === 'armory' ? 'active' : ''}" onclick="window._landing.setTab('armory')">
-                <span>🛡️ Armory &amp; TCG</span>
-                <span class="landing-tab-btn-badge">8 Slots</span>
+                <span>🛡️ Armory &amp; Relics</span>
+                <span class="landing-tab-btn-badge">200 Items</span>
               </button>
               <button type="button" class="landing-tab-btn ${this.activeTab === 'atlas' ? 'active' : ''}" onclick="window._landing.setTab('atlas')">
                 <span>🗺️ Atlas &amp; Lore</span>
-                <span class="landing-tab-btn-badge">8 Biomes</span>
+                <span class="landing-tab-btn-badge">8 Realms</span>
               </button>
               <button type="button" class="landing-tab-btn ${this.activeTab === 'settings' ? 'active' : ''}" onclick="window._landing.setTab('settings')">
                 <span>⚙️ Settings</span>
-                <span class="landing-tab-btn-badge">Prefs</span>
               </button>
             </nav>
-            <div style="display:flex; align-items:center; gap:8px;">
-              <button type="button" class="hero-btn-primary" style="padding:6px 14px; font-size:11px;" onclick="window._landing.startJourney()">
-                <span>⚡</span> START JOURNEY
+
+            <div class="gf-navbar-actions">
+              <div class="gf-mode-switch-pill" title="Switch Offline vs Online Realm">
+                <button type="button"
+                        class="sidebar-mode-btn ${isSingle ? 'active single' : ''}"
+                        onclick="window._landing.setPlayMode('singleplayer')">
+                  🕹️ Offline
+                </button>
+                <button type="button"
+                        class="sidebar-mode-btn ${!isSingle ? 'active multi' : ''}"
+                        onclick="window._landing.setPlayMode('multiplayer')">
+                  🌐 Online
+                </button>
+              </div>
+              <button type="button" class="id-mini-btn" onclick="window._landing.openLoadout()">
+                <span>👤</span> Roster
+              </button>
+              <button type="button" class="hero-btn-primary" style="padding:9px 18px; font-size:12px;" onclick="window._landing.startJourney()">
+                <span>⚡</span> PLAY FREE NOW
               </button>
             </div>
-          </header>
+          </div>
+        </header>
 
-          <!-- DYNAMIC ACTIVE TAB CONTENT -->
+        <!-- ========================================== -->
+        <!-- MAIN SCROLLABLE CONTENT CONTAINER          -->
+        <!-- ========================================== -->
+        <main class="landing-main-scroll">
           <div class="landing-tab-content">
             ${this.renderActiveTab({ activeOstTrack, activeCinematic, fm, fe, cls, order, factionClasses, isSingle, startOnLoadout, hoveredItemObj })}
           </div>
@@ -2060,13 +1918,25 @@ export class LandingPageController {
           </div>
 
           <!-- FOOTER -->
-          <footer style="text-align:center; padding:30px 0; border-top:1px solid #1e293b; color:#94a3b8; font-size:11px;">
-            <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:8px;">
-              <img src="${LOGO_SRC}" alt="GlimmerFall" style="height:24px; object-fit:contain;" />
-              <b style="color:#fff; font-family:var(--font-header);">GLIMMERFALL ONLINE</b>
+          <footer style="margin-top:48px; padding:36px 24px; border-top:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; color:#94a3b8; font-size:12px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <img src="${LOGO_SRC}" alt="GlimmerFall" style="height:30px; object-fit:contain;" />
+              <div>
+                <b style="color:#fff; font-family:var(--font-header); letter-spacing:0.6px;">GLIMMERFALL ONLINE</b>
+                <div style="font-size:11px; color:#64748b;">Canonical 2D Pixel Action MMORPG &bull; Connected to glimmerfalltcg.com</div>
+              </div>
             </div>
-            <p>Official 2D Pixel Action MMORPG based on the GlimmerFall Trading Card Game universe &bull; glimmerfalltcg.com</p>
-            <div style="margin-top:6px;">&copy; 2026 GlimmerFall. All rights reserved.</div>
+            <div style="display:flex; align-items:center; gap:18px; flex-wrap:wrap;">
+              <label style="display:inline-flex; align-items:center; gap:7px; cursor:pointer; color:#cbd5e1;">
+                <input type="checkbox"
+                       class="start-on-site-cb"
+                       ${startOnLoadout ? 'checked' : ''}
+                       onchange="window._landing.setStartOnLoadout(this.checked)" />
+                <span>Skip portal &amp; start on Hero Roster</span>
+              </label>
+              <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" style="color:#38bdf8; text-decoration:none; font-weight:700;">glimmerfalltcg.com ↗</a>
+              <span>&copy; 2026 GlimmerFall Studios</span>
+            </div>
           </footer>
         </main>
       </div>
@@ -2113,135 +1983,262 @@ export class LandingPageController {
     }
   }
 
-  renderOverviewTab({ activeOstTrack }) {
+  renderOverviewTab({ activeOstTrack, fm, fe, factionClasses, allowedOrders }) {
+    const covOrders = getOrderPresetsForFaction(this.selectedFaction);
     return `
-      <!-- HERO BANNER & 1080P PROLOGUE VIDEO SHOWCASE -->
+      <!-- 1. FULL-BLEED 2-COLUMN CINEMATIC HERO SHOWCASE -->
       <section id="prologue-hero" class="landing-hero-card">
-        <div class="hero-content-wrap">
-          <div class="hero-logo-row">
-            <div class="hero-logo-badge">
-              <img src="${LOGO_SRC}" alt="GlimmerFall Logo" class="hero-logo-img" width="48" height="48" style="max-width:48px; max-height:48px;" />
-            </div>
-            <div>
-              <span class="hero-chip-badge">✨ OFFICIAL 2D PIXEL MMORPG • 16-BIT DARK FANTASY</span>
-              <h1 class="hero-title">
-                AWAKEN YOUR <span style="color:#facc15;">CHAMPION</span> IN THE REALM OF GLIMMER
-              </h1>
-            </div>
-          </div>
-
-          <p class="hero-desc">
-            Step into an authentic top-down action MMORPG inspired by classic 16-bit RPG masterworks.
-            Before the continental caldera took shape, the celestial <b>Crystal Heart shattered</b> in an apocalyptic detonation, fracturing unified light into four elemental aspects:
-            <b style="color:#facc15;">Solar Light</b>, <b style="color:#c084fc;">Void</b>, <b style="color:#4ade80;">Verdant Root</b>, and <b style="color:#38bdf8;">Celestial Mist</b>.
-            Harvest living Glimmer leylines, socket authentic trading card relics from
-            <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" style="color:#38bdf8; text-decoration:underline; font-weight:bold;">glimmerfalltcg.com</a>,
-            master 7 disciplines to Level 99, and battle in 3v3 Outpost Nexus destruction arenas.
-          </p>
-
-          <div class="hero-specs-row">
-            <div class="hero-spec-pill">
-              <div class="spec-val" style="color:#38bdf8;">Offline</div>
-              <div class="spec-lbl">Single Player</div>
-            </div>
-            <div class="hero-spec-pill">
-              <div class="spec-val" style="color:#4ade80;">Online</div>
-              <div class="spec-lbl">Server MMO</div>
-            </div>
-            <div class="hero-spec-pill">
-              <div class="spec-val" style="color:#facc15;">Lv. 99</div>
-              <div class="spec-lbl">Max Mastery</div>
-            </div>
-            <div class="hero-spec-pill">
-              <div class="spec-val" style="color:#f87171;">2500 HP</div>
-              <div class="spec-lbl">Nexus Rule</div>
-            </div>
-          </div>
-
-          <div class="hero-cta-row">
-            <button type="button" class="hero-btn-primary" onclick="window._landing.startJourney()">
-              <span>⚡</span> START JOURNEY NOW
-            </button>
-            <button type="button" class="hero-btn-secondary" onclick="window._landing.setTab('forge')">
-              <span>⚔️</span> FORGE LOADOUT
-            </button>
-            <button type="button" class="id-mini-btn" style="padding:10px 18px; font-size:12px; font-weight:800; border-color:#facc15; color:#fde047; cursor:pointer;" onclick="window.playCinematicModal && window.playCinematicModal('crystal_heart')">
-              <span>🎬</span> WATCH 1080P PROLOGUE
-            </button>
-            <button type="button" class="id-mini-btn" style="padding:10px 18px; font-size:12px; font-weight:800; border-color:#38bdf8; color:#7dd3fc; cursor:pointer;" onclick="window._landing.setTab('theatre')">
-              <span>🎞️</span> THEATRE (12 SCENES)
-            </button>
-          </div>
-
-          <!-- OFFICIAL GLIMMERFALL MEDIA PLAYER & QUEUE -->
-          ${this.renderMediaPlayerSection(activeOstTrack)}
-
-          <!-- TRACKS LIST UNDERNEATH (QUEUEABLE REPOSITORY) -->
-          ${this.renderTracklistSection(activeOstTrack)}
-        </div>
-      </section>
-
-      <!-- OFFICIAL DUAL LAUNCH TRAILER (YOUTUBE EMBED) -->
-      <section class="landing-section-box" style="margin-top:20px; border:2px solid #ca8a04; background:radial-gradient(ellipse at 50% 0%, #172554, #080d1e); box-shadow:0 0 35px rgba(242,169,0,0.25);">
-        <div class="section-header-row" style="border-bottom:1px solid #1e293b; padding-bottom:10px; margin-bottom:14px;">
+        <div class="gf-hero-grid">
           <div>
-            <span class="section-tag" style="background:rgba(250,204,21,0.18); color:#fde047; border:1px solid rgba(250,204,21,0.4); font-weight:800;">
-              OFFICIAL REVEAL TRAILER • LAUNCHING DEC 5, 2026
-            </span>
-            <h2 class="section-heading" style="margin-top:4px;">⚔️ GLIMMERFALL OFFICIAL DUAL LAUNCH TRAILER</h2>
+            <div class="hero-chip-badge">
+              <span>✨</span>
+              <span>CANONICAL 2D ACTION MMORPG &bull; DUAL LAUNCH DEC 5, 2026</span>
+            </div>
+            <h1 class="hero-title">
+              WHEN THE <span style="color:#facc15;">CRYSTAL HEART</span> SHATTERED, FOUR COVENANTS ROSE.
+            </h1>
+            <p class="hero-desc">
+              Enter a living 16-bit dark-fantasy continent powered by an authoritative <b>20Hz tick engine</b>.
+              Pledge your allegiance to <b style="color:#facc15;">Solari</b>, <b style="color:#c084fc;">Umbri</b>,
+              <b style="color:#4ade80;">Terra</b>, or <b style="color:#38bdf8;">Aether</b>. Master 7 artisan professions to
+              <b>Level 99</b>, forge 3-socket Runewords and Barrows 4-piece sets, trade on the continental Grand Exchange,
+              and clash in 3v3 Outpost Nexus sieges.
+            </p>
+
+            <div class="hero-cta-row">
+              <button type="button" class="hero-btn-primary" onclick="window._landing.startJourney()">
+                <span>⚡</span> PLAY FREE IN BROWSER
+              </button>
+              <button type="button" class="hero-btn-secondary" onclick="window._landing.setTab('forge')">
+                <span>⚔️</span> FORGE YOUR CHAMPION
+              </button>
+              <button type="button" class="id-mini-btn" style="padding:12px 18px; border-color:rgba(250,204,21,0.45); color:#fde047;" onclick="window.playCinematicModal && window.playCinematicModal('crystal_heart')">
+                <span>🎬</span> 1080P PROLOGUE
+              </button>
+            </div>
+
+            <div class="hero-specs-row">
+              <div class="hero-spec-pill">
+                <div class="spec-val" style="color:#4ade80;">20Hz Tick</div>
+                <div class="spec-lbl">Authoritative MMO</div>
+              </div>
+              <div class="hero-spec-pill">
+                <div class="spec-val" style="color:#facc15;">4 Covenants</div>
+                <div class="spec-lbl">8 Class Archetypes</div>
+              </div>
+              <div class="hero-spec-pill">
+                <div class="spec-val" style="color:#38bdf8;">Lv. 99 Cap</div>
+                <div class="spec-lbl">7 Artisan Skills</div>
+              </div>
+              <div class="hero-spec-pill">
+                <div class="spec-val" style="color:#c084fc;">200+ Relics</div>
+                <div class="spec-lbl">Sets &amp; Runewords</div>
+              </div>
+            </div>
           </div>
-          <a href="https://youtu.be/2e8E0vjLcLg" target="_blank" rel="noreferrer" class="id-mini-btn" style="padding:6px 14px; font-size:11px; font-weight:800; background:#dc2626; border-color:#ef4444; color:#fff; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
-            <span>▶</span> Watch on YouTube ↗
-          </a>
-        </div>
-        <div style="position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:12px; overflow:hidden; border:1px solid #334155; box-shadow:0 8px 30px rgba(0,0,0,0.8);">
-          <iframe
-            src="https://www.youtube.com/embed/2e8E0vjLcLg?rel=0&modestbranding=1"
-            title="GlimmerFall — Official Dual Launch Trailer (Launching December 5, 2026)"
-            style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowfullscreen
-          ></iframe>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-top:10px; font-size:11px; color:#cbd5e1;">
-          <span>One canonical universe. Two ways to play: <b style="color:#fde047;">2D MMORPG</b> &amp; <b style="color:#38bdf8;">Tactical TCG</b>.</span>
-          <span style="color:#38bdf8; font-weight:bold;">Official Release: December 5, 2026</span>
+
+          <!-- Right Column: Featured 1080p Trailer + Compact Audio Bar -->
+          <div style="display:flex; flex-direction:column; gap:14px;">
+            <div class="gf-hero-media-frame">
+              <div class="gf-hero-media-bar">
+                <span>🎬 OFFICIAL DUAL LAUNCH REVEAL TRAILER</span>
+                <a href="https://youtu.be/2e8E0vjLcLg" target="_blank" rel="noreferrer" style="color:#38bdf8; text-decoration:none; font-size:11px;">YouTube 1080p ↗</a>
+              </div>
+              <div style="position:relative; width:100%; aspect-ratio:16/9; background:#000;">
+                <iframe
+                  src="https://www.youtube.com/embed/2e8E0vjLcLg?rel=0&modestbranding=1"
+                  title="GlimmerFall — Official Dual Launch Trailer"
+                  style="position:absolute; inset:0; width:100%; height:100%; border:0;"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowfullscreen
+                ></iframe>
+              </div>
+              <div style="padding:12px 16px; background:rgba(8,13,26,0.95); border-top:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <span style="font-size:18px;">${activeOstTrack.icon}</span>
+                  <div>
+                    <div style="font-size:11px; color:#94a3b8; font-weight:700;">REALM SOUNDTRACK &bull; ${activeOstTrack.bpm} BPM</div>
+                    <div style="font-family:var(--font-header); font-size:13px; font-weight:800; color:#fff;">${this.escapeHtml(activeOstTrack.name)}</div>
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <button type="button" class="gf-player-btn gf-player-btn-hero" style="padding:7px 14px; font-size:11px;" onclick="window._landing.toggleOstPlay()">
+                    <span>${this.isOstPlaying ? '⏸ PAUSE OST' : '▶ PLAY OST'}</span>
+                  </button>
+                  <button type="button" class="id-mini-btn" style="padding:7px 11px; font-size:11px;" onclick="window._landing.setTab('theatre')">
+                    12 Scenes ➔
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <!-- 4 CANONICAL FACTIONS SHOWCASE CARDS -->
-      <section class="landing-section-box" style="margin-top:20px;">
+      <!-- 2. INTERACTIVE 4-FACTION COVENANT SWITCHER -->
+      <section class="landing-section-box">
         <div class="section-header-row">
           <div>
-            <span class="section-tag" style="background:rgba(250,204,21,0.15); color:#facc15; border:1px solid rgba(250,204,21,0.3);">
-              CANONICAL CREEDS
+            <span class="section-tag" style="background:rgba(250,204,21,0.14); color:#fde047; border:1px solid rgba(250,204,21,0.35);">
+              FOUR ELEMENTAL COVENANTS &bull; FACTION-LOCKED ORDERS
             </span>
-            <h2 class="section-heading">🏛️ THE FOUR CONTINENTAL FACTIONS</h2>
+            <h2 class="section-heading">🏛️ CHOOSE YOUR CONTINENTAL ALLEGIANCE</h2>
           </div>
-          <button type="button" class="id-mini-btn" style="font-size:10px; padding:4px 10px; border-color:#facc15; color:#fde047; cursor:pointer;" onclick="window._landing.setTab('atlas')">
-            Read Full Lore ↗
+          <button type="button" class="hero-btn-secondary" style="padding:9px 16px; font-size:11.5px;" onclick="window._landing.setTab('forge')">
+            Customize in Champion Forge ➔
           </button>
         </div>
 
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:14px; margin-top:12px;">
+        <div class="gf-covenant-tabs">
           ${Object.keys(FACTIONS_META).map((facKey) => {
             const f = FACTIONS_META[facKey];
             const elem = FACTION_ELEMENTS[facKey] || FACTION_ELEMENTS.Solari;
+            const isSel = this.selectedFaction === facKey;
             return `
-              <div class="enc-article-card" style="border-left:4px solid ${f.color}; padding:16px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                  <b style="color:${f.color}; font-size:13px; font-family:var(--font-header);">${f.icon} ${facKey}</b>
-                  <span style="font-size:9px; font-weight:bold; color:${elem.badgeColor}; background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:4px; border:1px solid ${f.color}40;">${elem.aspect}</span>
+              <button type="button"
+                      class="gf-covenant-tab"
+                      style="${isSel ? `border-color:${f.color}; background:linear-gradient(145deg, ${f.color}22, rgba(8,13,26,0.95)); box-shadow:0 12px 30px ${f.color}25;` : ''}"
+                      onclick="window._landing.setFaction('${facKey}')">
+                <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+                  <span style="font-family:var(--font-header); font-size:16px; font-weight:900; color:${f.color};">${f.icon} ${facKey}</span>
+                  <span style="font-size:10px; font-weight:800; padding:2px 8px; border-radius:999px; background:rgba(0,0,0,0.45); color:${elem.badgeColor}; border:1px solid ${f.color}40;">${elem.element}</span>
                 </div>
-                <div style="font-size:10.5px; font-weight:600; color:#fff; margin-bottom:4px;">${f.name}</div>
-                <p style="font-size:10.5px; color:#cbd5e1; line-height:1.45; margin-bottom:12px;">${f.desc}</p>
-                <button type="button" class="id-mini-btn" style="width:100%; font-size:10px; padding:6px; border-color:${f.color}; color:${f.color}; cursor:pointer;" onclick="window._landing.setFaction('${facKey}'); window._landing.setTab('forge');">
-                  Forge ${facKey} Champion ➔
-                </button>
-              </div>
+                <div style="font-size:12px; font-weight:700; color:#f8fafc;">${f.name}</div>
+                <div style="font-size:11px; color:#94a3b8;">Click to inspect classes &amp; creed</div>
+              </button>
             `;
           }).join('')}
         </div>
+
+        <div class="gf-covenant-spotlight" style="border-color:${fm.color}55; box-shadow:inset 0 0 40px ${fm.color}12;">
+          <div style="display:flex; flex-direction:column; justify-content:space-between; gap:18px;">
+            <div>
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+                <span style="font-size:28px;">${fm.icon}</span>
+                <div>
+                  <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:${fm.color};">${fe.aspect}</div>
+                  <h3 style="font-family:var(--font-header); font-size:24px; font-weight:900; color:#fff; margin:0;">${this.selectedFaction} — ${fm.name}</h3>
+                </div>
+              </div>
+              <p style="font-size:14px; line-height:1.65; color:#cbd5e1; margin:0 0 16px;">${fm.desc}</p>
+
+              <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+                <span style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase;">Allowed Order Tags:</span>
+                ${covOrders.map((o) => `
+                  <span style="padding:4px 10px; border-radius:8px; font-family:monospace; font-size:11.5px; font-weight:900; background:rgba(0,0,0,0.5); border:1px solid ${o.color}66; color:${o.color};">
+                    [${o.tag}] ${o.name}
+                  </span>
+                `).join('')}
+              </div>
+            </div>
+
+            <div style="display:flex; flex-wrap:wrap; gap:12px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.08);">
+              <button type="button" class="hero-btn-primary" style="background:linear-gradient(135deg, ${fm.color}, #ca8a04); color:#050811;" onclick="window._landing.setFaction('${this.selectedFaction}'); window._landing.setTab('forge');">
+                <span>⚔️</span> Forge ${this.selectedFaction} Champion ➔
+              </button>
+              <button type="button" class="id-mini-btn" onclick="window._landing.setTab('armory')">
+                <span>🛡️</span> Inspect ${this.selectedFaction} Relics
+              </button>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; letter-spacing:0.8px;">
+              PLAYABLE ${this.selectedFaction.toUpperCase()} ARCHETYPES (${factionClasses.length})
+            </div>
+            ${factionClasses.map((c) => `
+              <div style="padding:16px 18px; border-radius:16px; background:rgba(12,19,38,0.9); border:1px solid ${fm.color}40; display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <b style="font-family:var(--font-header); font-size:15px; color:#fff;">${c.name}</b>
+                  <span style="font-size:10.5px; font-weight:800; color:${fm.color}; padding:2px 8px; border-radius:999px; background:${fm.color}18;">${c.role}</span>
+                </div>
+                <p style="font-size:12.5px; color:#cbd5e1; line-height:1.5; margin:0;">${c.desc}</p>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. CHOOSE YOUR EDITION (WANDERER PASS VS CANONICAL FOUNDER'S EDITION) -->
+      <section class="landing-section-box">
+        <div class="section-header-row">
+          <div>
+            <span class="section-tag" style="background:rgba(56,189,248,0.14); color:#7dd3fc; border:1px solid rgba(56,189,248,0.35);">
+              INSTANT BROWSER ACCESS &bull; ZERO PAY-TO-WIN
+            </span>
+            <h2 class="section-heading">👑 CHOOSE YOUR EDITION</h2>
+          </div>
+          <span style="font-size:12px; color:#94a3b8;">Play free up to Level 10 or unlock the complete continent forever</span>
+        </div>
+
+        <div class="gf-editions-grid">
+          <div class="gf-edition-card">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#7dd3fc; padding:4px 10px; border-radius:999px; background:rgba(56,189,248,0.14); border:1px solid rgba(56,189,248,0.35);">
+                  WANDERER'S TRIAL PASS
+                </span>
+                <span style="font-family:var(--font-header); font-size:26px; font-weight:900; color:#fff;">FREE</span>
+              </div>
+              <h3 style="font-family:var(--font-header); font-size:20px; color:#fff; margin:0 0 8px;">Instant Browser Trial</h3>
+              <p style="font-size:13.5px; color:#94a3b8; line-height:1.6; margin:0 0 18px;">
+                Jump straight into Sanctuary Haven and the 4 Faction Home Realms in your browser with zero download required.
+              </p>
+              <ul class="system-card-bullets" style="font-size:13px; color:#cbd5e1; gap:9px;">
+                <li class="system-card-bullet"><span class="bullet-icon" style="color:#38bdf8;">✓</span><span>All 4 Elemental Covenants &amp; 8 Playable Classes</span></li>
+                <li class="system-card-bullet"><span class="bullet-icon" style="color:#38bdf8;">✓</span><span>Character Progression up to <b>Level 10</b> &amp; Artisan Skills to <b>Lv. 30</b></span></li>
+                <li class="system-card-bullet"><span class="bullet-icon" style="color:#38bdf8;">✓</span><span>Both 0ms Offline Singleplayer &amp; 20Hz Stockholm Online Realm</span></li>
+                <li class="system-card-bullet"><span class="bullet-icon" style="color:#38bdf8;">✓</span><span>30-Slot Sanctuary Bank Vault &amp; Friendly 1-HP Dueling</span></li>
+              </ul>
+            </div>
+            <button type="button" class="hero-btn-secondary" style="width:100%;" onclick="window._landing.startJourney()">
+              <span>⚡</span> LAUNCH FREE TRIAL NOW
+            </button>
+          </div>
+
+          <div class="gf-edition-card founder">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#fde047; padding:4px 10px; border-radius:999px; background:rgba(250,204,21,0.18); border:1px solid rgba(250,204,21,0.5);">
+                  ★ CANONICAL FOUNDER'S EDITION
+                </span>
+                <div style="text-align:right;">
+                  <span style="font-family:var(--font-header); font-size:26px; font-weight:900; color:#facc15;">$19.99</span>
+                  <div style="font-size:10px; color:#94a3b8; font-weight:700;">ONE-TIME LICENSE</div>
+                </div>
+              </div>
+              <h3 style="font-family:var(--font-header); font-size:20px; color:#fff; margin:0 0 8px;">Complete Continental Access</h3>
+              <p style="font-size:13.5px; color:#cbd5e1; line-height:1.6; margin:0 0 18px;">
+                Unlock every endgame biome, Grand Exchange trading, Level 99 Mastery Capes, and exclusive Founder cosmetics.
+              </p>
+              <ul class="system-card-bullets" style="font-size:13px; color:#f8fafc; gap:9px;">
+                <li class="system-card-bullet"><span class="bullet-icon">★</span><span>Full <b>Level 30 Cap + Paragon 100</b> &amp; All 7 Skills to <b>Level 99 Mastery Capes</b></span></li>
+                <li class="system-card-bullet"><span class="bullet-icon">★</span><span>Unlock Endgame Realms: <b>Starfall Crater, Abyssal Rift &amp; Chronocore Citadel</b></span></li>
+                <li class="system-card-bullet"><span class="bullet-icon">★</span><span>Full <b>AetherSwap Grand Exchange</b> Orderbook &amp; Player-to-Player Trading</span></li>
+                <li class="system-card-bullet"><span class="bullet-icon">★</span><span>Expanded <b>140-Slot Account Bank</b>, 3 Quick-Swap Build Presets &amp; <b>[FOUNDER]</b> Title</span></li>
+              </ul>
+            </div>
+            <button type="button" class="hero-btn-primary" style="width:100%;" onclick="window._landing.setTab('forge')">
+              <span>👑</span> FORGE FOUNDER CHAMPION
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. DEDICATED MASTER REALM JUKEBOX & 15-TRACK CATALOG -->
+      <section class="landing-section-box">
+        <div class="section-header-row">
+          <div>
+            <span class="section-tag" style="background:rgba(56,189,248,0.14); color:#7dd3fc; border:1px solid rgba(56,189,248,0.35);">
+              HIGH-FIDELITY 48KHZ ORCHESTRAL SCORE
+            </span>
+            <h2 class="section-heading">🎼 MASTER REALM JUKEBOX &amp; OST CATALOG</h2>
+          </div>
+          <span style="font-size:12px; color:#94a3b8;">15 Original Zonal, Faction &amp; Boss Themes</span>
+        </div>
+
+        ${this.renderMediaPlayerSection(activeOstTrack)}
+        ${this.renderTracklistSection(activeOstTrack)}
       </section>
     `;
   }

@@ -1188,249 +1188,45 @@ export default function LandingPage() {
   const activeCinematic = LANDING_CINEMATICS.find((s) => s.id === selectedCinematicId) || LANDING_CINEMATICS[0];
 
   return (
-    <div className="min-h-screen bg-[#070B18] text-[#F8FAFC] flex flex-col lg:flex-row antialiased overflow-x-hidden selection:bg-[#F2A900] selection:text-black">
+    <div className="min-h-screen bg-[#050811] text-[#F8FAFC] flex flex-col antialiased overflow-x-hidden selection:bg-[#F2A900] selection:text-black">
       {/* ======================================================== */}
-      {/* 1. LEFT STICKY PIXELATED SIDEBAR NAVIGATION */}
+      {/* UNIFIED STICKY GLASSMORPHIC TOP NAVBAR                   */}
       {/* ======================================================== */}
-      <aside className="w-full lg:w-64 xl:w-72 lg:min-w-[250px] lg:max-w-[280px] lg:h-screen lg:sticky lg:top-0 bg-[#0A0F22]/95 border-r border-[#1E293B] flex flex-col z-40 backdrop-blur-xl overflow-y-auto scrollbar-thin scrollbar-thumb-[#1E293B]">
-        {/* Brand Header & Official Logo */}
-        <div className="p-5 border-b border-[#1E293B] bg-gradient-to-b from-[#0F172A] to-[#0A0F22]">
-          <div className="flex items-center gap-3">
-            <div className="relative w-12 h-12 flex-shrink-0 p-1 rounded-xl bg-black/40 border border-[#F2A900]/40 shadow-[0_0_15px_rgba(242,169,0,0.3)]">
+      <header className="sticky top-0 z-50 w-full bg-[#060A16]/85 backdrop-blur-2xl border-b border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.65)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4 flex-wrap">
+          <div
+            onClick={() => setTab('overview')}
+            className="flex items-center gap-3.5 cursor-pointer group"
+          >
+            <div className="relative w-11 h-11 flex-shrink-0 p-1.5 rounded-xl bg-black/50 border border-[#F2A900]/45 shadow-[0_0_18px_rgba(242,169,0,0.25)] group-hover:scale-105 transition-transform">
               <img
                 src={LOGO_PATH}
                 alt="GlimmerFall Official Logo"
-                width={48}
-                height={48}
-                style={{ maxWidth: 48, maxHeight: 48 }}
+                width={40}
+                height={40}
                 className="sidebar-logo-img w-full h-full object-contain filter drop-shadow(0 0 6px #F2A900)"
               />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-display font-black text-lg tracking-wider text-white">
-                  GLIMMER<span className="text-[#F2A900]">FALL</span>
-                </span>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#38BDF8]/15 border border-[#38BDF8]/40 text-[#38BDF8] font-bold">
-                  2D PIXEL
-                </span>
+              <div className="font-display font-black text-lg tracking-wider text-white">
+                GLIMMER<span className="text-[#F2A900]">FALL</span> ONLINE
               </div>
-              <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#4ADE80] font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#4ADE80] animate-ping" />
-                Official MMORPG Realm
+              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#10B981]/15 border border-[#10B981]/40 text-[10px] text-[#6EE7B7] font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-ping" />
+                STOCKHOLM REALM ({serverStatus.online ? `${serverStatus.latencyMs || 18}ms` : '20Hz'}) &bull; LIVE
               </div>
             </div>
           </div>
 
-          {/* Quick Launch & Play Mode */}
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <button
-              onClick={() => { setPlayMode('singleplayer'); playSfx('click'); }}
-              className={`text-[11px] py-1.5 px-2 rounded-lg font-bold border transition-all ${
-                playMode === 'singleplayer'
-                  ? 'bg-[#38BDF8]/20 border-[#38BDF8] text-[#7DD3FC] shadow-[0_0_10px_rgba(56,189,248,0.3)]'
-                  : 'bg-black/40 border-[#1E293B] text-white/60 hover:text-white'
-              }`}
-            >
-              🕹️ Offline
-            </button>
-            <button
-              onClick={() => { setPlayMode('multiplayer'); playSfx('click'); }}
-              className={`text-[11px] py-1.5 px-2 rounded-lg font-bold border transition-all ${
-                playMode === 'multiplayer'
-                  ? 'bg-[#22E07B]/20 border-[#22E07B] text-[#86EFAC] shadow-[0_0_10px_rgba(34,224,123,0.3)]'
-                  : 'bg-black/40 border-[#1E293B] text-white/60 hover:text-white'
-              }`}
-            >
-              🌐 Online
-            </button>
-          </div>
-
-          {/* Awaken CTA */}
-          <button
-            onClick={handleLaunchGame}
-            className="w-full mt-3 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#F2A900] to-[#EAB308] text-black font-display font-extrabold text-xs uppercase tracking-wider hover:brightness-110 active:scale-98 transition-all shadow-[0_0_18px_rgba(242,169,0,0.4)] flex items-center justify-center gap-2"
-          >
-            <Play className="w-3.5 h-3.5 fill-black" /> Start Journey Now
-          </button>
-        </div>
-
-        {/* Sidebar Nav Links */}
-        <div className="p-4 border-b border-[#1E293B] space-y-1 text-xs font-semibold">
-          <a href="/" className="flex items-center justify-between px-3 py-2 rounded-lg bg-[#F2A900]/15 border border-[#F2A900]/40 text-[#FDE047] hover:bg-[#F2A900]/25 transition-all font-bold mb-2 shadow-[0_0_12px_rgba(242,169,0,0.2)]">
-            <span className="flex items-center gap-2">
-              <Swords className="w-4 h-4 text-[#F2A900]" /> Enter Full 2D Game
-            </span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/50 text-[#F2A900]">LIVE ↗</span>
-          </a>
-
-          {[
-            { id: 'overview', label: 'Overview & Music', icon: Music, badge: 'OST', color: '#FDE047' },
-            { id: 'theatre', label: '1080p Theatre', icon: Film, badge: '12 HD', color: '#38BDF8' },
-            { id: 'forge', label: 'Champion Forge', icon: Sparkles, badge: 'Hero', color: '#F2A900' },
-            { id: 'systems', label: 'Gameplay Systems', icon: Zap, badge: 'Lv.99', color: '#4ADE80' },
-            { id: 'armory', label: 'Armory & TCG Relics', icon: Boxes, badge: '8 Slots', color: '#38BDF8' },
-            { id: 'atlas', label: 'Atlas & Universe Lore', icon: Globe, badge: '8 Biomes', color: '#C084FC' },
-            { id: 'settings', label: 'Preferences & Settings', icon: Settings, badge: 'Specs', color: '#F2A900' },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isSel = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setTab(tab.id)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all text-left ${
-                  isSel
-                    ? 'bg-gradient-to-r from-white/10 to-transparent border-l-4 border-l-[#F2A900] bg-white/5 text-white font-bold shadow-[0_0_12px_rgba(242,169,0,0.2)]'
-                    : 'hover:bg-white/5 text-white/70 hover:text-white'
-                }`}
-              >
-                <span className="flex items-center gap-2.5">
-                  <Icon className="w-4 h-4" style={{ color: tab.color }} />
-                  <span>{tab.label}</span>
-                </span>
-                <span className={`text-[9.5px] px-1.5 py-0.5 rounded font-mono ${
-                  isSel ? 'bg-[#F2A900]/20 text-[#FDE047] border border-[#F2A900]/40' : 'bg-black/40 text-white/40'
-                }`}>
-                  {tab.badge}
-                </span>
-              </button>
-            );
-          })}
-
-          <button
-            onClick={handleOpenLoadout}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-[#1E1B4B]/60 border border-[#38BDF8]/30 hover:border-[#38BDF8] text-[#7DD3FC] transition-colors mt-2"
-          >
-            <span className="flex items-center gap-2">
-              <UserCheck className="w-4 h-4 text-[#38BDF8]" /> Open Hero Loadout
-            </span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        {/* Pixel Gear & Items Showcase */}
-        <div className="p-4 border-b border-[#1E293B]">
-          <div className="flex items-center justify-between mb-2.5">
-            <span className="text-[11px] font-display font-bold tracking-wider text-[#F2A900] flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-[#F2A900]" /> PIXEL ARMORY PREVIEW
-            </span>
-            <span className="text-[9px] text-white/40">Hover to inspect</span>
-          </div>
-
-          <div className="grid grid-cols-4 gap-2">
-            {PIXEL_ITEMS.map((item) => (
-              <div
-                key={item.id}
-                onMouseEnter={() => setHoveredItem(item)}
-                onMouseLeave={() => setHoveredItem(null)}
-                className="relative aspect-square rounded-lg bg-[#080E1C] border border-[#1E293B] hover:border-[#F2A900] flex items-center justify-center text-xl cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-inner"
-                style={{ borderColor: hoveredItem?.id === item.id ? item.color : undefined }}
-              >
-                <span>{item.icon}</span>
-                <span className="absolute bottom-0.5 right-1 text-[8px] font-bold text-white/50">{item.slot[0]}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Hovered item preview tooltip */}
-          {hoveredItem ? (
-            <div className="mt-2.5 p-2 rounded-lg bg-black/80 border border-[#334155] text-[10.5px] animate-fadeIn">
-              <div className="flex justify-between items-center">
-                <span className="font-bold" style={{ color: hoveredItem.color }}>{hoveredItem.name}</span>
-                <span className="text-[9px] px-1 rounded bg-white/10 text-white/70">{hoveredItem.rarity}</span>
-              </div>
-              <div className="text-[10px] text-[#38BDF8] mt-0.5">{hoveredItem.stat}</div>
-              <p className="text-[9.5px] text-white/60 mt-1 italic">{hoveredItem.desc}</p>
-            </div>
-          ) : (
-            <div className="mt-2 text-center text-[10px] text-white/30 italic">
-              Hover over items to inspect stats &amp; sockets
-            </div>
-          )}
-        </div>
-
-        {/* Leyline Currencies */}
-        <div className="p-4 border-b border-[#1E293B]">
-          <div className="text-[11px] font-display font-bold tracking-wider text-[#38BDF8] flex items-center gap-1.5 mb-2.5">
-            <Coins className="w-3.5 h-3.5 text-[#38BDF8]" /> LEYLINE CURRENCY VAULT
-          </div>
-          <div className="space-y-1.5 text-xs">
-            {CURRENCIES.map((curr) => (
-              <div key={curr.id} className="flex items-center justify-between p-1.5 rounded-lg bg-black/40 border border-[#1E293B]/60">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">{curr.icon}</span>
-                  <span className="text-white/80 text-[11px] font-medium">{curr.name}</span>
-                </div>
-                <span className="font-mono font-bold text-[11px]" style={{ color: curr.color }}>{curr.val}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 7 Disciplines & Skills (Max 99) */}
-        <div className="p-4 border-b border-[#1E293B]">
-          <div className="flex justify-between items-center mb-2.5">
-            <span className="text-[11px] font-display font-bold tracking-wider text-[#22E07B] flex items-center gap-1.5">
-              <Pickaxe className="w-3.5 h-3.5 text-[#22E07B]" /> 7 REALM DISCIPLINES
-            </span>
-            <span className="text-[9.5px] text-[#F2A900] font-bold">MAX LVL 99</span>
-          </div>
-          <div className="space-y-2">
-            {PROFESSIONS.map((prof) => (
-              <div key={prof.id}>
-                <div className="flex justify-between text-[10.5px] font-semibold mb-1">
-                  <span className="flex items-center gap-1.5 text-white/90">
-                    <span>{prof.icon}</span> {prof.name}
-                  </span>
-                  <span style={{ color: prof.color }}>Lv. {prof.lvl} / 99</span>
-                </div>
-                <div className="h-1.5 w-full bg-black/60 rounded-full overflow-hidden border border-white/5">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${(prof.lvl / 99) * 100}%`, backgroundColor: prof.color }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Sidebar Footer & Preferences */}
-        <div className="p-4 mt-auto border-t border-[#1E293B] bg-[#070B18]">
-          <label className="flex items-center gap-2 cursor-pointer text-xs text-white/70 hover:text-white transition-colors">
-            <input
-              type="checkbox"
-              checked={startOnLoadout}
-              onChange={(e) => handleToggleStartOnSite(e.target.checked)}
-              className="rounded border-[#334155] text-[#38BDF8] focus:ring-0 cursor-pointer accent-[#38BDF8]"
-            />
-            <span>Start on this site (Loadout)</span>
-          </label>
-          <div className="mt-2 text-[10px] text-white/40 flex justify-between">
-            <span>© 2026 GlimmerFall</span>
-            <a href="https://glimmerfalltcg.com" target="_blank" rel="noreferrer" className="text-[#38BDF8] hover:underline flex items-center gap-1">
-              glimmerfalltcg.com <ExternalLink className="w-2.5 h-2.5" />
-            </a>
-          </div>
-        </div>
-      </aside>
-
-      {/* ======================================================== */}
-      {/* 2. MAIN SCROLLABLE PIXEL HEAVEN CONTENT (TABBED)        */}
-      {/* ======================================================== */}
-      <main className="flex-1 min-h-screen min-w-0 max-w-full px-4 py-6 lg:px-8 lg:py-6 space-y-8 overflow-x-hidden">
-        {/* TOP TAB NAVIGATION BAR */}
-        <header className="sticky top-0 z-30 -mx-4 -mt-6 sm:-mx-8 sm:-mt-8 lg:-mx-8 lg:-mt-6 px-4 sm:px-8 lg:px-8 py-3 bg-[#0A0F22]/95 backdrop-blur-xl border-b border-[#1E293B] shadow-2xl flex items-center justify-between gap-4 overflow-x-auto scrollbar-none">
-          <nav className="flex items-center gap-1.5 min-w-max">
+          <nav className="flex items-center gap-1.5 bg-[#0B1122]/80 p-1.5 rounded-2xl border border-white/10 overflow-x-auto scrollbar-none">
             {[
-              { id: 'overview', label: 'Overview & Music', icon: Music, badge: 'OST' },
+              { id: 'overview', label: 'Overview', icon: Music, badge: 'Portal' },
+              { id: 'forge', label: 'Champion Forge', icon: Sparkles, badge: '8 Classes' },
               { id: 'theatre', label: '1080p Theatre', icon: Film, badge: '12 HD' },
-              { id: 'forge', label: 'Champion Forge', icon: Sparkles, badge: 'Hero' },
-              { id: 'systems', label: 'Gameplay Systems', icon: Zap, badge: 'Lv.99' },
-              { id: 'armory', label: 'Armory & TCG Relics', icon: Boxes, badge: '8 Slots' },
-              { id: 'atlas', label: 'Atlas & Universe Lore', icon: Globe, badge: '8 Biomes' },
-              { id: 'settings', label: 'Settings', icon: Settings, badge: 'Specs' },
+              { id: 'systems', label: 'Game Systems', icon: Zap, badge: 'Lv.99' },
+              { id: 'armory', label: 'Armory & Relics', icon: Boxes, badge: '200+' },
+              { id: 'atlas', label: 'Atlas & Lore', icon: Globe, badge: '8 Realms' },
+              { id: 'settings', label: 'Settings', icon: Settings, badge: 'Prefs' },
             ].map((tab) => {
               const Icon = tab.icon;
               const isSel = activeTab === tab.id;
@@ -1438,16 +1234,16 @@ export default function LandingPage() {
                 <button
                   key={tab.id}
                   onClick={() => setTab(tab.id)}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-display font-bold transition-all ${
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-display font-bold transition-all whitespace-nowrap ${
                     isSel
-                      ? 'bg-gradient-to-r from-[#F2A900]/25 to-[#38BDF8]/25 border border-[#F2A900] text-[#FDE047] shadow-[0_0_15px_rgba(242,169,0,0.35)]'
-                      : 'bg-white/5 border border-white/5 text-white/70 hover:text-white hover:bg-white/10'
+                      ? 'bg-gradient-to-r from-[#F2A900]/25 to-[#38BDF8]/20 border border-[#F2A900]/60 text-[#FDE047] shadow-[0_4px_16px_rgba(242,169,0,0.2)]'
+                      : 'border border-transparent text-white/65 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isSel ? 'text-[#FDE047]' : 'text-white/60'}`} />
+                  <Icon className={`w-3.5 h-3.5 ${isSel ? 'text-[#FDE047]' : 'text-white/50'}`} />
                   <span>{tab.label}</span>
-                  <span className={`text-[9px] px-1.5 py-0.2 rounded-full border ${
-                    isSel ? 'bg-black/50 border-[#F2A900]/50 text-[#FDE047]' : 'bg-black/30 border-white/10 text-white/50'
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full border ${
+                    isSel ? 'bg-black/50 border-[#F2A900]/50 text-[#FDE047]' : 'bg-black/40 border-white/10 text-white/40'
                   }`}>
                     {tab.badge}
                   </span>
@@ -1455,16 +1251,52 @@ export default function LandingPage() {
               );
             })}
           </nav>
-          <div className="flex items-center gap-2 flex-shrink-0">
+
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            <div className="inline-flex bg-[#080D1A] p-1 rounded-xl border border-white/10">
+              <button
+                onClick={() => { setPlayMode('singleplayer'); playSfx('click'); }}
+                className={`text-[11px] py-1.5 px-2.5 rounded-lg font-bold transition-all ${
+                  playMode === 'singleplayer'
+                    ? 'bg-[#38BDF8]/20 border border-[#38BDF8]/50 text-[#7DD3FC]'
+                    : 'text-white/50 hover:text-white'
+                }`}
+              >
+                🕹️ Offline
+              </button>
+              <button
+                onClick={() => { setPlayMode('multiplayer'); playSfx('click'); }}
+                className={`text-[11px] py-1.5 px-2.5 rounded-lg font-bold transition-all ${
+                  playMode === 'multiplayer'
+                    ? 'bg-[#22E07B]/20 border border-[#22E07B]/50 text-[#86EFAC]'
+                    : 'text-white/50 hover:text-white'
+                }`}
+              >
+                🌐 Online
+              </button>
+            </div>
+
+            <button
+              onClick={handleOpenLoadout}
+              className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-xs font-bold text-white/90 transition-all flex items-center gap-1.5"
+            >
+              <UserCheck className="w-3.5 h-3.5 text-[#38BDF8]" /> Roster
+            </button>
+
             <button
               onClick={handleLaunchGame}
-              className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#F2A900] to-[#EAB308] text-black font-display font-black text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 shadow-[0_0_12px_rgba(242,169,0,0.35)] flex items-center gap-1.5"
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#FDE047] via-[#FACC15] to-[#CA8A04] text-black font-display font-black text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 shadow-[0_8px_24px_rgba(250,204,21,0.35)] flex items-center gap-1.5"
             >
-              <Zap className="w-3.5 h-3.5 fill-black" /> Start Journey
+              <Zap className="w-3.5 h-3.5 fill-black" /> Play Free Now
             </button>
           </div>
-        </header>
+        </div>
+      </header>
 
+      {/* ======================================================== */}
+      {/* MAIN FULL-WIDTH CONTENT CONTAINER                        */}
+      {/* ======================================================== */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
         {/* DYNAMIC TAB VIEWS */}
         <div className="space-y-8 animate-fade-in">
           {/* ======================================================== */}
