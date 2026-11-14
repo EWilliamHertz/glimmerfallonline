@@ -345,9 +345,11 @@ export class MultiplayerClient {
         }
         if (msg.type === 'pong' && typeof msg.ts === 'number') {
           const sample = Math.max(1, Math.round(performance.now() - msg.ts));
-          // Moving average filter to prevent transient timer outliers from latching
-          if (!this.pingMs || this.pingMs <= 0) {
-            this.pingMs = sample;
+          // Ignore extreme tab-suspended/buffered outliers (>10s) once connected,
+          // and snap back immediately if a normal sample arrives after a spike.
+          if (sample > 10000 && this.pingMs > 0) return;
+          if (!this.pingMs || this.pingMs <= 0 || (this.pingMs > 5000 && sample < 2000)) {
+            this.pingMs = Math.min(sample, 5000);
           } else {
             this.pingMs = Math.round(this.pingMs * 0.65 + sample * 0.35);
           }

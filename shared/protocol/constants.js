@@ -64,4 +64,28 @@ export const RED_SKULL_DURATION_SEC = 1800;  // 30 minutes of red skull infamy
 export const RED_SKULL_PK_THRESHOLD = 3;     // 3 unprovoked player kills triggers Red Skull
 export const TOMBSTONE_RETRIEVAL_EXPIRY_SEC = 900; // 15 minutes to retrieve fallen corpse
 
+// Authoritative MMORPG Combat Engine Constants (GCD, Spell Queue, Threat/Aggro)
+export const BASE_GCD_SEC = 1.5;
+export const MIN_GCD_SEC = 0.75;
+export const SPELL_QUEUE_WINDOW_SEC = 0.4;
+export const TANK_THREAT_MULT = 3.5;
+export const HEAL_THREAT_MULT = 0.5;
+export const TAUNT_DURATION_SEC = 3.0;
+export const TANK_CLASSES = new Set(['solari_vanguard', 'stonekin_elder']);
+export const OFF_GCD_KINDS = new Set([
+  'shield',
+  'thornbark',
+  'reactive_barrier',
+  'cleanse_sprint',
+  'dash',
+  'stealth',
+  'archon_form',
+]);
+
+export function isAbilityOffGCD(spec) {
+  if (!spec) return false;
+  return Boolean(spec.isOffGCD) || OFF_GCD_KINDS.has(spec.kind);
+}
+
+
 

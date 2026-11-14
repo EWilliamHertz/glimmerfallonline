@@ -59,6 +59,11 @@ import {
   SKILLING_NODE_TYPES,
   ELITE_AFFIXES,
   BOUNTY_CONTRACTS,
+  BASE_GCD_SEC,
+  MIN_GCD_SEC,
+  SPELL_QUEUE_WINDOW_SEC,
+  TANK_CLASSES,
+  isAbilityOffGCD,
 } from '../../shared/protocol.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
 
@@ -192,6 +197,17 @@ export const combatCastMethods = {
     const critChance = calcCritChance(player.prog, player.equipment, player.classId);
     const isFlash = spec.tcgType.includes('Flash');
     const isRite = spec.tcgType.includes('Rite');
+    const offGcd = isAbilityOffGCD(spec);
+    const gcdDuration = Math.max(MIN_GCD_SEC, Math.min(BASE_GCD_SEC, BASE_GCD_SEC * cdMult));
+
+    // Global Cooldown (GCD) + 400ms Server-Side Spell Queue Window
+    if (!offGcd && ((player.gcdTimer || 0) > 0.01 || player.castState)) {
+      const rem = Math.max(player.gcdTimer || 0, player.castState ? player.castState.remaining : 0);
+      if (rem <= SPELL_QUEUE_WINDOW_SEC) {
+        player.queuedAbility = { slot, targetId, facingDir, queuedAt: Date.now() };
+      }
+      return;
+    }
 
     const getDirAngle = (dir) => {
       if (dir === 'up') return { dx: 0, dy: -1, angle: -Math.PI / 2 };
@@ -224,6 +240,10 @@ export const combatCastMethods = {
 
       player.solarCharge -= spec.cost;
       player.cooldowns[slot] = spec.baseCd * cdMult;
+      if (!offGcd) {
+        player.gcdTotal = gcdDuration;
+        player.gcdTimer = gcdDuration;
+      }
       player.castState = {
         slot,
         specId: spec.id,
@@ -254,6 +274,10 @@ export const combatCastMethods = {
     }
 
     // FLASHES EXECUTE INSTANTLY (castTime === 0)
+    if (!offGcd) {
+      player.gcdTotal = gcdDuration;
+      player.gcdTimer = gcdDuration;
+    }
     if (isFlash) {
       this.awardProfessionXP(player, 'flashes', Math.max(8, 6 + rank * 2), spec.name);
     }
@@ -330,6 +354,13 @@ export const combatCastMethods = {
         }
       }
       this.parties.syncPlayerVitals(player.id);
+      if (TANK_CLASSES.has(player.classId) && typeof this.addMobThreat === 'function') {
+        for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, 12 * YARD_PX)) {
+          if (h.kind !== 'player' && h.ref?.type === 'mob') {
+            this.addMobThreat(room, h.ref, player, 40 + effStats.bastion * 4, { isTaunt: true });
+          }
+        }
+      }
       return;
     }
 

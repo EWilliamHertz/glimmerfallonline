@@ -59,6 +59,10 @@ import {
   SKILLING_NODE_TYPES,
   ELITE_AFFIXES,
   BOUNTY_CONTRACTS,
+  TANK_THREAT_MULT,
+  HEAL_THREAT_MULT,
+  TAUNT_DURATION_SEC,
+  TANK_CLASSES,
 } from '../../shared/protocol.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
 
@@ -164,6 +168,12 @@ export const combatRitesAndDamageMethods = {
         }
       }
       this.parties.syncPlayerVitals(player.id);
+      // Heals generate 0.5x threat on all engaged mobs in combat
+      for (const ent of room.entities) {
+        if (ent.type === 'mob' && ent.inCombat && !ent.isDying) {
+          this.addMobThreat(room, ent, player, healAmt, { isHeal: true });
+        }
+      }
       return;
     }
 
@@ -240,6 +250,12 @@ export const combatRitesAndDamageMethods = {
       room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 8, colors: ['#38bdf8', '#e0f2fe', '#c084fc'] });
       room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 10, text: `⏳ REWIND +${rewindHp} HP & ECHO!`, color: '#7dd3fc', isCrit: true });
       this.parties.syncPlayerVitals(player.id);
+      // Heals generate 0.5x threat on all engaged mobs in combat
+      for (const ent of room.entities) {
+        if (ent.type === 'mob' && ent.inCombat && !ent.isDying) {
+          this.addMobThreat(room, ent, player, healAmt, { isHeal: true });
+        }
+      }
       return;
     }
 
@@ -401,6 +417,28 @@ export const combatRitesAndDamageMethods = {
     }
   },
 
+  addMobThreat(room, mob, player, rawAmount, { isTaunt = false, isHeal = false } = {}) {
+    if (!mob || mob.type !== 'mob' || mob.isDying || !player) return;
+    if (!mob.threatTable) mob.threatTable = {};
+    const mult = isHeal ? HEAL_THREAT_MULT : (TANK_CLASSES.has(player.classId) ? TANK_THREAT_MULT : 1.0);
+    const added = Math.max(1, Math.round(rawAmount * mult));
+
+    if (isTaunt) {
+      let maxThreat = 0;
+      for (const val of Object.values(mob.threatTable)) {
+        if (val > maxThreat) maxThreat = val;
+      }
+      mob.threatTable[player.id] = Math.max(Math.round(maxThreat * 1.1) + added, (mob.threatTable[player.id] || 0) + added);
+      mob.tauntTargetId = player.id;
+      mob.tauntTimer = TAUNT_DURATION_SEC;
+      mob.inCombat = true;
+      mob.targetPlayerId = player.id;
+      room?.fxQueue?.push({ kind: 'fct', x: mob.x, y: mob.y - 16, text: 'TAUNTED!', color: '#facc15', isCrit: true });
+    } else {
+      mob.threatTable[player.id] = (mob.threatTable[player.id] || 0) + added;
+    }
+  },
+
   applyAuthoritativeDamage(room, attackerPlayer, targetWrap, dmg, isCrit, spellName, isRite = false) {
     const t = targetWrap.ref;
     if (targetWrap.kind === 'player') {
@@ -414,6 +452,9 @@ export const combatRitesAndDamageMethods = {
           room.fxQueue.push({ kind: 'fct', x: t.x, y: t.y - 12, text: 'AGGRO!', color: '#ef4444' });
         }
         t.inCombat = true;
+        if (attackerPlayer) {
+          this.addMobThreat(room, t, attackerPlayer, dmg);
+        }
       }
       if (attackerPlayer && t.dammers) t.dammers.add(attackerPlayer.id);
 

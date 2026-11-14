@@ -113,6 +113,8 @@ export class RoomManager {
     this.getOrCreatePublicRoom(ROOM_TYPES.CELESTIAL_ASCENT);
     this.getOrCreatePublicRoom(ROOM_TYPES.IRONWOOD_TIMBERLANDS);
     this.getOrCreatePublicRoom(ROOM_TYPES.CORAL_COAST);
+    this.getOrCreatePublicRoom(ROOM_TYPES.STARLIGHT_GROVE);
+    this.getOrCreatePublicRoom(ROOM_TYPES.CHRONOCORE_CITADEL);
 
     this.tickInterval = setInterval(() => this.tickAllRooms(), TICK_MS);
   }
@@ -386,6 +388,9 @@ export class RoomManager {
       pkCount: 0,
       activeTombstone: null,
       cooldowns: { 1: 0, 2: 0, 3: 0, 4: 0, 9: 0, 10: 0, 11: 0, 12: 0 },
+      gcdTimer: 0,
+      gcdTotal: 0,
+      queuedAbility: null,
       castState: null,
       team: null,
       roomId: null,

@@ -219,6 +219,16 @@ export const socialAndTickMethods = {
       for (const k in p.cooldowns) {
         if (p.cooldowns[k] > 0) p.cooldowns[k] = Math.max(0, p.cooldowns[k] - dt);
       }
+      if ((p.gcdTimer || 0) > 0) {
+        p.gcdTimer = Math.max(0, p.gcdTimer - dt);
+      }
+      if (p.queuedAbility && (p.gcdTimer || 0) <= 0 && !p.castState && !p.isDead && p.freezeTimer <= 0) {
+        const q = p.queuedAbility;
+        p.queuedAbility = null;
+        if (now - (q.queuedAt || 0) <= 1000) {
+          this.handleCastAbility(room, p, q.slot, q.targetId, q.facingDir);
+        }
+      }
       if (p.portalCooldown > 0) p.portalCooldown = Math.max(0, p.portalCooldown - dt);
       if (p.shield > 0) {
         p.shieldTimer -= dt;
@@ -543,22 +553,58 @@ export const socialAndTickMethods = {
         const origY = e.origY ?? e.y;
         const distHome = Math.hypot(origX - e.x, origY - e.y);
 
-        if (!nearestPlayer && e.inCombat) {
+        if ((e.tauntTimer || 0) > 0) {
+          e.tauntTimer = Math.max(0, e.tauntTimer - dt);
+          if (e.tauntTimer <= 0) e.tauntTargetId = null;
+        }
+
+        // Resolve authoritative threat target (Taunt > Highest Threat > Nearest)
+        let aggroTarget = null;
+        if (e.tauntTargetId) {
+          const tp = room.players.get(e.tauntTargetId);
+          if (tp && !tp.isDead && tp.stealthedTimer <= 0) aggroTarget = tp;
+          else { e.tauntTargetId = null; e.tauntTimer = 0; }
+        }
+        if (!aggroTarget && e.threatTable) {
+          let topThreat = 0;
+          for (const [pid, thr] of Object.entries(e.threatTable)) {
+            if (thr > topThreat) {
+              const tp = room.players.get(pid);
+              if (tp && !tp.isDead && tp.stealthedTimer <= 0) {
+                topThreat = thr;
+                aggroTarget = tp;
+              }
+            }
+          }
+        }
+        if (!aggroTarget) aggroTarget = nearestPlayer;
+        const aggroDist = aggroTarget ? Math.hypot(aggroTarget.x - e.x, aggroTarget.y - e.y) : Infinity;
+
+        if (!aggroTarget && e.inCombat) {
           e.inCombat = false;
           e.targetPlayerId = null;
-        } else if (e.inCombat && nearestPlayer && bestD > (e.aggroRange || 110) * 1.8 && distHome > 120) {
+          e.threatTable = {};
+          e.tauntTargetId = null;
+          e.tauntTimer = 0;
+        } else if (e.inCombat && aggroTarget && aggroDist > (e.aggroRange || 110) * 1.8 && distHome > 120) {
           // Player broke pursuit tether — drop aggro
           e.inCombat = false;
           e.targetPlayerId = null;
+          e.threatTable = {};
+          e.tauntTargetId = null;
+          e.tauntTimer = 0;
         } else if (nearestPlayer && !e.inCombat && bestD <= (e.aggroRange || 110)) {
           e.inCombat = true;
           e.targetPlayerId = nearestPlayer.id;
+          e.threatTable = e.threatTable || {};
+          e.threatTable[nearestPlayer.id] = Math.max(1, e.threatTable[nearestPlayer.id] || 1);
           room.fxQueue.push({ kind: 'fct', x: e.x, y: e.y - 12, text: 'AGGRO!', color: '#ef4444' });
         }
 
         const speedMult = e.snareTimer > 0 ? 0.35 : e.slowTimer > 0 ? 0.55 : 1.0;
 
-        if (e.inCombat && nearestPlayer) {
+        if (e.inCombat && aggroTarget) {
+          e.targetPlayerId = aggroTarget.id;
           if (e.isBoss && !e.isDying) {
             const hpPercent = (e.hp / e.maxHp) * 100;
             e.phase = e.phase || 1;
@@ -778,6 +824,10 @@ export const socialAndTickMethods = {
           const distHome = Math.hypot(origX - e.x, origY - e.y);
           if (room.type !== ROOM_TYPES.ARENA_3V3 && distHome > 240) {
             e.inCombat = false;
+            e.targetPlayerId = null;
+            e.threatTable = {};
+            e.tauntTargetId = null;
+            e.tauntTimer = 0;
             e.x = origX;
             e.y = origY;
             e.hp = e.maxHp;
@@ -786,9 +836,9 @@ export const socialAndTickMethods = {
             continue;
           }
 
-          if (bestD > e.attackRange) {
-            const nextMobX = e.x + ((nearestPlayer.x - e.x) / bestD) * e.speed * speedMult * dt;
-            const nextMobY = e.y + ((nearestPlayer.y - e.y) / bestD) * e.speed * speedMult * dt;
+          if (aggroDist > e.attackRange) {
+            const nextMobX = e.x + ((aggroTarget.x - e.x) / aggroDist) * e.speed * speedMult * dt;
+            const nextMobY = e.y + ((aggroTarget.y - e.y) / aggroDist) * e.speed * speedMult * dt;
             if (!isWaterTile(nextMobX, nextMobY, room.type)) {
               e.x = nextMobX;
               e.y = nextMobY;
@@ -803,7 +853,7 @@ export const socialAndTickMethods = {
             if (e.atkTimer >= bossAtkInterval) {
               e.atkTimer = 0;
               const rawDmg = Math.max(1, (e.damage || 3) - (e.weakenTimer > 0 ? 2 : 0));
-              this.damagePlayerSession(room, nearestPlayer, rawDmg, e.name, false, e);
+              this.damagePlayerSession(room, aggroTarget, rawDmg, e.name, false, e);
             }
           }
         } else if (room.type === ROOM_TYPES.ARENA_3V3) {
@@ -970,6 +1020,9 @@ export const socialAndTickMethods = {
         maxSolarCharge: p.maxSolarCharge,
         isDead: p.isDead,
         isCasting: Boolean(p.castState),
+        gcdRemaining: Number((p.gcdTimer || 0).toFixed(2)),
+        gcdTotal: Number((p.gcdTotal || 0).toFixed(2)),
+        queuedSlot: p.queuedAbility?.slot || null,
         stealthed: p.stealthedTimer > 0,
         thornbark: p.thornbarkTimer > 0,
         zenith: p.zenithTimer > 0,

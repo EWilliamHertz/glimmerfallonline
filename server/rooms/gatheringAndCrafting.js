@@ -72,17 +72,41 @@ export const gatheringAndCraftingMethods = {
     }
     if (shrine && Math.hypot(shrine.x - player.x, shrine.y - player.y) <= 7.5 * YARD_PX) {
       if (shrine.charges <= 0) return;
+      if (shrine.reqSkill && shrine.reqLevel) {
+        const curLvl = getProfessionLevelFromXp(player.prog?.professions?.[shrine.reqSkill]?.xp || 0);
+        if (curLvl < shrine.reqLevel) {
+          const skName = PROFESSIONS_CATALOG[shrine.reqSkill]?.name || shrine.reqSkill;
+          room.fxQueue.push({ kind: 'fct', x: shrine.x, y: shrine.y - 12, text: `🔒 REQ ${skName.toUpperCase()} LV.${shrine.reqLevel}`, color: '#f87171' });
+          player.send({
+            type: 'sys_msg',
+            category: 'combat',
+            text: `🔒 [SKILL SHRINE] ${shrine.name} requires ${skName} Lv.${shrine.reqLevel} (You are Lv.${curLvl}).`,
+          });
+          return;
+        }
+      }
       shrine.charges--;
       if (shrine.charges === 0) shrine.rechargeTimer = 45.0;
-      player.shrineBuff = { affinity: shrine.affinity, name: shrine.buffName, timer: 60 };
+      const isMastery = Boolean(shrine.reqSkill);
+      player.shrineBuff = { affinity: shrine.affinity, name: shrine.buffName, timer: isMastery ? 180 : 60 };
+      if (isMastery) {
+        player.hp = player.maxHp;
+        player.solarCharge = player.maxSolarCharge;
+        this.parties.syncPlayerVitals(player.id);
+      }
       room.fxQueue.push({ kind: 'spark', x: shrine.x, y: shrine.y - 12, colors: ['#facc15', '#ffffff', '#38bdf8'] });
       room.fxQueue.push({ kind: 'fct', x: shrine.x, y: shrine.y - 10, text: `✨ ${shrine.buffName.toUpperCase()}!`, color: '#facc15' });
       player.send({
         type: 'sys_msg',
         category: 'combat',
-        text: `✨ [SHRINE] Received ${shrine.buffName} Blessing (+Stats for 60s)!`,
+        text: isMastery
+          ? `✨ [MASTERY SHRINE] ${shrine.buffName} activated for 180s! Full HP & Glimmer restored!`
+          : `✨ [SHRINE] Received ${shrine.buffName} Blessing (+Stats for 60s)!`,
       });
-      this.awardProfessionXP(player, 'resonance_extraction', 45, `${shrine.name} Channeling`);
+      this.awardProfessionXP(player, shrine.reqSkill || 'resonance_extraction', isMastery ? 140 : 45, `${shrine.name} Channeling`);
+      if (isMastery) {
+        this.awardPlayerXP(player, 120, `${shrine.name} Mastery`);
+      }
 
       player.questState = player.questState || {};
       player.questState.extractionNodesHarvested = (player.questState.extractionNodesHarvested || 0) + 1;

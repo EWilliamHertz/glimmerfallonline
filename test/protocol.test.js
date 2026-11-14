@@ -352,7 +352,7 @@ test('RoomManager initializes Starfall Crater, Abyssal Rift, skilling veins, and
     partyManager: { getPartyForMember: () => null },
   });
   try {
-    assert.equal(rm.rooms.size, 16);
+    assert.equal(rm.rooms.size, 18);
     const starfall = rm.rooms.get('starfall_crater_1');
     const abyssal = rm.rooms.get('abyssal_rift_1');
     const hub = rm.rooms.get('sanctuary_hub_1');

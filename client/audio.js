@@ -1,5 +1,6 @@
 // ==========================================
 // GlimmerFall Online 2D — 16-Bit Chiptune SFX & Polyphonic Procedural BGM Engine
+import { FLOW_EVENT_AUDIO } from './game/mediaCatalog.js';
 // Zones & Themes:
 //   - 'sanctuary' : Awakening Sanctuary Haven (Pixel Overloop / ethereal starlight)
 //   - 'solari'    : Lantern District & Golden Citadel (Daybreak at the Sunspire)
@@ -303,6 +304,28 @@ export const BGM_THEMES = {
       'kick', 'kick', 'snare', 'snare', 'kick', 'snare', 'cymbal', 'snare',
     ],
   },
+  duel: {
+    name: 'Tactical Card Duel (1v1 Arena)',
+    audioFile: FLOW_EVENT_AUDIO.duel,
+    stepMs: 160,
+    leadType: 'triangle',
+    harmonyType: 'sine',
+    bassType: 'triangle',
+    leadGain: 0.04,
+    harmonyGain: 0.02,
+    bassGain: 0.04,
+  },
+  warzone_clash: {
+    name: 'Outpost Siege — Warzone Monolith Clash',
+    audioFile: FLOW_EVENT_AUDIO.warzone_clash,
+    stepMs: 145,
+    leadType: 'square',
+    harmonyType: 'triangle',
+    bassType: 'sawtooth',
+    leadGain: 0.036,
+    harmonyGain: 0.02,
+    bassGain: 0.04,
+  },
 };
 
 export class PixelSoundEngine {
@@ -416,8 +439,15 @@ export class PixelSoundEngine {
       this.ctx.resume();
     }
     this.ensureGainNodes();
-    if (!this.bgmTimer && !this.bgmMuted) {
-      this.startBgmLoop();
+    const spec = BGM_THEMES[this.bgmTheme] || BGM_THEMES.sanctuary;
+    if (!this.bgmMuted) {
+      if (spec?.audioFile && typeof window !== 'undefined') {
+        if (!this.trackEl || this.trackEl.paused || this.currentTrackUrl !== spec.audioFile) {
+          this.playTrackAudio(spec.audioFile, true, this.themePositions[this.bgmTheme]?.time || 0);
+        }
+      } else if (!this.bgmTimer) {
+        this.startBgmLoop();
+      }
     }
   }
 
@@ -454,10 +484,21 @@ export class PixelSoundEngine {
     if (this.bgmMuted || this.muted) return;
     if (typeof window === 'undefined') return;
     try {
+      // Stop procedural chiptune loop so original tracker & streamed M4A never overlap
+      if (this.bgmTimer) {
+        clearInterval(this.bgmTimer);
+        this.bgmTimer = null;
+      }
       if (!this.trackEl) {
         this.trackEl = new Audio();
       }
       if (this.currentTrackUrl === url && !this.trackEl.paused) return;
+
+      const token = (this._trackToken = (this._trackToken || 0) + 1);
+      if (this._pendingMetaListener) {
+        this.trackEl.removeEventListener('loadedmetadata', this._pendingMetaListener);
+        this._pendingMetaListener = null;
+      }
 
       this.currentTrackUrl = url;
       const needsSrcChange = this.trackEl.src !== url;
@@ -468,6 +509,7 @@ export class PixelSoundEngine {
       this.trackEl.volume = Math.max(0, Math.min(1, this.musicVolume * this.masterVolume));
 
       const seekAndPlay = () => {
+        if (token !== this._trackToken || this.bgmMuted || this.muted || this.currentTrackUrl !== url) return;
         if (startTime > 0 && Number.isFinite(startTime)) {
           try {
             if (this.trackEl.duration && Number.isFinite(this.trackEl.duration) && this.trackEl.duration > 0) {
@@ -480,27 +522,40 @@ export class PixelSoundEngine {
         const playPromise = this.trackEl.play();
         if (playPromise && typeof playPromise.catch === 'function') {
           playPromise.catch((err) => {
-            console.warn('[AudioEngine] Track audio playback deferred/fallback:', err.message);
+            if (token !== this._trackToken || this.bgmMuted || this.muted) return;
+            // Do not fall back to procedural chiptune on browser autoplay block or track-switch abort
+            if (err?.name === 'AbortError' || err?.name === 'NotAllowedError') return;
+            console.warn('[AudioEngine] Track audio playback deferred/fallback:', err?.message || err);
+            this.stopTrackAudio(false);
             this.startBgmLoop();
           });
         }
       };
 
       if (needsSrcChange && startTime > 0 && this.trackEl.readyState < 1) {
-        this.trackEl.addEventListener('loadedmetadata', () => {
+        const onMeta = () => {
+          this._pendingMetaListener = null;
           seekAndPlay();
-        }, { once: true });
+        };
+        this._pendingMetaListener = onMeta;
+        this.trackEl.addEventListener('loadedmetadata', onMeta, { once: true });
       } else {
         seekAndPlay();
       }
     } catch (err) {
       console.warn('[AudioEngine] playTrackAudio error:', err);
+      this.stopTrackAudio(false);
       this.startBgmLoop();
     }
   }
 
   stopTrackAudio(resetPosition = false) {
+    this._trackToken = (this._trackToken || 0) + 1;
     if (this.trackEl) {
+      if (this._pendingMetaListener) {
+        this.trackEl.removeEventListener('loadedmetadata', this._pendingMetaListener);
+        this._pendingMetaListener = null;
+      }
       try {
         this.trackEl.pause();
         if (resetPosition) {
@@ -565,7 +620,9 @@ export class PixelSoundEngine {
   }
 
   startBgmLoop() {
+    this.stopTrackAudio(false);
     clearInterval(this.bgmTimer);
+    this.bgmTimer = null;
     if (this.bgmMuted || this.muted) return;
     const spec = BGM_THEMES[this.bgmTheme] || BGM_THEMES.sanctuary;
     const patternLen = spec.lead?.length || 16;
@@ -844,10 +901,32 @@ export class PixelSoundEngine {
   playOneShotAudio(url, volume = 0.8) {
     if (this.muted || typeof window === 'undefined') return;
     try {
+      if (this.oneShotEl) {
+        try { this.oneShotEl.pause(); } catch (_) {}
+      }
       const snd = new Audio(url);
+      this.oneShotEl = snd;
       snd.volume = Math.max(0, Math.min(1, this.sfxVolume * this.masterVolume * volume));
-      snd.play().catch(() => {});
+      const restoreTrackVolume = () => {
+        if (this.oneShotEl === snd && this.trackEl) {
+          this.trackEl.volume = Math.max(0, Math.min(1, this.musicVolume * this.masterVolume));
+        }
+      };
+      if (this.trackEl && !this.trackEl.paused) {
+        this.trackEl.volume = Math.max(0, Math.min(1, this.musicVolume * this.masterVolume * 0.15));
+        snd.addEventListener?.('ended', restoreTrackVolume, { once: true });
+        snd.addEventListener?.('error', restoreTrackVolume, { once: true });
+      }
+      const p = snd.play();
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => restoreTrackVolume());
+      }
     } catch (_) {}
+  }
+
+  playEventTrack(eventKey, volume = 0.85) {
+    const url = FLOW_EVENT_AUDIO[eventKey];
+    if (url) this.playOneShotAudio(url, volume);
   }
 
   playQuestCompleteFanfare() {

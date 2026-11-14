@@ -96,3 +96,87 @@ test('PixelSoundEngine: 4-Channel Polyphony (Lead, Harmony, Bass, Perc) across a
     }
   }
 });
+
+test('PixelSoundEngine: init() never starts procedural bgmTimer on top of streamed audioFile tracks', () => {
+  const prevWin = globalThis.window;
+  const prevAudio = globalThis.Audio;
+  try {
+    globalThis.window = {
+      AudioContext: class {
+        constructor() { this.state = 'running'; this.currentTime = 0; }
+        createGain() { return { gain: { value: 1, setValueAtTime() {}, setTargetAtTime() {} }, connect() {} }; }
+        resume() {}
+      },
+    };
+    globalThis.Audio = class {
+      constructor() { this.src = ''; this.paused = false; this.readyState = 4; }
+      play() { this.paused = false; return Promise.resolve(); }
+      pause() { this.paused = true; }
+      addEventListener() {}
+    };
+
+    const engine = new PixelSoundEngine();
+    engine.bgmTheme = 'solari';
+    engine.init();
+    assert.equal(engine.bgmTimer, null, 'Procedural bgmTimer must remain null when streamed audioFile is active');
+    assert.equal(engine.currentTrackUrl, BGM_THEMES.solari.audioFile);
+  } finally {
+    if (prevWin === undefined) delete globalThis.window; else globalThis.window = prevWin;
+    if (prevAudio === undefined) delete globalThis.Audio; else globalThis.Audio = prevAudio;
+  }
+});
+
+test('PixelSoundEngine: AbortError/NotAllowedError and rapid zone transitions never overlap procedural and streamed BGM', async () => {
+  const prevWin = globalThis.window;
+  const prevAudio = globalThis.Audio;
+  try {
+    globalThis.window = {
+      AudioContext: class {
+        constructor() { this.state = 'running'; this.currentTime = 0; }
+        createGain() { return { gain: { value: 1, setValueAtTime() {}, setTargetAtTime() {} }, connect() {} }; }
+        resume() {}
+      },
+    };
+    const listeners = new Map();
+    globalThis.Audio = class {
+      constructor() { this.src = ''; this.paused = true; this.readyState = 0; this.playCount = 0; }
+      play() {
+        this.playCount++;
+        this.paused = false;
+        const err = new Error('The play() request was interrupted');
+        err.name = this.playCount === 1 ? 'AbortError' : 'NotAllowedError';
+        return Promise.reject(err);
+      }
+      pause() { this.paused = true; }
+      addEventListener(ev, fn) { listeners.set(fn, ev); }
+      removeEventListener(_ev, fn) { listeners.delete(fn); }
+    };
+
+    localStorage.clear();
+    const engine = new PixelSoundEngine();
+    engine.ctx = new globalThis.window.AudioContext();
+    engine.setResumeMode('always');
+    engine.themePositions.solari = { step: 0, time: 12 };
+
+    engine.setBgmTheme('solari');
+    assert.equal(listeners.size, 1, 'Should attach one loadedmetadata listener for deferred seek');
+
+    // Rapidly switch to umbri before loadedmetadata fires
+    engine.setBgmTheme('umbri');
+    assert.equal(listeners.size, 0, 'Switching themes must remove stale loadedmetadata listener');
+
+    await new Promise((r) => setTimeout(r, 10));
+    assert.equal(engine.bgmTimer, null, 'AbortError/NotAllowedError must NOT start procedural bgmTimer');
+
+    // Calling startBgmLoop must explicitly pause any active trackEl
+    engine.trackEl.paused = false;
+    engine.startBgmLoop();
+    assert.equal(engine.trackEl.paused, true, 'startBgmLoop must pause trackEl for strict mutual exclusion');
+    clearInterval(engine.bgmTimer);
+    engine.bgmTimer = null;
+    engine.stopTrackAudio(false);
+  } finally {
+    if (prevWin === undefined) delete globalThis.window; else globalThis.window = prevWin;
+    if (prevAudio === undefined) delete globalThis.Audio; else globalThis.Audio = prevAudio;
+  }
+});

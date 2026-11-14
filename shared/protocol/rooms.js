@@ -18,6 +18,8 @@ export const ROOM_TYPES = {
   ABYSSAL_RIFT: 'abyssal_rift',
   IRONWOOD_TIMBERLANDS: 'ironwood_timberlands',
   CORAL_COAST: 'coral_coast',
+  STARLIGHT_GROVE: 'starlight_grove',
+  CHRONOCORE_CITADEL: 'chronocore_citadel',
 };
 
 // Three shared Grand Fonts per realm, placed away from spawn crowds and quest NPCs.
@@ -101,6 +103,16 @@ export const GRAND_FONT_POSITIONS = {
     { x: 0, y: -260 },
     { x: -360, y: 160 },
     { x: 360, y: 160 },
+  ],
+  [ROOM_TYPES.STARLIGHT_GROVE]: [
+    { x: 0, y: -220 },
+    { x: -300, y: 140 },
+    { x: 300, y: 140 },
+  ],
+  [ROOM_TYPES.CHRONOCORE_CITADEL]: [
+    { x: 0, y: -240 },
+    { x: -320, y: 160 },
+    { x: 320, y: 160 },
   ],
   [ROOM_TYPES.ARENA_3V3]: [],
 };
@@ -283,6 +295,7 @@ export const ROOM_CONFIGS = {
     edgeTransitions: {
       south: ROOM_TYPES.NEXUS_WARZONE,
       north: ROOM_TYPES.ABYSSAL_RIFT,
+      east: ROOM_TYPES.CHRONOCORE_CITADEL,
     },
   },
   [ROOM_TYPES.SOLARI_SUNKEN_VAULT]: {
@@ -413,6 +426,7 @@ export const ROOM_CONFIGS = {
     edgeTransitions: {
       north: ROOM_TYPES.TERRA_ORCHARD,
       east: ROOM_TYPES.CORAL_COAST,
+      west: ROOM_TYPES.STARLIGHT_GROVE,
     },
   },
   [ROOM_TYPES.CORAL_COAST]: {
@@ -432,6 +446,44 @@ export const ROOM_CONFIGS = {
     edgeTransitions: {
       north: ROOM_TYPES.UMBRI_UNDERCITY,
       west: ROOM_TYPES.IRONWOOD_TIMBERLANDS,
+    },
+  },
+  [ROOM_TYPES.STARLIGHT_GROVE]: {
+    type: ROOM_TYPES.STARLIGHT_GROVE,
+    title: 'STARLIGHT GROVE & ANCIENT TIMBER SANCTUARY (LV. 22–45)',
+    shortTitle: 'STARLIGHT GROVE',
+    biomeTheme: 'terra_grove',
+    bgm: 'terra',
+    maxPlayers: 35,
+    width: 76,
+    height: 76,
+    halfW: 608,
+    halfH: 608,
+    pvp: false,
+    spawnX: 0,
+    spawnY: 180,
+    edgeTransitions: {
+      east: ROOM_TYPES.IRONWOOD_TIMBERLANDS,
+      north: ROOM_TYPES.TERRA_ORCHARD,
+    },
+  },
+  [ROOM_TYPES.CHRONOCORE_CITADEL]: {
+    type: ROOM_TYPES.CHRONOCORE_CITADEL,
+    title: 'CHRONOCORE CITADEL & ASTRAL TRIAL SPIRE (LV. 32–60)',
+    shortTitle: 'CHRONOCORE CITADEL',
+    biomeTheme: 'aether_archive',
+    bgm: 'aether',
+    maxPlayers: 40,
+    width: 80,
+    height: 80,
+    halfW: 640,
+    halfH: 640,
+    pvp: false,
+    spawnX: 0,
+    spawnY: 200,
+    edgeTransitions: {
+      west: ROOM_TYPES.CELESTIAL_ASCENT,
+      south: ROOM_TYPES.AETHER_SPIRE,
     },
   },
 };
