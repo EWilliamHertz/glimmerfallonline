@@ -18,6 +18,8 @@ import {
   isSlotUnlocked,
   ROOM_TYPES,
   ROOM_CONFIGS,
+  isRoomUnlockedForEdition,
+  isFounderEdition,
   GRAND_FONT_POSITIONS,
   HARVEST_COOLDOWN_MS,
   FACTIONS_META,
@@ -159,6 +161,8 @@ export class RoomManager {
       halfW: cfg.halfW,
       halfH: cfg.halfH,
       pvp: cfg.pvp,
+      isInterior: Boolean(cfg.isInterior),
+      exitDestination: cfg.exitDestination || null,
       edgeTransitions: cfg.edgeTransitions || null,
       players: new Map(),
       entities: [],
@@ -323,16 +327,21 @@ export class RoomManager {
       : (lastPos?.roomType && lastPos.roomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[lastPos.roomType])
       ? lastPos.roomType
       : ROOM_TYPES.SANCTUARY_HUB;
-    const spawnX = reqX !== null && Number.isFinite(reqX)
+    const cfgDefault = ROOM_CONFIGS[spawnRoom] || ROOM_CONFIGS[ROOM_TYPES.SANCTUARY_HUB];
+    const hasValidReqCoords = reqX !== null && reqX !== '' && reqY !== null && reqY !== '' && Number.isFinite(Number(reqX)) && Number.isFinite(Number(reqY));
+    const canUseLastPosCoords = (!preferredRoom || preferredRoom === lastPos?.roomType)
+      && typeof lastPos?.x === 'number' && Number.isFinite(lastPos.x)
+      && typeof lastPos?.y === 'number' && Number.isFinite(lastPos.y);
+    const spawnX = hasValidReqCoords
       ? Number(reqX)
-      : (typeof lastPos?.x === 'number' && Number.isFinite(lastPos.x))
+      : canUseLastPosCoords
       ? lastPos.x
-      : 0;
-    const spawnY = reqY !== null && Number.isFinite(reqY)
+      : (cfgDefault?.spawnX ?? 0);
+    const spawnY = hasValidReqCoords
       ? Number(reqY)
-      : (typeof lastPos?.y === 'number' && Number.isFinite(lastPos.y))
+      : canUseLastPosCoords
       ? lastPos.y
-      : 96;
+      : (cfgDefault?.spawnY ?? 96);
 
     const initialHp = (typeof ch?.hp === 'number' && !ch.isDead && ch.hp > 0)
       ? Math.min(maxHp, Math.max(1, ch.hp))
@@ -345,6 +354,14 @@ export class RoomManager {
       ? Math.min(maxGlimmer, Math.max(0, account.solarCharge))
       : 0;
 
+    const editionTier = isFounderEdition({
+      editionTier: ch?.statsMeta?.editionTier || account.statsMeta?.editionTier,
+      redeemedSerialKey: ch?.statsMeta?.redeemedSerialKey || account.statsMeta?.redeemedSerialKey,
+      tcgLinked: account.tcgLinked,
+    })
+      ? 'founder'
+      : 'free';
+
     const client = {
       id: account.id,
       activeCharacterId: account.activeCharacterId,
@@ -354,6 +371,7 @@ export class RoomManager {
       isGuest: account.isGuest,
       tcgLinked: account.tcgLinked,
       tcgHandle: account.tcgHandle,
+      editionTier,
       faction,
       classId,
       loadout,
@@ -424,7 +442,7 @@ export class RoomManager {
   }
 
   saveClientState(client) {
-    if (!client || !client.id) return;
+    if (!client || !client.id || typeof this.accounts?.saveCharacterState !== 'function') return;
     const safeRoom = (client.roomType && client.roomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[client.roomType])
       ? client.roomType
       : (client.preArenaSpot?.roomType || ROOM_TYPES.SANCTUARY_HUB);
@@ -441,13 +459,19 @@ export class RoomManager {
       isDead: client.isDead,
       lastPosition: { roomType: safeRoom, x: safeX, y: safeY },
     });
+    client._lastSavedRoomType = safeRoom;
+    client._lastSavedX = safeX;
+    client._lastSavedY = safeY;
+    client._lastSavedAt = Date.now();
   }
 
   refreshClientFromAccount(accountId) {
     const client = this.clients.get(accountId);
     const acc = this.accounts.accountsById.get(accountId);
     if (!client || !acc) return;
-    this.saveClientState(client);
+    if (client.activeCharacterId && acc.activeCharacterId && client.activeCharacterId !== acc.activeCharacterId) {
+      this.saveClientState(client);
+    }
     this.accounts.ensureDefaultCharacter(acc);
     this.accounts.syncAccountFromActiveChar(acc);
     const ch = this.accounts.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
@@ -462,6 +486,13 @@ export class RoomManager {
     client.isGuest = acc.isGuest;
     client.tcgLinked = acc.tcgLinked;
     client.tcgHandle = acc.tcgHandle;
+    client.editionTier = isFounderEdition({
+      editionTier: ch?.statsMeta?.editionTier || acc.statsMeta?.editionTier,
+      redeemedSerialKey: ch?.statsMeta?.redeemedSerialKey || acc.statsMeta?.redeemedSerialKey,
+      tcgLinked: acc.tcgLinked,
+    })
+      ? 'founder'
+      : 'free';
     client.faction = resolved.faction;
     client.classId = resolved.classId;
     client.loadout = ch?.loadout || acc.loadout || CLASSES_CATALOG[client.classId]?.defaultLoadout || {};
@@ -529,6 +560,34 @@ export class RoomManager {
       reqX = teamOverride;
       teamOverride = null;
     }
+
+    let room = this.rooms.get(targetRoomOrType);
+    if (!room) {
+      const rType = ROOM_CONFIGS[targetRoomOrType] ? targetRoomOrType : ROOM_TYPES.SANCTUARY_HUB;
+      room = this.getOrCreatePublicRoom(rType);
+    }
+
+    if (!isRoomUnlockedForEdition(room.type, client)) {
+      const lockedCfg = ROOM_CONFIGS[room.type];
+      const zoneTitle = lockedCfg?.shortTitle || room.title || 'Endgame Realm';
+      client.portalCooldown = 1.6;
+      client.send?.({
+        type: 'sys_msg',
+        category: 'combat',
+        text: `🔒 [${zoneTitle}] requires Founder's Edition (€6.99). Keep playing up to Lv. 10 in Starter Realms, or redeem a GF-XXXX-XXXX-XXXX Serial Key!`,
+      });
+      client.send?.({
+        type: 'trial_gate',
+        feature: 'zone',
+        roomType: room.type,
+        zoneTitle,
+      });
+      if (client.roomId && this.rooms.has(client.roomId)) {
+        return;
+      }
+      room = this.getOrCreatePublicRoom(ROOM_TYPES.SANCTUARY_HUB);
+    }
+
     if (client.roomId && this.rooms.has(client.roomId)) {
       const prev = this.rooms.get(client.roomId);
       prev.players.delete(client.id);
@@ -540,12 +599,6 @@ export class RoomManager {
       if (prev.type === ROOM_TYPES.ARENA_3V3 && prev.players.size === 0) {
         this.rooms.delete(prev.id);
       }
-    }
-
-    let room = this.rooms.get(targetRoomOrType);
-    if (!room) {
-      const rType = ROOM_CONFIGS[targetRoomOrType] ? targetRoomOrType : ROOM_TYPES.SANCTUARY_HUB;
-      room = this.getOrCreatePublicRoom(rType);
     }
 
     const cfg = ROOM_CONFIGS[room.type] || ROOM_CONFIGS[ROOM_TYPES.SANCTUARY_HUB];
@@ -575,6 +628,7 @@ export class RoomManager {
     }
 
     room.players.set(client.id, client);
+    this.saveClientState(client);
 
     client.send({
       type: 'room_joined',

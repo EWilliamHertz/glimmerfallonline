@@ -26,6 +26,9 @@ import {
   createDefaultProgression,
   xpForNextLevel,
   MAX_BASE_LEVEL,
+  TRIAL_MAX_LEVEL,
+  isFounderEdition,
+  getCharacterLevelCap,
   PARAGON_AFFINITIES,
   paragonXpForLevel,
   canUpgradeParagon,
@@ -200,7 +203,7 @@ export const entityDeathAndProgressionMethods = {
         }
         for (const pid of recipients) {
           const p = room.players.get(pid);
-          if (p && p.prog && (p.prog.level || 1) >= 30) {
+          if (p && p.prog && (p.prog.level || 1) >= MAX_BASE_LEVEL && isFounderEdition(p)) {
             this.awardPlayerXP(p, 450, 'Ancient Paragon Cache');
           }
         }
@@ -328,18 +331,25 @@ export const entityDeathAndProgressionMethods = {
     if (amount <= 0) return;
     let leveled = false;
     let paragonLeveled = false;
+    const founderUnlocked = isFounderEdition(player);
+    const levelCap = getCharacterLevelCap(player);
+    let hitTrialCap = false;
 
-    if ((player.prog.level || 1) < MAX_BASE_LEVEL) {
+    if ((player.prog.level || 1) < levelCap) {
       player.prog.xp = (player.prog.xp || 0) + amount;
-      while ((player.prog.level || 1) < MAX_BASE_LEVEL && player.prog.xp >= xpForNextLevel(player.prog.level)) {
+      while ((player.prog.level || 1) < levelCap && player.prog.xp >= xpForNextLevel(player.prog.level)) {
         player.prog.xp -= xpForNextLevel(player.prog.level);
         player.prog.level++;
         player.prog.statPoints = (player.prog.statPoints || 0) + 3;
         player.prog.skillPoints = (player.prog.skillPoints || 0) + 1;
         leveled = true;
       }
-    } else {
-      // Late Game: XP overflows into Paragon Resonance!
+      if (!founderUnlocked && (player.prog.level || 1) >= levelCap) {
+        player.prog.xp = 0;
+        hitTrialCap = true;
+      }
+    } else if (founderUnlocked && (player.prog.level || 1) >= MAX_BASE_LEVEL) {
+      // Late Game (Founder Lv. 70): XP overflows into Paragon Resonance!
       if (!player.prog.paragon) {
         player.prog.paragon = { solari_radiance: 0, umbri_shadowcraft: 0, terra_bulwark: 0, aether_chronoflux: 0 };
       }
@@ -351,6 +361,25 @@ export const entityDeathAndProgressionMethods = {
         player.prog.paragonLevel++;
         player.prog.paragonPoints++;
         paragonLeveled = true;
+      }
+    } else if (!founderUnlocked) {
+      // Trial Mode at Lv. 10+: player continues playing smoothly at Lv. 10 with capped XP
+      player.prog.xp = Math.min(player.prog.xp || 0, Math.max(0, xpForNextLevel(player.prog.level || TRIAL_MAX_LEVEL) - 1));
+      hitTrialCap = true;
+    }
+
+    if (hitTrialCap) {
+      const now = Date.now();
+      if (now >= (player._nextTrialCapMsgAt || 0)) {
+        player._nextTrialCapMsgAt = now + 60_000;
+        player.send?.({
+          type: 'sys_msg',
+          category: 'quest',
+          text: `🔒 [TRIAL CAP: LV. ${TRIAL_MAX_LEVEL}] You've reached the Free Trial level cap! You can keep playing at Lv. 10, or redeem a Founder Serial Key (Account / Pre-Game) to unlock Lv. ${MAX_BASE_LEVEL} + Paragon!`,
+        });
+        if (leveled) {
+          player.send?.({ type: 'trial_gate', feature: 'level_cap', levelCap: TRIAL_MAX_LEVEL, fullCap: MAX_BASE_LEVEL });
+        }
       }
     }
 
@@ -377,7 +406,7 @@ export const entityDeathAndProgressionMethods = {
       reason,
       leveled: leveled || paragonLeveled,
     });
-    this.parties.syncPlayerVitals(player.id);
+    this.parties?.syncPlayerVitals?.(player.id);
   },
 
   handleUpgradeParagon(player, affinityId) {
@@ -399,7 +428,7 @@ export const entityDeathAndProgressionMethods = {
       maxHp: player.maxHp,
       maxSolarCharge: player.maxSolarCharge,
     });
-    this.parties.syncPlayerVitals(player.id);
+    this.parties?.syncPlayerVitals?.(player.id);
   },
 
   handleAllocateStat(player, statKey) {
@@ -418,7 +447,7 @@ export const entityDeathAndProgressionMethods = {
       maxHp: player.maxHp,
       maxSolarCharge: player.maxSolarCharge,
     });
-    this.parties.syncPlayerVitals(player.id);
+    this.parties?.syncPlayerVitals?.(player.id);
   },
 
   handleUpgradeSkill(player, abilityId) {

@@ -46,7 +46,10 @@ import {
   PROFESSIONS_CATALOG,
   PROFESSION_MASTERY_CAPES,
   getProfessionLevelFromXp,
+  getXpForProfessionLevel,
   getTotalProfessionLevel,
+  isFounderEdition,
+  getProfessionLevelCap,
   MYTHIC_DUNGEONS,
   MYTHIC_AFFIXES,
   MYTHIC_KEYSTONE_MAX_TIER,
@@ -413,9 +416,32 @@ export const gatheringAndCraftingMethods = {
     const prof = player.prog.professions[professionId];
     if (!prof) return;
 
+    const founderUnlocked = isFounderEdition(player);
+    const profCap = getProfessionLevelCap(player);
+    const profCapXp = getXpForProfessionLevel(profCap);
     const oldLevel = prof.level || getProfessionLevelFromXp(prof.xp || 0);
+
+    if (!founderUnlocked && oldLevel >= profCap) {
+      prof.level = oldLevel;
+      const now = Date.now();
+      if (now >= (player._nextTrialProfMsgAt || 0)) {
+        player._nextTrialProfMsgAt = now + 60_000;
+        const profName = PROFESSIONS_CATALOG[professionId]?.name || professionId;
+        player.send?.({
+          type: 'sys_msg',
+          category: 'quest',
+          text: `🔒 [TRIAL CAP: SKILL LV. ${profCap}] ${profName} is capped at Lv. ${profCap} in Free Trial. Keep training at Lv. ${profCap} or redeem a Founder Serial Key for Lv. 99!`,
+        });
+      }
+      return;
+    }
+
     prof.xp = (prof.xp || 0) + amount;
-    const newLevel = getProfessionLevelFromXp(prof.xp);
+    let newLevel = getProfessionLevelFromXp(prof.xp);
+    if (!founderUnlocked && newLevel > profCap) {
+      prof.xp = profCapXp;
+      newLevel = profCap;
+    }
     prof.level = newLevel;
 
     const leveled = newLevel > oldLevel;
@@ -432,6 +458,18 @@ export const gatheringAndCraftingMethods = {
         category: 'chat',
         text: `✨ ${player.displayName} has achieved level ${newLevel} in ${profName}!`,
       });
+    }
+
+    if ((professionId === 'resonance_extraction' || professionId === 'glimmerweaving') && newLevel >= 10) {
+      player.prog.achievements = player.prog.achievements || { completed: {}, unlockedTitles: [] };
+      player.prog.achievements.completed = player.prog.achievements.completed || {};
+      player.prog.achievements.unlockedTitles = player.prog.achievements.unlockedTitles || [];
+      if (!player.prog.achievements.completed.ach_forest_warden) {
+        player.prog.achievements.completed.ach_forest_warden = { unlockedAt: new Date().toISOString() };
+      }
+      if (!player.prog.achievements.unlockedTitles.includes('The Forest Warden')) {
+        player.prog.achievements.unlockedTitles.push('The Forest Warden');
+      }
     }
 
     this.accounts.saveProgression(player.id, player.prog);
@@ -468,6 +506,18 @@ export const gatheringAndCraftingMethods = {
     }
 
     prof.masteryCapeAwarded = true;
+    if ((professionId === 'resonance_extraction' || professionId === 'glimmerweaving') && newLevel >= 10) {
+      player.prog.achievements = player.prog.achievements || { completed: {}, unlockedTitles: [] };
+      player.prog.achievements.completed = player.prog.achievements.completed || {};
+      player.prog.achievements.unlockedTitles = player.prog.achievements.unlockedTitles || [];
+      if (!player.prog.achievements.completed.ach_forest_warden) {
+        player.prog.achievements.completed.ach_forest_warden = { unlockedAt: new Date().toISOString() };
+      }
+      if (!player.prog.achievements.unlockedTitles.includes('The Forest Warden')) {
+        player.prog.achievements.unlockedTitles.push('The Forest Warden');
+      }
+    }
+
     this.accounts.saveProgression(player.id, player.prog);
     const cape = EQUIPMENT_CATALOG[capeId];
     const room = this.rooms.get(player.roomId);

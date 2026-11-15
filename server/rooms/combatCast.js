@@ -64,6 +64,10 @@ import {
   SPELL_QUEUE_WINDOW_SEC,
   TANK_CLASSES,
   isAbilityOffGCD,
+  canAbilityInterrupt,
+  INTERRUPT_VULN_DURATION_SEC,
+  INTERRUPT_STUN_SEC,
+  getActiveCombatConsumableBonuses,
 } from '../../shared/protocol.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
 
@@ -184,6 +188,82 @@ export const combatCastMethods = {
     }, 220);
   },
 
+  tryInterruptEnemyCast(room, player, spec, targetId) {
+    if (!room || !player || !canAbilityInterrupt(spec)) return null;
+    const interruptRange = Math.max(150, ((spec.rangeYards || 8) + 4) * YARD_PX);
+    let bestMob = null;
+    if (targetId && !String(targetId).startsWith('p_')) {
+      const explicit = room.entities.find((e) => e.id === targetId && e.type === 'mob' && !e.isDying && e.castState?.interruptible);
+      if (explicit && Math.hypot(explicit.x - player.x, explicit.y - player.y) <= interruptRange) {
+        bestMob = explicit;
+      }
+    }
+    if (!bestMob) {
+      let bestDist = interruptRange;
+      for (const e of room.entities) {
+        if (e.type !== 'mob' || e.isDying || !e.castState?.interruptible) continue;
+        const d = Math.hypot(e.x - player.x, e.y - player.y);
+        if (d <= bestDist) {
+          bestDist = d;
+          bestMob = e;
+        }
+      }
+    }
+    if (!bestMob) return null;
+
+    const cast = bestMob.castState;
+    bestMob.castState = null;
+    bestMob.staggerTimer = Math.max(bestMob.staggerTimer || 0, INTERRUPT_VULN_DURATION_SEC);
+    bestMob.freezeTimer = Math.max(bestMob.freezeTimer || 0, INTERRUPT_STUN_SEC);
+    bestMob.inCombat = true;
+
+    // Cancel any telegraphs linked to the interrupted cast!
+    if (cast?.id && Array.isArray(room.groundZones)) {
+      for (let i = room.groundZones.length - 1; i >= 0; i--) {
+        if (room.groundZones[i].castId === cast.id) {
+          room.groundZones.splice(i, 1);
+        }
+      }
+    }
+
+    this.addPlayerGlimmer(room, player, 18);
+    this.awardProfessionXP(player, 'flashes', 35, `Interrupted ${cast?.spellName || bestMob.name}`);
+    this.addMobThreat(room, bestMob, player, 40);
+
+    room.fxQueue.push({
+      kind: 'spark',
+      x: bestMob.x,
+      y: bestMob.y - 10,
+      colors: ['#38bdf8', '#fde047', '#ffffff'],
+      count: 22,
+    });
+    room.fxQueue.push({
+      kind: 'fct',
+      x: bestMob.x,
+      y: bestMob.y - 22,
+      text: '⚡ INTERRUPTED! (+35% VULN)',
+      color: '#38bdf8',
+      isCrit: true,
+    });
+    room.groundZones.push({
+      id: `gz_${crypto.randomUUID().slice(0, 6)}`,
+      type: 'shockwave',
+      color: '#38bdf8',
+      ownerId: player.id,
+      x: bestMob.x,
+      y: bestMob.y,
+      radius: 42,
+      age: 0,
+      maxAge: 0.35,
+    });
+    player.send({
+      type: 'sys_msg',
+      category: 'combat',
+      text: `⚡ [Counter-Flash] ${spec.name} interrupted ${bestMob.name}'s ${cast?.spellName || 'Cast'}! (+18 Glimmer, +35% DMG Vuln for 3s)`,
+    });
+    return bestMob;
+  },
+
   handleCastAbility(room, player, slot, targetId, facingDir) {
     if (player.isDead || player.freezeTimer > 0) return;
     if (!ACTION_SLOTS.includes(slot)) return;
@@ -200,11 +280,18 @@ export const combatCastMethods = {
       player.dir = facingDir;
     }
 
-    const effStats = getEffectiveStats(player.prog, player.equipment, player.classId);
+    const baseEffStats = getEffectiveStats(player.prog, player.equipment, player.classId);
+    const buffBonuses = getActiveCombatConsumableBonuses(player);
+    const effStats = {
+      power: baseEffStats.power + buffBonuses.power,
+      bastion: baseEffStats.bastion + buffBonuses.bastion,
+      resonance: baseEffStats.resonance + buffBonuses.resonance,
+      tempo: baseEffStats.tempo + buffBonuses.tempo,
+    };
     const zenithMult = player.zenithTimer > 0 ? 1.25 : 1.0;
     const effPower = Math.max(1, Math.round((effStats.power + this.getBonusPower(room, player) - (player.weakenTimer > 0 ? 2 : 0)) * zenithMult));
     const cdMult = calcCdMult(player.prog, player.equipment, player.classId, player.faction);
-    const critChance = calcCritChance(player.prog, player.equipment, player.classId);
+    const critChance = Math.min(0.95, calcCritChance(player.prog, player.equipment, player.classId) + buffBonuses.critPct);
     const isFlash = spec.tcgType.includes('Flash');
     const isRite = spec.tcgType.includes('Rite');
     const offGcd = isAbilityOffGCD(spec);
@@ -290,6 +377,9 @@ export const combatCastMethods = {
     }
     if (isFlash) {
       this.awardProfessionXP(player, 'flashes', Math.max(8, 6 + rank * 2), spec.name);
+      if (canAbilityInterrupt(spec)) {
+        this.tryInterruptEnemyCast(room, player, spec, targetId);
+      }
     }
     const wasStealthed = player.stealthedTimer > 0;
     if (spec.kind !== 'stealth' && spec.kind !== 'stealth_burst') {

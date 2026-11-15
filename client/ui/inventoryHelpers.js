@@ -2,7 +2,7 @@
 // 28-Slot Backpack Inventory Modal & Currency/Item Stack Helpers
 // ==========================================
 
-import { EQUIPMENT_CATALOG, MYTHIC_DUNGEONS, CANONICAL_SETS } from '../../shared/protocol.js';
+import { EQUIPMENT_CATALOG, MYTHIC_DUNGEONS, CANONICAL_SETS, isGearSalvageable } from '../../shared/protocol.js';
 import { getItemIconDataUrl } from '../itemSprites.js';
 
 export function formatItemStatsHtml(item, showSet = true) {
@@ -18,6 +18,29 @@ export function formatItemStatsHtml(item, showSet = true) {
   if (stats.critPct) lines.push(`<span style="color:#fbbf24; font-weight:bold;">🎯 +${Math.round(stats.critPct * 100)}% Crit</span>`);
   if (item.healHp) lines.push(`<span style="color:#4ade80; font-weight:bold;">🧪 Restores +${item.healHp} Health</span>`);
   if (item.restoreGlimmer) lines.push(`<span style="color:#38bdf8; font-weight:bold;">⚗️ Restores +${item.restoreGlimmer} Glimmer</span>`);
+  if (item.temperTargetMax) {
+    lines.push(`<span style="color:#fbbf24; font-weight:bold;">🔨 Tempers gear (+${item.temperMinRank || 0} → up to +${item.temperTargetMax})</span>`);
+  }
+  if (item.weaponImbue) {
+    const im = item.weaponImbue;
+    const imStats = [
+      im.power ? `+${im.power} Power` : '',
+      im.resonance ? `+${im.resonance} Res` : '',
+      im.tempo ? `+${im.tempo} Tempo` : '',
+      im.critPct ? `+${Math.round(im.critPct * 100)}% Crit` : '',
+      im.critLeechPct ? `${Math.round(im.critLeechPct * 100)}% Crit Leech` : '',
+    ].filter(Boolean).join(', ');
+    lines.push(`<span style="color:${im.color || '#facc15'}; font-weight:bold;">🗡️ Imbue (${Math.round((im.durationSec || 600) / 60)}m): ${imStats}</span>`);
+  }
+  if (item.wellFed) {
+    const wf = item.wellFed;
+    const wfStats = [
+      wf.power ? `+${wf.power} Power` : '',
+      wf.bastion ? `+${wf.bastion} Bastion` : '',
+      wf.resonance ? `+${wf.resonance} Res` : '',
+    ].filter(Boolean).join(', ');
+    lines.push(`<span style="color:${wf.color || '#fde047'}; font-weight:bold;">🍲 Well-Fed (${Math.round((wf.durationSec || 600) / 60)}m): ${wfStats}</span>`);
+  }
   if (item.keystone) {
     const dungeon = MYTHIC_DUNGEONS[item.keystone.dungeonId];
     lines.push(`<span style="color:#fb923c; font-weight:bold;">🗝️ Tier ${item.keystone.tier} Mythic Key — activate inside ${dungeon?.name || 'its faction crypt'}</span>`);
@@ -44,12 +67,30 @@ export function formatItemStatsHtml(item, showSet = true) {
   return `${statsPart}${setHtml}`.trim();
 }
 
+export function getRarityRank(rarity = '') {
+  const r = String(rarity || '');
+  if (r.includes('Skill Mastery') || r.includes('Continental Set') || r.includes('Continental Relic') || r.includes('Ancient Set')) return 7;
+  if (r.includes('Mythic') || r.includes('Apex')) return 6;
+  if (r.includes('Legendary')) return 5;
+  if (r.includes('Epic')) return 4;
+  if (r.includes('Rare') || r.includes('Caldera Relic') || r.includes('Relic') || r.includes('Awakened')) return 3;
+  if (r.includes('Uncommon')) return 2;
+  return 1;
+}
+
 export function getRarityColor(rarity = '') {
-  if (rarity.includes('Skill Mastery')) return '#fde047';
-  if (rarity.includes('Continental Set') || rarity.includes('Continental Relic') || rarity.includes('Ancient Set')) return '#facc15';
-  if (rarity.includes('Mythic') || rarity.includes('Apex')) return '#f59e0b';
-  if (rarity.includes('Epic')) return '#c084fc';
-  if (rarity.includes('Rare')) return '#38bdf8';
+  const r = String(rarity || '');
+  if (r.includes('Skill Mastery') || r.includes('Continental Set') || r.includes('Continental Relic') || r.includes('Ancient Set')) return '#fde047';
+  if (r.includes('Mythic') || r.includes('Apex')) return '#f59e0b';
+  if (r.includes('Legendary')) return '#fb923c';
+  if (r.includes('Epic')) return '#c084fc';
+  if (r.includes('Rare')) return '#38bdf8';
+  if (r.includes('Caldera Relic') || r.includes('Solari Relic') || r.includes('Aether Relic') || r.includes('Umbri Relic') || r.includes('Terra Relic') || r.includes('Awakened')) return '#2dd4bf';
+  if (r.includes('Uncommon')) return '#4ade80';
+  if (r.includes('Elemental Currency') || r.includes('Aether Currency')) return '#67e8f9';
+  if (r.includes('Terra Currency')) return '#4ade80';
+  if (r.includes('Umbri Currency')) return '#a78bfa';
+  if (r.includes('Common Currency')) return '#facc15';
   return '#94a3b8';
 }
 
@@ -57,6 +98,7 @@ export function getRarityColor(rarity = '') {
 // 2. CONTINENTAL 28-SLOT INVENTORY BACKPACK [B]
 // ==========================================
 let currentInvTab = 'all';
+let salvageModeActive = false;
 
 if (typeof window !== 'undefined') {
   window.setInventoryFilterTab = function (tab) {
@@ -65,6 +107,13 @@ if (typeof window !== 'undefined') {
       window.renderInventoryModal({ profile: window.localProfile });
     }
   };
+  window.toggleInventorySalvageMode = function () {
+    salvageModeActive = !salvageModeActive;
+    if (typeof window.renderInventoryModal === 'function' && window.localProfile) {
+      window.renderInventoryModal({ profile: window.localProfile });
+    }
+  };
+  window.isInventorySalvageMode = () => salvageModeActive;
 }
 
 export function renderInventoryModal({ profile }) {
@@ -109,19 +158,29 @@ export function renderInventoryModal({ profile }) {
       <div style="height:4px; background:#1c1917; border-radius:2px; overflow:hidden; margin-top:5px;">
         <div style="height:100%; width:${pct}%; background:${inv.length >= 26 ? '#ef4444' : inv.length >= 20 ? '#f59e0b' : '#4ade80'};"></div>
       </div>
-      <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:7px;">
-        ${tabs.map((t) => `
-          <button type="button" class="id-mini-btn"
-                  style="font-size:8px; padding:2px 7px; border-color:${currentInvTab === t.id ? '#fde047' : '#334155'}; color:${currentInvTab === t.id ? '#fde047' : '#94a3b8'}; background:${currentInvTab === t.id ? '#1c1917' : 'transparent'};"
-                  onclick="window.setInventoryFilterTab && window.setInventoryFilterTab('${t.id}')">
-            ${t.label}
-          </button>
-        `).join('')}
+      <div style="display:flex; gap:4px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-top:7px;">
+        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+          ${tabs.map((t) => `
+            <button type="button" class="id-mini-btn"
+                    style="font-size:8px; padding:2px 7px; border-color:${currentInvTab === t.id ? '#fde047' : '#334155'}; color:${currentInvTab === t.id ? '#fde047' : '#94a3b8'}; background:${currentInvTab === t.id ? '#1c1917' : 'transparent'};"
+                    onclick="window.setInventoryFilterTab && window.setInventoryFilterTab('${t.id}')">
+              ${t.label}
+            </button>
+          `).join('')}
+        </div>
+        <button type="button" class="id-mini-btn"
+                title="Toggle Salvage Mode to dismantle unwanted gear into Dust, Bars & Gold"
+                style="font-size:8px; padding:2px 8px; border-color:${salvageModeActive ? '#fb923c' : '#475569'}; color:${salvageModeActive ? '#ffedd5' : '#cbd5e1'}; background:${salvageModeActive ? '#7c2d12' : '#1e293b'}; font-weight:700;"
+                onclick="window.toggleInventorySalvageMode && window.toggleInventorySalvageMode()">
+          ${salvageModeActive ? '🔨 SALVAGE: ON' : '🔨 Salvage Gear'}
+        </button>
       </div>
     </div>
 
-    <div style="color:#94a3b8; font-size:8px; margin-bottom:6px; text-align:center;">
-      Left-Click to Equip/Use • Drag to Action Bar • Right-Click to Drop
+    <div style="color:${salvageModeActive ? '#fdba74' : '#94a3b8'}; font-size:8px; margin-bottom:6px; text-align:center; font-weight:${salvageModeActive ? '700' : '400'};">
+      ${salvageModeActive
+        ? '🔨 SALVAGE MODE ACTIVE — Click any highlighted gear piece to dismantle it into materials & Gold!'
+        : 'Left-Click to Equip/Use • Drag to Action Bar • Right-Click to Drop'}
     </div>
 
     <!-- 4x7 Continental Grid = 28 Slots -->
@@ -133,13 +192,18 @@ export function renderInventoryModal({ profile }) {
         const visible = item && matchesTab(item);
 
         if (item && visible) {
-          const borderCol = getRarityColor(item.rarity);
+          const canSalvage = isGearSalvageable(item.id);
+          const borderCol = salvageModeActive ? (canSalvage ? '#fb923c' : '#334155') : getRarityColor(item.rarity);
+          const clickFn = salvageModeActive
+            ? (canSalvage ? `window.salvageInventorySlot && window.salvageInventorySlot(${i})` : '')
+            : `window.equipInventorySlot(${i})`;
+          const dimStyle = salvageModeActive && !canSalvage ? 'opacity:0.35; cursor:not-allowed;' : `cursor:${salvageModeActive ? 'crosshair' : 'grab'};`;
           return `
             <div class="rs-inv-slot"
-                 style="border-color:${borderCol}; cursor:grab;"
-                 draggable="true"
+                 style="border-color:${borderCol}; ${dimStyle}"
+                 draggable="${salvageModeActive ? 'false' : 'true'}"
                  ondragstart="window.beginActionDrag(event, 'item', '${item.id}')"
-                 onclick="window.equipInventorySlot(${i})"
+                 onclick="${clickFn}"
                  oncontextmenu="event.preventDefault(); window.dropInventorySlot(${i});"
                  onmouseenter="window.setHoveredEquipment('${item.id}', 'inventory', event)"
                  onmousemove="window.updateHoveredEquipmentPos(event)"

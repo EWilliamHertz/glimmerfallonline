@@ -14,7 +14,7 @@ import { ExchangeManager } from './exchangeManager.js';
 import { TradeManager } from './tradeManager.js';
 import { DuelManager } from './duelManager.js';
 import { RoomManager } from './roomManager.js';
-import { TICK_RATE } from '../shared/protocol.js';
+import { TICK_RATE, ROOM_TYPES, ROOM_CONFIGS } from '../shared/protocol.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST_DIR = path.resolve(__dirname, '../dist');
@@ -179,6 +179,51 @@ export async function handleApiRequest(req, res, { accounts, rooms = null }) {
       return true;
     }
 
+    if (pathname === '/api/auth/save-vitals' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const acc = await verifyWithRefresh(extractRequestToken(req, body) || url.searchParams.get('token'));
+      if (!acc) {
+        sendJson(res, 401, { ok: false, error: 'Invalid or expired GlimmerFall ID session.' });
+        return true;
+      }
+      const targetCharId = (body.characterId && accounts.charactersByAccount.get(acc.id)?.has(body.characterId))
+        ? body.characterId
+        : acc.activeCharacterId;
+      const incomingPos = body.lastPosition && typeof body.lastPosition === 'object' ? body.lastPosition : null;
+      let safeLastPos = null;
+      if (incomingPos?.roomType && incomingPos.roomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[incomingPos.roomType]) {
+        const cfg = ROOM_CONFIGS[incomingPos.roomType];
+        const rx = Number(incomingPos.x);
+        const ry = Number(incomingPos.y);
+        const halfW = cfg.halfW || 280;
+        const halfH = cfg.halfH || 280;
+        safeLastPos = {
+          roomType: incomingPos.roomType,
+          x: Number.isFinite(rx) ? Math.max(-halfW + 14, Math.min(halfW - 14, Math.round(rx))) : (cfg.spawnX ?? 0),
+          y: Number.isFinite(ry) ? Math.max(-halfH + 14, Math.min(halfH - 14, Math.round(ry))) : (cfg.spawnY ?? 0),
+        };
+      }
+      accounts.saveCharacterState(acc.id, targetCharId, {
+        hp: typeof body.hp === 'number' && body.hp > 0 ? Math.round(body.hp) : undefined,
+        solarCharge: typeof body.solarCharge === 'number' && body.solarCharge >= 0 ? Math.round(body.solarCharge) : 0,
+        lastPosition: safeLastPos,
+      });
+      const liveClient = rooms?.clients?.get(acc.id);
+      if (liveClient && liveClient.activeCharacterId === targetCharId && safeLastPos) {
+        if (liveClient.roomType === safeLastPos.roomType && Math.hypot(safeLastPos.x - liveClient.x, safeLastPos.y - liveClient.y) <= 240) {
+          liveClient.x = safeLastPos.x;
+          liveClient.y = safeLastPos.y;
+        }
+        liveClient._lastSavedRoomType = safeLastPos.roomType;
+        liveClient._lastSavedX = safeLastPos.x;
+        liveClient._lastSavedY = safeLastPos.y;
+        liveClient._lastSavedAt = Date.now();
+      }
+      await accounts.flushToPostgres();
+      sendJson(res, 200, { ok: true, profile: accounts.toPublicProfile(acc) });
+      return true;
+    }
+
     if (pathname === '/api/auth/guest' && req.method === 'POST') {
       const body = await readJsonBody(req);
       const existing = await verifyWithRefresh(extractRequestToken(req, body));
@@ -313,12 +358,32 @@ export async function handleApiRequest(req, res, { accounts, rooms = null }) {
         sendJson(res, 401, { ok: false, error: 'Unauthorized' });
         return true;
       }
+      const prevCharId = rooms?.getClientById(currentAcc.id)?.activeCharacterId || null;
       const charObj = accounts.createOrSelectCharacter(currentAcc.id, body);
       await accounts.flushToPostgres();
       if (rooms) {
         rooms.refreshClientFromAccount(currentAcc.id);
-        if (body.enterRealm && rooms.getClientById(currentAcc.id)) {
-          rooms.joinRoom(rooms.getClientById(currentAcc.id), body.enterRealm);
+        const liveClient = rooms.getClientById(currentAcc.id);
+        if (liveClient) {
+          const targetRoom = (charObj.lastPosition?.roomType && charObj.lastPosition.roomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[charObj.lastPosition.roomType])
+            ? charObj.lastPosition.roomType
+            : body.enterRealm;
+          const charChanged = prevCharId !== charObj.id;
+          const roomChanged = Boolean(targetRoom && liveClient.roomType !== targetRoom);
+          if (charChanged || roomChanged) {
+            if (charObj.lastPosition?.roomType && charObj.lastPosition.roomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[charObj.lastPosition.roomType]) {
+              rooms.joinRoom(liveClient, charObj.lastPosition.roomType, null, charObj.lastPosition.x, charObj.lastPosition.y);
+            } else if (body.enterRealm) {
+              const hasBodyCoords = body.x !== null && body.x !== undefined && body.y !== null && body.y !== undefined && Number.isFinite(Number(body.x)) && Number.isFinite(Number(body.y));
+              rooms.joinRoom(
+                liveClient,
+                body.enterRealm,
+                null,
+                hasBodyCoords ? Number(body.x) : null,
+                hasBodyCoords ? Number(body.y) : null,
+              );
+            }
+          }
         }
       }
       sendJson(res, 200, {

@@ -54,7 +54,7 @@ const ARTISAN_PROFESSION_IDS = ['relic_forging', 'rite_binding', 'glimmerweaving
         {
           speaker: 'HERALD LYRA • SUNSPIRE HERALD',
           spriteKey: 'heraldNpc',
-          text: 'Splendidly done! The Glimmer sings through your veins once more. Take these vital shards and experience!',
+          text: 'Splendidly done! The Glimmer sings through your veins once more. Take these alchemical supplies and experience!',
         },
         {
           speaker: 'HERALD LYRA • SUNSPIRE HERALD',

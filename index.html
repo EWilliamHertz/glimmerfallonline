@@ -1179,6 +1179,9 @@
             <button class="id-mini-btn" style="font-size: 9px; padding: 4px 8px;" onclick="window.resetDefaultUiLayout()">
               ↺ Reset Layout to Defaults
             </button>
+            <button class="util-btn" style="font-size: 10px; border-color: #facc15; color: #fde047; background: rgba(250,204,21,0.12); font-weight: bold;" onclick="window.openSerialKeyModal && window.openSerialKeyModal()">
+              🔑 ACCOUNT &amp; SERIAL KEY (€6.99)
+            </button>
           </div>
         </div>
 
@@ -1332,7 +1335,7 @@
     </div>
 
     <!-- MODAL 5B: Canonical AetherVault Depository (City Bank) -->
-    <div id="bank-modal" class="modal panel" style="width: 840px; max-width: 96vw; max-height: 90vh; display: none;" onmouseleave="window.clearHoveredEquipment && window.clearHoveredEquipment()">
+    <div id="bank-modal" class="modal panel bank-modal-shell" style="width: 1080px; max-width: 97vw; max-height: 92vh; display: none;" onmouseleave="window.clearHoveredEquipment && window.clearHoveredEquipment()">
       <div class="modal-header">
         <div class="modal-title" style="color:#fde047; font-size:12px;">🏛️ AETHERVAULT DEPOSITORY (SANCTUARY ARCHIVE)</div>
         <div class="modal-close" onclick="window.clearHoveredEquipment && window.clearHoveredEquipment(); toggleModal('bank-modal')">✕</div>

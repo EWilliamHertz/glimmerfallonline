@@ -64,6 +64,12 @@ import {
   LORE_CODEX_ENTRIES,
   getUnlockedTitles,
   isSameFactionProtectedMob,
+  rollMobLootDrops,
+  parseEntityLevel,
+  getLootRarityTier,
+  getSalvageYield,
+  isGearSalvageable,
+  isHighValueSalvage,
 } from '../shared/protocol.js';
 import {
   initEmoteWheel,
@@ -90,7 +96,7 @@ import {
   openMerchantShop,
   buyMerchantItem,
 } from './merchantUi.js';
-import { initUiLayout, toggleUiEditMode, saveAndLockUiLayout, resetDefaultUiLayout } from './uiLayout.js';
+import { initUiLayout, toggleUiEditMode, saveAndLockUiLayout, resetDefaultUiLayout, reflowDefaultHudStack } from './uiLayout.js';
 import {
   drawPixelNameplateAndBubbles,
   renderPartyHud,
@@ -121,6 +127,12 @@ import {
   createDefaultProgression,
   xpForNextLevel,
   MAX_BASE_LEVEL,
+  TRIAL_MAX_LEVEL,
+  TRIAL_MAX_PROFESSION_LEVEL,
+  isFounderEdition,
+  getCharacterLevelCap,
+  getProfessionLevelCap,
+  isRoomUnlockedForEdition,
   PARAGON_AFFINITIES,
   paragonXpForLevel,
   canUpgradeParagon,
@@ -139,6 +151,15 @@ import {
   calcHolyRadianceBurstDmg,
   calcMoveSpeedMult,
   isWaterTile,
+  isAbilityOffGCD,
+  canAbilityInterrupt,
+  INTERRUPT_VULN_DURATION_SEC,
+  INTERRUPT_VULN_MULT,
+  INTERRUPT_STUN_SEC,
+  getActiveCombatConsumableBonuses,
+  applyTemperingUpgrade,
+  getTemperSlotRank,
+  MAX_TEMPER_RANK,
   PROFESSIONS_CATALOG,
   PROFESSION_MASTERY_CAPES,
   getProfessionLevelFromXp,
@@ -372,11 +393,12 @@ export function initGame() {
   }
   window.saveProgressionLocal = saveProgressionLocal;
 
-  function saveCurrentVitals() {
+  function saveCurrentVitals(useKeepalive = false) {
     try {
+      if (!hasEnteredWorld) return;
       if (isSinglePlayer && localProfile?.id) {
         saveProgressionLocal();
-      } else if (!isSinglePlayer && window.net?.connected) {
+      } else if (!isSinglePlayer && (window.net?.connected || window.net?.token)) {
         const safeRoom = (currentRoomType && currentRoomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[currentRoomType])
           ? currentRoomType
           : (preArenaSpot?.roomType || ROOM_TYPES.SANCTUARY_HUB);
@@ -386,19 +408,37 @@ export function initGame() {
         const safeY = (currentRoomType === ROOM_TYPES.ARENA_3V3 && preArenaSpot?.y != null)
           ? preArenaSpot.y
           : Math.round(Number(player.y) || 0);
-        window.net.send({
-          type: 'sync_vitals',
+        const payload = {
           hp: player.isDead ? player.maxHp : Math.max(1, Math.round(player.hp)),
           solarCharge: Math.max(0, Math.round(player.solarCharge || 0)),
           lastPosition: { roomType: safeRoom, x: safeX, y: safeY },
-        });
+          characterId: window.net?.profile?.activeCharacterId || undefined,
+        };
+        if (window.net?.connected) {
+          window.net.send({
+            type: 'sync_vitals',
+            ...payload,
+          });
+        }
+        if (useKeepalive && window.net?.token && typeof fetch === 'function') {
+          const base = typeof window.net.getServerBase === 'function' ? window.net.getServerBase() : '';
+          fetch(`${base}/api/auth/save-vitals`, {
+            method: 'POST',
+            keepalive: true,
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${window.net.token}`,
+            },
+            body: JSON.stringify(payload),
+          }).catch(() => {});
+        }
       }
     } catch (_) {}
   }
   window.saveCurrentVitals = saveCurrentVitals;
   if (typeof window !== 'undefined') {
-    window.addEventListener('beforeunload', () => saveCurrentVitals());
-    window.addEventListener('pagehide', () => saveCurrentVitals());
+    window.addEventListener('beforeunload', () => saveCurrentVitals(true));
+    window.addEventListener('pagehide', () => saveCurrentVitals(true));
   }
 
   // Single Player (Offline Local Realm) vs Multiplayer (Online Authoritative Realm)
@@ -1161,8 +1201,11 @@ export function initGame() {
       if (isBoss) advanceBountyProgress('bosses', 1);
       if (roomType === ROOM_TYPES.STARFALL_CRATER) advanceBountyProgress('starfall_kills', 1);
       const isEliteKill = Object.values(ELITE_AFFIXES).some((af) => mobName && mobName.includes(af.label));
-      if (roomType === ROOM_TYPES.ABYSSAL_RIFT || isEliteKill || isBoss) {
+      if (roomType === ROOM_TYPES.ABYSSAL_RIFT || roomType === ROOM_TYPES.CHRONOCORE_CITADEL || isEliteKill || isBoss) {
         advanceBountyProgress('abyssal_or_elite_kills', 1);
+      }
+      if (roomType === ROOM_TYPES.CHRONOCORE_CITADEL) {
+        advanceBountyProgress('chronocore_kills', 1);
       }
     }
 
@@ -1277,7 +1320,6 @@ export function initGame() {
         if (!isCompleted) {
           if (isActive && q.isComplete()) return 'finished';
           if (qId === 'quest_awakening' && q.isComplete()) return 'finished';
-          if (q.turnInId === npcId && q.isComplete()) return 'finished';
         }
       }
     }
@@ -2448,6 +2490,7 @@ export function initGame() {
             <a href="javascript:void(0)" onclick="openQuestLog()" style="color:#38bdf8; font-weight:bold; text-shadow:1px 1px 0 #000;">Open Quest Log [L]</a> to select quests to display.
           </div>
         `;
+        reflowDefaultHudStack();
         return;
       }
 
@@ -2500,6 +2543,7 @@ export function initGame() {
           }).join('')}
         </div>
       `;
+      reflowDefaultHudStack();
     } catch (err) {
       console.warn('[QuestTracker] Failed to render tracker HUD:', err);
     }
@@ -2958,8 +3002,8 @@ export function initGame() {
 
   function onAchievementUnlocked(ach) {
     if (!ach) return;
-    audio.playLevelUp?.();
     if (audio.playQuestCompleteFanfare) audio.playQuestCompleteFanfare();
+    else audio.playLevelUp?.();
     spawnSparkBurst(player.x, player.y - 14, ['#fde047', '#facc15', '#ffffff', '#38bdf8'], 32);
     spawnFCT(player.x, player.y - 18, `🏆 ACHIEVEMENT: ${ach.name.toUpperCase()}!`, '#facc15', true);
     logMessage(`🏆 [ACHIEVEMENT UNLOCKED] ${ach.name}! Claimed +${ach.rewardGold} Gold & +${ach.rewardXp} XP${ach.unlockedTitle ? ` (Title Unlocked: <${ach.unlockedTitle}>)` : ''}!`, 'log-gain', 'chat');
@@ -3066,7 +3110,7 @@ export function initGame() {
   };
 
   // Shared by bag clicks and action-bar item slots.
-  function consumeInventoryItem(itemId) {
+  function consumeInventoryItem(itemId, preferredSlot = null) {
     const inv = localProfile.inventory || [];
     const idx = inv.findIndex((it) => (typeof it === 'string' ? it : it?.id) === itemId);
     if (idx < 0) return 'missing';
@@ -3076,7 +3120,51 @@ export function initGame() {
     if (item.slot === 'keystone') return useKeystoneItem(item, idx, inv);
     if (item.slot !== 'consumable') return 'not-consumable';
 
-    if (item.placeCampfire || item.id === 'campfire_kit') {
+    if (item.temperTargetMax) {
+      if (net.connected) {
+        net.send({ type: 'use_consumable', slotIndex: idx, itemId, preferredSlot });
+        audio.playPickup();
+        return 'used';
+      }
+      const prog = getLocalProgression();
+      const res = applyTemperingUpgrade(prog, localProfile.equipment || {}, item, preferredSlot);
+      if (!res.ok) {
+        spawnFCT(player.x, player.y - 14, `🔨 ${res.reason.toUpperCase()}`, '#ef4444');
+        logMessage(`🔨 [Gear Tempering] ${res.reason}.`, 'log-combat', 'chat');
+        audio.playHurt?.();
+        return 'blocked';
+      }
+      if (typeof itemObj === 'object' && itemObj.qty > 1) {
+        itemObj.qty--;
+      } else {
+        inv.splice(idx, 1);
+      }
+      localProfile.inventory = inv;
+      saveProgressionLocal();
+      recalcVitalsFromProfile();
+      refreshHeroPortrait();
+      updatePlayerUI();
+      renderEquipmentModal({ profile: localProfile });
+      renderStatsModal();
+      if (document.getElementById('inventory-modal')?.style.display === 'block') {
+        renderInventoryModal({ profile: localProfile });
+      }
+      audio.playChime?.();
+      spawnSparkBurst(player.x, player.y - 8, ['#fb923c', '#fde047', '#38bdf8'], 18);
+      spawnFCT(player.x, player.y - 16, `🔨 ${res.slotKey.toUpperCase()} TEMPERED +${res.newRank}!`, '#fbbf24', true);
+      logMessage(`🔨 [Gear Tempering] Forged ${EQUIPMENT_CATALOG[res.itemId]?.name || res.slotKey} to +${res.newRank}!`, 'log-gain', 'chat');
+      return 'used';
+    }
+
+    if (item.weaponImbue) {
+      if (net.connected) {
+        net.send({ type: 'use_consumable', slotIndex: idx, itemId });
+      }
+      player.weaponImbue = { ...item.weaponImbue, timer: item.weaponImbue.durationSec || 600 };
+      spawnSparkBurst(player.x, player.y - 8, [item.weaponImbue.color || '#facc15', '#ffffff'], 16);
+      spawnFCT(player.x, player.y - 16, `🗡️ ${item.weaponImbue.name.toUpperCase()}!`, item.weaponImbue.color || '#facc15', true);
+      logMessage(`🗡️ Coated your weapon with ${item.name} (${Math.round((item.weaponImbue.durationSec || 600) / 60)}m).`, 'log-gain', 'combat');
+    } else if (item.placeCampfire || item.id === 'campfire_kit') {
       props.push({
         type: 'campfire',
         stationId: 'campfire_hearth',
@@ -3089,10 +3177,13 @@ export function initGame() {
       spawnSparkBurst(player.x, player.y - 8, ['#f97316', '#facc15', '#ffffff'], 20);
       spawnFCT(player.x, player.y - 14, '🔥 CAMPFIRE LIT (3 MIN)!', '#fb923c', true);
       logMessage('🔥 Lit a crackling Campfire Hearth! Rest beside it to recover vitals and roast caught fish.', 'log-gain', 'chat');
-    } else if (item.healHp || item.restoreGlimmer) {
-      if (item.healHp && player.hp >= player.maxHp && (!item.restoreGlimmer || player.solarCharge >= player.maxSolarCharge)) {
+    } else if (item.healHp || item.restoreGlimmer || item.wellFed) {
+      if (!item.wellFed && item.healHp && player.hp >= player.maxHp && (!item.restoreGlimmer || player.solarCharge >= player.maxSolarCharge)) {
         spawnFCT(player.x, player.y - 14, 'VITALS ALREADY FULL!', '#94a3b8');
         return 'blocked';
+      }
+      if (net.connected) {
+        net.send({ type: 'use_consumable', slotIndex: idx, itemId });
       }
       const msgParts = [];
       if (item.healHp && player.hp < player.maxHp) {
@@ -3105,7 +3196,12 @@ export function initGame() {
         spawnFCT(player.x, player.y - 28, `+${item.restoreGlimmer} GLIMMER!`, '#38bdf8', true);
         msgParts.push(`+${item.restoreGlimmer} Glimmer`);
       }
-      const isFood = item.id.includes('bread') || item.id.includes('apple') || item.id.includes('ration') || item.id.includes('minnow') || item.id.includes('trout') || item.id.includes('salmon') || item.id.includes('eel') || item.id.includes('koi') || item.id.includes('banquet');
+      if (item.wellFed) {
+        player.wellFedBuff = { ...item.wellFed, timer: item.wellFed.durationSec || 600 };
+        spawnFCT(player.x, player.y - 36, `🍲 ${item.wellFed.name.toUpperCase()}`, item.wellFed.color || '#fde047', true);
+        msgParts.push(item.wellFed.name);
+      }
+      const isFood = item.id.includes('bread') || item.id.includes('apple') || item.id.includes('ration') || item.id.includes('minnow') || item.id.includes('trout') || item.id.includes('salmon') || item.id.includes('eel') || item.id.includes('koi') || item.id.includes('banquet') || item.id.includes('feast') || item.id.includes('chowder');
       const actionVerb = isFood ? 'Ate' : 'Consumed';
       const actionIcon = item.icon || (isFood ? '🍖' : '🧪');
       logMessage(`${actionIcon} ${actionVerb} ${item.name} (${msgParts.join(', ') || 'Restored vitals'})!`, 'log-gain', 'combat');
@@ -3127,6 +3223,33 @@ export function initGame() {
     }
     return 'used';
   }
+
+  window.temperEquipmentSlot = function (slotKey) {
+    const prog = getLocalProgression();
+    const curRank = getTemperSlotRank(prog, slotKey);
+    if (curRank >= MAX_TEMPER_RANK) {
+      spawnFCT(player.x, player.y - 14, `${slotKey.toUpperCase()} ALREADY +5 MAX!`, '#fde047');
+      return;
+    }
+    const inv = localProfile.inventory || [];
+    const sigilOrder = curRank < 2
+      ? ['starsteel_temper_sigil']
+      : curRank < 4
+        ? ['voidfire_temper_sigil']
+        : ['chronocore_temper_sigil'];
+    const found = inv.find((it) => {
+      const id = typeof it === 'string' ? it : it?.id;
+      return sigilOrder.includes(id);
+    });
+    if (!found) {
+      const neededName = EQUIPMENT_CATALOG[sigilOrder[0]]?.name || sigilOrder[0];
+      logMessage(`🔨 Need ${neededName} in your backpack (forge at Cosmic Star-Anvil) to temper ${slotKey} to +${curRank + 1}.`, 'log-solari', 'chat');
+      spawnFCT(player.x, player.y - 14, `NEED ${neededName.toUpperCase()}`, '#fb923c');
+      return;
+    }
+    const sigilId = typeof found === 'string' ? found : found?.id;
+    consumeInventoryItem(sigilId, slotKey);
+  };
 
   function useKeystoneItem(item, idx, inv) {
     const spec = item?.keystone;
@@ -3577,6 +3700,59 @@ export function initGame() {
     });
     audio.playPickup();
     spawnFCT(player.x, player.y - 14, `DROPPED ${def?.name?.toUpperCase() || 'ITEM'}`, '#94a3b8');
+    renderInventoryModal({ profile: localProfile });
+  };
+
+  window.salvageInventorySlot = function (slotIndex) {
+    const inv = localProfile.inventory || [];
+    const idx = Number(slotIndex);
+    if (idx < 0 || idx >= inv.length) return;
+    const it = inv[idx];
+    const itId = typeof it === 'string' ? it : it?.id;
+    const def = EQUIPMENT_CATALOG[itId];
+    const yieldSpec = getSalvageYield(itId);
+    if (!yieldSpec) {
+      spawnFCT(player.x, player.y - 14, 'CANNOT SALVAGE THAT ITEM', '#ef4444');
+      return;
+    }
+
+    if (isHighValueSalvage(itId) && typeof window !== 'undefined' && typeof window.confirm === 'function') {
+      if (!window.confirm(`Salvage ${def?.name || itId} (${def?.rarity || 'Rare'}) into ${yieldSpec.gold}g and crafting materials?`)) {
+        return;
+      }
+    }
+
+    if (net.connected) {
+      net.send({ type: 'salvage_inventory_item', slotIndex: idx });
+      audio.playPickup();
+      return;
+    }
+
+    // Offline singleplayer salvage parity
+    if (typeof it === 'object' && it.qty > 1) {
+      it.qty -= 1;
+    } else {
+      inv.splice(idx, 1);
+    }
+    localProfile.inventory = inv;
+
+    if (yieldSpec.gold > 0) {
+      addPlayerGold(localProfile, yieldSpec.gold);
+    }
+    for (const mat of yieldSpec.materials) {
+      addItemToBackpack(localProfile, mat.id, mat.qty);
+    }
+    awardProfessionXP(yieldSpec.profId, yieldSpec.xp, `Salvaged ${def?.name || itId}`, false);
+    saveProgressionLocal();
+    audio.playPickup();
+    spawnFCT(player.x, player.y - 14, `🔨 SALVAGED +${yieldSpec.gold}g & MATS`, '#fb923c', true);
+    spawnSparkBurst(player.x, player.y - 8, ['#fb923c', '#fde047', '#ffffff'], 10);
+    logMessage(
+      `🔨 Salvaged ${def?.name || itId}: +${yieldSpec.gold} Solar Gold, ${yieldSpec.materials.map((m) => `${m.qty}x ${EQUIPMENT_CATALOG[m.id]?.name || m.id}`).join(', ')} (+${yieldSpec.xp} Relic-Forging XP).`,
+      'log-gain',
+      'chat'
+    );
+    updatePlayerUI();
     renderInventoryModal({ profile: localProfile });
   };
 
@@ -4282,12 +4458,35 @@ export function initGame() {
       renderAccountModal({
         profile: localProfile,
         authTab: accountAuthTab,
-        statusMsg: `👑 Redeemed Founder Serial Key (${data.key?.key || val.toUpperCase()})! [FOUNDER] Title unlocked!`,
+        statusMsg: `👑 Redeemed Founder Serial Key (${data.key?.key || val.toUpperCase()})! Lv. 70 Cap, Paragon & All Realms unlocked!`,
       });
       logMessage(`👑 [FOUNDER EDITION] Serial key ${data.key?.key || val.toUpperCase()} redeemed! Welcome to the Founder's Covenant!`, 'log-solari', 'chat');
     } catch (err) {
       renderAccountModal({ profile: localProfile, authTab: accountAuthTab, statusMsg: `⚠️ ${err.message}` });
     }
+  };
+
+  function isLocalFounder() {
+    if (net.connected) {
+      return isFounderEdition(localProfile);
+    }
+    return isFounderEdition(localProfile) || Boolean(localStorage.getItem('gf_founder_serial_key'));
+  }
+  window.isLocalFounderEdition = isLocalFounder;
+
+  window.openSerialKeyModal = function () {
+    const settingsModal = document.getElementById('settings-modal');
+    if (settingsModal && settingsModal.style.display === 'block') settingsModal.style.display = 'none';
+    const m = document.getElementById('account-modal');
+    if (m) m.style.display = 'block';
+    renderAccountModal({ profile: localProfile, authTab: accountAuthTab });
+    setTimeout(() => {
+      const inp = document.getElementById('serial-key-input');
+      if (inp) {
+        inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        inp.focus();
+      }
+    }, 40);
   };
 
   window.submitTcgSsoLink = async function () {
@@ -4432,6 +4631,24 @@ export function initGame() {
     } else if (act.action === 'openSkills') {
       window.closeDialogue();
       window.toggleSkillsTab();
+    } else if (act.action === 'openBank') {
+      window.closeDialogue();
+      questState.bankVisited = true;
+      saveQuestState();
+      window.toggleModal?.('bank-modal');
+    } else if (act.action === 'openExchange') {
+      window.closeDialogue();
+      window.toggleModal?.('exchange-modal');
+    } else if (act.action === 'restAtInn') {
+      window.closeDialogue();
+      player.hp = player.maxHp;
+      player.solarCharge = player.maxSolarCharge;
+      if (audio?.playChime) audio.playChime();
+      spawnSparkBurst(player.x, player.y - 10, ['#fde047', '#fb923c', '#ffffff'], 24);
+      spawnFCT(player.x, player.y - 16, '✨ FULL VITALS RESTORED!', '#fde047', true);
+      logMessage('🍺 Rested by the warm hearthfire — full Health & Glimmer Charge restored!', 'log-solari');
+      updatePlayerUI();
+      saveCurrentVitals();
     } else if (act.action === 'advance') {
       window.advanceDialogue();
     } else if (act.action === 'prev') {
@@ -4509,20 +4726,46 @@ export function initGame() {
     }
   }
 
+  let nextOfflineTrialXpNoticeAt = 0;
+  let nextOfflineTrialProfNoticeAt = 0;
+
   function awardXP(amount, reason = '') {
     if (amount <= 0) return;
     let leveled = false;
     let paragonLeveled = false;
     const prevBaseLevel = prog.level || 1;
+    const founderUnlocked = isLocalFounder();
+    const levelCap = getCharacterLevelCap(founderUnlocked ? 'founder' : 'free');
 
-    if ((prog.level || 1) < MAX_BASE_LEVEL) {
+    if ((prog.level || 1) < levelCap) {
       prog.xp = (prog.xp || 0) + amount;
-      while ((prog.level || 1) < MAX_BASE_LEVEL && prog.xp >= xpForNextLevel(prog.level)) {
+      while ((prog.level || 1) < levelCap && prog.xp >= xpForNextLevel(prog.level)) {
         prog.xp -= xpForNextLevel(prog.level);
         prog.level++;
         prog.statPoints = (prog.statPoints || 0) + 3;
         prog.skillPoints = (prog.skillPoints || 0) + 1;
         leveled = true;
+      }
+      if (!founderUnlocked && (prog.level || 1) >= levelCap) {
+        const capXpFloor = Math.max(0, xpForNextLevel(levelCap) - 1);
+        if ((prog.xp || 0) > capXpFloor) prog.xp = capXpFloor;
+        if (leveled) {
+          logMessage(
+            `🔒 [TRIAL LEVEL ${levelCap} REACHED] You hit the Free Trial level cap! Keep fighting, crafting, partying & questing at Lv. ${levelCap} — or enter a Founder Serial Key (€6.99) in Account / Settings to unlock Lv. ${MAX_BASE_LEVEL} + Paragon!`,
+            'log-solari',
+            'quest'
+          );
+        }
+      }
+    } else if (!founderUnlocked) {
+      const now = Date.now();
+      if (now >= nextOfflineTrialXpNoticeAt) {
+        nextOfflineTrialXpNoticeAt = now + 60_000;
+        logMessage(
+          `🔒 [TRIAL CAP: LV. ${TRIAL_MAX_LEVEL}] Continue playing freely at Lv. ${TRIAL_MAX_LEVEL}! Redeem a Founder Serial Key (€6.99) via Account [O] or Settings [ESC] to advance to Lv. ${MAX_BASE_LEVEL} + Paragon.`,
+          'log-gain',
+          'quest'
+        );
       }
     } else {
       if (!prog.paragon) {
@@ -4604,13 +4847,34 @@ export function initGame() {
     const prof = prog.professions[professionId];
     if (!prof) return;
 
+    const founderUnlocked = isLocalFounder();
+    const profCap = getProfessionLevelCap(founderUnlocked ? 'founder' : 'free');
+    const profCapXp = getXpForProfessionLevel(profCap);
     const oldLevel = prof.level || getProfessionLevelFromXp(prof.xp || 0);
-    prof.xp = (prof.xp || 0) + amount;
-    const newLevel = getProfessionLevelFromXp(prof.xp);
-    prof.level = newLevel;
-
     const pInfo = PROFESSIONS_CATALOG[professionId];
     const profName = pInfo?.name || professionId;
+
+    if (!founderUnlocked && oldLevel >= profCap) {
+      prof.level = profCap;
+      const now = Date.now();
+      if (now >= nextOfflineTrialProfNoticeAt) {
+        nextOfflineTrialProfNoticeAt = now + 60_000;
+        logMessage(
+          `🔒 [TRIAL CAP: SKILL LV. ${TRIAL_MAX_PROFESSION_LEVEL}] ${profName} is capped at Lv. ${TRIAL_MAX_PROFESSION_LEVEL} in Free Trial. Keep training at Lv. ${TRIAL_MAX_PROFESSION_LEVEL} or redeem a Founder Serial Key for Lv. 99!`,
+          'log-gain',
+          'quest'
+        );
+      }
+      return;
+    }
+
+    prof.xp = (prof.xp || 0) + amount;
+    let newLevel = getProfessionLevelFromXp(prof.xp);
+    if (!founderUnlocked && newLevel > profCap) {
+      prof.xp = profCapXp;
+      newLevel = profCap;
+    }
+    prof.level = newLevel;
 
     if (newLevel > oldLevel) {
       audio.playLevelUp?.();
@@ -5088,12 +5352,17 @@ export function initGame() {
       [ROOM_TYPES.NEXUS_WARZONE]: { kicker: 'CONTESTED PVP ZONE', title: 'SHATTERED NEXUS WARZONE', sub: '4-Faction Open Siege • Full Outpost Warfare', color: '#f87171' },
       [ROOM_TYPES.ARENA_3V3]: { kicker: 'COMPETITIVE ARENA', title: '3V3 NEXUS ARENA', sub: 'Ranked Skirmish • Destroy the Enemy Nexus', color: '#fb7185' },
     };
-    const meta = zoneMeta[resolvedRoomType] || {
+    const meta = zoneMeta[resolvedRoomType] || (cfg?.isInterior ? {
+      kicker: 'INDOOR INTERIOR',
+      title: cfg.title || cfg.shortTitle || 'COZY INTERIOR',
+      sub: 'Safe Indoor Room • Walk onto the southern mat or press [E] to exit',
+      color: '#fbbf24',
+    } : {
       kicker: 'ENTERING ZONE',
       title: (cfg?.name || resolvedRoomType || 'REALM').toUpperCase(),
       sub: cfg?.isPvp ? 'Contested PvP Territory' : 'Exploration Zone',
       color: '#38bdf8',
-    };
+    });
 
     card.style.setProperty('--zone-accent', meta.color);
     if (kickerEl) kickerEl.textContent = meta.kicker;
@@ -5174,6 +5443,310 @@ export function initGame() {
       siegeBanner.style.display = resolvedRoomType === ROOM_TYPES.NEXUS_WARZONE ? 'block' : 'none';
     }
 
+    if (cfg?.isInterior) {
+      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || cfg.shortTitle || 'COZY INTERIOR';
+      if (zoneLabel) zoneLabel.innerText = cfg.exitDestination ? 'Exit Outside' : 'Sanctuary Haven';
+      arenaBanner.style.display = 'none';
+      const exitY = cfg.halfH - 14;
+      props.push({
+        type: 'doorThresholdGlow',
+        x: 0,
+        y: exitY,
+        label: '🚪 Exit Outside [Walk / E]',
+        exitDoor: cfg.exitDestination,
+      });
+
+      if (resolvedRoomType === ROOM_TYPES.INTERIOR_TAVERN) {
+        props.push(
+          { type: 'hearthFireplace', x: 0, y: -96, label: '🔥 Hearthstone Inn Fireplace' },
+          { type: 'tavernBar', x: -72, y: -78, label: '🍺 Tavern Bar Counter' },
+          { type: 'aleKeg', x: -126, y: -88 },
+          { type: 'aleKeg', x: -126, y: -62 },
+          { type: 'campfire', stationId: 'campfire_hearth', x: 86, y: -78, label: '🍲 Inn Cooking Hearth [Click / E]' },
+          { type: 'bookshelf', x: 142, y: -96 },
+          { type: 'diningTable', x: -94, y: 18 },
+          { type: 'diningTable', x: 88, y: 18 },
+          { type: 'diningTable', x: -94, y: -22 },
+          { type: 'cozyBed', x: 142, y: 46 },
+          { type: 'streetLantern', x: -146, y: 92 },
+          { type: 'streetLantern', x: 146, y: 92 }
+        );
+        npcs.push(
+          {
+            id: 'npc_innkeeper_garrick',
+            name: 'Innkeeper Garrick',
+            role: 'Hearthstone Innkeeper [Click / T]',
+            spriteKey: 'merchantProvisionsNpc',
+            x: -72,
+            y: -52,
+            dialogue: [
+              {
+                speaker: 'INNKEEPER GARRICK • HEARTHSTONE INN',
+                spriteKey: 'merchantProvisionsNpc',
+                merchantId: 'merchant_tavern',
+                text: 'Welcome inside out of the wind! Pull up a chair by the roaring hearth, grab a tankard of golden cider, or cook your fresh catch on our inn griddle.\n\nAdventurers always recover their strength fastest indoors!',
+                actions: [
+                  { label: '✨ REST AT HEARTH (FULL HP & GLIMMER)', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac; font-weight:bold;' },
+                  { label: '🍺 TAVERN DRINKS & RATIONS SHOP', action: 'openShop', style: 'border-color:#fbbf24; color:#fde047; font-weight:bold;' },
+                  { label: '🍲 OPEN COOKING HEARTH', action: 'openStation_campfire_hearth', style: 'border-color:#fb923c; color:#fed7aa;' },
+                  { label: '👋 JUST BROWSING', action: 'close' },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'npc_bard_melody',
+            name: 'Minstrel Lyra-Song',
+            role: 'Tavern Bard & Chronicler [Click / T]',
+            spriteKey: 'heraldNpc',
+            x: 88,
+            y: -12,
+            dialogue: [
+              {
+                speaker: 'MINSTREL LYRA-SONG • HEARTHSTONE INN',
+                spriteKey: 'heraldNpc',
+                text: 'Every champion needs a warm refuge between battles across the Caldera. If you travel west to the Solari Smithy or south to the Rootdeep Apothecary House, you can visit our allied guildmasters right inside their workshops!',
+                actions: [{ label: '🎵 APPRECIATE THE TUNE', action: 'close' }],
+              },
+            ],
+          }
+        );
+      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_BANK_VAULT) {
+        props.push(
+          { type: 'bankCounter', x: 0, y: -48, label: '🏛️ Vault Teller Desk' },
+          { type: 'goldChestPile', x: -124, y: -92, label: '💰 High-Security Reserve Vault' },
+          { type: 'goldChestPile', x: 124, y: -92, label: '💰 High-Security Reserve Vault' },
+          { type: 'bookshelf', x: -144, y: 18 },
+          { type: 'bookshelf', x: 144, y: 18 },
+          { type: 'crystalPillar', x: -58, y: -92 },
+          { type: 'crystalPillar', x: 58, y: -92 },
+          { type: 'brazier', x: -146, y: 92 },
+          { type: 'brazier', x: 146, y: 92 }
+        );
+        npcs.push(
+          {
+            id: 'npc_vault_steward_aurelius',
+            name: 'Steward Aurelius',
+            role: 'Chief Vaultmaster [Click / T]',
+            spriteKey: 'bankerNpc',
+            isBank: true,
+            x: -36,
+            y: -38,
+          },
+          {
+            id: 'npc_vault_broker_silvius',
+            name: 'Exchange Broker Silvius',
+            role: 'AetherSwap Inside Teller [Click / T]',
+            spriteKey: 'bankerNpc',
+            isExchange: true,
+            x: 36,
+            y: -38,
+          }
+        );
+      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_SANCTUARY_COTTAGE) {
+        props.push(
+          { type: 'hearthFireplace', x: 0, y: -84, label: '🔥 Cozy Cottage Hearth' },
+          { type: 'bookshelf', x: -112, y: -84 },
+          { type: 'bookshelf', x: 112, y: -84 },
+          { type: 'bookshelf', x: 126, y: 18 },
+          { type: 'mapTable', x: -52, y: 6, label: '🗺️ Continental Exploration Chart' },
+          { type: 'diningTable', x: 64, y: 20 },
+          { type: 'cozyBed', x: -122, y: 38 },
+          { type: 'streetLantern', x: 118, y: 80 }
+        );
+        npcs.push({
+          id: 'npc_archivist_elara',
+          name: 'Archivist Elara',
+          role: 'Sanctuary Scholar [Click / T]',
+          spriteKey: 'aetherAstromancerNpc',
+          x: -52,
+          y: -18,
+          dialogue: [
+            {
+              speaker: 'ARCHIVIST ELARA • SCHOLAR COTTAGE',
+              spriteKey: 'aetherAstromancerNpc',
+              text: 'Ah, a quiet place to read the First Nexus chronicles! Outside, Sanctuary teems with recruits, but within these walls you can rest, inspect ancient maps, and prepare your gear safely.',
+              actions: [
+                { label: '✨ REST AT STUDY HEARTH (FULL VITALS)', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac; font-weight:bold;' },
+                { label: '👋 GOODBYE', action: 'close' },
+              ],
+            },
+          ],
+        });
+      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_SOLARI_SMITHY) {
+        props.push(
+          { type: 'hearthFireplace', x: 0, y: -92, label: '🔥 Blazing Guild Foundry' },
+          { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: -72, y: -28, label: '🔨 Sunforged Guild Anvil [Click / E]' },
+          { type: 'weaponRack', x: -126, y: -86 },
+          { type: 'weaponRack', x: 126, y: -86 },
+          { type: 'weaponRack', x: 126, y: 18 },
+          { type: 'mapTable', x: 66, y: -24 },
+          { type: 'aleKeg', x: -130, y: 32 },
+          { type: 'brazier', x: -140, y: 86 },
+          { type: 'brazier', x: 140, y: 86 }
+        );
+        npcs.push({
+          id: 'npc_smith_solon',
+          name: 'Master Smith Solon',
+          role: 'Sunforged Guildmaster [Click / T]',
+          spriteKey: 'merchantSmithNpc',
+          x: -72,
+          y: -58,
+          dialogue: [
+            {
+              speaker: 'MASTER SMITH SOLON • SUNFORGED SMITHY',
+              spriteKey: 'merchantSmithNpc',
+              merchantId: 'merchant_smith',
+              text: 'Feel that heat from the Sunforged hearth! My apprentice Torvin watches the courtyard stall outside while I temper high-grade alloys right here inside the hall.',
+              actions: [
+                { label: '🔨 USE GUILD STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
+                { label: '🛒 BROWSE SMITHING WARES', action: 'openShop', style: 'border-color:#facc15; color:#fde047;' },
+                { label: '✨ REST BY THE FORGE', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac;' },
+                { label: '👋 FAREWELL', action: 'close' },
+              ],
+            },
+          ],
+        });
+      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_TERRA_APOTHECARY) {
+        props.push(
+          { type: 'hearthFireplace', x: 0, y: -92, label: '🔥 Herbal Drying Hearth' },
+          { type: 'alchemyShelf', x: -120, y: -86 },
+          { type: 'alchemyShelf', x: 120, y: -86 },
+          { type: 'aetherCrucible', stationId: 'aether_crucible', x: -64, y: -30, label: '⚗️ Rootdeep Indoor Crucible [Click / E]' },
+          { type: 'celestialLoom', stationId: 'celestial_loom', x: 68, y: -30, label: '🧵 Botanical Silk Loom [Click / E]' },
+          { type: 'flowerBed', x: -124, y: 12 },
+          { type: 'cozyBed', x: 128, y: 36 },
+          { type: 'streetLantern', x: -140, y: 86 },
+          { type: 'streetLantern', x: 140, y: 86 }
+        );
+        npcs.push({
+          id: 'npc_herbalist_willow',
+          name: 'Herbalist Willow',
+          role: 'Apothecary Hostess [Click / T]',
+          spriteKey: 'terraHerbalistNpc',
+          x: 0,
+          y: -48,
+          dialogue: [
+            {
+              speaker: 'HERBALIST WILLOW • ROOTDEEP APOTHECARY HOUSE',
+              spriteKey: 'terraHerbalistNpc',
+              merchantId: 'merchant_apothecary',
+              text: 'Step softly — these dried sunblooms and moon-moss bundles scent the whole house! Feel free to brew salves at my crucible, weave flax at the loom, or catch your breath.',
+              actions: [
+                { label: '⚗️ OPEN APOTHECARY CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#c084fc; color:#f3e8ff; font-weight:bold;' },
+                { label: '🛒 APOTHECARY STOCK', action: 'openShop', style: 'border-color:#4ade80; color:#86efac;' },
+                { label: '✨ REST & HEAL', action: 'restAtInn', style: 'border-color:#facc15; color:#fde047;' },
+                { label: '👋 THANK YOU', action: 'close' },
+              ],
+            },
+          ],
+        });
+      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_UMBRI_PARLOR) {
+        props.push(
+          { type: 'tavernBar', x: 0, y: -82, label: '🍷 Velvet Veil Night Bar' },
+          { type: 'celestialLoom', stationId: 'celestial_loom', x: -72, y: -22, label: '🧵 Velvet Shadow Loom [Click / E]' },
+          { type: 'goldChestPile', x: 124, y: -26 },
+          { type: 'diningTable', x: 76, y: 18 },
+          { type: 'bookshelf', x: -126, y: 24 },
+          { type: 'umbriBrazierAltar', x: -116, y: -82 },
+          { type: 'umbriBrazierAltar', x: 116, y: -82 },
+          { type: 'umbriBrazierAltar', x: -140, y: 86 },
+          { type: 'umbriBrazierAltar', x: 140, y: 86 }
+        );
+        npcs.push({
+          id: 'npc_mistress_vexis',
+          name: 'Mistress Vexis',
+          role: 'Velvet Veil Proprietor [Click / T]',
+          spriteKey: 'shadowBrokerNpc',
+          x: 0,
+          y: -52,
+          dialogue: [
+            {
+              speaker: 'MISTRESS VEXIS • VELVET VEIL PARLOR',
+              spriteKey: 'shadowBrokerNpc',
+              merchantId: 'merchant_tailor',
+              text: 'Hush... leave the graveyard fog at the threshold. Inside the Velvet Veil, brokers trade rare twilight silks and tired blades regain their edge.',
+              actions: [
+                { label: '🧵 USE SHADOW LOOM', action: 'openStation_celestial_loom', style: 'border-color:#c084fc; color:#e9d5ff; font-weight:bold;' },
+                { label: '🛒 TAILORING SILKS & WARES', action: 'openShop', style: 'border-color:#a855f7; color:#f3e8ff;' },
+                { label: '✨ REST IN SHADOWS', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac;' },
+                { label: '👋 DEPART', action: 'close' },
+              ],
+            },
+          ],
+        });
+      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_AETHER_OBSERVATORY) {
+        props.push(
+          { type: 'aetherArmillary', x: 0, y: -78, label: '🔭 Astral Celestial Sphere' },
+          { type: 'mapTable', x: 0, y: -12, label: '🗺️ Starlight Nexus Astrolabe' },
+          { type: 'aetherCrucible', stationId: 'aether_crucible', x: -86, y: 18, label: '⚗️ Astral Resonance Crucible [Click / E]' },
+          { type: 'bookshelf', x: -122, y: -82 },
+          { type: 'bookshelf', x: 122, y: -82 },
+          { type: 'crystalPillar', x: 116, y: 20 },
+          { type: 'crystalPillar', x: -136, y: 78 },
+          { type: 'crystalPillar', x: 136, y: 78 }
+        );
+        npcs.push({
+          id: 'npc_magister_orionis',
+          name: 'Magister Orionis',
+          role: 'Observatory Savant [Click / T]',
+          spriteKey: 'aetherAstromancerNpc',
+          x: 56,
+          y: -48,
+          dialogue: [
+            {
+              speaker: 'MAGISTER ORIONIS • ASTRAL OBSERVATORY',
+              spriteKey: 'aetherAstromancerNpc',
+              merchantId: 'merchant_relics',
+              text: 'Notice how the starlight charts reflect the Leylines directly overhead! Take a moment inside our observatory to commune with the astrolabe, fuse arcane potions, or inspect recovered relics.',
+              actions: [
+                { label: '⚗️ USE ASTRAL CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#38bdf8; color:#bae6fd; font-weight:bold;' },
+                { label: '🛒 CURIO & RELIC WARES', action: 'openShop', style: 'border-color:#c084fc; color:#f3e8ff;' },
+                { label: '✨ ATTUNE & REST', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac;' },
+                { label: '👋 CLOSE', action: 'close' },
+              ],
+            },
+          ],
+        });
+      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_MARINER_TAVERN) {
+        props.push(
+          { type: 'hearthFireplace', x: 0, y: -96, label: '🔥 Sea-Driftwood Fireplace' },
+          { type: 'tavernBar', x: -72, y: -78, label: '⚓ Galley Ale Counter' },
+          { type: 'campfire', stationId: 'campfire_hearth', x: 96, y: -78, label: '🐟 Galley Seafood Skillet [Click / E]' },
+          { type: 'aleKeg', x: -128, y: -86 },
+          { type: 'aleKeg', x: -128, y: -56 },
+          { type: 'mapTable', x: 86, y: 18, label: '🗺️ Sea Chart & Reef Log' },
+          { type: 'diningTable', x: -86, y: 18 },
+          { type: 'cozyBed', x: 142, y: -80 },
+          { type: 'streetLantern', x: -146, y: 92 },
+          { type: 'streetLantern', x: 146, y: 92 }
+        );
+        npcs.push({
+          id: 'npc_captain_brine',
+          name: 'Captain Brine',
+          role: 'Mariner Innkeeper [Click / T]',
+          spriteKey: 'anglerFinnNpc',
+          x: -72,
+          y: -52,
+          dialogue: [
+            {
+              speaker: 'CAPTAIN BRINE • MARINER TAVERN',
+              spriteKey: 'anglerFinnNpc',
+              merchantId: 'merchant_tavern',
+              text: 'Ahoy! Wipe the sea spray off your boots and warm up by our driftwood fireplace. You can pan-sear your Coral Coast fish right here at the galley skillet!',
+              actions: [
+                { label: '✨ REST AT GALLEY HEARTH (FULL VITALS)', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac; font-weight:bold;' },
+                { label: '🐟 OPEN GALLEY COOKING HEARTH', action: 'openStation_campfire_hearth', style: 'border-color:#38bdf8; color:#bae6fd; font-weight:bold;' },
+                { label: '🍺 GALLEY PROVISIONS & TONICS', action: 'openShop', style: 'border-color:#fbbf24; color:#fde047;' },
+                { label: '👋 FAIR WINDS', action: 'close' },
+              ],
+            },
+          ],
+        });
+      }
+      return;
+    }
+
     if (resolvedRoomType === ROOM_TYPES.SANCTUARY_HUB) {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'SANCTUARY METROPOLIS #1';
       if (zoneLabel) zoneLabel.innerText = 'Sanctuary Haven';
@@ -5220,7 +5793,14 @@ export function initGame() {
         { type: 'bankCounter', x: -115, y: -105 },
         { type: 'streetLantern', x: -155, y: -105 },
         { type: 'streetLantern', x: -75, y: -105 },
-        { type: 'bankBuilding', x: 115, y: -155, label: '🏛️ The Grand AetherVault Bank' },
+        { type: 'doorThresholdGlow', x: 115, y: -124 },
+        {
+          type: 'bankBuilding',
+          x: 115,
+          y: -155,
+          label: '🏛️ Grand AetherVault Hall [Enter]',
+          doorway: { targetRoom: ROOM_TYPES.INTERIOR_BANK_VAULT, x: 115, y: -124, radius: 14 },
+        },
         { type: 'bankCounter', x: 115, y: -105 },
         { type: 'streetLantern', x: 75, y: -105 },
         { type: 'streetLantern', x: 155, y: -105 },
@@ -5228,11 +5808,25 @@ export function initGame() {
         { type: 'blossomTree', x: -185, y: -155 },
         { type: 'blossomTree', x: 185, y: -155 },
 
-        // 4. Cozy Hometown Cottages & Guildhalls Framing the Town Square
-        { type: 'cityHouseA', x: -255, y: -135 },
+        // 4. Cozy Hometown Cottages, Tavern & Guildhalls Framing the Town Square
+        { type: 'doorThresholdGlow', x: -255, y: -110 },
+        {
+          type: 'cityHouseA',
+          x: -255,
+          y: -135,
+          label: "📚 Archivist's Cottage [Enter]",
+          doorway: { targetRoom: ROOM_TYPES.INTERIOR_SANCTUARY_COTTAGE, x: -255, y: -110, radius: 15 },
+        },
         { type: 'cityHouseB', x: 255, y: -135 },
         { type: 'cityHouseA', x: -275, y: 95 },
-        { type: 'cityHouseB', x: 275, y: 95 },
+        { type: 'doorThresholdGlow', x: 275, y: 122 },
+        {
+          type: 'tavernBuilding',
+          x: 275,
+          y: 95,
+          label: '🍺 Hearthstone Inn & Tavern [Enter]',
+          doorway: { targetRoom: ROOM_TYPES.INTERIOR_TAVERN, x: 275, y: 122, radius: 16 },
+        },
         { type: 'cityHouseA', x: -175, y: -255 },
         { type: 'cityHouseB', x: -65, y: -255 },
         { type: 'cityHouseA', x: 65, y: -255 },
@@ -5702,6 +6296,14 @@ export function initGame() {
         { type: 'campfire', stationId: 'campfire_hearth', x: -60, y: 150, label: '🔥 Seaside Campfire Hearth [Click / E]' },
         { type: 'bountyBoard', isBountyBoard: true, x: 60, y: 150, label: '📜 Coastal Bounty Board [Click / E]' },
         { type: 'woodenSign', x: 0, y: 185, label: '🪧 N: Umbri Undercity | W: Ironwood Timberlands | S: Ocean Pier' },
+        { type: 'doorThresholdGlow', x: 185, y: 108 },
+        {
+          type: 'tavernBuilding',
+          x: 185,
+          y: 80,
+          label: '⚓ Brinelight Mariner Tavern [Enter]',
+          doorway: { targetRoom: ROOM_TYPES.INTERIOR_MARINER_TAVERN, x: 185, y: 108, radius: 16 },
+        },
         { type: 'ancientWell', x: -140, y: 120 },
         { type: 'streetLantern', x: -85, y: 150 },
         { type: 'streetLantern', x: 85, y: 150 },
@@ -5880,7 +6482,14 @@ export function initGame() {
           { type: 'bankBuilding', x: 185, y: -135, label: '🏛️ Solari Citadel Depository' },
           { type: 'bankCounter', x: 185, y: -90 },
           { type: 'grandFountain', x: 0, y: 0 },
-          { type: 'cityHouseB', x: -175, y: -145 },
+          { type: 'doorThresholdGlow', x: -175, y: -118 },
+          {
+            type: 'cityHouseB',
+            x: -175,
+            y: -145,
+            label: '⚒️ Sunforged Guild Smithy [Enter]',
+            doorway: { targetRoom: ROOM_TYPES.INTERIOR_SOLARI_SMITHY, x: -175, y: -118, radius: 15 },
+          },
           { type: 'cityHouseA', x: -85, y: -155 },
           { type: 'cityHouseB', x: 85, y: -155 },
           { type: 'mountainCrag', x: -340, y: -110 },
@@ -5938,7 +6547,14 @@ export function initGame() {
           { type: 'umbriBrazierAltar', x: 60, y: 110 },
           { type: 'bankBuilding', x: 185, y: -135, label: '🏛️ Umbri Shadow Depository' },
           { type: 'bankCounter', x: 185, y: -90 },
-          { type: 'cityHouseA', x: -175, y: -145 },
+          { type: 'doorThresholdGlow', x: -175, y: -118 },
+          {
+            type: 'cityHouseA',
+            x: -175,
+            y: -145,
+            label: '🕸️ Velvet Veil Parlor [Enter]',
+            doorway: { targetRoom: ROOM_TYPES.INTERIOR_UMBRI_PARLOR, x: -175, y: -118, radius: 15 },
+          },
           { type: 'cityHouseB', x: 0, y: -155 },
           { type: 'pillar', x: -140, y: 0 },
           { type: 'pillar', x: 140, y: 0 },
@@ -5989,7 +6605,14 @@ export function initGame() {
           { type: 'woodenSign', x: 38, y: 128, label: '🪧 W: Apothecary & Crucible | E: Orchard Bank & Spring' },
           { type: 'terraMenhir', x: 0, y: -80 },
           { type: 'ancientWell', x: 155, y: 45 },
-          { type: 'cityHouseA', x: -175, y: -145 },
+          { type: 'doorThresholdGlow', x: -175, y: -118 },
+          {
+            type: 'cityHouseA',
+            x: -175,
+            y: -145,
+            label: '🌿 Rootdeep Apothecary House [Enter]',
+            doorway: { targetRoom: ROOM_TYPES.INTERIOR_TERRA_APOTHECARY, x: -175, y: -118, radius: 15 },
+          },
           { type: 'cityHouseB', x: -75, y: -155 },
           { type: 'flowerBed', x: -105, y: -50 },
           { type: 'flowerBed', x: 105, y: -50 },
@@ -6044,7 +6667,14 @@ export function initGame() {
           { type: 'bountyBoard', isBountyBoard: true, x: -95, y: 115, label: '📜 Mirrorgate Bounty Board [Click / E]' },
           { type: 'campfire', x: 0, y: 78, label: '🔥 Starlight Conduit Hearth' },
           { type: 'woodenSign', x: -38, y: 128, label: '🪧 W: Relic Stall & Transmuter | E: Astral Vault' },
-          { type: 'cityHouseB', x: -175, y: -145 },
+          { type: 'doorThresholdGlow', x: -175, y: -118 },
+          {
+            type: 'cityHouseB',
+            x: -175,
+            y: -145,
+            label: '🔭 Astral Observatory [Enter]',
+            doorway: { targetRoom: ROOM_TYPES.INTERIOR_AETHER_OBSERVATORY, x: -175, y: -118, radius: 15 },
+          },
           { type: 'cityHouseA', x: 85, y: -155 },
           { type: 'crystalPillar', x: -130, y: 90 },
           { type: 'crystalPillar', x: 130, y: 90 },
@@ -6367,7 +6997,7 @@ export function initGame() {
         { id: 'sg_node_1', name: 'Starlight Heartwood Font', sub: 'Astral Grove Spire [E]', type: 'node', spriteKey: 'node', x: 0, y: -35, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
         { id: 'sg_mob_1', name: 'Starlight Treant', sub: 'Lv.24 Ancient Guardian', type: 'mob', spriteKey: 'terraWarden', x: -130, y: 40, origX: -130, origY: 40, hp: 220, maxHp: 220, damage: 15, xpReward: 210, speed: 48, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
         { id: 'sg_mob_2', name: 'Starlight Treant', sub: 'Lv.24 Ancient Guardian', type: 'mob', spriteKey: 'terraWarden', x: 130, y: 40, origX: 130, origY: 40, hp: 220, maxHp: 220, damage: 15, xpReward: 210, speed: 48, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'sg_boss', name: 'Aethelgard the Starlight Ancient', sub: '★ Lv.32 Sovereign of the Grove', type: 'mob', isBoss: true, dropGear: 'ironwood_armor', spriteKey: 'elderBarkhide', x: 0, y: -240, origX: 0, origY: -240, hp: 960, maxHp: 960, damage: 22, xpReward: 920, speed: 42, aggroRange: 145, attackRange: 36, radius: 24, hitFlash: 0 }
+        { id: 'sg_boss', name: 'Elder Canopy Colossus', sub: '★ Lv.35 Starlight Grove Sovereign', type: 'mob', isBoss: true, dropGear: 'ironwood_armor', spriteKey: 'terraBoss', x: 0, y: -260, origX: 0, origY: -260, hp: 1150, maxHp: 1150, damage: 24, xpReward: 950, speed: 44, aggroRange: 150, attackRange: 36, radius: 24, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.CHRONOCORE_CITADEL) {
       if (!hasCustomSpawn) {
@@ -6375,10 +7005,15 @@ export function initGame() {
         player.y = 200;
       }
       entities.push(
-        { id: 'ccit_node_1', name: 'Chronocore Singularity Spire', sub: 'Temporal Core [E]', type: 'node', spriteKey: 'node', x: 0, y: -40, charges: 6, maxCharges: 6, radius: 16, hitFlash: 0 },
-        { id: 'ccit_mob_1', name: 'Chronocore Warden', sub: 'Lv.38 Astral Guardian', type: 'mob', spriteKey: 'aetherWeaver', x: -140, y: 35, origX: -140, origY: 35, hp: 340, maxHp: 340, damage: 20, xpReward: 220, speed: 48, aggroRange: 120, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'ccit_mob_2', name: 'Riftweaver Automaton', sub: 'Lv.42 Temporal Construct', type: 'mob', spriteKey: 'aetherWeaver', x: 140, y: 35, origX: 140, origY: 35, hp: 390, maxHp: 390, damage: 22, xpReward: 260, speed: 50, aggroRange: 120, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'ccit_boss', name: 'Grand Chronocore Sovereign', sub: '★ Lv.50 Temporal Apex Boss', type: 'mob', isBoss: true, dropGear: 'chronos_singularity_core', spriteKey: 'aetherBoss', x: 0, y: -260, origX: 0, origY: -260, hp: 1650, maxHp: 1650, damage: 29, xpReward: 1400, speed: 48, aggroRange: 160, attackRange: 38, radius: 24, hitFlash: 0 }
+        { id: 'ccit_shrine_rites', name: 'Chronocore Rite Shrine', sub: 'Skill Shrine (Req: Rites Lv.15) [E]', type: 'shrine', affinity: 'Aether', buffName: 'Astral Rite Supremacy', reqSkill: 'rites', reqLevel: 15, spriteKey: 'shrine', x: 0, y: 0, charges: 5, maxCharges: 5, radius: 18, hitFlash: 0 },
+        { id: 'ccit_anvil', name: 'Chronocore Star-Anvil', sub: 'Relic-Forging Station [E]', type: 'crafting_station', stationId: 'star_anvil', spriteKey: 'anvil', x: -120, y: 120, radius: 16, hitFlash: 0 },
+        { id: 'ccit_runeforge', name: 'Chronocore Runeforge', sub: 'Runecrafting & Leyline Station [E]', type: 'crafting_station', stationId: 'leyline_runeforge', spriteKey: 'runeforge', x: 120, y: 120, radius: 16, hitFlash: 0 },
+        { id: 'ccit_node_1', name: 'Chronocore Singularity Spire', sub: 'Temporal Core [E]', type: 'node', spriteKey: 'node', x: 0, y: -55, charges: 6, maxCharges: 6, radius: 16, hitFlash: 0 },
+        { id: 'ccit_mob_1', name: 'Chronocore Warden', sub: 'Lv.44 Astral Guardian', type: 'mob', spriteKey: 'aetherWeaver', x: -190, y: -120, origX: -190, origY: -120, hp: 460, maxHp: 460, damage: 24, xpReward: 380, speed: 50, aggroRange: 125, attackRange: 28, radius: 15, hitFlash: 0 },
+        { id: 'ccit_mob_2', name: 'Riftweaver Automaton', sub: 'Lv.52 Temporal Construct', type: 'mob', spriteKey: 'aetherWeaver', x: 190, y: -120, origX: 190, origY: -120, hp: 620, maxHp: 620, damage: 28, xpReward: 520, speed: 52, aggroRange: 130, attackRange: 30, radius: 16, hitFlash: 0 },
+        { id: 'ccit_mob_3', name: 'Temporal Singularity Vanguard', sub: 'Lv.58 Paradox Arbiter', type: 'mob', spriteKey: 'paradoxSentinel', x: -180, y: -250, origX: -180, origY: -250, hp: 780, maxHp: 780, damage: 32, xpReward: 690, speed: 54, aggroRange: 135, attackRange: 32, radius: 17, hitFlash: 0 },
+        { id: 'ccit_mob_4', name: 'Empyrean Void-Paradox', sub: 'Lv.64 Citadel Apex Harbinger', type: 'mob', spriteKey: 'mobUmbri', x: 180, y: -250, origX: 180, origY: -250, hp: 940, maxHp: 940, damage: 35, xpReward: 860, speed: 56, aggroRange: 140, attackRange: 32, radius: 18, hitFlash: 0 },
+        { id: 'ccit_boss', name: 'Grand Chronocore Sovereign', sub: '★ Lv.68 Temporal Apex Boss', type: 'mob', isBoss: true, dropGear: 'chronos_singularity_core', spriteKey: 'aetherBoss', x: 0, y: -360, origX: 0, origY: -360, hp: 2800, maxHp: 2800, damage: 38, xpReward: 2400, speed: 50, aggroRange: 165, attackRange: 40, radius: 25, hitFlash: 0 }
       );
     } else if (currentRoomType === ROOM_TYPES.SUNKEN_OASIS) {
       if (!hasCustomSpawn) {
@@ -6416,6 +7051,12 @@ export function initGame() {
         { id: 'moonwell_mob_3', name: 'Lunar Briar-Stalker', sub: 'Lv.26 Wilds Guardian', type: 'mob', spriteKey: 'mobTerra', x: -95, y: -95, origX: -95, origY: -95, hp: 245, maxHp: 245, damage: 16, xpReward: 270, speed: 55, aggroRange: 122, attackRange: 30, radius: 16, hitFlash: 0 },
         { id: 'moonwell_boss', name: 'Archdruid Elaria of the Silvermist', sub: '★ Lv.32 Matriarch of the Moonwell Sanctum', type: 'mob', isBoss: true, dropGear: 'elder_treant_staff', spriteKey: 'elderBarkhide', x: 0, y: -235, origX: 0, origY: -235, hp: 960, maxHp: 960, damage: 22, xpReward: 920, speed: 44, aggroRange: 145, attackRange: 36, radius: 24, hitFlash: 0 }
       );
+    } else if (ROOM_CONFIGS[currentRoomType]?.isInterior) {
+      if (!hasCustomSpawn) {
+        const icfg = ROOM_CONFIGS[currentRoomType];
+        player.x = icfg?.spawnX ?? 0;
+        player.y = icfg?.spawnY ?? 96;
+      }
     } else {
       player.x = 0;
       player.y = 1740;
@@ -6473,7 +7114,7 @@ export function initGame() {
 
     // Three shared Grand Glimmer Fonts per realm. Each has 25 charges that are
     // global to the room, so parties can grind the same font together.
-    if (currentRoomType !== ROOM_TYPES.ARENA_3V3) {
+    if (currentRoomType !== ROOM_TYPES.ARENA_3V3 && !ROOM_CONFIGS[currentRoomType]?.isInterior) {
       const positions = GRAND_FONT_POSITIONS[currentRoomType]?.length
         ? GRAND_FONT_POSITIONS[currentRoomType]
         : [{ x: 0, y: 130 }];
@@ -6533,6 +7174,9 @@ export function initGame() {
 
     camera.x = player.x;
     camera.y = player.y;
+    net.preferredRoom = currentRoomType;
+    net.currentCoords = { x: player.x, y: player.y };
+    if (isSinglePlayer && hasEnteredWorld) saveProgressionLocal();
   }
 
   function populateWorldSkillingNodes(roomType, targetList) {
@@ -6558,7 +7202,7 @@ export function initGame() {
   }
 
   function applyEliteChampionsToZone(roomType, targetList) {
-    if (roomType === ROOM_TYPES.SANCTUARY_HUB || roomType === ROOM_TYPES.ARENA_3V3) return;
+    if (roomType === ROOM_TYPES.SANCTUARY_HUB || roomType === ROOM_TYPES.ARENA_3V3 || ROOM_CONFIGS[roomType]?.isInterior) return;
     const affixKeys = Object.keys(ELITE_AFFIXES);
     if (!affixKeys.length) return;
     const candidates = targetList.filter((e) => e.type === 'mob' && !e.isBoss);
@@ -6585,6 +7229,9 @@ export function initGame() {
   // Real-Time Authoritative Server Packet Handling
   // ==========================================
   function getZoneDangerTag() {
+    if (ROOM_CONFIGS[currentRoomType]?.isInterior) {
+      return ` • <span style="color:#fbbf24; font-weight:800;">[COZY INTERIOR]</span>`;
+    }
     if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB) {
       return ` • <span style="color:#4ade80; font-weight:800;">[SANCTUARY]</span>`;
     }
@@ -6848,6 +7495,8 @@ export function initGame() {
         prev.charges = se.charges;
         prev.maxCharges = se.maxCharges;
         prev.frozen = se.frozen;
+        prev.staggered = Boolean(se.staggered);
+        prev.cast = se.cast || null;
         prev.inCombat = Boolean(se.inCombat);
         if (se.name) prev.name = se.name;
         if (se.sub) prev.sub = se.sub;
@@ -7144,6 +7793,8 @@ export function initGame() {
           if (roomChanged || Math.hypot(player.x - msg.x, player.y - msg.y) > 120) {
             player.x = msg.x;
             player.y = msg.y;
+            camera.x = player.x;
+            camera.y = player.y;
           }
           player.z = 0;
           player.vz = 0;
@@ -7178,6 +7829,9 @@ export function initGame() {
           }
           applyServerSnapshot(msg.snapshot);
           updateNetStatusPill();
+          net.currentCoords = { x: player.x, y: player.y };
+          syncNetProfileLastPosition();
+          if (isSinglePlayer && hasEnteredWorld) saveProgressionLocal();
           break;
         }
 
@@ -7303,6 +7957,7 @@ export function initGame() {
             const fm = FACTIONS_META[msg.fromFaction] || FACTIONS_META.Solari;
             txt.innerText = `${fm.icon} ${msg.fromName} is queueing for 3v3 Arena — ${msg.total}/${msg.capacity} champions ready!`;
             toast.style.display = 'block';
+            reflowDefaultHudStack();
             audio.playPartyInvite();
             clearTimeout(arenaInviteTimer);
             arenaInviteTimer = setTimeout(() => (toast.style.display = 'none'), 18000);
@@ -7360,6 +8015,7 @@ export function initGame() {
           if (toast && txt) {
             txt.innerText = `${msg.inviterName} (Lv.${msg.inviterLevel} ${msg.inviterFaction}) invited you to a 3-player squad!`;
             toast.style.display = 'block';
+            reflowDefaultHudStack();
           }
           break;
         }
@@ -7522,6 +8178,12 @@ export function initGame() {
           break;
         }
 
+        case 'trial_gate':
+          spawnFCT(player.x, player.y - 20, `🔒 ${msg.feature ? `${msg.feature.toUpperCase()} LOCKED (TRIAL)` : 'FOUNDER EDITION REQUIRED'}`, '#facc15', true);
+          audio?.playHurt?.();
+          if (msg.text) logMessage(msg.text, 'log-solari', 'quest');
+          break;
+
         case 'sys_msg':
           logMessage(msg.text, 'log-gain', msg.category || 'chat');
           break;
@@ -7567,20 +8229,35 @@ export function initGame() {
         updateNetStatusPill();
         logMessage('[Realm] Entered Single Player Realm (Offline • 0ms). Instant local response!', 'log-solari', 'chat');
       } else {
-        // Pre-render Sanctuary Hub tiles & scenery so canvas is NEVER pitch black while multiplayer handshake connects
-        if (!currentRoomId || !currentRoomType) {
+        portalCooldown = 2.0;
+        net.preferredRoom = targetRealm;
+        if (startX !== null && startX !== undefined && startY !== null && startY !== undefined && Number.isFinite(Number(startX)) && Number.isFinite(Number(startY))) {
+          net.currentCoords = { x: Number(startX), y: Number(startY) };
+        }
+        // Pre-render target realm tiles & scenery at exact saved coords so canvas is NEVER pitch black while multiplayer handshake connects
+        if (!currentRoomId || !currentRoomType || currentRoomType !== targetRealm) {
           buildOfflineZone(targetRealm, startX, startY);
+        } else if (startX !== null && startX !== undefined && startY !== null && startY !== undefined && Number.isFinite(Number(startX)) && Number.isFinite(Number(startY))) {
+          player.x = Number(startX);
+          player.y = Number(startY);
         }
         camera.x = player.x;
         camera.y = player.y;
+        lastSentMove = {
+          x: Math.round(player.x * 10) / 10,
+          y: Math.round(player.y * 10) / 10,
+          z: 0,
+          dir: player.dir,
+          isMoving: false,
+          time: performance.now(),
+        };
         if (net.connected && startingRealm && !currentRoomId?.startsWith(startingRealm)) {
-          portalCooldown = 2.0;
           triggerPortalMist(0.5);
           inputs.up = inputs.down = inputs.left = inputs.right = false;
           player.isMoving = false;
           moveSyncAccum = 0;
           net.send({ type: 'switch_room', roomType: startingRealm, epoch: currentEpoch, x: startX, y: startY });
-        } else if (!net.connected) {
+        } else if (!net.connected && (!net.token || !net.ws || net.ws.readyState > 1)) {
           net.bootstrapAndConnect(prog);
         }
         updateNetStatusPill();
@@ -7596,9 +8273,20 @@ export function initGame() {
   });
   window._fp = frontpage;
   window._isDeadScreenVisible = () => Boolean(player.isDead || deathScreenVisible);
+  const syncNetProfileLastPosition = () => {
+    if (!isSinglePlayer && net.profile && currentRoomType && currentRoomType !== ROOM_TYPES.ARENA_3V3 && !player.isDead) {
+      const pos = { roomType: currentRoomType, x: Math.round(player.x), y: Math.round(player.y) };
+      net.profile.lastPosition = pos;
+      if (Array.isArray(net.profile.characters)) {
+        const ch = net.profile.characters.find((c) => c.id === net.profile.activeCharacterId);
+        if (ch) ch.lastPosition = pos;
+      }
+    }
+  };
   window.openFrontpage = function () {
     if (player.isDead || deathScreenVisible) return;
     saveCurrentVitals();
+    syncNetProfileLastPosition();
     document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
     if (window._landing && window._landing.isOpen) window._landing.close();
     frontpage.open();
@@ -7612,6 +8300,7 @@ export function initGame() {
   window.openLandingPage = function (initialTab = null) {
     if (player.isDead || deathScreenVisible) return;
     saveCurrentVitals();
+    syncNetProfileLastPosition();
     document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
     frontpage.close();
     landingPage.open(initialTab);
@@ -7956,70 +8645,16 @@ export function initGame() {
   }
 
   function spawnOfflineLoot(ent) {
-    const pendingDrops = [];
-    const count = ent.isBoss ? 2 : ent.eliteAffix ? 1 : Math.random() < 0.20 ? 1 : 0;
-    for (let i = 0; i < count; i++) {
-      let kind = Math.random() < 0.5 ? 'vital' : 'glimmer';
-      if (ent.isBoss && i === 0) kind = 'relic';
-      pendingDrops.push({ kind, itemId: null, qty: 1 });
-    }
+    const pendingDrops = rollMobLootDrops({
+      roomType: currentRoomType,
+      ent,
+      getBossSetDrop: () => getFactionBossSetDrop(ent, currentRoomType),
+      getBossAccessoryDrop: () => getBossAccessoryDrop(ent, currentRoomType),
+      getKeystoneDrop: () => getOfflineKeystoneDrop(ent),
+      getZoneMaterialDrop: () => getZoneCosmicMaterialDrop(currentRoomType),
+    });
 
-    // 1. Stackable Currency: Solar Gold Sovereigns (all mobs drop gold; Elite Champions grant bonus bounty!)
-    const eliteBonusGold = ent.eliteAffix ? 25 + Math.floor(Math.random() * 32) : 0;
-    const goldQty = (ent.isBoss ? (150 + Math.floor(Math.random() * 200)) : (8 + Math.floor(Math.random() * 25))) + eliteBonusGold;
-    pendingDrops.push({ kind: 'item', itemId: 'solar_gold', qty: goldQty });
-
-    // 2. Faction elemental currency (40% mob chance or 100% boss/elite)
-    if (ent.isBoss || ent.eliteAffix || Math.random() < 0.40) {
-      const rType = String(currentRoomType || '').toLowerCase();
-      let factionCurr = 'glimmer_shard';
-      let factionCurrQty = ent.isBoss ? 15 + Math.floor(Math.random() * 20) : ent.eliteAffix ? 3 + Math.floor(Math.random() * 3) : 1 + Math.floor(Math.random() * 2);
-      if (rType.includes('aether') || rType.includes('starfall')) factionCurr = 'chrono_gem';
-      else if (rType.includes('terra')) factionCurr = 'verdant_amber';
-      else if (rType.includes('umbri') || rType.includes('abyssal')) factionCurr = 'void_essence';
-      pendingDrops.push({ kind: 'item', itemId: factionCurr, qty: factionCurrQty });
-    }
-
-    // 2b. Cosmic Artisan Crafting Materials (30% on mobs, 100% on Elites & Bosses)
-    if (ent.isBoss || ent.eliteAffix || Math.random() < 0.30) {
-      const matId = getZoneCosmicMaterialDrop(currentRoomType);
-      const matQty = ent.isBoss ? 2 + Math.floor(Math.random() * 2) : ent.eliteAffix ? 2 : 1;
-      if (matId && EQUIPMENT_CATALOG[matId]) {
-        pendingDrops.push({ kind: 'item', itemId: matId, qty: matQty });
-      }
-    }
-
-    // 2c. Elite Champion Bonus: 15% chance at a cut Leyline Socket Gem!
-    if (ent.eliteAffix && Math.random() < 0.15) {
-      const gemPool = ['gem_solar_ruby', 'gem_void_sapphire', 'gem_terra_emerald', 'gem_aether_diamond'];
-      pendingDrops.push({ kind: 'item', itemId: gemPool[Math.floor(Math.random() * gemPool.length)], qty: 1, ttl: 60 });
-    }
-
-    // 3. Consumables (healing salves / glimmer draughts - 12% on mobs, 100% on boss)
-    if (ent.isBoss || Math.random() < 0.12) {
-      const potId = Math.random() < 0.5 ? 'minor_healing_salve' : 'glimmer_draught';
-      pendingDrops.push({ kind: 'item', itemId: potId, qty: ent.isBoss ? 2 : 1 });
-    }
-
-    // 4. Equipment Drops:
-    // Set pieces drop ONLY on faction bosses (15%), non-bosses get beginner gear (6%)
-    if (ent.isBoss) {
-      // Day 2: every Continental boss guarantees a Legendary cache — one faction set piece + one relic.
-      const setPieceId = getFactionBossSetDrop(ent, currentRoomType);
-      const accessoryId = getBossAccessoryDrop(ent, currentRoomType);
-      if (setPieceId) pendingDrops.push({ kind: 'item', itemId: setPieceId, qty: 1, ttl: 60 });
-      if (accessoryId) pendingDrops.push({ kind: 'item', itemId: accessoryId, qty: 1, ttl: 60 });
-      const keystoneId = getOfflineKeystoneDrop(ent);
-      if (keystoneId) pendingDrops.push({ kind: 'item', itemId: keystoneId, qty: 1, ttl: 90 });
-    } else {
-      if (Math.random() < 0.06) {
-        const dropId = getBeginnerMobDrop(currentRoomType);
-        if (dropId) {
-          pendingDrops.push({ kind: 'item', itemId: dropId, qty: 1, ttl: 35 });
-        }
-      }
-    }
-
+    const mobLv = parseEntityLevel(ent);
     // Radial spaced distribution so drops never overlap on the ground
     const n = pendingDrops.length;
     pendingDrops.forEach((d, i) => {
@@ -8034,9 +8669,10 @@ export function initGame() {
         kind: d.kind,
         itemId: d.itemId,
         qty: d.qty || 1,
+        xpBonus: d.kind === 'relic' ? 60 + mobLv * 6 : 0,
         x: dropX,
         y: dropY,
-        ttl: d.ttl || (d.kind === 'item' ? 55 : 28),
+        ttl: d.ttl || (d.kind === 'item' ? 55 : 40),
         age: 0,
       });
     });
@@ -8107,33 +8743,29 @@ export function initGame() {
         } else {
           lootDrops.splice(i, 1);
         }
-      } else {
+      } else if (l.kind === 'relic') {
         lootDrops.splice(i, 1);
         audio.playPickup();
-        if (l.kind === 'vital') {
-          const heal = Math.max(3, Math.round(player.maxHp * 0.25));
-          player.hp = Math.min(player.maxHp, player.hp + heal);
-          spawnFCT(player.x, player.y - 14, `+${heal} VITAL SHARD`, '#f87171');
-          spawnSparkBurst(l.x, l.y, ['#f87171', '#fecaca', '#ffffff'], 8);
-        } else if (l.kind === 'glimmer') {
-          player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 30);
-          spawnFCT(player.x, player.y - 14, '+30 GLIMMER SHARD', '#38bdf8');
-          spawnSparkBurst(l.x, l.y, ['#38bdf8', '#bae6fd', '#ffffff'], 8);
-        } else {
-          awardXP(60, 'Relic Shard');
-          spawnFCT(player.x, player.y - 14, '✦ RELIC SHARD +60 XP', '#fde047', true);
-          spawnSparkBurst(l.x, l.y, ['#fde047', '#fef08a', '#ffffff'], 12);
-        }
+        const relicXp = Math.max(60, Number(l.xpBonus) || 60);
+        awardXP(relicXp, 'Ancient Relic Cache');
+        spawnFCT(player.x, player.y - 14, `✦ RELIC CACHE +${relicXp} XP`, '#fde047', true);
+        spawnSparkBurst(l.x, l.y, ['#fde047', '#fef08a', '#ffffff'], 14);
         updatePlayerUI();
+      } else {
+        lootDrops.splice(i, 1);
       }
     }
   }
 
   const LOOT_STYLE = {
-    vital: { core: '#ef4444', light: '#fecaca', dark: '#7f1d1d' },
-    glimmer: { core: '#38bdf8', light: '#e0f2fe', dark: '#0c4a6e' },
     relic: { core: '#facc15', light: '#fffbeb', dark: '#854d0e' },
     item: { core: '#f59e0b', light: '#fef3c7', dark: '#78350f' },
+  };
+  const LOOT_BEAM_COLORS = {
+    uncommon: { beam: 'rgba(74, 222, 128, 0.28)', glow: 'rgba(74, 222, 128, 0.32)', height: 18 },
+    rare: { beam: 'rgba(56, 189, 248, 0.36)', glow: 'rgba(56, 189, 248, 0.42)', height: 24 },
+    epic: { beam: 'rgba(192, 132, 252, 0.45)', glow: 'rgba(192, 132, 252, 0.48)', height: 30 },
+    legendary: { beam: 'rgba(250, 204, 21, 0.56)', glow: 'rgba(250, 204, 21, 0.55)', height: 38 },
   };
   const LOOT_LABEL_FONT = 'bold 9px monospace';
   const LOOT_LABEL_H = 11;
@@ -8146,12 +8778,10 @@ export function initGame() {
       const isSet = def?.rarity?.includes('Set') || def?.rarity?.includes('Apex');
       return {
         text: `${def?.name || l.itemId}${l.qty > 1 ? ` x${l.qty}` : ''}`,
-        color: isSet ? '#fde047' : def?.slot === 'currency' ? '#facc15' : def?.slot === 'consumable' ? '#4ade80' : (def ? (def.rarity === 'Epic' ? '#c084fc' : def.rarity === 'Rare' ? '#38bdf8' : def.rarity === 'Uncommon' ? '#4ade80' : '#f8fafc') : '#f8fafc'),
+        color: isSet ? '#fde047' : def?.slot === 'currency' ? '#facc15' : def?.slot === 'consumable' ? '#4ade80' : (def ? (def.rarity?.includes('Epic') ? '#c084fc' : def.rarity?.includes('Rare') ? '#38bdf8' : def.rarity?.includes('Uncommon') ? '#4ade80' : '#f8fafc') : '#f8fafc'),
       };
     }
     if (l.kind === 'relic') return { text: 'Ancient Relic Cache', color: '#fde047' };
-    if (l.kind === 'vital') return { text: 'Vital Shard', color: '#f87171' };
-    if (l.kind === 'glimmer') return { text: 'Glimmer Shard', color: '#38bdf8' };
     return null;
   }
 
@@ -8238,18 +8868,19 @@ export function initGame() {
       const tw = Math.ceil(ctx.measureText(shortTxt).width);
       ctx.restore();
 
+      const isDoorBadge = Boolean(pr.doorway || pr.exitDoor);
       overheadBadges.push({
         id: 'prop_' + pr.x + '_' + pr.y,
         kind: 'prop',
         wx: pr.x,
         wy: pr.y,
         sx,
-        sy: sy - 36,
+        sy: sy - (pr.exitDoor ? 20 : 36),
         text: shortTxt,
         tw,
         alpha,
-        textColor: '#f0f9ff',
-        borderColor: '#38bdf8',
+        textColor: isDoorBadge ? '#fef3c7' : '#f0f9ff',
+        borderColor: isDoorBadge ? '#fbbf24' : '#38bdf8',
         bg: 'rgba(7, 10, 20, 0.92)',
         rotDeg: 0,
         offsetY: 0,
@@ -8374,11 +9005,25 @@ export function initGame() {
   }
 
   function drawLootShard(l, sx, sy) {
-    const st = LOOT_STYLE[l.kind] || LOOT_STYLE.glimmer;
+    const st = LOOT_STYLE[l.kind] || LOOT_STYLE.item;
     const blink = l.ttl < 6 && Math.floor(globalTime * 8) % 2 === 0;
     if (blink) return;
     // Ground drops rest stationary on their tile — no sine hop, bounce, or drift.
     const cy = sy - 6;
+    const tier = getLootRarityTier(l.itemId, l.kind);
+    const beamSpec = LOOT_BEAM_COLORS[tier];
+    if (beamSpec) {
+      const pulse = 0.78 + Math.sin(globalTime * 4 + l.x * 0.1) * 0.22;
+      ctx.save();
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = beamSpec.glow;
+      ctx.fillRect(sx - 6, sy - 2, 13, 3);
+      ctx.fillStyle = beamSpec.beam;
+      ctx.fillRect(sx - 2, cy - beamSpec.height, 5, beamSpec.height);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.fillRect(sx, cy - beamSpec.height + 2, 1, beamSpec.height - 2);
+      ctx.restore();
+    }
     drawPixelEllipseShadow(sx, sy, 4, 2);
     // 7px pixel diamond
     ctx.fillStyle = '#05070f';
@@ -8583,7 +9228,7 @@ export function initGame() {
     awardProfessionXP('combat_mastery', Math.max(20, Math.round((ent.xpReward ?? 30) * 0.75)), ent.name);
     if (ent.isBoss) {
       logMessage(`🏆 CONTINENTAL VICTORY: ${ent.name} has been vanquished! The Leylines surge with an Ancient Paragon Cache!`, 'log-solari', 'combat');
-      if ((prog.level || 1) >= 30) {
+      if ((prog.level || 1) >= MAX_BASE_LEVEL && isLocalFounder()) {
         awardXP(450, 'Ancient Paragon Cache');
       }
       if (offlineMythic?.active) {
@@ -8641,8 +9286,15 @@ export function initGame() {
 
   function damageOfflineEntity(ent, dmg, isCrit = false, isRite = false, spellName = '', attackerRef = player) {
     if (!ent || ent.isDying || ent.type === 'node' || ent.type === 'portal') return;
+    if ((ent.staggerTimer || 0) > 0) {
+      dmg = Math.max(1, Math.round(dmg * INTERRUPT_VULN_MULT));
+    }
     ent.hp = Math.max(0, ent.hp - dmg);
     ent.hitFlash = 0.14;
+    if (isCrit && player.weaponImbue?.critLeechPct > 0 && !player.isDead) {
+      const leech = Math.max(1, Math.round(dmg * player.weaponImbue.critLeechPct));
+      player.hp = Math.min(player.maxHp, player.hp + leech);
+    }
     if (ent.type === 'mob') {
       ent.provokedByLocalPlayer = true;
       if (!ent.inCombat) {
@@ -8881,7 +9533,7 @@ export function initGame() {
       return;
     }
 
-    if (isCasting) {
+    if (isCasting && !isAbilityOffGCD(spec)) {
       logMessage('⏳ Already channeling a Rite!', 'log-combat');
       return;
     }
@@ -8990,8 +9642,15 @@ export function initGame() {
 
     // Offline single-player simulation (full support for all 4 Factions & Rites/Flashes)
     const rank = prog.ranks[slot] || 1;
-    const eff = getEffectiveStats(prog, localProfile.equipment, localProfile.classId);
-    const critChance = calcCritChance(prog, localProfile.equipment, localProfile.classId);
+    const baseEff = getEffectiveStats(prog, localProfile.equipment, localProfile.classId);
+    const buffBonuses = getActiveCombatConsumableBonuses(player);
+    const eff = {
+      power: baseEff.power + buffBonuses.power,
+      bastion: baseEff.bastion + buffBonuses.bastion,
+      resonance: baseEff.resonance + buffBonuses.resonance,
+      tempo: baseEff.tempo + buffBonuses.tempo,
+    };
+    const critChance = Math.min(0.95, calcCritChance(prog, localProfile.equipment, localProfile.classId) + buffBonuses.critPct);
 
     if (spec.cost > 0) {
       player.solarCharge = Math.max(0, player.solarCharge - spec.cost);
@@ -9004,6 +9663,41 @@ export function initGame() {
       awardProfessionXP('rites', 18 + Math.round((spec.cost || 10) * 1.2), spec.name);
     } else if (isFlash) {
       awardProfessionXP('flashes', 14 + Math.round((spec.cost || 5) * 1.5), spec.name);
+      if (canAbilityInterrupt(spec)) {
+        const interruptRange = Math.max(150, ((spec.rangeYards || 8) + 4) * YARD_PX);
+        let castTgt = (acquiredTarget && acquiredTarget.castState?.interruptible && Math.hypot(acquiredTarget.x - player.x, acquiredTarget.y - player.y) <= interruptRange)
+          ? acquiredTarget
+          : (currentTarget && currentTarget.castState?.interruptible && Math.hypot(currentTarget.x - player.x, currentTarget.y - player.y) <= interruptRange)
+            ? currentTarget
+            : null;
+        if (!castTgt) {
+          let bestDist = interruptRange;
+          for (const e of entities) {
+            if (e.type !== 'mob' || e.isDying || !e.castState?.interruptible) continue;
+            const d = Math.hypot(e.x - player.x, e.y - player.y);
+            if (d <= bestDist) { bestDist = d; castTgt = e; }
+          }
+        }
+        if (castTgt) {
+          const cast = castTgt.castState;
+          castTgt.castState = null;
+          castTgt.staggerTimer = Math.max(castTgt.staggerTimer || 0, INTERRUPT_VULN_DURATION_SEC);
+          castTgt.freezeTimer = Math.max(castTgt.freezeTimer || 0, INTERRUPT_STUN_SEC);
+          castTgt.inCombat = true;
+          if (cast?.id) {
+            for (let gi = groundZones.length - 1; gi >= 0; gi--) {
+              if (groundZones[gi].castId === cast.id) groundZones.splice(gi, 1);
+            }
+          }
+          player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 18);
+          awardProfessionXP('flashes', 35, `Interrupted ${cast?.spellName || castTgt.name}`);
+          spawnSparkBurst(castTgt.x, castTgt.y - 10, ['#38bdf8', '#fde047', '#ffffff'], 22);
+          spawnFCT(castTgt.x, castTgt.y - 22, '⚡ INTERRUPTED! (+35% VULN)', '#38bdf8', true);
+          groundZones.push({ id: `off_int_${Date.now()}`, type: 'shockwave', color: '#38bdf8', x: castTgt.x, y: castTgt.y, radius: 42, age: 0, maxAge: 0.35 });
+          audio.playZenith?.();
+          logMessage(`⚡ [Counter-Flash] ${spec.name} interrupted ${castTgt.name}'s ${cast?.spellName || 'Cast'}! (+18 Glimmer, +35% DMG Vuln for 3s)`, 'log-gain', 'combat');
+        }
+      }
     }
 
     if (spec.kind === 'cast_beam' && acquiredTarget) {
@@ -9491,8 +10185,17 @@ export function initGame() {
   };
 
   window.harvestTarget = function () {
-    // 0. Check for nearby Artisan Crafting Station or Bounty Board when nothing closer is targeted
+    // 0. Check for nearby Building Doorway / Interior Exit, Artisan Crafting Station, or Bounty Board
     if (!currentTarget || (currentTarget.type !== 'shrine' && currentTarget.type !== 'node')) {
+      const nearDoor = props.find((pr) => (pr.doorway || pr.exitDoor) && Math.hypot((pr.doorway?.x ?? pr.x) - player.x, (pr.doorway?.y ?? pr.y) - player.y) <= 68);
+      if (nearDoor) {
+        if (nearDoor.exitDoor) {
+          transitionToRoom(nearDoor.exitDoor.roomType, nearDoor.exitDoor.x, nearDoor.exitDoor.y, nearDoor.exitDoor.dir || 'down');
+        } else {
+          transitionToRoom(nearDoor.doorway.targetRoom, null, null, 'up');
+        }
+        return;
+      }
       const nearStation = props.find((pr) => (pr.stationId || pr.isBountyBoard) && Math.hypot(pr.x - player.x, pr.y - player.y) <= 78);
       if (nearStation) {
         if (nearStation.stationId) window.openCraftingModal(nearStation.stationId);
@@ -9575,7 +10278,15 @@ export function initGame() {
       if (harvestNow - lastNodeHarvestAt < 450) return;
       lastNodeHarvestAt = harvestNow;
       if (currentTarget !== node) setTarget(node);
-      audio.playChime();
+      if (node.skillingType.startsWith('tree_')) {
+        (audio.playChop || audio.playChime).call(audio);
+      } else if (node.skillingType.includes('vein')) {
+        (audio.playMine || audio.playChime).call(audio);
+      } else if (node.skillingType.startsWith('fish_') || skSpec.isSpring) {
+        (audio.playSplash || audio.playChime).call(audio);
+      } else {
+        (audio.playResonance || audio.playChime).call(audio);
+      }
       node.charges--;
       if (node.charges === 0) node.rechargeTimer = skSpec.respawnSec || 14;
       if (currentTarget && currentTarget.id === node.id) {
@@ -9669,7 +10380,7 @@ export function initGame() {
     if (harvestNow - lastNodeHarvestAt < cooldownMs) return;
     lastNodeHarvestAt = harvestNow;
     if (currentTarget !== node) setTarget(node);
-    audio.playChime();
+    (audio.playResonance || audio.playChime).call(audio);
     const eff = getEffectiveStats(prog, localProfile.equipment, localProfile.classId);
     const gain = isGrand ? 60 + eff.resonance * 6 : 18 + Math.floor(eff.resonance * 1.5);
     // Character (combat) XP is deliberately minor; profession XP is the real node reward.
@@ -9696,15 +10407,15 @@ export function initGame() {
     }
     saveQuestState();
     updateQuestTrackerHUD();
-    player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + gain);
-    localProfile.solarCharge = player.solarCharge;
-    spawnFCT(player.x, player.y - 14, `+${gain} GLIMMER`, isGrand ? '#fde047' : '#c084fc', isGrand);
-    awardXP(charXp, isGrand ? 'Grand Glimmer Font' : 'Glimmer Node');
-    awardProfessionXP('resonance_extraction', profXp, isGrand ? 'Grand Glimmer Font' : 'Channeling Leyline Node');
 
     if (net.connected) {
       net.send({ type: 'harvest_node', nodeId: node.id });
     } else {
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + gain);
+      localProfile.solarCharge = player.solarCharge;
+      spawnFCT(player.x, player.y - 14, `+${gain} GLIMMER`, isGrand ? '#fde047' : '#c084fc', isGrand);
+      awardXP(charXp, isGrand ? 'Grand Glimmer Font' : 'Glimmer Node');
+      awardProfessionXP('resonance_extraction', profXp, isGrand ? 'Grand Glimmer Font' : 'Channeling Leyline Node');
       if (isGrand || Math.random() < 0.45) {
         const bonusMat = Math.random() < 0.5 ? 'glimmer_shard' : 'astral_mineral_dust';
         if (addItemToBackpack(localProfile, bonusMat, 1)) {
@@ -11070,8 +11781,8 @@ export function initGame() {
             Invest Skill Points into ${highRites.map((a) => `<b>${a.name}</b> (Lv.${a.minLevel})`).join(', ') || `high-tier ${myFaction} Rites`} in the <b>☀️ Rites</b> tab to dominate dungeon elites and multi-phase bosses.
           </div>
           <div>
-            <b style="color:#ef4444;">5. Level 30 Capstone Apex:</b>
-            At Level 30, unlock your ultimate ${myFaction} capstones: ${apexAbilities.map((a) => `<b>${a.name}</b> (${a.type})`).join(' &amp; ') || 'Tier 7 Apex Spells'}!
+            <b style="color:#ef4444;">5. Level 70 Capstone &amp; Paragon:</b>
+            Unlock your ultimate ${myFaction} capstones (${apexAbilities.map((a) => `<b>${a.name}</b> (${a.type})`).join(' &amp; ') || 'Tier 7 Apex Spells'}) and climb up to Level 70 + Paragon 100 in Founder's Edition!
           </div>
         </div>
       </div>
@@ -11313,26 +12024,74 @@ export function initGame() {
   // ==========================================
   // Input Listeners
   // ==========================================
-  function enterPortalEntity(ent) {
-    if (player.isDead || deathScreenVisible) return;
-    const dest = ent.targetRoom || PORTAL_ID_TO_ROOM[ent.id] || ROOM_TYPES.NEXUS_WARZONE;
-    if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && dest !== ROOM_TYPES.SANCTUARY_HUB) {
+  function gateTrialRoomTransition(dest) {
+    const edition = isLocalFounder() ? 'founder' : 'free';
+    if (isRoomUnlockedForEdition(dest, edition)) return false;
+    portalCooldown = 1.6;
+    const realmName = ROOM_CONFIGS[dest]?.name || dest;
+    spawnFCT(player.x, player.y - 20, '🔒 FOUNDER REALM', '#facc15', true);
+    audio?.playHurt?.();
+    logMessage(
+      `🔒 [TRIAL RESTRICTION] "${realmName}" requires Founder's Edition (€6.99). Enter a serial key in Account [O] or Settings [ESC], or continue exploring Sanctuary, Faction Citadels, Nexus Warzone, Ironwood Timberlands & Arena!`,
+      'log-solari',
+      'quest'
+    );
+    return true;
+  }
+
+  function transitionToRoom(dest, nextX = null, nextY = null, nextDir = null) {
+    if (!dest || player.isDead || deathScreenVisible) return false;
+    if (gateTrialRoomTransition(dest)) return false;
+    const targetCfg = ROOM_CONFIGS[dest] || ROOM_CONFIGS[ROOM_TYPES.SANCTUARY_HUB];
+    if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && dest !== ROOM_TYPES.SANCTUARY_HUB && !targetCfg?.isInterior) {
       questState.portalTraveled = true;
       saveQuestState();
       updateQuestTrackerHUD();
     }
+    const rx = nextX !== null && nextX !== undefined && Number.isFinite(Number(nextX))
+      ? Number(nextX)
+      : (targetCfg?.spawnX ?? 0);
+    const ry = nextY !== null && nextY !== undefined && Number.isFinite(Number(nextY))
+      ? Number(nextY)
+      : (targetCfg?.spawnY ?? 0);
     portalCooldown = 0.9;
     triggerPortalMist(0.25);
+    moveSyncAccum = 0;
     audio.playPortal();
+    player.x = rx;
+    player.y = ry;
+    if (nextDir && ['up', 'down', 'left', 'right'].includes(nextDir)) {
+      player.dir = nextDir;
+    }
+    camera.x = player.x;
+    camera.y = player.y;
+    lastSentMove = {
+      x: Math.round(rx * 10) / 10,
+      y: Math.round(ry * 10) / 10,
+      z: 0,
+      dir: player.dir,
+      isMoving: player.isMoving,
+      time: performance.now(),
+    };
+    net.preferredRoom = dest;
+    net.currentCoords = { x: rx, y: ry };
     setupZoneDecor(dest);
+    syncNetProfileLastPosition();
     if (net.connected) {
       isTransitioningZone = true;
       currentRoomType = dest;
       currentRoomId = null;
-      net.send({ type: 'switch_room', roomType: dest, epoch: currentEpoch });
+      net.send({ type: 'switch_room', roomType: dest, x: rx, y: ry, dir: player.dir, epoch: currentEpoch });
     } else {
-      buildOfflineZone(dest);
+      buildOfflineZone(dest, rx, ry);
     }
+    return true;
+  }
+
+  function enterPortalEntity(ent) {
+    if (player.isDead || deathScreenVisible) return;
+    const dest = ent.targetRoom || PORTAL_ID_TO_ROOM[ent.id] || ROOM_TYPES.NEXUS_WARZONE;
+    transitionToRoom(dest);
   }
 
   canvas.addEventListener('mousedown', (e) => {
@@ -11369,6 +12128,25 @@ export function initGame() {
             interactWithNpc(merchant);
             return;
           }
+        }
+      } else if (pr.doorway || pr.exitDoor) {
+        const dx = Math.abs(pr.x - wx);
+        const dy = wy - pr.y;
+        if (dx <= 34 && dy >= -48 && dy <= 24) {
+          const anchorX = pr.doorway?.x ?? pr.x;
+          const anchorY = pr.doorway?.y ?? pr.y;
+          faceToward(anchorX, anchorY);
+          if (Math.hypot(player.x - anchorX, player.y - anchorY) <= 96) {
+            if (pr.exitDoor) {
+              transitionToRoom(pr.exitDoor.roomType, pr.exitDoor.x, pr.exitDoor.y, pr.exitDoor.dir || 'down');
+            } else {
+              transitionToRoom(pr.doorway.targetRoom, null, null, 'up');
+            }
+          } else {
+            logMessage(`[Doorway] Walk up to ${pr.label || 'the doorway'} to step inside!`, 'log-solari', 'chat');
+            spawnFCT(anchorX, anchorY - 14, 'WALK TO DOOR', '#fbbf24');
+          }
+          return;
         }
       } else if (pr.stationId || pr.isBountyBoard) {
         const dx = Math.abs(pr.x - wx);
@@ -11799,6 +12577,20 @@ export function initGame() {
         player.emoteTimer -= dt;
         if (player.emoteTimer <= 0) player.emote = null;
       }
+      if (player.weaponImbue && player.weaponImbue.timer > 0) {
+        player.weaponImbue.timer = Math.max(0, player.weaponImbue.timer - dt);
+        if (player.weaponImbue.timer <= 0) {
+          logMessage(`🗡️ Your ${player.weaponImbue.name} weapon imbue has worn off.`, 'log-combat');
+          player.weaponImbue = null;
+        }
+      }
+      if (player.wellFedBuff && player.wellFedBuff.timer > 0) {
+        player.wellFedBuff.timer = Math.max(0, player.wellFedBuff.timer - dt);
+        if (player.wellFedBuff.timer <= 0) {
+          logMessage(`🍲 Your ${player.wellFedBuff.name} feast buff has worn off.`, 'log-combat');
+          player.wellFedBuff = null;
+        }
+      }
 
       // Offline leyline nodes and shrines replenish so gathering can be trained indefinitely.
       for (const e of entities) {
@@ -11864,8 +12656,8 @@ export function initGame() {
       }
     }
 
-    // Campfire Hearth Warmth (+5 HP/s and +5 Glimmer/s while resting near any campfire)
-    const isRestingByCampfire = props.some((pr) => pr.type === 'campfire' && Math.hypot(pr.x - player.x, pr.y - player.y) <= 85);
+    // Campfire & Cozy Interior Warmth (+5 HP/s and +5 Glimmer/s while resting inside an inn/cottage or near a campfire)
+    const isRestingByCampfire = Boolean(ROOM_CONFIGS[currentRoomType]?.isInterior) || props.some((pr) => (pr.type === 'campfire' || pr.type === 'hearthFireplace') && Math.hypot(pr.x - player.x, pr.y - player.y) <= 85);
     const campfireRegen = isRestingByCampfire ? 5.0 : 0;
 
     // Sacred Healing Spring aura (+6.0 HP/s and +6.0 Glimmer/s near an active healing spring)
@@ -11911,6 +12703,7 @@ export function initGame() {
       player.isMoving = false;
     }
 
+    const prevPlayerMoving = player.isMoving;
     if (!player.isDead && !deathScreenVisible && !player.frozen && !frontpage.isOpen && !isSessionSuperseded) {
       let mx = 0;
       let my = 0;
@@ -12031,11 +12824,32 @@ export function initGame() {
           logMessage('[Quest] Limbs restored! Strike the Sanctuary Dummy with [1]!', 'log-quest');
         }
 
-        // Step-into-portal seamless travel!
+        // Step-into-doorway / interior exit / perimeter seamless travel!
         if (portalCooldown <= 0) {
-          // Seamless Boundary Walking Transitions across 48x48 perimeter
           const cfg = ROOM_CONFIGS[currentRoomType];
-          if (cfg && cfg.edgeTransitions) {
+          let transitioned = false;
+
+          // 1. Building doorways & interior exit doormats
+          if (cfg?.exitDestination && player.y >= mapBounds.halfH - 18 && Math.abs(player.x) <= 36) {
+            transitioned = transitionToRoom(
+              cfg.exitDestination.roomType,
+              cfg.exitDestination.x,
+              cfg.exitDestination.y,
+              cfg.exitDestination.dir || 'down'
+            );
+          }
+          if (!transitioned) {
+            for (const pr of props) {
+              if (!pr.doorway) continue;
+              if (Math.hypot(player.x - pr.doorway.x, player.y - pr.doorway.y) <= (pr.doorway.radius || 16)) {
+                transitioned = transitionToRoom(pr.doorway.targetRoom, null, null, 'up');
+                break;
+              }
+            }
+          }
+
+          // 2. Seamless Boundary Walking Transitions across outdoor perimeter
+          if (!transitioned && cfg && cfg.edgeTransitions) {
             const edgePad = 12;
             let dest = null;
             let nextX = player.x;
@@ -12065,29 +12879,9 @@ export function initGame() {
             }
 
             if (dest) {
-              portalCooldown = 0.9;
-              triggerPortalMist(0.25);
-              moveSyncAccum = 0;
-              audio.playPortal();
-              player.x = nextX;
-              player.y = nextY;
-              camera.x = player.x;
-              camera.y = player.y;
-              lastSentMove = { x: Math.round(nextX * 10) / 10, y: Math.round(nextY * 10) / 10, z: 0, dir: player.dir, isMoving: player.isMoving, time: performance.now() };
-              if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB && dest !== ROOM_TYPES.SANCTUARY_HUB) {
-                questState.portalTraveled = true;
-                saveQuestState();
-                updateQuestTrackerHUD();
-              }
-              setupZoneDecor(dest);
-              if (net.connected) {
-                // Optimistic client switch: zero waiting, zero screen freezes across ngrok
-                isTransitioningZone = true;
-                currentRoomType = dest;
-                currentRoomId = null;
-                net.send({ type: 'switch_room', roomType: dest, x: nextX, y: nextY, dir: player.dir, epoch: currentEpoch });
-              } else {
-                buildOfflineZone(dest, nextX, nextY);
+              if (!transitionToRoom(dest, nextX, nextY, player.dir)) {
+                player.x = Math.max(-mapBounds.halfW + 40, Math.min(mapBounds.halfW - 40, player.x));
+                player.y = Math.max(-mapBounds.halfH + 40, Math.min(mapBounds.halfH - 40, player.y));
               }
             }
           }
@@ -12101,10 +12895,15 @@ export function initGame() {
 
     net.currentCoords = { x: player.x, y: player.y };
     net.preferredRoom = currentRoomType;
+    const justStoppedMoving = prevPlayerMoving && !player.isMoving;
+    if (justStoppedMoving && hasEnteredWorld) {
+      syncNetProfileLastPosition();
+      if (isSinglePlayer) saveProgressionLocal();
+    }
 
     if (net.connected) {
       moveSyncAccum += dt;
-      if (moveSyncAccum >= 0.05) {
+      if (moveSyncAccum >= 0.05 || justStoppedMoving) {
         moveSyncAccum = 0;
         const curX = Math.round(player.x * 10) / 10;
         const curY = Math.round(player.y * 10) / 10;
@@ -12157,6 +12956,9 @@ export function initGame() {
       if (!net.connected && e.freezeTimer > 0) {
         e.freezeTimer = Math.max(0, e.freezeTimer - dt);
         if (e.freezeTimer <= 0) e.frozen = false;
+      }
+      if (!net.connected && e.staggerTimer > 0) {
+        e.staggerTimer = Math.max(0, e.staggerTimer - dt);
       }
       if (e.isDying) {
         e.deathAge = (e.deathAge || 0) + dt;
@@ -12216,6 +13018,7 @@ export function initGame() {
         if (e.inCombat) {
           if (player.isDead || playerStealthed) {
             e.inCombat = false;
+            e.castState = null;
             e.provokedByLocalPlayer = false;
           }
 
@@ -12226,6 +13029,7 @@ export function initGame() {
 
           if (distHome > 240) {
             e.inCombat = false;
+            e.castState = null;
             e.provokedByLocalPlayer = false;
             e.x = origX;
             e.y = origY;
@@ -12236,6 +13040,14 @@ export function initGame() {
           }
 
           if (e.inCombat) {
+            if (e.castState) {
+              e.castState.remaining -= dt;
+              if (e.castState.remaining <= 0) {
+                e.castState = null;
+              } else {
+                continue; // Channeling interruptible cast!
+              }
+            }
             if (e.isBoss && !e.isDying) {
               const hpPercent = (e.hp / e.maxHp) * 100;
               e.phase = e.phase || 1;
@@ -12338,11 +13150,22 @@ export function initGame() {
                 const shockDmg = Math.round((e.damage || 7) * (e.enraged ? 1.9 : 1.35));
                 const tgtX = Math.random() < 0.65 ? player.x : e.x;
                 const tgtY = Math.random() < 0.65 ? player.y : e.y;
+                const castDuration = Math.max(2.2, warnDuration + 0.65);
+                const castId = `off_cast_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                e.castState = {
+                  id: castId,
+                  spellName: telLabel,
+                  color: telColor,
+                  remaining: castDuration,
+                  totalDuration: castDuration,
+                  interruptible: true,
+                };
 
-                spawnFCT(tgtX, tgtY - 14, `⚠️ ${telLabel}!`, telColor, true);
+                spawnFCT(tgtX, tgtY - 14, `⚡ ${telLabel} (INTERRUPT!)`, telColor, true);
 
                 groundZones.push({
                   id: `off_tel_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                  castId,
                   type: 'telegraph',
                   color: telColor,
                   label: telLabel,
@@ -12350,7 +13173,7 @@ export function initGame() {
                   y: tgtY,
                   radius: shockRad,
                   age: 0,
-                  maxAge: warnDuration,
+                  maxAge: castDuration,
                   damage: shockDmg,
                   bossName: e.name,
                   bossRef: e,
@@ -12364,6 +13187,7 @@ export function initGame() {
                     const dist = 55 + Math.random() * 45;
                     groundZones.push({
                       id: `off_tel_${Date.now()}_${rIdx}_${Math.random().toString(36).slice(2, 5)}`,
+                      castId,
                       type: 'telegraph',
                       color: telColor,
                       label: `${telLabel} AFTERSHOCK`,
@@ -12371,7 +13195,7 @@ export function initGame() {
                       y: tgtY + Math.sin(angle) * dist,
                       radius: Math.round(shockRad * 0.65),
                       age: 0,
-                      maxAge: warnDuration + 0.35,
+                      maxAge: castDuration + 0.35,
                       damage: Math.round(shockDmg * 0.75),
                       bossName: e.name,
                       bossRef: e,
@@ -12423,11 +13247,22 @@ export function initGame() {
                 const shockDmg = Math.max(3, Math.round((e.damage || 5) * 1.45));
                 const tgtX = Math.random() < 0.75 ? player.x : e.x;
                 const tgtY = Math.random() < 0.75 ? player.y : e.y;
+                const castDuration = Math.max(2.0, warnDuration + 0.65);
+                const castId = `off_el_cast_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                e.castState = {
+                  id: castId,
+                  spellName: telLabel,
+                  color: telColor,
+                  remaining: castDuration,
+                  totalDuration: castDuration,
+                  interruptible: true,
+                };
 
-                spawnFCT(tgtX, tgtY - 14, `⚠️ ${telLabel}!`, telColor, true);
+                spawnFCT(tgtX, tgtY - 14, `⚡ ${telLabel} (INTERRUPT!)`, telColor, true);
 
                 groundZones.push({
                   id: `off_el_tel_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                  castId,
                   type: 'telegraph',
                   color: telColor,
                   label: telLabel,
@@ -12435,7 +13270,7 @@ export function initGame() {
                   y: tgtY,
                   radius: shockRad,
                   age: 0,
-                  maxAge: warnDuration,
+                  maxAge: castDuration,
                   damage: shockDmg,
                   bossName: e.name,
                   bossRef: e,
@@ -12605,10 +13440,44 @@ export function initGame() {
     const wx = tx * TILE_SIZE;
     const wy = ty * TILE_SIZE;
 
-    // Calm, non-flashing static deep sea outside island bounds!
+    // Calm, non-flashing static deep sea (or cozy dark interior frame) outside map bounds!
     if (wx < -mapBounds.halfW || wx >= mapBounds.halfW || wy < -mapBounds.halfH || wy >= mapBounds.halfH) {
+      if (currentBiomeTheme.startsWith('interior_')) {
+        const voidIdx = Math.abs(tx * 3 + ty * 5) % 2;
+        return sprites.tiles[`interior_void_${voidIdx}`] || sprites.tiles.void_sea_0;
+      }
       const seaIdx = Math.abs(tx * 3 + ty * 5) % 2;
       return sprites.tiles[`void_sea_${seaIdx}`];
+    }
+
+    if (currentBiomeTheme.startsWith('interior_')) {
+      const isSouthExit = wy === mapBounds.halfH - TILE_SIZE && Math.abs(tx) <= 1;
+      if (isSouthExit) {
+        return sprites.tiles.interior_doormat || sprites.tiles.flagstone_1;
+      }
+      const isNorthWall = wy === -mapBounds.halfH || wy === -mapBounds.halfH + TILE_SIZE;
+      const isSideOrSouthWall =
+        wx === -mapBounds.halfW ||
+        wx === mapBounds.halfW - TILE_SIZE ||
+        wy === mapBounds.halfH - TILE_SIZE;
+      if (isNorthWall || isSideOrSouthWall) {
+        return sprites.tiles[`interior_wall_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
+      }
+      const carpetColor =
+        currentBiomeTheme === 'interior_tavern' ? 'red' :
+        currentBiomeTheme === 'interior_vault' || currentBiomeTheme === 'interior_aether' ? 'blue' :
+        currentBiomeTheme === 'interior_terra' ? 'green' :
+        currentBiomeTheme === 'interior_umbri' ? 'purple' : 'red';
+      const inCenterRug = Math.abs(tx) <= 4 && ty >= -4 && ty <= 5;
+      const inExitRunner = Math.abs(tx) <= 1 && ty >= 5;
+      if (inCenterRug || inExitRunner) {
+        return sprites.tiles[`interior_carpet_${carpetColor}`] || sprites.tiles.flagstone_1;
+      }
+      const useStone =
+        currentBiomeTheme === 'interior_vault' ||
+        currentBiomeTheme === 'interior_solari' ||
+        currentBiomeTheme === 'interior_aether';
+      return sprites.tiles[`${useStone ? 'interior_stone' : 'interior_wood'}_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
     }
 
     const isAtCenterGate = (Math.abs(tx) <= 2 && (wy === -mapBounds.halfH || wy === mapBounds.halfH - TILE_SIZE)) ||
@@ -13079,7 +13948,7 @@ export function initGame() {
     }
     activeTextCtx = isTextAntiAliased ? textCtx : null;
     ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = '#070b19';
+    ctx.fillStyle = currentBiomeTheme.startsWith('interior_') ? '#07050c' : '#070b19';
     ctx.fillRect(0, 0, viewW, viewH);
 
     activeCamLeft = Math.floor(camera.x + screenShake.offsetX - viewW / 2);
@@ -13459,13 +14328,50 @@ export function initGame() {
           } else if (pr.type === 'flowerBed') {
             img = sprites.props.flowerBed || sprites.props.stoneBench || sprites.props.pillar;
             shadowRx = 11; shadowRy = 3;
+          } else if (pr.type === 'tavernBuilding') {
+            img = sprites.props.tavernBuilding || sprites.props.cityHouseB || sprites.props.pillar;
+            shadowRx = 24; shadowRy = 7;
+          } else if (pr.type === 'doorThresholdGlow') {
+            img = sprites.props.doorThresholdGlow;
+            shadowRx = 0; shadowRy = 0;
+          } else if (pr.type === 'hearthFireplace') {
+            const list = sprites.props.hearthFireplace;
+            img = (list && list[Math.floor(globalTime * 3.0) % list.length]) || sprites.props.brazier?.[0] || sprites.props.pillar;
+            shadowRx = 16; shadowRy = 5;
+          } else if (pr.type === 'tavernBar') {
+            img = sprites.props.tavernBar || sprites.props.bankCounter || sprites.props.pillar;
+            shadowRx = 20; shadowRy = 5;
+          } else if (pr.type === 'aleKeg') {
+            img = sprites.props.aleKeg || sprites.props.pillar;
+            shadowRx = 7; shadowRy = 3;
+          } else if (pr.type === 'diningTable') {
+            img = sprites.props.diningTable || sprites.props.stoneBench || sprites.props.pillar;
+            shadowRx = 13; shadowRy = 4;
+          } else if (pr.type === 'bookshelf') {
+            img = sprites.props.bookshelf || sprites.props.pillar;
+            shadowRx = 11; shadowRy = 4;
+          } else if (pr.type === 'alchemyShelf') {
+            img = sprites.props.alchemyShelf || sprites.props.bookshelf || sprites.props.pillar;
+            shadowRx = 12; shadowRy = 4;
+          } else if (pr.type === 'weaponRack') {
+            img = sprites.props.weaponRack || sprites.props.pillar;
+            shadowRx = 12; shadowRy = 4;
+          } else if (pr.type === 'cozyBed') {
+            img = sprites.props.cozyBed || sprites.props.stoneBench || sprites.props.pillar;
+            shadowRx = 11; shadowRy = 4;
+          } else if (pr.type === 'mapTable') {
+            img = sprites.props.mapTable || sprites.props.diningTable || sprites.props.pillar;
+            shadowRx = 14; shadowRy = 4;
+          } else if (pr.type === 'goldChestPile') {
+            img = sprites.props.goldChestPile || sprites.props.pillar;
+            shadowRx = 12; shadowRy = 4;
           }
 
           if (Array.isArray(img)) {
             img = img[0];
           }
           if (img && (img instanceof HTMLCanvasElement || img instanceof HTMLImageElement || (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap))) {
-            drawPixelEllipseShadow(sx, sy, shadowRx, shadowRy);
+            if (shadowRx > 0) drawPixelEllipseShadow(sx, sy, shadowRx, shadowRy);
             ctx.drawImage(img, Math.round(sx - img.width / 2), sy - img.height + 2);
           }
         },
@@ -13581,9 +14487,6 @@ export function initGame() {
     }
 
     for (const ent of entities) {
-      if (ent.type === 'node' && ent.skillingType === 'tree_blossom' && (ent.charges ?? 0) <= 0) {
-        continue;
-      }
       renderables.push({
         y: ent.y,
         draw: () => {
@@ -13803,6 +14706,36 @@ export function initGame() {
                 eliteSpecDraw ? (eliteSpecDraw.color || '#facc15') :
                 '#ef4444';
               ctx.fillRect(bx, by, Math.round((val / max) * bw), 3);
+
+              // Interruptible Enemy Cast Bar & Stagger Vulnerability Cue
+              const activeCast = ent.cast || (ent.castState ? {
+                name: ent.castState.spellName,
+                remaining: ent.castState.remaining,
+                total: ent.castState.totalDuration,
+                color: ent.castState.color,
+                interruptible: ent.castState.interruptible,
+              } : null);
+              if (activeCast && activeCast.total > 0 && activeCast.remaining > 0) {
+                const cw = Math.max(bw + 14, 38);
+                const cx = Math.round(sx - cw / 2);
+                const cy = by - 7;
+                const pctCast = Math.max(0, Math.min(1, 1 - (activeCast.remaining / activeCast.total)));
+                ctx.fillStyle = '#020617';
+                ctx.fillRect(cx - 1, cy - 1, cw + 2, 5);
+                ctx.fillStyle = activeCast.interruptible ? '#38bdf8' : (activeCast.color || '#facc15');
+                ctx.fillRect(cx, cy, Math.round(pctCast * cw), 3);
+                const pulseR = 14 + Math.sin(globalTime * 14) * 3;
+                ctx.save();
+                ctx.strokeStyle = activeCast.interruptible ? '#38bdf8' : '#facc15';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(sx, sy - 6, pulseR, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+              } else if (ent.staggered || (ent.staggerTimer || 0) > 0) {
+                ctx.fillStyle = '#38bdf8';
+                ctx.fillRect(bx - 1, by - 2, bw + 2, 1);
+              }
             }
 
             // Overhead entity label for Bosses, Objectives, Targeted entity, Dummy, Tombstones, or nearby entities
@@ -14270,7 +15203,6 @@ export function initGame() {
 
     for (const e of entities) {
       if (e.isDying) continue;
-      if (e.type === 'node' && e.skillingType === 'tree_blossom' && (e.charges ?? 0) <= 0) continue;
       const ex = Math.round(cx + (e.x - player.x) * scale);
       const ey = Math.round(cy + (e.y - player.y) * scale);
       if (ex < 2 || ex > mw - 4 || ey < 2 || ey > mh - 4) continue;

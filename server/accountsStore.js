@@ -18,6 +18,7 @@ import {
   ORDER_PRESETS,
   ROOM_TYPES,
   createDefaultProgression,
+  MAX_BASE_LEVEL,
   resolveFactionAndClass,
   PROFESSIONS_CATALOG,
   getProfessionLevelFromXp,
@@ -239,6 +240,7 @@ export class AccountsStore {
     this.dirtyAccounts = new Set();
     this.dirtyCharacters = new Set();
     this.flushTimer = null;
+    this._inFlightFlush = null;
     this.loadSerialKeysLocal();
   }
 
@@ -391,6 +393,12 @@ export class AccountsStore {
 
   async ensureFreshFromPostgres({ id = null, username = null, force = true } = {}) {
     if (!this.db) return;
+    if (this._inFlightFlush) {
+      await this._inFlightFlush.catch(() => {});
+    }
+    if (this.dirtyAccounts.size > 0 || this.dirtyCharacters.size > 0) {
+      await this.flushToPostgres().catch(() => {});
+    }
     try {
       let accRow = null;
       if (id && (force || !this.accountsById.has(id))) {
@@ -404,10 +412,14 @@ export class AccountsStore {
         }
       }
       if (accRow) {
+        if (this.dirtyAccounts.has(accRow.id) || this._inFlightFlush) {
+          return;
+        }
         const acc = this.hydrateAccountRow(accRow);
         const cRes = await this.db.query('SELECT * FROM glimmerfall_characters WHERE account_id = $1 ORDER BY created_at ASC', [acc.id]);
         const cmap = this.charactersByAccount.get(acc.id);
         for (const r of cRes.rows) {
+          if (this.dirtyCharacters.has(r.id)) continue;
           const charResolved = resolveFactionAndClass({
             faction: r.faction,
             classId: r.class_id,
@@ -474,128 +486,158 @@ export class AccountsStore {
   }
 
   async flushToPostgres() {
-    if (!this.db) return;
-    const accIds = Array.from(this.dirtyAccounts);
-    const charIds = Array.from(this.dirtyCharacters);
-    this.dirtyAccounts.clear();
-    this.dirtyCharacters.clear();
+    const run = async () => {
+      if (!this.db) return;
+      const accIds = Array.from(this.dirtyAccounts);
+      const charIds = Array.from(this.dirtyCharacters);
+      if (accIds.length === 0 && charIds.length === 0) return;
+      this.dirtyAccounts.clear();
+      this.dirtyCharacters.clear();
 
-    for (const aid of accIds) {
-      const a = this.accountsById.get(aid);
-      if (!a) continue;
-      await this.db.query(
-        `INSERT INTO glimmerfall_accounts (
-          id, username, username_lower, display_name, password_hash, is_guest, sso_subject,
-          tcg_linked, tcg_handle, tcg_email, tcg_synced_at, faction, class_id,
-          order_tag, order_name, order_color, loadout, equipment, progression, stats_meta,
-          active_character_id, created_at, last_login_at, inventory, bank, quest_state, hp, solar_charge, last_position
-        ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29
-        )
-        ON CONFLICT (id) DO UPDATE SET
-          username = EXCLUDED.username,
-          username_lower = EXCLUDED.username_lower,
-          display_name = EXCLUDED.display_name,
-          password_hash = EXCLUDED.password_hash,
-          is_guest = EXCLUDED.is_guest,
-          sso_subject = EXCLUDED.sso_subject,
-          tcg_linked = EXCLUDED.tcg_linked,
-          tcg_handle = EXCLUDED.tcg_handle,
-          tcg_email = EXCLUDED.tcg_email,
-          tcg_synced_at = EXCLUDED.tcg_synced_at,
-          faction = EXCLUDED.faction,
-          class_id = EXCLUDED.class_id,
-          order_tag = EXCLUDED.order_tag,
-          order_name = EXCLUDED.order_name,
-          order_color = EXCLUDED.order_color,
-          loadout = EXCLUDED.loadout,
-          equipment = EXCLUDED.equipment,
-          progression = EXCLUDED.progression,
-          stats_meta = EXCLUDED.stats_meta,
-          active_character_id = EXCLUDED.active_character_id,
-          last_login_at = EXCLUDED.last_login_at,
-          inventory = EXCLUDED.inventory,
-          bank = EXCLUDED.bank,
-          quest_state = EXCLUDED.quest_state,
-          hp = EXCLUDED.hp,
-          solar_charge = EXCLUDED.solar_charge,
-          last_position = EXCLUDED.last_position`,
-        [
-          a.id, a.username, a.usernameLower, a.displayName, a.passwordHash, a.isGuest, a.ssoSubject,
-          a.tcgLinked, a.tcgHandle, a.tcgEmail, a.tcgSyncedAt, a.faction, a.classId,
-          a.orderTag, a.orderName, a.orderColor,
-          JSON.stringify(a.loadout || {}),
-          JSON.stringify(a.equipment || {}),
-          JSON.stringify(a.progression || {}),
-          JSON.stringify(a.statsMeta || {}),
-          a.activeCharacterId,
-          a.createdAt,
-          a.lastLoginAt,
-          JSON.stringify(a.inventory || []),
-          JSON.stringify(a.bank || []),
-          JSON.stringify(a.questState || {}),
-          a.hp != null ? a.hp : null,
-          a.solarCharge != null ? a.solarCharge : null,
-          JSON.stringify(a.lastPosition || null),
-        ]
-      );
-    }
+      const queries = [];
+      for (const aid of accIds) {
+        const a = this.accountsById.get(aid);
+        if (!a) continue;
+        queries.push(
+          this.db.query(
+            `INSERT INTO glimmerfall_accounts (
+              id, username, username_lower, display_name, password_hash, is_guest, sso_subject,
+              tcg_linked, tcg_handle, tcg_email, tcg_synced_at, faction, class_id,
+              order_tag, order_name, order_color, loadout, equipment, progression, stats_meta,
+              active_character_id, created_at, last_login_at, inventory, bank, quest_state, hp, solar_charge, last_position
+            ) VALUES (
+              $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29
+            )
+            ON CONFLICT (id) DO UPDATE SET
+              username = EXCLUDED.username,
+              username_lower = EXCLUDED.username_lower,
+              display_name = EXCLUDED.display_name,
+              password_hash = EXCLUDED.password_hash,
+              is_guest = EXCLUDED.is_guest,
+              sso_subject = EXCLUDED.sso_subject,
+              tcg_linked = EXCLUDED.tcg_linked,
+              tcg_handle = EXCLUDED.tcg_handle,
+              tcg_email = EXCLUDED.tcg_email,
+              tcg_synced_at = EXCLUDED.tcg_synced_at,
+              faction = EXCLUDED.faction,
+              class_id = EXCLUDED.class_id,
+              order_tag = EXCLUDED.order_tag,
+              order_name = EXCLUDED.order_name,
+              order_color = EXCLUDED.order_color,
+              loadout = EXCLUDED.loadout,
+              equipment = EXCLUDED.equipment,
+              progression = EXCLUDED.progression,
+              stats_meta = EXCLUDED.stats_meta,
+              active_character_id = EXCLUDED.active_character_id,
+              last_login_at = EXCLUDED.last_login_at,
+              inventory = EXCLUDED.inventory,
+              bank = EXCLUDED.bank,
+              quest_state = EXCLUDED.quest_state,
+              hp = EXCLUDED.hp,
+              solar_charge = EXCLUDED.solar_charge,
+              last_position = EXCLUDED.last_position`,
+            [
+              a.id, a.username, a.usernameLower, a.displayName, a.passwordHash, a.isGuest, a.ssoSubject,
+              a.tcgLinked, a.tcgHandle, a.tcgEmail, a.tcgSyncedAt, a.faction, a.classId,
+              a.orderTag, a.orderName, a.orderColor,
+              JSON.stringify(a.loadout || {}),
+              JSON.stringify(a.equipment || {}),
+              JSON.stringify(a.progression || {}),
+              JSON.stringify(a.statsMeta || {}),
+              a.activeCharacterId,
+              a.createdAt,
+              a.lastLoginAt,
+              JSON.stringify(a.inventory || []),
+              JSON.stringify(a.bank || []),
+              JSON.stringify(a.questState || {}),
+              a.hp != null ? a.hp : null,
+              a.solarCharge != null ? a.solarCharge : null,
+              JSON.stringify(a.lastPosition || null),
+            ]
+          )
+        );
+      }
 
-    for (const cid of charIds) {
-      let found = null;
-      for (const cmap of this.charactersByAccount.values()) {
-        if (cmap.has(cid)) {
-          found = cmap.get(cid);
-          break;
+      for (const cid of charIds) {
+        let found = null;
+        for (const cmap of this.charactersByAccount.values()) {
+          if (cmap.has(cid)) {
+            found = cmap.get(cid);
+            break;
+          }
+        }
+        if (!found) continue;
+        queries.push(
+          this.db.query(
+            `INSERT INTO glimmerfall_characters (
+              id, account_id, name, faction, class_id, order_tag, order_name, order_color,
+              home_biome, loadout, equipment, unlocked_gear, progression, stats_meta, updated_at, inventory, bank, quest_state, hp, solar_charge, last_position
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW(),$15,$16,$17,$18,$19,$20)
+            ON CONFLICT (id) DO UPDATE SET
+              name = EXCLUDED.name,
+              faction = EXCLUDED.faction,
+              class_id = EXCLUDED.class_id,
+              order_tag = EXCLUDED.order_tag,
+              order_name = EXCLUDED.order_name,
+              order_color = EXCLUDED.order_color,
+              home_biome = EXCLUDED.home_biome,
+              loadout = EXCLUDED.loadout,
+              equipment = EXCLUDED.equipment,
+              unlocked_gear = EXCLUDED.unlocked_gear,
+              progression = EXCLUDED.progression,
+              stats_meta = EXCLUDED.stats_meta,
+              inventory = EXCLUDED.inventory,
+              bank = EXCLUDED.bank,
+              quest_state = EXCLUDED.quest_state,
+              hp = EXCLUDED.hp,
+              solar_charge = EXCLUDED.solar_charge,
+              last_position = EXCLUDED.last_position,
+              updated_at = NOW()`,
+            [
+              found.id, found.accountId, found.name, found.faction, found.classId,
+              found.orderTag, found.orderName, found.orderColor, found.homeBiome,
+              JSON.stringify(found.loadout || {}),
+              JSON.stringify(found.equipment || {}),
+              JSON.stringify(found.unlockedGear || []),
+              JSON.stringify(found.progression || {}),
+              JSON.stringify(found.statsMeta || {}),
+              JSON.stringify(found.inventory || []),
+              JSON.stringify(found.bank || []),
+              JSON.stringify(found.questState || {}),
+              found.hp != null ? found.hp : null,
+              found.solarCharge != null ? found.solarCharge : null,
+              JSON.stringify(found.lastPosition || null),
+            ]
+          )
+        );
+      }
+
+      if (queries.length > 0) {
+        try {
+          await Promise.all(queries);
+        } catch (err) {
+          for (const aid of accIds) this.dirtyAccounts.add(aid);
+          for (const cid of charIds) this.dirtyCharacters.add(cid);
+          throw err;
         }
       }
-      if (!found) continue;
-      await this.db.query(
-        `INSERT INTO glimmerfall_characters (
-          id, account_id, name, faction, class_id, order_tag, order_name, order_color,
-          home_biome, loadout, equipment, unlocked_gear, progression, stats_meta, updated_at, inventory, bank, quest_state, hp, solar_charge, last_position
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW(),$15,$16,$17,$18,$19,$20)
-        ON CONFLICT (id) DO UPDATE SET
-          name = EXCLUDED.name,
-          faction = EXCLUDED.faction,
-          class_id = EXCLUDED.class_id,
-          order_tag = EXCLUDED.order_tag,
-          order_name = EXCLUDED.order_name,
-          order_color = EXCLUDED.order_color,
-          home_biome = EXCLUDED.home_biome,
-          loadout = EXCLUDED.loadout,
-          equipment = EXCLUDED.equipment,
-          unlocked_gear = EXCLUDED.unlocked_gear,
-          progression = EXCLUDED.progression,
-          stats_meta = EXCLUDED.stats_meta,
-          inventory = EXCLUDED.inventory,
-          bank = EXCLUDED.bank,
-          quest_state = EXCLUDED.quest_state,
-          hp = EXCLUDED.hp,
-          solar_charge = EXCLUDED.solar_charge,
-          last_position = EXCLUDED.last_position,
-          updated_at = NOW()`,
-        [
-          found.id, found.accountId, found.name, found.faction, found.classId,
-          found.orderTag, found.orderName, found.orderColor, found.homeBiome,
-          JSON.stringify(found.loadout || {}),
-          JSON.stringify(found.equipment || {}),
-          JSON.stringify(found.unlockedGear || []),
-          JSON.stringify(found.progression || {}),
-          JSON.stringify(found.statsMeta || {}),
-          JSON.stringify(found.inventory || []),
-          JSON.stringify(found.bank || []),
-          JSON.stringify(found.questState || {}),
-          found.hp != null ? found.hp : null,
-          found.solarCharge != null ? found.solarCharge : null,
-          JSON.stringify(found.lastPosition || null),
-        ]
-      );
+    };
+    const prev = this._inFlightFlush;
+    const p = (prev ? prev.catch(() => {}).then(run) : run());
+    this._inFlightFlush = p;
+    try {
+      await p;
+    } finally {
+      if (this._inFlightFlush === p) this._inFlightFlush = null;
     }
   }
 
   flushSync() {
-    this.flushToPostgres().catch(() => {});
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    return this.flushToPostgres().catch(() => {});
   }
 
   hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
@@ -1430,10 +1472,12 @@ export class AccountsStore {
 
   mergeValidProgression(base, incoming) {
     if (!incoming || typeof incoming !== 'object') return base;
-    const lvl = Math.max(1, Math.min(50, Number(incoming.level) || base.level));
+    const lvl = Math.max(1, Math.min(MAX_BASE_LEVEL, Number(incoming.level) || base.level));
     const xp = Math.max(0, Math.floor(Number(incoming.xp) || 0));
-    const statPoints = Math.max(0, Math.min(200, Math.floor(Number(incoming.statPoints ?? base.statPoints))));
-    const skillPoints = Math.max(0, Math.min(60, Math.floor(Number(incoming.skillPoints ?? base.skillPoints))));
+    const maxStatPts = Math.max(260, MAX_BASE_LEVEL * 4);
+    const maxSkillPts = Math.max(90, MAX_BASE_LEVEL + 20);
+    const statPoints = Math.max(0, Math.min(maxStatPts, Math.floor(Number(incoming.statPoints ?? base.statPoints))));
+    const skillPoints = Math.max(0, Math.min(maxSkillPts, Math.floor(Number(incoming.skillPoints ?? base.skillPoints))));
     const stats = {
       power: Math.max(1, Math.min(99, Math.floor(Number(incoming.stats?.power ?? base.stats.power)))),
       bastion: Math.max(1, Math.min(99, Math.floor(Number(incoming.stats?.bastion ?? base.stats.bastion)))),
@@ -1478,7 +1522,62 @@ export class AccountsStore {
         }
       }
     }
-    return sanitizeProgressionSkills({ level: lvl, xp, statPoints, skillPoints, stats, ranks, skills, professions });
+    const paragonLevel = Math.max(0, Math.floor(Number(incoming.paragonLevel ?? base.paragonLevel) || 0));
+    const paragonXp = Math.max(0, Math.floor(Number(incoming.paragonXp ?? base.paragonXp) || 0));
+    const paragonPoints = Math.max(0, Math.floor(Number(incoming.paragonPoints ?? base.paragonPoints) || 0));
+    const paragon = {
+      solari_radiance: 0,
+      umbri_shadowcraft: 0,
+      terra_bulwark: 0,
+      aether_chronoflux: 0,
+      ...(base.paragon || {}),
+      ...(incoming.paragon && typeof incoming.paragon === 'object' ? incoming.paragon : {}),
+    };
+    const tempering = {
+      ...(base.tempering && typeof base.tempering === 'object' ? base.tempering : {}),
+      ...(incoming.tempering && typeof incoming.tempering === 'object' ? incoming.tempering : {}),
+    };
+    const coreStatKeys = new Set(['power', 'bastion', 'resonance', 'tempo']);
+    for (const src of [base.stats, incoming.stats]) {
+      if (!src || typeof src !== 'object') continue;
+      for (const [k, v] of Object.entries(src)) {
+        if (coreStatKeys.has(k)) continue;
+        const num = Math.max(0, Math.floor(Number(v) || 0));
+        stats[k] = Math.max(Number(stats[k]) || 0, num);
+      }
+    }
+    const completedAch = {
+      ...(base.achievements?.completed && typeof base.achievements.completed === 'object' ? base.achievements.completed : {}),
+      ...(incoming.achievements?.completed && typeof incoming.achievements.completed === 'object' ? incoming.achievements.completed : {}),
+    };
+    const unlockedTitlesSet = new Set([
+      ...(Array.isArray(base.achievements?.unlockedTitles) ? base.achievements.unlockedTitles : []),
+      ...(Array.isArray(incoming.achievements?.unlockedTitles) ? incoming.achievements.unlockedTitles : []),
+    ]);
+    const equippedTitle = incoming.equippedTitle !== undefined
+      ? incoming.equippedTitle
+      : (base.equippedTitle ?? null);
+    return sanitizeProgressionSkills({
+      level: lvl,
+      xp,
+      statPoints,
+      skillPoints,
+      stats,
+      ranks,
+      skills,
+      professions,
+      paragonLevel,
+      paragonXp,
+      paragonPoints,
+      paragon,
+      tempering,
+      stats,
+      achievements: {
+        completed: completedAch,
+        unlockedTitles: Array.from(unlockedTitlesSet),
+      },
+      equippedTitle,
+    });
   }
 
   saveProgression(accountId, progression, statsMetaPatch = null) {
@@ -1487,6 +1586,7 @@ export class AccountsStore {
     acc.progression = this.mergeValidProgression(acc.progression, progression);
     if (statsMetaPatch) {
       acc.statsMeta = {
+        ...(acc.statsMeta || {}),
         kills: (acc.statsMeta?.kills || 0) + (statsMetaPatch.addKills || 0),
         arenaWins: (acc.statsMeta?.arenaWins || 0) + (statsMetaPatch.addArenaWins || 0),
         siegeClaims: (acc.statsMeta?.siegeClaims || 0) + (statsMetaPatch.addSiegeClaims || 0),
@@ -1814,5 +1914,6 @@ export class AccountsStore {
     if (safeGlimmer !== undefined) acc.solarCharge = safeGlimmer;
     if (safePos !== null) acc.lastPosition = safePos;
     this.schedulePersist(acc.id, targetCharId);
+    this.flushSync();
   }
 }

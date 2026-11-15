@@ -1007,4 +1007,235 @@ export function buildPropSprites(sprites) {
 
     sprites.props.graveglassTombstone = addPixelOutline(c);
   }
+
+  // ==========================================
+  // 5. ENTERABLE TAVERN & INTERIOR FURNITURE PROPS
+  // ==========================================
+  // Cozy Timber Tavern & Inn Exterior with Hanging Ale-Mug Signboard (46x40)
+  {
+    const { c, ctx } = makeCanvas(46, 40);
+    // Stone foundation
+    rect(ctx, 4, 34, 38, 6, '#475569');
+    rect(ctx, 5, 35, 36, 4, '#334155');
+    // Half-timbered plaster walls
+    rect(ctx, 5, 16, 36, 19, '#e7d7c1');
+    rect(ctx, 5, 16, 3, 19, '#6b3e21');
+    rect(ctx, 21, 16, 4, 19, '#6b3e21');
+    rect(ctx, 38, 16, 3, 19, '#6b3e21');
+    rect(ctx, 5, 24, 36, 2, '#6b3e21');
+    // Stone chimney on right side
+    rect(ctx, 34, 1, 6, 13, '#64748b');
+    rect(ctx, 35, 2, 4, 11, '#475569');
+    rect(ctx, 33, 0, 8, 2, '#94a3b8');
+    // Pitched warm shingle roof
+    rect(ctx, 2, 11, 42, 6, '#7f1d1d');
+    rect(ctx, 5, 7, 36, 5, '#991b1b');
+    rect(ctx, 9, 4, 28, 4, '#b91c1c');
+    rect(ctx, 13, 2, 20, 3, '#dc2626');
+    rect(ctx, 2, 16, 42, 2, '#451a03');
+    // Warm glowing upper & side paned windows
+    rect(ctx, 10, 18, 8, 5, '#fbbf24');
+    rect(ctx, 11, 19, 6, 3, '#fef08a');
+    rect(ctx, 13, 18, 2, 5, '#78350f');
+    rect(ctx, 28, 18, 8, 5, '#fbbf24');
+    rect(ctx, 29, 19, 6, 3, '#fef08a');
+    rect(ctx, 31, 18, 2, 5, '#78350f');
+    // Arched oak entrance door + warm welcome threshold
+    rect(ctx, 18, 25, 10, 14, '#78350f');
+    rect(ctx, 19, 24, 8, 2, '#92400e');
+    rect(ctx, 20, 26, 6, 12, '#451a03');
+    px(ctx, 25, 32, '#facc15');
+    rect(ctx, 17, 38, 12, 2, '#fbbf24');
+    // Swinging tavern signboard + foamy mug icon (left overhang)
+    rect(ctx, 0, 20, 9, 2, '#334155');
+    rect(ctx, 1, 22, 7, 8, '#92400e');
+    rect(ctx, 2, 23, 5, 6, '#fbbf24');
+    rect(ctx, 3, 23, 3, 2, '#ffffff');
+    sprites.props.tavernBuilding = addPixelOutline(c);
+  }
+
+  // Welcoming Doorway Threshold Glow Rug (22x10)
+  {
+    const { c, ctx } = makeCanvas(22, 10);
+    rect(ctx, 2, 2, 18, 6, '#78350f');
+    rect(ctx, 3, 3, 16, 4, '#b45309');
+    rect(ctx, 5, 4, 12, 2, '#fde047');
+    px(ctx, 10, 4, '#ffffff');
+    px(ctx, 11, 4, '#ffffff');
+    sprites.props.doorThresholdGlow = addPixelOutline(c);
+  }
+
+  // Animated Stone Hearth Fireplace (2 frames, 32x34)
+  sprites.props.hearthFireplace = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(32, 34);
+    rect(ctx, 9, 0, 14, 12, '#475569');
+    rect(ctx, 10, 1, 12, 10, '#64748b');
+    rect(ctx, 3, 11, 26, 22, '#334155');
+    rect(ctx, 4, 12, 24, 20, '#475569');
+    // Timber mantlepiece with brass candle
+    rect(ctx, 2, 12, 28, 3, '#78350f');
+    rect(ctx, 3, 12, 26, 1, '#b45309');
+    rect(ctx, 6, 9, 2, 3, '#fef08a');
+    px(ctx, 6, 8 - f, '#fb923c');
+    rect(ctx, 24, 9, 2, 3, '#fef08a');
+    px(ctx, 24, 8 - (1 - f), '#fb923c');
+    // Firebox & roaring flames
+    rect(ctx, 8, 17, 16, 14, '#0f172a');
+    rect(ctx, 10, 27, 12, 3, '#451a03');
+    rect(ctx, 11, 21 + f, 10, 7 - f, '#ea580c');
+    rect(ctx, 13, 19 + f, 6, 7 - f, '#fb923c');
+    rect(ctx, 14, 22, 4, 4, '#fde047');
+    px(ctx, 15, 18 + f, '#ffffff');
+    sprites.props.hearthFireplace.push(addPixelOutline(c));
+  }
+
+  // Oak Tavern Bar Counter with Tankards & Bottles (42x22)
+  {
+    const { c, ctx } = makeCanvas(42, 22);
+    rect(ctx, 2, 4, 38, 16, '#451a03');
+    rect(ctx, 1, 4, 40, 5, '#92400e');
+    rect(ctx, 2, 5, 38, 3, '#b45309');
+    rect(ctx, 4, 10, 34, 8, '#78350f');
+    // Brass foot rail
+    rect(ctx, 2, 19, 38, 2, '#facc15');
+    // Frothy mugs & emerald bottles on bar top
+    rect(ctx, 7, 1, 3, 4, '#f59e0b');
+    rect(ctx, 7, 0, 3, 1, '#ffffff');
+    rect(ctx, 16, 0, 3, 5, '#16a34a');
+    rect(ctx, 24, 1, 3, 4, '#dc2626');
+    rect(ctx, 32, 1, 3, 4, '#f59e0b');
+    rect(ctx, 32, 0, 3, 1, '#ffffff');
+    sprites.props.tavernBar = addPixelOutline(c);
+  }
+
+  // Oak Ale Keg on Cradle (16x18)
+  {
+    const { c, ctx } = makeCanvas(16, 18);
+    rect(ctx, 3, 3, 10, 12, '#78350f');
+    rect(ctx, 4, 2, 8, 13, '#92400e');
+    rect(ctx, 5, 4, 6, 9, '#b45309');
+    rect(ctx, 3, 5, 10, 1, '#facc15');
+    rect(ctx, 3, 11, 10, 1, '#facc15');
+    rect(ctx, 7, 8, 2, 2, '#eab308');
+    rect(ctx, 3, 15, 2, 2, '#451a03');
+    rect(ctx, 11, 15, 2, 2, '#451a03');
+    sprites.props.aleKeg = addPixelOutline(c);
+  }
+
+  // Tavern Dining Table with Candle & Tankards (28x22)
+  {
+    const { c, ctx } = makeCanvas(28, 22);
+    // Stools
+    rect(ctx, 2, 9, 4, 6, '#78350f');
+    rect(ctx, 22, 9, 4, 6, '#78350f');
+    // Tabletop & legs
+    rect(ctx, 6, 4, 16, 11, '#b45309');
+    rect(ctx, 7, 5, 14, 9, '#d97706');
+    rect(ctx, 7, 15, 3, 5, '#451a03');
+    rect(ctx, 18, 15, 3, 5, '#451a03');
+    // Candle & plates
+    rect(ctx, 13, 3, 2, 4, '#fef9c3');
+    px(ctx, 13, 2, '#fb923c');
+    rect(ctx, 8, 7, 3, 3, '#e2e8f0');
+    rect(ctx, 17, 7, 3, 3, '#f59e0b');
+    sprites.props.diningTable = addPixelOutline(c);
+  }
+
+  // Tall Library Bookshelf (24x28)
+  {
+    const { c, ctx } = makeCanvas(24, 28);
+    rect(ctx, 2, 2, 20, 24, '#451a03');
+    rect(ctx, 3, 3, 18, 22, '#78350f');
+    for (let s = 0; s < 3; s++) {
+      const sy = 5 + s * 7;
+      rect(ctx, 4, sy, 16, 5, '#1e1b4b');
+      rect(ctx, 4, sy + 5, 16, 1, '#92400e');
+      const cols = ['#dc2626', '#2563eb', '#16a34a', '#eab308', '#a855f7', '#06b6d4'];
+      for (let b = 0; b < 5; b++) {
+        rect(ctx, 5 + b * 3, sy + 1, 2, 4, cols[(s * 5 + b) % cols.length]);
+      }
+    }
+    sprites.props.bookshelf = addPixelOutline(c);
+  }
+
+  // Apothecary Potion & Herb Shelf (26x26)
+  {
+    const { c, ctx } = makeCanvas(26, 26);
+    rect(ctx, 2, 2, 22, 22, '#3b2313');
+    rect(ctx, 3, 3, 20, 20, '#5c3419');
+    rect(ctx, 4, 9, 18, 2, '#92400e');
+    rect(ctx, 4, 17, 18, 2, '#92400e');
+    // Glowing potion bottles & hanging herbs
+    rect(ctx, 5, 5, 3, 4, '#22c55e'); px(ctx, 6, 4, '#cbd5e1');
+    rect(ctx, 10, 4, 3, 5, '#ef4444'); px(ctx, 11, 3, '#fde047');
+    rect(ctx, 15, 5, 3, 4, '#38bdf8'); px(ctx, 16, 4, '#ffffff');
+    rect(ctx, 6, 13, 3, 4, '#c084fc');
+    rect(ctx, 12, 12, 4, 5, '#4ade80');
+    rect(ctx, 18, 13, 3, 4, '#fbbf24');
+    sprites.props.alchemyShelf = addPixelOutline(c);
+  }
+
+  // Blacksmith Weapon & Shield Display Rack (26x24)
+  {
+    const { c, ctx } = makeCanvas(26, 24);
+    rect(ctx, 2, 4, 22, 18, '#451a03');
+    rect(ctx, 4, 6, 18, 2, '#78350f');
+    rect(ctx, 4, 18, 18, 2, '#78350f');
+    // Swords & Solari shield
+    rect(ctx, 6, 3, 2, 15, '#e2e8f0');
+    rect(ctx, 5, 14, 4, 1, '#facc15');
+    rect(ctx, 10, 3, 2, 15, '#cbd5e1');
+    rect(ctx, 9, 14, 4, 1, '#facc15');
+    rect(ctx, 15, 6, 6, 9, '#f59e0b');
+    rect(ctx, 16, 7, 4, 7, '#fef08a');
+    sprites.props.weaponRack = addPixelOutline(c);
+  }
+
+  // Quilted Oak Bed (22x26)
+  {
+    const { c, ctx } = makeCanvas(22, 26);
+    rect(ctx, 3, 2, 16, 22, '#451a03');
+    rect(ctx, 4, 3, 14, 4, '#78350f');
+    // Pillow & blanket
+    rect(ctx, 5, 7, 12, 4, '#f8fafc');
+    rect(ctx, 5, 11, 12, 11, '#991b1b');
+    rect(ctx, 5, 11, 12, 2, '#facc15');
+    rect(ctx, 6, 14, 10, 7, '#b91c1c');
+    sprites.props.cozyBed = addPixelOutline(c);
+  }
+
+  // Astral Star-Chart & Expedition Map Table (30x22)
+  {
+    const { c, ctx } = makeCanvas(30, 22);
+    rect(ctx, 3, 5, 24, 12, '#451a03');
+    rect(ctx, 4, 6, 22, 10, '#1e3a8a');
+    // Glowing starlines & compass parchment
+    rect(ctx, 6, 8, 18, 6, '#38bdf8');
+    rect(ctx, 7, 9, 16, 4, '#0f172a');
+    px(ctx, 10, 10, '#fde047');
+    px(ctx, 15, 11, '#ffffff');
+    px(ctx, 20, 10, '#e879f9');
+    rect(ctx, 5, 17, 3, 4, '#451a03');
+    rect(ctx, 22, 17, 3, 4, '#451a03');
+    sprites.props.mapTable = addPixelOutline(c);
+  }
+
+  // Open Vault Treasure Chests & Gold Pile (24x18)
+  {
+    const { c, ctx } = makeCanvas(24, 18);
+    rect(ctx, 2, 5, 20, 11, '#451a03');
+    rect(ctx, 3, 3, 18, 5, '#78350f');
+    rect(ctx, 3, 8, 18, 7, '#92400e');
+    // Iron straps
+    rect(ctx, 5, 3, 2, 12, '#64748b');
+    rect(ctx, 17, 3, 2, 12, '#64748b');
+    // Overflowing gold coins & sky gems
+    rect(ctx, 6, 6, 12, 4, '#facc15');
+    rect(ctx, 7, 5, 10, 3, '#fde047');
+    px(ctx, 10, 6, '#38bdf8');
+    px(ctx, 14, 7, '#e879f9');
+    px(ctx, 11, 5, '#ffffff');
+    sprites.props.goldChestPile = addPixelOutline(c);
+  }
 }

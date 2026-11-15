@@ -50,6 +50,7 @@ export function createAmbientRenderer({
   }
 
   function drawSeaAmbient(camLeft, camTop) {
+    if (getCurrentBiomeTheme().startsWith('interior_')) return;
     const t = getGlobalTime();
     const { halfW, halfH } = getMapBounds();
     const { viewW, viewH } = getViewSize();
@@ -401,6 +402,13 @@ export function createAmbientRenderer({
       case 'warzone': return ['#fb923c', '#fde68a'];
       case 'ruins': return ['#94a3b8', '#7dd3fc'];
       case 'celestial': return ['#fef08a', '#ffffff'];
+      case 'interior_tavern': return ['#fde68a', '#fb923c', '#fef3c7'];
+      case 'interior_vault': return ['#facc15', '#7dd3fc'];
+      case 'interior_cottage': return ['#fef3c7', '#fde68a'];
+      case 'interior_solari': return ['#fbbf24', '#fb923c'];
+      case 'interior_terra': return ['#bef264', '#86efac'];
+      case 'interior_umbri': return ['#c084fc', '#e879f9'];
+      case 'interior_aether': return ['#7dd3fc', '#e0f2fe'];
       default: return ['#cbd5e1', '#7dd3fc'];
     }
   }

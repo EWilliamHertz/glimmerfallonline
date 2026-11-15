@@ -122,6 +122,9 @@ export class FrontpageController {
         if (prof && !prof.isGuest) {
           this.authMessage = `✓ Welcome back, @${prof.username}!`;
           this.syncFromProfile(prof);
+          if (this.net.ws && (this.net.ws.readyState === 0 || this.net.ws.readyState === 1)) {
+            this.net.connectWebSocket(true);
+          }
           if (this.isOpen) this.render();
           return true;
         }
@@ -132,6 +135,9 @@ export class FrontpageController {
             this.net.profile = data.profile;
             this.authMessage = `✓ Welcome back, @${data.profile.username}!`;
             this.syncFromProfile(data.profile);
+            if (this.net.ws && (this.net.ws.readyState === 0 || this.net.ws.readyState === 1)) {
+              this.net.connectWebSocket(true);
+            }
             if (this.isOpen) this.render();
             return true;
           }
@@ -445,9 +451,14 @@ export class FrontpageController {
       if (this.net) {
         this.net.preferredCharacterId = charId;
         this.net.selectedCharacterId = charId;
-        if (this.net.profile) {
-          this.net.profile.activeCharacterId = charId;
-        }
+        const ch = Array.isArray(this.net.profile?.characters)
+          ? this.net.profile.characters.find((c) => c.id === charId)
+          : null;
+        const savedPos = ch?.lastPosition;
+        this.net.preferredRoom = (savedPos?.roomType && savedPos.roomType !== 'arena_3v3') ? savedPos.roomType : null;
+        this.net.currentCoords = (savedPos && Number.isFinite(Number(savedPos.x)) && Number.isFinite(Number(savedPos.y)) && savedPos.roomType !== 'arena_3v3')
+          ? { x: Number(savedPos.x), y: Number(savedPos.y) }
+          : null;
       }
     }
     if (this.audio?.playChime) this.audio.playChime();
@@ -585,13 +596,19 @@ export class FrontpageController {
         console.warn('[Frontpage] wsRpc character selection warning:', err?.message || err);
       }
     } else {
+      if (this.net) {
+        this.net.preferredCharacterId = chosenChar.id;
+        this.net.selectedCharacterId = chosenChar.id;
+        this.net.preferredRoom = startRealm;
+        this.net.currentCoords = (startX !== null && startY !== null) ? { x: startX, y: startY } : null;
+      }
       this.net?.saveOrSelectCharacter({
         characterId: chosenChar.id,
         enterRealm: startRealm,
         x: startX,
         y: startY,
       }).catch(() => {});
-      this.net?.connectWebSocket();
+      this.net?.connectWebSocket(true);
     }
 
     // Immediately close overlay and transition into realm - never trap the user

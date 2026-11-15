@@ -26,6 +26,7 @@ import {
   createDefaultProgression,
   xpForNextLevel,
   MAX_BASE_LEVEL,
+  isFounderEdition,
   PARAGON_AFFINITIES,
   paragonXpForLevel,
   canUpgradeParagon,
@@ -60,6 +61,9 @@ import {
   SKILLING_NODE_TYPES,
   ELITE_AFFIXES,
   BOUNTY_CONTRACTS,
+  getSalvageYield,
+  applyTemperingUpgrade,
+  ACHIEVEMENTS_CATALOG,
 } from '../../shared/protocol.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
 
@@ -415,6 +419,21 @@ export const arenaAndPacketsMethods = {
           client.dir = msg.dir;
         }
         client.isMoving = Boolean(msg.isMoving);
+        {
+          const nowMs = Date.now();
+          const roundedX = Math.round(Number(client.x) || 0);
+          const roundedY = Math.round(Number(client.y) || 0);
+          const roomChangedSinceSave = client.roomType !== client._lastSavedRoomType;
+          const movedDistSinceSave = Math.hypot(
+            roundedX - (Number.isFinite(client._lastSavedX) ? client._lastSavedX : roundedX),
+            roundedY - (Number.isFinite(client._lastSavedY) ? client._lastSavedY : roundedY)
+          );
+          const stoppedAtNewSpot = !client.isMoving && (roomChangedSinceSave || movedDistSinceSave >= 1);
+          const movedFarEnough = movedDistSinceSave >= 32 && (nowMs - (client._lastSavedAt || 0)) >= 400;
+          if (roomChangedSinceSave || stoppedAtNewSpot || movedFarEnough) {
+            this.saveClientState(client);
+          }
+        }
         break;
       }
 
@@ -552,6 +571,86 @@ export const arenaAndPacketsMethods = {
         if (room) this.handleUseKeystone(room, client, String(msg.itemId || '').trim());
         break;
 
+      case 'use_consumable': {
+        const acc = this.accounts.accountsById.get(client.id);
+        if (!acc || client.isDead) break;
+        this.accounts.ensureDefaultCharacter(acc);
+        const inv = acc.inventory || [];
+        let slotIdx = msg.slotIndex !== undefined ? Number(msg.slotIndex) : -1;
+        const reqItemId = msg.itemId ? String(msg.itemId).trim() : null;
+        if (slotIdx < 0 || slotIdx >= inv.length || (reqItemId && (typeof inv[slotIdx] === 'string' ? inv[slotIdx] : inv[slotIdx]?.id) !== reqItemId)) {
+          slotIdx = reqItemId ? inv.findIndex((it) => (typeof it === 'string' ? it : it?.id) === reqItemId) : -1;
+        }
+        if (slotIdx < 0 || slotIdx >= inv.length) break;
+        const slotEntry = inv[slotIdx];
+        const itId = typeof slotEntry === 'string' ? slotEntry : slotEntry?.id;
+        const item = itId ? EQUIPMENT_CATALOG[itId] : null;
+        if (!item || item.slot !== 'consumable') break;
+
+        if (item.temperTargetMax) {
+          const ch = this.accounts.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+          const prog = ch?.progression || acc.progression || client.prog;
+          const equip = ch?.equipment || acc.equipment || client.equipment || {};
+          const preferredSlot = msg.preferredSlot ? String(msg.preferredSlot).trim() : null;
+          const res = applyTemperingUpgrade(prog, equip, item, preferredSlot);
+          if (!res.ok) {
+            client.send({ type: 'sys_msg', category: 'combat', text: `🔨 [Tempering] ${res.reason}.` });
+            if (room) room.fxQueue.push({ kind: 'fct', x: client.x, y: client.y - 12, text: res.reason.toUpperCase(), color: '#ef4444' });
+            break;
+          }
+          if (!this.accounts.removeItemFromInventory(client.id, slotIdx, 1)) break;
+          if (acc.progression) acc.progression.tempering = { ...(prog.tempering || {}) };
+          if (ch?.progression) ch.progression.tempering = { ...(prog.tempering || {}) };
+          this.accounts.schedulePersist(acc.id, ch?.id);
+          this.refreshClientFromAccount(client.id);
+          client.send({
+            type: 'sys_msg',
+            category: 'quest',
+            text: `🔨 [Gear Tempering] ${EQUIPMENT_CATALOG[res.itemId]?.name || res.slotKey} tempered to +${res.newRank}!`,
+          });
+          if (room) {
+            room.fxQueue.push({ kind: 'spark', x: client.x, y: client.y - 8, colors: ['#fb923c', '#fde047', '#38bdf8'], count: 16 });
+            room.fxQueue.push({ kind: 'fct', x: client.x, y: client.y - 16, text: `🔨 ${res.slotKey.toUpperCase()} +${res.newRank}!`, color: '#fbbf24', isCrit: true });
+          }
+          break;
+        }
+
+        if (item.weaponImbue) {
+          if (!this.accounts.removeItemFromInventory(client.id, slotIdx, 1)) break;
+          client.weaponImbue = { ...item.weaponImbue, timer: item.weaponImbue.durationSec || 600 };
+          this.refreshClientFromAccount(client.id);
+          client.send({
+            type: 'sys_msg',
+            category: 'combat',
+            text: `🗡️ [Weapon Imbue] Coated your weapon with ${item.name}!`,
+          });
+          if (room) {
+            room.fxQueue.push({ kind: 'spark', x: client.x, y: client.y - 8, colors: [item.weaponImbue.color || '#facc15', '#ffffff'], count: 16 });
+            room.fxQueue.push({ kind: 'fct', x: client.x, y: client.y - 16, text: `🗡️ ${item.weaponImbue.name.toUpperCase()}`, color: item.weaponImbue.color || '#facc15', isCrit: true });
+          }
+          break;
+        }
+
+        if (item.healHp || item.restoreGlimmer || item.wellFed) {
+          if (!this.accounts.removeItemFromInventory(client.id, slotIdx, 1)) break;
+          if (item.healHp && client.hp < client.maxHp) {
+            client.hp = Math.min(client.maxHp, client.hp + item.healHp);
+            if (room) room.fxQueue.push({ kind: 'fct', x: client.x, y: client.y - 14, text: `+${item.healHp} HP`, color: '#4ade80', isCrit: true });
+          }
+          if (item.restoreGlimmer && client.solarCharge < client.maxSolarCharge) {
+            client.solarCharge = Math.min(client.maxSolarCharge, client.solarCharge + item.restoreGlimmer);
+            if (room) room.fxQueue.push({ kind: 'fct', x: client.x, y: client.y - 26, text: `+${item.restoreGlimmer} GLIMMER`, color: '#38bdf8', isCrit: true });
+          }
+          if (item.wellFed) {
+            client.wellFedBuff = { ...item.wellFed, timer: item.wellFed.durationSec || 600 };
+            if (room) room.fxQueue.push({ kind: 'fct', x: client.x, y: client.y - 36, text: `🍲 ${item.wellFed.name.toUpperCase()}`, color: item.wellFed.color || '#fde047', isCrit: true });
+          }
+          this.parties?.syncPlayerVitals?.(client.id);
+          this.refreshClientFromAccount(client.id);
+        }
+        break;
+      }
+
       case 'drop_inventory_item': {
         const slotIdx = Number(msg.slotIndex);
         const inv = client.inventory || [];
@@ -577,6 +676,57 @@ export const arenaAndPacketsMethods = {
               y: client.y - 10,
               text: `DROPPED ${EQUIPMENT_CATALOG[itId]?.name?.toUpperCase() || 'ITEM'}`,
               color: '#94a3b8',
+            });
+          }
+        }
+        break;
+      }
+
+      case 'salvage_inventory_item': {
+        const slotIdx = Number(msg.slotIndex);
+        const inv = client.inventory || [];
+        if (slotIdx >= 0 && slotIdx < inv.length) {
+          const it = inv[slotIdx];
+          const itId = typeof it === 'string' ? it : it?.id;
+          const yieldSpec = getSalvageYield(itId);
+          if (!yieldSpec) {
+            if (room) {
+              room.fxQueue.push({ kind: 'fct', x: client.x, y: client.y - 10, text: 'CANNOT SALVAGE THAT ITEM', color: '#ef4444' });
+            }
+            break;
+          }
+          const removed = this.accounts.removeItemFromInventory(client.id, slotIdx, 1);
+          if (!removed) break;
+          if (yieldSpec.gold > 0) {
+            const addedGold = this.accounts.addItemToInventory(client.id, 'solar_gold', yieldSpec.gold);
+            if (!addedGold && room) {
+              room.lootSeq = (room.lootSeq || 0) + 1;
+              room.loot.push({ id: `loot_${room.lootSeq}`, kind: 'item', itemId: 'solar_gold', qty: yieldSpec.gold, x: client.x, y: client.y, ttl: 60, maxTtl: 60 });
+            }
+          }
+          for (const mat of yieldSpec.materials) {
+            const addedMat = this.accounts.addItemToInventory(client.id, mat.id, mat.qty);
+            if (!addedMat && room) {
+              room.lootSeq = (room.lootSeq || 0) + 1;
+              room.loot.push({ id: `loot_${room.lootSeq}`, kind: 'item', itemId: mat.id, qty: mat.qty, x: client.x, y: client.y, ttl: 60, maxTtl: 60 });
+            }
+          }
+          this.awardProfessionXP(client, yieldSpec.profId, yieldSpec.xp, `Salvaged ${EQUIPMENT_CATALOG[itId]?.name || itId}`);
+          this.refreshClientFromAccount(client.id);
+          if (room) {
+            room.fxQueue.push({
+              kind: 'fct',
+              x: client.x,
+              y: client.y - 12,
+              text: `🔨 SALVAGED +${yieldSpec.gold}g & MATS`,
+              color: '#fb923c',
+            });
+            room.fxQueue.push({
+              kind: 'spark',
+              x: client.x,
+              y: client.y - 8,
+              colors: ['#fb923c', '#fde047', '#ffffff'],
+              count: 10,
             });
           }
         }
@@ -651,7 +801,27 @@ export const arenaAndPacketsMethods = {
           client.solarCharge = Math.min(client.maxSolarCharge, Math.max(0, msg.solarCharge));
         }
         if (msg.lastPosition && typeof msg.lastPosition === 'object') {
-          client.lastPosition = msg.lastPosition;
+          let safePos = msg.lastPosition;
+          if (safePos.roomType === client.roomType) {
+            const roomCfg = ROOM_CONFIGS[client.roomType];
+            const halfW = roomCfg?.halfW || 280;
+            const halfH = roomCfg?.halfH || 280;
+            const sx = Number(safePos.x);
+            const sy = Number(safePos.y);
+            if (
+              Number.isFinite(sx) && Number.isFinite(sy) &&
+              Math.hypot(sx - client.x, sy - client.y) <= 240 &&
+              !isWaterTile(sx, sy, client.roomType)
+            ) {
+              client.x = Math.max(-halfW + 14, Math.min(halfW - 14, sx));
+              client.y = Math.max(-halfH + 14, Math.min(halfH - 14, sy));
+            }
+          }
+          client.lastPosition = {
+            roomType: client.roomType,
+            x: Math.round(client.x),
+            y: Math.round(client.y),
+          };
         }
         this.saveClientState(client);
         break;
@@ -680,6 +850,23 @@ export const arenaAndPacketsMethods = {
       case 'upgrade_rank':
         this.handleUpgradeRank(client, Number(msg.slot));
         break;
+
+      case 'unlock_achievement': {
+        const ach = ACHIEVEMENTS_CATALOG.find((a) => a.id === msg.achievementId);
+        if (ach && client.prog) {
+          client.prog.achievements = client.prog.achievements || { completed: {}, unlockedTitles: [] };
+          client.prog.achievements.completed = client.prog.achievements.completed || {};
+          client.prog.achievements.unlockedTitles = client.prog.achievements.unlockedTitles || [];
+          if (!client.prog.achievements.completed[ach.id]) {
+            client.prog.achievements.completed[ach.id] = { unlockedAt: new Date().toISOString() };
+          }
+          if (ach.unlockedTitle && !client.prog.achievements.unlockedTitles.includes(ach.unlockedTitle)) {
+            client.prog.achievements.unlockedTitles.push(ach.unlockedTitle);
+          }
+          this.accounts.saveProgression(client.id, client.prog);
+        }
+        break;
+      }
 
       case 'reset_progression':
         this.handleResetProgression(client);
@@ -722,6 +909,15 @@ export const arenaAndPacketsMethods = {
         break;
 
       case 'exchange_place_order':
+        if (!isFounderEdition(client)) {
+          client.send?.({
+            type: 'sys_msg',
+            category: 'combat',
+            text: "🔒 [AetherSwap Exchange] Placing market orders requires Founder's Edition (€6.99). Redeem a GF-XXXX-XXXX-XXXX Serial Key in Account or Pre-Game!",
+          });
+          client.send?.({ type: 'trial_gate', feature: 'exchange' });
+          break;
+        }
         this.exchange?.handlePlaceOrder(client, msg);
         break;
 
@@ -735,6 +931,15 @@ export const arenaAndPacketsMethods = {
 
       // Direct Player Trading
       case 'trade_request':
+        if (!isFounderEdition(client)) {
+          client.send?.({
+            type: 'sys_msg',
+            category: 'combat',
+            text: "🔒 [Direct Trading] Player-to-player trading requires Founder's Edition (€6.99). Redeem a GF-XXXX-XXXX-XXXX Serial Key in Account or Pre-Game!",
+          });
+          client.send?.({ type: 'trial_gate', feature: 'trade' });
+          break;
+        }
         this.trades?.handleRequest(client, msg.target);
         break;
 
@@ -836,15 +1041,60 @@ export const arenaAndPacketsMethods = {
         });
         return;
       }
-      this.saveClientState(client);
+      const prevCharId = client.activeCharacterId;
+      if (prevCharId && payload.characterId && prevCharId !== payload.characterId) {
+        this.saveClientState(client);
+      }
       await this.accounts.ensureFreshFromPostgres({ id: client.id });
       const charObj = this.accounts.createOrSelectCharacter(client.id, payload);
+      const hasPayloadCoords =
+        payload.x !== null &&
+        payload.x !== undefined &&
+        payload.y !== null &&
+        payload.y !== undefined &&
+        Number.isFinite(Number(payload.x)) &&
+        Number.isFinite(Number(payload.y));
+      const lp = charObj.lastPosition;
+      const lpIsDefaultSpawn =
+        !lp ||
+        !lp.roomType ||
+        (lp.roomType === ROOM_TYPES.SANCTUARY_HUB && Math.round(Number(lp.x || 0)) === 0 && Math.round(Number(lp.y || 0)) === 96);
+      if (
+        lpIsDefaultSpawn &&
+        payload.enterRealm &&
+        payload.enterRealm !== ROOM_TYPES.ARENA_3V3 &&
+        ROOM_CONFIGS[payload.enterRealm] &&
+        hasPayloadCoords &&
+        (payload.enterRealm !== ROOM_TYPES.SANCTUARY_HUB || Math.round(Number(payload.x)) !== 0 || Math.round(Number(payload.y)) !== 96)
+      ) {
+        charObj.lastPosition = {
+          roomType: payload.enterRealm,
+          x: Math.round(Number(payload.x)),
+          y: Math.round(Number(payload.y)),
+        };
+      }
       await this.accounts.flushToPostgres();
       this.refreshClientFromAccount(client.id);
-      if (charObj.lastPosition?.roomType && ROOM_CONFIGS[charObj.lastPosition.roomType]) {
-        this.joinRoom(client, charObj.lastPosition.roomType, null, charObj.lastPosition.x, charObj.lastPosition.y);
-      } else if (payload.enterRealm) {
-        this.joinRoom(client, payload.enterRealm);
+      let targetRoom = null;
+      let targetX = null;
+      let targetY = null;
+      if (charObj.lastPosition?.roomType && charObj.lastPosition.roomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[charObj.lastPosition.roomType]) {
+        targetRoom = charObj.lastPosition.roomType;
+        targetX = Number.isFinite(Number(charObj.lastPosition.x)) ? Number(charObj.lastPosition.x) : null;
+        targetY = Number.isFinite(Number(charObj.lastPosition.y)) ? Number(charObj.lastPosition.y) : null;
+      } else if (payload.enterRealm && ROOM_CONFIGS[payload.enterRealm]) {
+        targetRoom = payload.enterRealm;
+        targetX = hasPayloadCoords ? Number(payload.x) : null;
+        targetY = hasPayloadCoords ? Number(payload.y) : null;
+      }
+      if (targetRoom) {
+        const distFromTarget =
+          targetX !== null && targetY !== null
+            ? Math.hypot((client.x || 0) - targetX, (client.y || 0) - targetY)
+            : 0;
+        if (prevCharId !== charObj.id || client.roomType !== targetRoom || distFromTarget > 24) {
+          this.joinRoom(client, targetRoom, null, targetX, targetY);
+        }
       }
       const acc = this.accounts.accountsById.get(client.id);
       client.send({

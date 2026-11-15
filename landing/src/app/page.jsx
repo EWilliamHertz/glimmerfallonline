@@ -1509,7 +1509,7 @@ export default function LandingPage() {
                     Vanguard Starter Trial (Offline &amp; Sanctuary Hub)
                   </h4>
                   <p className="text-xs text-white/65 mt-1 leading-relaxed">
-                    Create heroes across all 4 canonical factions, explore Sanctuary Metropolis, test every class Rite &amp; 0-GCD Flash, and train all 7 disciplines in browser or offline mode.
+                    Create heroes across all 4 canonical factions, keep playing freely up to Level 10 (with skills up to Lv. 30 &amp; 30-slot Vault), explore Sanctuary, Citadels &amp; Nexus Warzone, and test every Rite &amp; Flash.
                   </p>
                 </div>
                 <button
@@ -1532,7 +1532,7 @@ export default function LandingPage() {
                     GlimmerFall Online: Shattered Crystalheart Edition
                   </h4>
                   <p className="text-xs text-white/70 mt-1 leading-relaxed">
-                    Full access to all 8 Continental Realms, Lv. 99 Mastery Capes, AetherSwap Exchange, 3v3 Ranked Warzone Seasons, and exclusive <code className="text-[#FDE047]">&lt;GLIM&gt;</code> Founder Heraldry.
+                    Full Level 70 + Paragon 100 cap, all Continental Realms, Lv. 99 Mastery Capes, 140-slot Bank Vault, AetherSwap Exchange, 3v3 Ranked Warzone Seasons, and exclusive <code className="text-[#FDE047]">&lt;GLIM&gt;</code> Founder Heraldry.
                   </p>
                 </div>
                 <button

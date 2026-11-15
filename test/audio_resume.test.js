@@ -180,3 +180,110 @@ test('PixelSoundEngine: AbortError/NotAllowedError and rapid zone transitions ne
     if (prevAudio === undefined) delete globalThis.Audio; else globalThis.Audio = prevAudio;
   }
 });
+
+test('PixelSoundEngine: SFX & Quest Fanfare never interrupt or restart active BGM and all skilling/UI SFX work', () => {
+  const prevWin = globalThis.window;
+  const prevAudio = globalThis.Audio;
+  try {
+    const fakeOsc = () => ({
+      type: 'sine',
+      frequency: { setValueAtTime() {} },
+      connect() {},
+      start() {},
+      stop() {},
+    });
+    const fakeGain = () => ({
+      gain: { value: 1, setValueAtTime() {}, setTargetAtTime() {}, exponentialRampToValueAtTime() {} },
+      connect() {},
+    });
+    const fakeFilter = () => ({
+      type: 'bandpass',
+      Q: { value: 1 },
+      frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} },
+      connect() {},
+    });
+    const fakeBufSrc = () => ({
+      buffer: null,
+      connect() {},
+      start() {},
+    });
+    globalThis.window = {
+      AudioContext: class {
+        constructor() { this.state = 'running'; this.currentTime = 1.0; this.sampleRate = 44100; this.destination = {}; }
+        createGain() { return fakeGain(); }
+        createOscillator() { return fakeOsc(); }
+        createBiquadFilter() { return fakeFilter(); }
+        createBuffer(_ch, len) { return { getChannelData: () => new Float32Array(len) }; }
+        createBufferSource() { return fakeBufSrc(); }
+        resume() {}
+      },
+    };
+    const createdAudios = [];
+    globalThis.Audio = class {
+      constructor(url = '') {
+        this.src = url;
+        this.paused = true;
+        this.readyState = 4;
+        this.currentTime = 0;
+        this.duration = 120;
+        this.volume = 1;
+        this.playCount = 0;
+        this._listeners = {};
+        createdAudios.push(this);
+      }
+      play() {
+        this.playCount++;
+        this.paused = false;
+        return Promise.resolve();
+      }
+      pause() { this.paused = true; }
+      addEventListener(ev, fn) { (this._listeners[ev] ||= []).push(fn); }
+      removeEventListener(ev, fn) {
+        if (this._listeners[ev]) this._listeners[ev] = this._listeners[ev].filter((f) => f !== fn);
+      }
+    };
+
+    localStorage.clear();
+    const engine = new PixelSoundEngine();
+    engine.bgmTheme = 'sanctuary';
+    engine.init();
+
+    assert.equal(createdAudios.length, 1, 'Should create a single BGM trackEl');
+    const bgmEl = createdAudios[0];
+    assert.equal(bgmEl.playCount, 1, 'Initial init() should start BGM once');
+
+    // Simulate playback advancing to 42.5s
+    bgmEl.currentTime = 42.5;
+
+    // Triggering init() and gathering/resonance/UI/fanfare SFX must NOT restart BGM or spawn victory.m4a
+    engine.init();
+    engine.playResonance();
+    engine.playChop();
+    engine.playMine();
+    engine.playSplash();
+    engine.playChime();
+    engine.playHurt();
+    engine.playClick();
+    engine.playInventory();
+    engine.playQuestCompleteFanfare();
+
+    assert.equal(bgmEl.playCount, 1, 'SFX, init(), and Quest Fanfare must NOT re-trigger play() on BGM trackEl');
+    assert.equal(bgmEl.currentTime, 42.5, 'BGM playback timestamp must stay untouched across SFX & fanfare');
+    assert.equal(createdAudios.length, 1, 'Quest Fanfare must use Web Audio rather than spawning victory.m4a');
+
+    // Also test mobile-style interruption during playOneShotAudio: resumes from saved timestamp, never 0
+    engine.playOneShotAudio('https://example.com/boss_defeated.m4a', 0.8);
+    assert.equal(createdAudios.length, 2, 'playOneShotAudio should create oneShotEl');
+    const oneShot = createdAudios[1];
+    // Simulate iOS WebKit pausing trackEl while oneShot plays
+    bgmEl.paused = true;
+    (oneShot._listeners.ended || []).forEach((fn) => fn());
+    assert.equal(bgmEl.paused, false, 'Ending oneShotAudio must resume BGM if browser paused it');
+    assert.equal(bgmEl.currentTime, 42.5, 'Resumed BGM must pick up at saved 42.5s timestamp instead of 0');
+
+    engine.stopTrackAudio(false);
+  } finally {
+    if (prevWin === undefined) delete globalThis.window; else globalThis.window = prevWin;
+    if (prevAudio === undefined) delete globalThis.Audio; else globalThis.Audio = prevAudio;
+  }
+});

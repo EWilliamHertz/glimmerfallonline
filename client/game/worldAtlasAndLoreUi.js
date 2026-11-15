@@ -4,7 +4,7 @@
 
 import { WORLD_ATLAS_REGIONS } from "./worldAtlasData.js";
 import { QUEST_CATALOG } from "./questCatalogData.js";
-import { ROOM_TYPES, EQUIPMENT_CATALOG, CHAMPION_TITLES, ACHIEVEMENTS_CATALOG } from "../../shared/protocol.js";
+import { ROOM_TYPES, EQUIPMENT_CATALOG, CHAMPION_TITLES, ACHIEVEMENTS_CATALOG, isRoomUnlockedForEdition } from "../../shared/protocol.js";
 
 export function setupWorldAtlasAndLoreUi({
   getQuestState,
@@ -133,6 +133,8 @@ export function setupWorldAtlasAndLoreUi({
     const reg = WORLD_ATLAS_REGIONS[regId] || WORLD_ATLAS_REGIONS.SANCTUARY_HUB;
     const isPlayerHere = String(currentRoomType || '').toUpperCase() === reg.id;
     const n = reg.neighbors || {};
+    const editionTier = (typeof window !== 'undefined' && window.isLocalFounderEdition?.()) ? 'founder' : 'free';
+    const isLockedFounder = !isRoomUnlockedForEdition(reg.id, editionTier);
 
     return `
       <div style="background:#070b18; border:2px solid ${reg.borderColor}; border-radius:6px; padding:12px; height:100%; box-sizing:border-box;">
@@ -147,6 +149,7 @@ export function setupWorldAtlasAndLoreUi({
             <span style="display:inline-block; font-size:9.5px; font-weight:bold; background:#0f172a; border:1px solid ${reg.color}; color:${reg.color}; padding:2px 7px; border-radius:3px;">
               ${reg.dangerTag}
             </span>
+            ${isLockedFounder ? '<div style="font-size:9px; color:#facc15; font-weight:bold; margin-top:3px;">🔒 FOUNDER EDITION</div>' : ''}
             <div style="font-size:10px; color:#facc15; font-weight:bold; margin-top:3px;">${reg.level}</div>
           </div>
         </div>
@@ -502,6 +505,8 @@ export function setupWorldAtlasAndLoreUi({
             if (!reg) return '';
             const isHere = String(currentRoomType || '').toUpperCase() === regId;
             const isSelected = selectedMapRegionId === regId;
+            const editionTier = (typeof window !== 'undefined' && window.isLocalFounderEdition?.()) ? 'founder' : 'free';
+            const isLockedFounder = !isRoomUnlockedForEdition(regId, editionTier);
             return `
               <div onclick="selectMapRegion('${reg.id}', true); setAtlasViewMode('square');"
                 style="
@@ -514,7 +519,7 @@ export function setupWorldAtlasAndLoreUi({
                   ${isSelected ? 'box-shadow:0 0 14px rgba(255,255,255,0.25);' : ''}
                 ">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <b style="font-family:var(--font-header); font-size:11.5px; color:${reg.color};">${reg.name}</b>
+                  <b style="font-family:var(--font-header); font-size:11.5px; color:${reg.color};">${isLockedFounder ? '🔒 ' : ''}${reg.name}</b>
                   <span style="font-size:9px; color:${reg.color}; background:#070c18; border:1px solid ${reg.color}; padding:1px 5px; border-radius:3px; font-weight:bold;">
                     ${reg.dangerTag}
                   </span>

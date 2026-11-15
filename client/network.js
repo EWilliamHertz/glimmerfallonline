@@ -91,6 +91,9 @@ export class MultiplayerClient {
       const env = import.meta.env?.VITE_GAME_SERVER_URL;
       if (env) return normalizeServerUrl(String(env));
     } catch (_) {}
+    if (this.isLocalOrigin()) {
+      return '';
+    }
     if (typeof window !== 'undefined') {
       const host = (window.location.hostname || '').toLowerCase();
       // If visited directly on the game server subdomain, stay on same origin.
@@ -108,7 +111,18 @@ export class MultiplayerClient {
   isLocalOrigin() {
     try {
       const host = String(window.location.hostname || '').toLowerCase();
-      return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]' || host === '0.0.0.0';
+      return (
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        host === '::1' ||
+        host === '[::1]' ||
+        host === '0.0.0.0' ||
+        host.endsWith('.cloudshell.dev') ||
+        host.endsWith('.github.dev') ||
+        host.endsWith('.app.github.dev') ||
+        host.endsWith('.gitpod.io') ||
+        host.endsWith('.idx.dev')
+      );
     } catch (_) {
       return false;
     }
@@ -132,10 +146,9 @@ export class MultiplayerClient {
       }
       if (this.isLocalOrigin()) {
         // A realm URL saved by an earlier tunnel/remote session must not hijack
-        // localhost. Local dev uses its own origin so Vite can proxy /api and /ws.
-        localStorage.removeItem('glimmerfall_server_url');
-        const sessionBase = sessionStorage.getItem('glimmerfall_server_url');
-        if (sessionBase) return normalizeServerUrl(sessionBase);
+        // localhost or Cloud Shell web preview. Local dev uses its own origin so Vite can proxy /api and /ws.
+        try { localStorage.removeItem('glimmerfall_server_url'); } catch (_) {}
+        try { sessionStorage.removeItem('glimmerfall_server_url'); } catch (_) {}
         return '';
       }
       if (this._activeFallbackBase) {
@@ -256,13 +269,23 @@ export class MultiplayerClient {
 
     const qs = new URLSearchParams();
     if (this.token) qs.set('token', this.token);
-    if (this.preferredRoom) qs.set('room', this.preferredRoom);
     const activeChId = this.preferredCharacterId || this.selectedCharacterId || this.profile?.activeCharacterId || (typeof localStorage !== 'undefined' ? localStorage.getItem('glimmerfall_active_char_id') : null);
     if (activeChId) qs.set('characterId', activeChId);
+    const matchedChar = activeChId && Array.isArray(this.profile?.characters)
+      ? this.profile.characters.find((c) => c.id === activeChId)
+      : null;
+    const savedPos = matchedChar?.lastPosition;
+    const roomToJoin = this.preferredRoom || (savedPos?.roomType && savedPos.roomType !== 'arena_3v3' ? savedPos.roomType : null);
+    if (roomToJoin) qs.set('room', roomToJoin);
     qs.set('ngrok-skip-browser-warning', '1');
-    if (this.currentCoords && Number.isFinite(this.currentCoords.x) && Number.isFinite(this.currentCoords.y)) {
-      qs.set('x', String(Math.round(this.currentCoords.x)));
-      qs.set('y', String(Math.round(this.currentCoords.y)));
+    const coordsToUse = (this.currentCoords && Number.isFinite(this.currentCoords.x) && Number.isFinite(this.currentCoords.y))
+      ? this.currentCoords
+      : (savedPos && Number.isFinite(Number(savedPos.x)) && Number.isFinite(Number(savedPos.y)) && savedPos.roomType !== 'arena_3v3'
+        ? { x: Number(savedPos.x), y: Number(savedPos.y) }
+        : null);
+    if (coordsToUse) {
+      qs.set('x', String(Math.round(coordsToUse.x)));
+      qs.set('y', String(Math.round(coordsToUse.y)));
     }
     const qStr = qs.toString() ? `?${qs.toString()}` : '';
 
@@ -565,7 +588,10 @@ export class MultiplayerClient {
     const idChanged = !this.profile || this.profile.id !== data.profile.id;
     this.saveStoredToken(data.token);
     this.profile = data.profile;
-    if (idChanged) this.connectWebSocket();
+    this.preferredCharacterId = data.profile?.activeCharacterId || null;
+    this.preferredRoom = null;
+    this.currentCoords = null;
+    if (idChanged) this.connectWebSocket(true);
     return data.profile;
   }
 
@@ -573,7 +599,10 @@ export class MultiplayerClient {
     const data = await this.apiCall('/api/auth/login', 'POST', { username, password });
     this.saveStoredToken(data.token);
     this.profile = data.profile;
-    this.connectWebSocket();
+    this.preferredCharacterId = data.profile?.activeCharacterId || null;
+    this.preferredRoom = null;
+    this.currentCoords = null;
+    this.connectWebSocket(true);
     return data.profile;
   }
 

@@ -358,4 +358,85 @@ export function buildTileSprites(sprites) {
     sprites.tiles[`abyssal_${v}`] = c;
   }
 
+  // Interior Floors, Carpets, Wainscoted Walls, Void Surround & Exit Doormat
+  for (let v = 0; v < 2; v++) {
+    // Warm Oak Plank Floor
+    const { c: wc, ctx: wctx } = makeCanvas(16, 16);
+    rect(wctx, 0, 0, 16, 16, v === 0 ? '#6b4226' : '#633c22');
+    for (let y = 0; y < 16; y += 4) {
+      rect(wctx, 0, y, 16, 1, '#452715');
+      rect(wctx, 0, y + 1, 16, 1, '#7c4d2e');
+    }
+    const seamX = v === 0 ? 5 : 11;
+    rect(wctx, seamX, 0, 1, 4, '#3b1f10');
+    rect(wctx, (seamX + 6) % 16, 4, 1, 4, '#3b1f10');
+    rect(wctx, (seamX + 2) % 16, 8, 1, 4, '#3b1f10');
+    rect(wctx, (seamX + 9) % 16, 12, 1, 4, '#3b1f10');
+    sprites.tiles[`interior_wood_${v}`] = wc;
+
+    // Polished Checkered Marble / Masonry Floor (Bank Hall, Smithy, Observatory)
+    const { c: sc, ctx: sctx } = makeCanvas(16, 16);
+    rect(sctx, 0, 0, 16, 16, v === 0 ? '#334155' : '#293548');
+    rect(sctx, 0, 0, 8, 8, '#3e4c63');
+    rect(sctx, 8, 8, 8, 8, '#3e4c63');
+    rect(sctx, 0, 7, 16, 1, '#1e293b');
+    rect(sctx, 7, 0, 1, 16, '#1e293b');
+    rect(sctx, 1, 1, 6, 1, '#64748b');
+    rect(sctx, 9, 9, 6, 1, '#64748b');
+    sprites.tiles[`interior_stone_${v}`] = sc;
+
+    // Wainscoted Timber & Plaster Wall Trim
+    const { c: wallc, ctx: wallctx } = makeCanvas(16, 16);
+    rect(wallctx, 0, 0, 16, 4, '#1a110d');
+    rect(wallctx, 0, 4, 16, 6, v === 0 ? '#cbb89d' : '#c2ae92');
+    rect(wallctx, 0, 10, 16, 6, '#57331c');
+    rect(wallctx, 0, 10, 16, 1, '#855331');
+    rect(wallctx, 3, 12, 1, 3, '#3b1f10');
+    rect(wallctx, 11, 12, 1, 3, '#3b1f10');
+    rect(wallctx, 0, 15, 16, 1, '#29150a');
+    sprites.tiles[`interior_wall_${v}`] = wallc;
+
+    // Atmospheric Dark Indoor Surround Void
+    const { c: vc, ctx: vctx } = makeCanvas(16, 16);
+    rect(vctx, 0, 0, 16, 16, v === 0 ? '#07050c' : '#09060f');
+    px(vctx, v === 0 ? 4 : 11, 7, '#110d1a');
+    sprites.tiles[`interior_void_${v}`] = vc;
+  }
+
+  // Ornate Interior Rugs (Red, Blue, Green, Purple)
+  const carpetColors = {
+    red: ['#7f1d1d', '#991b1b', '#facc15', '#b91c1c'],
+    blue: ['#1e3a8a', '#1d4ed8', '#38bdf8', '#2563eb'],
+    green: ['#14532d', '#166534', '#fde047', '#15803d'],
+    purple: ['#4c1d95', '#5b21b6', '#e879f9', '#6d28d9'],
+  };
+  for (const [key, [dark, mid, trim, hi]] of Object.entries(carpetColors)) {
+    const { c, ctx } = makeCanvas(16, 16);
+    rect(ctx, 0, 0, 16, 16, mid);
+    rect(ctx, 1, 1, 14, 14, dark);
+    rect(ctx, 2, 2, 12, 12, mid);
+    px(ctx, 4, 4, trim);
+    px(ctx, 11, 4, trim);
+    px(ctx, 4, 11, trim);
+    px(ctx, 11, 11, trim);
+    rect(ctx, 6, 6, 4, 4, hi);
+    rect(ctx, 7, 7, 2, 2, trim);
+    sprites.tiles[`interior_carpet_${key}`] = c;
+  }
+
+  // Welcoming Exit Doormat with South Arrow
+  {
+    const { c, ctx } = makeCanvas(16, 16);
+    rect(ctx, 0, 0, 16, 16, '#452715');
+    rect(ctx, 1, 2, 14, 12, '#92400e');
+    rect(ctx, 2, 3, 12, 10, '#b45309');
+    rect(ctx, 3, 4, 10, 8, '#78350f');
+    // Glowing golden exit chevron pointing south
+    rect(ctx, 7, 5, 2, 4, '#fde047');
+    rect(ctx, 5, 8, 6, 1, '#fde047');
+    rect(ctx, 6, 9, 4, 1, '#fef08a');
+    rect(ctx, 7, 10, 2, 1, '#ffffff');
+    sprites.tiles.interior_doormat = c;
+  }
+
 }

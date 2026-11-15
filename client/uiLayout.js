@@ -6,6 +6,54 @@
 const STORAGE_KEY = 'glimmerfall_custom_ui_layout';
 const UI_SCALE_KEY = 'glimmerfall_custom_ui_scale';
 const SNAP_THRESHOLD = 15; // Pixel distance before magnetic snap triggers
+const HUD_STACK_GAP = 8;
+
+function getSavedUiLayout() {
+  if (typeof localStorage === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function setStyleIfChanged(el, prop, value) {
+  if (!el || !el.style) return;
+  if (el.style[prop] !== value) {
+    el.style[prop] = value;
+  }
+}
+
+function measureVisualRect(el, fallbackLeft, fallbackTop, fallbackW, fallbackH, scale = 1) {
+  if (el && typeof el.getBoundingClientRect === 'function') {
+    const r = el.getBoundingClientRect();
+    if (r && (r.width > 0 || r.height > 0)) {
+      return {
+        left: r.left,
+        top: r.top,
+        right: r.right,
+        bottom: r.bottom,
+        width: r.width,
+        height: r.height,
+      };
+    }
+  }
+  const left = Number.isFinite(parseFloat(el?.style?.left)) ? parseFloat(el.style.left) : fallbackLeft;
+  const top = Number.isFinite(parseFloat(el?.style?.top)) ? parseFloat(el.style.top) : fallbackTop;
+  const width = (el?.offsetWidth > 0 ? el.offsetWidth : fallbackW) * scale;
+  const height = (el?.offsetHeight > 0 ? el.offsetHeight : fallbackH) * scale;
+  return {
+    left,
+    top,
+    right: left + width,
+    bottom: top + height,
+    width,
+    height,
+  };
+}
 
 export function getUiScale() {
   const custom = (typeof localStorage !== 'undefined' ? localStorage.getItem(UI_SCALE_KEY) : null) || 'auto';
@@ -39,6 +87,7 @@ export function setUiScale(val = 'auto') {
   if (typeof window !== 'undefined' && typeof window.fitDock === 'function') {
     window.fitDock();
   }
+  reflowDefaultHudStack();
 }
 
 export function cycleUiScale() {
@@ -55,11 +104,109 @@ export function applySavedUiScale() {
   setUiScale(saved);
 }
 let isDragging = false;
+let isReflowing = false;
+let hudResizeObserver = null;
 let currentDragEl = null;
 let dragStartX = 0;
 let dragStartY = 0;
 let elemStartLeft = 0;
 let elemStartTop = 0;
+
+/**
+ * Dynamically stacks default (un-customized) top-left HUD widgets
+ * (#player-unit-frame -> #party-hud -> #quest-tracker -> invite toasts)
+ * based on actual scaled rendered bounds so they never overlap out of the box.
+ */
+export function reflowDefaultHudStack() {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return;
+  if (isDragging || isReflowing || document.body?.classList?.contains('ui-edit-mode')) return;
+
+  isReflowing = true;
+  try {
+    const savedLayout = getSavedUiLayout();
+    const { scale } = getUiScale();
+    const hudScale = scale || 1;
+    const winW = window.innerWidth || 1280;
+    const winH = window.innerHeight || 720;
+
+    const avatarEl = document.getElementById('player-unit-frame');
+    const partyEl = document.getElementById('party-hud');
+    const questEl = document.getElementById('quest-tracker');
+    const chatEl = document.getElementById('social-chat-panel');
+    const topRightEl = document.getElementById('top-right-hud');
+    const partyToastEl = document.getElementById('party-invite-toast');
+    const arenaToastEl = document.getElementById('arena-invite-toast');
+
+    if (avatarEl && !savedLayout['player-unit-frame']) {
+      setStyleIfChanged(avatarEl, 'left', '12px');
+      setStyleIfChanged(avatarEl, 'top', '12px');
+      setStyleIfChanged(avatarEl, 'right', '');
+      setStyleIfChanged(avatarEl, 'bottom', '');
+      setStyleIfChanged(avatarEl, 'transform', '');
+    }
+    const avatarRect = measureVisualRect(avatarEl, 12, 12, 262, 108, hudScale);
+
+    const partyTop = Math.round(avatarRect.bottom + HUD_STACK_GAP);
+    if (partyEl && !savedLayout['party-hud']) {
+      setStyleIfChanged(partyEl, 'left', '12px');
+      setStyleIfChanged(partyEl, 'top', `${partyTop}px`);
+      setStyleIfChanged(partyEl, 'right', 'auto');
+      setStyleIfChanged(partyEl, 'bottom', 'auto');
+      setStyleIfChanged(partyEl, 'transform', '');
+    }
+    const partyRect = measureVisualRect(partyEl, 12, partyTop, 262, 92, hudScale);
+
+    const leftColRight = Math.max(avatarRect.right, partyRect.right);
+    const chatRect = chatEl ? measureVisualRect(chatEl, 12, winH - 220 * hudScale, 292, 208, hudScale) : null;
+    const chatSharesLeftCol = chatRect && chatRect.left < leftColRight + 24 && chatRect.top > 120;
+    const stackBottomLimit = chatSharesLeftCol ? chatRect.top - 10 : winH - 12;
+
+    const questTop = Math.round(partyRect.bottom + HUD_STACK_GAP + 2);
+    const availBelowParty = stackBottomLimit - questTop;
+
+    if (questEl && !savedLayout['quest-tracker']) {
+      const sideLeft = Math.round(leftColRight + 12);
+      const topRightLeft = topRightEl
+        ? measureVisualRect(topRightEl, winW - 184 * hudScale, 12, 172, 240, hudScale).left
+        : winW - 190;
+      const canPlaceSideColumn = availBelowParty < 105 && topRightLeft - 12 - sideLeft >= 210 * hudScale;
+
+      if (canPlaceSideColumn) {
+        setStyleIfChanged(questEl, 'left', `${sideLeft}px`);
+        setStyleIfChanged(questEl, 'top', '52px');
+        setStyleIfChanged(questEl, 'right', 'auto');
+        setStyleIfChanged(questEl, 'bottom', 'auto');
+        setStyleIfChanged(questEl, 'transform', '');
+        setStyleIfChanged(questEl, 'maxHeight', `${Math.max(96, Math.floor((winH - 180) / hudScale))}px`);
+      } else {
+        setStyleIfChanged(questEl, 'left', '12px');
+        setStyleIfChanged(questEl, 'top', `${questTop}px`);
+        setStyleIfChanged(questEl, 'right', 'auto');
+        setStyleIfChanged(questEl, 'bottom', 'auto');
+        setStyleIfChanged(questEl, 'transform', '');
+        setStyleIfChanged(questEl, 'maxHeight', `${Math.max(88, Math.floor(availBelowParty / hudScale))}px`);
+      }
+    }
+
+    const questRect = measureVisualRect(questEl, 12, questTop, 280, 140, hudScale);
+    const questInLeftCol = questRect.left < 120;
+    const toastAnchorBottom = questInLeftCol ? Math.max(partyRect.bottom, questRect.bottom) : partyRect.bottom;
+    const baseToastTop = Math.min(Math.round(toastAnchorBottom + HUD_STACK_GAP), Math.max(12, winH - 150));
+
+    if (partyToastEl) {
+      setStyleIfChanged(partyToastEl, 'left', '12px');
+      setStyleIfChanged(partyToastEl, 'top', `${baseToastTop}px`);
+    }
+    if (arenaToastEl) {
+      const partyToastVisible = partyToastEl && partyToastEl.style.display !== 'none' && partyToastEl.style.display !== '';
+      const arenaToastTop = partyToastVisible ? baseToastTop + 76 : baseToastTop;
+      setStyleIfChanged(arenaToastEl, 'left', '12px');
+      setStyleIfChanged(arenaToastEl, 'top', `${Math.min(arenaToastTop, Math.max(12, winH - 80))}px`);
+    }
+  } finally {
+    isReflowing = false;
+  }
+}
 
 export function initUiLayout() {
   if (typeof document === 'undefined') return;
@@ -75,7 +222,19 @@ export function initUiLayout() {
     panel.addEventListener('touchstart', (e) => onPanelMouseDown(e, panel), { passive: false });
   });
 
-  // 3. Bind global mouse/touch movement & auto-scaling
+  // 3. Observe size changes on left-column HUD panels so dynamic updates never overlap
+  if (typeof ResizeObserver !== 'undefined') {
+    if (hudResizeObserver) hudResizeObserver.disconnect();
+    hudResizeObserver = new ResizeObserver(() => {
+      reflowDefaultHudStack();
+    });
+    ['player-unit-frame', 'party-hud', 'social-chat-panel'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) hudResizeObserver.observe(el);
+    });
+  }
+
+  // 4. Bind global mouse/touch movement & auto-scaling
   window.addEventListener('mousemove', onWindowMouseMove);
   window.addEventListener('mouseup', onWindowMouseUp);
   window.addEventListener('touchmove', onWindowMouseMove, { passive: false });
@@ -84,16 +243,16 @@ export function initUiLayout() {
     const mode = typeof localStorage !== 'undefined' ? localStorage.getItem(UI_SCALE_KEY) : 'auto';
     if (!mode || mode === 'auto') {
       setUiScale('auto');
+    } else {
+      reflowDefaultHudStack();
     }
   });
 }
 export function applySavedUiLayout() {
   if (typeof localStorage === 'undefined') return;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const layout = JSON.parse(raw);
-    if (typeof layout !== 'object' || !layout) return;
+    const layout = getSavedUiLayout();
+    const hasCustomEntries = Object.keys(layout).length > 0;
 
     const enforceBounds = () => {
       for (const [id, pos] of Object.entries(layout)) {
@@ -133,15 +292,16 @@ export function applySavedUiLayout() {
           el.style.transform = 'none';
         }
       }
+      reflowDefaultHudStack();
     };
 
-    // Apply immediately
+    // Apply immediately (including non-overlapping default HUD stack for un-customized panels)
     enforceBounds();
     
-    // Re-apply once the window has fully loaded to ensure offsetWidth is 100% accurate
+    // Re-apply once the window has fully loaded so rendered heights are 100% accurate
     if (document.readyState === 'complete') {
       setTimeout(enforceBounds, 100);
-    } else {
+    } else if (hasCustomEntries || typeof window !== 'undefined') {
       window.addEventListener('load', enforceBounds);
     }
   } catch (err) {
@@ -347,6 +507,7 @@ export function resetDefaultUiLayout() {
     panel.style.right = '';
     panel.style.bottom = '';
     panel.style.transform = '';
+    panel.style.maxHeight = '';
   });
 
   const dock = document.getElementById('bottom-bar-dock');
@@ -360,6 +521,7 @@ export function resetDefaultUiLayout() {
   }
 
   toggleUiEditMode(false);
+  reflowDefaultHudStack();
 
   if (typeof window.spawnFCT === 'function' && window.player) {
     window.spawnFCT(window.player.x, window.player.y - 14, '↺ DEFAULT UI LAYOUT RESTORED', '#fde047');
@@ -372,6 +534,7 @@ if (typeof window !== 'undefined') {
   window.toggleUiEditMode = toggleUiEditMode;
   window.saveAndLockUiLayout = saveAndLockUiLayout;
   window.resetDefaultUiLayout = resetDefaultUiLayout;
+  window.reflowDefaultHudStack = reflowDefaultHudStack;
   window.setUiScale = setUiScale;
   window.cycleUiScale = cycleUiScale;
   window.getUiScale = getUiScale;

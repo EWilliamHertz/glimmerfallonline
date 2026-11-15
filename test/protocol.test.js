@@ -16,10 +16,10 @@ test('tick constants match the authoritative 20 Hz loop', () => {
   assert.equal(protocol.TICK_MS, 50);
 });
 
-test('character XP curve compounds and stays monotonic through level 30', () => {
+test('character XP curve compounds and stays monotonic through level 70', () => {
   assert.equal(protocol.xpForNextLevel(1), 80);
   let previous = 0;
-  for (let level = 1; level <= 30; level += 1) {
+  for (let level = 1; level <= protocol.MAX_BASE_LEVEL; level += 1) {
     const need = protocol.xpForNextLevel(level);
     assert.ok(Number.isInteger(need), `level ${level} XP requirement should be an integer`);
     assert.ok(need > previous, `level ${level} must cost more XP than level ${level - 1}`);
@@ -2309,6 +2309,452 @@ test('Black screen fixes, click-only Atlas edges, Healing Springs sprites/aura, 
     rm.stop();
   }
 });
+
+test('Default HUD stack: Avatar (#player-unit-frame), Party (#party-hud), Quest Tracker (#quest-tracker), and Chat never overlap', async () => {
+  const { reflowDefaultHudStack, applySavedUiLayout, resetDefaultUiLayout } = await import('../client/uiLayout.js');
+
+  const prevWindow = global.window;
+  const prevDocument = global.document;
+  const prevStorage = global.localStorage;
+
+  try {
+    const store = new Map();
+    const mockStorage = {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k),
+    };
+
+    let currentScale = 1.25;
+    function makePanel(id, { left = 12, top = 12, width = 262, height = 104, bottomAnchor = null, fixedRight = null } = {}) {
+      const el = {
+        id,
+        style: { left: `${left}px`, top: `${top}px`, maxHeight: '', display: '' },
+        dataset: {},
+        offsetWidth: width,
+        offsetHeight: height,
+        addEventListener: () => {},
+        getBoundingClientRect() {
+          const w = el.offsetWidth * currentScale;
+          const h = el.offsetHeight * currentScale;
+          const l = fixedRight !== null
+            ? (mockWindow.innerWidth - fixedRight - w)
+            : (Number.isFinite(parseFloat(el.style.left)) ? parseFloat(el.style.left) : left);
+          const t = bottomAnchor !== null
+            ? (mockWindow.innerHeight - bottomAnchor - h)
+            : (Number.isFinite(parseFloat(el.style.top)) ? parseFloat(el.style.top) : top);
+          const clampedH = Number.isFinite(parseFloat(el.style.maxHeight))
+            ? Math.min(h, parseFloat(el.style.maxHeight) * currentScale)
+            : h;
+          return { left: l, top: t, right: l + w, bottom: t + clampedH, width: w, height: clampedH };
+        },
+      };
+      return el;
+    }
+
+    const elements = new Map([
+      ['player-unit-frame', makePanel('player-unit-frame', { left: 12, top: 12, width: 262, height: 108 })],
+      ['party-hud', makePanel('party-hud', { left: 12, top: 132, width: 262, height: 168 })],
+      ['quest-tracker', makePanel('quest-tracker', { left: 12, top: 236, width: 280, height: 190 })],
+      ['social-chat-panel', makePanel('social-chat-panel', { left: 12, width: 292, height: 210, bottomAnchor: 12 })],
+      ['top-right-hud', makePanel('top-right-hud', { top: 12, width: 172, height: 240, fixedRight: 12 })],
+      ['party-invite-toast', makePanel('party-invite-toast', { left: 12, top: 416, width: 262, height: 70 })],
+      ['arena-invite-toast', makePanel('arena-invite-toast', { left: 12, top: 492, width: 262, height: 70 })],
+    ]);
+
+    const mockWindow = {
+      innerWidth: 1920,
+      innerHeight: 1080,
+      addEventListener: () => {},
+    };
+    const mockDocument = {
+      readyState: 'complete',
+      body: { classList: { contains: () => false, add: () => {}, remove: () => {} } },
+      documentElement: { style: { setProperty: (_, val) => { currentScale = parseFloat(val) || 1; } } },
+      getElementById: (id) => elements.get(id) || null,
+      querySelectorAll: () => Array.from(elements.values()),
+    };
+
+    global.window = mockWindow;
+    global.document = mockDocument;
+    global.localStorage = mockStorage;
+
+    // 1. Default 1080p desktop / high-DPI screen (1.25x Auto scale) with 3-member party
+    currentScale = 1.25;
+    applySavedUiLayout();
+    const avatar1080 = elements.get('player-unit-frame').getBoundingClientRect();
+    const party1080 = elements.get('party-hud').getBoundingClientRect();
+    const quest1080 = elements.get('quest-tracker').getBoundingClientRect();
+    const chat1080 = elements.get('social-chat-panel').getBoundingClientRect();
+    assert.ok(party1080.top >= avatar1080.bottom + 8, `Party HUD (${party1080.top}) must sit below Avatar (${avatar1080.bottom})`);
+    assert.ok(quest1080.top >= party1080.bottom + 8, `Quest Tracker (${quest1080.top}) must sit below Party HUD (${party1080.bottom})`);
+    assert.ok(quest1080.bottom <= chat1080.top, `Quest Tracker (${quest1080.bottom}) must not overlap Chat (${chat1080.top})`);
+
+    // 2. Compact short viewport (900x520) should never let Quest Tracker overlap Party HUD or Chat
+    mockWindow.innerWidth = 900;
+    mockWindow.innerHeight = 520;
+    currentScale = 0.9;
+    reflowDefaultHudStack();
+    const partyShort = elements.get('party-hud').getBoundingClientRect();
+    const questShort = elements.get('quest-tracker').getBoundingClientRect();
+    const chatShort = elements.get('social-chat-panel').getBoundingClientRect();
+    const overlapsPartyAndQuest = !(questShort.right <= partyShort.left || questShort.left >= partyShort.right || questShort.bottom <= partyShort.top || questShort.top >= partyShort.bottom);
+    assert.ok(!overlapsPartyAndQuest, 'Quest Tracker and Party HUD must never overlap on compact viewports');
+    const overlapsQuestAndChat = !(questShort.right <= chatShort.left || questShort.left >= chatShort.right || questShort.bottom <= chatShort.top || questShort.top >= chatShort.bottom);
+    assert.ok(!overlapsQuestAndChat, 'Quest Tracker and Chat must never overlap on compact viewports');
+
+    // 3. Explicit Settings customization is respected until Reset Default UI is clicked
+    mockWindow.innerWidth = 1920;
+    mockWindow.innerHeight = 1080;
+    currentScale = 1.0;
+    mockStorage.setItem('glimmerfall_custom_ui_layout', JSON.stringify({
+      'quest-tracker': { left: '520px', top: '90px' },
+    }));
+    applySavedUiLayout();
+    assert.equal(elements.get('quest-tracker').style.left, '520px');
+    assert.equal(elements.get('quest-tracker').style.top, '90px');
+
+    resetDefaultUiLayout();
+    const partyReset = elements.get('party-hud').getBoundingClientRect();
+    const questReset = elements.get('quest-tracker').getBoundingClientRect();
+    assert.equal(elements.get('quest-tracker').style.left, '12px');
+    assert.ok(questReset.top >= partyReset.bottom + 8, 'Reset Default UI must restore clean non-overlapping vertical stack');
+  } finally {
+    global.window = prevWindow;
+    global.document = prevDocument;
+    global.localStorage = prevStorage;
+  }
+});
+
+test('Trial Mode enforcement allows continued Level 10 play while Founder raises cap to Level 70', () => {
+  assert.equal(protocol.TRIAL_MAX_LEVEL, 10);
+  assert.equal(protocol.MAX_BASE_LEVEL, 70);
+  assert.equal(protocol.FOUNDER_MAX_LEVEL, 70);
+  assert.equal(protocol.TRIAL_MAX_PROFESSION_LEVEL, 30);
+  assert.equal(protocol.TRIAL_MAX_BANK_SLOTS, 30);
+  assert.equal(protocol.FOUNDER_MAX_BANK_SLOTS, 140);
+
+  assert.equal(protocol.getCharacterLevelCap('free'), 10);
+  assert.equal(protocol.getCharacterLevelCap('founder'), 70);
+  assert.equal(protocol.getProfessionLevelCap('free'), 30);
+  assert.equal(protocol.getProfessionLevelCap('founder'), 99);
+  assert.equal(protocol.getBankCapacityCap('free'), 30);
+  assert.equal(protocol.getBankCapacityCap('founder'), 140);
+
+  // Trial starter/warzone/citadel/arena realms stay open; endgame/outer realms require Founder
+  assert.equal(protocol.isRoomUnlockedForEdition(protocol.ROOM_TYPES.SANCTUARY_HUB, 'free'), true);
+  assert.equal(protocol.isRoomUnlockedForEdition(protocol.ROOM_TYPES.NEXUS_WARZONE, 'free'), true);
+  assert.equal(protocol.isRoomUnlockedForEdition(protocol.ROOM_TYPES.IRONWOOD_TIMBERLANDS, 'free'), true);
+  assert.equal(protocol.isRoomUnlockedForEdition(protocol.ROOM_TYPES.STARFALL_CRATER, 'free'), false);
+  assert.equal(protocol.isRoomUnlockedForEdition(protocol.ROOM_TYPES.CHRONOCORE_CITADEL, 'free'), false);
+  assert.equal(protocol.isRoomUnlockedForEdition(protocol.ROOM_TYPES.STARFALL_CRATER, 'founder'), true);
+  assert.equal(protocol.isRoomUnlockedForEdition(protocol.ROOM_TYPES.CHRONOCORE_CITADEL, 'founder'), true);
+
+  const accounts = new AccountsStore();
+  accounts.saveSerialKeysLocal = () => {};
+  accounts.schedulePersist = () => {};
+  const rm = new RoomManager({
+    accountsStore: accounts,
+    partyManager: { syncPlayerVitals: () => {} },
+  });
+
+  try {
+    const trialPackets = [];
+    const trialPlayer = {
+      id: 'p_trial_tester',
+      username: 'trial_tester',
+      displayName: 'TrialTester',
+      faction: 'Solari',
+      classId: 'solari_vanguard',
+      editionTier: 'free',
+      hp: 100,
+      maxHp: 100,
+      shield: 0,
+      solarCharge: 0,
+      maxSolarCharge: 30,
+      inventory: [],
+      gold: 5000,
+      prog: protocol.createDefaultProgression(),
+      ws: { readyState: 1, send: (d) => trialPackets.push(JSON.parse(d)) },
+      send: (pkt) => trialPackets.push(pkt),
+    };
+    const partnerPackets = [];
+    const partnerPlayer = {
+      id: 'p_partner_founder',
+      username: 'partner_founder',
+      displayName: 'FounderPartner',
+      faction: 'Solari',
+      classId: 'solari_vanguard',
+      editionTier: 'founder',
+      hp: 100,
+      maxHp: 100,
+      shield: 0,
+      solarCharge: 0,
+      maxSolarCharge: 30,
+      inventory: [],
+      gold: 5000,
+      prog: protocol.createDefaultProgression(),
+      ws: { readyState: 1, send: (d) => partnerPackets.push(JSON.parse(d)) },
+      send: (pkt) => partnerPackets.push(pkt),
+    };
+
+    const sanctRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.SANCTUARY_HUB);
+    rm.joinRoom(trialPlayer, sanctRoom.id);
+    rm.joinRoom(partnerPlayer, sanctRoom.id);
+    assert.equal(trialPlayer.roomType, protocol.ROOM_TYPES.SANCTUARY_HUB);
+
+    // 1. Massive XP stops Trial hero cleanly at Level 10 (no Level 11, no Paragon overflow), hero stays alive & playable
+    rm.awardPlayerXP(trialPlayer, 500000, 'Trial Surge');
+    assert.equal(trialPlayer.prog.level, 10, 'Trial character must cap cleanly at Level 10');
+    assert.equal(trialPlayer.prog.paragonLevel, 0, 'Trial character must not overflow into Paragon at Lv. 10');
+    assert.equal(trialPlayer.hp, trialPlayer.maxHp, 'Hero continues playable at Lv. 10');
+
+    // Subsequent XP at Lv. 10 remains safe and non-blocking for ongoing Trial gameplay
+    rm.awardPlayerXP(trialPlayer, 2500, 'Ongoing Lv10 Mob Kill');
+    assert.equal(trialPlayer.prog.level, 10);
+    assert.equal(trialPlayer.prog.paragonLevel, 0);
+
+    // 2. Trial Artisan/Combat skills cap cleanly at Level 30
+    rm.awardProfessionXP(trialPlayer, 'resonance_extraction', 1000000, 'Trial Mining');
+    assert.equal(trialPlayer.prog.professions.resonance_extraction.level, 30, 'Trial skill must cap at Lv. 30');
+
+    // 3. Trial players cannot enter Founder-only zones via portal or room switch
+    const craterRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.STARFALL_CRATER);
+    rm.joinRoom(trialPlayer, craterRoom.id);
+    assert.equal(trialPlayer.roomType, protocol.ROOM_TYPES.SANCTUARY_HUB, 'Trial player must remain in Sanctuary when gated from Founder realm');
+    assert.ok(trialPackets.some((p) => p.type === 'trial_gate' && p.feature === 'zone'));
+
+    // 4. Trial players are gated from Grand Exchange orders and direct trade requests
+    trialPackets.length = 0;
+    rm.handlePacket(trialPlayer, {
+      type: 'exchange_place_order',
+      side: 'buy',
+      itemId: 'sunfire_essence',
+      qty: 1,
+      priceEach: 50,
+    });
+    assert.ok(trialPackets.some((p) => p.type === 'trial_gate' && p.feature === 'exchange'));
+
+    trialPackets.length = 0;
+    rm.handlePacket(trialPlayer, {
+      type: 'trade_request',
+      target: partnerPlayer.id,
+    });
+    assert.ok(trialPackets.some((p) => p.type === 'trial_gate' && p.feature === 'trade'));
+
+    // 5. After upgrading account to Founder Edition (Lv. 70 max), hero levels cleanly past Lv. 47 up to Lv. 70 before Paragon
+    const acctId = 'acct_ewach_test';
+    const highLevelProg = { ...protocol.createDefaultProgression(), level: 47, statPoints: 138, skillPoints: 46 };
+    const testAcc = {
+      id: acctId,
+      username: 'ewach_test',
+      displayName: 'EWACH',
+      faction: 'Solari',
+      classId: 'solari_vanguard',
+      editionTier: 'founder',
+      redeemedSerialKey: 'GF-TEST-7070-EWCH',
+      progression: highLevelProg,
+      statsMeta: { editionTier: 'founder', redeemedSerialKey: 'GF-TEST-7070-EWCH', kills: 0 },
+    };
+    accounts.accountsById.set(acctId, testAcc);
+    accounts.idByUsername.set('ewach_test', acctId);
+
+    // Save progression with kills patch must preserve Lv. 47 AND editionTier!
+    accounts.saveProgression(acctId, highLevelProg, { addKills: 5 });
+    assert.equal(testAcc.progression.level, 47, 'Characters above Lv. 30 (e.g. Lv. 47) must be preserved up to Lv. 70');
+    assert.equal(testAcc.statsMeta.editionTier, 'founder', 'Saving progression must preserve editionTier');
+    assert.equal(testAcc.statsMeta.kills, 5);
+
+    // Founder leveling past 47 stops base levels at 70 and only overflows into Paragon at Lv. 70+
+    trialPlayer.editionTier = 'founder';
+    trialPlayer.prog.level = 47;
+    trialPlayer.prog.xp = 0;
+    trialPlayer.prog.statPoints = 138;
+    trialPlayer.prog.skillPoints = 46;
+    rm.awardPlayerXP(trialPlayer, 50000000, 'Founder Endgame Push');
+    assert.equal(trialPlayer.prog.level, 70, 'Founder character must advance all the way to Lv. 70 max base level');
+    assert.equal(trialPlayer.prog.paragonLevel, 0, 'Reaching Lv. 70 stops base leveling cleanly before Paragon XP begins');
+    rm.awardPlayerXP(trialPlayer, 5000, 'Post-70 Paragon Resonance');
+    assert.ok(trialPlayer.prog.paragonLevel > 0, 'Founder character must overflow into Paragon only after reaching Lv. 70');
+
+    // Founder player can enter Founder realms
+    rm.joinRoom(trialPlayer, craterRoom.id);
+    assert.equal(trialPlayer.roomType, protocol.ROOM_TYPES.STARFALL_CRATER);
+  } finally {
+    rm.stop();
+  }
+});
+
+test('Vite dev/preview config proxies /admin to the MMO backend and public/admin portal exists', async () => {
+  const viteCfgMod = await import('../vite.config.js');
+  const viteCfg = viteCfgMod.default;
+  assert.ok(viteCfg?.server?.proxy?.['/admin'], 'vite.config.js server.proxy must forward /admin to :3001');
+  assert.equal(viteCfg.server.proxy['/admin'].target, 'http://127.0.0.1:3001');
+  assert.ok(viteCfg?.preview?.proxy?.['/admin'], 'vite.config.js preview.proxy must forward /admin to :3001');
+  assert.equal(viteCfg.preview.proxy['/admin'].target, 'http://127.0.0.1:3001');
+
+  const adminHtmlPath = path.resolve(process.cwd(), 'public/admin/index.html');
+  assert.ok(fs.existsSync(adminHtmlPath), 'public/admin/index.html must exist');
+  const adminHtml = fs.readFileSync(adminHtmlPath, 'utf8');
+  assert.ok(adminHtml.includes('/api/admin/auth'), 'admin portal must call /api/admin/auth');
+  assert.ok(adminHtml.includes('/api/admin/keys/generate'), 'admin portal must call /api/admin/keys/generate');
+});
+
+test('AetherVault Bank Rework: Skill classification, recipe hints, gear diff, Quick-Stack, and smart sort', async () => {
+  const bankMeta = await import('../client/ui/bankMetadata.js');
+  const bankUi = await import('../client/bankUi.js');
+  const invHelpers = await import('../client/ui/inventoryHelpers.js');
+
+  // 1. Every item in EQUIPMENT_CATALOG classifies cleanly with non-empty skills, category, and role info
+  for (const itemId of Object.keys(protocol.EQUIPMENT_CATALOG)) {
+    const meta = bankMeta.classifyBankItem(itemId);
+    assert.ok(meta, `Missing classification for ${itemId}`);
+    assert.ok(['gear', 'material', 'consumable', 'gems_keys', 'currency'].includes(meta.category), `Invalid category for ${itemId}: ${meta.category}`);
+    assert.ok(Array.isArray(meta.skills) && meta.skills.length > 0, `Item ${itemId} must map to at least one skill`);
+    assert.ok(meta.roleLabel && meta.roleIcon, `Item ${itemId} must have readable roleLabel and roleIcon`);
+  }
+
+  // Spot-check skill tags & crafting recipe hints
+  const oreMeta = bankMeta.classifyBankItem('sun_copper_ore');
+  assert.equal(oreMeta.category, 'material');
+  assert.ok(oreMeta.skills.includes('resonance_extraction') && oreMeta.skills.includes('relic_forging'));
+  assert.ok(oreMeta.usedInRecipes.length > 0, 'Sun-Copper Ore must expose crafting recipe hints');
+
+  const skillcapeMeta = bankMeta.classifyBankItem('skillcape_forging');
+  assert.equal(skillcapeMeta.category, 'gear');
+  assert.ok(skillcapeMeta.skills.includes('relic_forging'));
+
+  const keyMeta = bankMeta.classifyBankItem('keystone_solari_1');
+  assert.equal(keyMeta.category, 'gems_keys');
+  assert.equal(keyMeta.tierLabel, 'T1');
+
+  // 2. Rarity colors distinguish Uncommon, Rare, Epic, Legendary, Mythic, Skill Mastery
+  assert.equal(invHelpers.getRarityColor('Uncommon'), '#4ade80');
+  assert.equal(invHelpers.getRarityColor('Rare'), '#38bdf8');
+  assert.equal(invHelpers.getRarityColor('Epic'), '#c084fc');
+  assert.equal(invHelpers.getRarityColor('Legendary'), '#fb923c');
+  assert.equal(invHelpers.getRarityColor('Mythic'), '#f59e0b');
+  assert.equal(invHelpers.getRarityColor('Skill Mastery'), '#fde047');
+
+  // 3. Gear comparison handles armor -> body alias cleanly
+  const diff = bankMeta.compareGearWithEquipped('sunforged_plate', {
+    equipment: { body: null },
+  });
+  assert.ok(diff && diff.targetSlot === 'body' && diff.diffs.some((d) => d.key === 'bastion' && d.delta > 0));
+
+  // 4. Terraria-style Quick Stack deposits only matching bank stacks & preserves non-matching bag items
+  const profile = {
+    id: 'bank_rework_tester',
+    inventory: [
+      { id: 'sun_copper_ore', qty: 12 },
+      { id: 'minor_healing_salve', qty: 4 },
+      { id: 'iron_broadsword', qty: 1 },
+    ],
+    bank: [
+      { id: 'sun_copper_ore', qty: 8 },
+      { id: 'solar_gold', qty: 500 },
+    ],
+  };
+  const stackedTypes = bankUi.quickStackBackpackToBank(profile);
+  assert.equal(stackedTypes, 1, 'Only sun_copper_ore matched an existing bank stack');
+  assert.equal(profile.bank.find((b) => b.id === 'sun_copper_ore').qty, 20);
+  assert.equal(profile.inventory.length, 2, 'Non-matching salve & sword stay in backpack');
+
+  // 5. Smart sort preserves all stacks cleanly and orders currencies before gear
+  profile.bank.push({ id: 'iron_broadsword', qty: 1 });
+  const sorted = bankUi.sortBankItems(profile, 'smart');
+  assert.equal(sorted.length, 3);
+  assert.equal(sorted[0].id, 'solar_gold');
+});
+
+test('Login & Reconnect preserve saved lastPosition and string reqX/reqY without flashing to Sanctuary spawn', async () => {
+  const { AccountsStore } = await import('../server/accountsStore.js');
+  const { RoomManager } = await import('../server/roomManager.js');
+
+  const accounts = new AccountsStore();
+  const rm = new RoomManager(accounts);
+  try {
+    const accId = 'pos_test_acc';
+    const charId = 'pos_test_chr';
+    const ch = {
+      id: charId,
+      accountId: accId,
+      name: 'PosPreserver',
+      faction: 'Solari',
+      classId: 'solari_vanguard',
+      orderTag: 'SUN',
+      orderName: 'Order of Dawn',
+      orderColor: '#facc15',
+      homeBiome: protocol.ROOM_TYPES.SANCTUARY_HUB,
+      loadout: { ...protocol.CLASSES_CATALOG.solari_vanguard.defaultLoadout },
+      equipment: { ...protocol.CLASSES_CATALOG.solari_vanguard.defaultEquipment },
+      inventory: [],
+      bank: [],
+      progression: protocol.createDefaultProgression(),
+      lastPosition: { roomType: protocol.ROOM_TYPES.SOLARI_CITADEL, x: 142, y: -64 },
+    };
+    const acc = {
+      id: accId,
+      username: 'pos_tester',
+      displayName: 'PosPreserver',
+      faction: 'Solari',
+      classId: 'solari_vanguard',
+      activeCharacterId: charId,
+      progression: ch.progression,
+      lastPosition: ch.lastPosition,
+    };
+    accounts.accountsById.set(accId, acc);
+    accounts.idByUsername.set('pos_tester', accId);
+    accounts.charactersByAccount.set(accId, new Map([[charId, ch]]));
+
+    const packetsA = [];
+    const fakeWsA = { readyState: 1, send: (raw) => packetsA.push(JSON.parse(raw)), close: () => {} };
+    const clientA = rm.attachConnection(fakeWsA, acc, null, null, null, charId);
+    assert.equal(clientA.roomType, protocol.ROOM_TYPES.SOLARI_CITADEL);
+    assert.equal(clientA.x, 142);
+    assert.equal(clientA.y, -64);
+
+    // String query params (as returned by url.searchParams.get) must be parsed and honored
+    const packetsB = [];
+    const fakeWsB = { readyState: 1, send: (raw) => packetsB.push(JSON.parse(raw)), close: () => {} };
+    const clientB = rm.attachConnection(fakeWsB, acc, protocol.ROOM_TYPES.SANCTUARY_HUB, '210', '-85', charId);
+    assert.equal(clientB.roomType, protocol.ROOM_TYPES.SANCTUARY_HUB);
+    assert.equal(clientB.x, 210);
+    assert.equal(clientB.y, -85);
+
+    const serverIdxSrc = fs.readFileSync(path.resolve(process.cwd(), 'server/index.js'), 'utf8');
+    assert.ok(
+      serverIdxSrc.includes('charObj.lastPosition?.roomType') && serverIdxSrc.includes('rooms.joinRoom(liveClient, charObj.lastPosition.roomType, null, charObj.lastPosition.x, charObj.lastPosition.y)'),
+      'POST /api/characters must preserve charObj.lastPosition coordinates when joining room',
+    );
+  } finally {
+    rm.stop();
+  }
+});
+
+test('Commander Valerius quest marker, dialogue, and Founder title badge cleanup', () => {
+  const dialoguesSrc = fs.readFileSync(path.resolve(process.cwd(), 'client/game/dialoguesData.js'), 'utf8');
+  assert.ok(!dialoguesSrc.includes('Order Banner [B]'), 'WARZONE_DIALOGUE must not reference removed Order Banner [B]');
+  assert.ok(dialoguesSrc.includes('claim Vanguard Bounties'), 'WARZONE_DIALOGUE should mention Vanguard Bounties instead');
+
+  const gameSrc = fs.readFileSync(path.resolve(process.cwd(), 'client/game.js'), 'utf8');
+  const statusFnStart = gameSrc.indexOf('function getNpcQuestStatus(');
+  assert.ok(statusFnStart !== -1, 'getNpcQuestStatus must exist in client/game.js');
+  const statusFnSnippet = gameSrc.slice(statusFnStart, statusFnStart + 900);
+  assert.ok(
+    !statusFnSnippet.includes("if (q.turnInId === npcId && q.isComplete()) return 'finished';"),
+    'getNpcQuestStatus must require active quest state before showing finished marker for turnInId',
+  );
+
+  const socialUiSrc = fs.readFileSync(path.resolve(process.cwd(), 'client/socialUi.js'), 'utf8');
+  assert.ok(
+    !socialUiSrc.includes('ctx.fillRect(titlePlateX, titlePlateY, titlePlateW, 1)'),
+    'drawPixelNameplateAndBubbles must not draw stray yellow top line on title badge',
+  );
+});
+
+
+
 
 
 

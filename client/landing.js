@@ -2163,7 +2163,7 @@ export class LandingPageController {
             </span>
             <h2 class="section-heading">👑 CHOOSE YOUR EDITION</h2>
           </div>
-          <span style="font-size:12px; color:#94a3b8;">Play free up to Level 10 or unlock the complete content forever</span>
+          <span style="font-size:12px; color:#94a3b8;">Keep playing freely at Level 10 or unlock the complete content forever</span>
         </div>
 
         <div class="gf-editions-grid">
@@ -2207,7 +2207,7 @@ export class LandingPageController {
                 Unlock every endgame biome, Grand Exchange trading, Level 99 Mastery Capes, and exclusive Founder cosmetics.
               </p>
               <ul class="system-card-bullets" style="font-size:13px; color:#f8fafc; gap:9px;">
-                <li class="system-card-bullet"><span class="bullet-icon">★</span><span>Full <b>Level 30 Cap + Paragon 100</b> &amp; All 7 Skills to <b>Level 99 Mastery Capes</b></span></li>
+                <li class="system-card-bullet"><span class="bullet-icon">★</span><span>Full <b>Level 70 Cap + Paragon 100</b> &amp; All 7 Skills to <b>Level 99 Mastery Capes</b></span></li>
                 <li class="system-card-bullet"><span class="bullet-icon">★</span><span>Unlock Endgame Realms: <b>Starfall Crater, Abyssal Rift &amp; Chronocore Citadel</b></span></li>
                 <li class="system-card-bullet"><span class="bullet-icon">★</span><span>Full <b>AetherSwap Grand Exchange</b> Orderbook &amp; Player-to-Player Trading</span></li>
                 <li class="system-card-bullet"><span class="bullet-icon">★</span><span>Expanded <b>140-Slot Account Bank</b>, 3 Quick-Swap Build Presets &amp; <b>[FOUNDER]</b> Title</span></li>

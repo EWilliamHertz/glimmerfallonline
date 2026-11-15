@@ -105,8 +105,6 @@ export function drawPixelNameplateAndBubbles(ctx, {
     ctx.fillStyle = 'rgba(5, 7, 15, 0.88)';
     ctx.fillRect(titlePlateX, titlePlateY, titlePlateW, titlePlateH);
     ctx.fillStyle = '#fde047';
-    ctx.fillRect(titlePlateX, titlePlateY, titlePlateW, 1);
-    ctx.fillStyle = '#fde047';
     ctx.fillText(titleLabel, rx, titlePlateY + titlePlateH - (isHd ? 2 : 1));
     topBadgeY = titlePlateY;
   }
@@ -224,11 +222,12 @@ export function renderPartyHud(party, selfId, fallbackSelf = null) {
   if (!header || !listEl) return;
 
   if (!party || !party.members || party.members.length <= 1) {
-    header.innerText = '🛡️ PARTY / SQUAD (SOLO • 1/3)';
-    if (leaveBtn) leaveBtn.style.display = 'none';
+    const nextHeader = '🛡️ PARTY / SQUAD (SOLO • 1/3)';
+    if (header.innerText !== nextHeader) header.innerText = nextHeader;
+    if (leaveBtn && leaveBtn.style.display !== 'none') leaveBtn.style.display = 'none';
     const soloMember = party?.members?.[0] || fallbackSelf;
     const soloMeta = soloMember ? (FACTIONS_META[soloMember.faction] || FACTIONS_META.Solari) : null;
-    listEl.innerHTML = `
+    const nextHtml = `
       ${soloMember ? `
         <div class="party-member-row" style="border-left:2px solid ${soloMeta.color}; padding-left:5px; margin-bottom:3px;">
           <div style="display:flex; justify-content:space-between; align-items:center; color:#f8fafc; font-size:9.5px;">
@@ -241,13 +240,20 @@ export function renderPartyHud(party, selfId, fallbackSelf = null) {
         Press <b style="color:#4ade80;">[O]</b> or click a player to invite up to 3 champions (<b style="color:#fde047;">+25% Co-op XP</b>).
       </div>
     `;
+    if (listEl.innerHTML !== nextHtml) {
+      listEl.innerHTML = nextHtml;
+    }
+    if (typeof window !== 'undefined' && typeof window.reflowDefaultHudStack === 'function') {
+      window.reflowDefaultHudStack();
+    }
     return;
   }
 
-  header.innerText = `🛡️ ACTIVE PARTY (${party.members.length}/3 • +25% XP)`;
-  if (leaveBtn) leaveBtn.style.display = 'inline-block';
+  const activeHeader = `🛡️ ACTIVE PARTY (${party.members.length}/3 • +25% XP)`;
+  if (header.innerText !== activeHeader) header.innerText = activeHeader;
+  if (leaveBtn && leaveBtn.style.display !== 'inline-block') leaveBtn.style.display = 'inline-block';
 
-  listEl.innerHTML = party.members
+  const activeHtml = party.members
     .map((m) => {
       const fMeta = FACTIONS_META[m.faction] || FACTIONS_META.Solari;
       const hp = Math.round(m.hp ?? 25);
@@ -268,6 +274,12 @@ export function renderPartyHud(party, selfId, fallbackSelf = null) {
       `;
     })
     .join('');
+  if (listEl.innerHTML !== activeHtml) {
+    listEl.innerHTML = activeHtml;
+  }
+  if (typeof window !== 'undefined' && typeof window.reflowDefaultHudStack === 'function') {
+    window.reflowDefaultHudStack();
+  }
 }
 
 export function renderAccountModal({ profile, authTab = 'register', statusMsg = '' }) {
@@ -376,12 +388,19 @@ export function renderAccountModal({ profile, authTab = 'register', statusMsg = 
         </div>
       </div>
 
-      <div style="background:#080c18; border:2px solid #1e293b; padding:10px 12px;">
-        <div style="font-family:var(--font-header); font-size:12px; font-weight:700; color:#facc15; margin-bottom:6px;">
-          3. FOUNDER'S EDITION SERIAL KEY (€6.99)
+      <div style="background:#080c18; border:2px solid ${(p.editionTier === 'founder' || p.redeemedSerialKey) ? '#facc15' : '#1e293b'}; padding:10px 12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px;">
+          <div style="font-family:var(--font-header); font-size:12px; font-weight:700; color:#facc15;">
+            3. FOUNDER'S EDITION SERIAL KEY (€6.99)
+          </div>
+          <span style="font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; ${(p.editionTier === 'founder' || p.redeemedSerialKey) ? 'background:rgba(250,204,21,0.18); color:#fde047; border:1px solid #facc15;' : 'background:rgba(56,189,248,0.14); color:#7dd3fc; border:1px solid #38bdf8;'}">
+            ${(p.editionTier === 'founder' || p.redeemedSerialKey) ? '👑 FOUNDER (LV. 70 + PARAGON)' : '🛡️ TRIAL (LV. 10 PLAYABLE)'}
+          </span>
         </div>
         <p style="font-size:11px; color:#cbd5e1; line-height:1.45; margin-bottom:8px;">
-          Redeem a <b>GF-XXXX-XXXX-XXXX</b> Founder Serial Key to unlock the <b>[FOUNDER]</b> title, 140-slot bank vault, and full progression!
+          ${(p.editionTier === 'founder' || p.redeemedSerialKey)
+            ? '<b>Founder Edition Active!</b> Level 70 + Paragon 100, Lv. 99 Mastery Skills, 140-slot AetherVault, Grand Exchange, Direct Trade &amp; all endgame realms unlocked.'
+            : 'In <b>Free Trial</b>, you can keep playing indefinitely at <b>Lv. 10</b> (Skills up to Lv. 30, 30-slot Vault, Starter &amp; Warzone realms). Enter a <b>GF-XXXX-XXXX-XXXX</b> key below to unlock <b>Lv. 70 + Paragon 100</b>, Lv. 99 skills, 140-slot Vault, Trading &amp; all endgame realms!'}
         </p>
         <div style="display:flex; flex-direction:column; gap:6px;">
           <input id="serial-key-input" class="pixel-input" placeholder="GF-XXXX-XXXX-XXXX" value="${p.redeemedSerialKey || ''}" style="font-size:11px; padding:6px 8px; text-transform:uppercase;" />

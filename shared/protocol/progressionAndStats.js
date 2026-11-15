@@ -2,7 +2,36 @@ import { CLASSES_CATALOG } from "./factionsAndClasses.js";
 import { EQUIPMENT_CATALOG, getActiveSetBonuses, getActiveRuneword } from "./setsAndRunewords.js";
 import { PROFESSIONS_CATALOG } from "./craftingAndSkilling.js";
 
-export const MAX_BASE_LEVEL = 30;
+export const TRIAL_MAX_LEVEL = 10;
+export const TRIAL_MAX_PROFESSION_LEVEL = 30;
+export const TRIAL_MAX_BANK_SLOTS = 30;
+export const FOUNDER_MAX_BANK_SLOTS = 140;
+export const MAX_BASE_LEVEL = 70;
+export const FOUNDER_MAX_LEVEL = MAX_BASE_LEVEL;
+
+export function isFounderEdition(subject) {
+  if (!subject) return false;
+  if (typeof subject === 'string') return subject === 'founder';
+  return Boolean(
+    subject.editionTier === 'founder' ||
+      subject.statsMeta?.editionTier === 'founder' ||
+      subject.redeemedSerialKey ||
+      subject.statsMeta?.redeemedSerialKey ||
+      subject.tcgLinked
+  );
+}
+
+export function getCharacterLevelCap(subject) {
+  return isFounderEdition(subject) ? MAX_BASE_LEVEL : TRIAL_MAX_LEVEL;
+}
+
+export function getProfessionLevelCap(subject) {
+  return isFounderEdition(subject) ? 99 : TRIAL_MAX_PROFESSION_LEVEL;
+}
+
+export function getBankCapacityCap(subject) {
+  return isFounderEdition(subject) ? FOUNDER_MAX_BANK_SLOTS : TRIAL_MAX_BANK_SLOTS;
+}
 
 export const PARAGON_AFFINITIES = {
   solari_radiance: {
@@ -168,12 +197,13 @@ export function calcEntityLevel(progression) {
   const forging = getLvl('relic_forging');
   const binding = getLvl('rite_binding');
   const weaving = getLvl('glimmerweaving');
-  const baseLvl = Math.max(1, Math.min(30, Math.floor(Number(progression.level) || 1)));
+  const baseLvl = Math.max(1, Math.min(MAX_BASE_LEVEL, Math.floor(Number(progression.level) || 1)));
   const paragonLvl = Math.max(0, Math.floor(Number(progression.paragonLevel) || 0));
 
-  // Continental Entity Level Algorithm (Scales from 3 to 126, and up to 138 with Paragon):
+  // Continental Entity Level Algorithm (Scales from 3 to 126 at Lv.30+Skills, 138 w/ Paragon, up to 150 at Lv.70+Paragon):
   // 1. Foundation Base: Armor forging, leyline resonance extraction, and core champion level
-  const base = 0.25 * (forging + extraction + Math.floor(baseLvl * 3.25));
+  const baseLevelFactor = baseLvl <= 30 ? Math.floor(baseLvl * 3.25) : 97 + Math.floor((baseLvl - 30) * 1.2);
+  const base = 0.25 * (forging + extraction + baseLevelFactor);
 
   // 2. Offense Specialization: Highest of Martial Combat, Channeled Rites, or Instant Flashes
   const offense = 0.325 * (Math.max(combat, rites, flashes) * 1.35);
@@ -185,7 +215,7 @@ export function calcEntityLevel(progression) {
   const paragonBonus = Math.min(12, Math.floor(paragonLvl * 0.12));
 
   const raw = Math.floor(base + offense + synergy + paragonBonus);
-  return Math.max(3, Math.min(138, raw));
+  return Math.max(3, Math.min(150, raw));
 }
 
 export function getEntityCombatArchetype(progression) {
@@ -236,10 +266,127 @@ export function createDefaultProgression() {
       terra_bulwark: 0,
       aether_chronoflux: 0,
     },
+    tempering: {},
+    achievements: { completed: {}, unlockedTitles: [] },
+    equippedTitle: null,
   };
 }
 
-export function getEquipmentStatBonuses(equipment = {}, classId = 'solari_vanguard') {
+export const MAX_TEMPER_RANK = 5;
+export const TEMPERABLE_SLOTS = [
+  'weapon', 'body', 'head', 'shield', 'legs', 'hands', 'feet', 'neck', 'ring', 'cape',
+];
+
+export function normalizeTemperSlotKey(slotKey) {
+  if (slotKey === 'armor') return 'body';
+  if (slotKey === 'offhand') return 'shield';
+  return slotKey;
+}
+
+export function getTemperSlotRank(prog, slotKey) {
+  const key = normalizeTemperSlotKey(slotKey);
+  const raw = Number(prog?.tempering?.[key]) || 0;
+  return Math.max(0, Math.min(MAX_TEMPER_RANK, Math.floor(raw)));
+}
+
+export function getTemperBonusesForSlot(slotKey, rank) {
+  const r = Math.max(0, Math.min(MAX_TEMPER_RANK, Math.floor(Number(rank) || 0)));
+  if (r <= 0) return null;
+  const key = normalizeTemperSlotKey(slotKey);
+  if (key === 'weapon') {
+    return { power: r * 2, bastion: 0, resonance: 0, tempo: r, maxHp: 0, maxGlimmer: 0, critPct: r * 0.01 };
+  }
+  if (key === 'body' || key === 'head' || key === 'shield') {
+    return { power: 0, bastion: r * 2, resonance: 0, tempo: 0, maxHp: r * 8, maxGlimmer: 0, critPct: 0 };
+  }
+  if (key === 'legs' || key === 'hands' || key === 'feet') {
+    return { power: r, bastion: r, resonance: 0, tempo: 0, maxHp: r * 4, maxGlimmer: 0, critPct: 0 };
+  }
+  if (key === 'neck' || key === 'ring' || key === 'cape') {
+    return { power: 0, bastion: 0, resonance: r * 2, tempo: r, maxHp: 0, maxGlimmer: r * 6, critPct: 0 };
+  }
+  return null;
+}
+
+export function getTotalTemperBonuses(prog, equipment = {}) {
+  const tot = { power: 0, bastion: 0, resonance: 0, tempo: 0, maxHp: 0, maxGlimmer: 0, critPct: 0 };
+  if (!prog?.tempering) return tot;
+  for (const slotKey of TEMPERABLE_SLOTS) {
+    const equippedId = equipment?.[slotKey] || (slotKey === 'body' ? equipment?.armor : slotKey === 'shield' ? equipment?.offhand : null);
+    if (!equippedId) continue;
+    const rank = getTemperSlotRank(prog, slotKey);
+    const b = getTemperBonusesForSlot(slotKey, rank);
+    if (!b) continue;
+    for (const k of Object.keys(tot)) tot[k] += b[k] || 0;
+  }
+  return tot;
+}
+
+export function pickBestTemperTarget(prog, equipment = {}, minRank = 0, maxRank = MAX_TEMPER_RANK, preferredSlot = null) {
+  const minR = Math.max(0, Math.floor(Number(minRank) || 0));
+  const maxR = Math.min(MAX_TEMPER_RANK, Math.floor(Number(maxRank) || MAX_TEMPER_RANK));
+  const candidates = preferredSlot
+    ? [normalizeTemperSlotKey(preferredSlot)]
+    : TEMPERABLE_SLOTS;
+
+  for (const slotKey of candidates) {
+    if (!TEMPERABLE_SLOTS.includes(slotKey)) continue;
+    const equippedId = equipment?.[slotKey] || (slotKey === 'body' ? equipment?.armor : slotKey === 'shield' ? equipment?.offhand : null);
+    if (!equippedId || !EQUIPMENT_CATALOG[equippedId]) continue;
+    const curRank = getTemperSlotRank(prog, slotKey);
+    if (curRank >= minR && curRank < maxR) {
+      return { slotKey, itemId: equippedId, curRank, nextRank: curRank + 1 };
+    }
+  }
+  return null;
+}
+
+export function applyTemperingUpgrade(prog, equipment = {}, sigilItem, preferredSlot = null) {
+  if (!prog || !sigilItem?.temperTargetMax) {
+    return { ok: false, reason: 'Invalid Tempering Sigil' };
+  }
+  const minR = sigilItem.temperMinRank ?? 0;
+  const maxR = sigilItem.temperTargetMax;
+  const target = pickBestTemperTarget(prog, equipment, minR, maxR, preferredSlot);
+  if (!target) {
+    if (preferredSlot) {
+      const slotKey = normalizeTemperSlotKey(preferredSlot);
+      const curRank = getTemperSlotRank(prog, slotKey);
+      const hasGear = Boolean(equipment?.[slotKey] || (slotKey === 'body' ? equipment?.armor : slotKey === 'shield' ? equipment?.offhand : null));
+      if (!hasGear) return { ok: false, reason: `Equip an item in ${slotKey.toUpperCase()} first` };
+      if (curRank < minR) return { ok: false, reason: `Temper ${slotKey.toUpperCase()} to +${minR} before using ${sigilItem.name}` };
+      return { ok: false, reason: `${slotKey.toUpperCase()} is already at +${curRank} (max +${maxR} for this sigil)` };
+    }
+    return { ok: false, reason: `No worn gear eligible (+${minR} to +${maxR - 1})` };
+  }
+  if (!prog.tempering || typeof prog.tempering !== 'object') prog.tempering = {};
+  prog.tempering[target.slotKey] = target.nextRank;
+  return {
+    ok: true,
+    slotKey: target.slotKey,
+    itemId: target.itemId,
+    newRank: target.nextRank,
+  };
+}
+
+export function getActiveCombatConsumableBonuses(actor) {
+  const b = { power: 0, bastion: 0, resonance: 0, tempo: 0, critPct: 0, critLeechPct: 0 };
+  if (actor?.weaponImbue && (actor.weaponImbue.timer || 0) > 0) {
+    b.power += actor.weaponImbue.power || 0;
+    b.resonance += actor.weaponImbue.resonance || 0;
+    b.tempo += actor.weaponImbue.tempo || 0;
+    b.critPct += actor.weaponImbue.critPct || 0;
+    b.critLeechPct += actor.weaponImbue.critLeechPct || 0;
+  }
+  if (actor?.wellFedBuff && (actor.wellFedBuff.timer || 0) > 0) {
+    b.power += actor.wellFedBuff.power || 0;
+    b.bastion += actor.wellFedBuff.bastion || 0;
+    b.resonance += actor.wellFedBuff.resonance || 0;
+  }
+  return b;
+}
+
+export function getEquipmentStatBonuses(equipment = {}, classId = 'solari_vanguard', prog = null) {
   const bonus = { power: 0, bastion: 0, resonance: 0, tempo: 0 };
   const cls = CLASSES_CATALOG[classId];
   if (cls?.bonusStats) {
@@ -269,11 +416,19 @@ export function getEquipmentStatBonuses(equipment = {}, classId = 'solari_vangua
       if (k in bonus) bonus[k] += v;
     }
   }
+  // Add Artisan Gear Tempering (+1 to +5) bonus stats!
+  if (prog) {
+    const temper = getTotalTemperBonuses(prog, equipment);
+    bonus.power += temper.power;
+    bonus.bastion += temper.bastion;
+    bonus.resonance += temper.resonance;
+    bonus.tempo += temper.tempo;
+  }
   return bonus;
 }
 
 export function getEffectiveStats(prog, equipment = {}, classId = 'solari_vanguard') {
-  const b = getEquipmentStatBonuses(equipment, classId);
+  const b = getEquipmentStatBonuses(equipment, classId, prog);
   return {
     power: (prog?.stats?.power || 2) + b.power,
     bastion: (prog?.stats?.bastion || 2) + b.bastion,
@@ -287,7 +442,8 @@ export function xpForNextLevel(lvl) {
   if (l === 1) return 80;
   if (l <= 8) return Math.round(80 * Math.pow(1.52, l - 1)); // ~52% incremental increase per level
   if (l <= 20) return Math.round(80 * Math.pow(1.52, 7) * Math.pow(1.22, l - 8));
-  return Math.round(80 * Math.pow(1.52, 7) * Math.pow(1.22, 12) * Math.pow(1.10, l - 20));
+  if (l <= 30) return Math.round(80 * Math.pow(1.52, 7) * Math.pow(1.22, 12) * Math.pow(1.10, l - 20));
+  return Math.round(80 * Math.pow(1.52, 7) * Math.pow(1.22, 12) * Math.pow(1.10, 10) * Math.pow(1.05, l - 30));
 }
 
 export function calcMaxHp(prog, equipment = {}, classId = 'solari_vanguard') {
@@ -296,12 +452,13 @@ export function calcMaxHp(prog, equipment = {}, classId = 'solari_vanguard') {
   const { active } = getActiveSetBonuses(equipment);
   const titanHp = active.some((s) => s.id === 'aurelius_titan') ? 150 : 0;
   const rwHp = getActiveRuneword(equipment)?.bonusHp || 0;
+  const temperHp = getTotalTemperBonuses(prog, equipment).maxHp;
   let flatEquipHp = 0;
   for (const itemId of Object.values(equipment || {})) {
     const item = EQUIPMENT_CATALOG[itemId];
     if (item?.stats?.maxHp) flatEquipHp += Number(item.stats.maxHp) || 0;
   }
-  return 25 + ((prog?.level || 1) - 1) * 3 + (eff.bastion - 2) * 3 + paragonHp + titanHp + rwHp + flatEquipHp;
+  return 25 + ((prog?.level || 1) - 1) * 3 + (eff.bastion - 2) * 3 + paragonHp + titanHp + rwHp + temperHp + flatEquipHp;
 }
 
 export function calcMaxGlimmer(prog, equipment = {}, classId = 'solari_vanguard') {
@@ -310,12 +467,13 @@ export function calcMaxGlimmer(prog, equipment = {}, classId = 'solari_vanguard'
   const { active } = getActiveSetBonuses(equipment);
   const titanGlimmer = active.some((s) => s.id === 'aurelius_titan') ? 40 : 0;
   const rwGlimmer = getActiveRuneword(equipment)?.bonusGlimmer || 0;
+  const temperGlimmer = getTotalTemperBonuses(prog, equipment).maxGlimmer;
   let flatEquipGlimmer = 0;
   for (const itemId of Object.values(equipment || {})) {
     const item = EQUIPMENT_CATALOG[itemId];
     if (item?.stats?.maxGlimmer) flatEquipGlimmer += Number(item.stats.maxGlimmer) || 0;
   }
-  return 100 + (eff.resonance - 1) * 8 + paragonGlimmer + titanGlimmer + rwGlimmer + flatEquipGlimmer;
+  return 100 + (eff.resonance - 1) * 8 + paragonGlimmer + titanGlimmer + rwGlimmer + temperGlimmer + flatEquipGlimmer;
 }
 
 export function calcCritChance(prog, equipment = {}, classId = 'solari_vanguard') {
@@ -324,7 +482,8 @@ export function calcCritChance(prog, equipment = {}, classId = 'solari_vanguard'
   const { active } = getActiveSetBonuses(equipment);
   const duskveilCrit = active.some((s) => s.id === 'duskveil_reaver') ? 0.18 : 0;
   const rwCrit = getActiveRuneword(equipment)?.bonusCrit || 0;
-  return Math.min(0.85, 0.2 + eff.tempo * 0.025 + paragonCrit + duskveilCrit + rwCrit);
+  const temperCrit = getTotalTemperBonuses(prog, equipment).critPct;
+  return Math.min(0.85, 0.2 + eff.tempo * 0.025 + paragonCrit + duskveilCrit + rwCrit + temperCrit);
 }
 
 export function calcCdMult(prog, equipment = {}, classId = 'solari_vanguard', faction = 'Solari') {

@@ -327,6 +327,8 @@ export function renderAchievementsModal({
 // 3. STAT & ACHIEVEMENT RECORDING ENGINE
 // ------------------------------------------
 
+const _sessionUnlockedAch = new Set();
+
 export function recordAchievementStat(prog, statKey, delta = 1, onUnlock) {
   if (!prog) return [];
   prog.stats = prog.stats || {};
@@ -336,10 +338,15 @@ export function recordAchievementStat(prog, statKey, delta = 1, onUnlock) {
   prog.achievements.completed = prog.achievements.completed || {};
   prog.achievements.unlockedTitles = prog.achievements.unlockedTitles || [];
 
+  const charKey = (typeof window !== 'undefined' && (window._fp?.net?.profile?.activeCharacterId || window._fp?.selectedCharacterId)) || 'local';
   const newlyUnlocked = [];
 
   for (const ach of ACHIEVEMENTS_CATALOG) {
-    if (prog.achievements.completed[ach.id]) continue;
+    const dedupeKey = `${charKey}:${ach.id}`;
+    if (prog.achievements.completed[ach.id]) {
+      _sessionUnlockedAch.add(dedupeKey);
+      continue;
+    }
     if (ach.statKey === statKey) {
       const current = Number(prog.stats[statKey]) || 0;
       if (current >= ach.targetCount) {
@@ -349,9 +356,15 @@ export function recordAchievementStat(prog, statKey, delta = 1, onUnlock) {
         if (ach.unlockedTitle && !prog.achievements.unlockedTitles.includes(ach.unlockedTitle)) {
           prog.achievements.unlockedTitles.push(ach.unlockedTitle);
         }
-        newlyUnlocked.push(ach);
-        if (typeof onUnlock === 'function') {
-          onUnlock(ach);
+        if (typeof window !== 'undefined' && window._fp?.net?.connected) {
+          window._fp.net.send({ type: 'unlock_achievement', achievementId: ach.id });
+        }
+        if (!_sessionUnlockedAch.has(dedupeKey)) {
+          _sessionUnlockedAch.add(dedupeKey);
+          newlyUnlocked.push(ach);
+          if (typeof onUnlock === 'function') {
+            onUnlock(ach);
+          }
         }
       }
     }

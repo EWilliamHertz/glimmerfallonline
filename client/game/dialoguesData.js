@@ -66,7 +66,7 @@ const WARZONE_DIALOGUE = [
   {
     speaker: 'COMMANDER VALERIUS • SUNSPIRE WARLORD',
     spriteKey: 'warzoneArchonNpc',
-    text: 'Defend your Faction’s 25-HP Outpost Nexus, shatter rival Outposts, plant your Order Banner [B] (+1 Power), or venture North into the Forgotten Ruins!',
+    text: 'Defend your Faction’s 25-HP Outpost Nexus, shatter rival Outposts, claim Vanguard Bounties, or venture North into the Forgotten Ruins!',
   },
 ];
 

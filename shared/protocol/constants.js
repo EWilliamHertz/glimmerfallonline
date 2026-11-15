@@ -84,11 +84,28 @@ export const OFF_GCD_KINDS = new Set([
   'dash',
   'stealth',
   'archon_form',
+  'shadow_step',
+  'dash_cleave',
+  'iron_fortify',
+  'bramble_burst',
+  'colossus_stomp',
+  'frost_nova',
+  'ethereal_jaunt',
+  'rift_teleport',
 ]);
+
+export const INTERRUPT_VULN_DURATION_SEC = 3.0;
+export const INTERRUPT_VULN_MULT = 1.35;
+export const INTERRUPT_STUN_SEC = 1.5;
 
 export function isAbilityOffGCD(spec) {
   if (!spec) return false;
   return Boolean(spec.isOffGCD) || OFF_GCD_KINDS.has(spec.kind);
+}
+
+export function canAbilityInterrupt(spec) {
+  if (!spec) return false;
+  return Boolean(spec.tcgType?.includes('Flash') && isAbilityOffGCD(spec));
 }
 
 

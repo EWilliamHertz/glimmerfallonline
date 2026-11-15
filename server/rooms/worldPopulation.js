@@ -64,6 +64,7 @@ import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './const
 
 export const worldPopulationMethods = {
   populateRoomEntities(room) {
+    if (ROOM_CONFIGS[room.type]?.isInterior) return;
     if (room.type === ROOM_TYPES.SANCTUARY_HUB) {
       room.entities.push(
         {

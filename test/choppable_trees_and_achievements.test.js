@@ -100,3 +100,22 @@ test('Day 21 In-Game Achievements & TCG Lore Codex Engine', () => {
   assert.equal(protocol.sanitizePlayerTitle('<Crimson Arborist>'), 'Crimson Arborist');
   assert.equal(protocol.sanitizePlayerTitle('InvalidNonExistentTitle'), null);
 });
+
+test('Crimson Blossom Tree (red tree) defines and renders a dedicated chopped-down stump sprite', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  assert.equal(protocol.SKILLING_NODE_TYPES.tree_blossom.spriteEmpty, 'treeBlossomEmpty');
+
+  const spriteSrc = fs.readFileSync(path.resolve(process.cwd(), 'client/sprites/entityAndMonsterSprites.js'), 'utf8');
+  assert.ok(spriteSrc.includes('sprites.treeBlossomEmpty'), 'entityAndMonsterSprites must build sprites.treeBlossomEmpty');
+
+  const gameSrc = fs.readFileSync(path.resolve(process.cwd(), 'client/game.js'), 'utf8');
+  assert.ok(
+    !gameSrc.includes("ent.skillingType === 'tree_blossom' && (ent.charges ?? 0) <= 0"),
+    'game.js render loop must not hide depleted tree_blossom nodes',
+  );
+  assert.ok(
+    !gameSrc.includes("e.skillingType === 'tree_blossom' && (e.charges ?? 0) <= 0"),
+    'game.js minimap loop must not hide depleted tree_blossom nodes',
+  );
+});

@@ -177,6 +177,24 @@ export function buildEntityAndMonsterSprites(sprites) {
     rect(ctx, 12, 21, 4, 2, '#d97706');
     sprites.treeEmpty = addPixelOutline(c);
   }
+  {
+    const { c, ctx } = makeCanvas(28, 32);
+    // Chopped Crimson Blossom Tree stump with dark bark, rose-crimson heartwood & fallen petals
+    rect(ctx, 9, 22, 10, 8, '#271b12');
+    rect(ctx, 10, 22, 8, 7, '#451a03');
+    rect(ctx, 7, 28, 3, 2, '#271b12');
+    rect(ctx, 18, 28, 3, 2, '#271b12');
+    rect(ctx, 10, 20, 8, 3, '#9d174d');
+    rect(ctx, 11, 20, 6, 2, '#be185d');
+    rect(ctx, 12, 21, 4, 1, '#f472b6');
+    // Fallen crimson blossom petals around the cut stump
+    px(ctx, 6, 27, '#ec4899');
+    px(ctx, 7, 29, '#fbcfe8');
+    px(ctx, 20, 27, '#be185d');
+    px(ctx, 21, 29, '#fbcfe8');
+    px(ctx, 14, 29, '#ec4899');
+    sprites.treeBlossomEmpty = addPixelOutline(c);
+  }
 
   const buildFishingSpot = (waterDark, waterMid, rippleColor, fishGlint) => {
     const frames = [];

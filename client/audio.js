@@ -341,6 +341,12 @@ export class PixelSoundEngine {
     this.sfxGain = null;
     this.trackEl = null;
     this.currentTrackUrl = null;
+    this._pendingTrackUrl = null;
+    this._trackListenersBound = false;
+    this._lastTimeSaveAt = 0;
+    this.oneShotEl = null;
+    this._oneShotUrl = null;
+    this._oneShotRestoreFn = null;
     this.masterVolume = this.readVolume('glimmerfall_vol_master', 0.8);
     this.musicVolume = this.readVolume('glimmerfall_vol_music', 0.65);
     this.sfxVolume = this.readVolume('glimmerfall_vol_sfx', 0.8);
@@ -430,8 +436,8 @@ export class PixelSoundEngine {
     this.masterGain.connect(this.ctx.destination);
   }
 
-  init() {
-    if (!this.ctx) {
+  ensureSfxContext() {
+    if (!this.ctx && typeof window !== 'undefined') {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       if (AudioContext) this.ctx = new AudioContext();
     }
@@ -439,11 +445,47 @@ export class PixelSoundEngine {
       this.ctx.resume();
     }
     this.ensureGainNodes();
+  }
+
+  ensureTrackElement() {
+    if (this.trackEl || typeof window === 'undefined') return this.trackEl;
+    this.trackEl = new Audio();
+    if (!this._trackListenersBound) {
+      this._trackListenersBound = true;
+      this.trackEl.ontimeupdate = () => {
+        if (!this.trackEl || this.trackEl.paused) return;
+        const spec = BGM_THEMES[this.bgmTheme];
+        if (!spec?.audioFile || this.currentTrackUrl !== spec.audioFile) return;
+        const now = Date.now();
+        if (now - this._lastTimeSaveAt >= 900 && Number.isFinite(this.trackEl.currentTime) && this.trackEl.currentTime > 0) {
+          this._lastTimeSaveAt = now;
+          this.saveThemePosition(this.bgmTheme);
+        }
+      };
+      this.trackEl.onpause = () => {
+        const spec = BGM_THEMES[this.bgmTheme];
+        if (spec?.audioFile && this.currentTrackUrl === spec.audioFile) {
+          this.saveThemePosition(this.bgmTheme);
+        }
+      };
+    }
+    return this.trackEl;
+  }
+
+  init() {
+    this.ensureSfxContext();
     const spec = BGM_THEMES[this.bgmTheme] || BGM_THEMES.sanctuary;
-    if (!this.bgmMuted) {
+    if (!this.bgmMuted && !this.muted) {
       if (spec?.audioFile && typeof window !== 'undefined') {
-        if (!this.trackEl || this.trackEl.paused || this.currentTrackUrl !== spec.audioFile) {
-          this.playTrackAudio(spec.audioFile, true, this.themePositions[this.bgmTheme]?.time || 0);
+        const alreadyActive =
+          this.currentTrackUrl === spec.audioFile &&
+          this.trackEl &&
+          (!this.trackEl.paused || this._pendingTrackUrl === spec.audioFile);
+        if (!alreadyActive) {
+          const resumeTime = this.shouldResumeTheme(this.bgmTheme)
+            ? (this.themePositions[this.bgmTheme]?.time || 0)
+            : 0;
+          this.playTrackAudio(spec.audioFile, true, resumeTime);
         }
       } else if (!this.bgmTimer) {
         this.startBgmLoop();
@@ -489,10 +531,8 @@ export class PixelSoundEngine {
         clearInterval(this.bgmTimer);
         this.bgmTimer = null;
       }
-      if (!this.trackEl) {
-        this.trackEl = new Audio();
-      }
-      if (this.currentTrackUrl === url && !this.trackEl.paused) return;
+      this.ensureTrackElement();
+      if (this.currentTrackUrl === url && (!this.trackEl.paused || this._pendingTrackUrl === url)) return;
 
       const token = (this._trackToken = (this._trackToken || 0) + 1);
       if (this._pendingMetaListener) {
@@ -501,6 +541,7 @@ export class PixelSoundEngine {
       }
 
       this.currentTrackUrl = url;
+      this._pendingTrackUrl = url;
       const needsSrcChange = this.trackEl.src !== url;
       if (needsSrcChange) {
         this.trackEl.src = url;
@@ -536,20 +577,30 @@ export class PixelSoundEngine {
 
       const seekAndPlay = () => {
         if (token !== this._trackToken || this.bgmMuted || this.muted || this.currentTrackUrl !== url) return;
-        if (startTime > 0 && Number.isFinite(startTime)) {
+        const currentElTime = Number(this.trackEl.currentTime) || 0;
+        const desiredTime = !needsSrcChange && currentElTime > 0 && startTime <= 0 ? currentElTime : startTime;
+        if (desiredTime > 0 && Number.isFinite(desiredTime)) {
           try {
             if (this.trackEl.duration && Number.isFinite(this.trackEl.duration) && this.trackEl.duration > 0) {
-              this.trackEl.currentTime = startTime % this.trackEl.duration;
+              this.trackEl.currentTime = desiredTime % this.trackEl.duration;
             } else {
-              this.trackEl.currentTime = startTime;
+              this.trackEl.currentTime = desiredTime;
             }
           } catch (_) {}
         }
         const playPromise = this.trackEl.play();
         if (playPromise && typeof playPromise.then === 'function') {
           playPromise
-            .then(() => startVolumeRamp())
+            .then(() => {
+              if (this._pendingTrackUrl === url && token === this._trackToken) {
+                this._pendingTrackUrl = null;
+              }
+              startVolumeRamp();
+            })
             .catch((err) => {
+              if (this._pendingTrackUrl === url && token === this._trackToken) {
+                this._pendingTrackUrl = null;
+              }
               if (token !== this._trackToken || this.bgmMuted || this.muted) return;
               // Do not fall back to procedural chiptune on browser autoplay block or track-switch abort
               if (err?.name === 'AbortError' || err?.name === 'NotAllowedError') return;
@@ -558,6 +609,7 @@ export class PixelSoundEngine {
               this.startBgmLoop();
             });
         } else {
+          this._pendingTrackUrl = null;
           startVolumeRamp();
         }
       };
@@ -573,6 +625,7 @@ export class PixelSoundEngine {
         seekAndPlay();
       }
     } catch (err) {
+      this._pendingTrackUrl = null;
       console.warn('[AudioEngine] playTrackAudio error:', err);
       this.stopTrackAudio(false);
       this.startBgmLoop();
@@ -581,6 +634,7 @@ export class PixelSoundEngine {
 
   stopTrackAudio(resetPosition = false) {
     this._trackToken = (this._trackToken || 0) + 1;
+    this._pendingTrackUrl = null;
     if (this._fadeTimer) {
       clearInterval(this._fadeTimer);
       this._fadeTimer = null;
@@ -739,7 +793,7 @@ export class PixelSoundEngine {
 
   playTone({ type = 'square', freqs = [440], stepTime = 0.04, gainVal = 0.14, delay = 0 }) {
     if (this.muted) return;
-    this.init();
+    this.ensureSfxContext();
     if (!this.ctx) return;
 
     const now = this.ctx.currentTime + delay;
@@ -763,7 +817,7 @@ export class PixelSoundEngine {
 
   playNoise({ duration = 0.15, bandpassFreq = 900, endFreq = 120, gainVal = 0.22 }) {
     if (this.muted) return;
-    this.init();
+    this.ensureSfxContext();
     if (!this.ctx) return;
 
     const now = this.ctx.currentTime;
@@ -933,21 +987,48 @@ export class PixelSoundEngine {
   }
 
   playOneShotAudio(url, volume = 0.8) {
-    if (this.muted || typeof window === 'undefined') return;
+    if (this.muted || typeof window === 'undefined' || !url) return;
     try {
+      if (this.oneShotEl && this._oneShotUrl === url && !this.oneShotEl.paused) {
+        return;
+      }
+      if (this._oneShotRestoreFn) {
+        this._oneShotRestoreFn();
+      }
       if (this.oneShotEl) {
         try { this.oneShotEl.pause(); } catch (_) {}
       }
       const snd = new Audio(url);
       this.oneShotEl = snd;
+      this._oneShotUrl = url;
       snd.volume = Math.max(0, Math.min(1, this.sfxVolume * this.masterVolume * volume));
+
+      const wasTrackPlaying = Boolean(this.trackEl && !this.trackEl.paused && this.currentTrackUrl);
+      if (wasTrackPlaying) {
+        this.saveThemePosition(this.bgmTheme);
+      }
+
       const restoreTrackVolume = () => {
-        if (this.oneShotEl === snd && this.trackEl) {
+        if (this.oneShotEl !== snd) return;
+        this._oneShotUrl = null;
+        this._oneShotRestoreFn = null;
+        if (this.trackEl && !this.bgmMuted && !this.muted) {
           this.trackEl.volume = Math.max(0, Math.min(1, this.musicVolume * this.masterVolume));
+          // If mobile Safari/browser paused background <audio> when oneShotEl started, resume seamlessly at saved timestamp
+          if (wasTrackPlaying && this.trackEl.paused) {
+            this._pendingTrackUrl = null;
+            const spec = BGM_THEMES[this.bgmTheme];
+            const savedTime = this.themePositions[this.bgmTheme]?.time || 0;
+            if (spec?.audioFile && this.currentTrackUrl === spec.audioFile) {
+              this.playTrackAudio(spec.audioFile, true, savedTime);
+            }
+          }
         }
       };
-      if (this.trackEl && !this.trackEl.paused) {
-        this.trackEl.volume = Math.max(0, Math.min(1, this.musicVolume * this.masterVolume * 0.15));
+      this._oneShotRestoreFn = restoreTrackVolume;
+
+      if (wasTrackPlaying) {
+        this.trackEl.volume = Math.max(0, Math.min(1, this.musicVolume * this.masterVolume * 0.2));
         snd.addEventListener?.('ended', restoreTrackVolume, { once: true });
         snd.addEventListener?.('error', restoreTrackVolume, { once: true });
       }
@@ -964,34 +1045,65 @@ export class PixelSoundEngine {
   }
 
   playQuestCompleteFanfare() {
-    this.playOneShotAudio('https://o20ql1pn6r6cwj04.public.blob.vercel-storage.com/glimmerfall/audio/victory.m4a', 0.85);
-    this.init();
-    if (!this.ctx || this.muted) return;
-    // Continental Quest Complete Fanfare (C4 - E4 - G4 - C5 - E5 - G5 - C6)
-    const leadNotes = [261.63, 329.63, 392.0, 523.25, 659.25, 783.99, 1046.5];
-    const bassNotes = [130.81, 164.81, 196.0, 261.63, 329.63, 392.0, 523.25];
+    if (this.muted) return;
+    this.ensureSfxContext();
+    if (!this.ctx) return;
+    // Crisp celebratory Web Audio fanfare (C5 - E5 - G5 - C6) without interrupting or ducking zone BGM
+    const leadNotes = [523.25, 659.25, 783.99, 1046.5];
+    const harmonyNotes = [261.63, 329.63, 392.0, 523.25];
     this.playTone({
-      type: 'square',
+      type: 'triangle',
       freqs: leadNotes,
-      stepTime: 0.085,
-      gainVal: 0.2,
+      stepTime: 0.075,
+      gainVal: 0.16,
+    });
+    this.playTone({
+      type: 'sine',
+      freqs: harmonyNotes,
+      stepTime: 0.075,
+      gainVal: 0.14,
     });
     this.playTone({
       type: 'triangle',
-      freqs: bassNotes,
-      stepTime: 0.085,
-      gainVal: 0.22,
+      freqs: [1046.5, 1318.51, 1567.98],
+      stepTime: 0.18,
+      gainVal: 0.12,
+      delay: 0.3,
     });
-    // Add a final ringing harmonic chord
-    setTimeout(() => {
-      if (!this.ctx || this.muted) return;
-      this.playTone({
-        type: 'triangle',
-        freqs: [1046.5, 1318.51, 1567.98],
-        stepTime: 0.28,
-        gainVal: 0.17,
-      });
-    }, 600);
+  }
+
+  playHurt() {
+    this.playNoise({ duration: 0.12, bandpassFreq: 420, endFreq: 95, gainVal: 0.22 });
+    this.playTone({ type: 'triangle', freqs: [196.0, 146.83, 110.0], stepTime: 0.032, gainVal: 0.16 });
+  }
+
+  playClick() {
+    this.playTone({ type: 'triangle', freqs: [660, 880], stepTime: 0.018, gainVal: 0.06 });
+  }
+
+  playInventory() {
+    this.playNoise({ duration: 0.07, bandpassFreq: 1300, endFreq: 480, gainVal: 0.1 });
+    this.playTone({ type: 'triangle', freqs: [440, 587.33], stepTime: 0.025, gainVal: 0.08 });
+  }
+
+  playChop() {
+    this.playNoise({ duration: 0.09, bandpassFreq: 680, endFreq: 140, gainVal: 0.18 });
+    this.playTone({ type: 'triangle', freqs: [190, 125, 88], stepTime: 0.024, gainVal: 0.15 });
+  }
+
+  playMine() {
+    this.playNoise({ duration: 0.08, bandpassFreq: 2600, endFreq: 900, gainVal: 0.14 });
+    this.playTone({ type: 'triangle', freqs: [1396.91, 1760.0], stepTime: 0.035, gainVal: 0.11 });
+  }
+
+  playSplash() {
+    this.playNoise({ duration: 0.18, bandpassFreq: 1900, endFreq: 420, gainVal: 0.16 });
+    this.playTone({ type: 'sine', freqs: [392.0, 523.25, 659.25], stepTime: 0.03, gainVal: 0.09 });
+  }
+
+  playResonance() {
+    this.playTone({ type: 'sine', freqs: [523.25, 659.25, 783.99, 1046.5], stepTime: 0.055, gainVal: 0.11 });
+    this.playTone({ type: 'triangle', freqs: [261.63, 392.0, 523.25], stepTime: 0.075, gainVal: 0.08 });
   }
 
   playDialogue() {

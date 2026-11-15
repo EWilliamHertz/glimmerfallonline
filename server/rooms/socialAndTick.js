@@ -11,6 +11,7 @@ import {
   isSlotUnlocked,
   ROOM_TYPES,
   ROOM_CONFIGS,
+  isRoomUnlockedForEdition,
   GRAND_FONT_POSITIONS,
   HARVEST_COOLDOWN_MS,
   FACTIONS_META,
@@ -316,9 +317,23 @@ export const socialAndTickMethods = {
       if (p.treantFormTimer > 0) p.treantFormTimer = Math.max(0, p.treantFormTimer - dt);
       if (p.phaseShiftTimer > 0) p.phaseShiftTimer = Math.max(0, p.phaseShiftTimer - dt);
       if (p.temporalApotheosisTimer > 0) p.temporalApotheosisTimer = Math.max(0, p.temporalApotheosisTimer - dt);
+      if (p.weaponImbue && p.weaponImbue.timer > 0) {
+        p.weaponImbue.timer = Math.max(0, p.weaponImbue.timer - dt);
+        if (p.weaponImbue.timer <= 0) {
+          p.send?.({ type: 'sys_msg', category: 'combat', text: `🗡️ Your ${p.weaponImbue.name} weapon imbue has worn off.` });
+          p.weaponImbue = null;
+        }
+      }
+      if (p.wellFedBuff && p.wellFedBuff.timer > 0) {
+        p.wellFedBuff.timer = Math.max(0, p.wellFedBuff.timer - dt);
+        if (p.wellFedBuff.timer <= 0) {
+          p.send?.({ type: 'sys_msg', category: 'combat', text: `🍲 Your ${p.wellFedBuff.name} feast buff has worn off.` });
+          p.wellFedBuff = null;
+        }
+      }
 
-      // Campfire Resting Warmth (+5.0 HP/s and +5.0 Glimmer/s while resting near a campfire)
-      const nearCampfire = room.entities.some((e) => (e.type === 'campfire' || (e.name && e.name.includes('Campfire'))) && Math.hypot(e.x - p.x, e.y - p.y) <= 85);
+      // Campfire & Cozy Interior Warmth (+5.0 HP/s and +5.0 Glimmer/s while resting inside an inn/cottage or near a campfire)
+      const nearCampfire = room.isInterior || room.entities.some((e) => (e.type === 'campfire' || (e.name && e.name.includes('Campfire'))) && Math.hypot(e.x - p.x, e.y - p.y) <= 85);
       const campfireRegen = nearCampfire ? 5.0 : 0;
 
       // Sacred Healing Spring aura (+6.0 HP/s and +6.0 Glimmer/s while standing near an active healing spring)
@@ -471,12 +486,23 @@ export const socialAndTickMethods = {
       // Check Waygate / Rift Portals & Seamless Boundary Transitions in Room
       if (p.portalCooldown <= 0) {
         // Seamless Boundary Transitions across the expanded 48x48 perimeter (Center Border Crossing)
-        if (room.edgeTransitions) {
+        if (room.edgeTransitions || room.exitDestination) {
           const pad = 14;
           const GATE_HALF_WIDTH = 72; // Center road opening
-          if (p.x >= room.halfW - pad && room.edgeTransitions.east && Math.abs(p.y) <= GATE_HALF_WIDTH) {
+          if (room.exitDestination && p.y >= room.halfH - 18 && Math.abs(p.x) <= 36) {
+            p.portalCooldown = 1.0;
+            const ex = room.exitDestination;
+            this.joinRoom(p, ex.roomType, null, ex.x, ex.y, ex.dir || 'down');
+            continue;
+          }
+          if (p.x >= room.halfW - pad && room.edgeTransitions?.east && Math.abs(p.y) <= GATE_HALF_WIDTH) {
             p.portalCooldown = 1.0;
             const dest = room.edgeTransitions.east;
+            if (!isRoomUnlockedForEdition(dest, p)) {
+              p.x = room.halfW - 28;
+              this.joinRoom(p, dest);
+              continue;
+            }
             if (!p.portalQuestDone && dest === ROOM_TYPES.NEXUS_WARZONE) {
               p.portalQuestDone = true;
               this.awardPlayerXP(p, 40, 'Entered Nexus Warzone');
@@ -487,9 +513,14 @@ export const socialAndTickMethods = {
             this.joinRoom(p, dest, null, newX, newY, 'right');
             continue;
           }
-          if (p.x <= -room.halfW + pad && room.edgeTransitions.west && Math.abs(p.y) <= GATE_HALF_WIDTH) {
+          if (p.x <= -room.halfW + pad && room.edgeTransitions?.west && Math.abs(p.y) <= GATE_HALF_WIDTH) {
             p.portalCooldown = 1.0;
             const dest = room.edgeTransitions.west;
+            if (!isRoomUnlockedForEdition(dest, p)) {
+              p.x = -room.halfW + 28;
+              this.joinRoom(p, dest);
+              continue;
+            }
             if (!p.portalQuestDone && dest === ROOM_TYPES.NEXUS_WARZONE) {
               p.portalQuestDone = true;
               this.awardPlayerXP(p, 40, 'Entered Nexus Warzone');
@@ -500,9 +531,14 @@ export const socialAndTickMethods = {
             this.joinRoom(p, dest, null, newX, newY, 'left');
             continue;
           }
-          if (p.y <= -room.halfH + pad && room.edgeTransitions.north && Math.abs(p.x) <= GATE_HALF_WIDTH) {
+          if (p.y <= -room.halfH + pad && room.edgeTransitions?.north && Math.abs(p.x) <= GATE_HALF_WIDTH) {
             p.portalCooldown = 1.0;
             const dest = room.edgeTransitions.north;
+            if (!isRoomUnlockedForEdition(dest, p)) {
+              p.y = -room.halfH + 28;
+              this.joinRoom(p, dest);
+              continue;
+            }
             if (!p.portalQuestDone && dest === ROOM_TYPES.NEXUS_WARZONE) {
               p.portalQuestDone = true;
               this.awardPlayerXP(p, 40, 'Entered Nexus Warzone');
@@ -513,9 +549,14 @@ export const socialAndTickMethods = {
             this.joinRoom(p, dest, null, newX, newY, 'up');
             continue;
           }
-          if (p.y >= room.halfH - pad && room.edgeTransitions.south && Math.abs(p.x) <= GATE_HALF_WIDTH) {
+          if (p.y >= room.halfH - pad && room.edgeTransitions?.south && Math.abs(p.x) <= GATE_HALF_WIDTH) {
             p.portalCooldown = 1.0;
             const dest = room.edgeTransitions.south;
+            if (!isRoomUnlockedForEdition(dest, p)) {
+              p.y = room.halfH - 28;
+              this.joinRoom(p, dest);
+              continue;
+            }
             if (!p.portalQuestDone && dest === ROOM_TYPES.NEXUS_WARZONE) {
               p.portalQuestDone = true;
               this.awardPlayerXP(p, 40, 'Entered Nexus Warzone');
@@ -576,6 +617,7 @@ export const socialAndTickMethods = {
       if (e.slowTimer > 0) e.slowTimer = Math.max(0, e.slowTimer - dt);
       if (e.snareTimer > 0) e.snareTimer = Math.max(0, e.snareTimer - dt);
       if (e.freezeTimer > 0) e.freezeTimer = Math.max(0, e.freezeTimer - dt);
+      if (e.staggerTimer > 0) e.staggerTimer = Math.max(0, e.staggerTimer - dt);
 
       if (e.type === 'node' && e.charges === 0 && e.rechargeTimer > 0) {
         e.rechargeTimer -= dt;
@@ -644,6 +686,7 @@ export const socialAndTickMethods = {
         if (!aggroTarget && e.inCombat) {
           e.inCombat = false;
           e.targetPlayerId = null;
+          e.castState = null;
           e.threatTable = {};
           e.provokedBy = new Set();
           e.tauntTargetId = null;
@@ -652,6 +695,7 @@ export const socialAndTickMethods = {
           // Player broke pursuit tether — drop aggro
           e.inCombat = false;
           e.targetPlayerId = null;
+          e.castState = null;
           e.threatTable = {};
           e.provokedBy = new Set();
           e.tauntTargetId = null;
@@ -668,6 +712,14 @@ export const socialAndTickMethods = {
 
         if (e.inCombat && aggroTarget) {
           e.targetPlayerId = aggroTarget.id;
+          if (e.castState) {
+            e.castState.remaining -= dt;
+            if (e.castState.remaining <= 0) {
+              e.castState = null;
+            } else {
+              continue; // Actively channeling an interruptible cast!
+            }
+          }
           if (e.isBoss && !e.isDying) {
             const hpPercent = (e.hp / e.maxHp) * 100;
             e.phase = e.phase || 1;
@@ -785,18 +837,29 @@ export const socialAndTickMethods = {
               const shockDmg = Math.round((e.damage || 7) * (e.enraged ? 1.9 : 1.35));
               const tgtX = nearestPlayer && Math.random() < 0.65 ? nearestPlayer.x : e.x;
               const tgtY = nearestPlayer && Math.random() < 0.65 ? nearestPlayer.y : e.y;
+              const castDuration = Math.max(2.2, warnDuration + 0.65);
+              const castId = `cast_${crypto.randomUUID().slice(0, 6)}`;
+              e.castState = {
+                id: castId,
+                spellName: telLabel,
+                color: telColor,
+                remaining: castDuration,
+                totalDuration: castDuration,
+                interruptible: true,
+              };
 
               room.fxQueue.push({
                 kind: 'fct',
                 x: tgtX,
                 y: tgtY - 14,
-                text: `⚠️ ${telLabel}!`,
+                text: `⚡ ${telLabel} (INTERRUPT!)`,
                 color: telColor,
                 isCrit: true,
               });
 
               room.groundZones.push({
                 id: `tel_${crypto.randomUUID().slice(0, 6)}`,
+                castId,
                 type: 'telegraph',
                 color: telColor,
                 label: telLabel,
@@ -804,7 +867,7 @@ export const socialAndTickMethods = {
                 y: tgtY,
                 radius: shockRadius,
                 age: 0,
-                maxAge: warnDuration,
+                maxAge: castDuration,
                 damage: shockDmg,
                 bossName: e.name,
                 bossRef: e,
@@ -818,6 +881,7 @@ export const socialAndTickMethods = {
                   const dist = 55 + Math.random() * 45;
                   room.groundZones.push({
                     id: `tel_${crypto.randomUUID().slice(0, 6)}_${rIdx}`,
+                    castId,
                     type: 'telegraph',
                     color: telColor,
                     label: `${telLabel} AFTERSHOCK`,
@@ -825,7 +889,7 @@ export const socialAndTickMethods = {
                     y: tgtY + Math.sin(angle) * dist,
                     radius: Math.round(shockRadius * 0.65),
                     age: 0,
-                    maxAge: warnDuration + 0.35,
+                    maxAge: castDuration + 0.35,
                     damage: Math.round(shockDmg * 0.75),
                     bossName: e.name,
                     bossRef: e,
@@ -877,18 +941,29 @@ export const socialAndTickMethods = {
               const shockDmg = Math.max(3, Math.round((e.damage || 5) * 1.45));
               const tgtX = nearestPlayer ? nearestPlayer.x : e.x;
               const tgtY = nearestPlayer ? nearestPlayer.y : e.y;
+              const castDuration = Math.max(2.0, warnDuration + 0.65);
+              const castId = `cast_${crypto.randomUUID().slice(0, 6)}`;
+              e.castState = {
+                id: castId,
+                spellName: telLabel,
+                color: telColor,
+                remaining: castDuration,
+                totalDuration: castDuration,
+                interruptible: true,
+              };
 
               room.fxQueue.push({
                 kind: 'fct',
                 x: tgtX,
                 y: tgtY - 14,
-                text: `⚠️ ${telLabel}!`,
+                text: `⚡ ${telLabel} (INTERRUPT!)`,
                 color: telColor,
                 isCrit: true,
               });
 
               room.groundZones.push({
                 id: `tel_${crypto.randomUUID().slice(0, 6)}`,
+                castId,
                 type: 'telegraph',
                 color: telColor,
                 label: telLabel,
@@ -896,7 +971,7 @@ export const socialAndTickMethods = {
                 y: tgtY,
                 radius: shockRadius,
                 age: 0,
-                maxAge: warnDuration,
+                maxAge: castDuration,
                 damage: shockDmg,
                 bossName: e.name,
                 bossRef: e,
@@ -1149,6 +1224,16 @@ export const socialAndTickMethods = {
       maxCharges: e.maxCharges,
       radius: e.radius,
       frozen: (e.freezeTimer || 0) > 0,
+      staggered: (e.staggerTimer || 0) > 0,
+      cast: e.castState
+        ? {
+            name: e.castState.spellName,
+            remaining: Number(Math.max(0, e.castState.remaining).toFixed(2)),
+            total: Number((e.castState.totalDuration || 2).toFixed(2)),
+            color: e.castState.color || '#facc15',
+            interruptible: Boolean(e.castState.interruptible),
+          }
+        : null,
       inCombat: Boolean(e.inCombat),
       isDying: Boolean(e.isDying),
       deathAge: e.deathAge ? Math.round(e.deathAge * 100) / 100 : 0,

@@ -67,6 +67,34 @@ export default defineConfig({
         target: 'http://127.0.0.1:3001',
         changeOrigin: true,
       },
+      '/admin': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+      },
+    },
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 8080,
+    allowedHosts: true,
+    proxy: {
+      '/ws': {
+        target: 'ws://127.0.0.1:3001',
+        ws: true,
+        changeOrigin: true,
+      },
+      '/api': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+      },
+      '/ping': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+      },
+      '/admin': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+      },
     },
   },
   publicDir: 'public',

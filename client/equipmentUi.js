@@ -10,6 +10,10 @@ import {
   getActiveRuneword,
   getEquipmentStatBonuses,
   CLASSES_CATALOG,
+  getSalvageYield,
+  getTemperSlotRank,
+  getTotalTemperBonuses,
+  MAX_TEMPER_RANK,
 } from '../shared/protocol.js';
 import { getCharacterSprites } from './sprites.js';
 import { getItemIconDataUrl } from './itemSprites.js';
@@ -32,10 +36,14 @@ export function getHoveredCardHtml(itemId, source = 'equipped') {
   }
 
   const borderCol = getRarityColor(item.rarity);
+  const salvageSpec = source === 'inventory' ? getSalvageYield(item.id) : null;
+  const salvageHint = salvageSpec
+    ? `<div style="font-size:7.5px; color:#fdba74; margin-top:3px;">🔨 Salvage: +${salvageSpec.gold}g, ${salvageSpec.materials.map((m) => `${m.qty}x ${EQUIPMENT_CATALOG[m.id]?.name || m.id}`).join(', ')} (+${salvageSpec.xp} Forging XP)</div>`
+    : '';
   const actionTip = source === 'equipped'
     ? '👉 Click slot to Unequip to Backpack'
     : source === 'inventory'
-    ? (item.slot === 'socket_gem' ? '👉 Left-click to Socket into Weapon/Chest/Helm • Right-click to Drop' : '👉 Left-click to Equip/Use • Right-click to Drop')
+    ? (item.slot === 'socket_gem' ? '👉 Left-click to Socket into Weapon/Chest/Helm • Right-click to Drop' : '👉 Left-click to Equip/Use • Toggle Salvage to Dismantle • Right-click to Drop')
     : source === 'bank'
     ? '👉 Left-click to Withdraw 1 • Right-click to Withdraw All'
     : '👉 AetherSwap Catalog Entry';
@@ -60,6 +68,7 @@ export function getHoveredCardHtml(itemId, source = 'equipped') {
       <div style="font-size:7.5px; color:#94a3b8; font-style:italic; margin-top:4px; line-height:1.3;">
         ${item.desc || ''}
       </div>
+      ${salvageHint}
       <div style="font-size:7.5px; color:#38bdf8; font-weight:bold; margin-top:5px; border-top:1px solid #1e293b; padding-top:3px;">
         ${actionTip}
       </div>
@@ -177,7 +186,9 @@ export function renderEquipmentModal({ profile }) {
   if (equip.armor && !equip.body) equip.body = equip.armor;
   if (equip.offhand && !equip.shield) equip.shield = equip.offhand;
 
-  const statBonuses = getEquipmentStatBonuses(equip, classId);
+  const prog = profile?.progression || (typeof window !== 'undefined' && window.getLocalProgression ? window.getLocalProgression() : null);
+  const statBonuses = getEquipmentStatBonuses(equip, classId, prog);
+  const temperTotals = getTotalTemperBonuses(prog, equip);
   const { active: activeSets, progress: setProgress } = getActiveSetBonuses(equip);
   const activeRuneword = getActiveRuneword(equip);
 
@@ -186,7 +197,7 @@ export function renderEquipmentModal({ profile }) {
       <!-- LEFT: Continental Paperdoll 11-Slot Grid -->
       <div>
         <div style="font-family:var(--font-header); font-size:10px; color:#d97706; text-align:center; margin-bottom:8px; letter-spacing:0.5px;">
-          ✦ WORN EQUIPMENT SLOTS ✦
+          ✦ WORN EQUIPMENT SLOTS ✦ <span style="font-size:7.5px; color:#94a3b8; font-family:var(--font-body);">(Right-Click to Temper)</span>
         </div>
 
         <div class="rs-paperdoll-grid">
@@ -197,14 +208,17 @@ export function renderEquipmentModal({ profile }) {
             const equippedId = equip[s.key] || (s.key === 'body' ? equip.armor : s.key === 'shield' ? equip.offhand : null);
             const item = equippedId ? EQUIPMENT_CATALOG[equippedId] : null;
             const borderCol = item ? getRarityColor(item.rarity) : '#57534e';
+            const temperRank = item ? getTemperSlotRank(prog, s.key) : 0;
 
             return `
               <div class="rs-equip-slot ${item ? 'filled' : ''}"
-                   style="border-color:${borderCol};"
+                   style="border-color:${borderCol}; position:relative;"
                    onclick="window.unequipSlot('${s.key}')"
+                   oncontextmenu="event.preventDefault(); window.temperEquipmentSlot && window.temperEquipmentSlot('${s.key}');"
                    onmouseenter="window.setHoveredEquipment('${item ? item.id : ''}', 'equipped', event)"
                    onmousemove="window.updateHoveredEquipmentPos(event)"
                    onmouseleave="window.clearHoveredEquipment()">
+                ${temperRank > 0 ? `<span style="position:absolute; top:2px; right:3px; font-size:7.5px; font-weight:800; color:${temperRank >= MAX_TEMPER_RANK ? '#38bdf8' : '#fbbf24'}; background:rgba(2,6,23,0.9); border:1px solid ${temperRank >= MAX_TEMPER_RANK ? '#38bdf8' : '#d97706'}; border-radius:2px; padding:0 3px; line-height:1.2;">+${temperRank}</span>` : ''}
                 ${item ? `
                   <img class="pixel-art" src="${getItemIconDataUrl(item.id, 24)}" width="24" height="24" style="image-rendering:pixelated; display:block; margin:0 auto;" alt="${item.name}" />
                   <div style="font-size:7.5px; color:${borderCol}; font-weight:700; max-width:52px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; margin-top:2px;">
@@ -322,8 +336,9 @@ export function renderEquipmentModal({ profile }) {
 
         <!-- Combat Stat Bonuses Breakdown -->
         <div style="background:#141210; border:2px solid #57534e; border-radius:4px; padding:8px 12px;">
-          <div style="font-family:var(--font-header); font-size:10px; color:#fde047; margin-bottom:6px; border-bottom:1px solid #292524; padding-bottom:4px;">
-            📊 TOTAL COMBAT STAT BONUSES
+          <div style="font-family:var(--font-header); font-size:10px; color:#fde047; margin-bottom:6px; border-bottom:1px solid #292524; padding-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+            <span>📊 TOTAL COMBAT STAT BONUSES</span>
+            ${(temperTotals.power + temperTotals.bastion + temperTotals.resonance + temperTotals.tempo) > 0 ? `<span style="font-size:7.5px; color:#fbbf24;">🔨 Temper +${temperTotals.power + temperTotals.bastion + temperTotals.resonance + temperTotals.tempo}</span>` : ''}
           </div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:9.5px;">
             <div style="background:#1c1917; border:1px solid #292524; padding:5px 8px; border-radius:3px;">

@@ -100,6 +100,26 @@ export const MERCHANT_CATALOGS = {
       { itemId: 'cloth_cape', price: 22, note: 'Flowing traveler mantle (+1 Bastion).' },
     ],
   },
+  merchant_tavern: {
+    id: 'merchant_tavern',
+    name: 'Innkeeper Garrick',
+    title: 'Hearthstone Innkeeper & Brewmaster',
+    icon: '🍺',
+    spriteKey: 'merchantProvisionsNpc',
+    badgeColor: '#fbbf24',
+    greeting: 'Pull up a stool by the hearthfire, traveler! Nothing beats crusty loaves, sweet orchard apples, and restorative tonics after an expedition.',
+    loreIntro: 'My tavern cellar is stocked with hot rations for health and frothy glimmer draughts for rapid ability recovery.',
+    stationId: 'campfire_hearth',
+    stationHint: 'Cook freshly caught Coral Coast fish & savory traveler feasts right on the tavern hearth!',
+    wares: [
+      { itemId: 'sweet_apple', price: 3, note: 'Crisp orchard fruit (+15 HP).' },
+      { itemId: 'fresh_crusty_bread', price: 6, note: 'Oven-warm loaf straight from the brick hearth (+25 HP).' },
+      { itemId: 'field_rations', price: 10, note: 'Hearty smoked traveler feast (+35 HP).' },
+      { itemId: 'minor_healing_salve', price: 10, note: 'Soothing herbal tonic (+35 HP).' },
+      { itemId: 'glimmer_draught', price: 12, note: 'Sparkling golden brew (+40 Glimmer Charge).' },
+      { itemId: 'major_vitality_elixir', price: 25, note: 'Reserve vintage elixir (+80 HP).' },
+    ],
+  },
 };
 
 export function getMerchantDialoguePages(merchantId) {

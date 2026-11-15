@@ -63,6 +63,8 @@ import {
   HEAL_THREAT_MULT,
   TAUNT_DURATION_SEC,
   TANK_CLASSES,
+  INTERRUPT_VULN_MULT,
+  getActiveCombatConsumableBonuses,
 } from '../../shared/protocol.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
 
@@ -445,6 +447,9 @@ export const combatRitesAndDamageMethods = {
       this.damagePlayerSession(room, t, dmg, attackerPlayer ? attackerPlayer.displayName : spellName, isCrit, attackerPlayer);
     } else {
       if (!t || t.isDying) return;
+      if ((t.staggerTimer || 0) > 0) {
+        dmg = Math.max(1, Math.round(dmg * INTERRUPT_VULN_MULT));
+      }
       t.hp = Math.max(0, t.hp - dmg);
       t.hitFlash = 0.14;
       if (t.type === 'mob') {
@@ -512,9 +517,10 @@ export const combatRitesAndDamageMethods = {
       }
     }
 
-    // Umbri Paragon: Void Leech on all damage dealt!
+    // Umbri Paragon + Weapon Imbue Crit Leech!
     if (attackerPlayer && !attackerPlayer.isDead) {
-      const leechPct = calcLifeLeechPct(attackerPlayer.prog, attackerPlayer.faction) * (attackerPlayer.voidformTimer > 0 ? 2 : 1);
+      const imbueLeech = isCrit ? getActiveCombatConsumableBonuses(attackerPlayer).critLeechPct : 0;
+      const leechPct = calcLifeLeechPct(attackerPlayer.prog, attackerPlayer.faction) * (attackerPlayer.voidformTimer > 0 ? 2 : 1) + imbueLeech;
       if (leechPct > 0) {
         const leech = Math.max(1, Math.round(dmg * leechPct));
         attackerPlayer.hp = Math.min(attackerPlayer.maxHp, attackerPlayer.hp + leech);

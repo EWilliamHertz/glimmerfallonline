@@ -59,6 +59,8 @@ import {
   SKILLING_NODE_TYPES,
   ELITE_AFFIXES,
   BOUNTY_CONTRACTS,
+  rollMobLootDrops,
+  parseEntityLevel,
 } from '../../shared/protocol.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
 
@@ -143,70 +145,16 @@ export const lootAndMythicMethods = {
 
   spawnLootDrops(room, ent) {
     if (!room.loot) room.loot = [];
-    const drops = [];
+    const drops = rollMobLootDrops({
+      roomType: room?.type,
+      ent,
+      getBossSetDrop: () => this.getFactionBossSetDrop(room, ent),
+      getBossAccessoryDrop: () => this.getBossAccessoryDrop(room, ent),
+      getKeystoneDrop: () => this.getKeystoneDrop(room, ent),
+      getZoneMaterialDrop: () => this.getZoneCosmicMaterialDrop(room),
+    });
 
-    // Vital / Glimmer recovery orbs (cleaner battlefield with reduced clutter)
-    const count = ent.isBoss ? 2 : ent.eliteAffix ? 1 : Math.random() < 0.20 ? 1 : 0;
-    for (let i = 0; i < count; i++) {
-      let kind = Math.random() < 0.5 ? 'vital' : 'glimmer';
-      if (ent.isBoss && i === 0) kind = 'relic';
-      drops.push({ kind, itemId: null, qty: 1 });
-    }
-
-    // 1. Stackable Currency: Solar Gold Sovereigns (all mobs drop gold; Elite Champions grant bonus bounty!)
-    const eliteBonusGold = ent.eliteAffix ? 25 + Math.floor(Math.random() * 32) : 0;
-    const goldQty = (ent.isBoss ? (150 + Math.floor(Math.random() * 200)) : (8 + Math.floor(Math.random() * 25))) + eliteBonusGold;
-    drops.push({ kind: 'item', itemId: 'solar_gold', qty: goldQty });
-
-    // 2. Faction elemental currency (40% mob chance or 100% boss/elite)
-    if (ent.isBoss || ent.eliteAffix || Math.random() < 0.40) {
-      const rType = String(room?.type || '').toLowerCase();
-      let factionCurr = 'glimmer_shard';
-      let factionCurrQty = ent.isBoss ? 15 + Math.floor(Math.random() * 20) : ent.eliteAffix ? 3 + Math.floor(Math.random() * 3) : 1 + Math.floor(Math.random() * 2);
-      if (rType.includes('aether') || rType.includes('starfall')) factionCurr = 'chrono_gem';
-      else if (rType.includes('terra')) factionCurr = 'verdant_amber';
-      else if (rType.includes('umbri') || rType.includes('abyssal')) factionCurr = 'void_essence';
-      drops.push({ kind: 'item', itemId: factionCurr, qty: factionCurrQty });
-    }
-
-    // 2b. Cosmic Artisan Crafting Materials (30% on mobs, 100% on Elites & Bosses)
-    if (ent.isBoss || ent.eliteAffix || Math.random() < 0.30) {
-      const matId = this.getZoneCosmicMaterialDrop(room);
-      const matQty = ent.isBoss ? 2 + Math.floor(Math.random() * 2) : ent.eliteAffix ? 2 : 1;
-      if (matId && EQUIPMENT_CATALOG[matId]) {
-        drops.push({ kind: 'item', itemId: matId, qty: matQty });
-      }
-    }
-
-    // 2c. Elite Champion Bonus: 15% chance at a cut Leyline Socket Gem!
-    if (ent.eliteAffix && Math.random() < 0.15) {
-      const gemPool = ['gem_solar_ruby', 'gem_void_sapphire', 'gem_terra_emerald', 'gem_aether_diamond'];
-      drops.push({ kind: 'item', itemId: gemPool[Math.floor(Math.random() * gemPool.length)], qty: 1 });
-    }
-
-    // 3. Consumables (healing salves / glimmer draughts - 12% on mobs, 100% on boss)
-    if (ent.isBoss || Math.random() < 0.12) {
-      const potId = Math.random() < 0.5 ? 'minor_healing_salve' : 'glimmer_draught';
-      drops.push({ kind: 'item', itemId: potId, qty: ent.isBoss ? 2 : 1 });
-    }
-
-    // 4. Equipment Drops:
-    // Set pieces drop ONLY on faction bosses (15%), non-bosses get beginner gear (6%)
-    if (ent.isBoss) {
-      // Day 2: every Continental boss guarantees a Legendary cache — one faction set piece + one relic.
-      const setPieceId = this.getFactionBossSetDrop(room, ent);
-      const accessoryId = this.getBossAccessoryDrop(room, ent);
-      if (setPieceId) drops.push({ kind: 'item', itemId: setPieceId, qty: 1 });
-      if (accessoryId) drops.push({ kind: 'item', itemId: accessoryId, qty: 1 });
-      const keystoneId = this.getKeystoneDrop(room, ent);
-      if (keystoneId) drops.push({ kind: 'item', itemId: keystoneId, qty: 1 });
-    } else {
-      if (Math.random() < 0.06) {
-        const dropId = this.getBeginnerMobDrop(room);
-        if (dropId) drops.push({ kind: 'item', itemId: dropId, qty: 1 });
-      }
-    }
-
+    const mobLv = parseEntityLevel(ent);
     drops.forEach((d, i) => {
       const ang = (Math.PI * 2 * i) / Math.max(1, drops.length) - Math.PI / 2;
       const dist = drops.length > 1 ? 28 + (i % 2) * 8 : 0;
@@ -216,10 +164,11 @@ export const lootAndMythicMethods = {
         kind: d.kind,
         itemId: d.itemId || null,
         qty: d.qty || 1,
+        xpBonus: d.kind === 'relic' ? 60 + mobLv * 6 : 0,
         x: Math.round((ent.x + Math.cos(ang) * dist) * 10) / 10,
         y: Math.round((ent.y + Math.sin(ang) * dist * 0.65) * 10) / 10,
-        ttl: d.kind === 'item' ? 55 : 28,
-        maxTtl: d.kind === 'item' ? 55 : 28,
+        ttl: d.ttl || (d.kind === 'item' ? 55 : 40),
+        maxTtl: d.ttl || (d.kind === 'item' ? 55 : 40),
       });
     });
   },
@@ -287,23 +236,14 @@ export const lootAndMythicMethods = {
         } else {
           room.loot.splice(i, 1);
         }
+      } else if (l.kind === 'relic') {
+        room.loot.splice(i, 1);
+        const relicXp = Math.max(60, Number(l.xpBonus) || 60);
+        this.awardPlayerXP(taker, relicXp, 'Ancient Relic Cache');
+        room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 14, text: `✦ RELIC CACHE +${relicXp} XP`, color: '#fde047', isCrit: true });
+        room.fxQueue.push({ kind: 'spark', x: l.x, y: l.y, colors: ['#fde047', '#fef08a', '#ffffff'], count: 14 });
       } else {
         room.loot.splice(i, 1);
-        if (l.kind === 'vital') {
-          const heal = Math.max(3, Math.round(taker.maxHp * 0.25));
-          taker.hp = Math.min(taker.maxHp, taker.hp + heal);
-          this.parties.syncPlayerVitals(taker.id);
-          room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 14, text: `+${heal} VITAL SHARD`, color: '#f87171' });
-          room.fxQueue.push({ kind: 'spark', x: l.x, y: l.y, colors: ['#f87171', '#fecaca', '#ffffff'], count: 8 });
-        } else if (l.kind === 'glimmer') {
-          this.addPlayerGlimmer(room, taker, 30);
-          room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 14, text: '+30 GLIMMER SHARD', color: '#38bdf8' });
-          room.fxQueue.push({ kind: 'spark', x: l.x, y: l.y, colors: ['#38bdf8', '#bae6fd', '#ffffff'], count: 8 });
-        } else {
-          this.awardPlayerXP(taker, 60, 'Relic Shard');
-          room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 14, text: '✦ RELIC SHARD +60 XP', color: '#fde047', isCrit: true });
-          room.fxQueue.push({ kind: 'spark', x: l.x, y: l.y, colors: ['#fde047', '#fef08a', '#ffffff'], count: 12 });
-        }
       }
     }
   },
