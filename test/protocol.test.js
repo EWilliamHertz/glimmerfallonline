@@ -1438,7 +1438,14 @@ test('Interface scaling, full loadout preservation, and anti-aliased HD text', a
 test('Sanctuary death respawn and Awaken Champion character creation flow', async () => {
   // 1. Authoritative Server Tick: Dead player outside Arena respawns at Sanctuary Hub
   const accounts = new AccountsStore();
-  const rm = new RoomManager({ accountsStore: accounts });
+  const rm = new RoomManager({
+    accountsStore: accounts,
+    partyManager: {
+      getPartyMembers: () => [],
+      getPartyForMember: () => null,
+      syncPlayerVitals: () => {},
+    },
+  });
   try {
     const calderaRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.CALDERA_PEAK);
     const sentPackets = [];
@@ -1564,7 +1571,14 @@ test('Sanctuary death respawn and Awaken Champion character creation flow', asyn
 
 test('Dead player exploit prevention, anti-aliased world text, and Graveglass Oracle tactical codex', async () => {
   const accounts = new AccountsStore();
-  const rm = new RoomManager({ accountsStore: accounts });
+  const rm = new RoomManager({
+    accountsStore: accounts,
+    partyManager: {
+      getPartyMembers: () => [],
+      getPartyForMember: () => null,
+      syncPlayerVitals: () => {},
+    },
+  });
   try {
     const calderaRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.CALDERA_PEAK);
     const sentPackets = [];
@@ -1632,7 +1646,14 @@ test('Dead player exploit prevention, anti-aliased world text, and Graveglass Or
 test('1.25s Crafting Cooldown anti-exploit enforcement and Crystalheart Shattering lore quests', async () => {
   // 1. Authoritative Server Crafting Cooldown (1.25s / 1250ms)
   const accounts = new AccountsStore();
-  const rm = new RoomManager({ accountsStore: accounts });
+  const rm = new RoomManager({
+    accountsStore: accounts,
+    partyManager: {
+      getPartyMembers: () => [],
+      getPartyForMember: () => null,
+      syncPlayerVitals: () => {},
+    },
+  });
   try {
     const hubRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.SANCTUARY_HUB);
     const sentPackets = [];
@@ -2750,6 +2771,174 @@ test('Commander Valerius quest marker, dialogue, and Founder title badge cleanup
   assert.ok(
     !socialUiSrc.includes('ctx.fillRect(titlePlateX, titlePlateY, titlePlateW, 1)'),
     'drawPixelNameplateAndBubbles must not draw stray yellow top line on title badge',
+  );
+});
+
+test('1.25s Harvest Cooldown is enforced on skilling nodes (trees, ores, herbs, etc.) on server and client', () => {
+  assert.equal(protocol.HARVEST_COOLDOWN_MS.skilling, 1250, 'HARVEST_COOLDOWN_MS.skilling must be 1250ms');
+  assert.equal(protocol.HARVEST_COOLDOWN_MS.normal, 1250, 'HARVEST_COOLDOWN_MS.normal must be 1250ms');
+  assert.equal(protocol.HARVEST_COOLDOWN_MS.grand, 1250, 'HARVEST_COOLDOWN_MS.grand must be 1250ms');
+
+  const accounts = new AccountsStore();
+  const rm = new RoomManager({
+    accountsStore: accounts,
+    partyManager: {
+      getPartyMembers: () => [],
+      getPartyForMember: () => null,
+      syncPlayerVitals: () => {},
+    },
+  });
+  try {
+    const hubRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.SANCTUARY_HUB);
+    const treeOrOreNode = hubRoom.entities.find(
+      (e) => e.type === 'node' && e.skillingType && (e.charges ?? 0) >= 2 && (protocol.SKILLING_NODE_TYPES[e.skillingType]?.reqLevel || 1) <= 1
+    );
+    assert.ok(treeOrOreNode, 'Sanctuary Hub must contain an unlocked multi-charge skilling node (tree/ore/herb)');
+
+    const { account } = accounts.createGuestAccount({
+      preferredName: 'LumberMiner',
+      faction: 'Solari',
+      classId: 'solari_vanguard',
+    });
+
+    const sentPackets = [];
+    const gatherer = {
+      ...account,
+      prog: account.progression || protocol.createDefaultProgression(),
+      hp: 50,
+      maxHp: 50,
+      shield: 0,
+      solarCharge: 0,
+      maxSolarCharge: 100,
+      isDead: false,
+      ws: { readyState: 1, send: (data) => sentPackets.push(typeof data === 'string' ? JSON.parse(data) : data) },
+      send: (pkt) => sentPackets.push(pkt),
+    };
+
+    rm.joinRoom(gatherer, hubRoom.id);
+    gatherer.x = treeOrOreNode.x;
+    gatherer.y = treeOrOreNode.y;
+
+    const chargesBefore = treeOrOreNode.charges;
+    const t0 = Date.now();
+    rm.handleHarvestNode(hubRoom, gatherer, treeOrOreNode.id);
+    assert.equal(treeOrOreNode.charges, chargesBefore - 1, 'Initial skilling harvest must consume 1 charge');
+    assert.ok(gatherer.harvestReadyAt >= t0 + 1250, 'harvestReadyAt must enforce at least 1250ms (1.25s) cooldown');
+
+    // Immediate second attempt within 1.25s must be blocked with a cooldown warning and no charge consumed
+    sentPackets.length = 0;
+    rm.handleHarvestNode(hubRoom, gatherer, treeOrOreNode.id);
+    assert.equal(treeOrOreNode.charges, chargesBefore - 1, 'Rapid repeat harvest within 1.25s must be blocked');
+    const warnPkt = sentPackets.find((p) => p.type === 'sys_msg' && p.text.includes('[Gathering] Please wait'));
+    assert.ok(warnPkt, 'Blocked rapid harvest must emit cooldown sys_msg warning');
+
+    // Once 1250ms cooldown expires, next harvest succeeds
+    gatherer.harvestReadyAt = Date.now() - 1;
+    rm.handleHarvestNode(hubRoom, gatherer, treeOrOreNode.id);
+    assert.equal(treeOrOreNode.charges, chargesBefore - 2, 'Harvest after 1.25s cooldown must succeed');
+  } finally {
+    rm.stop();
+  }
+
+  const gameSrc = fs.readFileSync(path.resolve(process.cwd(), 'client/game.js'), 'utf8');
+  assert.ok(
+    gameSrc.includes('tryConsumeHarvestCooldown(HARVEST_COOLDOWN_MS.skilling)'),
+    'client/game.js must enforce HARVEST_COOLDOWN_MS.skilling (1.25s) on trees, ores, and herbs'
+  );
+  const harvestingSnippet = gameSrc.slice(
+    gameSrc.indexOf('// 2A. World Skilling Vein'),
+    gameSrc.indexOf('window.interactNearestNpc')
+  );
+  assert.ok(!harvestingSnippet.includes('< 450'), 'client/game.js harvesting must not use legacy 450ms cooldown');
+});
+
+test('Revived same-faction citadel mob clears provocation, threatTable, and aggro on respawn', () => {
+  const accounts = new AccountsStore();
+  const rm = new RoomManager({
+    accountsStore: accounts,
+    partyManager: {
+      getPartyMembers: () => [],
+      getPartyForMember: () => null,
+      syncPlayerVitals: () => {},
+    },
+  });
+  const origSetTimeout = global.setTimeout;
+  const scheduledTimers = [];
+  try {
+    const aetherRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.AETHER_SPIRE);
+    const aetherMob = aetherRoom.entities.find((e) => e.type === 'mob' && !e.isBoss);
+    assert.ok(aetherMob, 'AETHER_SPIRE must contain an Aether mob');
+
+    const { account } = accounts.createGuestAccount({
+      preferredName: 'AetherMage',
+      faction: 'Aether',
+      classId: 'aether_weaver',
+    });
+    const player = {
+      ...account,
+      prog: account.progression || protocol.createDefaultProgression(),
+      hp: 50,
+      maxHp: 50,
+      shield: 0,
+      solarCharge: 50,
+      maxSolarCharge: 100,
+      isDead: false,
+      ws: { readyState: 1, send: () => {} },
+      send: () => {},
+    };
+
+    // Unprovoked Aether mob in Aether Spire should not aggro Aether player
+    assert.equal(
+      protocol.isSameFactionProtectedMob(aetherRoom.type, aetherMob, player.faction, player.id),
+      true
+    );
+
+    // Provoke & kill the mob as the Aether player
+    aetherMob.inCombat = true;
+    aetherMob.targetPlayerId = player.id;
+    aetherMob.provokedBy = new Set([player.id]);
+    aetherMob.threatTable = { [player.id]: 120 };
+    aetherMob.dammers = new Set([player.id]);
+    assert.equal(
+      protocol.isSameFactionProtectedMob(aetherRoom.type, aetherMob, player.faction, player.id),
+      false
+    );
+
+    global.setTimeout = (fn) => {
+      scheduledTimers.push(fn);
+      return 0;
+    };
+
+    rm.handleEntityDeath(aetherRoom, aetherMob, player);
+    assert.equal(scheduledTimers.length, 1, 'Mob death should schedule respawn timer');
+
+    // Remove dead entity and run respawn callback
+    aetherRoom.entities = aetherRoom.entities.filter((e) => e.id !== aetherMob.id);
+    scheduledTimers[0]();
+
+    const revivedMob = aetherRoom.entities.find((e) => e.id === aetherMob.id);
+    assert.ok(revivedMob, 'Revived mob should respawn in room');
+    assert.equal(revivedMob.inCombat, false);
+    assert.equal(revivedMob.targetPlayerId, null);
+    assert.equal(revivedMob.provokedBy.size, 0);
+    assert.deepEqual(revivedMob.threatTable, {});
+    assert.equal(
+      protocol.isSameFactionProtectedMob(aetherRoom.type, revivedMob, player.faction, player.id),
+      true,
+      'Revived Aether mob must be peaceful to Aether player again after respawn'
+    );
+  } finally {
+    global.setTimeout = origSetTimeout;
+    rm.stop();
+  }
+
+  const gameSrc = fs.readFileSync(path.resolve(process.cwd(), 'client/game.js'), 'utf8');
+  const killFnStart = gameSrc.indexOf('function killOfflineEntity(ent)');
+  const killFnSnippet = gameSrc.slice(killFnStart, killFnStart + 4200);
+  assert.ok(
+    killFnSnippet.includes('ent.provokedByLocalPlayer = false') &&
+      killFnSnippet.includes('provokedByLocalPlayer: false'),
+    'client/game.js killOfflineEntity must clear provokedByLocalPlayer on both dead mob and respawnTemplate'
   );
 });
 

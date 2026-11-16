@@ -94,7 +94,7 @@ export function renderLandingSkillGuidesTab(state = {}) {
           </p>
         </div>
         <div class="gf-sg-header-actions">
-          <button type="button" class="gf-sg-cta-btn" onclick="window._landing.enterWorld('singleplayer')">
+          <button type="button" class="gf-sg-cta-btn" onclick="window._landing.enterWorld(null, '${escapeHtml(activeSkill.id)}')">
             ⚡ Train ${escapeHtml(activeSkill.name)} Now
           </button>
           <button type="button" class="gf-sg-secondary-btn" onclick="window._landing.setTab('armory')">

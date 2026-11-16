@@ -6,9 +6,10 @@ export const YARD_PX = 12;
 
 export const ACTION_SLOTS = [1, 2, 3, 4, 9, 10, 11, 12];
 
-// Per-character delay between node harvests. Grand Fonts take longer to channel.
+// Per-character delay between node harvests (1.25s gathering/skilling cadence across trees, ores, herbs, and fonts).
 export const HARVEST_COOLDOWN_MS = {
-  normal: 250,
+  normal: 1250,
+  skilling: 1250,
   grand: 1250,
 };
 

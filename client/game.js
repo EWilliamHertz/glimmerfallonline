@@ -619,6 +619,23 @@ export function initGame() {
   let currentSpell = null;
   let globalTime = 0;
   let lastNodeHarvestAt = -Infinity;
+  let lastHarvestCooldownWarnAt = -Infinity;
+  function tryConsumeHarvestCooldown(cooldownMs) {
+    const harvestNow = performance.now();
+    const elapsed = harvestNow - lastNodeHarvestAt;
+    if (elapsed < cooldownMs) {
+      if (harvestNow - lastHarvestCooldownWarnAt >= 350) {
+        lastHarvestCooldownWarnAt = harvestNow;
+        const remainSec = Math.max(0.1, (cooldownMs - elapsed) / 1000).toFixed(2);
+        spawnFCT(player.x, player.y - 14, `⏳ COOLDOWN (${remainSec}s)`, '#facc15');
+        logMessage(`⏳ [Gathering] Please wait ${remainSec}s before harvesting again!`, 'log-combat', 'combat');
+      }
+      return false;
+    }
+    lastNodeHarvestAt = harvestNow;
+    lastHarvestCooldownWarnAt = -Infinity;
+    return true;
+  }
   let footstepAccum = 0;
   let moveSyncAccum = 0;
   let lastSentMove = { x: null, y: null, z: null, dir: null, isMoving: null, time: 0 };
@@ -8722,8 +8739,24 @@ export function initGame() {
         saveQuestState();
         openDialogue(AWAKENING_DIALOGUE, 'heraldNpc', 'npc_aurora');
       }
+
+      consumePendingTrainSkillHint();
     },
   });
+  function consumePendingTrainSkillHint() {
+    if (typeof window === 'undefined' || !window._pendingTrainSkillId) return;
+    const trainSkillId = window._pendingTrainSkillId;
+    window._pendingTrainSkillId = null;
+    const profSpec = PROFESSIONS_CATALOG[trainSkillId];
+    if (!profSpec) return;
+    logMessage(
+      `📖 [How to Train ${profSpec.name}] ${profSpec.training?.howTo || profSpec.role || ''}`,
+      'log-solari',
+      'chat'
+    );
+    spawnFCT(player.x, player.y - 22, `⚡ TRAIN ${profSpec.name.toUpperCase()}!`, profSpec.color || '#facc15', true);
+  }
+  if (typeof window !== 'undefined') window._consumeTrainSkillHint = consumePendingTrainSkillHint;
   window._fp = frontpage;
   window._isDeadScreenVisible = () => Boolean(player.isDead || deathScreenVisible);
   const syncNetProfileLastPosition = () => {
@@ -8773,9 +8806,19 @@ export function initGame() {
       })
     : { surface: startOnLoadout ? 'loadout' : 'landing', requestedTab: null };
 
+  const requestedTrainSkill = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('trainSkill')
+    : null;
+
   if (bootTarget.surface === 'loadout') {
     try {
       frontpage.open();
+      if (requestedTrainSkill && PROFESSIONS_CATALOG[requestedTrainSkill]) {
+        if (typeof window !== 'undefined') window._pendingTrainSkillId = requestedTrainSkill;
+        if (frontpage.playMode === 'singleplayer' || (frontpage.net?.profile && !frontpage.net.profile.isGuest)) {
+          frontpage.playSelectedCharacter();
+        }
+      }
     } catch (err) {
       console.error('[Frontpage] Failed to open on startup:', err);
     }
@@ -10073,6 +10116,9 @@ export function initGame() {
     ent.inCombat = false;
     ent.target = null;
     ent.targetPlayerId = null;
+    ent.provokedByLocalPlayer = false;
+    ent.castState = null;
+    ent.staggerTimer = 0;
 
     if (ent.isMinion) return;
 
@@ -10084,10 +10130,19 @@ export function initGame() {
       deathAge: 0,
       frozen: false,
       freezeTimer: 0,
+      slowTimer: 0,
+      snareTimer: 0,
+      weakenTimer: 0,
+      staggerTimer: 0,
       hitFlash: 0,
       inCombat: false,
       target: null,
       targetPlayerId: null,
+      provokedByLocalPlayer: false,
+      provokedBy: [],
+      threatTable: {},
+      dammers: new Set(),
+      castState: null,
       spawnAggroGrace: 2.0,
       phase: 1,
       enraged: false,
@@ -11187,9 +11242,7 @@ export function initGame() {
         audio.playHurt();
         return;
       }
-      const harvestNow = performance.now();
-      if (harvestNow - lastNodeHarvestAt < 450) return;
-      lastNodeHarvestAt = harvestNow;
+      if (!tryConsumeHarvestCooldown(HARVEST_COOLDOWN_MS.skilling)) return;
       if (currentTarget !== node) setTarget(node);
       if (node.skillingType.startsWith('tree_')) {
         (audio.playChop || audio.playChime).call(audio);
@@ -11289,9 +11342,7 @@ export function initGame() {
 
     const isGrand = Boolean(node.isGrand);
     const cooldownMs = isGrand ? HARVEST_COOLDOWN_MS.grand : HARVEST_COOLDOWN_MS.normal;
-    const harvestNow = performance.now();
-    if (harvestNow - lastNodeHarvestAt < cooldownMs) return;
-    lastNodeHarvestAt = harvestNow;
+    if (!tryConsumeHarvestCooldown(cooldownMs)) return;
     if (currentTarget !== node) setTarget(node);
     (audio.playResonance || audio.playChime).call(audio);
     const eff = getEffectiveStats(prog, localProfile.equipment, localProfile.classId);

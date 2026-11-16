@@ -293,6 +293,12 @@ export const entityDeathAndProgressionMethods = {
     ent.inCombat = false;
     ent.targetPlayerId = null;
     ent.dammers = new Set();
+    ent.provokedBy = new Set();
+    ent.threatTable = {};
+    ent.tauntTargetId = null;
+    ent.tauntTimer = 0;
+    ent.castState = null;
+    ent.staggerTimer = 0;
 
     const template = {
       ...ent,
@@ -311,10 +317,16 @@ export const entityDeathAndProgressionMethods = {
       slowTimer: 0,
       snareTimer: 0,
       freezeTimer: 0,
+      staggerTimer: 0,
+      castState: null,
+      tauntTargetId: null,
+      tauntTimer: 0,
       hitFlash: 0,
       x: ent.origX ?? ent.x,
       y: ent.origY ?? ent.y,
       dammers: new Set(),
+      provokedBy: new Set(),
+      threatTable: {},
     };
     setTimeout(() => {
       if (!this.rooms.has(room.id)) return;
@@ -322,6 +334,11 @@ export const entityDeathAndProgressionMethods = {
         template.inCombat = false;
         template.targetPlayerId = null;
         template.dammers = new Set();
+        template.provokedBy = new Set();
+        template.threatTable = {};
+        template.tauntTargetId = null;
+        template.tauntTimer = 0;
+        template.castState = null;
         template.spawnAggroGrace = 2.0;
         room.entities.push(template);
         room.fxQueue.push({ kind: 'smoke', x: template.x, y: template.y, count: 16 });

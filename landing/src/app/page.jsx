@@ -1172,8 +1172,9 @@ export default function LandingPage() {
     playSfx('click');
   };
 
-  const handleLaunchGame = () => {
+  const handleLaunchGame = (skillIdOrEvent = null) => {
     playSfx('launch');
+    const trainSkill = typeof skillIdOrEvent === 'string' && skillIdOrEvent.trim() ? skillIdOrEvent.trim() : '';
 
     try {
       const finalName = characterName.trim() || 'Vanguard';
@@ -1184,39 +1185,48 @@ export default function LandingPage() {
       if (typeof window !== 'undefined') {
         localStorage.setItem('glimmerfall_play_mode', playMode);
 
-        const newCharId = `char_${Date.now()}`;
-        const newChar = {
-          id: newCharId,
-          name: finalName,
-          faction: selectedFaction,
-          classId: activeClass.id,
-          orderTag: order.tag,
-          orderName: order.name,
-          orderColor: order.color,
-          homeBiome: 'sanctuary_hub',
-          hp: 40,
-          solarCharge: selectedFaction === 'Solari' ? 0 : 20,
-          lastPosition: { roomType: 'sanctuary_hub', x: 0, y: 96 },
-        };
-
         const rawRoster = localStorage.getItem('glimmerfall_sp_roster_v2');
         let roster = [];
         try {
           roster = rawRoster ? JSON.parse(rawRoster) : [];
         } catch (_) {}
 
-        const existingIdx = roster.findIndex((c) => c.name.toLowerCase() === finalName.toLowerCase());
-        if (existingIdx >= 0) {
-          roster[existingIdx] = { ...roster[existingIdx], ...newChar };
-          localStorage.setItem('glimmerfall_sp_active_id', roster[existingIdx].id);
-        } else {
-          roster.unshift(newChar);
-          localStorage.setItem('glimmerfall_sp_active_id', newCharId);
-        }
-        localStorage.setItem('glimmerfall_sp_roster_v2', JSON.stringify(roster));
+        const activeId = localStorage.getItem('glimmerfall_sp_active_id');
+        const hasActiveSaved =
+          trainSkill &&
+          Array.isArray(roster) &&
+          roster.length > 0 &&
+          (!activeId || roster.some((c) => c.id === activeId));
 
-        // Determine destination: navigate directly to main game with mode
-        const targetUrl = `/?mode=${playMode}&autostart=1`;
+        if (!hasActiveSaved) {
+          const newCharId = `char_${Date.now()}`;
+          const newChar = {
+            id: newCharId,
+            name: finalName,
+            faction: selectedFaction,
+            classId: activeClass.id,
+            orderTag: order.tag,
+            orderName: order.name,
+            orderColor: order.color,
+            homeBiome: 'sanctuary_hub',
+            hp: 40,
+            solarCharge: selectedFaction === 'Solari' ? 0 : 20,
+            lastPosition: { roomType: 'sanctuary_hub', x: 0, y: 96 },
+          };
+
+          const existingIdx = roster.findIndex((c) => c.name.toLowerCase() === finalName.toLowerCase());
+          if (existingIdx >= 0) {
+            roster[existingIdx] = { ...roster[existingIdx], ...newChar };
+            localStorage.setItem('glimmerfall_sp_active_id', roster[existingIdx].id);
+          } else {
+            roster.unshift(newChar);
+            localStorage.setItem('glimmerfall_sp_active_id', newCharId);
+          }
+          localStorage.setItem('glimmerfall_sp_roster_v2', JSON.stringify(roster));
+        }
+
+        // Determine destination: navigate directly to main game with mode (+ optional trainSkill)
+        const targetUrl = `/?mode=${playMode}&autostart=1${trainSkill ? `&trainSkill=${encodeURIComponent(trainSkill)}` : ''}`;
 
         setTimeout(() => {
           window.location.href = targetUrl;
@@ -1304,13 +1314,6 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-1.5 flex-shrink-0 flex-nowrap">
-            <button
-              onClick={handleOpenLoadout}
-              className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/15 text-xs font-bold text-white/90 transition-all flex items-center gap-1 whitespace-nowrap"
-            >
-              <UserCheck className="w-3.5 h-3.5 text-[#38BDF8]" /> Roster
-            </button>
-
             <button
               onClick={handleLaunchGame}
               className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#FDE047] via-[#FACC15] to-[#CA8A04] text-black font-display font-black text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 shadow-[0_8px_24px_rgba(250,204,21,0.35)] flex items-center gap-1 whitespace-nowrap"

@@ -1846,6 +1846,83 @@ export class LandingPageController {
     await this._executeLaunch(finalName, order, cls);
   }
 
+  async enterWorld(mode = null, skillId = null) {
+    this.playSfx('launch');
+
+    if (mode === 'singleplayer' || mode === 'multiplayer') {
+      this.playMode = mode;
+      try {
+        localStorage.setItem(PLAY_MODE_KEY, mode);
+      } catch (_) {}
+    }
+
+    if (skillId) {
+      this.selectedSkillGuideId = String(skillId);
+      if (typeof window !== 'undefined') {
+        window._pendingTrainSkillId = String(skillId);
+      }
+    }
+
+    try {
+      localStorage.setItem('glimmerfall_seen_prologue', 'true');
+    } catch (_) {}
+
+    if (this.frontpage) {
+      const sameModeInWorld =
+        typeof window !== 'undefined' &&
+        window._hasEnteredWorld &&
+        (!mode || mode === this.frontpage.playMode);
+      this.frontpage.playMode = this.playMode;
+      if (sameModeInWorld) {
+        this.close();
+        this.frontpage.close?.();
+        window._consumeTrainSkillHint?.();
+        return true;
+      }
+      const existingChar = this.frontpage.getSelectedCharacter?.();
+      if (existingChar) {
+        this.close();
+        await this.frontpage.playSelectedCharacter();
+        return true;
+      }
+      await this.launchGame();
+      return true;
+    }
+
+    const rawName = (this.characterName || 'Vanguard').trim();
+    const vRes = validateCharacterName(rawName);
+    const finalName = vRes.valid ? vRes.cleanName : 'Vanguard';
+    const allowedOrders = getOrderPresetsForFaction(this.selectedFaction);
+    const order = allowedOrders.find((o) => o.tag === this.selectedOrderTag) || allowedOrders[0] || ORDER_PRESETS[0];
+    const cls = CLASSES_CATALOG[this.selectedClassId] || CLASSES_CATALOG.solari_vanguard;
+
+    if (this.onEnterWorld) {
+      this.close();
+      this.onEnterWorld({
+        playMode: this.playMode,
+        profile: {
+          id: `char_${Date.now()}`,
+          displayName: finalName,
+          faction: this.selectedFaction,
+          classId: cls.id,
+          orderTag: order.tag,
+          homeBiome: ROOM_TYPES.SANCTUARY_HUB,
+        },
+        startingRealm: ROOM_TYPES.SANCTUARY_HUB,
+      });
+      return true;
+    }
+
+    if (typeof window !== 'undefined') {
+      const qs = new URLSearchParams({ mode: this.playMode, autostart: '1' });
+      if (skillId) qs.set('trainSkill', String(skillId));
+      window.location.href = `/?${qs.toString()}`;
+      return true;
+    }
+
+    return false;
+  }
+
   async _executeLaunch(finalName, order, cls) {
     this.close();
 
@@ -1982,9 +2059,6 @@ export class LandingPageController {
             </nav>
 
             <div class="gf-navbar-actions">
-              <button type="button" class="id-mini-btn" style="padding:6px 10px; font-size:11.5px;" onclick="window._landing.openLoadout()">
-                <span>👤</span> Roster
-              </button>
               <button type="button" class="hero-btn-primary" style="padding:7px 14px; font-size:11.5px; white-space:nowrap;" onclick="window._landing.startJourney()">
                 <span>⚡</span> PLAY NOW
               </button>

@@ -142,7 +142,7 @@ export default function SkillGuidesTab({
           <div className="flex flex-wrap gap-2.5 flex-shrink-0">
             <button
               type="button"
-              onClick={onLaunchGame}
+              onClick={() => onLaunchGame?.(activeSkill.id)}
               className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#F2A900] to-[#FDE047] text-[#050811] text-xs font-extrabold uppercase tracking-wider hover:brightness-110 transition-all shadow-[0_0_24px_rgba(242,169,0,0.3)] flex items-center gap-2"
             >
               <Zap className="w-4 h-4" />

@@ -136,9 +136,22 @@ export const gatheringAndCraftingMethods = {
     if (node.charges <= 0) return;
 
     const now = Date.now();
-    if (now < (player.harvestReadyAt || 0)) return;
+    if (now < (player.harvestReadyAt || 0)) {
+      const remainingSec = Math.max(0.05, (player.harvestReadyAt - now) / 1000).toFixed(2);
+      if (!player._lastHarvestCdWarnAt || now - player._lastHarvestCdWarnAt >= 300) {
+        player._lastHarvestCdWarnAt = now;
+        player.send({
+          type: 'sys_msg',
+          category: 'combat',
+          text: `⏳ [Gathering] Please wait ${remainingSec}s before harvesting again!`,
+        });
+      }
+      return;
+    }
     const isGrand = Boolean(node.isGrand);
-    player.harvestReadyAt = now + (node.skillingType ? 450 : (isGrand ? HARVEST_COOLDOWN_MS.grand : HARVEST_COOLDOWN_MS.normal));
+    const harvestCooldownMs = node.skillingType
+      ? HARVEST_COOLDOWN_MS.skilling
+      : (isGrand ? HARVEST_COOLDOWN_MS.grand : HARVEST_COOLDOWN_MS.normal);
 
     // 2A. Authoritative World Skilling Vein / Herb Cluster / Silk Bloom
     if (node.skillingType && SKILLING_NODE_TYPES[node.skillingType]) {
@@ -154,6 +167,8 @@ export const gatheringAndCraftingMethods = {
         });
         return;
       }
+      player.harvestReadyAt = now + harvestCooldownMs;
+      player._lastHarvestCdWarnAt = 0;
       node.charges--;
       if (node.charges === 0) node.rechargeTimer = skSpec.respawnSec || 12.0;
 
@@ -224,6 +239,8 @@ export const gatheringAndCraftingMethods = {
       return;
     }
 
+    player.harvestReadyAt = now + harvestCooldownMs;
+    player._lastHarvestCdWarnAt = 0;
     node.charges--;
     if (node.charges === 0) node.rechargeTimer = isGrand ? 45.0 : 11.0;
 

@@ -153,3 +153,62 @@ test('Next.js landing page wires Skill Guides tab cleanly with working setTab ha
   // Ensure no broken fallback to wrong skill id
   assert.equal(getSkillGuideById('nonexistent').id, 'combat_mastery');
 });
+
+test('Skill Guide Train [Skill] button wires working enterWorld across all 7 skills (including Rites)', async () => {
+  for (const guide of SKILL_GUIDES) {
+    const html = renderLandingSkillGuidesTab({ selectedSkillId: guide.id });
+    assert.ok(
+      html.includes(`Train ${guide.name} Now`),
+      `Skill guide must render Train ${guide.name} Now CTA`
+    );
+    assert.ok(
+      html.includes(`window._landing.enterWorld(null, '${guide.id}')`),
+      `Train CTA for ${guide.id} must call window._landing.enterWorld(null, '${guide.id}')`
+    );
+  }
+
+  // Test LandingPageController.enterWorld with onEnterWorld callback
+  let enteredPayload = null;
+  const landingWithCallback = new LandingPageController({
+    frontpage: null,
+    onEnterWorld: (payload) => {
+      enteredPayload = payload;
+    },
+  });
+  landingWithCallback.open('skills');
+  assert.equal(landingWithCallback.isOpen, true);
+  const okCb = await landingWithCallback.enterWorld(null, 'rites');
+  assert.equal(okCb, true);
+  assert.equal(landingWithCallback.isOpen, false);
+  assert.equal(landingWithCallback.selectedSkillGuideId, 'rites');
+  assert.ok(enteredPayload && enteredPayload.startingRealm === 'sanctuary_hub');
+
+  // Test LandingPageController.enterWorld with frontpage controller (singleplayer/multiplayer)
+  let playedCount = 0;
+  let closedFpCount = 0;
+  const mockFrontpage = {
+    playMode: 'singleplayer',
+    close: () => {
+      closedFpCount += 1;
+    },
+    getSelectedCharacter: () => ({ id: 'char_1', name: 'RiteMaster' }),
+    playSelectedCharacter: async () => {
+      playedCount += 1;
+    },
+  };
+  const landingWithFp = new LandingPageController({ frontpage: mockFrontpage });
+  landingWithFp.open('skills');
+  assert.ok(closedFpCount >= 1);
+  const okFp = await landingWithFp.enterWorld('singleplayer', 'rites');
+  assert.equal(okFp, true);
+  assert.equal(playedCount, 1);
+  assert.equal(landingWithFp.isOpen, false);
+
+  // Verify Next.js SkillGuidesTab passes skill id to onLaunchGame and page.jsx preserves it
+  const pageSrc = fs.readFileSync(path.join(process.cwd(), 'landing', 'src', 'app', 'page.jsx'), 'utf8');
+  const compSrc = fs.readFileSync(path.join(process.cwd(), 'landing', 'src', 'components', 'SkillGuidesTab.jsx'), 'utf8');
+  const gameSrc = fs.readFileSync(path.join(process.cwd(), 'client', 'game.js'), 'utf8');
+  assert.ok(compSrc.includes('onLaunchGame?.(activeSkill.id)'), 'SkillGuidesTab must pass activeSkill.id to onLaunchGame');
+  assert.ok(pageSrc.includes('trainSkill='), 'page.jsx handleLaunchGame must forward trainSkill query param');
+  assert.ok(gameSrc.includes("get('trainSkill')"), 'game.js boot routing must honor trainSkill param');
+});
