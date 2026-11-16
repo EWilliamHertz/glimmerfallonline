@@ -20,6 +20,14 @@ import {
 } from '../shared/protocol.js';
 import { getItemIconDataUrl } from './itemSprites.js';
 import { getRarityColor } from './ui/inventoryHelpers.js';
+import { renderLandingSkillGuidesTab } from './game/landingSkillGuidesUi.js';
+import {
+  renderUniversalSearchHeaderBar,
+  renderUniversalSearchModal,
+  renderSearchableAtlasSection,
+} from './game/landingUniversalSearchUi.js';
+import { normalizeLandingTabId } from './game/sessionLockHelpers.js';
+import { resolveUniversalEntry } from '../landing/src/data/universalSearchData.js';
 
 const START_ON_LOADOUT_KEY = 'glimmerfall_start_on_loadout';
 const SP_ROSTER_KEY = 'glimmerfall_sp_roster_v2';
@@ -441,6 +449,19 @@ export class LandingPageController {
     this.isTheatreAutoplay = false;
     this.armorySlotFilter = 'all';
     this.armorySearch = '';
+    this.selectedSkillGuideId = 'combat_mastery';
+    this.skillGuideCategory = 'All';
+    this.skillGuideBracketIdx = 0;
+    this.skillCalcFromLevel = 1;
+    this.skillCalcToLevel = 99;
+    this.skillCalcMoonOwl = false;
+    this.skillGuideSearch = '';
+    this.universalSearchOpen = false;
+    this.universalSearchQuery = '';
+    this.universalSearchCategory = 'all';
+    this.selectedSearchEntryId = '';
+    this.mapSearchQuery = '';
+    this.selectedAtlasZoneId = 'SANCTUARY_HUB';
 
     try {
       const savedMode = localStorage.getItem(PLAY_MODE_KEY);
@@ -573,6 +594,20 @@ export class LandingPageController {
       const overlay = this.getScrollContainer();
       if (!overlay || !this.isOpen) return;
 
+      if ((e.ctrlKey || e.metaKey) && String(e.key || '').toLowerCase() === 'k') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.openUniversalSearch({ focusModalInput: true });
+        return;
+      }
+
+      if (e.key === 'Escape' && this.universalSearchOpen) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeUniversalSearch();
+        return;
+      }
+
       const active = document.activeElement;
       const tag = active ? active.tagName.toLowerCase() : '';
       if (tag === 'input' || tag === 'textarea' || active?.isContentEditable) {
@@ -683,20 +718,7 @@ export class LandingPageController {
   }
 
   setTab(tabId) {
-    const aliasMap = {
-      'prologue-hero': 'overview',
-      'theatre': 'theatre',
-      'forge': 'forge',
-      'systems': 'systems',
-      'game-encyclopedia': 'systems',
-      'lore-chronicle': 'atlas',
-      'tcg-cards': 'armory',
-      'armory': 'armory',
-      'arena': 'atlas',
-      'atlas': 'atlas',
-      'settings': 'settings',
-    };
-    this.activeTab = aliasMap[tabId] || tabId;
+    this.activeTab = normalizeLandingTabId(tabId) || tabId;
     this.playSfx('click');
     this.render();
     if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
@@ -709,10 +731,11 @@ export class LandingPageController {
 
   open(initialTab = null) {
     this.isOpen = true;
-    if (initialTab) {
-      this.activeTab = initialTab;
+    const normalizedInitial = normalizeLandingTabId(initialTab);
+    if (normalizedInitial) {
+      this.activeTab = normalizedInitial;
     } else if (typeof window !== 'undefined' && window._pendingLandingTab) {
-      this.activeTab = window._pendingLandingTab;
+      this.activeTab = normalizeLandingTabId(window._pendingLandingTab) || window._pendingLandingTab;
       window._pendingLandingTab = null;
     }
     if (typeof window !== 'undefined' && window._pendingLandingFaction) {
@@ -1631,6 +1654,101 @@ export class LandingPageController {
     this.render();
   }
 
+  openUniversalSearch({ focusModalInput = false } = {}) {
+    const wasOpen = this.universalSearchOpen;
+    this.universalSearchOpen = true;
+    if (!wasOpen) {
+      this.render({
+        preserveFocusId: focusModalInput ? 'gf-us-modal-input' : 'gf-header-search-input',
+      });
+    } else if (focusModalInput && typeof document !== 'undefined') {
+      document.getElementById('gf-us-modal-input')?.focus();
+    }
+  }
+
+  closeUniversalSearch() {
+    if (!this.universalSearchOpen) return;
+    this.universalSearchOpen = false;
+    this.render();
+  }
+
+  setUniversalSearchQuery(query, { preserveFocusId = null } = {}) {
+    const activeEl =
+      preserveFocusId && typeof document !== 'undefined'
+        ? document.getElementById(preserveFocusId)
+        : null;
+    const selPos =
+      activeEl && typeof activeEl.selectionStart === 'number'
+        ? activeEl.selectionStart
+        : null;
+    this.universalSearchQuery = String(query ?? '');
+    this.selectedSearchEntryId = '';
+    this.universalSearchOpen = true;
+    this.render({ preserveFocusId, preserveSelection: selPos });
+  }
+
+  setUniversalSearchCategory(category) {
+    this.universalSearchCategory = category || 'all';
+    this.playSfx('click');
+    this.render();
+  }
+
+  selectSearchEntry(entryId) {
+    this.selectedSearchEntryId = entryId || '';
+    this.playSfx('click');
+    this.render();
+  }
+
+  inspectUniversalEntry(idOrQuery = '') {
+    const raw = String(idOrQuery || '').trim();
+    const resolved = raw ? resolveUniversalEntry(raw) : null;
+    this.universalSearchCategory = 'all';
+    if (resolved) {
+      this.universalSearchQuery = resolved.name;
+      this.selectedSearchEntryId = resolved.id;
+    } else {
+      this.universalSearchQuery = raw;
+      this.selectedSearchEntryId = '';
+    }
+    this.universalSearchOpen = true;
+    this.playSfx('click');
+    this.render();
+  }
+
+  setMapSearchQuery(query, { preserveFocusId = null } = {}) {
+    const activeEl =
+      preserveFocusId && typeof document !== 'undefined'
+        ? document.getElementById(preserveFocusId)
+        : null;
+    const selPos =
+      activeEl && typeof activeEl.selectionStart === 'number'
+        ? activeEl.selectionStart
+        : null;
+    this.mapSearchQuery = String(query ?? '');
+    this.render({ preserveFocusId, preserveSelection: selPos });
+  }
+
+  selectAtlasZone(zoneId) {
+    this.selectedAtlasZoneId = zoneId || 'SANCTUARY_HUB';
+    this.playSfx('click');
+    this.render();
+  }
+
+  jumpToAtlasZone(zoneId) {
+    this.universalSearchOpen = false;
+    this.selectedAtlasZoneId = zoneId || 'SANCTUARY_HUB';
+    this.mapSearchQuery = '';
+    this.setTab('atlas');
+  }
+
+  jumpToSkillGuide(skillId) {
+    this.universalSearchOpen = false;
+    this.selectedSkillGuideId = skillId || 'combat_mastery';
+    this.skillGuideCategory = 'All';
+    this.skillGuideBracketIdx = 0;
+    this.setTab('skills');
+  }
+
   setHoveredItem(itemId) {
     this.hoveredItemId = itemId;
     this.render();
@@ -1799,7 +1917,7 @@ export class LandingPageController {
   // ==========================================
   // Render Function
   // ==========================================
-  render() {
+  render(opts = {}) {
     if (typeof document === 'undefined') return '';
     const overlay = document.getElementById('landing-overlay');
     if (!overlay) return '';
@@ -1849,6 +1967,9 @@ export class LandingPageController {
               <button type="button" class="landing-tab-btn ${this.activeTab === 'systems' ? 'active' : ''}" onclick="window._landing.setTab('systems')">
                 <span>⚙️ Systems</span>
               </button>
+              <button type="button" class="landing-tab-btn ${this.activeTab === 'skills' ? 'active' : ''}" onclick="window._landing.setTab('skills')">
+                <span>📖 Skill Guides</span>
+              </button>
               <button type="button" class="landing-tab-btn ${this.activeTab === 'armory' ? 'active' : ''}" onclick="window._landing.setTab('armory')">
                 <span>🛡️ Armory</span>
               </button>
@@ -1861,24 +1982,18 @@ export class LandingPageController {
             </nav>
 
             <div class="gf-navbar-actions">
-              <div class="gf-mode-switch-pill" title="Switch Offline vs Online Realm">
-                <button type="button"
-                        class="sidebar-mode-btn ${isSingle ? 'active single' : ''}"
-                        onclick="window._landing.setPlayMode('singleplayer')">
-                  🕹️ Offline
-                </button>
-                <button type="button"
-                        class="sidebar-mode-btn ${!isSingle ? 'active multi' : ''}"
-                        onclick="window._landing.setPlayMode('multiplayer')">
-                  🌐 Online
-                </button>
-              </div>
               <button type="button" class="id-mini-btn" style="padding:6px 10px; font-size:11.5px;" onclick="window._landing.openLoadout()">
                 <span>👤</span> Roster
               </button>
               <button type="button" class="hero-btn-primary" style="padding:7px 14px; font-size:11.5px; white-space:nowrap;" onclick="window._landing.startJourney()">
                 <span>⚡</span> PLAY NOW
               </button>
+            </div>
+          </div>
+
+          <div class="gf-header-search-row">
+            <div class="gf-header-search-row-inner">
+              ${renderUniversalSearchHeaderBar(this)}
             </div>
           </div>
         </header>
@@ -1934,8 +2049,21 @@ export class LandingPageController {
             </div>
           </footer>
         </main>
+        ${renderUniversalSearchModal(this)}
       </div>
     `;
+
+    if (opts && opts.preserveFocusId) {
+      const target = document.getElementById(opts.preserveFocusId);
+      if (target) {
+        target.focus();
+        if (typeof opts.preserveSelection === 'number' && typeof target.setSelectionRange === 'function') {
+          try {
+            target.setSelectionRange(opts.preserveSelection, opts.preserveSelection);
+          } catch (_) {}
+        }
+      }
+    }
 
     if (this.activeTab === 'theatre') {
       const vid = document.getElementById('theatre-main-video');
@@ -1952,6 +2080,68 @@ export class LandingPageController {
   // ==========================================
   // TAB ROUTER & SECTION RENDERERS
   // ==========================================
+  setSkillGuideCategory(category = 'All') {
+    this.skillGuideCategory = category || 'All';
+    this.skillGuideBracketIdx = 0;
+    this.playSfx('click');
+    if (this.isOpen) this.render();
+  }
+
+  setSkillGuide(skillId) {
+    this.selectedSkillGuideId = skillId || 'combat_mastery';
+    this.skillGuideBracketIdx = 0;
+    this.skillGuideSearch = '';
+    this.playSfx('click');
+    if (this.isOpen) this.render();
+  }
+
+  setSkillGuideBracket(idx) {
+    this.skillGuideBracketIdx = Math.max(0, Number(idx) || 0);
+    this.playSfx('click');
+    if (this.isOpen) this.render();
+  }
+
+  setSkillCalcLevels(fromLvl, toLvl) {
+    const cleanFrom = Math.max(1, Math.min(98, Number(fromLvl) || 1));
+    const cleanTo = Math.max(cleanFrom + 1, Math.min(99, Number(toLvl) || 99));
+    this.skillCalcFromLevel = cleanFrom;
+    this.skillCalcToLevel = cleanTo;
+    if (this.isOpen) this.render();
+  }
+
+  toggleSkillCalcOwl(enabled) {
+    this.skillCalcMoonOwl = Boolean(enabled);
+    this.playSfx('click');
+    if (this.isOpen) this.render();
+  }
+
+  setSkillGuideSearch(query) {
+    this.skillGuideSearch = String(query || '');
+    if (this.isOpen) {
+      this.render();
+      if (typeof document !== 'undefined') {
+        const inp = document.querySelector('.gf-sg-search-input');
+        if (inp) {
+          inp.focus();
+          const len = inp.value.length;
+          inp.setSelectionRange?.(len, len);
+        }
+      }
+    }
+  }
+
+  renderSkillGuidesTab() {
+    return renderLandingSkillGuidesTab({
+      category: this.skillGuideCategory,
+      selectedSkillId: this.selectedSkillGuideId,
+      selectedBracketIdx: this.skillGuideBracketIdx,
+      calcFromLevel: this.skillCalcFromLevel,
+      calcToLevel: this.skillCalcToLevel,
+      calcMoonOwl: this.skillCalcMoonOwl,
+      searchQuery: this.skillGuideSearch,
+    });
+  }
+
   renderActiveTab(props) {
     switch (this.activeTab) {
       case 'overview':
@@ -1964,6 +2154,9 @@ export class LandingPageController {
       case 'systems':
       case 'game-encyclopedia':
         return this.renderSystemsTab(props);
+      case 'skills':
+      case 'skill-guides':
+        return this.renderSkillGuidesTab();
       case 'armory':
       case 'tcg-cards':
         return this.renderArmoryTab(props);
@@ -2774,39 +2967,8 @@ export class LandingPageController {
 
   renderAtlasTab() {
     return `
-      <!-- WORLD ATLAS -->
-      <section id="atlas" class="landing-section-box">
-        <div class="section-header-row">
-          <div>
-            <span class="section-tag" style="background:rgba(56,189,248,0.15); color:#38bdf8; border:1px solid rgba(56,189,248,0.3);">
-              SEAMLESS TRAVERSAL
-            </span>
-            <h2 class="section-heading">🗺️ CONTINENTAL REALMS ATLAS</h2>
-          </div>
-          <span style="font-size:11px; color:#94a3b8;">8 Interconnected Biomes</span>
-        </div>
-
-        <div class="atlas-realms-grid">
-          ${[
-            { name: 'Sanctuary Haven', tag: 'Neutral Hub', color: '#facc15', desc: 'Central city housing the Grand Exchange pavilion, AetherVault banks, and artisans.' },
-            { name: 'Solari Citadel', tag: 'Sunspire Territory', color: '#facc15', desc: 'Marble sun-temples harvesting celestial dawn radiation.' },
-            { name: 'Umbri Undercity', tag: 'Duskveil Syndicate', color: '#c084fc', desc: 'Subterranean obsidian caverns lit by violet graveglass lanterns.' },
-            { name: 'Glimmer Orchard', tag: 'Rootdeep Collective', color: '#4ade80', desc: 'Towering ancient trees with sentient moss and stonekin elders.' },
-            { name: 'Mirrorgate Spire', tag: 'Astral Conclave', color: '#38bdf8', desc: 'Floating crystal pinnacles bending temporal currents.' },
-            { name: 'Starfall Crater', tag: 'Warzone PvPvE', color: '#f87171', desc: 'Impact site where all 4 factions clash over primal leyline shards.' },
-            { name: 'Abyssal Rift', tag: 'High-Level Dungeon', color: '#a855f7', desc: 'Endgame chasm where elite void abominations and corrupted keystones lurk.' },
-            { name: 'Nexus Warzone', tag: '3v3 Monolith Arena', color: '#ef4444', desc: 'Mirror-symmetric tactical battleground defending 2500-HP Chronocore Monoliths.' },
-          ].map((r) => `
-            <div class="enc-article-card" style="border-left:3px solid ${r.color};">
-              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                <b style="color:#fff;">${r.name}</b>
-                <span style="color:${r.color}; font-size:9.5px; font-weight:bold;">${r.tag}</span>
-              </div>
-              <p style="color:#cbd5e1; font-size:11px;">${r.desc}</p>
-            </div>
-          `).join('')}
-        </div>
-      </section>
+      <!-- SEARCHABLE CONTINENTAL WORLD ATLAS -->
+      ${renderSearchableAtlasSection(this)}
 
       <!-- 3v3 ARENA -->
       <section id="arena" class="landing-section-box" style="margin-top:20px; border-color:rgba(248,113,113,0.3); background:radial-gradient(circle at 50% 50%, #150a0a, #070404);">

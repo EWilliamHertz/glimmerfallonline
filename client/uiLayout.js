@@ -105,12 +105,28 @@ export function applySavedUiScale() {
 }
 let isDragging = false;
 let isReflowing = false;
+let hudReflowRafId = null;
 let hudResizeObserver = null;
 let currentDragEl = null;
 let dragStartX = 0;
 let dragStartY = 0;
 let elemStartLeft = 0;
 let elemStartTop = 0;
+
+/**
+ * Coalesce frequent HUD resize/update triggers into a single animation-frame layout pass.
+ */
+export function scheduleHudStackReflow() {
+  if (typeof requestAnimationFrame !== 'function') {
+    reflowDefaultHudStack();
+    return;
+  }
+  if (hudReflowRafId !== null) return;
+  hudReflowRafId = requestAnimationFrame(() => {
+    hudReflowRafId = null;
+    reflowDefaultHudStack();
+  });
+}
 
 /**
  * Dynamically stacks default (un-customized) top-left HUD widgets
@@ -222,11 +238,11 @@ export function initUiLayout() {
     panel.addEventListener('touchstart', (e) => onPanelMouseDown(e, panel), { passive: false });
   });
 
-  // 3. Observe size changes on left-column HUD panels so dynamic updates never overlap
+  // 3. Observe size changes on left-column HUD panels (coalesced to 1 RAF per frame)
   if (typeof ResizeObserver !== 'undefined') {
     if (hudResizeObserver) hudResizeObserver.disconnect();
     hudResizeObserver = new ResizeObserver(() => {
-      reflowDefaultHudStack();
+      scheduleHudStackReflow();
     });
     ['player-unit-frame', 'party-hud', 'social-chat-panel'].forEach((id) => {
       const el = document.getElementById(id);
@@ -535,6 +551,7 @@ if (typeof window !== 'undefined') {
   window.saveAndLockUiLayout = saveAndLockUiLayout;
   window.resetDefaultUiLayout = resetDefaultUiLayout;
   window.reflowDefaultHudStack = reflowDefaultHudStack;
+  window.scheduleHudStackReflow = scheduleHudStackReflow;
   window.setUiScale = setUiScale;
   window.cycleUiScale = cycleUiScale;
   window.getUiScale = getUiScale;

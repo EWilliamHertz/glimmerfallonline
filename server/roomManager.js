@@ -417,6 +417,9 @@ export class RoomManager {
       roomId: null,
       roomType: null,
       portalCooldown: 0,
+      lastMoveSeq: 0,
+      posOverrideSeq: 0,
+      lastMovePacketAt: 0,
       portalQuestDone: false,
       speechBubble: null,
       activeEmote: null,
@@ -441,7 +444,7 @@ export class RoomManager {
     return client;
   }
 
-  saveClientState(client) {
+  saveClientState(client, options = {}) {
     if (!client || !client.id || typeof this.accounts?.saveCharacterState !== 'function') return;
     const safeRoom = (client.roomType && client.roomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[client.roomType])
       ? client.roomType
@@ -458,6 +461,7 @@ export class RoomManager {
       solarCharge: client.solarCharge,
       isDead: client.isDead,
       lastPosition: { roomType: safeRoom, x: safeX, y: safeY },
+      immediate: options.immediate !== false,
     });
     client._lastSavedRoomType = safeRoom;
     client._lastSavedX = safeX;
@@ -624,11 +628,12 @@ export class RoomManager {
     } else {
       client.x = cfg.spawnX;
       client.y = cfg.spawnY;
-      client.dir = 'up';
+      client.dir = client.dir || 'up';
     }
 
+    client.posOverrideSeq = (client.posOverrideSeq || 0) + 1;
     room.players.set(client.id, client);
-    this.saveClientState(client);
+    this.saveClientState(client, { immediate: true });
 
     client.send({
       type: 'room_joined',
@@ -646,6 +651,8 @@ export class RoomManager {
       x: client.x,
       y: client.y,
       dir: client.dir,
+      lastMoveSeq: client.lastMoveSeq || 0,
+      posOverrideSeq: client.posOverrideSeq,
       snapshot: this.buildSnapshot(room),
     });
 

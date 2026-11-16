@@ -59,9 +59,15 @@ import {
   getMythicAffixesForTier,
   CRAFTING_STATIONS,
   CRAFTING_RECIPES,
+  checkCraftInventorySpace,
   SKILLING_NODE_TYPES,
   ELITE_AFFIXES,
   BOUNTY_CONTRACTS,
+  extractMaterialToCiphers,
+  compileFamiliarFromPrint,
+  normalizeFamiliarState,
+  computeFamiliarBonuses,
+  NEXUS_FAMILIARS_CATALOG,
 } from '../../shared/protocol.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
 
@@ -179,7 +185,10 @@ export const gatheringAndCraftingMethods = {
           isCrit: true,
         });
       }
-      const added = this.accounts.addItemToInventory(player.id, chosenId, qty);
+      const famBonuses = computeFamiliarBonuses(player.prog?.familiars?.activeId);
+      const bonusYield = famBonuses.harvestBonusChance > 0 && Math.random() < famBonuses.harvestBonusChance ? 1 : 0;
+      const totalHarvestQty = qty + bonusYield;
+      const added = this.accounts.addItemToInventory(player.id, chosenId, totalHarvestQty);
       const itemDef = EQUIPMENT_CATALOG[chosenId];
 
       room.fxQueue.push({
@@ -192,7 +201,9 @@ export const gatheringAndCraftingMethods = {
         kind: 'fct',
         x: node.x,
         y: node.y - 6,
-        text: added ? `+${qty}x ${itemDef?.name || chosenId}` : 'BACKPACK FULL (28/28)',
+        text: added
+          ? `+${totalHarvestQty}x ${itemDef?.name || chosenId}${bonusYield > 0 ? ' (FAMILIAR BONUS!)' : ''}`
+          : 'BACKPACK FULL (28/28)',
         color: added ? ((skSpec.sparkColors && skSpec.sparkColors[0]) || '#fde047') : '#ef4444',
         isCrit: added,
       });
@@ -280,35 +291,28 @@ export const gatheringAndCraftingMethods = {
       return;
     }
 
-    // Verify all ingredients exist in acc.inventory
-    let freedSlots = 0;
-    for (const ing of recipe.ingredients) {
+    const spaceCheck = checkCraftInventorySpace(recipe, acc.inventory, EQUIPMENT_CATALOG, 28);
+    if (spaceCheck.reason === 'missing_ingredients' && spaceCheck.missingItemId) {
       let have = 0;
+      const ingObj = recipe.ingredients.find((i) => (i.id || i.itemId) === spaceCheck.missingItemId);
       for (const slot of acc.inventory) {
         const id = typeof slot === 'string' ? slot : slot?.id;
-        if (id === ing.id) have += typeof slot === 'object' && slot.qty ? slot.qty : 1;
+        if (id === spaceCheck.missingItemId) have += typeof slot === 'object' && slot.qty ? slot.qty : 1;
       }
-      if (have < ing.qty) {
-        player.send({
-          type: 'sys_msg',
-          category: 'combat',
-          text: `[Artisan Station] Missing ${EQUIPMENT_CATALOG[ing.id]?.name || ing.id} (${have}/${ing.qty}).`,
-        });
-        return;
-      }
-      if (have === ing.qty) freedSlots++;
-    }
-
-    const outQty = recipe.outputQty || 1;
-    const existingOut = outItem.stackable
-      ? acc.inventory.find((s) => (typeof s === 'string' ? s : s?.id) === recipe.outputId)
-      : null;
-    const neededSlots = existingOut ? 0 : (outItem.stackable ? 1 : outQty);
-    if (acc.inventory.length - freedSlots + neededSlots > 28) {
       player.send({
         type: 'sys_msg',
         category: 'combat',
-        text: '🎒 Backpack is full (28/28)! Clear space before crafting.',
+        text: `[Artisan Station] Missing ${EQUIPMENT_CATALOG[spaceCheck.missingItemId]?.name || spaceCheck.missingItemId} (${have}/${ingObj?.qty || 1}).`,
+      });
+      return;
+    }
+
+    const outQty = recipe.outputQty || 1;
+    if (spaceCheck.bagFull) {
+      player.send({
+        type: 'sys_msg',
+        category: 'combat',
+        text: `🎒 Your bag is full (${acc.inventory.length}/28)! Clear space before crafting.`,
       });
       return;
     }
@@ -436,7 +440,9 @@ export const gatheringAndCraftingMethods = {
       return;
     }
 
-    prof.xp = (prof.xp || 0) + amount;
+    const bonusSkillPct = computeFamiliarBonuses(player.prog?.familiars?.activeId).skillXpPct || 0;
+    const boostedAmount = bonusSkillPct > 0 ? Math.max(amount, Math.round(amount * (1 + bonusSkillPct))) : amount;
+    prof.xp = (prof.xp || 0) + boostedAmount;
     let newLevel = getProfessionLevelFromXp(prof.xp);
     if (!founderUnlocked && newLevel > profCap) {
       prof.xp = profCapXp;
@@ -532,5 +538,123 @@ export const gatheringAndCraftingMethods = {
     });
     this.refreshClientFromAccount(player.id);
     return true;
+  },
+
+  handleExtractCipher(room, player, itemId, count = 1) {
+    if (!player || player.isDead || !player.prog || !itemId) return;
+    const acc = this.accounts.accountsById.get(player.id);
+    if (!acc) return;
+    this.accounts.ensureDefaultCharacter(acc);
+    if (!Array.isArray(acc.inventory)) acc.inventory = [];
+
+    const activeFamId = player.prog?.familiars?.activeId || acc.progression?.familiars?.activeId || null;
+    const res = extractMaterialToCiphers({
+      inv: acc.inventory,
+      itemId: String(itemId).trim(),
+      count,
+      activeFamiliarId: activeFamId,
+    });
+    if (!res.ok) {
+      player.send({ type: 'sys_msg', category: 'combat', text: `⚗️ [Harmonic Extractor] ${res.reason}.` });
+      return;
+    }
+
+    const ch = this.accounts.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+    if (ch) ch.inventory = acc.inventory;
+    this.accounts.schedulePersist(acc.id, ch?.id);
+
+    this.awardProfessionXP(player, 'resonance_extraction', res.xp, 'Harmonic Cipher Decoding');
+    this.refreshClientFromAccount(player.id);
+
+    const outDef = EQUIPMENT_CATALOG[res.cipherId];
+    if (room) {
+      room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 10, colors: ['#38bdf8', '#c084fc', '#fde047'], count: 16 });
+      room.fxQueue.push({
+        kind: 'fct',
+        x: player.x,
+        y: player.y - 18,
+        text: `⚗️ +${res.cipherQty}x ${outDef?.name?.toUpperCase() || res.cipherId}${res.bonusProcs > 0 ? ' (HARMONIC CRIT!)' : ''}`,
+        color: '#38bdf8',
+        isCrit: true,
+      });
+    }
+  },
+
+  handleCompileFamiliar(room, player, familiarId) {
+    if (!player || player.isDead || !player.prog || !familiarId) return;
+    const acc = this.accounts.accountsById.get(player.id);
+    if (!acc) return;
+    this.accounts.ensureDefaultCharacter(acc);
+    if (!Array.isArray(acc.inventory)) acc.inventory = [];
+
+    const riteXp = Math.max(0, Math.floor(Number(player.prog?.professions?.rite_binding?.xp) || 0));
+    const riteLvl = getProfessionLevelFromXp(riteXp);
+    const res = compileFamiliarFromPrint({
+      inv: acc.inventory,
+      prog: player.prog,
+      familiarId: String(familiarId).trim(),
+      riteBindingLevel: riteLvl,
+    });
+    if (!res.ok) {
+      player.send({ type: 'sys_msg', category: 'combat', text: `🔮 [Construct Cradle] ${res.reason}.` });
+      return;
+    }
+
+    const ch = this.accounts.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+    if (ch) ch.inventory = acc.inventory;
+    this.accounts.saveProgression(player.id, player.prog);
+    this.awardProfessionXP(player, 'rite_binding', res.xp, `Compiled ${res.familiar.name}`);
+    this.refreshClientFromAccount(player.id);
+    this.parties?.syncPlayerVitals?.(player.id);
+
+    player.send({
+      type: 'sys_msg',
+      category: 'quest',
+      text: `✨ [Construct Cradle] Compiled & bound ${res.familiar.name}! (${res.familiar.passiveLabel})`,
+    });
+    if (room) {
+      room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 10, colors: [res.familiar.color, '#fde047', '#ffffff'], count: 24 });
+      room.fxQueue.push({
+        kind: 'fct',
+        x: player.x,
+        y: player.y - 20,
+        text: `✨ BOUND ${res.familiar.name.toUpperCase()}!`,
+        color: res.familiar.color || '#fde047',
+        isCrit: true,
+      });
+    }
+  },
+
+  handleSetActiveFamiliar(room, player, familiarId) {
+    if (!player || !player.prog) return;
+    const famState = normalizeFamiliarState(player.prog.familiars);
+    const targetId = familiarId ? String(familiarId).trim() : null;
+    if (targetId && !famState.unlockedIds.includes(targetId)) {
+      player.send({ type: 'sys_msg', category: 'combat', text: '🔮 Compile that Echo-Print at a Construct Cradle before summoning it.' });
+      return;
+    }
+    famState.activeId = targetId;
+    player.prog.familiars = famState;
+    this.accounts.saveProgression(player.id, player.prog);
+    this.refreshClientFromAccount(player.id);
+    this.parties?.syncPlayerVitals?.(player.id);
+
+    const def = targetId ? NEXUS_FAMILIARS_CATALOG[targetId] : null;
+    if (room) {
+      room.fxQueue.push({
+        kind: 'spark',
+        x: player.x - 10,
+        y: player.y - 6,
+        colors: [def?.color || '#94a3b8', '#ffffff'],
+        count: 12,
+      });
+      room.fxQueue.push({
+        kind: 'fct',
+        x: player.x,
+        y: player.y - 16,
+        text: def ? `🐾 SUMMONED ${def.name.toUpperCase()}` : '🐾 FAMILIAR DISMISSED',
+        color: def?.color || '#94a3b8',
+      });
+    }
   },
 };

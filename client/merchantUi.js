@@ -80,6 +80,10 @@ export const MERCHANT_CATALOGS = {
       { itemId: 'glimmer_shard', price: 22, note: 'Raw continental aether crystal valued by traders.' },
       { itemId: 'chrono_gem', price: 32, note: 'Temporal jewel channeling chronomantic resonance.' },
       { itemId: 'apprentice_focus_orb', price: 28, note: 'Arcane off-hand orb (+2 Resonance).' },
+      { itemId: 'echo_print_ember_fox', price: 65, note: 'Solari Construct Blueprint • Compile Dawnkit Ember-Fox at Construct Cradle.' },
+      { itemId: 'echo_print_ankyloling', price: 70, note: 'Terra Construct Blueprint • Compile Mossback Ankyloling at Construct Cradle.' },
+      { itemId: 'echo_print_wisp_imp', price: 85, note: 'Umbri Construct Blueprint • Compile Graveglass Wisp-Imp at Construct Cradle.' },
+      { itemId: 'echo_print_prism_sprite', price: 110, note: 'Aether Construct Blueprint • Compile Chrono-Prism Sprite at Construct Cradle.' },
     ],
   },
   merchant_tailor: {

@@ -203,20 +203,32 @@ export async function handleApiRequest(req, res, { accounts, rooms = null }) {
           y: Number.isFinite(ry) ? Math.max(-halfH + 14, Math.min(halfH - 14, Math.round(ry))) : (cfg.spawnY ?? 0),
         };
       }
+      const liveClient = rooms?.clients?.get(acc.id);
+      const isLiveWalking = Boolean(
+        liveClient &&
+        liveClient.activeCharacterId === targetCharId &&
+        (liveClient.isMoving || (Date.now() - (liveClient.lastMovePacketAt || 0)) < 2500)
+      );
+      const effectivePos = (isLiveWalking && liveClient.roomType && liveClient.roomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[liveClient.roomType])
+        ? {
+            roomType: liveClient.roomType,
+            x: Math.round(Number(liveClient.x) || 0),
+            y: Math.round(Number(liveClient.y) || 0),
+          }
+        : safeLastPos;
       accounts.saveCharacterState(acc.id, targetCharId, {
         hp: typeof body.hp === 'number' && body.hp > 0 ? Math.round(body.hp) : undefined,
         solarCharge: typeof body.solarCharge === 'number' && body.solarCharge >= 0 ? Math.round(body.solarCharge) : 0,
-        lastPosition: safeLastPos,
+        lastPosition: effectivePos,
       });
-      const liveClient = rooms?.clients?.get(acc.id);
-      if (liveClient && liveClient.activeCharacterId === targetCharId && safeLastPos) {
-        if (liveClient.roomType === safeLastPos.roomType && Math.hypot(safeLastPos.x - liveClient.x, safeLastPos.y - liveClient.y) <= 240) {
-          liveClient.x = safeLastPos.x;
-          liveClient.y = safeLastPos.y;
+      if (liveClient && liveClient.activeCharacterId === targetCharId && effectivePos) {
+        if (!isLiveWalking && liveClient.roomType === effectivePos.roomType && Math.hypot(effectivePos.x - liveClient.x, effectivePos.y - liveClient.y) <= 240) {
+          liveClient.x = effectivePos.x;
+          liveClient.y = effectivePos.y;
         }
-        liveClient._lastSavedRoomType = safeLastPos.roomType;
-        liveClient._lastSavedX = safeLastPos.x;
-        liveClient._lastSavedY = safeLastPos.y;
+        liveClient._lastSavedRoomType = effectivePos.roomType;
+        liveClient._lastSavedX = effectivePos.x;
+        liveClient._lastSavedY = effectivePos.y;
         liveClient._lastSavedAt = Date.now();
       }
       await accounts.flushToPostgres();
@@ -358,17 +370,21 @@ export async function handleApiRequest(req, res, { accounts, rooms = null }) {
         sendJson(res, 401, { ok: false, error: 'Unauthorized' });
         return true;
       }
-      const prevCharId = rooms?.getClientById(currentAcc.id)?.activeCharacterId || null;
+      const prevClientBeforeFlush = rooms?.getClientById(currentAcc.id) || null;
+      const hadLiveClientBeforeFlush = Boolean(prevClientBeforeFlush);
+      const prevCharId = prevClientBeforeFlush?.activeCharacterId || null;
       const charObj = accounts.createOrSelectCharacter(currentAcc.id, body);
       await accounts.flushToPostgres();
       if (rooms) {
+        const liveBeforeRefresh = rooms.getClientById(currentAcc.id);
+        const wsJoinedSameCharMidFlush = !hadLiveClientBeforeFlush && liveBeforeRefresh?.activeCharacterId === charObj.id;
         rooms.refreshClientFromAccount(currentAcc.id);
         const liveClient = rooms.getClientById(currentAcc.id);
-        if (liveClient) {
+        if (liveClient && !wsJoinedSameCharMidFlush) {
           const targetRoom = (charObj.lastPosition?.roomType && charObj.lastPosition.roomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[charObj.lastPosition.roomType])
             ? charObj.lastPosition.roomType
             : body.enterRealm;
-          const charChanged = prevCharId !== charObj.id;
+          const charChanged = (liveBeforeRefresh?.activeCharacterId || prevCharId) !== charObj.id;
           const roomChanged = Boolean(targetRoom && liveClient.roomType !== targetRoom);
           if (charChanged || roomChanged) {
             if (charObj.lastPosition?.roomType && charObj.lastPosition.roomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[charObj.lastPosition.roomType]) {

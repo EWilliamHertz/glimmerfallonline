@@ -25,6 +25,7 @@ import {
   getRankStats,
   getEffectiveStats,
   createDefaultProgression,
+  computeFamiliarBonuses,
   xpForNextLevel,
   MAX_BASE_LEVEL,
   PARAGON_AFFINITIES,
@@ -340,8 +341,9 @@ export const socialAndTickMethods = {
       const nearHealingSpring = room.entities.some((e) => e.type === 'node' && e.skillingType === 'healing_spring' && (e.charges ?? 0) > 0 && Math.hypot(e.x - p.x, e.y - p.y) <= 75);
       const springRegen = nearHealingSpring ? 6.0 : 0;
 
-      // Vitality Health Regeneration (+2.5 HP/s baseline + 0.5 HP/s per Terra Bulwark point + Campfire/Spring)
-      const hpRegen = calcHpRegenPerSec(p.prog) + campfireRegen + springRegen;
+      // Vitality Health Regeneration (+2.5 HP/s baseline + 0.5 HP/s per Terra Bulwark point + Campfire/Spring + Familiar Vigor)
+      const famIdleHpPerSec = (computeFamiliarBonuses(p.prog?.familiars?.activeId).idleHpRegen || 0) / 5;
+      const hpRegen = calcHpRegenPerSec(p.prog) + campfireRegen + springRegen + famIdleHpPerSec;
       if (hpRegen > 0 && !p.isDead && p.hp < p.maxHp) {
         p.hp = Math.min(p.maxHp, p.hp + hpRegen * dt);
       }
@@ -435,6 +437,7 @@ export const socialAndTickMethods = {
         p.respawnTimer -= dt;
         if (p.respawnTimer <= 0) {
           p.isDead = false;
+          p.posOverrideSeq = (p.posOverrideSeq || 0) + 1;
           p.hp = p.maxHp;
           p.shield = 0;
           p.solarCharge = 0;
@@ -500,6 +503,7 @@ export const socialAndTickMethods = {
             const dest = room.edgeTransitions.east;
             if (!isRoomUnlockedForEdition(dest, p)) {
               p.x = room.halfW - 28;
+              p.posOverrideSeq = (p.posOverrideSeq || 0) + 1;
               this.joinRoom(p, dest);
               continue;
             }
@@ -518,6 +522,7 @@ export const socialAndTickMethods = {
             const dest = room.edgeTransitions.west;
             if (!isRoomUnlockedForEdition(dest, p)) {
               p.x = -room.halfW + 28;
+              p.posOverrideSeq = (p.posOverrideSeq || 0) + 1;
               this.joinRoom(p, dest);
               continue;
             }
@@ -536,6 +541,7 @@ export const socialAndTickMethods = {
             const dest = room.edgeTransitions.north;
             if (!isRoomUnlockedForEdition(dest, p)) {
               p.y = -room.halfH + 28;
+              p.posOverrideSeq = (p.posOverrideSeq || 0) + 1;
               this.joinRoom(p, dest);
               continue;
             }
@@ -554,6 +560,7 @@ export const socialAndTickMethods = {
             const dest = room.edgeTransitions.south;
             if (!isRoomUnlockedForEdition(dest, p)) {
               p.y = room.halfH - 28;
+              p.posOverrideSeq = (p.posOverrideSeq || 0) + 1;
               this.joinRoom(p, dest);
               continue;
             }
@@ -1134,6 +1141,7 @@ export const socialAndTickMethods = {
               const ang = Math.atan2(p.y - gz.y, p.x - gz.x);
               p.x = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, p.x + Math.cos(ang) * 24));
               p.y = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, p.y + Math.sin(ang) * 24));
+              p.posOverrideSeq = (p.posOverrideSeq || 0) + 1;
               if (gz.snare) p.snareTimer = Math.max(p.snareTimer || 0, gz.snare);
             }
           }
@@ -1175,6 +1183,8 @@ export const socialAndTickMethods = {
         z: Math.round(p.z),
         dir: p.dir,
         isMoving: p.isMoving,
+        lastMoveSeq: p.lastMoveSeq || 0,
+        posOverrideSeq: p.posOverrideSeq || 0,
         hp: p.hp,
         maxHp: p.maxHp,
         shield: p.shield,
@@ -1195,6 +1205,7 @@ export const socialAndTickMethods = {
         bubble: p.speechBubble ? p.speechBubble.text : null,
         emote: p.activeEmote ? p.activeEmote.emoteId : null,
         title: p.title || null,
+        activeFamiliarId: p.prog?.familiars?.activeId || null,
       });
     }
 

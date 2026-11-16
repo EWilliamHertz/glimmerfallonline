@@ -28,6 +28,15 @@ import {
   isReservedName,
   isProfane,
   maskProfanity,
+  normalizeFamiliarState,
+  normalizeMailbox,
+  sanitizeMailText,
+  createStarterMailParcel,
+  MAIL_POSTAGE_GOLD,
+  MAX_MAILBOX_ITEMS,
+  countBagItem,
+  deductBagItems,
+  addBagItem,
 } from '../shared/protocol.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -1557,6 +1566,15 @@ export class AccountsStore {
     const equippedTitle = incoming.equippedTitle !== undefined
       ? incoming.equippedTitle
       : (base.equippedTitle ?? null);
+    const familiars = normalizeFamiliarState({
+      unlockedIds: [
+        ...(Array.isArray(base.familiars?.unlockedIds) ? base.familiars.unlockedIds : []),
+        ...(Array.isArray(incoming.familiars?.unlockedIds) ? incoming.familiars.unlockedIds : []),
+      ],
+      activeId: incoming.familiars?.activeId !== undefined
+        ? incoming.familiars.activeId
+        : (base.familiars?.activeId ?? null),
+    });
     return sanitizeProgressionSkills({
       level: lvl,
       xp,
@@ -1571,7 +1589,7 @@ export class AccountsStore {
       paragonPoints,
       paragon,
       tempering,
-      stats,
+      familiars,
       achievements: {
         completed: completedAch,
         unlockedTitles: Array.from(unlockedTitlesSet),
@@ -1630,6 +1648,286 @@ export class AccountsStore {
     }
   }
 
+  ensureMailboxInitialized(accountId) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc) return [];
+    this.ensureDefaultCharacter(acc);
+    const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+    const meta = acc.statsMeta && typeof acc.statsMeta === 'object' ? acc.statsMeta : {};
+    acc.statsMeta = meta;
+
+    let mailbox = normalizeMailbox(meta.mailbox || ch?.statsMeta?.mailbox || []);
+    let changed = false;
+    if (!meta.mailboxSeeded && !ch?.statsMeta?.mailboxSeeded) {
+      mailbox = [createStarterMailParcel(acc.displayName, acc.faction), ...mailbox].slice(0, MAX_MAILBOX_ITEMS);
+      meta.mailboxSeeded = true;
+      changed = true;
+    }
+    meta.mailbox = mailbox;
+    if (ch) {
+      ch.statsMeta = { ...(ch.statsMeta || {}), mailboxSeeded: Boolean(meta.mailboxSeeded), mailbox };
+    }
+    if (changed) {
+      this.schedulePersist(acc.id, ch?.id);
+    }
+    return mailbox;
+  }
+
+  getMailbox(accountId) {
+    const mailbox = this.ensureMailboxInitialized(accountId);
+    const unreadCount = mailbox.filter((m) => !m.read).length;
+    return { mailbox, unreadCount };
+  }
+
+  async findRecipientAccountByName(recipientName) {
+    const lower = String(recipientName || '').trim().toLowerCase();
+    if (!lower) return null;
+
+    for (const [accId, cmap] of this.charactersByAccount.entries()) {
+      for (const ch of cmap.values()) {
+        if (String(ch.name || '').trim().toLowerCase() === lower) {
+          return this.accountsById.get(accId) || null;
+        }
+      }
+    }
+    for (const acc of this.accountsById.values()) {
+      if (
+        String(acc.displayName || '').trim().toLowerCase() === lower ||
+        String(acc.usernameLower || acc.username || '').trim().toLowerCase() === lower
+      ) {
+        return acc;
+      }
+    }
+
+    if (this.db) {
+      try {
+        const cRes = await this.db.query('SELECT account_id FROM glimmerfall_characters WHERE LOWER(name) = $1 LIMIT 1', [lower]);
+        let foundAccId = cRes.rows[0]?.account_id || null;
+        if (!foundAccId) {
+          const aRes = await this.db.query(
+            'SELECT id FROM glimmerfall_accounts WHERE LOWER(display_name) = $1 OR username_lower = $1 LIMIT 1',
+            [lower]
+          );
+          foundAccId = aRes.rows[0]?.id || null;
+        }
+        if (foundAccId) {
+          await this.ensureFreshFromPostgres({ id: foundAccId, force: true });
+          return this.accountsById.get(foundAccId) || null;
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  deliverMailToAccount(recipientAccountId, parcel) {
+    const targetAcc = this.accountsById.get(recipientAccountId);
+    if (!targetAcc) return { error: 'Recipient account not found.' };
+    const existing = this.ensureMailboxInitialized(targetAcc.id);
+    const nextList = normalizeMailbox([parcel, ...existing]);
+    targetAcc.statsMeta = {
+      ...(targetAcc.statsMeta || {}),
+      mailboxSeeded: true,
+      mailbox: nextList,
+    };
+    const ch = this.charactersByAccount.get(targetAcc.id)?.get(targetAcc.activeCharacterId);
+    if (ch) {
+      ch.statsMeta = { ...(ch.statsMeta || {}), mailboxSeeded: true, mailbox: nextList };
+    }
+    this.schedulePersist(targetAcc.id, ch?.id);
+    return { ok: true, mailbox: nextList, unreadCount: nextList.filter((m) => !m.read).length };
+  }
+
+  deliverSystemMail(recipientAccountId, { fromName = 'Sanctuary Herald', subject, body, gold = 0, items = [], kind = 'system' }) {
+    const parcel = {
+      id: `mail_${crypto.randomUUID().slice(0, 10)}`,
+      fromName: sanitizeMailText(fromName, 28) || 'Sanctuary Herald',
+      fromAccountId: null,
+      subject: sanitizeMailText(subject || 'Sanctuary Dispatch', 64),
+      body: sanitizeMailText(body || '', 420),
+      gold: Math.max(0, Math.floor(Number(gold) || 0)),
+      items: Array.isArray(items) ? items : [],
+      read: false,
+      claimed: gold <= 0 && (!Array.isArray(items) || items.length === 0),
+      kind,
+      createdAt: new Date().toISOString(),
+    };
+    return this.deliverMailToAccount(recipientAccountId, parcel);
+  }
+
+  async sendMailParcel({
+    senderAccountId,
+    recipientName,
+    subject = '',
+    body = '',
+    attachGold = 0,
+    attachItemId = null,
+    attachItemQty = 1,
+  }) {
+    const senderAcc = this.accountsById.get(senderAccountId);
+    if (!senderAcc) return { error: 'Sender session missing.' };
+    this.ensureDefaultCharacter(senderAcc);
+    this.syncAccountFromActiveChar(senderAcc);
+
+    const cleanRecipient = sanitizeMailText(recipientName, 24);
+    if (!cleanRecipient) return { error: 'Enter a recipient champion name.' };
+    const cleanSubject = maskProfanity(sanitizeMailText(subject, 64)) || 'Courier Dispatch';
+    const cleanBody = maskProfanity(sanitizeMailText(body, 420));
+    if (!cleanBody && !(attachGold > 0) && !attachItemId) {
+      return { error: 'Write a message or attach gold/an item.' };
+    }
+
+    const recipientAcc = await this.findRecipientAccountByName(cleanRecipient);
+    if (!recipientAcc) {
+      return { error: `No registered or online champion named "${cleanRecipient}" was found.` };
+    }
+
+    const cleanGold = Math.max(0, Math.min(999999, Math.floor(Number(attachGold) || 0)));
+    const totalGoldCost = MAIL_POSTAGE_GOLD + cleanGold;
+    const inv = Array.isArray(senderAcc.inventory) ? senderAcc.inventory : (senderAcc.inventory = []);
+    if (countBagItem(inv, 'solar_gold') < totalGoldCost) {
+      return { error: `Need ${totalGoldCost} Gold (${MAIL_POSTAGE_GOLD}g postage + ${cleanGold}g attached).` };
+    }
+
+    const itemsToAttach = [];
+    if (attachItemId) {
+      const itemDef = EQUIPMENT_CATALOG[attachItemId];
+      if (!itemDef || attachItemId === 'solar_gold') {
+        return { error: 'Invalid item selected for mail parcel.' };
+      }
+      const cleanQty = itemDef.stackable ? Math.max(1, Math.min(999, Math.floor(Number(attachItemQty) || 1))) : 1;
+      if (countBagItem(inv, attachItemId) < cleanQty) {
+        return { error: `You do not have ${cleanQty}x ${itemDef.name} in your bag.` };
+      }
+      itemsToAttach.push({ id: attachItemId, qty: cleanQty });
+    }
+
+    deductBagItems(inv, 'solar_gold', totalGoldCost);
+    for (const att of itemsToAttach) {
+      deductBagItems(inv, att.id, att.qty);
+    }
+
+    const senderCh = this.charactersByAccount.get(senderAcc.id)?.get(senderAcc.activeCharacterId);
+    if (senderCh) senderCh.inventory = inv;
+    this.schedulePersist(senderAcc.id, senderCh?.id);
+
+    const parcel = {
+      id: `mail_${crypto.randomUUID().slice(0, 10)}`,
+      fromName: senderAcc.displayName || 'Adventurer',
+      fromAccountId: senderAcc.id,
+      subject: cleanSubject,
+      body: cleanBody,
+      gold: cleanGold,
+      items: itemsToAttach,
+      read: false,
+      claimed: cleanGold === 0 && itemsToAttach.length === 0,
+      kind: 'player',
+      createdAt: new Date().toISOString(),
+    };
+    const delivery = this.deliverMailToAccount(recipientAcc.id, parcel);
+    if (delivery.error) return delivery;
+
+    return {
+      ok: true,
+      parcel,
+      recipientAccountId: recipientAcc.id,
+      recipientName: recipientAcc.displayName,
+      postagePaid: MAIL_POSTAGE_GOLD,
+    };
+  }
+
+  claimMailParcel(accountId, mailId) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc) return { error: 'Account not found.' };
+    const mailbox = this.ensureMailboxInitialized(accountId);
+    const mail = mailbox.find((m) => m.id === mailId);
+    if (!mail) return { error: 'Mail dispatch not found.' };
+    if (mail.claimed) return { error: 'Attachments already claimed.' };
+
+    const inv = Array.isArray(acc.inventory) ? acc.inventory : (acc.inventory = []);
+    let neededNewSlots = 0;
+    if (mail.gold > 0 && !inv.find((s) => (typeof s === 'string' ? s : s?.id) === 'solar_gold')) {
+      neededNewSlots += 1;
+    }
+    const pendingItems = Array.isArray(mail.items) ? mail.items : [];
+    for (const att of pendingItems) {
+      const def = EQUIPMENT_CATALOG[att.id];
+      if (!def) continue;
+      if (def.stackable) {
+        const exists = inv.find((s) => (typeof s === 'string' ? s : s?.id) === att.id);
+        if (!exists) neededNewSlots += 1;
+      } else {
+        neededNewSlots += Math.max(1, Number(att.qty) || 1);
+      }
+    }
+    if (inv.length + neededNewSlots > 28) {
+      return { error: `Need ${neededNewSlots} free backpack slot(s) before claiming this parcel.` };
+    }
+
+    if (mail.gold > 0) {
+      addBagItem(inv, 'solar_gold', mail.gold, true, 28);
+    }
+    for (const att of pendingItems) {
+      const def = EQUIPMENT_CATALOG[att.id];
+      if (!def) continue;
+      addBagItem(inv, att.id, att.qty || 1, Boolean(def.stackable), 28);
+    }
+
+    mail.claimed = true;
+    mail.read = true;
+    const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+    if (ch) {
+      ch.inventory = inv;
+      ch.statsMeta = { ...(ch.statsMeta || {}), mailbox };
+    }
+    acc.statsMeta = { ...(acc.statsMeta || {}), mailbox };
+    this.schedulePersist(acc.id, ch?.id);
+
+    return {
+      ok: true,
+      mail,
+      mailbox,
+      unreadCount: mailbox.filter((m) => !m.read).length,
+    };
+  }
+
+  markMailRead(accountId, mailId) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc) return { mailbox: [], unreadCount: 0 };
+    const mailbox = this.ensureMailboxInitialized(accountId);
+    const mail = mailbox.find((m) => m.id === mailId);
+    if (mail && !mail.read) {
+      mail.read = true;
+      const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+      if (ch) ch.statsMeta = { ...(ch.statsMeta || {}), mailbox };
+      acc.statsMeta = { ...(acc.statsMeta || {}), mailbox };
+      this.schedulePersist(acc.id, ch?.id);
+    }
+    return { mailbox, unreadCount: mailbox.filter((m) => !m.read).length };
+  }
+
+  deleteMailParcel(accountId, mailId) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc) return { error: 'Account not found.' };
+    const mailbox = this.ensureMailboxInitialized(accountId);
+    const idx = mailbox.findIndex((m) => m.id === mailId);
+    if (idx === -1) return { error: 'Mail dispatch not found.' };
+    const entry = mailbox[idx];
+    if (!entry.claimed && (entry.gold > 0 || (entry.items && entry.items.length > 0))) {
+      return { error: 'Claim gold or items before deleting this parcel.' };
+    }
+    mailbox.splice(idx, 1);
+    const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+    if (ch) ch.statsMeta = { ...(ch.statsMeta || {}), mailbox };
+    acc.statsMeta = { ...(acc.statsMeta || {}), mailbox };
+    this.schedulePersist(acc.id, ch?.id);
+    return { ok: true, mailbox, unreadCount: mailbox.filter((m) => !m.read).length };
+  }
+
+  getProfile(accountId) {
+    const acc = this.accountsById.get(accountId);
+    return acc ? this.toPublicProfile(acc) : null;
+  }
+
   toPublicProfile(acc) {
     if (!acc) return null;
     this.ensureDefaultCharacter(acc);
@@ -1647,6 +1945,7 @@ export class AccountsStore {
       activeChar?.statsMeta?.editionTier ||
       (acc.tcgLinked ? 'founder' : 'free');
     const defaultTitle = editionTier === 'founder' ? 'FOUNDER' : null;
+    const { unreadCount } = this.getMailbox(acc.id);
     return {
       id: acc.id,
       username: acc.username,
@@ -1669,6 +1968,7 @@ export class AccountsStore {
       questState: activeChar?.questState || acc.questState || {},
       progression: activeChar?.progression || acc.progression || {},
       statsMeta: activeChar?.statsMeta || acc.statsMeta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
+      unreadMailCount: unreadCount,
       title: activeChar?.title || acc.title || defaultTitle,
       activeCharacterId: acc.activeCharacterId,
       hp: typeof activeChar?.hp === 'number' ? activeChar.hp : (typeof acc.hp === 'number' ? acc.hp : null),
@@ -1891,7 +2191,7 @@ export class AccountsStore {
     };
   }
 
-  saveCharacterState(accountId, characterId = null, { hp, solarCharge, isDead = false, lastPosition = null } = {}) {
+  saveCharacterState(accountId, characterId = null, { hp, solarCharge, isDead = false, lastPosition = null, immediate = true } = {}) {
     const acc = this.accountsById.get(accountId);
     if (!acc) return;
     const targetCharId = characterId || acc.activeCharacterId;
@@ -1914,6 +2214,8 @@ export class AccountsStore {
     if (safeGlimmer !== undefined) acc.solarCharge = safeGlimmer;
     if (safePos !== null) acc.lastPosition = safePos;
     this.schedulePersist(acc.id, targetCharId);
-    this.flushSync();
+    if (immediate) {
+      this.flushSync();
+    }
   }
 }

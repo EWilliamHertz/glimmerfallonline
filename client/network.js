@@ -28,6 +28,24 @@ export function normalizeServerUrl(rawUrl) {
   return url;
 }
 
+export function computeNextPingMs({ prevPingMs = 0, sampleMs, isLocal = false, isHidden = false }) {
+  const prev = Number(prevPingMs) || 0;
+  const sample = Math.max(1, Math.round(Number(sampleMs) || 0));
+  if (!Number.isFinite(sample) || sample <= 0) return prev;
+  if (prev > 0) {
+    if (sample > 10000) return prev;
+    if (isLocal && sample > 1000) return prev;
+    if (isHidden && sample > 250) return prev;
+  }
+  if (prev <= 0 || (prev > 160 && sample < 120)) {
+    return isLocal ? Math.min(sample, 100) : Math.min(sample, 5000);
+  }
+  if (prev > 120 && sample < prev * 0.65) {
+    return Math.round(prev * 0.25 + sample * 0.75);
+  }
+  return Math.round(prev * 0.65 + sample * 0.35);
+}
+
 export class MultiplayerClient {
   constructor({ onPacket, onStatusChange }) {
     this.onPacket = onPacket;
@@ -41,6 +59,7 @@ export class MultiplayerClient {
     this.onPing = null;
     this.reconnectTimer = null;
     this.pingInterval = null;
+    this._initialPingTimers = [];
     this.manualReconnect = false;
     this.isSuperseded = false;
     this.preferredRoom = null;
@@ -328,18 +347,16 @@ export class MultiplayerClient {
         } catch (_) {}
       }
       if (this.onStatusChange) this.onStatusChange(true);
-      clearInterval(this.pingInterval);
-      this.send({ type: 'ping', ts: performance.now() });
-      setTimeout(() => {
-        if (this.ws && this.ws.readyState === 1) {
-          this.send({ type: 'ping', ts: performance.now() });
-        }
-      }, 1000);
-      this.pingInterval = setInterval(() => {
-        if (this.ws && this.ws.readyState === 1) {
-          this.send({ type: 'ping', ts: performance.now() });
-        }
-      }, 5000);
+      this.clearPingTimers();
+      const sendSamplePing = () => {
+        if (!this.ws || this.ws.readyState !== 1) return;
+        if (typeof document !== 'undefined' && document.hidden) return;
+        this.send({ type: 'ping', ts: performance.now() });
+      };
+      // Wait briefly so initial room/chunk setup settles before sampling ping
+      this._initialPingTimers.push(setTimeout(sendSamplePing, 180));
+      this._initialPingTimers.push(setTimeout(sendSamplePing, 1100));
+      this.pingInterval = setInterval(sendSamplePing, 2500);
     };
 
     sock.onmessage = (ev) => {
@@ -353,7 +370,7 @@ export class MultiplayerClient {
           this.isSuperseded = true;
           this.manualReconnect = true;
           clearTimeout(this.reconnectTimer);
-          clearInterval(this.pingInterval);
+          this.clearPingTimers();
           console.warn('[Network] Session superseded:', msg.reason);
           if (this.onStatusChange) this.onStatusChange(false, 'superseded');
           if (this.onPacket) this.onPacket(msg);
@@ -369,16 +386,15 @@ export class MultiplayerClient {
           return;
         }
         if (msg.type === 'pong' && typeof msg.ts === 'number') {
-          const sample = Math.max(1, Math.round(performance.now() - msg.ts));
-          // Ignore extreme tab-suspended/buffered outliers (>10s) once connected,
-          // and snap back immediately if a normal sample arrives after a spike.
-          if (sample > 10000 && this.pingMs > 0) return;
-          if (this.isLocalOrigin() && sample > 1000 && this.pingMs > 0) return;
-          if (!this.pingMs || this.pingMs <= 0 || (this.pingMs > 200 && sample < 120)) {
-            this.pingMs = this.isLocalOrigin() ? Math.min(sample, 100) : Math.min(sample, 5000);
-          } else {
-            this.pingMs = Math.round(this.pingMs * 0.65 + sample * 0.35);
-          }
+          const sampleMs = Math.max(1, Math.round(performance.now() - msg.ts));
+          const nextPing = computeNextPingMs({
+            prevPingMs: this.pingMs,
+            sampleMs,
+            isLocal: this.isLocalOrigin(),
+            isHidden: typeof document !== 'undefined' && Boolean(document.hidden),
+          });
+          if (nextPing === this.pingMs && this.pingMs > 0) return;
+          this.pingMs = nextPing;
           if (this.onPing) this.onPing(this.pingMs);
           return;
         }
@@ -394,7 +410,7 @@ export class MultiplayerClient {
 
     sock.onclose = (ev) => {
       this.connected = false;
-      clearInterval(this.pingInterval);
+      this.clearPingTimers();
       const isSuperseded = this.isSuperseded || ev?.code === 4001 || ev?.reason?.includes('another window') || ev?.reason?.includes('Superseded');
       if (isSuperseded) {
         this.isSuperseded = true;
@@ -443,10 +459,19 @@ export class MultiplayerClient {
     this.reconnectTimer = setTimeout(() => this.connectWebSocket(), delay);
   }
 
+  clearPingTimers() {
+    clearInterval(this.pingInterval);
+    this.pingInterval = null;
+    if (Array.isArray(this._initialPingTimers)) {
+      for (const id of this._initialPingTimers) clearTimeout(id);
+      this._initialPingTimers.length = 0;
+    }
+  }
+
   disconnect() {
     this.manualReconnect = true;
     clearTimeout(this.reconnectTimer);
-    clearInterval(this.pingInterval);
+    this.clearPingTimers();
     if (this.ws) {
       try { this.ws.close(); } catch (_) {}
       this.ws = null;

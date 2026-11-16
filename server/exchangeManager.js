@@ -369,8 +369,22 @@ export class ExchangeManager {
           });
         }
 
-        // Notify Seller if online
+        // Notify Seller (and dispatch Herald Post offline receipt)
         const sellerClient = this.getClientById?.(sell.playerId);
+        const itemLabel = EQUIPMENT_CATALOG[itemId]?.name || itemId;
+        if (sell.playerId !== 'alliance_depot_arbiter' && typeof this.accounts?.deliverSystemMail === 'function') {
+          this.accounts.deliverSystemMail(sell.playerId, {
+            fromName: 'AetherSwap Clearinghouse',
+            subject: `Sale Matched: ${matchQty}x ${itemLabel}`,
+            body: `Your AetherSwap Sell Offer in Slot #${sell.slot} sold ${matchQty}x ${itemLabel} @ ${matchPrice} Gold each. Net payout after 2% tariff (${tariff}g): ${netGold} Gold — ready to collect from Exchange Broker Silvius!`,
+            gold: 0,
+            items: [],
+            kind: 'exchange_receipt',
+          });
+          if (sellerClient && typeof this.accounts.getMailbox === 'function') {
+            sellerClient.send({ type: 'mailbox_sync', ...this.accounts.getMailbox(sell.playerId) });
+          }
+        }
         if (sellerClient) {
           this.syncClient(sellerClient);
           sellerClient.send({

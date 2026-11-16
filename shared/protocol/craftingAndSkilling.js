@@ -2119,3 +2119,81 @@ export const SKILLING_LAYOUTS = {
     ['fiber_bloom_high', 920, -600],
   ],
 };
+
+/**
+ * Determine whether a crafting recipe has enough backpack space after consuming ingredients.
+ * Returns { ok, bagFull, missingItemId, currentSlots, maxSlots, slotsAfterConsume, neededSlots, resultingSlots, slotsToFree, reason }.
+ */
+export function checkCraftInventorySpace(recipe, inv = [], equipmentCatalog = {}, maxSlots = 28) {
+  if (!recipe || !Array.isArray(inv)) {
+    return {
+      ok: false,
+      bagFull: false,
+      currentSlots: 0,
+      maxSlots,
+      slotsAfterConsume: 0,
+      neededSlots: 0,
+      resultingSlots: 0,
+      slotsToFree: 0,
+      reason: 'Invalid recipe or inventory.',
+    };
+  }
+
+  const sim = inv.map((slot) => ({
+    id: typeof slot === 'string' ? slot : slot?.id,
+    qty: typeof slot === 'object' && slot?.qty ? Math.max(1, Number(slot.qty) || 1) : 1,
+  }));
+
+  for (const ing of recipe.ingredients || []) {
+    const ingId = ing.id || ing.itemId;
+    let rem = Math.max(1, Number(ing.qty) || 1);
+    for (let i = sim.length - 1; i >= 0 && rem > 0; i--) {
+      if (sim[i].id !== ingId) continue;
+      if (sim[i].qty > rem) {
+        sim[i].qty -= rem;
+        rem = 0;
+      } else {
+        rem -= sim[i].qty;
+        sim.splice(i, 1);
+      }
+    }
+    if (rem > 0) {
+      return {
+        ok: false,
+        bagFull: false,
+        missingItemId: ingId,
+        currentSlots: inv.length,
+        maxSlots,
+        slotsAfterConsume: sim.length,
+        neededSlots: 0,
+        resultingSlots: sim.length,
+        slotsToFree: 0,
+        reason: 'missing_ingredients',
+      };
+    }
+  }
+
+  const outItem = equipmentCatalog?.[recipe.outputId];
+  const outQty = Math.max(1, Number(recipe.outputQty) || 1);
+  const hasExistingOut = Boolean(outItem?.stackable && sim.some((s) => s.id === recipe.outputId));
+  const neededSlots = hasExistingOut ? 0 : outItem?.stackable ? 1 : outQty;
+  const slotsAfterConsume = sim.length;
+  const resultingSlots = slotsAfterConsume + neededSlots;
+  const bagFull = resultingSlots > maxSlots;
+  const slotsToFree = Math.max(0, resultingSlots - maxSlots);
+
+  return {
+    ok: !bagFull,
+    bagFull,
+    missingItemId: null,
+    currentSlots: inv.length,
+    maxSlots,
+    slotsAfterConsume,
+    neededSlots,
+    resultingSlots,
+    slotsToFree,
+    reason: bagFull
+      ? `Your bag is full (${inv.length}/${maxSlots})! Clear ${slotsToFree} space${slotsToFree > 1 ? 's' : ''} before crafting.`
+      : null,
+  };
+}

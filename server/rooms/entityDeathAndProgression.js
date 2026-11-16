@@ -62,6 +62,7 @@ import {
   SKILLING_NODE_TYPES,
   ELITE_AFFIXES,
   BOUNTY_CONTRACTS,
+  computeFamiliarBonuses,
 } from '../../shared/protocol.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
 
@@ -170,6 +171,10 @@ export const entityDeathAndProgressionMethods = {
           );
           this.awardProfessionXP(p, 'combat_mastery', Math.max(20, Math.round(xpAmt * 0.75)), ent.name);
           if (!isTrainingDummy) {
+            const famBonuses = computeFamiliarBonuses(p.prog?.familiars?.activeId);
+            if (famBonuses.killGlimmer > 0) {
+              this.addPlayerGlimmer(room, p, famBonuses.killGlimmer);
+            }
             p.send({
               type: 'mob_killed',
               mobId: ent.id,

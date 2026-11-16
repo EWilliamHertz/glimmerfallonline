@@ -160,7 +160,12 @@ const TERRA_ORCHARD_DIALOGUE = [
   {
     speaker: 'GROVE TENDER ROWAN • ROOTDEEP HERBALIST',
     spriteKey: 'terraHerbalistNpc',
-    text: 'May the canopy shelter you! The north Waygate connects directly to the Primordial Hollow where ancient Ironbark treants slumber.',
+    text: 'Grass, Tidewater, Rich Soil, and Ancient Stone. Look around the canopy, Summoner-Knight—those four roots are the true pillars of Terra: pure strength, mystical healing, a clear mind, and an unwavering instinct to shelter what grows.',
+  },
+  {
+    speaker: 'GROVE TENDER ROWAN • ROOTDEEP HERBALIST',
+    spriteKey: 'terraHerbalistNpc',
+    text: 'Follow the waystone lanterns when dusk rain sweeps through the ironwood! And step north through the Waygate if you dare enter the Primordial Hollow.',
   },
 ];
 
@@ -168,7 +173,12 @@ const AETHER_SPIRE_DIALOGUE = [
   {
     speaker: 'ASTROMANCER KAELEN • MIRRORGATE STARGAZER',
     spriteKey: 'aetherAstromancerNpc',
-    text: 'The celestial mirrors resonate tonight! Ascend to the north rift to enter the Fractured Chrono-Archive and witness the Continuum.',
+    text: 'The celestial mirrors hum louder between twilight and dawn! Every shard of Starfall ore and every caught Silver Koi carries lingering First-Age harmonic memory inside it.',
+  },
+  {
+    speaker: 'ASTROMANCER KAELEN • MIRRORGATE STARGAZER',
+    spriteKey: 'aetherAstromancerNpc',
+    text: 'Step inside the Astral Observatory Tower if you wish to inspect our charts—or ascend north to enter the Fractured Chrono-Archive.',
   },
 ];
 

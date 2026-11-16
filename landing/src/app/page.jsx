@@ -7,6 +7,10 @@ import {
   CANONICAL_SETS,
   RUNEWORD_SYNERGIES,
 } from '../data/canonicalCatalog';
+import SkillGuidesTab from '../components/SkillGuidesTab';
+import UniversalSearchModal from '../components/UniversalSearchModal';
+import AtlasMapSection from '../components/AtlasMapSection';
+import { resolveUniversalEntry } from '../data/universalSearchData';
 import {
   Swords,
   Shield,
@@ -642,12 +646,45 @@ export default function LandingPage() {
   const [armorySlotFilter, setArmorySlotFilter] = useState('all');
   const [armoryRarityFilter, setArmoryRarityFilter] = useState('all');
   const [armorySearch, setArmorySearch] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [universalSearchQuery, setUniversalSearchQuery] = useState('');
+  const [universalSearchCategory, setUniversalSearchCategory] = useState('all');
+  const [selectedSearchEntryId, setSelectedSearchEntryId] = useState('');
+  const [requestedSkillId, setRequestedSkillId] = useState('');
+  const [focusedAtlasZoneId, setFocusedAtlasZoneId] = useState('SANCTUARY_HUB');
   const [serverStatus, setServerStatus] = useState({
     online: true,
     onlinePlayers: 1,
     tickRate: 20,
     pingMs: 18,
   });
+
+  const openUniversalInspector = (idOrQuery = '') => {
+    const raw = String(idOrQuery || '').trim();
+    const resolved = raw ? resolveUniversalEntry(raw) : null;
+    setUniversalSearchCategory('all');
+    if (resolved) {
+      setUniversalSearchQuery(resolved.name);
+      setSelectedSearchEntryId(resolved.id);
+    } else {
+      setUniversalSearchQuery(raw);
+      setSelectedSearchEntryId('');
+    }
+    setIsSearchOpen(true);
+    playSfx('click');
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onGlobalKey = (ev) => {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') {
+        ev.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onGlobalKey);
+    return () => window.removeEventListener('keydown', onGlobalKey);
+  }, []);
 
   const wearableArmoryItems = useMemo(() => {
     const validSlots = new Set([
@@ -957,6 +994,14 @@ export default function LandingPage() {
       if (savedMode === 'multiplayer' || savedMode === 'singleplayer') {
         setPlayMode(savedMode);
       }
+      const params = new URLSearchParams(window.location.search);
+      const rawTab = params.get('tab');
+      if (rawTab) {
+        const mappedTab = rawTab === 'skill-guides' ? 'skills' : rawTab;
+        if (['overview', 'forge', 'theatre', 'systems', 'skills', 'armory', 'atlas', 'settings'].includes(mappedTab)) {
+          setActiveTab(mappedTab);
+        }
+      }
     } catch (_) {}
   }, []);
 
@@ -1089,6 +1134,16 @@ export default function LandingPage() {
     } catch (_) {}
   };
 
+  const setTab = (tabId) => {
+    const valid = ['overview', 'forge', 'theatre', 'systems', 'skills', 'armory', 'atlas', 'settings'];
+    const target = valid.includes(tabId) ? tabId : 'overview';
+    setActiveTab(target);
+    playSfx('click');
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   const handleAdvanceCinematic = (delta = 1) => {
     const curIdx = LANDING_CINEMATICS.findIndex((s) => s.id === selectedCinematicId);
     const nextIdx = (curIdx + delta + LANDING_CINEMATICS.length) % LANDING_CINEMATICS.length;
@@ -1193,7 +1248,7 @@ export default function LandingPage() {
       {/* UNIFIED STICKY GLASSMORPHIC TOP NAVBAR                   */}
       {/* ======================================================== */}
       <header className="sticky top-0 z-50 w-full bg-[#060A16]/85 backdrop-blur-2xl border-b border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.65)]">
-        <div className="max-w-7xl mx-auto px-3 sm:px-5 py-2.5 flex items-center justify-between gap-2.5 flex-nowrap overflow-x-auto scrollbar-none">
+        <div className="max-w-7xl mx-auto px-3 sm:px-5 pt-2.5 pb-2 flex items-center justify-between gap-2.5 flex-nowrap overflow-x-auto scrollbar-none">
           <div
             onClick={() => setTab('overview')}
             className="flex items-center gap-2.5 cursor-pointer group flex-shrink-0"
@@ -1224,6 +1279,7 @@ export default function LandingPage() {
               { id: 'forge', label: 'Entities', icon: Sparkles },
               { id: 'theatre', label: 'Theatre', icon: Film },
               { id: 'systems', label: 'Systems', icon: Zap },
+              { id: 'skills', label: 'Skill Guides', icon: BookOpen },
               { id: 'armory', label: 'Armory', icon: Boxes },
               { id: 'atlas', label: 'Lore', icon: Globe },
               { id: 'settings', label: 'Settings', icon: Settings },
@@ -1248,29 +1304,6 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-1.5 flex-shrink-0 flex-nowrap">
-            <div className="inline-flex bg-[#080D1A] p-0.5 rounded-lg border border-white/10">
-              <button
-                onClick={() => { setPlayMode('singleplayer'); playSfx('click'); }}
-                className={`text-[11px] py-1 px-2 rounded-md font-bold transition-all whitespace-nowrap ${
-                  playMode === 'singleplayer'
-                    ? 'bg-[#38BDF8]/20 border border-[#38BDF8]/50 text-[#7DD3FC]'
-                    : 'text-white/50 hover:text-white'
-                }`}
-              >
-                🕹️ Offline
-              </button>
-              <button
-                onClick={() => { setPlayMode('multiplayer'); playSfx('click'); }}
-                className={`text-[11px] py-1 px-2 rounded-md font-bold transition-all whitespace-nowrap ${
-                  playMode === 'multiplayer'
-                    ? 'bg-[#22E07B]/20 border border-[#22E07B]/50 text-[#86EFAC]'
-                    : 'text-white/50 hover:text-white'
-                }`}
-              >
-                🌐 Online
-              </button>
-            </div>
-
             <button
               onClick={handleOpenLoadout}
               className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/15 text-xs font-bold text-white/90 transition-all flex items-center gap-1 whitespace-nowrap"
@@ -1284,6 +1317,32 @@ export default function LandingPage() {
             >
               <Zap className="w-3.5 h-3.5 fill-black" /> Play Now
             </button>
+          </div>
+        </div>
+
+        {/* Dedicated Header Search Row Underneath Tabs */}
+        <div className="border-t border-white/10 bg-[#040712]/70">
+          <div className="max-w-7xl mx-auto px-3 sm:px-5 py-2 flex items-center justify-center">
+            <div className="relative w-full max-w-3xl">
+              <Search className="w-4 h-4 text-[#F2A900] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={universalSearchQuery}
+                onFocus={() => setIsSearchOpen(true)}
+                onClick={() => setIsSearchOpen(true)}
+                onChange={(e) => {
+                  setUniversalSearchQuery(e.target.value);
+                  setSelectedSearchEntryId('');
+                  setIsSearchOpen(true);
+                }}
+                placeholder="Search items, ingredients (chrono_lotus, sunbloom_herb), NPCs, dialogue quotes, quests & rewards, or realms..."
+                aria-label="Universal Search Bar"
+                className="w-full pl-10 pr-16 py-1.5 rounded-xl bg-[#080D1A]/95 border border-white/15 hover:border-[#F2A900]/45 focus:border-[#F2A900] text-xs text-white placeholder:text-white/45 focus:outline-none transition-colors"
+              />
+              <kbd className="hidden sm:inline-block absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 text-[10px] font-mono font-bold text-white/55 bg-white/5 border border-white/10 rounded pointer-events-none">
+                Ctrl+K
+              </kbd>
+            </div>
           </div>
         </div>
       </header>
@@ -2959,42 +3018,10 @@ export default function LandingPage() {
     {activeTab === 'atlas' && (
       <div className="space-y-8 animate-fade-in">
         {/* WORLD ATLAS SECTION (#atlas) */}
-        <section id="atlas" className="rounded-3xl p-6 lg:p-10 border border-[#1E293B] bg-[#0A0F22]/90 space-y-6">
-          <div className="flex justify-between items-center pb-6 border-b border-[#1E293B]">
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#38BDF8] px-2.5 py-1 rounded bg-[#38BDF8]/10 border border-[#38BDF8]/30">
-                Seamless Continental Traversal
-              </span>
-              <h2 className="font-display font-bold text-2xl sm:text-3xl text-white mt-1">
-                🗺️ CONTINENTAL REALMS ATLAS
-              </h2>
-            </div>
-            <span className="text-xs text-white/50">8 Continental Biomes</span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { id: 'sanctuary', name: 'Sanctuary Haven', tag: 'Neutral Hub', color: '#F2A900', desc: 'Central city housing the Grand Exchange pavilion, AetherVault banks, and crafting artisans.' },
-              { id: 'solari', name: 'Solari Citadel', tag: 'Sunspire Territory', color: '#F2A900', desc: 'Golden marble towers and sun-temples harvesting celestial dawn radiation.' },
-              { id: 'umbri', name: 'Umbri Undercity', tag: 'Duskveil Syndicate', color: '#9B30FF', desc: 'Subterranean obsidian caverns lit by glowing violet graveglass lanterns.' },
-              { id: 'terra', name: 'Glimmer Orchard', tag: 'Rootdeep Collective', color: '#22E07B', desc: 'Massive towering ancient canopy trees with sentient moss and stonekin elders.' },
-              { id: 'aether', name: 'Mirrorgate Spire', tag: 'Astral Conclave', color: '#00BFFF', desc: 'Floating crystal pinnacles bending the temporal lattice and leyline currents.' },
-              { id: 'starfall', name: 'Starfall Crater', tag: 'Warzone PvPvE', color: '#F87171', desc: 'Cataclysmic impact site where all 4 factions battle over primal leyline shards.' },
-              { id: 'abyssal', name: 'Abyssal Rift', tag: 'High-Level Dungeon', color: '#A855F7', desc: 'Endgame chasm where elite void abominations and corrupted keystones lurk.' },
-              { id: 'nexus', name: 'Nexus Warzone', tag: '3v3 Monolith Arena', color: '#EF4444', desc: 'Mirror-symmetric tactical battleground defending 2500-HP Chronocore Monoliths (Last-Hit Wins).' },
-            ].map((realm) => (
-              <div key={realm.id} className="p-5 rounded-2xl bg-black/40 border border-[#1E293B] hover:border-white/20 transition-all">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="font-display font-bold text-sm text-white">{realm.name}</span>
-                  <span className="text-[9px] px-2 py-0.5 rounded font-bold" style={{ backgroundColor: `${realm.color}20`, color: realm.color }}>
-                    {realm.tag}
-                  </span>
-                </div>
-                <p className="text-xs text-white/60 leading-relaxed">{realm.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+        <AtlasMapSection
+          focusedZoneId={focusedAtlasZoneId}
+          onInspectEntry={openUniversalInspector}
+        />
 
         {/* 3v3 NEXUS DESTRUCTION ARENA (#arena) */}
         <section id="arena" className="rounded-3xl p-6 lg:p-10 border border-[#F87171]/30 bg-radial from-[#1E1010] via-[#0D0808] to-[#050404] space-y-6 shadow-2xl">
@@ -3196,6 +3223,18 @@ export default function LandingPage() {
     )}
 
     {/* ======================================================== */}
+    {/* TAB: 1–99 SKILL GUIDES COMPENDIUM */}
+    {/* ======================================================== */}
+    {activeTab === 'skills' && (
+      <SkillGuidesTab
+        onLaunchGame={handleLaunchGame}
+        onSelectTab={setTab}
+        onInspectEntry={openUniversalInspector}
+        requestedSkillId={requestedSkillId}
+      />
+    )}
+
+    {/* ======================================================== */}
     {/* TAB 7: SETTINGS & PREFERENCES */}
     {/* ======================================================== */}
     {activeTab === 'settings' && (
@@ -3331,6 +3370,25 @@ export default function LandingPage() {
           </div>
         </footer>
       </main>
+
+      <UniversalSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        query={universalSearchQuery}
+        onQueryChange={setUniversalSearchQuery}
+        category={universalSearchCategory}
+        onCategoryChange={setUniversalSearchCategory}
+        selectedEntryId={selectedSearchEntryId}
+        onSelectEntryId={setSelectedSearchEntryId}
+        onJumpToSkill={(skillId) => {
+          setRequestedSkillId(skillId);
+          setTab('skills');
+        }}
+        onJumpToMapZone={(zoneId) => {
+          setFocusedAtlasZoneId(zoneId);
+          setTab('atlas');
+        }}
+      />
     </div>
   );
 }

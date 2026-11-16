@@ -1,6 +1,7 @@
 import { CLASSES_CATALOG } from "./factionsAndClasses.js";
 import { EQUIPMENT_CATALOG, getActiveSetBonuses, getActiveRuneword } from "./setsAndRunewords.js";
 import { PROFESSIONS_CATALOG } from "./craftingAndSkilling.js";
+import { computeFamiliarBonuses } from "./familiarsAndMail.js";
 
 export const TRIAL_MAX_LEVEL = 10;
 export const TRIAL_MAX_PROFESSION_LEVEL = 30;
@@ -72,12 +73,14 @@ export function calcCastSpeedMult(prog, equipment = {}) {
   const aetherPts = prog?.paragon?.aether_chronoflux || 0;
   const rw = getActiveRuneword(equipment);
   const rwCast = rw?.bonusCastSpeed || 0;
-  return Math.max(0.4, 1 - aetherPts * 0.012 - rwCast);
+  const famCast = computeFamiliarBonuses(prog?.familiars?.activeId).castSpeedPct || 0;
+  return Math.max(0.4, 1 - aetherPts * 0.012 - rwCast - famCast);
 }
 
 export function calcCritDamageMult(prog) {
   const solariPts = prog?.paragon?.solari_radiance || 0;
-  return 1.75 + solariPts * 0.015;
+  const famCrit = computeFamiliarBonuses(prog?.familiars?.activeId).critDamagePct || 0;
+  return 1.75 + solariPts * 0.015 + famCrit;
 }
 
 export function calcDodgeChance(prog) {
@@ -267,6 +270,7 @@ export function createDefaultProgression() {
       aether_chronoflux: 0,
     },
     tempering: {},
+    familiars: { unlockedIds: [], activeId: null },
     achievements: { completed: {}, unlockedTitles: [] },
     equippedTitle: null,
   };
@@ -423,6 +427,11 @@ export function getEquipmentStatBonuses(equipment = {}, classId = 'solari_vangua
     bonus.bastion += temper.bastion;
     bonus.resonance += temper.resonance;
     bonus.tempo += temper.tempo;
+    const fam = computeFamiliarBonuses(prog?.familiars?.activeId);
+    bonus.power += fam.power;
+    bonus.bastion += fam.bastion;
+    bonus.resonance += fam.resonance;
+    bonus.tempo += fam.tempo;
   }
   return bonus;
 }
@@ -453,12 +462,13 @@ export function calcMaxHp(prog, equipment = {}, classId = 'solari_vanguard') {
   const titanHp = active.some((s) => s.id === 'aurelius_titan') ? 150 : 0;
   const rwHp = getActiveRuneword(equipment)?.bonusHp || 0;
   const temperHp = getTotalTemperBonuses(prog, equipment).maxHp;
+  const famHp = computeFamiliarBonuses(prog?.familiars?.activeId).maxHp || 0;
   let flatEquipHp = 0;
   for (const itemId of Object.values(equipment || {})) {
     const item = EQUIPMENT_CATALOG[itemId];
     if (item?.stats?.maxHp) flatEquipHp += Number(item.stats.maxHp) || 0;
   }
-  return 25 + ((prog?.level || 1) - 1) * 3 + (eff.bastion - 2) * 3 + paragonHp + titanHp + rwHp + temperHp + flatEquipHp;
+  return 25 + ((prog?.level || 1) - 1) * 3 + (eff.bastion - 2) * 3 + paragonHp + titanHp + rwHp + temperHp + famHp + flatEquipHp;
 }
 
 export function calcMaxGlimmer(prog, equipment = {}, classId = 'solari_vanguard') {

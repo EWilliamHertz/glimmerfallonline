@@ -26,10 +26,11 @@ export const FRONTPAGE_STATES = {
 };
 
 export class FrontpageController {
-  constructor({ net, audio, onEnterWorld }) {
+  constructor({ net, audio, onEnterWorld, onOpen = null }) {
     this.net = net;
     this.audio = audio;
     this.onEnterWorld = onEnterWorld;
+    this.onOpen = typeof onOpen === 'function' ? onOpen : null;
     if (typeof window !== 'undefined') {
       window._fp = this;
     }
@@ -1029,6 +1030,11 @@ export class FrontpageController {
   // ==========================================
   open() {
     this.isOpen = true;
+    if (this.onOpen) {
+      try {
+        this.onOpen();
+      } catch (_) {}
+    }
     if (this.audio && typeof this.audio.setBgmTheme === 'function') {
       this.audio.setBgmTheme('title');
     }
@@ -1037,20 +1043,24 @@ export class FrontpageController {
     }
     this.state = FRONTPAGE_STATES.CHARACTER_SELECT;
     this.creationDraft = null;
-    const el = document.getElementById('frontpage-overlay');
-    if (el) el.style.display = 'flex';
-    try {
-      this.render();
-    } catch (err) {
-      console.error('[Frontpage] Error during render:', err);
+    if (typeof document !== 'undefined') {
+      const el = document.getElementById('frontpage-overlay');
+      if (el) el.style.display = 'flex';
+      try {
+        this.render();
+      } catch (err) {
+        console.error('[Frontpage] Error during render:', err);
+      }
+      this.startPreviewLoop();
     }
-    this.startPreviewLoop();
   }
 
   close() {
     this.isOpen = false;
-    const el = document.getElementById('frontpage-overlay');
-    if (el) el.style.display = 'none';
+    if (typeof document !== 'undefined') {
+      const el = document.getElementById('frontpage-overlay');
+      if (el) el.style.display = 'none';
+    }
     clearInterval(this.previewAnimTimer);
     this.previewAnimTimer = null;
   }
@@ -1290,6 +1300,9 @@ export class FrontpageController {
           <button type="button" class="util-btn" style="font-size:10px; padding:3px 8px; border-color:#38bdf8; color:#7dd3fc; font-weight:bold;" onclick="if(window.openLandingPage){window.openLandingPage();}else if(window._landing){window._landing.open();}else{var lp=document.getElementById('landing-overlay');var fp=document.getElementById('frontpage-overlay');if(fp)fp.style.display='none';if(lp)lp.style.display='block';}">
             📖 LANDING &amp; ENCYCLOPEDIAS
           </button>
+          <a href="/?tab=skills" target="_blank" rel="noopener noreferrer" class="util-btn" style="font-size:10px; padding:3px 8px; border-color:#facc15; color:#fde047; font-weight:bold; text-decoration:none;" title="Open 1–99 Skill Guides in a separate browser tab without ending your session">
+            📚 SKILL GUIDES ↗
+          </a>
           ${(prof?.editionTier === 'founder' || (typeof localStorage !== 'undefined' && localStorage.getItem('gf_founder_serial_key'))) ? `
             <span class="util-btn" style="border-color:#facc15; background:rgba(250,204,21,0.16); color:#fde047; font-size:10px; padding:3px 8px; font-weight:bold;">
               👑 FOUNDER EDITION ACTIVE

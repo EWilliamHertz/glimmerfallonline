@@ -419,6 +419,10 @@ export const arenaAndPacketsMethods = {
           client.dir = msg.dir;
         }
         client.isMoving = Boolean(msg.isMoving);
+        client.lastMovePacketAt = Date.now();
+        if (Number.isFinite(Number(msg.seq))) {
+          client.lastMoveSeq = Math.max(client.lastMoveSeq || 0, Math.floor(Number(msg.seq)));
+        }
         {
           const nowMs = Date.now();
           const roundedX = Math.round(Number(client.x) || 0);
@@ -429,9 +433,12 @@ export const arenaAndPacketsMethods = {
             roundedY - (Number.isFinite(client._lastSavedY) ? client._lastSavedY : roundedY)
           );
           const stoppedAtNewSpot = !client.isMoving && (roomChangedSinceSave || movedDistSinceSave >= 1);
-          const movedFarEnough = movedDistSinceSave >= 32 && (nowMs - (client._lastSavedAt || 0)) >= 400;
-          if (roomChangedSinceSave || stoppedAtNewSpot || movedFarEnough) {
-            this.saveClientState(client);
+          const movedFarEnough = movedDistSinceSave >= 120 && (nowMs - (client._lastSavedAt || 0)) >= 1200;
+          if (roomChangedSinceSave || stoppedAtNewSpot) {
+            this.saveClientState(client, { immediate: true });
+          } else if (movedFarEnough) {
+            // Avoid blocking/saturating Postgres on every continuous walk step while keeping memory current
+            this.saveClientState(client, { immediate: false });
           }
         }
         break;
@@ -498,6 +505,115 @@ export const arenaAndPacketsMethods = {
       case 'craft_recipe':
         this.handleCraftRecipe(room, client, String(msg.recipeId || '').trim());
         break;
+
+      case 'extract_cipher':
+        this.handleExtractCipher(room, client, msg.itemId, msg.count);
+        break;
+
+      case 'compile_familiar':
+        this.handleCompileFamiliar(room, client, msg.familiarId);
+        break;
+
+      case 'set_active_familiar':
+        this.handleSetActiveFamiliar(room, client, msg.familiarId);
+        break;
+
+      case 'mail_list': {
+        const mb = this.accounts.getMailbox(client.id);
+        client.send({ type: 'mailbox_sync', ...mb });
+        break;
+      }
+
+      case 'mail_send': {
+        this.accounts
+          .sendMailParcel({
+            senderAccountId: client.id,
+            recipientName: msg.to,
+            subject: msg.subject,
+            body: msg.body,
+            attachGold: msg.gold,
+            attachItemId: msg.itemId || null,
+            attachItemQty: msg.itemQty || 1,
+          })
+          .then((res) => {
+            if (res.error) {
+              client.send({ type: 'mail_action_res', ok: false, action: 'send', error: res.error });
+              return;
+            }
+            this.refreshClientFromAccount(client.id);
+            const senderMb = this.accounts.getMailbox(client.id);
+            client.send({
+              type: 'mail_action_res',
+              ok: true,
+              action: 'send',
+              message: `Delivered Herald Post to ${res.recipientName}! (-${res.postagePaid}g postage)`,
+              ...senderMb,
+            });
+            client.send({
+              type: 'sys_msg',
+              category: 'trade',
+              text: `📬 [Herald Post] Dispatched letter to ${res.recipientName}.`,
+            });
+            const recClient = this.getClientById(res.recipientAccountId);
+            if (recClient) {
+              recClient.send({ type: 'mailbox_sync', ...this.accounts.getMailbox(res.recipientAccountId) });
+              recClient.send({
+                type: 'sys_msg',
+                category: 'quest',
+                text: `📬 [Herald Post] New mail arrived from ${client.displayName}: "${res.parcel.subject}"`,
+              });
+            }
+          })
+          .catch((err) => {
+            client.send({ type: 'mail_action_res', ok: false, action: 'send', error: err.message || 'Mail dispatch failed' });
+          });
+        break;
+      }
+
+      case 'mail_claim': {
+        const res = this.accounts.claimMailParcel(client.id, String(msg.mailId || '').trim());
+        if (res.error) {
+          client.send({ type: 'mail_action_res', ok: false, action: 'claim', error: res.error });
+          break;
+        }
+        this.refreshClientFromAccount(client.id);
+        client.send({
+          type: 'mail_action_res',
+          ok: true,
+          action: 'claim',
+          message: 'Claimed parcel contents into your backpack!',
+          mailbox: res.mailbox,
+          unreadCount: res.unreadCount,
+        });
+        if (room) {
+          room.fxQueue.push({ kind: 'spark', x: client.x, y: client.y - 10, colors: ['#fde047', '#4ade80', '#ffffff'], count: 16 });
+          room.fxQueue.push({ kind: 'fct', x: client.x, y: client.y - 18, text: '📬 PARCEL CLAIMED!', color: '#fde047', isCrit: true });
+        }
+        break;
+      }
+
+      case 'mail_mark_read': {
+        const res = this.accounts.markMailRead(client.id, String(msg.mailId || '').trim());
+        client.send({ type: 'mailbox_sync', ...res });
+        break;
+      }
+
+      case 'mail_delete': {
+        const res = this.accounts.deleteMailParcel(client.id, String(msg.mailId || '').trim());
+        if (res.error) {
+          client.send({ type: 'mail_action_res', ok: false, action: 'delete', error: res.error });
+          break;
+        }
+        client.send({
+          type: 'mail_action_res',
+          ok: true,
+          action: 'delete',
+          message: 'Mail deleted.',
+          mailbox: res.mailbox,
+          unreadCount: res.unreadCount,
+        });
+        break;
+      }
 
       case 'claim_bounty':
         this.handleClaimBounty(room, client, String(msg.bountyId || '').trim());
@@ -808,7 +924,9 @@ export const arenaAndPacketsMethods = {
             const halfH = roomCfg?.halfH || 280;
             const sx = Number(safePos.x);
             const sy = Number(safePos.y);
+            const isActivelyWalking = client.isMoving || (Date.now() - (client.lastMovePacketAt || 0)) < 2500;
             if (
+              !isActivelyWalking &&
               Number.isFinite(sx) && Number.isFinite(sy) &&
               Math.hypot(sx - client.x, sy - client.y) <= 240 &&
               !isWaterTile(sx, sy, client.roomType)

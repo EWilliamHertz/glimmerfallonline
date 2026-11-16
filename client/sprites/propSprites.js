@@ -1,6 +1,8 @@
 import { makeCanvas, px, rect, addPixelOutline, hash2d } from "./pixelCanvas.js";
+import { buildFamiliarSprites } from "./familiarSprites.js";
 
 export function buildPropSprites(sprites) {
+  buildFamiliarSprites(sprites);
   // ==========================================
   // 2. WORLD PROPS (Gentle Warm Brazier & Pillar)
   // ==========================================
@@ -1237,5 +1239,256 @@ export function buildPropSprites(sprites) {
     px(ctx, 14, 7, '#e879f9');
     px(ctx, 11, 5, '#ffffff');
     sprites.props.goldChestPile = addPixelOutline(c);
+  }
+
+  // ==========================================
+  // 8. PHASE 2 LIVING INTERIORS, VAULT GRATES & PROPS
+  // ==========================================
+  // Locked Iron Vault Grate (32x24)
+  {
+    const { c, ctx } = makeCanvas(32, 24);
+    rect(ctx, 1, 2, 30, 3, '#334155');
+    rect(ctx, 2, 3, 28, 1, '#64748b');
+    rect(ctx, 1, 19, 30, 3, '#1e293b');
+    // Heavy iron vertical bars
+    for (let bx = 3; bx <= 27; bx += 4) {
+      rect(ctx, bx, 4, 2, 16, '#475569');
+      rect(ctx, bx, 5, 1, 14, '#94a3b8');
+    }
+    // Crossbrace + glowing 4-Covenant Seal Plate
+    rect(ctx, 2, 11, 28, 2, '#334155');
+    rect(ctx, 11, 8, 10, 8, '#0f172a');
+    rect(ctx, 12, 9, 8, 6, '#334155');
+    px(ctx, 14, 10, '#4ade80'); // Terra
+    px(ctx, 17, 10, '#facc15'); // Solari
+    px(ctx, 14, 13, '#38bdf8'); // Aether
+    px(ctx, 17, 13, '#c084fc'); // Umbri
+    sprites.props.ironVaultGrate = addPixelOutline(c);
+  }
+
+  // Unlocked Open Iron Vault Grate (32x24)
+  {
+    const { c, ctx } = makeCanvas(32, 24);
+    rect(ctx, 1, 2, 30, 2, '#334155');
+    // Retracted iron gate halves on outer edges
+    rect(ctx, 2, 4, 4, 17, '#475569');
+    rect(ctx, 3, 5, 1, 15, '#94a3b8');
+    rect(ctx, 26, 4, 4, 17, '#475569');
+    rect(ctx, 27, 5, 1, 15, '#94a3b8');
+    px(ctx, 4, 11, '#4ade80');
+    px(ctx, 27, 11, '#4ade80');
+    sprites.props.ironVaultGrateOpen = addPixelOutline(c);
+  }
+
+  // Framed Interior Faction Crest Plaques (16x16)
+  const buildCrest = (bg, accent, core) => {
+    const { c, ctx } = makeCanvas(16, 16);
+    rect(ctx, 2, 1, 12, 14, '#451a03');
+    rect(ctx, 3, 2, 10, 12, '#78350f');
+    rect(ctx, 4, 3, 8, 10, bg);
+    rect(ctx, 5, 4, 6, 8, accent);
+    rect(ctx, 6, 5, 4, 5, core);
+    px(ctx, 7, 6, '#ffffff');
+    return addPixelOutline(c);
+  };
+  sprites.props.factionCrestLeaf = buildCrest('#14532d', '#16a34a', '#4ade80');
+  sprites.props.factionCrestAether = buildCrest('#1e3a8a', '#0284c7', '#38bdf8');
+  sprites.props.factionCrestSolari = buildCrest('#713f12', '#d97706', '#facc15');
+
+  // Animated Sleeping Hearth Pets (2 frames)
+  sprites.props.sleepingPetCat = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(16, 12);
+    rect(ctx, 3, 6 - (f % 2 ? 0 : 0), 9, 4, '#ea580c');
+    rect(ctx, 4, 5, 7, 4 + (f === 1 ? 1 : 0), '#f97316');
+    rect(ctx, 5, 6, 4, 2, '#fdba74');
+    // Curled tail & triangular ears
+    rect(ctx, 11, 7, 3, 2, '#ea580c');
+    px(ctx, 4, 4, '#ea580c');
+    px(ctx, 7, 4, '#ea580c');
+    px(ctx, 5, 7, '#7c2d12'); // closed eye
+    if (f === 1) {
+      px(ctx, 10, 2, '#bae6fd');
+      px(ctx, 12, 1, '#e0f2fe');
+    }
+    sprites.props.sleepingPetCat.push(addPixelOutline(c));
+  }
+
+  sprites.props.sleepingPetFox = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(18, 12);
+    rect(ctx, 3, 5, 9, 5, '#d97706');
+    rect(ctx, 4, 4, 7, 4 + (f === 1 ? 1 : 0), '#f59e0b');
+    rect(ctx, 5, 6, 4, 2, '#fef3c7');
+    rect(ctx, 11, 6, 4, 3, '#f8fafc'); // snowy fox tail tip
+    px(ctx, 14, 6, '#38bdf8');
+    px(ctx, 4, 3, '#b45309');
+    px(ctx, 8, 3, '#b45309');
+    if (f === 1) {
+      px(ctx, 11, 2, '#ddd6fe');
+      px(ctx, 13, 1, '#f3e8ff');
+    }
+    sprites.props.sleepingPetFox.push(addPixelOutline(c));
+  }
+
+  // Terracotta Decorative Urn (14x16)
+  {
+    const { c, ctx } = makeCanvas(14, 16);
+    rect(ctx, 4, 2, 6, 2, '#b45309');
+    rect(ctx, 5, 4, 4, 2, '#78350f');
+    rect(ctx, 3, 6, 8, 6, '#b45309');
+    rect(ctx, 4, 6, 6, 5, '#d97706');
+    rect(ctx, 4, 7, 2, 3, '#f59e0b');
+    rect(ctx, 4, 12, 6, 3, '#92400e');
+    sprites.props.terracottaUrn = addPixelOutline(c);
+  }
+
+  // Mossy Fallen Log w/ Forest Mushroom (28x14)
+  {
+    const { c, ctx } = makeCanvas(28, 14);
+    rect(ctx, 2, 5, 24, 7, '#451a03');
+    rect(ctx, 3, 6, 22, 5, '#78350f');
+    rect(ctx, 4, 6, 20, 2, '#92400e');
+    // Exposed hollow trunk ring
+    rect(ctx, 22, 6, 3, 5, '#b45309');
+    rect(ctx, 23, 7, 2, 3, '#292524');
+    // Moss tufts + red cap mushroom
+    rect(ctx, 5, 4, 6, 3, '#16a34a');
+    rect(ctx, 6, 4, 4, 2, '#4ade80');
+    rect(ctx, 14, 5, 5, 2, '#22c55e');
+    rect(ctx, 11, 3, 2, 3, '#fef3c7');
+    rect(ctx, 10, 2, 4, 2, '#ef4444');
+    px(ctx, 11, 2, '#ffffff');
+    sprites.props.fallenLog = addPixelOutline(c);
+  }
+
+  // Wooden Mezzanine Balustrade Rail (32x12)
+  {
+    const { c, ctx } = makeCanvas(32, 12);
+    rect(ctx, 1, 2, 30, 2, '#b45309');
+    rect(ctx, 1, 3, 30, 1, '#d97706');
+    rect(ctx, 1, 9, 30, 2, '#78350f');
+    for (let x = 2; x <= 28; x += 5) {
+      rect(ctx, x, 4, 2, 5, '#92400e');
+      px(ctx, x, 5, '#b45309');
+    }
+    sprites.props.balustradeRail = addPixelOutline(c);
+  }
+
+  // Mezzanine Wooden Staircase (20x20)
+  {
+    const { c, ctx } = makeCanvas(20, 20);
+    rect(ctx, 2, 2, 16, 17, '#451a03');
+    for (let step = 0; step < 5; step++) {
+      const sy = 3 + step * 3;
+      rect(ctx, 4, sy, 12, 2, '#b45309');
+      rect(ctx, 4, sy + 2, 12, 1, '#78350f');
+    }
+    rect(ctx, 2, 1, 2, 18, '#92400e');
+    rect(ctx, 16, 1, 2, 18, '#92400e');
+    px(ctx, 2, 1, '#f59e0b');
+    px(ctx, 17, 1, '#f59e0b');
+    sprites.props.woodStairs = addPixelOutline(c);
+  }
+
+  // Multi-Crystal Research Workstation Desk (26x20)
+  {
+    const { c, ctx } = makeCanvas(26, 20);
+    rect(ctx, 2, 7, 22, 9, '#451a03');
+    rect(ctx, 3, 8, 20, 7, '#78350f');
+    // Glowing monitor slate & specimen vials
+    rect(ctx, 5, 3, 10, 6, '#0f172a');
+    rect(ctx, 6, 4, 8, 4, '#0284c7');
+    px(ctx, 8, 5, '#7dd3fc');
+    px(ctx, 11, 6, '#4ade80');
+    rect(ctx, 17, 4, 3, 5, '#a855f7');
+    px(ctx, 18, 3, '#e879f9');
+    rect(ctx, 21, 5, 2, 4, '#22c55e');
+    rect(ctx, 4, 16, 3, 3, '#451a03');
+    rect(ctx, 19, 16, 3, 3, '#451a03');
+    sprites.props.workstationConsole = addPixelOutline(c);
+  }
+
+  // Framed Botanical/Crystal Specimen Plaque (14x16)
+  {
+    const { c, ctx } = makeCanvas(14, 16);
+    rect(ctx, 2, 1, 10, 12, '#78350f');
+    rect(ctx, 3, 2, 8, 10, '#fef3c7');
+    rect(ctx, 5, 4, 4, 5, '#16a34a');
+    px(ctx, 6, 3, '#4ade80');
+    px(ctx, 7, 7, '#38bdf8');
+    rect(ctx, 6, 13, 2, 2, '#451a03');
+    sprites.props.specimenFrame = addPixelOutline(c);
+  }
+
+  // Outdoor Wooden Notice Board (22x26)
+  {
+    const { c, ctx } = makeCanvas(22, 26);
+    rect(ctx, 4, 16, 3, 9, '#451a03');
+    rect(ctx, 15, 16, 3, 9, '#451a03');
+    rect(ctx, 1, 3, 20, 3, '#78350f');
+    rect(ctx, 3, 2, 16, 2, '#92400e');
+    rect(ctx, 2, 6, 18, 11, '#78350f');
+    rect(ctx, 3, 7, 16, 9, '#b45309');
+    // Pinned parchment notices
+    rect(ctx, 5, 8, 5, 6, '#fef3c7');
+    px(ctx, 7, 8, '#ef4444');
+    rect(ctx, 12, 9, 5, 5, '#fde68a');
+    px(ctx, 14, 9, '#38bdf8');
+    sprites.props.noticeBoard = addPixelOutline(c);
+  }
+
+  // Coastal Shoreline Cattail Reeds (12x20)
+  {
+    const { c, ctx } = makeCanvas(12, 20);
+    rect(ctx, 3, 9, 1, 10, '#15803d');
+    rect(ctx, 6, 6, 1, 13, '#16a34a');
+    rect(ctx, 9, 10, 1, 9, '#22c55e');
+    rect(ctx, 4, 12, 1, 7, '#4ade80');
+    rect(ctx, 5, 3, 3, 4, '#78350f'); // cattail head
+    rect(ctx, 2, 7, 2, 3, '#78350f');
+    sprites.props.cattailReed = addPixelOutline(c);
+  }
+
+  // Winged-Sun Herald Postbox (18x26, 2 frames)
+  sprites.props.heraldPostbox = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(18, 26);
+    // Stone base & cast-iron post
+    rect(ctx, 5, 21, 8, 4, '#334155');
+    rect(ctx, 7, 15, 4, 7, '#475569');
+    // Crimson/navy courier box & curved roof
+    rect(ctx, 3, 7, 12, 9, '#991b1b');
+    rect(ctx, 4, 6, 10, 8, '#dc2626');
+    rect(ctx, 3, 5, 12, 2, '#f59e0b');
+    rect(ctx, 5, 3, 8, 2, '#fde047');
+    // Mail slot + tiny gold wing crest
+    rect(ctx, 5, 8, 8, 2, '#1e293b');
+    rect(ctx, 6, 11, 6, 3, '#fef3c7');
+    px(ctx, 8, 12, '#dc2626'); // wax seal
+    px(ctx, 15, 7 - f, '#fde047'); // floating courier spark
+    sprites.props.heraldPostbox.push(addPixelOutline(c));
+  }
+
+  // Summoner-Knight Construct Cradle (26x24, 2 frames)
+  sprites.props.constructCradle = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(26, 24);
+    // Stone & gilded dais
+    rect(ctx, 3, 18, 20, 4, '#334155');
+    rect(ctx, 4, 17, 18, 2, '#b45309');
+    // Twin crystalline rune pylons
+    rect(ctx, 4, 6, 4, 11, '#0284c7');
+    rect(ctx, 5, 5, 2, 10, '#38bdf8');
+    rect(ctx, 18, 6, 4, 11, '#0284c7');
+    rect(ctx, 19, 5, 2, 10, '#38bdf8');
+    // Top prism arch & floating compilation core
+    rect(ctx, 6, 3, 14, 3, '#f59e0b');
+    rect(ctx, 10, 8 + f, 6, 6, '#a855f7');
+    rect(ctx, 11, 9 + f, 4, 4, '#f0abfc');
+    px(ctx, 12, 10 + f, '#ffffff');
+    px(ctx, 9 - f, 6, '#fde047');
+    px(ctx, 16 + f, 7, '#4ade80');
+    sprites.props.constructCradle.push(addPixelOutline(c));
   }
 }

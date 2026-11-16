@@ -5,6 +5,7 @@
 import { WORLD_ATLAS_REGIONS } from "./worldAtlasData.js";
 import { QUEST_CATALOG } from "./questCatalogData.js";
 import { ROOM_TYPES, EQUIPMENT_CATALOG, CHAMPION_TITLES, ACHIEVEMENTS_CATALOG, isRoomUnlockedForEdition } from "../../shared/protocol.js";
+import { UNIVERSAL_SEARCH_ZONES, searchMapZones } from "../../landing/src/data/universalSearchData.js";
 
 export function setupWorldAtlasAndLoreUi({
   getQuestState,
@@ -17,15 +18,61 @@ export function setupWorldAtlasAndLoreUi({
   isSinglePlayer,
   net,
 }) {
-  let currentLoreTab = "quests";
-  let currentAtlasView = "square"; // "square" | "grid"
-  let selectedMapRegionId = "SANCTUARY_HUB";
-  let edgeScrollTimer = null;
-
   let currentLoreTab = 'quests';
   let currentAtlasView = 'square'; // 'square' | 'grid'
   let selectedMapRegionId = 'SANCTUARY_HUB';
   let edgeScrollTimer = null;
+  let atlasMapSearchQuery = '';
+
+  function escapeAtlasHtml(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function renderAtlasSearchResultsHtml(query) {
+    const q = String(query || '').trim();
+    if (!q) return '';
+    const matches = searchMapZones(q).slice(0, 8);
+    if (matches.length === 0) {
+      return `<div style="margin-top:6px; padding:6px 10px; border-radius:4px; background:#090d1c; border:1px solid #334155; font-size:10px; color:#94a3b8;">No realms matched &ldquo;${escapeAtlasHtml(q)}&rdquo;.</div>`;
+    }
+    return `
+      <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:5px; align-items:center;">
+        <span style="font-size:9.5px; color:#38bdf8; font-weight:bold;">Matches (${matches.length}):</span>
+        ${matches
+          .map(({ zone, matchReasons }) => {
+            const isSel = zone.id === selectedMapRegionId;
+            const hint = matchReasons[0] ? ` • ${matchReasons[0]}` : '';
+            return `
+              <button type="button"
+                      onclick="selectMapRegion('${escapeAtlasHtml(zone.id)}', true)"
+                      style="background:${isSel ? 'rgba(56,189,248,0.22)' : '#0b1120'}; border:1px solid ${isSel ? '#38bdf8' : '#334155'}; color:${isSel ? '#fde047' : '#e2e8f0'}; padding:3px 8px; border-radius:4px; font-size:9.5px; cursor:pointer;">
+                <b style="color:${zone.color || '#38bdf8'};">${escapeAtlasHtml(zone.name)}</b> <span style="color:#94a3b8;">(${escapeAtlasHtml(zone.level)}${escapeAtlasHtml(hint)})</span>
+              </button>
+            `;
+          })
+          .join('')}
+      </div>
+    `;
+  }
+
+  window.setAtlasMapSearch = function (query) {
+    atlasMapSearchQuery = String(query || '');
+    const box = document.getElementById('atlas-map-search-results');
+    if (box) {
+      box.innerHTML = renderAtlasSearchResultsHtml(atlasMapSearchQuery);
+    }
+  };
+
+  window.jumpToFirstAtlasMatch = function () {
+    const matches = searchMapZones(atlasMapSearchQuery);
+    if (matches.length > 0 && matches[0].zone?.id) {
+      window.selectMapRegion(matches[0].zone.id, true);
+    }
+  };
 
   window.switchLoreTab = function (tab) {
     currentLoreTab = tab;
@@ -131,6 +178,7 @@ export function setupWorldAtlasAndLoreUi({
 
   function getRegionInspectorHtml(regId) {
     const reg = WORLD_ATLAS_REGIONS[regId] || WORLD_ATLAS_REGIONS.SANCTUARY_HUB;
+    const zoneIndexEntry = UNIVERSAL_SEARCH_ZONES.find((z) => z.id === reg.id);
     const isPlayerHere = String(currentRoomType || '').toUpperCase() === reg.id;
     const n = reg.neighbors || {};
     const editionTier = (typeof window !== 'undefined' && window.isLocalFounderEdition?.()) ? 'founder' : 'free';
@@ -214,12 +262,33 @@ export function setupWorldAtlasAndLoreUi({
           </div>
         </div>
 
-        <div style="background:#090d1c; border:1px solid #1e293b; border-radius:4px; padding:5px 8px;">
+        <div style="background:#090d1c; border:1px solid #1e293b; border-radius:4px; padding:5px 8px; margin-bottom:6px;">
           <div style="font-size:9.5px; color:#facc15; font-weight:bold; text-transform:uppercase; margin-bottom:2px;">
             🧭 Pathfinding Route (From Sanctuary)
           </div>
           <div style="font-size:9.5px; color:#cbd5e1; line-height:1.4;">${reg.travel}</div>
         </div>
+
+        ${
+          zoneIndexEntry && (zoneIndexEntry.npcsHere?.length > 0 || zoneIndexEntry.gatheringNodes?.length > 0)
+            ? `<div style="background:#090d1c; border:1px solid #1e293b; border-radius:4px; padding:5px 8px;">
+                ${
+                  zoneIndexEntry.npcsHere?.length > 0
+                    ? `<div style="font-size:9px; color:#fbbf24; font-weight:bold; text-transform:uppercase; margin-bottom:2px;">
+                        👥 NPCs Here: <span style="color:#e2e8f0; font-weight:normal;">${zoneIndexEntry.npcsHere.map((x) => `${x.icon} ${x.name}`).join(', ')}</span>
+                      </div>`
+                    : ''
+                }
+                ${
+                  zoneIndexEntry.gatheringNodes?.length > 0
+                    ? `<div style="font-size:9px; color:#4ade80; font-weight:bold; text-transform:uppercase;">
+                        ⛏️ Resources: <span style="color:#cbd5e1; font-weight:normal;">${zoneIndexEntry.gatheringNodes.slice(0, 6).map((g) => `${g.nodeName} (Lv.${g.reqLevel})`).join(' • ')}</span>
+                      </div>`
+                    : ''
+                }
+              </div>`
+            : ''
+        }
       </div>
     `;
   }
@@ -554,11 +623,26 @@ export function setupWorldAtlasAndLoreUi({
             </button>
           </div>
         </div>
-        <div style="display:flex; align-items:center; gap:8px;">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <div style="position:relative; display:flex; align-items:center;">
+            <input
+              id="atlas-map-search-input"
+              type="text"
+              value="${escapeAtlasHtml(atlasMapSearchQuery)}"
+              placeholder="Search map: resource, NPC, boss, zone..."
+              oninput="window.setAtlasMapSearch(this.value)"
+              onkeydown="if (event.key === 'Enter') { event.preventDefault(); window.jumpToFirstAtlasMatch(); }"
+              style="width:225px; background:#070c18; border:1px solid #38bdf8; color:#f8fafc; font-size:10.5px; padding:3px 8px; border-radius:4px; outline:none;"
+            />
+          </div>
           <button type="button" onclick="centerMapOnPlayer()" style="background:#0f172a; border:1px solid #22c55e; color:#86efac; font-size:9.5px; font-weight:bold; padding:2px 8px; border-radius:3px; cursor:pointer;" title="Jump map directly to your character's active realm">
             📍 YOU ARE HERE (${WORLD_ATLAS_REGIONS[currentRoomType]?.name || currentRoomType})
           </button>
         </div>
+      </div>
+
+      <div id="atlas-map-search-results" style="margin-bottom:8px;">
+        ${renderAtlasSearchResultsHtml(atlasMapSearchQuery)}
       </div>
 
       <div style="display:grid; grid-template-columns: 1fr 340px; gap:12px; align-items:start;">

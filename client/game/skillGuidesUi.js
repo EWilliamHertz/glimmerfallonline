@@ -170,8 +170,11 @@ export function setupSkillGuidesUi({ getProg, getProfile, audio, toggleModal }) 
                   <span class="skills-card-name" style="color:${meta.color};">${meta.name}</span>
                   <span class="skills-card-category-badge">${isCombat ? 'COMBAT & MAGIC' : 'ARTISAN & HARVEST'}</span>
                 </div>
-                <div class="skills-card-level-badge ${isMaxed ? 'mastered' : ''}">
-                  ${isMaxed ? '👑 MASTERY 99' : `LVL ${curLvl} <span style="font-size:9.5px; opacity:0.65;">/ 99</span>`}
+                <div style="display:flex; align-items:center; gap:5px;">
+                  <button type="button" class="xpt-pin-link" onclick="event.stopPropagation(); window.pinXpTracker && window.pinXpTracker('${profId}')" title="Pin ${meta.name} to Right-Side XP Tracker">📌</button>
+                  <div class="skills-card-level-badge ${isMaxed ? 'mastered' : ''}">
+                    ${isMaxed ? '👑 MASTERY 99' : `LVL ${curLvl} <span style="font-size:9.5px; opacity:0.65;">/ 99</span>`}
+                  </div>
                 </div>
               </div>
               <div class="skills-card-role">${meta.role || ''}</div>
@@ -244,8 +247,11 @@ export function setupSkillGuidesUi({ getProg, getProfile, audio, toggleModal }) 
           <div class="skill-meta-cell">
             <div class="skill-meta-header">
               <span class="skill-name" style="color:${pDef.color};">${pDef.name}</span>
-              <span class="skill-level ${isMaxed ? 'skill-level-max' : ''}">
-                ${curLvl} <span style="font-size:9px; color:#78716c; font-weight:normal;">/ 99</span>
+              <span style="display:flex; align-items:center; gap:4px;">
+                <button type="button" class="xpt-pin-link" onclick="event.stopPropagation(); window.pinXpTracker && window.pinXpTracker('${profId}')" title="Pin ${pDef.name} to Right-Side XP Tracker">📌</button>
+                <span class="skill-level ${isMaxed ? 'skill-level-max' : ''}">
+                  ${curLvl} <span style="font-size:9px; color:#78716c; font-weight:normal;">/ 99</span>
+                </span>
               </span>
             </div>
             <div class="skill-progress-bar">

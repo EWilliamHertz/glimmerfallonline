@@ -11,6 +11,7 @@ import {
   BOUNTY_CONTRACTS,
   getProfessionLevelFromXp,
   getXpForProfessionLevel,
+  checkCraftInventorySpace,
 } from '../shared/protocol.js';
 import { getItemIconDataUrl } from './itemSprites.js';
 import { getRarityColor, formatItemStatsHtml } from './equipmentUi.js';
@@ -22,6 +23,16 @@ let craftQueueTimer = null;
 let craftQueueRemaining = 0;
 let craftQueueRecipeId = null;
 let craftCooldownTimer = null;
+let craftFeedback = null;
+
+export function setCraftFeedback(text = '', type = 'error') {
+  const clean = String(text || '').trim();
+  craftFeedback = clean ? { text: clean, type, at: Date.now() } : null;
+}
+
+export function getCraftFeedback() {
+  return craftFeedback;
+}
 
 export function clearCraftCooldownTimer() {
   if (craftCooldownTimer) {
@@ -138,6 +149,7 @@ export function startCraftingBatch(recipeId, count = 1) {
 export function selectCraftingStation(stationId, category = 'all') {
   if (!CRAFTING_STATIONS[stationId]) return;
   stopCraftingQueue();
+  craftFeedback = null;
   activeStationId = stationId;
   activeCategory = category;
   const stationRecipes = CRAFTING_RECIPES.filter((r) => r.station === activeStationId);
@@ -148,6 +160,7 @@ export function selectCraftingStation(stationId, category = 'all') {
 }
 
 export function selectCraftingCategory(catId) {
+  craftFeedback = null;
   activeCategory = catId || 'all';
   const visible = CRAFTING_RECIPES.filter(
     (r) => r.station === activeStationId && (activeCategory === 'all' || r.category === activeCategory)
@@ -159,6 +172,7 @@ export function selectCraftingCategory(catId) {
 }
 
 export function selectCraftingRecipe(recipeId) {
+  craftFeedback = null;
   selectedRecipeId = recipeId;
   renderCraftingModal();
 }
@@ -206,6 +220,7 @@ export function renderCraftingModal(stationOverride = null) {
   const selectedRecipe = recipes.find((r) => r.id === selectedRecipeId) || recipes[0] || null;
   const selectedItem = selectedRecipe ? EQUIPMENT_CATALOG[selectedRecipe.outputId] : null;
   const maxMake = selectedRecipe ? getMaxCraftableCount(selectedRecipe, inv, lvl) : 0;
+  const spaceCheck = selectedRecipe ? checkCraftInventorySpace(selectedRecipe, inv, EQUIPMENT_CATALOG, 28) : null;
   const isQueueActive = craftQueueRemaining > 0 && craftQueueRecipeId === selectedRecipe?.id;
   const cdRemain = typeof window.getCraftCooldownRemaining === 'function' ? window.getCraftCooldownRemaining() : 0;
   const isCooldown = cdRemain > 0;
@@ -243,7 +258,7 @@ export function renderCraftingModal(stationOverride = null) {
           `;
         }).join('')}
         <div style="margin-left:auto; display:flex; align-items:center; gap:8px; font-size:9.5px; color:#94a3b8;">
-          <span>🎒 Backpack: <b style="color:${inv.length >= 28 ? '#ef4444' : '#38bdf8'};">${inv.length}/28</b></span>
+          <span>🎒 Backpack: <b style="color:${inv.length >= 28 ? '#ef4444' : '#38bdf8'};">${inv.length}/28${inv.length >= 28 ? ' (FULL)' : ''}</b></span>
         </div>
       </div>
 
@@ -338,6 +353,11 @@ export function renderCraftingModal(stationOverride = null) {
 
             <!-- Craft Batch Buttons -->
             <div style="margin-top:12px; display:flex; flex-direction:column; gap:6px;">
+              ${(craftFeedback?.text || (spaceCheck?.bagFull && maxMake >= 1)) ? `
+                <div id="crafting-feedback-banner" role="alert" style="background:rgba(127,29,29,0.55); border:1.5px solid #ef4444; color:#fecaca; font-size:10px; font-weight:800; padding:8px 10px; border-radius:4px; text-align:center; line-height:1.4;">
+                  ${craftFeedback?.text || spaceCheck.reason}
+                </div>
+              ` : ''}
               ${lvl < selectedRecipe.reqLevel ? `
                 <div style="background:rgba(127,29,29,0.35); border:1px solid #ef4444; color:#fca5a5; font-size:9.5px; font-weight:700; padding:7px; border-radius:4px; text-align:center;">
                   🔒 Requires Level ${selectedRecipe.reqLevel} ${profMeta.name} (You are Lv. ${lvl})

@@ -827,6 +827,32 @@ export function buildNpcSprites(sprites) {
     sprites.merchantRelicsNpc.push(addPixelOutline(c));
   }
 
+  // Captain Brine & Angler Finn Portrait (Seafarer Cap & Salt-Sea Beard)
+  sprites.npcPortraits.anglerFinnNpc = createBustPortrait({
+    border: '#38bdf8',
+    bg: '#081b2e',
+    bustDraw(ctx) {
+      // Mariner Peaked Oilskin Cap
+      rect(ctx, 8, 5, 16, 5, '#0f172a');
+      rect(ctx, 10, 6, 12, 3, '#1d4ed8');
+      rect(ctx, 7, 9, 18, 2, '#facc15');
+      // Weathered Face & Sea-Salt Beard
+      rect(ctx, 11, 11, 10, 8, '#fdba74');
+      px(ctx, 13, 13, '#0f172a');
+      px(ctx, 18, 13, '#0f172a');
+      rect(ctx, 10, 15, 12, 5, '#e2e8f0');
+      rect(ctx, 12, 18, 8, 3, '#cbd5e1');
+      // Mariner Coat & Gold Brass Buttons
+      rect(ctx, 7, 20, 18, 10, '#0369a1');
+      rect(ctx, 12, 20, 8, 10, '#1e3a8a');
+      px(ctx, 14, 22, '#facc15');
+      px(ctx, 14, 26, '#facc15');
+      // Hanging Brass Sea Lantern beside shoulder
+      rect(ctx, 24, 15, 4, 7, '#f59e0b');
+      rect(ctx, 25, 17, 2, 4, '#fef08a');
+    },
+  });
+
   // Portrait Aliases
   sprites.npcPortraits.shadowNpc = sprites.npcPortraits.shadowBrokerNpc;
   sprites.npcPortraits.druidNpc = sprites.npcPortraits.terraHerbalistNpc;

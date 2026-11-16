@@ -811,20 +811,87 @@ export function isSameFactionProtectedMob(roomType, mob, playerFaction, playerId
   return true;
 }
 
-// Deep Water & Abyss Collision Detection
+/**
+ * Returns true if the tile coordinate `(tx, ty)` lies on Coral Coast's
+ * northern archway boardwalk pier (`y: -576..-177`) or the eastern twilight fishing L-pier.
+ */
+export function isCoralCoastPierTile(tx, ty) {
+  const isNorthBoardwalk = tx >= -3 && tx <= 3 && ty >= -36 && ty <= -12;
+  const isEastFishingSpur = tx >= 4 && tx <= 14 && ty >= -25 && ty <= -22;
+  return isNorthBoardwalk || isEastFishingSpur;
+}
+
+/**
+ * Returns true if the tile coordinate `(tx, ty)` lies in Coral Coast's open deep sea.
+ */
+export function isCoralCoastDeepSeaTile(tx, ty) {
+  return ty <= -21 || tx >= 23;
+}
+
+/**
+ * Returns true if `(tx, ty)` is a non-walkable cutout void tile in an L-shaped building interior.
+ */
+export function isInteriorVoidTile(tx, ty, roomType) {
+  if (roomType === ROOM_TYPES.INTERIOR_SANCTUARY_COTTAGE) {
+    return tx >= 5 && ty >= 3;
+  }
+  if (roomType === ROOM_TYPES.INTERIOR_AETHER_OBSERVATORY) {
+    return tx <= -5 && ty >= 3;
+  }
+  return false;
+}
+
+/**
+ * Returns true if `(tx, ty)` is an internal partition wall (L-cutout wall, vault wall, or atrium divider).
+ */
+export function isInteriorPartitionWallTile(tx, ty, roomType) {
+  if (roomType === ROOM_TYPES.INTERIOR_SANCTUARY_COTTAGE) {
+    const isCutoutWall = (tx === 4 && ty >= 3) || (tx >= 4 && ty === 2);
+    const isVaultWestWall = tx === 4 && ty >= -6 && ty <= -3;
+    const isVaultSouthWall = ty === -3 && tx >= 4 && tx <= 9 && !(tx >= 6 && tx <= 7);
+    return isCutoutWall || isVaultWestWall || isVaultSouthWall;
+  }
+  if (roomType === ROOM_TYPES.INTERIOR_TERRA_APOTHECARY) {
+    // Horizontal conservatory divider with a 5-tile central archway (tx: -2..2)
+    return ty === -1 && (tx <= -3 || tx >= 3);
+  }
+  if (roomType === ROOM_TYPES.INTERIOR_AETHER_OBSERVATORY) {
+    return (tx === -4 && ty >= 3) || (tx <= -4 && ty === 2);
+  }
+  if (roomType === ROOM_TYPES.NEXUS_FORGOTTEN_RUINS) {
+    const inVaultBox = tx >= 10 && tx <= 15 && ty >= -18 && ty <= -14;
+    if (!inVaultBox) return false;
+    const isBorder = tx === 10 || tx === 15 || ty === -18 || ty === -14;
+    const isSouthGrateGap = ty === -14 && (tx === 12 || tx === 13);
+    return isBorder && !isSouthGrateGap;
+  }
+  return false;
+}
+
+/**
+ * Returns true if `(tx, ty)` is part of the Terra Apothecary's indoor mossy herbarium atrium.
+ */
+export function isInteriorGardenTile(tx, ty, roomType) {
+  if (roomType !== ROOM_TYPES.INTERIOR_TERRA_APOTHECARY) return false;
+  return ty >= -6 && ty <= -2 && tx >= -9 && tx <= 8;
+}
+
+// Deep Water, Abyss, & Interior Partition Collision Detection
 export function isWaterTile(x, y, roomType = ROOM_TYPES.NEXUS_WARZONE) {
+  const tx = Math.floor(x / TILE_SIZE);
+  const ty = Math.floor(y / TILE_SIZE);
+
+  if (isInteriorVoidTile(tx, ty, roomType) || isInteriorPartitionWallTile(tx, ty, roomType)) {
+    return true;
+  }
+
   if (roomType === ROOM_TYPES.CORAL_COAST) {
-    // Eastern and Southern open tidal sea blocks foot movement, except along the fishing pier & docks
-    const isDeepSea = y <= -320 || x >= 360;
-    if (!isDeepSea) return false;
-    // Central Fishing Pier extends from (x: -40 to 60, y: -220 to -420)
-    const isPier = x >= -48 && x <= 64 && y >= -440 && y <= -180;
-    if (isPier) return false;
+    // Northern and Eastern open tidal sea blocks foot movement, except along the boardwalk & twilight fishing pier
+    if (!isCoralCoastDeepSeaTile(tx, ty)) return false;
+    if (isCoralCoastPierTile(tx, ty)) return false;
     return true;
   }
   if (roomType === ROOM_TYPES.NEXUS_WARZONE) {
-    const tx = Math.floor(x / TILE_SIZE);
-    const ty = Math.floor(y / TILE_SIZE);
 
     // 1. South Sanctuary River (meanders horizontally between ty: 75 and 80)
     const southRiverY = 77 + Math.round(Math.sin(tx * 0.08) * 2.5);

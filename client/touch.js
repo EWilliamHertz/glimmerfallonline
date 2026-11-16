@@ -113,6 +113,7 @@ export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstT
   const RADIUS = 40;
   const DEAD = 0.18;
   let stickPointer = null;
+  let stickOrigin = null;
 
   function setAxis(dx, dy) {
     let len = Math.hypot(dx, dy);
@@ -136,31 +137,40 @@ export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstT
 
   function resetStick() {
     stickPointer = null;
+    stickOrigin = null;
     knob.style.transform = 'translate(0px, 0px)';
     inputs.axisX = 0;
     inputs.axisY = 0;
   }
 
   function stickEvent(e) {
-    const r = stick.getBoundingClientRect();
-    setAxis(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
+    if (!stickOrigin) {
+      const r = stick.getBoundingClientRect();
+      stickOrigin = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+    setAxis(e.clientX - stickOrigin.x, e.clientY - stickOrigin.y);
   }
 
   stick.addEventListener('pointerdown', (e) => {
     e.preventDefault();
+    if (stickPointer !== null && stickPointer !== e.pointerId) return;
     onFirstTouch?.();
+    const r = stick.getBoundingClientRect();
+    stickOrigin = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     stickPointer = e.pointerId;
-    stick.setPointerCapture(e.pointerId);
+    try { stick.setPointerCapture(e.pointerId); } catch (_) {}
     stickEvent(e);
   });
   stick.addEventListener('pointermove', (e) => {
     if (e.pointerId === stickPointer) stickEvent(e);
   });
   const endStick = (e) => {
-    if (e.pointerId === stickPointer) resetStick();
+    if (!e || e.pointerId === stickPointer) resetStick();
   };
   stick.addEventListener('pointerup', endStick);
   stick.addEventListener('pointercancel', endStick);
+  stick.addEventListener('lostpointercapture', endStick);
+  window.addEventListener('blur', resetStick);
 
   function bindTap(id, handler) {
     const el = layer.querySelector(id);

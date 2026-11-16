@@ -120,6 +120,27 @@ export function rollMobLootDrops({
     drops.push({ kind: 'item', itemId: runeId, qty: 1, ttl: 70 });
   }
 
+  // 2e. Summoner-Knight Echo-Prints (Companion blueprints dropped cleanly by Bosses, Elites & Zone Mobs)
+  const echoChance = isBoss ? 0.45 : isElite ? 0.14 : mobLv >= 8 ? 0.035 : 0.02;
+  if (Math.random() < echoChance) {
+    const rType = String(roomType || '').toLowerCase();
+    let echoId = 'echo_print_ember_fox';
+    if (isBoss && mobLv >= 30 && Math.random() < 0.38) {
+      echoId = 'echo_print_pyre_drake';
+    } else if (rType.includes('terra') || rType.includes('ironwood') || rType.includes('starlight') || rType.includes('oasis') || rType.includes('coral') || rType.includes('moonwell')) {
+      echoId = 'echo_print_ankyloling';
+    } else if (rType.includes('umbri') || rType.includes('labyrinth') || rType.includes('abyssal')) {
+      echoId = 'echo_print_wisp_imp';
+    } else if (rType.includes('aether') || rType.includes('starfall') || rType.includes('chronocore')) {
+      echoId = mobLv >= 25 && Math.random() < 0.45 ? 'echo_print_starfall_owl' : 'echo_print_prism_sprite';
+    } else if (mobLv >= 25 && Math.random() < 0.25) {
+      echoId = 'echo_print_starfall_owl';
+    }
+    if (EQUIPMENT_CATALOG[echoId]) {
+      drops.push({ kind: 'item', itemId: echoId, qty: 1, ttl: isBoss ? 90 : 60 });
+    }
+  }
+
   // 3. Tiered Consumables (Alchemy Salves, Glimmer Draughts & Cooked Provisions)
   const consumableChance = isBoss ? 1.0 : isElite ? 0.32 : mobLv >= 15 ? 0.16 : 0.14;
   if (Math.random() < consumableChance) {

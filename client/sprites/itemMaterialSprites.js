@@ -412,8 +412,47 @@ export function drawMaterialItemPixels(ctx, id, px, rect) {
       break;
     }
 
-    // Default Fallback (including Mythic Leyline Keystones)
+    // --- HARMONIC CIPHERS (PRISMATIC SHARD PRISMS) ---
+    case 'cipher_solar':
+    case 'cipher_terra':
+    case 'cipher_umbri':
+    case 'cipher_aether': {
+      const cPal = {
+        cipher_solar: ['#b45309', '#facc15', '#fef9c3'],
+        cipher_terra: ['#166534', '#4ade80', '#dcfce7'],
+        cipher_umbri: ['#581c87', '#c084fc', '#f3e8ff'],
+        cipher_aether: ['#0369a1', '#38bdf8', '#e0f2fe'],
+      }[id];
+      rect(ctx, 10, 4, 4, 16, cPal[0]);
+      rect(ctx, 8, 6, 8, 12, cPal[0]);
+      rect(ctx, 9, 7, 6, 10, cPal[1]);
+      rect(ctx, 10, 8, 4, 7, cPal[2]);
+      px(ctx, 11, 5, '#ffffff');
+      px(ctx, 6, 11, cPal[1]);
+      px(ctx, 17, 11, cPal[1]);
+      break;
+    }
+
+    // Default Fallback (including Mythic Leyline Keystones & Echo-Prints)
     default: {
+      if (String(id).startsWith('echo_print_')) {
+        const ec = id.includes('ember') || id.includes('pyre')
+          ? ['#9a3412', '#fb923c', '#fde047']
+          : id.includes('ankyloling')
+          ? ['#065f46', '#2dd4bf', '#86efac']
+          : id.includes('wisp')
+          ? ['#4c1d95', '#c084fc', '#f0abfc']
+          : ['#1e3a8a', '#38bdf8', '#e0f2fe'];
+        // Engraved covenant blueprint card
+        rect(ctx, 5, 4, 14, 16, ec[0]);
+        rect(ctx, 6, 5, 12, 14, '#0f172a');
+        rect(ctx, 6, 5, 12, 2, ec[1]);
+        rect(ctx, 9, 9, 6, 6, ec[1]);
+        rect(ctx, 10, 10, 4, 4, ec[2]);
+        px(ctx, 7, 17, ec[2]);
+        px(ctx, 16, 17, ec[2]);
+        break;
+      }
       if (String(id).startsWith('keystone_')) {
         const kc = id.includes('solari') ? '#facc15' : id.includes('umbri') ? '#c084fc' : id.includes('terra') ? '#4ade80' : '#38bdf8';
         rect(ctx, 8, 4, 8, 7, kc);

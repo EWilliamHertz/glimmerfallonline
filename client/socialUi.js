@@ -73,15 +73,12 @@ export function drawPixelNameplateAndBubbles(ctx, {
   ctx.fillStyle = accentColor;
   ctx.fillRect(plateX, plateY + plateH - 1, plateW, isHd ? 1.5 : 1);
 
-  // Sharp, anti-aliased typography (smooth vector shadow when in HD mode)
+  // Sharp, anti-aliased typography (1px drop shadow avoids per-frame Gaussian shadowBlur)
   if (isHd) {
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-    ctx.shadowBlur = 2.5;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 1;
+    ctx.fillStyle = 'rgba(5, 7, 15, 0.92)';
+    ctx.fillText(label, rx, ny + 1);
     ctx.fillStyle = isHostile ? textColor : isParty ? textColor : facColor;
     ctx.fillText(label, rx, ny);
-    ctx.shadowColor = 'transparent';
   } else {
     ctx.fillStyle = '#05070f';
     ctx.fillText(label, rx + 1, ny + 1);
@@ -221,10 +218,18 @@ export function renderPartyHud(party, selfId, fallbackSelf = null) {
   const listEl = document.getElementById('party-members-list');
   if (!header || !listEl) return;
 
+  let changed = false;
+
   if (!party || !party.members || party.members.length <= 1) {
     const nextHeader = '🛡️ PARTY / SQUAD (SOLO • 1/3)';
-    if (header.innerText !== nextHeader) header.innerText = nextHeader;
-    if (leaveBtn && leaveBtn.style.display !== 'none') leaveBtn.style.display = 'none';
+    if (header.innerText !== nextHeader) {
+      header.innerText = nextHeader;
+      changed = true;
+    }
+    if (leaveBtn && leaveBtn.style.display !== 'none') {
+      leaveBtn.style.display = 'none';
+      changed = true;
+    }
     const soloMember = party?.members?.[0] || fallbackSelf;
     const soloMeta = soloMember ? (FACTIONS_META[soloMember.faction] || FACTIONS_META.Solari) : null;
     const nextHtml = `
@@ -240,18 +245,32 @@ export function renderPartyHud(party, selfId, fallbackSelf = null) {
         Press <b style="color:#4ade80;">[O]</b> or click a player to invite up to 3 champions (<b style="color:#fde047;">+25% Co-op XP</b>).
       </div>
     `;
-    if (listEl.innerHTML !== nextHtml) {
+    const soloKey = `solo:${soloMember?.id || ''}:${soloMember?.name || ''}:${soloMember?.faction || ''}:${soloMember?.level || 1}`;
+    if (listEl.dataset?.partyKey !== soloKey && listEl.innerHTML !== nextHtml) {
       listEl.innerHTML = nextHtml;
+      changed = true;
     }
-    if (typeof window !== 'undefined' && typeof window.reflowDefaultHudStack === 'function') {
-      window.reflowDefaultHudStack();
+    if (listEl.dataset) listEl.dataset.partyKey = soloKey;
+    if (changed && typeof window !== 'undefined') {
+      (window.scheduleHudStackReflow || window.reflowDefaultHudStack)?.();
     }
     return;
   }
 
   const activeHeader = `🛡️ ACTIVE PARTY (${party.members.length}/3 • +25% XP)`;
-  if (header.innerText !== activeHeader) header.innerText = activeHeader;
-  if (leaveBtn && leaveBtn.style.display !== 'inline-block') leaveBtn.style.display = 'inline-block';
+  if (header.innerText !== activeHeader) {
+    header.innerText = activeHeader;
+    changed = true;
+  }
+  if (leaveBtn && leaveBtn.style.display !== 'inline-block') {
+    leaveBtn.style.display = 'inline-block';
+    changed = true;
+  }
+
+  const activeKey = `active:${party.leaderId || ''}:${party.members
+    .map((m) => `${m.id}:${m.name}:${m.faction}:${m.level}:${Math.round(m.hp ?? 25)}/${Math.max(1, Math.round(m.maxHp ?? 25))}:${m.shield > 0 ? 1 : 0}`)
+    .join('|')}`;
+  if (listEl.dataset?.partyKey === activeKey) return;
 
   const activeHtml = party.members
     .map((m) => {
@@ -276,9 +295,11 @@ export function renderPartyHud(party, selfId, fallbackSelf = null) {
     .join('');
   if (listEl.innerHTML !== activeHtml) {
     listEl.innerHTML = activeHtml;
+    changed = true;
   }
-  if (typeof window !== 'undefined' && typeof window.reflowDefaultHudStack === 'function') {
-    window.reflowDefaultHudStack();
+  if (listEl.dataset) listEl.dataset.partyKey = activeKey;
+  if (changed && typeof window !== 'undefined') {
+    (window.scheduleHudStackReflow || window.reflowDefaultHudStack)?.();
   }
 }
 

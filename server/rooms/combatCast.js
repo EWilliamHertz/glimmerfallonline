@@ -503,6 +503,7 @@ export const combatCastMethods = {
 
       player.x = Math.max(-room.halfW + 16, Math.min(room.halfW - 16, player.x + dx * dashDist));
       player.y = Math.max(-room.halfH + 16, Math.min(room.halfH - 16, player.y + dy * dashDist));
+      player.posOverrideSeq = (player.posOverrideSeq || 0) + 1;
 
       room.fxQueue.push({
         kind: 'dash',
@@ -543,6 +544,7 @@ export const combatCastMethods = {
       const ang = Math.atan2(tgt.ref.y - player.y, tgt.ref.x - player.x);
       player.x = Math.max(-room.halfW + 16, Math.min(room.halfW - 16, tgt.ref.x + Math.cos(ang) * 18));
       player.y = Math.max(-room.halfH + 16, Math.min(room.halfH - 16, tgt.ref.y + Math.sin(ang) * 18));
+      player.posOverrideSeq = (player.posOverrideSeq || 0) + 1;
 
       room.fxQueue.push({
         kind: 'dash',
@@ -626,6 +628,7 @@ export const combatCastMethods = {
       const startY = player.y;
       player.x = Math.max(-room.halfW + 16, Math.min(room.halfW - 16, player.x + dx * dist));
       player.y = Math.max(-room.halfH + 16, Math.min(room.halfH - 16, player.y + dy * dist));
+      player.posOverrideSeq = (player.posOverrideSeq || 0) + 1;
       room.fxQueue.push({ kind: 'dash', actorId: player.id, fromX: startX, fromY: startY, toX: player.x, toY: player.y, dir: player.dir, color: '#c084fc' });
       this.addPlayerGlimmer(room, player, 18);
       for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, 80)) {
@@ -719,6 +722,7 @@ export const combatCastMethods = {
       const startY = player.y;
       player.x = Math.max(-room.halfW + 16, Math.min(room.halfW - 16, player.x + dx * riftDist));
       player.y = Math.max(-room.halfH + 16, Math.min(room.halfH - 16, player.y + dy * riftDist));
+      player.posOverrideSeq = (player.posOverrideSeq || 0) + 1;
       room.fxQueue.push({ kind: 'dash', actorId: player.id, fromX: startX, fromY: startY, toX: player.x, toY: player.y, dir: player.dir, color: '#38bdf8' });
       this.addPlayerGlimmer(room, player, 20);
       room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'frost_ring', color: '#38bdf8', ownerId: player.id, x: startX, y: startY, radius: 48, age: 0, maxAge: 4.0 });
