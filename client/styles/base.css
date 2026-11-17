@@ -298,9 +298,9 @@ body {
 
 #party-hud {
   position: absolute;
-  top: 154px;
-  left: 12px;
-  width: 262px;
+  top: 52px;
+  right: 204px;
+  width: 252px;
   padding: 6px 8px;
   border-color: #1e293b;
   transform-origin: top left;
@@ -310,7 +310,7 @@ body {
 
 #quest-tracker {
   position: absolute;
-  top: 260px;
+  top: 156px;
   left: 12px;
   width: 280px;
   max-height: 44vh;

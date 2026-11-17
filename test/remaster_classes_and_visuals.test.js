@@ -637,7 +637,7 @@ test('Cloud Shell Preview Realm Switching, Redirect Detection & Clean Glimmer Fo
 });
 
 test('Left HUD Stack (Avatar, Party, Quest Tracker & Chat) never overlaps on iPad / 720p or legacy saved layouts', async () => {
-  const { getUiScale, reflowDefaultHudStack } = await import('../client/uiLayout.js');
+  const { getUiScale, applySavedUiLayout } = await import('../client/uiLayout.js');
   const prevWin = globalThis.window;
   const prevDoc = globalThis.document;
   const prevStorage = globalThis.localStorage;
@@ -678,12 +678,27 @@ test('Left HUD Stack (Avatar, Party, Quest Tracker & Chat) never overlaps on iPa
     };
 
     const combatLogEl = { id: 'combat-log', style: { maxHeight: '' } };
+    const menuBtnEl = {
+      id: 'micro-btn-menu',
+      offsetWidth: 68,
+      offsetHeight: 25,
+      style: {},
+      classList: { contains: () => false },
+      getBoundingClientRect: () => {
+        const w = 68 * hudScale;
+        const h = 25 * hudScale;
+        const right = (mockWin.innerWidth / 2) + (250 * hudScale);
+        const top = 10;
+        return { left: right - w, right, top, bottom: top + h, width: w, height: h };
+      },
+    };
     const els = new Map([
       ['player-unit-frame', makePanel('player-unit-frame', { left: 12, top: 12, width: 262, height: 136 })],
-      ['party-hud', makePanel('party-hud', { left: 12, top: 132, width: 262, height: 112 })],
-      ['quest-tracker', makePanel('quest-tracker', { left: 12, top: 236, width: 280, height: 220 })],
+      ['party-hud', makePanel('party-hud', { left: 12, top: 132, width: 252, height: 112 })],
+      ['quest-tracker', makePanel('quest-tracker', { left: 12, top: 156, width: 280, height: 220 })],
       ['social-chat-panel', makePanel('social-chat-panel', { left: 12, width: 292, height: 204, bottomAnchor: 12 })],
       ['top-right-hud', makePanel('top-right-hud', { top: 12, width: 172, height: 240, fixedRight: 12 })],
+      ['micro-btn-menu', menuBtnEl],
       ['combat-log', combatLogEl],
     ]);
 
@@ -701,15 +716,31 @@ test('Left HUD Stack (Avatar, Party, Quest Tracker & Chat) never overlaps on iPa
     assert.ok(autoScale.scale <= 0.92, `iPad/short 680px viewport auto scale should stay <= 0.92 (got ${autoScale.scale})`);
     hudScale = autoScale.scale;
 
-    reflowDefaultHudStack();
+    // Legacy left-column saved party-hud position should migrate cleanly under the menu button
+    localStorage.setItem('glimmerfall_custom_ui_layout', JSON.stringify({
+      'party-hud': { left: '12px', top: '132px' },
+    }));
+    applySavedUiLayout();
     const av = els.get('player-unit-frame').getBoundingClientRect();
     const pt = els.get('party-hud').getBoundingClientRect();
     const qt = els.get('quest-tracker').getBoundingClientRect();
     const ch = els.get('social-chat-panel').getBoundingClientRect();
-    assert.ok(pt.top >= av.bottom + 8, `Party HUD (${pt.top}) must sit below Avatar+ResourceBar (${av.bottom})`);
-    assert.ok(qt.top >= pt.bottom + 8, `Quest Tracker (${qt.top}) must sit below Party (${pt.bottom})`);
+    const mb = els.get('micro-btn-menu').getBoundingClientRect();
+    assert.ok(pt.top >= mb.bottom + 8, `Party HUD (${pt.top}) must sit below Menu button (${mb.bottom})`);
+    assert.ok(Math.abs(pt.right - mb.right) <= 2, `Party HUD right (${pt.right}) must align under Menu button (${mb.right})`);
+    assert.ok(qt.top >= av.bottom + 8, `Quest Tracker (${qt.top}) must sit below Avatar+ResourceBar (${av.bottom})`);
+    const partyOverlapsChat = !(pt.right <= ch.left || pt.left >= ch.right || pt.bottom <= ch.top || pt.top >= ch.bottom);
+    assert.ok(!partyOverlapsChat, 'Party HUD must never overlap Chat');
     const questOverlapsChat = !(qt.right <= ch.left || qt.left >= ch.right || qt.bottom <= ch.top || qt.top >= ch.bottom);
     assert.ok(!questOverlapsChat, `Quest Tracker (${qt.left},${qt.top}..${qt.bottom}) must not overlap Chat (${ch.left},${ch.top})`);
+
+    // Custom non-left party-hud placement must stay where the user moved it
+    localStorage.setItem('glimmerfall_custom_ui_layout', JSON.stringify({
+      'party-hud': { left: '480px', top: '260px' },
+    }));
+    applySavedUiLayout();
+    assert.equal(els.get('party-hud').style.left, '480px');
+    assert.equal(els.get('party-hud').style.top, '260px');
   } finally {
     globalThis.window = prevWin;
     globalThis.document = prevDoc;

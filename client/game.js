@@ -8937,18 +8937,21 @@ export function initGame() {
     currentTarget = ent;
     const frame = document.getElementById('target-unit-frame');
     const actRow = document.getElementById('target-player-actions');
+    const wasVisible = frame && frame.style.display === 'block';
     if (!ent) {
-      frame.style.display = 'none';
+      if (frame) frame.style.display = 'none';
       if (actRow) actRow.style.display = 'none';
+      if (wasVisible) scheduleHudStackReflow();
       return;
     }
-    frame.style.display = 'block';
+    if (frame) frame.style.display = 'block';
     document.getElementById('target-name').innerText = ent.name;
     document.getElementById('target-sub').innerText = getEntitySubtitle(ent);
     if (actRow) {
       actRow.style.display = ent.isRemotePlayer ? 'block' : 'none';
     }
     updateTargetUI();
+    if (!wasVisible) scheduleHudStackReflow();
   }
 
   function cycleTarget() {

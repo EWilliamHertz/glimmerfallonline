@@ -2373,12 +2373,27 @@ test('Default HUD stack: Avatar (#player-unit-frame), Party (#party-hud), Quest 
       return el;
     }
 
+    const makeCenteredMenuBtn = () => ({
+      id: 'micro-btn-menu',
+      offsetWidth: 68,
+      offsetHeight: 25,
+      style: {},
+      classList: { contains: () => false },
+      getBoundingClientRect: () => {
+        const w = 68 * currentScale;
+        const h = 25 * currentScale;
+        const right = (mockWindow.innerWidth / 2) + (250 * currentScale);
+        const top = 10;
+        return { left: right - w, right, top, bottom: top + h, width: w, height: h };
+      },
+    });
     const elements = new Map([
       ['player-unit-frame', makePanel('player-unit-frame', { left: 12, top: 12, width: 262, height: 108 })],
-      ['party-hud', makePanel('party-hud', { left: 12, top: 132, width: 262, height: 168 })],
-      ['quest-tracker', makePanel('quest-tracker', { left: 12, top: 236, width: 280, height: 190 })],
+      ['party-hud', makePanel('party-hud', { left: 12, top: 132, width: 252, height: 168 })],
+      ['quest-tracker', makePanel('quest-tracker', { left: 12, top: 156, width: 280, height: 190 })],
       ['social-chat-panel', makePanel('social-chat-panel', { left: 12, width: 292, height: 210, bottomAnchor: 12 })],
       ['top-right-hud', makePanel('top-right-hud', { top: 12, width: 172, height: 240, fixedRight: 12 })],
+      ['micro-btn-menu', makeCenteredMenuBtn()],
       ['party-invite-toast', makePanel('party-invite-toast', { left: 12, top: 416, width: 262, height: 70 })],
       ['arena-invite-toast', makePanel('arena-invite-toast', { left: 12, top: 492, width: 262, height: 70 })],
     ]);
@@ -2407,22 +2422,32 @@ test('Default HUD stack: Avatar (#player-unit-frame), Party (#party-hud), Quest 
     const party1080 = elements.get('party-hud').getBoundingClientRect();
     const quest1080 = elements.get('quest-tracker').getBoundingClientRect();
     const chat1080 = elements.get('social-chat-panel').getBoundingClientRect();
-    assert.ok(party1080.top >= avatar1080.bottom + 8, `Party HUD (${party1080.top}) must sit below Avatar (${avatar1080.bottom})`);
-    assert.ok(quest1080.top >= party1080.bottom + 8, `Quest Tracker (${quest1080.top}) must sit below Party HUD (${party1080.bottom})`);
+    const menuBtn1080 = elements.get('micro-btn-menu').getBoundingClientRect();
+    const topRight1080 = elements.get('top-right-hud').getBoundingClientRect();
+    assert.ok(party1080.top >= menuBtn1080.bottom + 8, `Party HUD (${party1080.top}) must sit below Menu button (${menuBtn1080.bottom})`);
+    assert.ok(Math.abs(party1080.right - menuBtn1080.right) <= 2, `Party HUD right (${party1080.right}) should align under Menu button right (${menuBtn1080.right})`);
+    assert.ok(party1080.left >= avatar1080.right + 8 && party1080.right <= topRight1080.left - 8, 'Party HUD must stay clear of Avatar and Minimap');
+    assert.ok(quest1080.top >= avatar1080.bottom + 8, `Quest Tracker (${quest1080.top}) must sit below Avatar (${avatar1080.bottom})`);
     assert.ok(quest1080.bottom <= chat1080.top, `Quest Tracker (${quest1080.bottom}) must not overlap Chat (${chat1080.top})`);
 
-    // 2. Compact short viewport (900x520) should never let Quest Tracker overlap Party HUD or Chat
+    // 2. Compact short viewport (900x520) should keep Party under Menu and never overlap Quest Tracker or Chat
     mockWindow.innerWidth = 900;
     mockWindow.innerHeight = 520;
     currentScale = 0.9;
     reflowDefaultHudStack();
+    const avatarShort = elements.get('player-unit-frame').getBoundingClientRect();
     const partyShort = elements.get('party-hud').getBoundingClientRect();
     const questShort = elements.get('quest-tracker').getBoundingClientRect();
     const chatShort = elements.get('social-chat-panel').getBoundingClientRect();
+    const menuBtnShort = elements.get('micro-btn-menu').getBoundingClientRect();
+    assert.ok(partyShort.top >= menuBtnShort.bottom + 8, `Party HUD (${partyShort.top}) must sit below Menu button (${menuBtnShort.bottom}) on compact viewports`);
     const overlapsPartyAndQuest = !(questShort.right <= partyShort.left || questShort.left >= partyShort.right || questShort.bottom <= partyShort.top || questShort.top >= partyShort.bottom);
     assert.ok(!overlapsPartyAndQuest, 'Quest Tracker and Party HUD must never overlap on compact viewports');
+    const overlapsPartyAndChat = !(chatShort.right <= partyShort.left || chatShort.left >= partyShort.right || chatShort.bottom <= partyShort.top || chatShort.top >= partyShort.bottom);
+    assert.ok(!overlapsPartyAndChat, 'Party HUD and Chat must never overlap on compact viewports');
     const overlapsQuestAndChat = !(questShort.right <= chatShort.left || questShort.left >= chatShort.right || questShort.bottom <= chatShort.top || questShort.top >= chatShort.bottom);
     assert.ok(!overlapsQuestAndChat, 'Quest Tracker and Chat must never overlap on compact viewports');
+    assert.ok(questShort.top >= avatarShort.bottom + 8, `Quest Tracker (${questShort.top}) must sit below Avatar (${avatarShort.bottom}) on compact viewports`);
 
     // 3. Explicit Settings customization is respected until Reset Default UI is clicked
     mockWindow.innerWidth = 1920;
@@ -2430,16 +2455,23 @@ test('Default HUD stack: Avatar (#player-unit-frame), Party (#party-hud), Quest 
     currentScale = 1.0;
     mockStorage.setItem('glimmerfall_custom_ui_layout', JSON.stringify({
       'quest-tracker': { left: '520px', top: '90px' },
+      'party-hud': { left: '610px', top: '240px' },
     }));
     applySavedUiLayout();
     assert.equal(elements.get('quest-tracker').style.left, '520px');
     assert.equal(elements.get('quest-tracker').style.top, '90px');
+    assert.equal(elements.get('party-hud').style.left, '610px');
+    assert.equal(elements.get('party-hud').style.top, '240px');
 
     resetDefaultUiLayout();
+    const avatarReset = elements.get('player-unit-frame').getBoundingClientRect();
     const partyReset = elements.get('party-hud').getBoundingClientRect();
     const questReset = elements.get('quest-tracker').getBoundingClientRect();
+    const menuBtnReset = elements.get('micro-btn-menu').getBoundingClientRect();
     assert.equal(elements.get('quest-tracker').style.left, '12px');
-    assert.ok(questReset.top >= partyReset.bottom + 8, 'Reset Default UI must restore clean non-overlapping vertical stack');
+    assert.ok(questReset.top >= avatarReset.bottom + 8, 'Reset Default UI must restore Quest Tracker directly below Avatar');
+    assert.ok(partyReset.top >= menuBtnReset.bottom + 8, 'Reset Default UI must restore Party HUD under Menu button');
+    assert.ok(Math.abs(partyReset.right - menuBtnReset.right) <= 2, 'Reset Default UI must right-align Party HUD under Menu button');
   } finally {
     global.window = prevWindow;
     global.document = prevDocument;
