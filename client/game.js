@@ -136,7 +136,7 @@ import {
   openMerchantShop,
   buyMerchantItem,
 } from './merchantUi.js';
-import { initUiLayout, toggleUiEditMode, saveAndLockUiLayout, resetDefaultUiLayout, reflowDefaultHudStack } from './uiLayout.js';
+import { initUiLayout, toggleUiEditMode, saveAndLockUiLayout, resetDefaultUiLayout, reflowDefaultHudStack, scheduleHudStackReflow } from './uiLayout.js';
 import {
   drawPixelNameplateAndBubbles,
   renderPartyHud,
@@ -191,6 +191,9 @@ import {
   calcHolyRadianceBurstDmg,
   calcMoveSpeedMult,
   isWaterTile,
+  isFootprintInWater,
+  clampStepOutOfWater,
+  findNearestDryTile,
   isCoralCoastPierTile,
   isCoralCoastDeepSeaTile,
   isInteriorVoidTile,
@@ -8789,6 +8792,7 @@ export function initGame() {
           net.bootstrapAndConnect(prog);
         }
         updateNetStatusPill();
+        scheduleHudStackReflow();
       }
 
       if (!introShown && !questState.introShown && !questState.talkedNpcs?.npc_aurora && currentRoomType === ROOM_TYPES.SANCTUARY_HUB) {
@@ -9014,6 +9018,7 @@ export function initGame() {
             }
             crVis.innerHTML = pips;
           }
+          scheduleHudStackReflow();
         }
       }
     }
@@ -13488,32 +13493,37 @@ export function initGame() {
         const stepDist = spd * dt;
 
         const GATE_HALF_WIDTH = 72;
+        const northGateHW = currentRoomType === ROOM_TYPES.CORAL_COAST ? 44 : GATE_HALF_WIDTH;
         const edgeTransitions = ROOM_CONFIGS[currentRoomType]?.edgeTransitions;
         const canPassEastWest = (edgeTransitions?.east || edgeTransitions?.west) && Math.abs(player.y) <= GATE_HALF_WIDTH;
-        const canPassNorthSouth = (edgeTransitions?.north || edgeTransitions?.south) && Math.abs(player.x) <= GATE_HALF_WIDTH;
+        const canPassNorthSouth = (edgeTransitions?.north || edgeTransitions?.south) && Math.abs(player.x) <= (player.y < 0 ? northGateHW : GATE_HALF_WIDTH);
         const padX = canPassEastWest ? 4 : 14;
         const padY = canPassNorthSouth ? 4 : 14;
         const targetX = Math.max(-mapBounds.halfW + padX, Math.min(mapBounds.halfW - padX, player.x + mx * stepDist));
         const targetY = Math.max(-mapBounds.halfH + padY, Math.min(mapBounds.halfH - padY, player.y + my * stepDist));
 
         // Water, Interior Cutout & Locked Puzzle Grate Collision: Cannot walk across water, walls, or sealed gates!
-        const currentlyInWater = isWaterTile(player.x, player.y, currentRoomType);
-        const colRadius = 8;
-        const testX = targetX + Math.sign(mx) * colRadius;
-        const testY = targetY + Math.sign(my) * colRadius;
         const isPosBlocked = (px, py) =>
-          isWaterTile(px, py, currentRoomType) ||
+          isFootprintInWater(px, py, currentRoomType, 5, 4) ||
           Boolean(isBlockedByPuzzleGate(px, py, currentRoomType, questState.puzzles));
 
-        const canMoveX = currentlyInWater || !isPosBlocked(testX, player.y);
-        const canMoveY = currentlyInWater || !isPosBlocked(player.x, testY);
+        const currentlyBlocked = isPosBlocked(player.x, player.y);
+        const colRadius = 6;
+        const testX = targetX + Math.sign(mx) * colRadius;
+        const testY = targetY + Math.sign(my) * colRadius;
+        const curDistToEdge = (x, y) => isPosBlocked(x, y);
+
+        const canMoveX = (!curDistToEdge(testX, player.y) && !curDistToEdge(targetX, player.y))
+          || (currentlyBlocked && !curDistToEdge(targetX, player.y));
+        const canMoveY = (!curDistToEdge(player.x, testY) && !curDistToEdge(player.x, targetY))
+          || (currentlyBlocked && !curDistToEdge(player.x, targetY));
 
         if (canMoveX && canMoveY && mx !== 0 && my !== 0) {
-          if (!currentlyInWater && isPosBlocked(testX, testY)) {
-            // Corner hit! Smoothly slide along primary axis
-            if (Math.abs(mx) >= Math.abs(my)) {
+          if (curDistToEdge(testX, testY) || curDistToEdge(targetX, targetY)) {
+            // Corner hit! Smoothly slide along primary unobstructed axis
+            if (Math.abs(mx) >= Math.abs(my) && !curDistToEdge(targetX, player.y)) {
               player.x = targetX;
-            } else {
+            } else if (!curDistToEdge(player.x, targetY)) {
               player.y = targetY;
             }
           } else {
@@ -13523,6 +13533,12 @@ export function initGame() {
         } else {
           if (canMoveX) player.x = targetX;
           if (canMoveY) player.y = targetY;
+        }
+        // Safety recovery: if knocked/pushed onto a water tile with no dry step taken, eject cleanly to dry shore
+        if (isWaterTile(player.x, player.y, currentRoomType)) {
+          const dry = findNearestDryTile(player.x, player.y, currentRoomType, mapBounds.halfW, mapBounds.halfH);
+          player.x = dry.x;
+          player.y = dry.y;
         }
 
         // Spawn gentle water droplet ripple when moving against outdoor shoreline (not interior walls or grates)
@@ -14186,8 +14202,11 @@ export function initGame() {
               damageOfflinePlayer(gz.damage || 14, `${gz.bossName || 'Boss'} ${gz.label || 'Cataclysm'}`, gz.bossRef);
               if (!getClassPassive(localProfile.classId).knockbackImmune) {
                 const ang = Math.atan2(player.y - gz.y, player.x - gz.x);
-                player.x = Math.max(-mapBounds.halfW + 14, Math.min(mapBounds.halfW - 14, player.x + Math.cos(ang) * 24));
-                player.y = Math.max(-mapBounds.halfH + 14, Math.min(mapBounds.halfH - 14, player.y + Math.sin(ang) * 24));
+                const rawKbX = Math.max(-mapBounds.halfW + 14, Math.min(mapBounds.halfW - 14, player.x + Math.cos(ang) * 24));
+                const rawKbY = Math.max(-mapBounds.halfH + 14, Math.min(mapBounds.halfH - 14, player.y + Math.sin(ang) * 24));
+                const safeKb = clampStepOutOfWater(player.x, player.y, rawKbX, rawKbY, currentRoomType, mapBounds.halfW, mapBounds.halfH);
+                player.x = safeKb.x;
+                player.y = safeKb.y;
               }
               if (gz.snare) player.snareTimer = Math.max(player.snareTimer || 0, gz.snare);
             }

@@ -60,12 +60,24 @@ export function getUiScale() {
   if (custom === 'auto') {
     const w = typeof window !== 'undefined' ? window.innerWidth : 1280;
     const h = typeof window !== 'undefined' ? window.innerHeight : 720;
-    if (w >= 1900 && h >= 1050) return { scale: 1.25, label: 'Auto (125%)' };
-    if (w >= 1400) return { scale: 1.15, label: 'Auto (115%)' };
-    if (w >= 1000) return { scale: 1.05, label: 'Auto (105%)' };
-    if (w <= 640 || h <= 500) return { scale: 0.82, label: 'Auto (82%)' };
-    if (w <= 850) return { scale: 0.90, label: 'Auto (90%)' };
-    return { scale: 1.0, label: 'Auto (100%)' };
+    // Cap scale based on viewport height as well as width so left-column HUD widgets
+    // (#player-unit-frame, #party-hud, #quest-tracker, #social-chat-panel) never collide on 720p/iPad screens.
+    let widthScale = 1.0;
+    if (w >= 1900 && h >= 1050) widthScale = 1.25;
+    else if (w >= 1400) widthScale = 1.15;
+    else if (w >= 1000) widthScale = 1.05;
+    else if (w <= 640) widthScale = 0.82;
+    else if (w <= 850) widthScale = 0.90;
+
+    let heightCap = 1.25;
+    if (h <= 560) heightCap = 0.78;
+    else if (h <= 660) heightCap = 0.85;
+    else if (h <= 760) heightCap = 0.92;
+    else if (h <= 880) heightCap = 1.0;
+    else if (h < 1050) heightCap = 1.15;
+
+    const finalScale = Math.min(widthScale, heightCap);
+    return { scale: finalScale, label: `Auto (${Math.round(finalScale * 100)}%)` };
   }
   const num = parseFloat(custom);
   if (Number.isFinite(num) && num >= 0.7 && num <= 1.5) {
@@ -160,10 +172,16 @@ export function reflowDefaultHudStack() {
       setStyleIfChanged(avatarEl, 'bottom', '');
       setStyleIfChanged(avatarEl, 'transform', '');
     }
-    const avatarRect = measureVisualRect(avatarEl, 12, 12, 262, 108, hudScale);
+    const avatarRect = measureVisualRect(avatarEl, 12, 12, 262, 134, hudScale);
 
-    const partyTop = Math.round(avatarRect.bottom + HUD_STACK_GAP);
-    if (partyEl && !savedLayout['party-hud']) {
+    const savedPartyPos = savedLayout['party-hud'];
+    const partyIsLegacyOverlap = Boolean(
+      savedPartyPos &&
+      (parseFloat(savedPartyPos.left) || 0) <= 24 &&
+      (parseFloat(savedPartyPos.top) || 0) < Math.round(avatarRect.bottom + HUD_STACK_GAP)
+    );
+    const partyTop = Math.ceil(avatarRect.bottom + HUD_STACK_GAP);
+    if (partyEl && (!savedPartyPos || partyIsLegacyOverlap)) {
       setStyleIfChanged(partyEl, 'left', '12px');
       setStyleIfChanged(partyEl, 'top', `${partyTop}px`);
       setStyleIfChanged(partyEl, 'right', 'auto');
@@ -172,20 +190,42 @@ export function reflowDefaultHudStack() {
     }
     const partyRect = measureVisualRect(partyEl, 12, partyTop, 262, 92, hudScale);
 
+    const combatLogEl = document.getElementById('combat-log');
+    if (combatLogEl && !savedLayout['social-chat-panel']) {
+      // Reserve vertical budget above bottom-left chat on shorter screens before laying out #quest-tracker
+      const roughRemaining = winH - partyRect.bottom - 30;
+      if (roughRemaining < 260) {
+        setStyleIfChanged(combatLogEl, 'maxHeight', `${Math.max(48, Math.floor((roughRemaining - 95) / hudScale))}px`);
+      } else {
+        setStyleIfChanged(combatLogEl, 'maxHeight', '');
+      }
+    }
+
     const leftColRight = Math.max(avatarRect.right, partyRect.right);
     const chatRect = chatEl ? measureVisualRect(chatEl, 12, winH - 220 * hudScale, 292, 208, hudScale) : null;
     const chatSharesLeftCol = chatRect && chatRect.left < leftColRight + 24 && chatRect.top > 120;
-    const stackBottomLimit = chatSharesLeftCol ? chatRect.top - 10 : winH - 12;
+    const stackBottomLimit = chatSharesLeftCol ? chatRect.top - HUD_STACK_GAP : winH - 12;
 
-    const questTop = Math.round(partyRect.bottom + HUD_STACK_GAP + 2);
+    const questTop = Math.ceil(partyRect.bottom + HUD_STACK_GAP + 2);
     const availBelowParty = stackBottomLimit - questTop;
 
-    if (questEl && !savedLayout['quest-tracker']) {
+    const savedQuestPos = savedLayout['quest-tracker'];
+    const questIsLegacyOverlap = Boolean(
+      savedQuestPos &&
+      (parseFloat(savedQuestPos.left) || 0) <= 24 &&
+      (parseFloat(savedQuestPos.top) || 0) < questTop
+    );
+
+    if (questEl && (!savedQuestPos || questIsLegacyOverlap)) {
       const sideLeft = Math.round(leftColRight + 12);
       const topRightLeft = topRightEl
         ? measureVisualRect(topRightEl, winW - 184 * hudScale, 12, 172, 240, hudScale).left
         : winW - 190;
-      const canPlaceSideColumn = availBelowParty < 105 && topRightLeft - 12 - sideLeft >= 210 * hudScale;
+      const targetEl = document.getElementById('target-unit-frame');
+      const targetVisible = targetEl && targetEl.style.display !== 'none' && targetEl.style.display !== '';
+      const centerAvoidLeft = targetVisible ? (winW / 2 - 145) : topRightLeft;
+      const rightFence = Math.min(topRightLeft, centerAvoidLeft);
+      const canPlaceSideColumn = availBelowParty < 92 && (rightFence - 12 - sideLeft) >= 210 * hudScale;
 
       if (canPlaceSideColumn) {
         setStyleIfChanged(questEl, 'left', `${sideLeft}px`);
@@ -193,21 +233,22 @@ export function reflowDefaultHudStack() {
         setStyleIfChanged(questEl, 'right', 'auto');
         setStyleIfChanged(questEl, 'bottom', 'auto');
         setStyleIfChanged(questEl, 'transform', '');
-        setStyleIfChanged(questEl, 'maxHeight', `${Math.max(96, Math.floor((winH - 180) / hudScale))}px`);
+        setStyleIfChanged(questEl, 'maxHeight', `${Math.max(88, Math.floor((winH - 180) / hudScale))}px`);
       } else {
         setStyleIfChanged(questEl, 'left', '12px');
         setStyleIfChanged(questEl, 'top', `${questTop}px`);
         setStyleIfChanged(questEl, 'right', 'auto');
         setStyleIfChanged(questEl, 'bottom', 'auto');
         setStyleIfChanged(questEl, 'transform', '');
-        setStyleIfChanged(questEl, 'maxHeight', `${Math.max(88, Math.floor(availBelowParty / hudScale))}px`);
+        const strictMaxUnscaled = Math.floor(availBelowParty / hudScale);
+        setStyleIfChanged(questEl, 'maxHeight', `${Math.max(28, strictMaxUnscaled)}px`);
       }
     }
 
     const questRect = measureVisualRect(questEl, 12, questTop, 280, 140, hudScale);
     const questInLeftCol = questRect.left < 120;
     const toastAnchorBottom = questInLeftCol ? Math.max(partyRect.bottom, questRect.bottom) : partyRect.bottom;
-    const baseToastTop = Math.min(Math.round(toastAnchorBottom + HUD_STACK_GAP), Math.max(12, winH - 150));
+    const baseToastTop = Math.min(Math.ceil(toastAnchorBottom + HUD_STACK_GAP), Math.max(12, winH - 150));
 
     if (partyToastEl) {
       setStyleIfChanged(partyToastEl, 'left', '12px');
@@ -527,6 +568,8 @@ export function resetDefaultUiLayout() {
   });
 
   const dock = document.getElementById('bottom-bar-dock');
+  const combatLogEl = document.getElementById('combat-log');
+  if (combatLogEl) combatLogEl.style.maxHeight = '';
   if (dock) {
     delete dock.dataset.customFloating;
     dock.style.left = '50%';

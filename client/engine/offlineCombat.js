@@ -9,6 +9,7 @@ import {
   getClassPassive,
   resolveAbilityNumbers,
   isWaterTile,
+  clampStepOutOfWater,
 } from '../../shared/protocol.js';
 
 function getHostiles(entities, isHostileEntity) {
@@ -196,21 +197,9 @@ export function executeOfflineAbility({
       targetY = Math.max(-mapBounds.halfH + 16, Math.min(mapBounds.halfH - 16, player.y + dy * dist));
     }
 
-    if (!isWaterTile(startX, startY, currentRoomType) && isWaterTile(targetX, targetY, currentRoomType)) {
-      for (let step = 1; step <= 12; step++) {
-        const frac = 1 - step * 0.08;
-        const testX = startX + (targetX - startX) * frac;
-        const testY = startY + (targetY - startY) * frac;
-        if (!isWaterTile(testX, testY, currentRoomType)) {
-          targetX = testX;
-          targetY = testY;
-          break;
-        }
-      }
-    }
-
-    player.x = targetX;
-    player.y = targetY;
+    const safeStep = clampStepOutOfWater(startX, startY, targetX, targetY, currentRoomType, mapBounds.halfW, mapBounds.halfH);
+    player.x = safeStep.x;
+    player.y = safeStep.y;
 
     for (let s = 0; s < 4; s++) {
       afterimages.push({
@@ -434,8 +423,9 @@ export function executeOfflineAbility({
     const dist = 10 * YARD_PX;
     const startX = player.x;
     const startY = player.y;
-    player.x = Math.max(-mapBounds.halfW + 16, Math.min(mapBounds.halfW - 16, player.x + dx * dist));
-    player.y = Math.max(-mapBounds.halfH + 16, Math.min(mapBounds.halfH - 16, player.y + dy * dist));
+    const safeDash = clampStepOutOfWater(startX, startY, player.x + dx * dist, player.y + dy * dist, currentRoomType, mapBounds.halfW, mapBounds.halfH);
+    player.x = safeDash.x;
+    player.y = safeDash.y;
     for (let s = 0; s < 4; s++) {
       afterimages.push({ x: startX + (player.x - startX) * (s / 4), y: startY + (player.y - startY) * (s / 4), dir: player.dir, age: 0, maxAge: 0.3 });
     }
@@ -539,8 +529,9 @@ export function executeOfflineAbility({
     const dist = 11 * YARD_PX;
     const startX = player.x;
     const startY = player.y;
-    player.x = Math.max(-mapBounds.halfW + 16, Math.min(mapBounds.halfW - 16, player.x + dx * dist));
-    player.y = Math.max(-mapBounds.halfH + 16, Math.min(mapBounds.halfH - 16, player.y + dy * dist));
+    const safeRift = clampStepOutOfWater(startX, startY, player.x + dx * dist, player.y + dy * dist, currentRoomType, mapBounds.halfW, mapBounds.halfH);
+    player.x = safeRift.x;
+    player.y = safeRift.y;
     groundZones.push({ id: `off_gz_${Date.now()}`, type: 'frost_ring', color: '#38bdf8', x: startX, y: startY, radius: 48, age: 0, maxAge: 4.0 });
     for (const e of hostiles) {
       if (Math.hypot(e.x - startX, e.y - startY) <= 52) {
@@ -658,8 +649,9 @@ export function executeOfflineAbility({
   if (spec.kind === 'aegis_slam' || spec.kind === 'sunfire_lance') {
     const tgt = acquiredTarget || hostiles.find((e) => Math.hypot(e.x - player.x, e.y - player.y) <= rangePx);
     if (spec.kind === 'sunfire_lance' && tgt) {
-      player.x = Math.max(-mapBounds.halfW + 16, Math.min(mapBounds.halfW - 16, tgt.x - 16));
-      player.y = tgt.y;
+      const safeLance = clampStepOutOfWater(player.x, player.y, tgt.x - 16, tgt.y, currentRoomType, mapBounds.halfW, mapBounds.halfH);
+      player.x = safeLance.x;
+      player.y = safeLance.y;
     }
     for (const e of hostiles) {
       if (Math.hypot(e.x - player.x, e.y - player.y) <= 64) {

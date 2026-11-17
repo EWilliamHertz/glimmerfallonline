@@ -43,6 +43,7 @@ import {
   calcHolyRadianceBurstDmg,
   calcMoveSpeedMult,
   isWaterTile,
+  clampStepOutOfWater,
   PROFESSIONS_CATALOG,
   PROFESSION_MASTERY_CAPES,
   getProfessionLevelFromXp,
@@ -553,8 +554,17 @@ export const combatCastMethods = {
       const startX = player.x;
       const startY = player.y;
 
-      player.x = Math.max(-room.halfW + 16, Math.min(room.halfW - 16, player.x + dx * dashDist));
-      player.y = Math.max(-room.halfH + 16, Math.min(room.halfH - 16, player.y + dy * dashDist));
+      const safeDash = clampStepOutOfWater(
+        startX,
+        startY,
+        player.x + dx * dashDist,
+        player.y + dy * dashDist,
+        room.type,
+        room.halfW,
+        room.halfH
+      );
+      player.x = safeDash.x;
+      player.y = safeDash.y;
       player.posOverrideSeq = (player.posOverrideSeq || 0) + 1;
 
       room.fxQueue.push({
@@ -594,8 +604,17 @@ export const combatCastMethods = {
       const startX = player.x;
       const startY = player.y;
       const ang = Math.atan2(tgt.ref.y - player.y, tgt.ref.x - player.x);
-      player.x = Math.max(-room.halfW + 16, Math.min(room.halfW - 16, tgt.ref.x + Math.cos(ang) * 18));
-      player.y = Math.max(-room.halfH + 16, Math.min(room.halfH - 16, tgt.ref.y + Math.sin(ang) * 18));
+      const safeStep = clampStepOutOfWater(
+        startX,
+        startY,
+        tgt.ref.x + Math.cos(ang) * 18,
+        tgt.ref.y + Math.sin(ang) * 18,
+        room.type,
+        room.halfW,
+        room.halfH
+      );
+      player.x = safeStep.x;
+      player.y = safeStep.y;
       player.posOverrideSeq = (player.posOverrideSeq || 0) + 1;
 
       room.fxQueue.push({
@@ -678,8 +697,9 @@ export const combatCastMethods = {
       const dist = 10 * YARD_PX;
       const startX = player.x;
       const startY = player.y;
-      player.x = Math.max(-room.halfW + 16, Math.min(room.halfW - 16, player.x + dx * dist));
-      player.y = Math.max(-room.halfH + 16, Math.min(room.halfH - 16, player.y + dy * dist));
+      const safeReap = clampStepOutOfWater(startX, startY, player.x + dx * dist, player.y + dy * dist, room.type, room.halfW, room.halfH);
+      player.x = safeReap.x;
+      player.y = safeReap.y;
       player.posOverrideSeq = (player.posOverrideSeq || 0) + 1;
       room.fxQueue.push({ kind: 'dash', actorId: player.id, fromX: startX, fromY: startY, toX: player.x, toY: player.y, dir: player.dir, color: '#c084fc' });
       this.addPlayerGlimmer(room, player, 18);
@@ -772,8 +792,9 @@ export const combatCastMethods = {
       const riftDist = 11 * YARD_PX;
       const startX = player.x;
       const startY = player.y;
-      player.x = Math.max(-room.halfW + 16, Math.min(room.halfW - 16, player.x + dx * riftDist));
-      player.y = Math.max(-room.halfH + 16, Math.min(room.halfH - 16, player.y + dy * riftDist));
+      const safeRift = clampStepOutOfWater(startX, startY, player.x + dx * riftDist, player.y + dy * riftDist, room.type, room.halfW, room.halfH);
+      player.x = safeRift.x;
+      player.y = safeRift.y;
       player.posOverrideSeq = (player.posOverrideSeq || 0) + 1;
       room.fxQueue.push({ kind: 'dash', actorId: player.id, fromX: startX, fromY: startY, toX: player.x, toY: player.y, dir: player.dir, color: '#38bdf8' });
       this.addPlayerGlimmer(room, player, 20);
@@ -827,12 +848,14 @@ export const combatCastMethods = {
       const startY = player.y;
       if (tgt) {
         const ang = Math.atan2(tgt.ref.y - player.y, tgt.ref.x - player.x);
-        player.x = Math.max(-room.halfW + 16, Math.min(room.halfW - 16, tgt.ref.x - Math.cos(ang) * 20));
-        player.y = Math.max(-room.halfH + 16, Math.min(room.halfH - 16, tgt.ref.y - Math.sin(ang) * 20));
+        const safeLance = clampStepOutOfWater(startX, startY, tgt.ref.x - Math.cos(ang) * 20, tgt.ref.y - Math.sin(ang) * 20, room.type, room.halfW, room.halfH);
+        player.x = safeLance.x;
+        player.y = safeLance.y;
       } else {
         const { dx, dy } = getDirAngle(player.dir);
-        player.x = Math.max(-room.halfW + 16, Math.min(room.halfW - 16, player.x + dx * 8 * YARD_PX));
-        player.y = Math.max(-room.halfH + 16, Math.min(room.halfH - 16, player.y + dy * 8 * YARD_PX));
+        const safeLance = clampStepOutOfWater(startX, startY, player.x + dx * 8 * YARD_PX, player.y + dy * 8 * YARD_PX, room.type, room.halfW, room.halfH);
+        player.x = safeLance.x;
+        player.y = safeLance.y;
       }
       player.posOverrideSeq = (player.posOverrideSeq || 0) + 1;
       room.fxQueue.push({ kind: 'dash', actorId: player.id, fromX: startX, fromY: startY, toX: player.x, toY: player.y, dir: player.dir, color: '#fbbf24' });
@@ -945,8 +968,9 @@ export const combatCastMethods = {
       const { dx, dy, angle } = getDirAngle(player.dir);
       const startX = player.x;
       const startY = player.y;
-      player.x = Math.max(-room.halfW + 16, Math.min(room.halfW - 16, player.x + dx * 8 * YARD_PX));
-      player.y = Math.max(-room.halfH + 16, Math.min(room.halfH - 16, player.y + dy * 8 * YARD_PX));
+      const safeSpear = clampStepOutOfWater(startX, startY, player.x + dx * 8 * YARD_PX, player.y + dy * 8 * YARD_PX, room.type, room.halfW, room.halfH);
+      player.x = safeSpear.x;
+      player.y = safeSpear.y;
       player.posOverrideSeq = (player.posOverrideSeq || 0) + 1;
       room.fxQueue.push({ kind: 'dash', actorId: player.id, fromX: startX, fromY: startY, toX: player.x, toY: player.y, dir: player.dir, color: '#4ade80' });
       room.fxQueue.push({ kind: 'slash', x: player.x, y: player.y - 6, angle, color: '#4ade80', actorId: player.id });

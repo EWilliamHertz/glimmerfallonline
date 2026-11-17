@@ -46,6 +46,7 @@ import {
   calcHolyRadianceBurstDmg,
   calcMoveSpeedMult,
   isWaterTile,
+  clampStepOutOfWater,
   isSameFactionProtectedMob,
   PROFESSIONS_CATALOG,
   PROFESSION_MASTERY_CAPES,
@@ -1155,8 +1156,9 @@ export const socialAndTickMethods = {
               this.damagePlayerSession(room, p, gz.damage || 14, `${gz.bossName || 'Boss'} ${gz.label || 'Cataclysm'}`, false, gz.bossRef);
               if (!getClassPassive(p.classId).knockbackImmune) {
                 const ang = Math.atan2(p.y - gz.y, p.x - gz.x);
-                p.x = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, p.x + Math.cos(ang) * 24));
-                p.y = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, p.y + Math.sin(ang) * 24));
+                const safeKb = clampStepOutOfWater(p.x, p.y, p.x + Math.cos(ang) * 24, p.y + Math.sin(ang) * 24, room.type, room.halfW, room.halfH);
+                p.x = safeKb.x;
+                p.y = safeKb.y;
                 p.posOverrideSeq = (p.posOverrideSeq || 0) + 1;
               }
               if (gz.snare) p.snareTimer = Math.max(p.snareTimer || 0, gz.snare);

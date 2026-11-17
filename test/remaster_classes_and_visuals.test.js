@@ -635,3 +635,107 @@ test('Cloud Shell Preview Realm Switching, Redirect Detection & Clean Glimmer Fo
     globalThis.fetch = prevFetch;
   }
 });
+
+test('Left HUD Stack (Avatar, Party, Quest Tracker & Chat) never overlaps on iPad / 720p or legacy saved layouts', async () => {
+  const { getUiScale, reflowDefaultHudStack } = await import('../client/uiLayout.js');
+  const prevWin = globalThis.window;
+  const prevDoc = globalThis.document;
+  const prevStorage = globalThis.localStorage;
+  try {
+    const store = new Map([
+      ['glimmerfall_custom_ui_layout', JSON.stringify({
+        'party-hud': { left: '12px', top: '132px' },
+        'quest-tracker': { left: '12px', top: '236px' },
+      })],
+    ]);
+    globalThis.localStorage = {
+      getItem: (k) => store.get(k) ?? null,
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k),
+    };
+    let hudScale = 1.0;
+    const makePanel = (id, { left = 12, top = 12, width = 262, height = 100, bottomAnchor = null, fixedRight = null } = {}) => {
+      const el = {
+        id,
+        style: { left: `${left}px`, top: `${top}px`, maxHeight: '', display: 'block' },
+        dataset: {},
+        offsetWidth: width,
+        offsetHeight: height,
+        addEventListener: () => {},
+        getBoundingClientRect() {
+          const w = el.offsetWidth * hudScale;
+          const rawH = el.style.maxHeight && el.id === 'combat-log' ? Math.min(height, parseFloat(el.style.maxHeight)) : el.offsetHeight;
+          const h = rawH * hudScale;
+          const l = fixedRight !== null ? (mockWin.innerWidth - fixedRight - w) : (parseFloat(el.style.left) || left);
+          const t = bottomAnchor !== null ? (mockWin.innerHeight - bottomAnchor - h) : (parseFloat(el.style.top) || top);
+          const clampedH = (el.id !== 'combat-log' && Number.isFinite(parseFloat(el.style.maxHeight)))
+            ? Math.min(h, parseFloat(el.style.maxHeight) * hudScale)
+            : h;
+          return { left: l, top: t, right: l + w, bottom: t + clampedH, width: w, height: clampedH };
+        },
+      };
+      return el;
+    };
+
+    const combatLogEl = { id: 'combat-log', style: { maxHeight: '' } };
+    const els = new Map([
+      ['player-unit-frame', makePanel('player-unit-frame', { left: 12, top: 12, width: 262, height: 136 })],
+      ['party-hud', makePanel('party-hud', { left: 12, top: 132, width: 262, height: 112 })],
+      ['quest-tracker', makePanel('quest-tracker', { left: 12, top: 236, width: 280, height: 220 })],
+      ['social-chat-panel', makePanel('social-chat-panel', { left: 12, width: 292, height: 204, bottomAnchor: 12 })],
+      ['top-right-hud', makePanel('top-right-hud', { top: 12, width: 172, height: 240, fixedRight: 12 })],
+      ['combat-log', combatLogEl],
+    ]);
+
+    const mockWin = { innerWidth: 1024, innerHeight: 680, addEventListener: () => {} };
+    globalThis.window = mockWin;
+    globalThis.document = {
+      readyState: 'complete',
+      body: { classList: { contains: () => false } },
+      documentElement: { style: { setProperty: () => {} } },
+      getElementById: (id) => els.get(id) || null,
+      querySelectorAll: () => Array.from(els.values()),
+    };
+
+    const autoScale = getUiScale();
+    assert.ok(autoScale.scale <= 0.92, `iPad/short 680px viewport auto scale should stay <= 0.92 (got ${autoScale.scale})`);
+    hudScale = autoScale.scale;
+
+    reflowDefaultHudStack();
+    const av = els.get('player-unit-frame').getBoundingClientRect();
+    const pt = els.get('party-hud').getBoundingClientRect();
+    const qt = els.get('quest-tracker').getBoundingClientRect();
+    const ch = els.get('social-chat-panel').getBoundingClientRect();
+    assert.ok(pt.top >= av.bottom + 8, `Party HUD (${pt.top}) must sit below Avatar+ResourceBar (${av.bottom})`);
+    assert.ok(qt.top >= pt.bottom + 8, `Quest Tracker (${qt.top}) must sit below Party (${pt.bottom})`);
+    const questOverlapsChat = !(qt.right <= ch.left || qt.left >= ch.right || qt.bottom <= ch.top || qt.top >= ch.bottom);
+    assert.ok(!questOverlapsChat, `Quest Tracker (${qt.left},${qt.top}..${qt.bottom}) must not overlap Chat (${ch.left},${ch.top})`);
+  } finally {
+    globalThis.window = prevWin;
+    globalThis.document = prevDoc;
+    globalThis.localStorage = prevStorage;
+  }
+});
+
+test('Water Collision: Blocks Abyssal Rift void pools, footprints, and dashes across rivers', () => {
+  // Abyssal Rift void_sea pools must block movement matching client pickTile
+  const abyssPoolX = 12 * 16 + 8; // |12| % 8 === 4 && |12| > 5
+  const abyssPoolY = 12 * 16 + 8;
+  assert.equal(protocol.isWaterTile(abyssPoolX, abyssPoolY, protocol.ROOM_TYPES.ABYSSAL_RIFT), true);
+  assert.equal(protocol.isWaterTile(0, 0, protocol.ROOM_TYPES.ABYSSAL_RIFT), false);
+
+  // clampStepOutOfWater stops BEFORE South River in Nexus Warzone (must not teleport across river!)
+  const southShoreY = 75 * 16 - 8;
+  const southBankFarY = 82 * 16;
+  const clampedRiver = protocol.clampStepOutOfWater(120, southShoreY, 120, southBankFarY, protocol.ROOM_TYPES.NEXUS_WARZONE, 1800, 1800);
+  assert.equal(clampedRiver.blockedByWater, true);
+  assert.equal(protocol.isWaterTile(120, 77 * 16 + 4, protocol.ROOM_TYPES.NEXUS_WARZONE), true);
+  assert.ok(clampedRiver.y < 77 * 16, `Dash must stop on north shore before river, got y=${clampedRiver.y}`);
+  assert.equal(protocol.isFootprintInWater(clampedRiver.x, clampedRiver.y, protocol.ROOM_TYPES.NEXUS_WARZONE), false);
+
+  // Coral Coast open sea blocks footprints while pier remains walkable
+  assert.equal(protocol.isFootprintInWater(0, -400, protocol.ROOM_TYPES.CORAL_COAST), false, 'North pier must remain walkable');
+  assert.equal(protocol.isFootprintInWater(-160, -400, protocol.ROOM_TYPES.CORAL_COAST), true, 'Open northern sea must block');
+  const dry = protocol.findNearestDryTile(-160, -400, protocol.ROOM_TYPES.CORAL_COAST, 576, 576);
+  assert.equal(protocol.isFootprintInWater(dry.x, dry.y, protocol.ROOM_TYPES.CORAL_COAST, 4, 4), false);
+});

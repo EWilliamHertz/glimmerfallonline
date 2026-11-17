@@ -44,6 +44,8 @@ import {
   calcHolyRadianceBurstDmg,
   calcMoveSpeedMult,
   isWaterTile,
+  isFootprintInWater,
+  findNearestDryTile,
   isSameFactionProtectedMob,
   PROFESSIONS_CATALOG,
   PROFESSION_MASTERY_CAPES,
@@ -400,18 +402,18 @@ export const arenaAndPacketsMethods = {
           targetY = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, client.y + (targetY - client.y) * ratio));
         }
 
-        // Authoritative Water Collision Check: Cannot walk across deep water without bridges
-        const currentlyInWater = isWaterTile(client.x, client.y, room.type);
-        if (!currentlyInWater && isWaterTile(targetX, targetY, room.type)) {
-          // Slide along unobstructed axis
-          if (!isWaterTile(targetX, client.y, room.type)) {
-            client.x = targetX;
-          } else if (!isWaterTile(client.x, targetY, room.type)) {
-            client.y = targetY;
-          }
-        } else {
+        // Authoritative Water Collision Check: Never allow walking across water or void chasms
+        if (!isFootprintInWater(targetX, targetY, room.type, 4, 3)) {
           client.x = targetX;
           client.y = targetY;
+        } else if (!isFootprintInWater(targetX, client.y, room.type, 4, 3)) {
+          client.x = targetX;
+        } else if (!isFootprintInWater(client.x, targetY, room.type, 4, 3)) {
+          client.y = targetY;
+        } else if (isWaterTile(client.x, client.y, room.type)) {
+          const dry = findNearestDryTile(client.x, client.y, room.type, room.halfW, room.halfH);
+          client.x = dry.x;
+          client.y = dry.y;
         }
 
         client.z = Math.max(0, Math.min(80, Number(msg.z) || 0));

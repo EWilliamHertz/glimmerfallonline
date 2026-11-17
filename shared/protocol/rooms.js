@@ -917,12 +917,88 @@ export function isWaterTile(x, y, roomType = ROOM_TYPES.NEXUS_WARZONE) {
   }
 
   if (roomType === ROOM_TYPES.AETHER_FRACTURED_ARCHIVE) {
-    const tx = Math.floor(x / TILE_SIZE);
-    const ty = Math.floor(y / TILE_SIZE);
     if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) return false;
     return (Math.abs(tx) % 6 <= 1 && Math.abs(ty) % 6 <= 1);
   }
 
+  if (roomType === ROOM_TYPES.ABYSSAL_RIFT) {
+    return (
+      Math.abs(tx) % 8 === 4 &&
+      Math.abs(ty) % 8 === 4 &&
+      Math.abs(tx) > 5 &&
+      Math.abs(ty) > 5
+    );
+  }
+
   return false;
+}
+
+export function isFootprintInWater(px, py, roomType = ROOM_TYPES.NEXUS_WARZONE, rx = 5, ry = 4) {
+  if (isWaterTile(px, py, roomType)) return true;
+  if (rx <= 0 && ry <= 0) return false;
+  return (
+    isWaterTile(px - rx, py - ry, roomType) ||
+    isWaterTile(px + rx, py - ry, roomType) ||
+    isWaterTile(px - rx, py + ry, roomType) ||
+    isWaterTile(px + rx, py + ry, roomType)
+  );
+}
+
+export function findNearestDryTile(px, py, roomType = ROOM_TYPES.NEXUS_WARZONE, halfW = 1800, halfH = 1800) {
+  const clampX = (v) => Math.max(-halfW + 16, Math.min(halfW - 16, v));
+  const clampY = (v) => Math.max(-halfH + 16, Math.min(halfH - 16, v));
+  const cx = clampX(px);
+  const cy = clampY(py);
+  if (!isFootprintInWater(cx, cy, roomType, 4, 4)) return { x: cx, y: cy };
+
+  for (let radius = 1; radius <= 12; radius++) {
+    const step = radius * TILE_SIZE;
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        if (Math.abs(dx) !== radius && Math.abs(dy) !== radius) continue;
+        const candX = clampX(cx + dx * TILE_SIZE);
+        const candY = clampY(cy + dy * TILE_SIZE);
+        if (!isFootprintInWater(candX, candY, roomType, 4, 4)) {
+          return { x: candX, y: candY };
+        }
+      }
+    }
+    if (step > Math.max(halfW, halfH) * 2) break;
+  }
+  const cfg = ROOM_CONFIGS[roomType];
+  return { x: cfg?.spawnX ?? 0, y: cfg?.spawnY ?? 96 };
+}
+
+export function clampStepOutOfWater(fromX, fromY, toX, toY, roomType = ROOM_TYPES.NEXUS_WARZONE, halfW = 1800, halfH = 1800, rx = 5, ry = 4) {
+  const boundX = (v) => Math.max(-halfW + 16, Math.min(halfW - 16, v));
+  const boundY = (v) => Math.max(-halfH + 16, Math.min(halfH - 16, v));
+  const sx = boundX(Number(fromX) || 0);
+  const sy = boundY(Number(fromY) || 0);
+  const tx = boundX(Number(toX) || 0);
+  const ty = boundY(Number(toY) || 0);
+
+  const dist = Math.hypot(tx - sx, ty - sy);
+  const steps = Math.max(4, Math.ceil(dist / 4));
+  let safeX = sx;
+  let safeY = sy;
+
+  if (isFootprintInWater(safeX, safeY, roomType, rx, ry)) {
+    const dry = findNearestDryTile(safeX, safeY, roomType, halfW, halfH);
+    safeX = dry.x;
+    safeY = dry.y;
+  }
+
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const cx = boundX(sx + (tx - sx) * t);
+    const cy = boundY(sy + (ty - sy) * t);
+    if (isFootprintInWater(cx, cy, roomType, rx, ry)) {
+      return { x: safeX, y: safeY, blockedByWater: true };
+    }
+    safeX = cx;
+    safeY = cy;
+  }
+
+  return { x: safeX, y: safeY, blockedByWater: false };
 }
 
