@@ -2,6 +2,9 @@
 const nextConfig = {
   output: 'export',
   reactStrictMode: true,
+  experimental: {
+    agentUpgrade: 'security',
+  },
   images: {
     unoptimized: true,
     remotePatterns: [
