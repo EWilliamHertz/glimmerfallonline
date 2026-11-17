@@ -1930,7 +1930,7 @@ export class LandingPageController {
       this.frontpage.close();
       this.frontpage.playMode = this.playMode;
       const roster = this.frontpage.getActiveRoster?.() || [];
-      const existing = roster.find((c) => c.name && c.name.toLowerCase() === finalName.toLowerCase());
+      const existing = roster.find((c) => !c.isPlaceholder && c.name && c.name.toLowerCase() === finalName.toLowerCase());
       if (existing) {
         if (existing.classId !== cls.id || existing.faction !== this.selectedFaction) {
           existing.classId = cls.id;

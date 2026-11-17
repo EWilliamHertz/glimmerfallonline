@@ -648,6 +648,11 @@
         <div class="bar-bg"><div id="player-hp-fill" class="bar-hp" style="width: 100%;"></div></div>
         <div class="stat-row"><span>GLIMMER</span><span id="player-res-txt">0 / 100</span></div>
         <div class="bar-bg"><div id="player-res-fill" class="bar-res" style="width: 0%;"></div></div>
+        <div id="class-resource-bar" class="cr-solari" title="Faction Unique Resource Mechanic">
+          <span class="cr-label" id="cr-label">ZENITH</span>
+          <div id="cr-visual" class="cr-bar-track"><div id="cr-fill" class="cr-bar-fill" style="width: 0%;"></div></div>
+          <span class="cr-label" id="cr-val" style="min-width: 28px; text-align:right;">0/100</span>
+        </div>
       </div>
     </div>
 
@@ -1116,7 +1121,7 @@
             <span>Retro CRT Scanlines Overlay</span>
           </label>
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span>Pixel Zoom Scale:</span>
+            <span>Pixel Zoom / HD Camera:</span>
             <button class="util-btn" onclick="cyclePixelZoom()"><span id="zoom-label" style="color:#facc15;">3x</span></button>
           </div>
         </div>

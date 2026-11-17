@@ -63,6 +63,8 @@ import {
   SKILLING_NODE_TYPES,
   ELITE_AFFIXES,
   BOUNTY_CONTRACTS,
+  tickActorCombatTimers,
+  getClassPassive,
 } from '../../shared/protocol.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
 
@@ -292,17 +294,7 @@ export const socialAndTickMethods = {
         p.shieldTimer -= dt;
         if (p.shieldTimer <= 0) p.shield = 0;
       }
-      if (p.weakenTimer > 0) p.weakenTimer = Math.max(0, p.weakenTimer - dt);
-      if (p.slowTimer > 0) p.slowTimer = Math.max(0, p.slowTimer - dt);
-      if (p.snareTimer > 0) p.snareTimer = Math.max(0, p.snareTimer - dt);
-      if (p.freezeTimer > 0) p.freezeTimer = Math.max(0, p.freezeTimer - dt);
-      if (p.stealthedTimer > 0) p.stealthedTimer = Math.max(0, p.stealthedTimer - dt);
-      if (p.thornbarkTimer > 0) p.thornbarkTimer = Math.max(0, p.thornbarkTimer - dt);
-      if (p.zenithTimer > 0) p.zenithTimer = Math.max(0, p.zenithTimer - dt);
-      if (p.rebukeTimer > 0) p.rebukeTimer = Math.max(0, p.rebukeTimer - dt);
-      if (p.auroraStrideTimer > 0) p.auroraStrideTimer = Math.max(0, p.auroraStrideTimer - dt);
       if (p.solarAscensionTimer > 0) {
-        p.solarAscensionTimer = Math.max(0, p.solarAscensionTimer - dt);
         p.ascensionPulse = (p.ascensionPulse || 0) + dt;
         if (p.ascensionPulse >= 1.2) {
           p.ascensionPulse = 0;
@@ -312,12 +304,8 @@ export const socialAndTickMethods = {
           }
         }
       }
-      if (p.abyssalShroudTimer > 0) p.abyssalShroudTimer = Math.max(0, p.abyssalShroudTimer - dt);
-      if (p.voidformTimer > 0) p.voidformTimer = Math.max(0, p.voidformTimer - dt);
-      if (p.rootedBastionTimer > 0) p.rootedBastionTimer = Math.max(0, p.rootedBastionTimer - dt);
-      if (p.treantFormTimer > 0) p.treantFormTimer = Math.max(0, p.treantFormTimer - dt);
-      if (p.phaseShiftTimer > 0) p.phaseShiftTimer = Math.max(0, p.phaseShiftTimer - dt);
-      if (p.temporalApotheosisTimer > 0) p.temporalApotheosisTimer = Math.max(0, p.temporalApotheosisTimer - dt);
+      if ((p.slashTimer || 0) > 0) p.slashTimer = Math.max(0, p.slashTimer - dt);
+      tickActorCombatTimers(p, dt);
       if (p.weaponImbue && p.weaponImbue.timer > 0) {
         p.weaponImbue.timer = Math.max(0, p.weaponImbue.timer - dt);
         if (p.weaponImbue.timer <= 0) {
@@ -625,6 +613,31 @@ export const socialAndTickMethods = {
       if (e.snareTimer > 0) e.snareTimer = Math.max(0, e.snareTimer - dt);
       if (e.freezeTimer > 0) e.freezeTimer = Math.max(0, e.freezeTimer - dt);
       if (e.staggerTimer > 0) e.staggerTimer = Math.max(0, e.staggerTimer - dt);
+      if (e.hexedTimer > 0) e.hexedTimer = Math.max(0, e.hexedTimer - dt);
+      if (e.sunbrandTimer > 0 || e.poisonTimer > 0 || e.bleedTimer > 0) {
+        e.dotAccum = (e.dotAccum || 0) + dt;
+        if (e.dotAccum >= 1.0 && !e.isDying && e.type === 'mob') {
+          e.dotAccum -= 1.0;
+          const dotOwner = (e.dotOwnerId && room.players.get(e.dotOwnerId)) || e.targetPlayerId && room.players.get(e.targetPlayerId) || null;
+          let dotDmg = 0;
+          let dotName = 'Affliction';
+          if ((e.sunbrandTimer || 0) > 0) { dotDmg += 5; dotName = 'Sunbrand'; }
+          if ((e.poisonTimer || 0) > 0) { dotDmg += 5; dotName = 'Venom Spores'; }
+          if ((e.bleedTimer || 0) > 0) { dotDmg += 6; dotName = 'Crimson Rupture'; }
+          if (dotDmg > 0) {
+            if (dotOwner) {
+              this.applyAuthoritativeDamage(room, dotOwner, { kind: 'entity', ref: e }, dotDmg, false, dotName, false);
+            } else {
+              e.hp = Math.max(0, e.hp - dotDmg);
+              room.fxQueue.push({ kind: 'hit', x: e.x, y: e.y, dmg: dotDmg, isCrit: false, targetId: e.id });
+              if (e.hp <= 0) this.handleEntityDeath(room, e, null, dotName);
+            }
+          }
+        }
+        if (e.sunbrandTimer > 0) e.sunbrandTimer = Math.max(0, e.sunbrandTimer - dt);
+        if (e.poisonTimer > 0) e.poisonTimer = Math.max(0, e.poisonTimer - dt);
+        if (e.bleedTimer > 0) e.bleedTimer = Math.max(0, e.bleedTimer - dt);
+      }
 
       if (e.type === 'node' && e.charges === 0 && e.rechargeTimer > 0) {
         e.rechargeTimer -= dt;
@@ -1077,9 +1090,11 @@ export const socialAndTickMethods = {
           Boolean(prj.isRite)
         );
         if (owner && prj.type === 'boulder' && owner.faction === 'Terra') {
-          for (const near of this.getAllHostilesInRadius(room, owner, targetObj.ref.x, targetObj.ref.y, 48)) {
+          const splashRad = 48 + (getClassPassive(owner.classId).overwhelmRadiusBonus || 0);
+          const splashRatio = 0.4 + (owner.rootguardStacks || 0) * 0.08;
+          for (const near of this.getAllHostilesInRadius(room, owner, targetObj.ref.x, targetObj.ref.y, splashRad)) {
             if (near.ref !== targetObj.ref) {
-              this.applyAuthoritativeDamage(room, owner, near, Math.max(2, Math.round(prj.dmg * 0.4)), false, 'Overwhelm', false);
+              this.applyAuthoritativeDamage(room, owner, near, Math.max(2, Math.round(prj.dmg * splashRatio)), false, 'Overwhelm', false);
             }
           }
         }
@@ -1138,10 +1153,12 @@ export const socialAndTickMethods = {
             const distP = Math.hypot(gz.x - p.x, gz.y - p.y);
             if (distP <= gz.radius) {
               this.damagePlayerSession(room, p, gz.damage || 14, `${gz.bossName || 'Boss'} ${gz.label || 'Cataclysm'}`, false, gz.bossRef);
-              const ang = Math.atan2(p.y - gz.y, p.x - gz.x);
-              p.x = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, p.x + Math.cos(ang) * 24));
-              p.y = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, p.y + Math.sin(ang) * 24));
-              p.posOverrideSeq = (p.posOverrideSeq || 0) + 1;
+              if (!getClassPassive(p.classId).knockbackImmune) {
+                const ang = Math.atan2(p.y - gz.y, p.x - gz.x);
+                p.x = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, p.x + Math.cos(ang) * 24));
+                p.y = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, p.y + Math.sin(ang) * 24));
+                p.posOverrideSeq = (p.posOverrideSeq || 0) + 1;
+              }
               if (gz.snare) p.snareTimer = Math.max(p.snareTimer || 0, gz.snare);
             }
           }
@@ -1199,6 +1216,17 @@ export const socialAndTickMethods = {
         thornbark: p.thornbarkTimer > 0,
         zenith: p.zenithTimer > 0,
         frozen: p.freezeTimer > 0,
+        duskMarks: p.duskMarks || 0,
+        rootguardStacks: p.rootguardStacks || 0,
+        astralResonance: p.astralResonance || 0,
+        chronoSnapReady: Boolean(p.chronoSnapReady),
+        echoPrimed: Boolean(p.echoPrimed),
+        isSlashing: (p.slashTimer || 0) > 0,
+        voidform: (p.voidformTimer || 0) > 0,
+        treantForm: (p.treantFormTimer || 0) > 0,
+        temporalApotheosis: (p.temporalApotheosisTimer || 0) > 0,
+        solarisDome: (p.solarisDomeTimer || 0) > 0,
+        bastionBanner: (p.bastionBannerTimer || 0) > 0,
         skull: p.skull || null,
         skullTimer: Math.round(p.skullTimer || 0),
         team: p.team,

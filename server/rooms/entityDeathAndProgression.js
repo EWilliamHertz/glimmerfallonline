@@ -21,6 +21,8 @@ import {
   getSlotAbilitySpec,
   getAbilityRank,
   canUpgradeAbility,
+  respecCharacterSkills,
+  sanitizeLoadout,
   getRankStats,
   getEffectiveStats,
   createDefaultProgression,
@@ -476,7 +478,7 @@ export const entityDeathAndProgressionMethods = {
     if (!abilityId) return;
     const spec = ABILITIES_CATALOG[abilityId];
     if (!spec) return;
-    if (!canUpgradeAbility(player.prog, abilityId)) return;
+    if (!canUpgradeAbility(player.prog, abilityId, player.classId)) return;
 
     player.prog.skillPoints = Math.max(0, (player.prog.skillPoints || 0) - 1);
     if (!player.prog.skills) player.prog.skills = {};
@@ -496,6 +498,30 @@ export const entityDeathAndProgressionMethods = {
       hp: player.hp,
       maxHp: player.maxHp,
       maxSolarCharge: player.maxSolarCharge,
+    });
+  },
+
+  handleRespecSkills(player) {
+    if (!player || !player.prog) return;
+    const res = respecCharacterSkills(player.prog);
+    player.loadout = sanitizeLoadout(player.loadout, player.classId, player.prog);
+    if (this.accounts?.updateProfile) {
+      this.accounts.updateProfile(player.id, { loadout: player.loadout });
+    }
+    this.accounts?.saveProgression?.(player.id, player.prog);
+    player.send({
+      type: 'progression_sync',
+      progression: player.prog,
+      loadout: player.loadout,
+      hp: player.hp,
+      maxHp: player.maxHp,
+      maxSolarCharge: player.maxSolarCharge,
+    });
+    this.refreshClientFromAccount?.(player.id);
+    player.send({
+      type: 'sys_msg',
+      category: 'quest',
+      text: `✨ [Free Skill Respec] Refunded all Skill Points (${res.skillPoints} SP ready to invest in your Class & Faction abilities)!`,
     });
   },
 

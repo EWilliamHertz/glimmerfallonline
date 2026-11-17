@@ -13,3 +13,4 @@ export * from "./protocol/chatAndNameFilter.js";
 export * from "./protocol/achievementsAndCodex.js";
 export * from "./protocol/lootAndSalvage.js";
 export * from "./protocol/familiarsAndMail.js";
+export * from "./combat/combatRules.js";

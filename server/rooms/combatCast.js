@@ -68,6 +68,10 @@ import {
   INTERRUPT_VULN_DURATION_SEC,
   INTERRUPT_STUN_SEC,
   getActiveCombatConsumableBonuses,
+  ensureActorFactionState,
+  advanceFactionResourceOnCast,
+  resolveAbilityNumbers,
+  getClassPassive,
 } from '../../shared/protocol.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
 
@@ -146,18 +150,27 @@ export const combatCastMethods = {
   },
 
   addPlayerGlimmer(room, player, amount) {
+    ensureActorFactionState(player, player.faction);
     player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + amount);
     // Solari Faction Mechanic: Guard & Zenith! Reaching 100+ Glimmer triggers Zenith State!
     if (player.faction === 'Solari' && player.solarCharge >= 100 && player.zenithTimer <= 0) {
       player.zenithTimer = 6.0;
       room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 12, text: '☀️ ZENITH STATE! (+25% DMG)', color: '#fde047', isCrit: true });
-      // Heal nearby allies & allied Outpost Nexus
       for (const ally of room.players.values()) {
         if (!ally.isDead && this.arePlayersAllied(room, player, ally) && Math.hypot(ally.x - player.x, ally.y - player.y) <= 150) {
           ally.hp = Math.min(ally.maxHp, ally.hp + 4);
         }
       }
       this.healAlliedNexus(room, player, 2);
+    }
+  },
+
+  shavePlayerCooldowns(player, seconds, excludeSlot = null) {
+    if (!player?.cooldowns || seconds <= 0) return;
+    for (const s of ACTION_SLOTS) {
+      if (s !== excludeSlot && (player.cooldowns[s] || 0) > 0) {
+        player.cooldowns[s] = Math.max(0, player.cooldowns[s] - seconds);
+      }
     }
   },
 
@@ -272,7 +285,8 @@ export const combatCastMethods = {
     if (!spec) return;
     if ((player.cooldowns[slot] || 0) > 0.05) return;
 
-    // Ability requirement: Unlearned spells (rank 0) cannot be cast!
+    // Ability requirement: Unlearned spells (rank 0) or cross-class spells cannot be cast!
+    if (spec.classId && spec.classId !== player.classId) return;
     const rank = getAbilityRank(player.prog, spec.id);
     if (rank < 1) return;
 
@@ -315,11 +329,11 @@ export const combatCastMethods = {
 
     if (spec.cost > 0 && player.solarCharge < spec.cost) return;
 
-    // RITES REQUIRE CASTING TIME WHILE FLASHES ARE INSTANT!
+    // RITES REQUIRE CASTING TIME WHILE FLASHES ARE INSTANT (unless Chrono-Snap or Resonance Echo makes instant)!
     if (isRite && (spec.castTime || 0) > 0) {
       if (player.castState) return; // Already channeling a Rite
 
-      const needsTarget = ['cast_beam', 'projectile', 'drain_beam', 'execute_beam'].includes(spec.kind);
+      const needsTarget = ['cast_beam', 'projectile', 'drain_beam', 'execute_beam', 'aurora_beam', 'shardburst', 'glacial_spike', 'fractured_timeline'].includes(spec.kind);
       let tgt = null;
       if (needsTarget) {
         const rangePx = (spec.rangeYards || 21) * YARD_PX;
@@ -332,8 +346,10 @@ export const combatCastMethods = {
         }
       }
 
+      const resGain = advanceFactionResourceOnCast(player, player.faction, player.classId, spec);
+      const isInstantProcced = resGain.echoFromResonance || resGain.chronoSnapConsumed;
       const castSpeedMult = calcCastSpeedMult(player.prog) * (player.temporalApotheosisTimer > 0 ? 0.25 : 1.0);
-      const effectiveCastTime = Math.max(0.3, (spec.castTime || 1.0) * castSpeedMult);
+      const effectiveCastTime = isInstantProcced ? 0 : Math.max(0.3, (spec.castTime || 1.0) * castSpeedMult);
 
       player.solarCharge -= spec.cost;
       player.cooldowns[slot] = spec.baseCd * cdMult;
@@ -341,7 +357,7 @@ export const combatCastMethods = {
         player.gcdTotal = gcdDuration;
         player.gcdTimer = gcdDuration;
       }
-      player.castState = {
+      const cs = {
         slot,
         specId: spec.id,
         spellName: spec.name,
@@ -354,11 +370,25 @@ export const combatCastMethods = {
         effResonance: effStats.resonance,
         critChance,
         rank,
+        duskMarksSpent: resGain.duskMarksSpent || 0,
         castX: player.x,
         castY: player.y,
         facingDir: player.dir,
       };
-
+      this.awardProfessionXP(player, 'rites', Math.max(12, 10 + rank * 4), spec.name);
+      if (effectiveCastTime <= 0) {
+        room.fxQueue.push({
+          kind: 'fct',
+          x: player.x,
+          y: player.y - 14,
+          text: resGain.chronoSnapConsumed ? '⏳ CHRONO-SNAP INSTANT!' : '🔮 ASTRAL SURGE INSTANT!',
+          color: '#38bdf8',
+          isCrit: true,
+        });
+        this.executeAuthoritativeRite(room, player, cs);
+        return;
+      }
+      player.castState = cs;
       room.fxQueue.push({
         kind: 'cast_start',
         actorId: player.id,
@@ -366,11 +396,18 @@ export const combatCastMethods = {
         duration: effectiveCastTime,
         color: spec.color,
       });
-      this.awardProfessionXP(player, 'rites', Math.max(12, 10 + rank * 4), spec.name);
       return;
     }
 
     // FLASHES EXECUTE INSTANTLY (castTime === 0)
+    if (spec.cost > 0) {
+      player.solarCharge = Math.max(0, player.solarCharge - spec.cost);
+    }
+    const flashRes = advanceFactionResourceOnCast(player, player.faction, player.classId, spec);
+    if (flashRes.chronoSnapTriggered) {
+      this.shavePlayerCooldowns(player, getClassPassive(player.classId).flashCdShaveSec || 0.6, slot);
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 16, text: '⏳ CHRONO-SNAP READY!', color: '#7dd3fc', isCrit: true });
+    }
     if (!offGcd) {
       player.gcdTotal = gcdDuration;
       player.gcdTimer = gcdDuration;
@@ -382,7 +419,7 @@ export const combatCastMethods = {
       }
     }
     const wasStealthed = player.stealthedTimer > 0;
-    if (spec.kind !== 'stealth' && spec.kind !== 'stealth_burst') {
+    if (spec.kind !== 'stealth' && spec.kind !== 'stealth_burst' && spec.kind !== 'smoke_bomb') {
       player.stealthedTimer = 0; // Attacking breaks stealth
     }
 
@@ -396,9 +433,11 @@ export const combatCastMethods = {
       }
 
       player.cooldowns[slot] = spec.baseCd * cdMult;
+      player.slashTimer = 0.24;
       this.addPlayerGlimmer(room, player, 6);
       room.fxQueue.push({ kind: 'slash', x: player.x, y: player.y - 6, angle, color: spec.color, actorId: player.id });
 
+      const classPassive = getClassPassive(player.classId);
       let hitAny = false;
       const primaryId = tgt ? tgt.ref.id : targetId;
       for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, rangePx + 10, primaryId)) {
@@ -408,16 +447,28 @@ export const combatCastMethods = {
           let base = Math.max(2, Math.floor(Math.random() * 4) + 3 + effPower + rank * 2);
           if (wasStealthed) base = Math.round(base * 1.45);
           const isCrit = wasStealthed || Math.random() < critChance;
-          const critMult = isCrit ? calcCritDamageMult(player.prog) : 1.0;
+          let critMult = isCrit ? calcCritDamageMult(player.prog) : 1.0;
+          if (isCrit && wasStealthed && classPassive.stealthCritBonus) {
+            critMult += classPassive.stealthCritBonus;
+          }
           const finalDmg = isCrit ? Math.round(base * critMult) : base;
           this.applyAuthoritativeDamage(room, player, h, finalDmg, isCrit, spec.name, false);
           if (wasStealthed) {
             room.fxQueue.push({ kind: 'fct', x: h.ref.x, y: h.ref.y - 12, text: 'AMBUSH!', color: '#c084fc', isCrit: true });
           }
+          if (classPassive.offhandStrikeRatio) {
+            const offDmg = Math.max(1, Math.round(finalDmg * classPassive.offhandStrikeRatio));
+            this.applyAuthoritativeDamage(room, player, h, offDmg, false, 'Twin-Fang Offhand', false);
+          }
+          if (player.classId === 'forest_warden' && h.kind === 'entity' && h.ref.type === 'mob') {
+            h.ref.poisonTimer = Math.max(h.ref.poisonTimer || 0, 3.0);
+          }
           if (player.faction === 'Terra') {
-            for (const near of this.getAllHostilesInRadius(room, player, h.ref.x, h.ref.y, 44)) {
+            const owRadius = 44 + (classPassive.overwhelmRadiusBonus || 0);
+            const owRatio = 0.35 + (player.rootguardStacks || 0) * 0.08;
+            for (const near of this.getAllHostilesInRadius(room, player, h.ref.x, h.ref.y, owRadius)) {
               if (near.ref !== h.ref) {
-                this.applyAuthoritativeDamage(room, player, near, Math.max(2, Math.round(finalDmg * 0.35)), false, 'Overwhelm', false);
+                this.applyAuthoritativeDamage(room, player, near, Math.max(2, Math.round(finalDmg * owRatio)), false, 'Overwhelm', false);
               }
             }
           }
@@ -433,9 +484,10 @@ export const combatCastMethods = {
     // 2. SHIELD & THORNBARK (Radiant Bulwark, Graveglass Ward, Mirror Barrier, Barkskin Infusion)
     if (spec.kind === 'shield' || spec.kind === 'thornbark') {
       player.cooldowns[slot] = spec.baseCd * cdMult;
-      this.addPlayerGlimmer(room, player, 6);
+      const shieldBonusGlimmer = getClassPassive(player.classId).shieldGlimmerBonus || 0;
+      this.addPlayerGlimmer(room, player, 6 + shieldBonusGlimmer);
       const absorb = 13 + effStats.bastion * 3 + rank * 4;
-      player.shield = absorb;
+      player.shield = Math.max(player.shield || 0, absorb);
       player.shieldTimer = 10;
       if (spec.kind === 'thornbark') {
         player.thornbarkTimer = 8.5;
@@ -743,6 +795,247 @@ export const combatCastMethods = {
       this.addPlayerGlimmer(room, player, 40);
       room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 8, colors: ['#e0f2fe', '#38bdf8', '#c084fc'], count: 24 });
       room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: '👑 TEMPORAL APOTHEOSIS!', color: '#e0f2fe', isCrit: true });
+      return;
+    }
+
+    // 20. CLASS EXCLUSIVE FLASHES (All 8 Classes)
+    player.cooldowns[slot] = spec.baseCd * cdMult;
+    player.slashTimer = 0.24;
+
+    if (spec.kind === 'aegis_slam') {
+      const rangePx = (spec.rangeYards || 6.5) * YARD_PX;
+      const tgt = this.findHostileTargetById(room, player, targetId) || this.findNearestHostile(room, player, rangePx);
+      this.addPlayerGlimmer(room, player, 15);
+      player.shield = Math.max(player.shield || 0, 12 + effStats.bastion * 2 + rank * 3);
+      player.shieldTimer = 8;
+      if (tgt) {
+        const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: tgt.ref, isCrit: Math.random() < critChance });
+        this.applyAuthoritativeDamage(room, player, tgt, nums.dmg, true, spec.name, false);
+        if (tgt.kind === 'entity' && tgt.ref.type === 'mob') {
+          tgt.ref.freezeTimer = Math.max(tgt.ref.freezeTimer || 0, 1.5);
+          this.addMobThreat(room, tgt.ref, player, 60 + effStats.bastion * 6, { isTaunt: true });
+        }
+      }
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 12, text: '🛡️ AEGIS SLAM!', color: '#facc15', isCrit: true });
+      return;
+    }
+
+    if (spec.kind === 'sunfire_lance') {
+      const rangePx = (spec.rangeYards || 14) * YARD_PX;
+      const tgt = this.findHostileTargetById(room, player, targetId) || this.findNearestHostile(room, player, rangePx);
+      const startX = player.x;
+      const startY = player.y;
+      if (tgt) {
+        const ang = Math.atan2(tgt.ref.y - player.y, tgt.ref.x - player.x);
+        player.x = Math.max(-room.halfW + 16, Math.min(room.halfW - 16, tgt.ref.x - Math.cos(ang) * 20));
+        player.y = Math.max(-room.halfH + 16, Math.min(room.halfH - 16, tgt.ref.y - Math.sin(ang) * 20));
+      } else {
+        const { dx, dy } = getDirAngle(player.dir);
+        player.x = Math.max(-room.halfW + 16, Math.min(room.halfW - 16, player.x + dx * 8 * YARD_PX));
+        player.y = Math.max(-room.halfH + 16, Math.min(room.halfH - 16, player.y + dy * 8 * YARD_PX));
+      }
+      player.posOverrideSeq = (player.posOverrideSeq || 0) + 1;
+      room.fxQueue.push({ kind: 'dash', actorId: player.id, fromX: startX, fromY: startY, toX: player.x, toY: player.y, dir: player.dir, color: '#fbbf24' });
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, 76)) {
+        const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: h.ref });
+        if (h.kind === 'entity' && h.ref.type === 'mob') {
+          const d = Math.hypot(h.ref.x - player.x, h.ref.y - player.y);
+          if (d > 20) {
+            h.ref.x += ((player.x - h.ref.x) / d) * 22;
+            h.ref.y += ((player.y - h.ref.y) / d) * 22;
+          }
+          h.ref.sunbrandTimer = 4.0;
+        }
+        this.applyAuthoritativeDamage(room, player, h, nums.dmg, false, spec.name, false);
+      }
+      return;
+    }
+
+    if (spec.kind === 'purifying_halo') {
+      player.slowTimer = 0; player.snareTimer = 0; player.weakenTimer = 0;
+      player.auroraStrideTimer = 4.0;
+      this.addPlayerGlimmer(room, player, 12);
+      for (const ally of room.players.values()) {
+        if (!ally.isDead && this.arePlayersAllied(room, player, ally) && Math.hypot(ally.x - player.x, ally.y - player.y) <= 12 * YARD_PX) {
+          ally.slowTimer = 0; ally.snareTimer = 0; ally.weakenTimer = 0;
+          ally.auroraStrideTimer = 4.0;
+          ally.hp = Math.min(ally.maxHp, ally.hp + 6 + rank * 2);
+          room.fxQueue.push({ kind: 'fct', x: ally.x, y: ally.y - 10, text: '💫 PURIFIED (+30% SPD)', color: '#bae6fd' });
+        }
+      }
+      this.parties.syncPlayerVitals(player.id);
+      return;
+    }
+
+    if (spec.kind === 'serrated_mutilate' || spec.kind === 'crimson_rupture') {
+      const rangePx = (spec.rangeYards || 7) * YARD_PX;
+      const tgt = this.findHostileTargetById(room, player, targetId) || this.findNearestHostile(room, player, rangePx);
+      const { angle } = getDirAngle(player.dir);
+      room.fxQueue.push({ kind: 'slash', x: player.x, y: player.y - 6, angle, color: spec.color, actorId: player.id });
+      if (!tgt) return;
+      const marks = flashRes.duskMarksSpent || 0;
+      const isCrit = wasStealthed || Math.random() < critChance;
+      const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: tgt.ref, isCrit, duskMarksSpent: marks });
+      const totalDmg = spec.kind === 'crimson_rupture' ? Math.round(nums.dmg * (1 + marks * 0.25)) : nums.dmg;
+      this.applyAuthoritativeDamage(room, player, tgt, totalDmg, isCrit, spec.name, false);
+      if (spec.kind === 'serrated_mutilate') {
+        this.applyAuthoritativeDamage(room, player, tgt, Math.max(2, Math.round(totalDmg * 0.55)), false, `${spec.name} (Offhand)`, false);
+      }
+      if (tgt.kind === 'entity' && tgt.ref.type === 'mob') {
+        tgt.ref.bleedTimer = spec.kind === 'crimson_rupture' ? 8.0 : 4.0;
+      }
+      if (spec.kind === 'crimson_rupture' && marks > 0) {
+        room.fxQueue.push({ kind: 'fct', x: tgt.ref.x, y: tgt.ref.y - 16, text: `🩸 ${marks}x RUPTURE!`, color: '#f43f5e', isCrit: true });
+      }
+      return;
+    }
+
+    if (spec.kind === 'smoke_bomb') {
+      player.stealthedTimer = 3.5;
+      room.groundZones.push({
+        id: `gz_${crypto.randomUUID().slice(0, 6)}`,
+        type: 'plague',
+        color: '#a855f7',
+        spellName: spec.name,
+        ownerId: player.id,
+        x: player.x,
+        y: player.y,
+        radius: 8 * YARD_PX,
+        tickDmg: Math.max(2, 2 + rank),
+        age: 0,
+        maxAge: 6.0,
+        tickTimer: 0.4,
+      });
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, 8 * YARD_PX)) {
+        h.ref.weakenTimer = 4.0;
+      }
+      room.fxQueue.push({ kind: 'smoke', x: player.x, y: player.y, count: 24 });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 12, text: '💨 UMBRAL SMOKE BOMB!', color: '#c084fc', isCrit: true });
+      return;
+    }
+
+    if (spec.kind === 'phantom_sever') {
+      const targets = this.getAllHostilesInRadius(room, player, player.x, player.y, 14 * YARD_PX).slice(0, 5);
+      const startX = player.x;
+      const startY = player.y;
+      for (const h of targets) {
+        const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: h.ref, isCrit: true });
+        room.fxQueue.push({ kind: 'dash', actorId: player.id, fromX: startX, fromY: startY, toX: h.ref.x, toY: h.ref.y, dir: player.dir, color: '#c084fc' });
+        this.applyAuthoritativeDamage(room, player, h, nums.dmg, true, spec.name, false);
+      }
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: '🌑 PHANTOM SEVER!', color: '#c084fc', isCrit: true });
+      return;
+    }
+
+    if (spec.kind === 'hex_of_frailty') {
+      const rangePx = (spec.rangeYards || 20) * YARD_PX;
+      const tgt = this.findHostileTargetById(room, player, targetId) || this.findNearestHostile(room, player, rangePx);
+      if (!tgt) return;
+      for (const h of this.getAllHostilesInRadius(room, player, tgt.ref.x, tgt.ref.y, 56)) {
+        h.ref.hexedTimer = 8.0;
+        h.ref.weakenTimer = 8.0;
+        const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: h.ref });
+        this.applyAuthoritativeDamage(room, player, h, nums.dmg, false, spec.name, false);
+      }
+      room.fxQueue.push({ kind: 'fct', x: tgt.ref.x, y: tgt.ref.y - 14, text: '🧿 HEXED (-20% ATK / +20% RITE)', color: '#c084fc', isCrit: true });
+      return;
+    }
+
+    if (spec.kind === 'gale_spear') {
+      const { dx, dy, angle } = getDirAngle(player.dir);
+      const startX = player.x;
+      const startY = player.y;
+      player.x = Math.max(-room.halfW + 16, Math.min(room.halfW - 16, player.x + dx * 8 * YARD_PX));
+      player.y = Math.max(-room.halfH + 16, Math.min(room.halfH - 16, player.y + dy * 8 * YARD_PX));
+      player.posOverrideSeq = (player.posOverrideSeq || 0) + 1;
+      room.fxQueue.push({ kind: 'dash', actorId: player.id, fromX: startX, fromY: startY, toX: player.x, toY: player.y, dir: player.dir, color: '#4ade80' });
+      room.fxQueue.push({ kind: 'slash', x: player.x, y: player.y - 6, angle, color: '#4ade80', actorId: player.id });
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, 72)) {
+        const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: h.ref, isCrit: Math.random() < critChance });
+        if (h.kind === 'entity' && h.ref.type === 'mob') h.ref.poisonTimer = 4.5;
+        this.applyAuthoritativeDamage(room, player, h, nums.dmg, true, spec.name, false);
+      }
+      return;
+    }
+
+    if (spec.kind === 'pack_hunt') {
+      player.auroraStrideTimer = 4.0;
+      this.addPlayerGlimmer(room, player, 20);
+      room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'shockwave', color: '#86efac', ownerId: player.id, x: player.x, y: player.y, radius: 10 * YARD_PX, age: 0, maxAge: 0.4 });
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, 10 * YARD_PX)) {
+        const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: h.ref, isCrit: true });
+        if (h.kind === 'entity' && h.ref.type === 'mob') h.ref.bleedTimer = 4.0;
+        this.applyAuthoritativeDamage(room, player, h, nums.dmg, true, spec.name, false);
+      }
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 12, text: '🐺 PACK HUNT (+35% SPD)!', color: '#86efac', isCrit: true });
+      return;
+    }
+
+    if (spec.kind === 'seismic_taunt') {
+      const rad = 12 * YARD_PX;
+      room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'shockwave', color: '#4ade80', ownerId: player.id, x: player.x, y: player.y, radius: rad, age: 0, maxAge: 0.45 });
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, rad)) {
+        const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: h.ref });
+        h.ref.weakenTimer = 5.0;
+        if (h.kind === 'entity' && h.ref.type === 'mob') {
+          this.addMobThreat(room, h.ref, player, 70 + effStats.bastion * 6, { isTaunt: true });
+        }
+        this.applyAuthoritativeDamage(room, player, h, nums.dmg, false, spec.name, false);
+      }
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 12, text: '🪨 SEISMIC TAUNT!', color: '#4ade80', isCrit: true });
+      return;
+    }
+
+    if (spec.kind === 'temporal_anchor') {
+      if ((player.anchorTimer || 0) > 0 && player.anchorState) {
+        const fromX = player.x;
+        const fromY = player.y;
+        player.x = player.anchorState.x;
+        player.y = player.anchorState.y;
+        player.posOverrideSeq = (player.posOverrideSeq || 0) + 1;
+        const healHp = Math.max(8, Math.round(player.maxHp * 0.30));
+        player.hp = Math.min(player.maxHp, player.hp + healHp);
+        player.anchorTimer = 0;
+        player.anchorState = null;
+        this.shavePlayerCooldowns(player, 4.0, slot);
+        room.fxQueue.push({ kind: 'dash', actorId: player.id, fromX, fromY, toX: player.x, toY: player.y, dir: player.dir, color: '#38bdf8' });
+        room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: `⚓ RECALLED (+${healHp} HP)!`, color: '#7dd3fc', isCrit: true });
+        this.parties.syncPlayerVitals(player.id);
+      } else {
+        player.anchorState = { x: player.x, y: player.y };
+        player.anchorTimer = 6.0;
+        player.cooldowns[slot] = 0.8; // Quick recall window!
+        room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 6, colors: ['#38bdf8', '#ffffff'], count: 14 });
+        room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 12, text: '⚓ TIME ANCHOR SET (6s)', color: '#38bdf8' });
+      }
+      return;
+    }
+
+    if (spec.kind === 'echoing_paradox') {
+      const rangePx = (spec.rangeYards || 22) * YARD_PX;
+      const tgt = this.findHostileTargetById(room, player, targetId) || this.findNearestHostile(room, player, rangePx);
+      player.echoPrimed = true;
+      this.shavePlayerCooldowns(player, 2.0, slot);
+      if (tgt) {
+        room.fxQueue.push({ kind: 'skyBeam', x: tgt.ref.x, y: tgt.ref.y, color: '#e0f2fe' });
+        const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: tgt.ref, isCrit: true });
+        this.applyAuthoritativeDamage(room, player, tgt, nums.dmg, true, spec.name, true);
+      }
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 12, text: '🪞 PARADOX (-2s CD & ECHO)!', color: '#e0f2fe', isCrit: true });
+      return;
+    }
+
+    if (spec.kind === 'arcane_tether') {
+      const rad = (spec.rangeYards || 18) * YARD_PX;
+      this.addPlayerGlimmer(room, player, 25);
+      const targets = this.getAllHostilesInRadius(room, player, player.x, player.y, rad).slice(0, 4);
+      for (const h of targets) {
+        const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: h.ref });
+        if (h.kind === 'entity' && h.ref.type === 'mob') h.ref.freezeTimer = Math.max(h.ref.freezeTimer || 0, 1.5);
+        room.fxQueue.push({ kind: 'spark', x: h.ref.x, y: h.ref.y - 6, colors: ['#38bdf8', '#ffffff'], count: 10 });
+        this.applyAuthoritativeDamage(room, player, h, nums.dmg, false, spec.name, false);
+      }
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 12, text: '⚡ ARCANE TETHER (+25 GLIMMER)!', color: '#38bdf8', isCrit: true });
       return;
     }
   },

@@ -965,6 +965,10 @@ export const arenaAndPacketsMethods = {
         this.handleUpgradeSkill(client, msg.abilityId);
         break;
 
+      case 'respec_skills':
+        this.handleRespecSkills(client);
+        break;
+
       case 'upgrade_rank':
         this.handleUpgradeRank(client, Number(msg.slot));
         break;

@@ -68,6 +68,7 @@ import {
   SKILLING_NODE_TYPES,
   ELITE_AFFIXES,
   BOUNTY_CONTRACTS,
+  ensureActorFactionState,
 } from '../shared/protocol.js';
 
 import { SIEGE_INTERVAL_MS, nextThirtyMinBoundary } from './rooms/constants.js';
@@ -403,7 +404,17 @@ export class RoomManager {
       stealthedTimer: 0,
       thornbarkTimer: 0,
       zenithTimer: 0,
+      duskMarks: 0,
+      rootguardStacks: 0,
+      astralResonance: 0,
+      flashComboCount: 0,
+      chronoSnapReady: false,
       echoPrimed: false,
+      slashTimer: 0,
+      bastionBannerTimer: 0,
+      solarisDomeTimer: 0,
+      anchorState: null,
+      anchorTimer: 0,
       skull: null,
       skullTimer: 0,
       pkCount: 0,
@@ -430,6 +441,7 @@ export class RoomManager {
       },
     };
 
+    ensureActorFactionState(client, faction);
     this.clients.set(client.id, client);
 
     client.send({

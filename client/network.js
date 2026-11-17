@@ -164,10 +164,13 @@ export class MultiplayerClient {
         return clean;
       }
       if (this.isLocalOrigin()) {
-        // A realm URL saved by an earlier tunnel/remote session must not hijack
-        // localhost or Cloud Shell web preview. Local dev uses its own origin so Vite can proxy /api and /ws.
+        // A realm URL saved in persistent localStorage must not hijack localhost or Cloud Shell
+        // web preview across sessions. Only honor explicit per-tab sessionStorage overrides.
         try { localStorage.removeItem('glimmerfall_server_url'); } catch (_) {}
-        try { sessionStorage.removeItem('glimmerfall_server_url'); } catch (_) {}
+        try {
+          const tabOverride = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('glimmerfall_server_url') : '';
+          if (tabOverride) return normalizeServerUrl(tabOverride);
+        } catch (_) {}
         return '';
       }
       if (this._activeFallbackBase) {
@@ -194,15 +197,55 @@ export class MultiplayerClient {
   }
 
   setServerBase(url) {
-    const clean = url ? String(url).trim().replace(/\/+$/, '') : '';
+    const clean = url ? normalizeServerUrl(String(url).trim().replace(/\/+$/, '')) : '';
+    this.manualServerOverride = Boolean(clean);
+    this.reconnectAttempt = 0;
     try {
       if (clean && !this.isLocalOrigin()) localStorage.setItem('glimmerfall_server_url', clean);
       else localStorage.removeItem('glimmerfall_server_url');
-      if (clean && this.isLocalOrigin()) sessionStorage.setItem('glimmerfall_server_url', clean);
-      else sessionStorage.removeItem('glimmerfall_server_url');
+      if (typeof sessionStorage !== 'undefined') {
+        if (clean && this.isLocalOrigin()) sessionStorage.setItem('glimmerfall_server_url', clean);
+        else sessionStorage.removeItem('glimmerfall_server_url');
+      }
     } catch (_) {}
     // Force a new socket even if the old one is still open/reconnecting.
     this.connectWebSocket(true);
+  }
+
+  async getRealmStatus(timeoutMs = 2500) {
+    const base = this.getServerBase();
+    if (typeof fetch !== 'function') {
+      return { ok: false, reachable: false, dbConnected: false, totalAccounts: 0, isCloudShellAuthRedirect: false, base };
+    }
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+    try {
+      const res = await fetch(`${base}/api/status`, {
+        signal: ctrl ? ctrl.signal : undefined,
+        method: 'GET',
+        redirect: 'manual',
+        headers: { 'ngrok-skip-browser-warning': '1' },
+      });
+      if (res?.type === 'opaqueredirect' || (res?.status >= 300 && res?.status < 400)) {
+        return { ok: false, reachable: false, dbConnected: false, totalAccounts: 0, isCloudShellAuthRedirect: true, base };
+      }
+      if (!res || !res.ok) {
+        return { ok: false, reachable: false, dbConnected: false, totalAccounts: 0, isCloudShellAuthRedirect: false, base };
+      }
+      const data = await res.json();
+      return {
+        ok: Boolean(data?.ok),
+        reachable: true,
+        dbConnected: Boolean(data?.dbConnected),
+        totalAccounts: Number(data?.totalAccounts || 0),
+        isCloudShellAuthRedirect: false,
+        base,
+      };
+    } catch (_) {
+      return { ok: false, reachable: false, dbConnected: false, totalAccounts: 0, isCloudShellAuthRedirect: false, base };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   saveStoredToken(tok) {
@@ -254,8 +297,19 @@ export class MultiplayerClient {
         if (abortTimer) clearTimeout(abortTimer);
         if (res.ok) {
           const data = await res.json();
-          if (data.token) this.saveStoredToken(data.token);
-          if (data.profile) this.profile = data.profile;
+          const prevCached = this.profile || this.loadCachedProfile();
+          const hasEstablishedPrev = Boolean(
+            this.token &&
+            prevCached &&
+            (!prevCached.isGuest || (prevCached.progression?.level || 1) > 1 || (Array.isArray(prevCached.characters) && prevCached.characters.some((c) => (c.progression?.level || 1) > 1)))
+          );
+          const isFallbackLv1Guest = Boolean(data.profile?.isGuest && prevCached && data.profile.id !== prevCached.id && (data.profile.progression?.level || 1) <= 1);
+          if (hasEstablishedPrev && isFallbackLv1Guest) {
+            console.warn('[Network] Preserving cached champion session instead of overwriting with Lv.1 guest fallback.');
+          } else {
+            if (data.token) this.saveStoredToken(data.token);
+            if (data.profile) this.profile = data.profile;
+          }
         }
       } catch (_) {}
 
@@ -363,6 +417,11 @@ export class MultiplayerClient {
       try {
         const msg = JSON.parse(ev.data);
         if (msg.type === 'session_token' && msg.token) {
+          const prevCached = this.profile || this.loadCachedProfile();
+          if (this.token && prevCached && !prevCached.isGuest) {
+            console.warn('[Network] Ignored guest session_token while registered GlimmerFall ID session is active.');
+            return;
+          }
           this.saveStoredToken(msg.token);
           return;
         }
@@ -549,6 +608,7 @@ export class MultiplayerClient {
       return fetch(url, {
         signal: ctrl ? ctrl.signal : undefined,
         method,
+        redirect: 'manual',
         headers: {
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': '1',
@@ -580,6 +640,10 @@ export class MultiplayerClient {
         }
         throw new Error(this.realmUnreachableMessage());
       }
+    }
+
+    if (res?.type === 'opaqueredirect' || (res?.status >= 300 && res?.status < 400)) {
+      throw new Error('Cloud Shell Preview auth session expired. Reload from Cloud Shell Preview or switch to Live Online DB below.');
     }
 
     if (res.status === 404 && this.ws && this.ws.readyState === 1) {

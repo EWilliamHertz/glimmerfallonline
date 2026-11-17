@@ -238,12 +238,21 @@ export async function handleApiRequest(req, res, { accounts, rooms = null }) {
 
     if (pathname === '/api/auth/guest' && req.method === 'POST') {
       const body = await readJsonBody(req);
-      const existing = await verifyWithRefresh(extractRequestToken(req, body));
+      const rawReqTok = extractRequestToken(req, body);
+      const existing = await verifyWithRefresh(rawReqTok);
       if (existing) {
         sendJson(res, 200, {
           ok: true,
           token: accounts.signToken(existing.id),
           profile: accounts.toPublicProfile(existing),
+        });
+        return true;
+      }
+      if (rawReqTok && !accounts.dbConnected) {
+        sendJson(res, 503, {
+          ok: false,
+          dbOffline: true,
+          error: 'Database unavailable on this realm; preserving existing GlimmerFall session token.',
         });
         return true;
       }
@@ -708,6 +717,20 @@ export function createGlimmerFallServer() {
     const reqY = url.searchParams.get('y');
     let account = token ? accounts.verifyToken(token) : null;
     let issuedToken = null;
+
+    if (!account && token && !accounts.dbConnected) {
+      try {
+        ws.send(JSON.stringify({
+          type: 'sys_msg',
+          category: 'system',
+          text: '⚠️ Local realm database is offline (dbConnected: false). Your saved character session was preserved rather than replaced with a Level 1 guest.',
+        }));
+        ws.close(4401, 'Database offline for token verification');
+      } catch (_) {}
+      clearInterval(heartbeatTimer);
+      cleanupIp();
+      return;
+    }
 
     if (!account) {
       const created = accounts.createGuestAccount({

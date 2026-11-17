@@ -65,6 +65,8 @@ import {
   TANK_CLASSES,
   INTERRUPT_VULN_MULT,
   getActiveCombatConsumableBonuses,
+  resolveAbilityNumbers,
+  getClassPassive,
 } from '../../shared/protocol.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
 
@@ -79,6 +81,9 @@ export const combatRitesAndDamageMethods = {
     const effBastion = cs.effBastion || 2;
     const effResonance = cs.effResonance || 1;
     const critChance = cs.critChance || 0.05;
+    const duskMarksSpent = cs.duskMarksSpent || 0;
+    const duskMult = duskMarksSpent > 0 ? (1 + duskMarksSpent * 0.15) : 1.0;
+    player.activeDuskMarksSpent = duskMarksSpent;
 
     // 1. BEAM RITE (Solar Flare, Astral Convergence)
     if (spec.kind === 'cast_beam') {
@@ -86,7 +91,7 @@ export const combatRitesAndDamageMethods = {
       if (tgt) {
         room.fxQueue.push({ kind: 'skyBeam', x: tgt.ref.x, y: tgt.ref.y, color: cs.color });
         const isCrit = Math.random() < critChance || player.stealthedTimer > 0;
-        const baseDmg = Math.max(5, Math.floor(Math.random() * 5) + 10 + effPower * 2 + rank * 3);
+        const baseDmg = Math.max(5, Math.round((Math.floor(Math.random() * 5) + 10 + effPower * 2 + rank * 3) * duskMult));
         const dmg = isCrit ? Math.round(baseDmg * 1.7) : baseDmg;
         this.applyAuthoritativeDamage(room, player, tgt, dmg, isCrit, cs.spellName, true);
         for (const splash of this.getAllHostilesInRadius(room, player, tgt.ref.x, tgt.ref.y, 56)) {
@@ -173,7 +178,7 @@ export const combatRitesAndDamageMethods = {
       // Heals generate 0.5x threat on all engaged mobs in combat
       for (const ent of room.entities) {
         if (ent.type === 'mob' && ent.inCombat && !ent.isDying) {
-          this.addMobThreat(room, ent, player, healAmt, { isHeal: true });
+          this.addMobThreat(room, ent, player, rewindHp, { isHeal: true });
         }
       }
       return;
@@ -255,7 +260,7 @@ export const combatRitesAndDamageMethods = {
       // Heals generate 0.5x threat on all engaged mobs in combat
       for (const ent of room.entities) {
         if (ent.type === 'mob' && ent.inCombat && !ent.isDying) {
-          this.addMobThreat(room, ent, player, healAmt, { isHeal: true });
+          this.addMobThreat(room, ent, player, rewindHp, { isHeal: true });
         }
       }
       return;
@@ -417,6 +422,296 @@ export const combatRitesAndDamageMethods = {
       }
       return;
     }
+
+    // 14. CLASS EXCLUSIVE RITES (All 8 Classes)
+    const effStats = { power: effPower, bastion: effBastion, resonance: effResonance, tempo: 2 };
+    const tgtWrap = cs.targetId ? this.findHostileTargetById(room, player, cs.targetId) : null;
+    const tgtNums = resolveAbilityNumbers({
+      spec,
+      rank,
+      effStats,
+      prog: player.prog,
+      actor: player,
+      target: tgtWrap?.ref || null,
+      isCrit: Math.random() < critChance,
+      duskMarksSpent,
+      isHexed: Boolean(tgtWrap?.ref?.hexedTimer > 0),
+      isFrozen: Boolean(tgtWrap?.ref?.freezeTimer > 0),
+    });
+
+    if (spec.kind === 'bastion_banner') {
+      player.bastionBannerTimer = 8.0;
+      room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'consecration', color: '#facc15', spellName: spec.name, ownerId: player.id, x: player.x, y: player.y, radius: 12 * YARD_PX, tickDmg: 3 + rank, age: 0, maxAge: 8.0, tickTimer: 0.4 });
+      for (const ally of room.players.values()) {
+        if (!ally.isDead && this.arePlayersAllied(room, player, ally) && Math.hypot(ally.x - player.x, ally.y - player.y) <= 12 * YARD_PX) {
+          ally.bastionBannerTimer = 8.0;
+        }
+      }
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: '🚩 BASTION BANNER (+25% DR)!', color: '#facc15', isCrit: true });
+      return;
+    }
+
+    if (spec.kind === 'judgement_verdict') {
+      const cx = tgtWrap ? tgtWrap.ref.x : player.x;
+      const cy = tgtWrap ? tgtWrap.ref.y : player.y;
+      room.fxQueue.push({ kind: 'skyBeam', x: cx, y: cy, color: '#fef08a' });
+      room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'shockwave', color: '#facc15', ownerId: player.id, x: cx, y: cy, radius: 12 * YARD_PX, age: 0, maxAge: 0.5 });
+      for (const h of this.getAllHostilesInRadius(room, player, cx, cy, 12 * YARD_PX)) {
+        const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: h.ref, isCrit: true, duskMarksSpent });
+        this.applyAuthoritativeDamage(room, player, h, nums.dmg, true, spec.name, true);
+      }
+      room.fxQueue.push({ kind: 'fct', x: cx, y: cy - 16, text: '⚖️ JUDGEMENT VERDICT!', color: '#fef08a', isCrit: true });
+      return;
+    }
+
+    if (spec.kind === 'starlight_mend' || spec.kind === 'solaris_apotheosis') {
+      const healVal = Math.round(tgtNums.heal * (spec.kind === 'solaris_apotheosis' ? 1.6 : 1.0));
+      const beforeSelf = player.hp;
+      player.hp = Math.min(player.maxHp, player.hp + healVal);
+      const selfOverheal = Math.max(0, (beforeSelf + healVal) - player.maxHp);
+      const classPassive = getClassPassive(player.classId);
+      if (selfOverheal > 0 && classPassive.overhealToShieldRatio) {
+        player.shield = Math.min(player.maxHp, (player.shield || 0) + Math.round(selfOverheal * classPassive.overhealToShieldRatio));
+        player.shieldTimer = 8;
+      }
+      if (spec.kind === 'solaris_apotheosis') {
+        player.solarisDomeTimer = 6.0;
+        room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'consecration', color: '#fde047', spellName: spec.name, ownerId: player.id, x: player.x, y: player.y, radius: 14 * YARD_PX, tickDmg: 5 + rank, age: 0, maxAge: 6.0, tickTimer: 0.4 });
+        this.healAlliedNexus(room, player, 4);
+      }
+      const allies = Array.from(room.players.values())
+        .filter((a) => !a.isDead && this.arePlayersAllied(room, player, a) && Math.hypot(a.x - player.x, a.y - player.y) <= (spec.rangeYards || 16) * YARD_PX)
+        .sort((a, b) => (a.hp / Math.max(1, a.maxHp)) - (b.hp / Math.max(1, b.maxHp)));
+      for (const ally of (spec.kind === 'starlight_mend' ? allies.slice(0, 2) : allies)) {
+        if (ally.id === player.id) continue;
+        const bHp = ally.hp;
+        ally.hp = Math.min(ally.maxHp, ally.hp + healVal);
+        const ov = Math.max(0, (bHp + healVal) - ally.maxHp);
+        if (ov > 0 && classPassive.overhealToShieldRatio) {
+          ally.shield = Math.min(ally.maxHp, (ally.shield || 0) + Math.round(ov * classPassive.overhealToShieldRatio));
+          ally.shieldTimer = 8;
+        }
+        if (spec.kind === 'solaris_apotheosis') ally.solarisDomeTimer = 6.0;
+        room.fxQueue.push({ kind: 'fct', x: ally.x, y: ally.y - 10, text: `+${healVal} DAWN MEND`, color: '#4ade80' });
+        this.parties.syncPlayerVitals(ally.id);
+      }
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 12, text: spec.kind === 'solaris_apotheosis' ? '🌞 SOLARIS APOTHEOSIS!' : `+${healVal} STARLIGHT MEND`, color: '#fde047', isCrit: true });
+      this.parties.syncPlayerVitals(player.id);
+      return;
+    }
+
+    if (spec.kind === 'aurora_beam') {
+      if (tgtWrap) {
+        room.fxQueue.push({ kind: 'skyBeam', x: tgtWrap.ref.x, y: tgtWrap.ref.y, color: '#fef08a' });
+        this.applyAuthoritativeDamage(room, player, tgtWrap, tgtNums.dmg, true, spec.name, true);
+      }
+      for (const ally of room.players.values()) {
+        if (!ally.isDead && this.arePlayersAllied(room, player, ally) && Math.hypot(ally.x - player.x, ally.y - player.y) <= 16 * YARD_PX) {
+          ally.hp = Math.min(ally.maxHp, ally.hp + Math.round(tgtNums.heal * 0.65));
+          this.parties.syncPlayerVitals(ally.id);
+        }
+      }
+      return;
+    }
+
+    if (spec.kind === 'shardburst') {
+      if (tgtWrap) {
+        for (let s = 0; s < 3; s++) {
+          setTimeout(() => {
+            if (!this.rooms.has(room.id) || player.isDead) return;
+            room.projectiles.push({
+              id: `prj_${crypto.randomUUID().slice(0, 6)}`,
+              type: 'void_orb',
+              spellName: spec.name,
+              isRite: true,
+              color: '#e879f9',
+              ownerId: player.id,
+              x: player.x + (s - 1) * 6,
+              y: player.y - 8,
+              targetKey: tgtWrap.kind === 'player' ? `p_${tgtWrap.ref.id}` : tgtWrap.ref.id,
+              speed: 255,
+              rot: 0,
+              dmg: Math.max(4, Math.round(tgtNums.dmg * 0.45)),
+            });
+          }, s * 110);
+        }
+        const leechHeal = Math.max(3, Math.round(tgtNums.dmg * 0.45));
+        player.hp = Math.min(player.maxHp, player.hp + leechHeal);
+        this.parties.syncPlayerVitals(player.id);
+      }
+      return;
+    }
+
+    if (spec.kind === 'soul_covenant') {
+      const hpCost = Math.min(Math.max(1, player.hp - 1), Math.round(player.hp * 0.12));
+      player.hp = Math.max(1, player.hp - hpCost);
+      this.addPlayerGlimmer(room, player, 45);
+      player.shield = Math.min(Math.round(player.maxHp * 0.30), (player.shield || 0) + 28 + rank * 5);
+      player.shieldTimer = 10;
+      room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'shockwave', color: '#e11d48', ownerId: player.id, x: player.x, y: player.y, radius: 10 * YARD_PX, age: 0, maxAge: 0.45 });
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, 10 * YARD_PX)) {
+        const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: h.ref, isCrit: true, duskMarksSpent, isHexed: Boolean(h.ref.hexedTimer > 0) });
+        this.applyAuthoritativeDamage(room, player, h, nums.dmg, true, spec.name, true);
+      }
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: '🩸 SOUL COVENANT (+45 GLIMMER)!', color: '#e11d48', isCrit: true });
+      this.parties.syncPlayerVitals(player.id);
+      return;
+    }
+
+    if (spec.kind === 'harbingers_requiem') {
+      const rad = 14 * YARD_PX;
+      room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'plague', color: '#a855f7', spellName: spec.name, ownerId: player.id, x: player.x, y: player.y, radius: rad, tickDmg: 4 + rank, age: 0, maxAge: 3.0, tickTimer: 0.4 });
+      let totalDrained = 0;
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, rad)) {
+        const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: h.ref, isCrit: true, duskMarksSpent, isHexed: Boolean(h.ref.hexedTimer > 0) });
+        h.ref.slowTimer = 4.0;
+        this.applyAuthoritativeDamage(room, player, h, nums.dmg, true, spec.name, true);
+        totalDrained += nums.dmg;
+      }
+      if (totalDrained > 0) {
+        const healVal = Math.max(4, Math.round(totalDrained * 0.35));
+        player.hp = Math.min(player.maxHp, player.hp + healVal);
+        room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: `💀 REQUIEM +${healVal} HP`, color: '#4ade80', isCrit: true });
+        this.parties.syncPlayerVitals(player.id);
+      }
+      return;
+    }
+
+    if (spec.kind === 'spore_volley') {
+      const rad = 12 * YARD_PX;
+      room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'briar', color: '#a3e635', spellName: spec.name, ownerId: player.id, x: player.x, y: player.y, radius: rad, tickDmg: 3 + rank, age: 0, maxAge: 5.0, tickTimer: 0.4 });
+      player.hp = Math.min(player.maxHp, player.hp + Math.round(tgtNums.heal * 0.5));
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, rad)) {
+        if (h.kind === 'entity' && h.ref.type === 'mob') h.ref.poisonTimer = 6.0;
+        this.applyAuthoritativeDamage(room, player, h, tgtNums.dmg, false, spec.name, true);
+      }
+      this.parties.syncPlayerVitals(player.id);
+      return;
+    }
+
+    if (spec.kind === 'tempest_thorns') {
+      const rad = 14 * YARD_PX;
+      room.fxQueue.push({ kind: 'slash', x: player.x, y: player.y - 6, angle: 0, color: '#22c55e', actorId: player.id });
+      room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'shockwave', color: '#22c55e', ownerId: player.id, x: player.x, y: player.y, radius: rad, age: 0, maxAge: 0.55 });
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, rad)) {
+        const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: h.ref, isCrit: true });
+        if (h.kind === 'entity' && h.ref.type === 'mob') h.ref.bleedTimer = 5.0;
+        this.applyAuthoritativeDamage(room, player, h, nums.dmg, true, spec.name, true);
+      }
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: '🌪️ TEMPEST OF THORNS!', color: '#4ade80', isCrit: true });
+      return;
+    }
+
+    if (spec.kind === 'monolith_wall') {
+      const shieldVal = 30 + effBastion * 4 + rank * 6;
+      player.shield = Math.max(player.shield || 0, shieldVal);
+      player.shieldTimer = 10;
+      player.thornbarkTimer = 7.0;
+      player.rootedBastionTimer = 4.0;
+      room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'shockwave', color: '#84cc16', ownerId: player.id, x: player.x, y: player.y, radius: 10 * YARD_PX, age: 0, maxAge: 0.45 });
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: `🗿 MONOLITH (+${shieldVal} SHIELD)!`, color: '#84cc16', isCrit: true });
+      this.parties.syncPlayerVitals(player.id);
+      return;
+    }
+
+    if (spec.kind === 'earthen_grasp') {
+      const rad = 11 * YARD_PX;
+      room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'briar', color: '#16a34a', spellName: spec.name, ownerId: player.id, x: player.x, y: player.y, radius: rad, tickDmg: 3 + rank, age: 0, maxAge: 4.0, tickTimer: 0.5 });
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, rad)) {
+        if (h.kind === 'entity' && h.ref.type === 'mob') {
+          const d = Math.hypot(player.x - h.ref.x, player.y - h.ref.y);
+          if (d > 22) {
+            h.ref.x += ((player.x - h.ref.x) / d) * Math.min(d - 18, 48);
+            h.ref.y += ((player.y - h.ref.y) / d) * Math.min(d - 18, 48);
+          }
+          h.ref.freezeTimer = 2.0;
+          h.ref.snareTimer = 3.5;
+          this.addMobThreat(room, h.ref, player, 50 + effBastion * 4, { isTaunt: true });
+        }
+        this.applyAuthoritativeDamage(room, player, h, tgtNums.dmg, false, spec.name, true);
+      }
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: '🌿 EARTHEN GRASP!', color: '#4ade80', isCrit: true });
+      return;
+    }
+
+    if (spec.kind === 'tectonic_cataclysm') {
+      const rad = 15 * YARD_PX;
+      player.shield = Math.max(player.shield || 0, 120 + effBastion * 4);
+      player.shieldTimer = 10;
+      room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'shockwave', color: '#22c55e', ownerId: player.id, x: player.x, y: player.y, radius: rad, age: 0, maxAge: 0.65 });
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, rad)) {
+        const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: h.ref, isCrit: true });
+        if (h.kind === 'entity' && h.ref.type === 'mob') h.ref.freezeTimer = 2.5;
+        this.applyAuthoritativeDamage(room, player, h, nums.dmg, true, spec.name, true);
+      }
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: '🌋 TECTONIC CATACLYSM!', color: '#4ade80', isCrit: true });
+      return;
+    }
+
+    if (spec.kind === 'fractured_timeline') {
+      const tgt = tgtWrap || this.findNearestHostile(room, player, 20 * YARD_PX);
+      if (tgt) {
+        for (let k = 0; k < 3; k++) {
+          setTimeout(() => {
+            if (!this.rooms.has(room.id) || player.isDead) return;
+            if (tgt.kind === 'entity' && (tgt.ref.isDying || tgt.ref.hp <= 0)) return;
+            room.fxQueue.push({ kind: 'skyBeam', x: tgt.ref.x, y: tgt.ref.y, color: '#38bdf8' });
+            this.applyAuthoritativeDamage(room, player, tgt, Math.max(6, Math.round(tgtNums.dmg * 0.42)), k === 2, `${spec.name}${k > 0 ? ' (Echo)' : ''}`, k === 0);
+          }, k * 180);
+        }
+      }
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: '🕰️ FRACTURED TIMELINE!', color: '#38bdf8', isCrit: true });
+      return;
+    }
+
+    if (spec.kind === 'glacial_spike') {
+      if (tgtWrap) {
+        room.fxQueue.push({ kind: 'skyBeam', x: tgtWrap.ref.x, y: tgtWrap.ref.y, color: '#bae6fd' });
+        if (tgtWrap.kind === 'entity' && tgtWrap.ref.type === 'mob') {
+          tgtWrap.ref.freezeTimer = 2.2;
+        }
+        this.applyAuthoritativeDamage(room, player, tgtWrap, tgtNums.dmg, true, spec.name, true);
+      }
+      return;
+    }
+
+    if (spec.kind === 'meteor_constellation') {
+      const cx = tgtWrap ? tgtWrap.ref.x : player.x;
+      const cy = tgtWrap ? tgtWrap.ref.y : player.y;
+      for (let m = 0; m < 3; m++) {
+        setTimeout(() => {
+          if (!this.rooms.has(room.id) || player.isDead) return;
+          const ox = cx + (m - 1) * 26;
+          const oy = cy + (m % 2 === 0 ? -12 : 14);
+          room.fxQueue.push({ kind: 'skyBeam', x: ox, y: oy, color: '#7dd3fc' });
+          room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'shockwave', color: '#38bdf8', ownerId: player.id, x: ox, y: oy, radius: 64, age: 0, maxAge: 0.4 });
+          for (const h of this.getAllHostilesInRadius(room, player, ox, oy, 72)) {
+            const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: h.ref, isCrit: true, isFrozen: Boolean(h.ref.freezeTimer > 0) });
+            this.applyAuthoritativeDamage(room, player, h, Math.max(5, Math.round(nums.dmg * 0.55)), true, spec.name, m === 0);
+          }
+        }, m * 240);
+      }
+      return;
+    }
+
+    if (spec.kind === 'astral_supernova') {
+      const rad = 15 * YARD_PX;
+      room.groundZones.push({ id: `gz_${crypto.randomUUID().slice(0, 6)}`, type: 'frost_ring', color: '#e0f2fe', ownerId: player.id, x: player.x, y: player.y, radius: rad, age: 0, maxAge: 0.65 });
+      for (const h of this.getAllHostilesInRadius(room, player, player.x, player.y, rad)) {
+        if (h.kind === 'entity' && h.ref.type === 'mob') {
+          const d = Math.hypot(player.x - h.ref.x, player.y - h.ref.y);
+          if (d > 16) {
+            h.ref.x += ((player.x - h.ref.x) / d) * 32;
+            h.ref.y += ((player.y - h.ref.y) / d) * 32;
+          }
+          h.ref.freezeTimer = 2.5;
+        }
+        const nums = resolveAbilityNumbers({ spec, rank, effStats, prog: player.prog, actor: player, target: h.ref, isCrit: true, isFrozen: true });
+        this.applyAuthoritativeDamage(room, player, h, nums.dmg, true, spec.name, true);
+      }
+      room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 14, text: '✨ ASTRAL SUPERNOVA!', color: '#e0f2fe', isCrit: true });
+      return;
+    }
   },
 
   addMobThreat(room, mob, player, rawAmount, { isTaunt = false, isHeal = false } = {}) {
@@ -503,8 +798,12 @@ export const combatRitesAndDamageMethods = {
       }
     }
 
-    // Solari Paragon: Holy Radiance Burst on critical strike!
+    // Solari Passive & Paragon: Sunbrand +4 Solar Charge & Holy Radiance Burst on critical strike!
     if (attackerPlayer && isCrit) {
+      if (attackerPlayer.faction === 'Solari' && t) {
+        t.sunbrandTimer = Math.max(t.sunbrandTimer || 0, 4.0);
+        this.addPlayerGlimmer(room, attackerPlayer, 4);
+      }
       const burstDmg = calcHolyRadianceBurstDmg(attackerPlayer.prog);
       if (burstDmg > 0) {
         room.fxQueue.push({ kind: 'spark', x: t.x, y: t.y, colors: ['#facc15', '#fef08a', '#ffffff'], count: 14 });
@@ -517,14 +816,38 @@ export const combatRitesAndDamageMethods = {
       }
     }
 
-    // Umbri Paragon + Weapon Imbue Crit Leech!
+    // Umbri Paragon + Dusk Marks + Graveglass Sepulcher Conduit + Weapon Imbue Crit Leech!
     if (attackerPlayer && !attackerPlayer.isDead) {
       const imbueLeech = isCrit ? getActiveCombatConsumableBonuses(attackerPlayer).critLeechPct : 0;
-      const leechPct = calcLifeLeechPct(attackerPlayer.prog, attackerPlayer.faction) * (attackerPlayer.voidformTimer > 0 ? 2 : 1) + imbueLeech;
+      const duskBonusLeech = isRite ? (attackerPlayer.activeDuskMarksSpent || 0) * 0.06 : 0;
+      const leechPct = calcLifeLeechPct(attackerPlayer.prog, attackerPlayer.faction) * (attackerPlayer.voidformTimer > 0 ? 2 : 1) + imbueLeech + duskBonusLeech;
       if (leechPct > 0) {
         const leech = Math.max(1, Math.round(dmg * leechPct));
+        const overheal = (attackerPlayer.hp + leech) - attackerPlayer.maxHp;
         attackerPlayer.hp = Math.min(attackerPlayer.maxHp, attackerPlayer.hp + leech);
+        if (overheal > 0 && attackerPlayer.classId === 'graveglass_oracle') {
+          const cap = Math.round(attackerPlayer.maxHp * (getClassPassive('graveglass_oracle').phylacteryCapRatio || 0.30));
+          attackerPlayer.shield = Math.min(cap, (attackerPlayer.shield || 0) + overheal);
+          attackerPlayer.shieldTimer = Math.max(attackerPlayer.shieldTimer || 0, 8.0);
+        }
         this.parties.syncPlayerVitals(attackerPlayer.id);
+      }
+    }
+
+    // Nexus Weaver Class Passive: Prismatic Shatter Starburst against chilled/frozen foes!
+    if (
+      attackerPlayer &&
+      attackerPlayer.classId === 'nexus_weaver' &&
+      isRite &&
+      !String(spellName).includes('Shatter') &&
+      t &&
+      ((t.freezeTimer || 0) > 0 || (t.slowTimer || 0) > 0 || (t.snareTimer || 0) > 0)
+    ) {
+      const shatterDmg = Math.max(4, Math.round(dmg * 0.45));
+      room.fxQueue.push({ kind: 'spark', x: t.x, y: t.y, colors: ['#38bdf8', '#e0f2fe', '#c084fc'], count: 16 });
+      room.fxQueue.push({ kind: 'fct', x: t.x, y: t.y - 18, text: `✨ PRISMATIC SHATTER +${shatterDmg}!`, color: '#7dd3fc', isCrit: true });
+      for (const nearby of this.getAllHostilesInRadius(room, attackerPlayer, t.x, t.y, 64)) {
+        this.applyAuthoritativeDamage(room, attackerPlayer, nearby, shatterDmg, true, 'Prismatic Shatter', false);
       }
     }
 
@@ -544,10 +867,17 @@ export const combatRitesAndDamageMethods = {
       return;
     }
 
-    // Terra Paragon & Buffs: Damage Reduction!
-    const dmgRedPct = calcDamageReduction(targetPlayer.prog) + (targetPlayer.rootedBastionTimer > 0 ? 0.40 : 0);
+    // Terra Faction Mechanic: Hits taken build Rootguard stacks
+    if (targetPlayer.faction === 'Terra') {
+      targetPlayer.rootguardStacks = Math.min(5, (targetPlayer.rootguardStacks || 0) + 1);
+    }
+
+    // Terra Paragon, Rootguard & Bastion Banner: Damage Reduction!
+    const rootguardDr = targetPlayer.faction === 'Terra' ? (targetPlayer.rootguardStacks || 0) * 0.06 : 0;
+    const bannerDr = targetPlayer.bastionBannerTimer > 0 ? 0.25 : 0;
+    const dmgRedPct = calcDamageReduction(targetPlayer.prog) + (targetPlayer.rootedBastionTimer > 0 ? 0.40 : 0) + rootguardDr + bannerDr;
     if (dmgRedPct > 0) {
-      amount = Math.max(1, Math.round(amount * (1 - Math.min(0.70, dmgRedPct))));
+      amount = Math.max(1, Math.round(amount * (1 - Math.min(0.75, dmgRedPct))));
     }
 
     // Solari Sun Aegis Rebuke Reactive Counter
@@ -563,10 +893,13 @@ export const combatRitesAndDamageMethods = {
       }
     }
 
-    // Terra Faction Mechanic: Thornbark damage reflection!
+    // Terra Faction & Stonekin Elder Mechanic: Thornbark damage reflection!
     const reflectPct = targetPlayer.thornbarkTimer > 0 ? (targetPlayer.treantFormTimer > 0 ? 0.60 : 0.35) : targetPlayer.faction === 'Terra' ? 0.15 : 0;
     if (reflectPct > 0 && attackerRef) {
-      const refl = Math.max(1, Math.round(amount * reflectPct));
+      const stonekinBonus = targetPlayer.classId === 'stonekin_elder'
+        ? Math.max(1, Math.round((getEffectiveStats(targetPlayer.prog, targetPlayer.equipment, targetPlayer.faction, targetPlayer.classId).bastion || 2) * (getClassPassive('stonekin_elder').bastionThornBonus || 0.2)))
+        : 0;
+      const refl = Math.max(1, Math.round(amount * reflectPct) + stonekinBonus);
       if (attackerRef.hp !== undefined && attackerRef.type === 'mob') {
         this.applyAuthoritativeDamage(room, targetPlayer, { kind: 'entity', ref: attackerRef }, refl, false, 'Thornbark', false);
       } else if (attackerRef.ws) {
@@ -593,6 +926,12 @@ export const combatRitesAndDamageMethods = {
     const isDueling = this.duels && this.duels.hasActiveDuel(targetPlayer.id);
 
     if (rem > 0) {
+      if ((targetPlayer.solarisDomeTimer || 0) > 0 && targetPlayer.hp - rem <= 1) {
+        targetPlayer.hp = 1;
+        room.fxQueue.push({ kind: 'fct', x: targetPlayer.x, y: targetPlayer.y - 14, text: '☀️ SOLARIS AEGIS!', color: '#fef08a', isCrit: true });
+        this.parties?.syncPlayerVitals?.(targetPlayer.id);
+        return;
+      }
       if (isDueling && targetPlayer.hp - rem <= 1) {
         targetPlayer.hp = 1;
         room.fxQueue.push({

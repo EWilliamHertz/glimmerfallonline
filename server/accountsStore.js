@@ -24,6 +24,8 @@ import {
   getProfessionLevelFromXp,
   sanitizeLoadout,
   sanitizeProgressionSkills,
+  shouldAutoRemasterRespec,
+  respecCharacterSkills,
   validateCharacterName,
   isReservedName,
   isProfane,
@@ -279,6 +281,10 @@ export class AccountsStore {
       });
       const accPreset = getOrderPresetForFaction(resolvedAcc.faction, row.order_tag);
       const accProg = this.mergeValidProgression(createDefaultProgression(), row.progression);
+    if (shouldAutoRemasterRespec(accProg)) {
+      respecCharacterSkills(accProg);
+      this.dirtyAccounts.add(row.id);
+    }
       const acc = {
         id: row.id,
         username: row.username,
@@ -322,6 +328,10 @@ export class AccountsStore {
       });
       const chPreset = getOrderPresetForFaction(resolved.faction, row.order_tag);
       const chProg = this.mergeValidProgression(createDefaultProgression(), row.progression);
+      if (shouldAutoRemasterRespec(chProg)) {
+        respecCharacterSkills(chProg);
+        this.dirtyCharacters.add(row.id);
+      }
       const ch = {
         id: row.id,
         accountId: row.account_id,
@@ -361,6 +371,10 @@ export class AccountsStore {
       orderTag: row.order_tag,
     });
     const accProg = this.mergeValidProgression(createDefaultProgression(), row.progression);
+    if (shouldAutoRemasterRespec(accProg)) {
+      respecCharacterSkills(accProg);
+      this.dirtyAccounts.add(row.id);
+    }
     const acc = {
       id: row.id,
       username: row.username,
@@ -436,6 +450,10 @@ export class AccountsStore {
             orderTag: r.order_tag,
           });
           const charProg = this.mergeValidProgression(createDefaultProgression(), r.progression);
+          if (shouldAutoRemasterRespec(charProg)) {
+            respecCharacterSkills(charProg);
+            this.dirtyCharacters.add(r.id);
+          }
           cmap.set(r.id, {
             id: r.id,
             accountId: r.account_id,
@@ -807,6 +825,16 @@ export class AccountsStore {
     const cmap = this.charactersByAccount.get(acc.id);
 
     // Update existing character if characterId passed (pure selection: do NOT mutate faction/classId unless explicitly provided)
+    const PLACEHOLDER_IDS = new Set(['local_hero', 'sp_char_starter', 'mp_char_cached', 'mp_char_default']);
+    if (characterId && !cmap.has(characterId)) {
+      if (!name || PLACEHOLDER_IDS.has(characterId)) {
+        throw new Error(`Character "${characterId}" was not found on this account.`);
+      }
+    }
+    if (!characterId && !name && !classId && !faction && cmap.size > 0) {
+      throw new Error('Explicit name or class is required to forge a new champion.');
+    }
+
     if (characterId && cmap.has(characterId)) {
       const ch = cmap.get(characterId);
       acc.activeCharacterId = ch.id;
@@ -1575,6 +1603,7 @@ export class AccountsStore {
         ? incoming.familiars.activeId
         : (base.familiars?.activeId ?? null),
     });
+    const remasterRespecV2 = Boolean(base?.remasterRespecV2 || incoming?.remasterRespecV2);
     return sanitizeProgressionSkills({
       level: lvl,
       xp,
@@ -1595,6 +1624,7 @@ export class AccountsStore {
         unlockedTitles: Array.from(unlockedTitlesSet),
       },
       equippedTitle,
+      remasterRespecV2,
     });
   }
 

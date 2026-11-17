@@ -448,6 +448,315 @@ export const ABILITIES_CATALOG = {
     lore: 'AWK #8: "Freeze the clock of destiny, and shatter their existence."',
   },
 
+  // ==========================================
+  // CLASS SPECIALIZATION ABILITIES (32 Exclusive Spells Across 8 Classes)
+  // ==========================================
+
+  // --- SOLARI VANGUARD (Main Tank / Radiant Juggernaut) ---
+  aegis_slam: {
+    id: 'aegis_slam', faction: 'Solari', classId: 'solari_vanguard',
+    name: 'Aegis Slam', short: 'AegisSlam',
+    tcgType: 'Solari Flash', tree: 'flashes', tier: 2, reqLevel: 3, maxRank: 5, prereq: 'flare_strike',
+    icon: '🛡️', kind: 'aegis_slam', range: '6.5y Slam', rangeYards: 6.5,
+    cost: 0, baseCd: 5.5, castTime: 0, color: '#facc15',
+    desc: 'Vanguard Exclusive Flash: Shield-slams target, stunning for 1.5s, generating 3.5x Taunt threat & +15 Solar Charge.',
+    lore: 'Vanguard Codex: "Hold the Sunspire threshold; let none pass."',
+  },
+  sunfire_lance: {
+    id: 'sunfire_lance', faction: 'Solari', classId: 'solari_vanguard',
+    name: 'Sunfire Lance', short: 'SunLance',
+    tcgType: 'Solari Flash', tree: 'flashes', tier: 4, reqLevel: 12, maxRank: 5, prereq: 'aegis_slam',
+    icon: '🔱', kind: 'sunfire_lance', range: '14y Leap', rangeYards: 14,
+    cost: 0, baseCd: 7.0, castTime: 0, color: '#fbbf24',
+    desc: 'Vanguard Exclusive Flash: Radiant spear leap to target, pulling nearby foes inward & applying Sunbrand.',
+    lore: 'Vanguard Codex: "Pierce the vanguard with dawnlight steel."',
+  },
+  bastion_banner: {
+    id: 'bastion_banner', faction: 'Solari', classId: 'solari_vanguard',
+    name: 'Bastion Banner', short: 'Banner',
+    tcgType: 'Solari Rite', tree: 'rites', tier: 5, reqLevel: 18, maxRank: 5, prereq: 'sunfire_lance',
+    icon: '🚩', kind: 'bastion_banner', range: '12y Aura', rangeYards: 12,
+    cost: 20, baseCd: 12.0, castTime: 0.9, color: '#facc15',
+    desc: 'Vanguard Exclusive Rite: Plants a Sunspire War-Standard granting squadmates +25% DR and pulsing radiant damage for 8s.',
+    lore: 'Vanguard Codex: "Beneath golden silk, the line never breaks."',
+  },
+  judgement_verdict: {
+    id: 'judgement_verdict', faction: 'Solari', classId: 'solari_vanguard',
+    name: 'Judgement Verdict', short: 'Verdict',
+    tcgType: 'Solari Rite', tree: 'rites', tier: 7, reqLevel: 30, maxRank: 5, prereq: 'bastion_banner',
+    icon: '⚖️', kind: 'judgement_verdict', range: '12y Verdict', rangeYards: 12,
+    cost: 35, baseCd: 15.0, castTime: 1.4, color: '#fef08a',
+    desc: 'Vanguard Apex Rite: Drops a colossal radiant hammer dealing massive damage scaled by Shield + Bastion!',
+    lore: 'Vanguard Codex: "Weighed in starlight, found wanting."',
+  },
+
+  // --- AURORA MARSHAL (Celestial Healer / Ranged Support) ---
+  starlight_mend: {
+    id: 'starlight_mend', faction: 'Solari', classId: 'aurora_marshal',
+    name: 'Starlight Mend', short: 'StarMend',
+    tcgType: 'Solari Rite', tree: 'rites', tier: 2, reqLevel: 3, maxRank: 5, prereq: 'flare_strike',
+    icon: '🌟', kind: 'starlight_mend', range: '16y Chain', rangeYards: 16,
+    cost: 0, baseCd: 3.8, castTime: 0.85, color: '#fde047',
+    desc: 'Marshal Exclusive Rite: Radiant surge healing self and bouncing to the lowest-HP ally (overheal becomes Radiant Barrier!).',
+    lore: 'Marshal Codex: "Not a single soul fades beneath the Marshal\'s watch."',
+  },
+  aurora_beam: {
+    id: 'aurora_beam', faction: 'Solari', classId: 'aurora_marshal',
+    name: 'Aurora Beam', short: 'AuroraBeam',
+    tcgType: 'Solari Rite', tree: 'rites', tier: 4, reqLevel: 12, maxRank: 5, prereq: 'starlight_mend',
+    icon: '🌈', kind: 'aurora_beam', range: '22y Beam', rangeYards: 22,
+    cost: 15, baseCd: 5.5, castTime: 1.0, color: '#fef08a',
+    desc: 'Marshal Exclusive Rite: Fires a searing solar prism beam scorching foes & healing nearby squadmates.',
+    lore: 'Marshal Codex: "Light refracted through faith burns corruption to ash."',
+  },
+  purifying_halo: {
+    id: 'purifying_halo', faction: 'Solari', classId: 'aurora_marshal',
+    name: 'Purifying Halo', short: 'Purify',
+    tcgType: 'Solari Flash', tree: 'flashes', tier: 5, reqLevel: 18, maxRank: 5, prereq: 'aurora_beam',
+    icon: '💫', kind: 'purifying_halo', range: '12y Cleanse', rangeYards: 12,
+    cost: 0, baseCd: 8.5, castTime: 0, color: '#bae6fd',
+    desc: 'Marshal Exclusive Flash: Instant AoE cleanse purging all snares/weakens on squad & granting +30% speed for 4s.',
+    lore: 'Marshal Codex: "A single chime unbinds every shadow curse."',
+  },
+  solaris_apotheosis: {
+    id: 'solaris_apotheosis', faction: 'Solari', classId: 'aurora_marshal',
+    name: 'Solaris Apotheosis', short: 'Sanctuary',
+    tcgType: 'Solari Rite', tree: 'rites', tier: 7, reqLevel: 30, maxRank: 5, prereq: 'purifying_halo',
+    icon: '🌞', kind: 'solaris_apotheosis', range: '14y Dome', rangeYards: 14,
+    cost: 35, baseCd: 16.0, castTime: 1.3, color: '#fde047', healNexus: true,
+    desc: 'Marshal Apex Rite: Summons a golden Sanctuary Dome for 6s surging ally HP/Glimmer & mending allied Outpost Nexus!',
+    lore: 'Marshal Codex: "Let the eternal dawn crown the Citadel."',
+  },
+
+  // --- UMBRAL ASSASSIN (Melee Stealth Burst / Executioner) ---
+  serrated_mutilate: {
+    id: 'serrated_mutilate', faction: 'Umbri', classId: 'umbral_assassin',
+    name: 'Serrated Mutilate', short: 'Mutilate',
+    tcgType: 'Umbri Flash', tree: 'flashes', tier: 2, reqLevel: 3, maxRank: 5, prereq: 'whisper_of_the_void',
+    icon: '🗡️', kind: 'serrated_mutilate', range: '6.5y Twin', rangeYards: 6.5,
+    cost: 0, baseCd: 3.2, castTime: 0, color: '#e879f9',
+    desc: 'Assassin Exclusive Flash: Instant twin-fang strike dealing double-hit shadow DMG & granting +2 Dusk Marks.',
+    lore: 'Syndicate Codex: "Two blades enter the ribs before the breath escapes."',
+  },
+  crimson_rupture: {
+    id: 'crimson_rupture', faction: 'Umbri', classId: 'umbral_assassin',
+    name: 'Crimson Rupture', short: 'Rupture',
+    tcgType: 'Umbri Flash', tree: 'flashes', tier: 4, reqLevel: 12, maxRank: 5, prereq: 'serrated_mutilate',
+    consumesDuskMarks: true,
+    icon: '🩸', kind: 'crimson_rupture', range: '7.0y Bleed', rangeYards: 7.0,
+    cost: 0, baseCd: 5.5, castTime: 0, color: '#f43f5e',
+    desc: 'Assassin Exclusive Finisher: Consumes all Dusk Marks for a ferocious shadow bleed (+25% DMG per Mark!).',
+    lore: 'Syndicate Codex: "Bleed out the light, drop by crimson drop."',
+  },
+  smoke_bomb: {
+    id: 'smoke_bomb', faction: 'Umbri', classId: 'umbral_assassin',
+    name: 'Umbral Smoke Bomb', short: 'SmokeBomb',
+    tcgType: 'Umbri Flash', tree: 'flashes', tier: 5, reqLevel: 18, maxRank: 5, prereq: 'crimson_rupture',
+    icon: '💨', kind: 'smoke_bomb', range: '8y Cloud', rangeYards: 8,
+    cost: 0, baseCd: 9.5, castTime: 0, color: '#a855f7',
+    desc: 'Assassin Exclusive Flash: Drops a 6s twilight smoke veil granting Stealth, +100% Ambush Crit & blinding nearby foes.',
+    lore: 'Syndicate Codex: "Vanish inside the ink between heartbeats."',
+  },
+  phantom_sever: {
+    id: 'phantom_sever', faction: 'Umbri', classId: 'umbral_assassin',
+    name: 'Phantom Sever', short: 'Sever',
+    tcgType: 'Umbri Flash', tree: 'flashes', tier: 7, reqLevel: 30, maxRank: 5, prereq: 'smoke_bomb',
+    icon: '🌑', kind: 'phantom_sever', range: '14y Blitz', rangeYards: 14,
+    cost: 30, baseCd: 15.0, castTime: 0, color: '#c084fc',
+    desc: 'Assassin Apex Flash: Shadow clones omni-slash up to 5 enemies within 14y for guaranteed Critical Strikes!',
+    lore: 'Syndicate Codex: "Five blades, one shadow, zero survivors."',
+  },
+
+  // --- GRAVEGLASS ORACLE (Blood-Hex Reaper / Drain Caster) ---
+  hex_of_frailty: {
+    id: 'hex_of_frailty', faction: 'Umbri', classId: 'graveglass_oracle',
+    name: 'Hex of Frailty', short: 'Hex',
+    tcgType: 'Umbri Flash', tree: 'flashes', tier: 2, reqLevel: 3, maxRank: 5, prereq: 'whisper_of_the_void',
+    icon: '🧿', kind: 'hex_of_frailty', range: '20y Curse', rangeYards: 20,
+    cost: 0, baseCd: 4.5, castTime: 0, color: '#c084fc',
+    desc: 'Oracle Exclusive Flash: Curses target for 8s (-20% ATK, +20% incoming Rite DMG) & grants +1 Dusk Mark.',
+    lore: 'Sepulcher Codex: "Speak their true name in broken mirror-glass."',
+  },
+  graveglass_shardburst: {
+    id: 'graveglass_shardburst', faction: 'Umbri', classId: 'graveglass_oracle',
+    name: 'Graveglass Shardburst', short: 'Shards',
+    tcgType: 'Umbri Rite', tree: 'rites', tier: 4, reqLevel: 12, maxRank: 5, prereq: 'hex_of_frailty',
+    icon: '🔮', kind: 'shardburst', projType: 'void_orb', range: '22y Volley', rangeYards: 22,
+    cost: 15, baseCd: 5.5, castTime: 0.95, color: '#e879f9',
+    desc: 'Oracle Exclusive Rite: Hurls homing graveglass shards shattering for heavy shadow DMG & siphoning 45% as HP.',
+    lore: 'Sepulcher Codex: "Every shard drinks deep and remembers."',
+  },
+  soul_covenant: {
+    id: 'soul_covenant', faction: 'Umbri', classId: 'graveglass_oracle',
+    name: 'Soul Covenant', short: 'Covenant',
+    tcgType: 'Umbri Rite', tree: 'rites', tier: 5, reqLevel: 18, maxRank: 5, prereq: 'graveglass_shardburst',
+    icon: '🩸', kind: 'soul_covenant', range: '10y Pact', rangeYards: 10,
+    cost: 0, baseCd: 9.0, castTime: 0.9, color: '#e11d48',
+    desc: 'Oracle Exclusive Rite: Sacrifices 12% current HP for a massive blood-nova, +45 Glimmer & Blood Phylactery shield!',
+    lore: 'Sepulcher Codex: "Power demands tribute; pay in crimson."',
+  },
+  harbingers_requiem: {
+    id: 'harbingers_requiem', faction: 'Umbri', classId: 'graveglass_oracle',
+    name: "Harbinger's Requiem", short: 'Requiem',
+    tcgType: 'Umbri Rite', tree: 'rites', tier: 7, reqLevel: 30, maxRank: 5, prereq: 'soul_covenant',
+    icon: '💀', kind: 'harbingers_requiem', range: '14y Drain', rangeYards: 14,
+    cost: 35, baseCd: 15.5, castTime: 1.4, color: '#a855f7',
+    desc: 'Oracle Apex Rite: Drains all foes in 14y simultaneously, healing 75% of total damage & slowing by 50%!',
+    lore: 'Sepulcher Codex: "Sing the final chord of dusk over silent bone."',
+  },
+
+  // --- FOREST WARDEN (Primal Bruiser / Spear & Poison) ---
+  gale_spear: {
+    id: 'gale_spear', faction: 'Terra', classId: 'forest_warden',
+    name: 'Gale Spear', short: 'GaleSpear',
+    tcgType: 'Terra Flash', tree: 'flashes', tier: 2, reqLevel: 3, maxRank: 5, prereq: 'tectonic_slam',
+    icon: '🔱', kind: 'gale_spear', projType: 'spear', range: '16y Dash', rangeYards: 16,
+    cost: 0, baseCd: 4.5, castTime: 0, color: '#4ade80',
+    desc: 'Warden Exclusive Flash: Hurls an emerald spear and surges forward, poisoning foes & stacking +1 Rootguard.',
+    lore: 'Rootdeep Codex: "Swift as wind through ironwood boughs."',
+  },
+  spore_volley: {
+    id: 'spore_volley', faction: 'Terra', classId: 'forest_warden',
+    name: 'Spore Volley', short: 'Spores',
+    tcgType: 'Terra Rite', tree: 'rites', tier: 4, reqLevel: 12, maxRank: 5, prereq: 'gale_spear',
+    icon: '🍄', kind: 'spore_volley', range: '12y Cone', rangeYards: 12,
+    cost: 15, baseCd: 6.5, castTime: 0.9, color: '#a3e635',
+    desc: 'Warden Exclusive Rite: Unleashes toxic Rootdeep spores dealing nature damage over time & healing self.',
+    lore: 'Rootdeep Codex: "Even beauty in the Orchard bears a venomous thorn."',
+  },
+  pack_hunt: {
+    id: 'pack_hunt', faction: 'Terra', classId: 'forest_warden',
+    name: 'Pack Hunt', short: 'PackHunt',
+    tcgType: 'Terra Flash', tree: 'flashes', tier: 5, reqLevel: 18, maxRank: 5, prereq: 'spore_volley',
+    icon: '🐺', kind: 'pack_hunt', range: '12y Rush', rangeYards: 12,
+    cost: 0, baseCd: 9.0, castTime: 0, color: '#86efac',
+    desc: 'Warden Exclusive Flash: Unleashes phantom Ironwood Wolves shredding enemies in 10y, +35% speed & +20 Glimmer!',
+    lore: 'Rootdeep Codex: "The pack runs wherever the Warden points the spear."',
+  },
+  tempest_of_thorns: {
+    id: 'tempest_of_thorns', faction: 'Terra', classId: 'forest_warden',
+    name: 'Tempest of Thorns', short: 'Tempest',
+    tcgType: 'Terra Rite', tree: 'rites', tier: 7, reqLevel: 30, maxRank: 5, prereq: 'pack_hunt',
+    icon: '🌪️', kind: 'tempest_thorns', range: '14y Whirl', rangeYards: 14,
+    cost: 35, baseCd: 15.0, castTime: 1.3, color: '#22c55e',
+    desc: 'Warden Apex Rite: Whirlwind razor-leaf storm cleaving all enemies in 14y for devastating nature CRIT damage!',
+    lore: 'Rootdeep Codex: "Every leaf becomes a blade in the emerald gale."',
+  },
+
+  // --- STONEKIN ELDER (Colossal Tank / Seismic Control) ---
+  seismic_taunt: {
+    id: 'seismic_taunt', faction: 'Terra', classId: 'stonekin_elder',
+    name: 'Seismic Taunt', short: 'Seismic',
+    tcgType: 'Terra Flash', tree: 'flashes', tier: 2, reqLevel: 3, maxRank: 5, prereq: 'tectonic_slam',
+    icon: '🪨', kind: 'seismic_taunt', range: '12y Taunt', rangeYards: 12,
+    cost: 0, baseCd: 6.0, castTime: 0, color: '#4ade80',
+    desc: 'Elder Exclusive Flash: Earth-tremor challenge forcing 3.5x Taunt threat in 12y, weakening foes & +1 Rootguard!',
+    lore: 'Elder Codex: "Strike the bedrock, and every beast turns toward the mountain."',
+  },
+  monolith_wall: {
+    id: 'monolith_wall', faction: 'Terra', classId: 'stonekin_elder',
+    name: 'Monolith Bulwark', short: 'Monolith',
+    tcgType: 'Terra Rite', tree: 'rites', tier: 4, reqLevel: 12, maxRank: 5, prereq: 'seismic_taunt',
+    icon: '🗿', kind: 'monolith_wall', range: 'Self/10y', rangeYards: 10,
+    cost: 15, baseCd: 10.0, castTime: 0.85, color: '#84cc16',
+    desc: 'Elder Exclusive Rite: Encases Elder in living granite (+30 + 4×Bastion Shield & 50% Thornbark reflect for 7s)!',
+    lore: 'Elder Codex: "Shatter your blade upon the unyielding cliff."',
+  },
+  earthen_grasp: {
+    id: 'earthen_grasp', faction: 'Terra', classId: 'stonekin_elder',
+    name: 'Earthen Grasp', short: 'Grasp',
+    tcgType: 'Terra Rite', tree: 'rites', tier: 5, reqLevel: 18, maxRank: 5, prereq: 'monolith_wall',
+    icon: '🌿', kind: 'earthen_grasp', range: '11y Pull', rangeYards: 11,
+    cost: 20, baseCd: 9.5, castTime: 1.0, color: '#16a34a',
+    desc: 'Elder Exclusive Rite: Stony roots erupt to drag all foes in 11y to your feet and stun/snare for 2.5s!',
+    lore: 'Elder Codex: "The deep earth pulls all trespassers down."',
+  },
+  tectonic_cataclysm: {
+    id: 'tectonic_cataclysm', faction: 'Terra', classId: 'stonekin_elder',
+    name: 'Tectonic Cataclysm', short: 'Cataclysm',
+    tcgType: 'Terra Rite', tree: 'rites', tier: 7, reqLevel: 30, maxRank: 5, prereq: 'earthen_grasp',
+    icon: '🌋', kind: 'tectonic_cataclysm', range: '15y Quake', rangeYards: 15,
+    cost: 35, baseCd: 16.0, castTime: 1.4, color: '#22c55e',
+    desc: 'Elder Apex Rite: Triple-shockwave seismic slam dealing colossal earth damage & fortifying +120 Shield!',
+    lore: 'Elder Codex: "When the Stonekin strikes in wrath, continents split."',
+  },
+
+  // --- CHRONOMANCER SAGE (Time Control / Cooldown & Echo Maestro) ---
+  temporal_anchor: {
+    id: 'temporal_anchor', faction: 'Aether', classId: 'chronomancer_sage',
+    name: 'Temporal Anchor', short: 'Anchor',
+    tcgType: 'Aether Flash', tree: 'flashes', tier: 2, reqLevel: 3, maxRank: 5, prereq: 'reality_fracture',
+    icon: '⚓', kind: 'temporal_anchor', range: 'Self/Recall', rangeYards: 16,
+    cost: 0, baseCd: 8.5, castTime: 0, color: '#38bdf8',
+    desc: 'Chronomancer Exclusive Flash: Sets a Time Anchor (6s); cast again to rewind position, heal 30% HP & reset Flash CDs!',
+    lore: 'Mirrorgate Codex: "Always keep a foothold three seconds in the past."',
+  },
+  sands_of_lethargy: {
+    id: 'sands_of_lethargy', faction: 'Aether', classId: 'chronomancer_sage',
+    name: 'Sands of Lethargy', short: 'TimeField',
+    tcgType: 'Aether Rite', tree: 'rites', tier: 4, reqLevel: 12, maxRank: 5, prereq: 'temporal_anchor',
+    icon: '⌛', kind: 'ground_zone', zoneType: 'gravity', range: '9.5y Field', rangeYards: 9.5,
+    cost: 15, baseCd: 8.0, castTime: 0.95, color: '#7dd3fc',
+    desc: 'Chronomancer Exclusive Rite: Creates a 6s chrono-dilation field slowing enemies by 55% & ticking arcane DMG.',
+    lore: 'Mirrorgate Codex: "To the trapped, each heartbeat stretches into an hour."',
+  },
+  echoing_paradox: {
+    id: 'echoing_paradox', faction: 'Aether', classId: 'chronomancer_sage',
+    name: 'Echoing Paradox', short: 'Paradox',
+    tcgType: 'Aether Flash', tree: 'flashes', tier: 5, reqLevel: 18, maxRank: 5, prereq: 'sands_of_lethargy',
+    icon: '🪞', kind: 'echoing_paradox', range: '22y Echo', rangeYards: 22,
+    cost: 15, baseCd: 7.5, castTime: 0, color: '#e0f2fe',
+    desc: 'Chronomancer Exclusive Flash: Fires an instant arcane echo beam, primes guaranteed Spell Echo & shaves 2s off all CDs!',
+    lore: 'Mirrorgate Codex: "Borrow tomorrow\'s spell to finish today\'s battle."',
+  },
+  fractured_timeline: {
+    id: 'fractured_timeline', faction: 'Aether', classId: 'chronomancer_sage',
+    name: 'Fractured Timeline', short: 'Timeline',
+    tcgType: 'Aether Rite', tree: 'rites', tier: 7, reqLevel: 30, maxRank: 5, prereq: 'echoing_paradox',
+    icon: '🕰️', kind: 'fractured_timeline', range: '20y Barrage', rangeYards: 20,
+    cost: 35, baseCd: 15.5, castTime: 1.35, color: '#38bdf8',
+    desc: 'Chronomancer Apex Rite: Unleashes 3 staggered temporal echo blasts from alternate timelines!',
+    lore: 'Mirrorgate Codex: "Three versions of you cast as one."',
+  },
+
+  // --- NEXUS WEAVER (Elemental Starfall Battlemage / Shatter Combo) ---
+  glacial_spike: {
+    id: 'glacial_spike', faction: 'Aether', classId: 'nexus_weaver',
+    name: 'Glacial Spike', short: 'Glacial',
+    tcgType: 'Aether Rite', tree: 'rites', tier: 2, reqLevel: 3, maxRank: 5, prereq: 'reality_fracture',
+    icon: '🧊', kind: 'glacial_spike', projType: 'aether_orb', range: '24y Lance', rangeYards: 24,
+    cost: 0, baseCd: 3.6, castTime: 0.8, color: '#bae6fd',
+    desc: 'Weaver Exclusive Rite: Fires a star-ice spear that freezes target for 2.2s and primes Prismatic Shatter!',
+    lore: 'Mirrorgate Codex: "Starlight cooled to absolute stillness."',
+  },
+  arcane_tether: {
+    id: 'arcane_tether', faction: 'Aether', classId: 'nexus_weaver',
+    name: 'Arcane Tether', short: 'Tether',
+    tcgType: 'Aether Flash', tree: 'flashes', tier: 4, reqLevel: 12, maxRank: 5, prereq: 'glacial_spike',
+    icon: '⚡', kind: 'arcane_tether', range: '18y Chain', rangeYards: 18,
+    cost: 0, baseCd: 6.0, castTime: 0, color: '#38bdf8',
+    desc: 'Weaver Exclusive Flash: Lightning-tethers nearby foes, stunning for 1.5s & restoring +25 Glimmer!',
+    lore: 'Mirrorgate Codex: "Bind their soul to the leyline current."',
+  },
+  meteor_constellation: {
+    id: 'meteor_constellation', faction: 'Aether', classId: 'nexus_weaver',
+    name: 'Meteor Constellation', short: 'Meteors',
+    tcgType: 'Aether Rite', tree: 'rites', tier: 5, reqLevel: 18, maxRank: 5, prereq: 'arcane_tether',
+    icon: '☄️', kind: 'meteor_constellation', range: '16y Starfall', rangeYards: 16,
+    cost: 25, baseCd: 9.0, castTime: 1.1, color: '#7dd3fc',
+    desc: 'Weaver Exclusive Rite: Calls down cascading star-meteors (+45% Shatter bonus vs frozen targets)!',
+    lore: 'Mirrorgate Codex: "Pull the heavens down upon fractured stone."',
+  },
+  astral_supernova: {
+    id: 'astral_supernova', faction: 'Aether', classId: 'nexus_weaver',
+    name: 'Astral Supernova', short: 'Supernova',
+    tcgType: 'Aether Rite', tree: 'rites', tier: 7, reqLevel: 30, maxRank: 5, prereq: 'meteor_constellation',
+    icon: '✨', kind: 'astral_supernova', range: '15y Shatter', rangeYards: 15,
+    cost: 35, baseCd: 15.5, castTime: 1.4, color: '#e0f2fe',
+    desc: 'Weaver Apex Rite: Pulls enemies into a prismatic core, freezing & shattering for colossal Arcane CRIT damage!',
+    lore: 'Mirrorgate Codex: "Witness the birth and shatter of a star."',
+  },
+
   // === CORE RULE ===
   harvest: {
     id: 'harvest', faction: 'All', name: 'Ready Glimmer Node', short: 'Glimmer',
@@ -489,15 +798,19 @@ export function getAbilityRank(prog, abilityId) {
   return 0;
 }
 
-export function sanitizeProgressionSkills(prog) {
+export function sanitizeProgressionSkills(prog, classId = null) {
   if (!prog || typeof prog !== 'object') return prog;
   if (!prog.skills || typeof prog.skills !== 'object') prog.skills = {};
   const charLevel = Math.max(1, Math.floor(Number(prog.level) || 1));
 
-  // 1. Strip unknown abilities and any non-starter ability whose reqLevel exceeds charLevel
+  // 1. Strip unknown abilities, mismatched classId abilities, and over-level skills
   for (const [abId, rawRank] of Object.entries(prog.skills)) {
     const spec = ABILITIES_CATALOG[abId];
     if (!spec) {
+      delete prog.skills[abId];
+      continue;
+    }
+    if (classId && spec.classId && spec.classId !== classId) {
       delete prog.skills[abId];
       continue;
     }
@@ -542,7 +855,6 @@ export function sanitizeProgressionSkills(prog) {
   };
 
   if (calcSpent() > maxSpent) {
-    // Trim excess phantom ranks starting from highest tier/reqLevel downward, and later-injected entries first
     const candidates = Object.keys(prog.skills)
       .reverse()
       .map((id) => ABILITIES_CATALOG[id])
@@ -568,9 +880,10 @@ export function sanitizeProgressionSkills(prog) {
   return prog;
 }
 
-export function canUpgradeAbility(prog, abilityId) {
+export function canUpgradeAbility(prog, abilityId, classId = null) {
   const spec = ABILITIES_CATALOG[abilityId];
   if (!spec) return false;
+  if (classId && spec.classId && spec.classId !== classId) return false;
   const curRank = getAbilityRank(prog, abilityId);
   if (curRank >= (spec.maxRank || 5)) return false;
   if ((prog?.skillPoints || 0) <= 0) return false;
@@ -580,6 +893,38 @@ export function canUpgradeAbility(prog, abilityId) {
     if (prereqRank < 1) return false;
   }
   return true;
+}
+
+export function shouldAutoRemasterRespec(prog) {
+  if (!prog || typeof prog !== 'object' || prog.remasterRespecV2) return false;
+  const skills = prog.skills || {};
+  const hasPreRemasterInvestments = Object.entries(skills).some(([id, rank]) => {
+    const spec = ABILITIES_CATALOG[id];
+    if (!spec || spec.classId) return false;
+    return (spec.tier || 1) > 1 ? Number(rank) > 0 : Number(rank) > 1;
+  });
+  const hasClassSpecSkill = Object.keys(skills).some((id) => Boolean(ABILITIES_CATALOG[id]?.classId));
+  return hasPreRemasterInvestments && !hasClassSpecSkill;
+}
+
+export function respecCharacterSkills(prog) {
+  if (!prog || typeof prog !== 'object') return { respecced: false, refunded: 0, skillPoints: 1 };
+  const charLevel = Math.max(1, Math.floor(Number(prog.level) || 1));
+  const prevUnspent = Math.max(0, Math.floor(Number(prog.skillPoints) || 0));
+  prog.skills = {
+    flare_strike: 1,
+    whisper_of_the_void: 1,
+    tectonic_slam: 1,
+    reality_fracture: 1,
+  };
+  prog.ranks = { 1: 1, 2: 0, 3: 0, 4: 0, 9: 0, 10: 0, 11: 0, 12: 0 };
+  prog.skillPoints = charLevel;
+  prog.remasterRespecV2 = true;
+  return {
+    respecced: true,
+    refunded: Math.max(0, charLevel - prevUnspent),
+    skillPoints: prog.skillPoints,
+  };
 }
 
 export function getRankStats(ability, rank = 1) {

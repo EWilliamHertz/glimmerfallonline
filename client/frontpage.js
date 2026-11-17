@@ -20,6 +20,14 @@ import { renderEquipmentModal } from './equipmentUi.js';
 const SP_STORAGE_KEY = 'glimmerfall_sp_roster_v2';
 const SP_ACTIVE_KEY = 'glimmerfall_sp_active_id';
 
+function formatStatNum(val, fallback = 0) {
+  if (val == null || val === '') return fallback;
+  const num = Number(val);
+  if (!Number.isFinite(num)) return fallback;
+  const rounded = Math.round(num * 10) / 10;
+  return Number.isInteger(rounded) ? rounded : Number(rounded.toFixed(1));
+}
+
 export const FRONTPAGE_STATES = {
   CHARACTER_SELECT: 'CHARACTER_SELECT', // Default View: Vanguard Character Loadout & Pedestal
   CHARACTER_CREATE: 'CHARACTER_CREATE', // Distinct View: Champion Forge & Archetype Picker
@@ -41,6 +49,7 @@ export class FrontpageController {
     this.previewAnimTimer = null;
     this.previewDirIdx = 0;
     this.previewFrame = 0;
+    this.previewPose = 'idle';
     this._lastRenderSig = '';
 
     // Realm Mode: 'singleplayer' (zero lag / local) or 'multiplayer' (online authoritative)
@@ -81,9 +90,51 @@ export class FrontpageController {
       this.savedPassword = '';
     }
     this.isAutoLoggingIn = false;
+    this.realmStatus = null;
 
     // Initialize Single Player default roster if none exists
     this.ensureSinglePlayerDefaults();
+  }
+
+  async refreshRealmStatus() {
+    if (!this.net || typeof this.net.getRealmStatus !== 'function') return null;
+    try {
+      const status = await this.net.getRealmStatus(2200);
+      const prevSig = this.realmStatus ? `${this.realmStatus.reachable}:${this.realmStatus.dbConnected}:${this.realmStatus.base}:${this.realmStatus.isCloudShellAuthRedirect}` : '';
+      const nextSig = `${status.reachable}:${status.dbConnected}:${status.base}:${status.isCloudShellAuthRedirect}`;
+      this.realmStatus = status;
+      if (this.isOpen && prevSig !== nextSig && this.state === FRONTPAGE_STATES.CHARACTER_SELECT) {
+        this.render();
+      }
+      return status;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async switchRealmBackend(targetUrl = '') {
+    if (!this.net || typeof this.net.setServerBase !== 'function') return;
+    const isGuestLow = Boolean(
+      this.net.profile?.isGuest &&
+      (this.net.profile?.progression?.level || 1) <= 1 &&
+      (!Array.isArray(this.net.profile?.characters) || this.net.profile.characters.every((c) => (c.progression?.level || 1) <= 1))
+    );
+    if (isGuestLow) {
+      this.net.saveStoredToken?.(null);
+      this.net.profile = null;
+      this.selectedCharacterId = null;
+    }
+    this.authMessage = targetUrl ? `⏳ Connecting to ${targetUrl.replace(/^https?:\/\//, '')}...` : '⏳ Switching to local dev server (:3001)...';
+    if (this.isOpen) this.render();
+    this.net.setServerBase(targetUrl);
+    await this.refreshRealmStatus();
+    if (this.rememberMe && this.savedUsername && this.savedPassword) {
+      await this.tryAutoLogin(true);
+    } else if (this.net.bootstrapAndConnect) {
+      await this.net.bootstrapAndConnect().catch(() => {});
+      if (this.net.profile) this.syncFromProfile(this.net.profile);
+      else if (this.isOpen) this.render();
+    }
   }
 
   toggleRememberMe(checked) {
@@ -98,7 +149,7 @@ export class FrontpageController {
     if (this.isOpen) this.render();
   }
 
-  async tryAutoLogin() {
+  async tryAutoLogin(interactive = false) {
     if (!this.rememberMe || !this.net) return false;
     if (this.net.profile && !this.net.profile.isGuest) {
       this.syncFromProfile(this.net.profile);
@@ -106,6 +157,10 @@ export class FrontpageController {
     }
     if (this.isAutoLoggingIn) return false;
     this.isAutoLoggingIn = true;
+    if (interactive) {
+      this.authMessage = `⏳ Signing into @${this.savedUsername || 'account'}...`;
+      if (this.isOpen) this.render();
+    }
 
     try {
       if (this.savedUsername && this.savedPassword) {
@@ -146,6 +201,10 @@ export class FrontpageController {
       }
     } catch (err) {
       console.warn('[Frontpage] Auto-login attempt failed:', err.message);
+      if (interactive) {
+        this.authMessage = `⚠️ ${err.message}`;
+        if (this.isOpen) this.render();
+      }
     } finally {
       this.isAutoLoggingIn = false;
     }
@@ -227,24 +286,7 @@ export class FrontpageController {
         homeBiome: ROOM_TYPES.SANCTUARY_HUB,
       }];
     }
-    // If still connecting, use cached local profile as placeholder so user is NEVER blocked with pointer-events:none
-    if (typeof window !== 'undefined' && window.localProfile) {
-      const lp = window.localProfile;
-      return [{
-        id: lp.id || 'mp_char_cached',
-        name: lp.displayName || 'Champion',
-        faction: lp.faction || 'Solari',
-        classId: lp.classId || 'solari_vanguard',
-        orderTag: lp.orderTag || 'SUN',
-        equipment: lp.equipment || {},
-        loadout: lp.loadout || {},
-        inventory: lp.inventory || [],
-        bank: lp.bank || [],
-        progression: createDefaultProgression(),
-        homeBiome: ROOM_TYPES.SANCTUARY_HUB,
-      }];
-    }
-    // Fallback: Check cached network profile
+    // Fallback: Check cached multiplayer profile BEFORE generic local Solari placeholder
     const cachedProfile = this.net?.loadCachedProfile?.();
     if (cachedProfile) {
       const cChars = cachedProfile.characters;
@@ -261,12 +303,31 @@ export class FrontpageController {
         bank: cachedProfile.bank || [],
         progression: cachedProfile.progression || createDefaultProgression(),
         homeBiome: ROOM_TYPES.SANCTUARY_HUB,
+        isPlaceholder: !cachedProfile.activeCharacterId,
       }];
     }
-    // Fallback to offline singleplayer roster so buttons are ALWAYS clickable
+    // If still connecting with no cached cloud roster yet, expose local fallback tagged as placeholder
+    if (typeof window !== 'undefined' && window.localProfile) {
+      const lp = window.localProfile;
+      return [{
+        id: lp.id || 'mp_char_cached',
+        name: lp.displayName || 'Champion',
+        faction: lp.faction || 'Solari',
+        classId: lp.classId || 'solari_vanguard',
+        orderTag: lp.orderTag || 'SUN',
+        equipment: lp.equipment || {},
+        loadout: lp.loadout || {},
+        inventory: lp.inventory || [],
+        bank: lp.bank || [],
+        progression: createDefaultProgression(),
+        homeBiome: ROOM_TYPES.SANCTUARY_HUB,
+        isPlaceholder: true,
+      }];
+    }
+    // Fallback to offline singleplayer roster so UI controls stay responsive
     const spFallback = this.getSinglePlayerRoster();
     if (Array.isArray(spFallback) && spFallback.length > 0) {
-      return spFallback;
+      return spFallback.map((c) => ({ ...c, isPlaceholder: true }));
     }
     return [{
       id: 'sp_char_starter',
@@ -280,6 +341,7 @@ export class FrontpageController {
       bank: [],
       progression: createDefaultProgression(),
       homeBiome: ROOM_TYPES.SANCTUARY_HUB,
+      isPlaceholder: true,
     }];
   }
 
@@ -402,6 +464,7 @@ export class FrontpageController {
         this.creationError || '',
         this.rememberMe ? '1' : '0',
         this.creationDraft ? JSON.stringify(this.creationDraft) : '',
+        this.previewPose || 'idle',
         charSummary,
       ].join('::');
     } catch (_) {
@@ -578,7 +641,12 @@ export class FrontpageController {
       };
     }
 
-    if (this.net?.connected) {
+    const isPlaceholderChar = Boolean(
+      chosenChar.isPlaceholder ||
+      ['local_hero', 'sp_char_starter', 'mp_char_cached', 'mp_char_default'].includes(chosenChar.id)
+    );
+
+    if (this.net?.connected && !isPlaceholderChar) {
       try {
         const res = await this.net.wsRpc('save_character', {
           characterId: chosenChar.id,
@@ -596,7 +664,7 @@ export class FrontpageController {
       } catch (err) {
         console.warn('[Frontpage] wsRpc character selection warning:', err?.message || err);
       }
-    } else {
+    } else if (!isPlaceholderChar) {
       if (this.net) {
         this.net.preferredCharacterId = chosenChar.id;
         this.net.selectedCharacterId = chosenChar.id;
@@ -609,6 +677,10 @@ export class FrontpageController {
         x: startX,
         y: startY,
       }).catch(() => {});
+      this.net?.connectWebSocket(true);
+    } else {
+      // Placeholder character must NEVER invoke save_character (which would mint a Lv.1 Solari Vanguard on the account)
+      this.net?.bootstrapAndConnect?.().catch(() => {});
       this.net?.connectWebSocket(true);
     }
 
@@ -1052,6 +1124,9 @@ export class FrontpageController {
         console.error('[Frontpage] Error during render:', err);
       }
       this.startPreviewLoop();
+      if (this.playMode === 'multiplayer') {
+        this.refreshRealmStatus();
+      }
     }
   }
 
@@ -1065,18 +1140,25 @@ export class FrontpageController {
     this.previewAnimTimer = null;
   }
 
+  setPreviewPose(pose = 'idle') {
+    const valid = ['idle', 'slash', 'cast', 'guard', 'dash'];
+    this.previewPose = valid.includes(pose) ? pose : 'idle';
+    this.drawPaperdollPreviewCanvas('fp-paperdoll-canvas', 'down', 0, this.previewPose);
+    this._lastRenderSig = '';
+    this.render();
+  }
+
   startPreviewLoop() {
     clearInterval(this.previewAnimTimer);
     this.previewAnimTimer = setInterval(() => {
       if (!this.isOpen) return;
       this.previewFrame = (this.previewFrame + 1) % 12;
-      // Heroic stance: facing camera (down) in neutral stance (frame 0) matching in-game idle
-      this.drawPaperdollPreviewCanvas('fp-paperdoll-canvas', 'down', 0);
+      this.drawPaperdollPreviewCanvas('fp-paperdoll-canvas', 'down', 0, this.previewPose || 'idle');
     }, 500);
     this.previewAnimTimer?.unref?.();
   }
 
-  drawPaperdollPreviewCanvas(canvasId, dir = 'down', frameIdx = 0) {
+  drawPaperdollPreviewCanvas(canvasId, dir = 'down', frameIdx = 0, pose = 'idle') {
     try {
       if (typeof document === 'undefined') return;
       const cv = document.getElementById(canvasId);
@@ -1140,7 +1222,8 @@ export class FrontpageController {
       if (!set) return;
       const dirFrames = set[dir] || set.down;
       if (!dirFrames || !dirFrames.length) return;
-      const img = dirFrames[frameIdx % dirFrames.length];
+      const poseImg = pose && pose !== 'idle' && set.poses?.[pose]?.[dir] ? set.poses[pose][dir] : null;
+      const img = poseImg || dirFrames[frameIdx % dirFrames.length];
       if (!img) return;
 
       const scale = 3;
@@ -1328,7 +1411,7 @@ export class FrontpageController {
               <input id="fp-auth-user" class="pixel-input" placeholder="GlimmerFall ID" value="${this.savedUsername || prof?.username || ''}" maxlength="18" style="font-size:10px; padding:3px 6px; width:100px;" />
               <input id="fp-auth-pass" class="pixel-input" type="password" placeholder="Password" value="${this.savedPassword || ''}" maxlength="48" style="font-size:10px; padding:3px 6px; width:80px;" />
               <button class="util-btn" style="font-size:9.5px; border-color:#38bdf8; color:#bae6fd; padding:3px 6px;" onclick="window._fp.handleQuickAuth('login')">LOGIN</button>
-              ${(this.savedUsername && this.savedPassword) ? `<button class="util-btn" style="font-size:9.5px; border-color:#4ade80; color:#bbf7d0; padding:3px 6px;" onclick="window._fp.tryAutoLogin()">CONTINUE @${this.savedUsername}</button>` : ''}
+              ${(this.savedUsername && this.savedPassword) ? `<button class="util-btn" style="font-size:9.5px; border-color:#4ade80; color:#bbf7d0; padding:3px 6px;" onclick="window._fp.tryAutoLogin(true)">CONTINUE @${this.savedUsername}</button>` : ''}
               <button class="util-btn" style="font-size:9.5px; border-color:#facc15; color:#fde047; padding:3px 6px;" onclick="window._fp.handleQuickAuth('register')">REGISTER</button>
               <label style="display:flex; align-items:center; gap:4px; font-size:10px; color:#cbd5e1; cursor:pointer; user-select:none; margin-left:3px; background:#080e1e; border:1px solid #1e293b; padding:2px 6px; border-radius:3px;" title="Remember login credentials and stay signed in">
                 <input id="fp-remember-me" type="checkbox" ${this.rememberMe ? 'checked' : ''} onchange="window._fp.toggleRememberMe(this.checked)" style="accent-color:#38bdf8; cursor:pointer; width:12px; height:12px; margin:0;" />
@@ -1340,6 +1423,28 @@ export class FrontpageController {
       </div>
 
       ${this.authMessage ? `<div style="font-size:10.5px; color:#fde047; margin-bottom:8px; text-align:center;">${this.authMessage}</div>` : ''}
+      ${(!isSingle && this.net?.isLocalOrigin?.()) ? (() => {
+        const curBase = this.net.getServerBase?.() || '';
+        const st = this.realmStatus;
+        if (curBase) {
+          return `<div style="font-size:10px; background:#091a2e; border:1px solid #0284c7; color:#bae6fd; padding:5px 10px; margin-bottom:8px; border-radius:4px; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span>🌐 Live Online Realm: <b>${curBase.replace(/^https?:\/\//, '')}</b>${st?.reachable ? ` • DB Online (${st.totalAccounts} accounts)` : ' • Connecting...'}</span>
+            <button type="button" class="id-mini-btn" style="border-color:#94a3b8; color:#cbd5e1; font-size:9.5px; padding:2px 8px;" onclick="window._fp.switchRealmBackend('')">🏠 Back to Local (:3001)</button>
+          </div>`;
+        }
+        if (st && (st.isCloudShellAuthRedirect || !st.reachable || !st.dbConnected)) {
+          const reasonText = st.isCloudShellAuthRedirect
+            ? '⚠️ Cloud Shell Preview session expired or redirected — reload this preview tab or connect directly to Live Online DB:'
+            : !st.reachable
+              ? '⚠️ Local Dev Server (:3001) unreachable from browser — ensure "npm run dev" is running or connect directly to Live Online DB:'
+              : '⚠️ Local Dev Server (:3001) DB offline (temporary sandbox roster only — real accounts & heroes live on Live Online DB):';
+          return `<div style="font-size:10px; background:#1c1404; border:1px solid #ca8a04; color:#fde68a; padding:5px 10px; margin-bottom:8px; border-radius:4px; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span>${reasonText}</span>
+            <button type="button" class="id-mini-btn" style="border-color:#4ade80; color:#bbf7d0; background:#14532d; font-size:9.5px; padding:3px 9px; font-weight:bold;" onclick="window._fp.switchRealmBackend('https://ws.glimmerfall.online')">🌐 Connect to Live Online DB</button>
+          </div>`;
+        }
+        return '';
+      })() : ''}
 
       <!-- VANGUARD CHARACTER LOADOUT & PEDESTAL GRID -->
       <div class="fp-grid" style="grid-template-columns: 360px 1fr; gap: 14px;">
@@ -1383,8 +1488,8 @@ export class FrontpageController {
                           <span style="color:${cf.color}; font-weight:600;">${ch.faction}</span>
                           <span>•</span>
                           <span style="color:#cbd5e1;"><b>${cCls.name}</b> (${cCls.role})</span>
-                          ${ch.hp != null ? `<span>•</span><span style="color:#4ade80;">❤️ ${ch.hp}</span>` : ''}
-                          ${ch.solarCharge != null ? `<span style="color:#38bdf8;">🔮 ${ch.solarCharge}</span>` : ''}
+                          ${ch.hp != null ? `<span>•</span><span style="color:#4ade80;">❤️ ${formatStatNum(ch.hp, 0)}</span>` : ''}
+                          ${ch.solarCharge != null ? `<span style="color:#38bdf8;">🔮 ${formatStatNum(ch.solarCharge, 0)}</span>` : ''}
                         </div>
                       </div>
                     </div>
@@ -1472,8 +1577,8 @@ export class FrontpageController {
                   </div>
 
                   <div style="font-size:10px; display:flex; gap:10px; align-items:center; background:#080e1c; padding:4px 8px; border:1px solid #1e293b; border-radius:2px;">
-                    <span style="color:#4ade80; font-weight:700;">❤️ ${selectedChar.hp != null ? selectedChar.hp : 'FULL'} HP</span>
-                    <span style="color:#38bdf8; font-weight:700;">🔮 ${selectedChar.solarCharge != null ? selectedChar.solarCharge : 0} Glimmer</span>
+                    <span style="color:#4ade80; font-weight:700;">❤️ ${selectedChar.hp != null ? formatStatNum(selectedChar.hp, 'FULL') : 'FULL'} HP</span>
+                    <span style="color:#38bdf8; font-weight:700;">🔮 ${selectedChar.solarCharge != null ? formatStatNum(selectedChar.solarCharge, 0) : 0} Glimmer</span>
                   </div>
 
                   <div style="font-size:9.5px; color:#38bdf8; display:flex; align-items:center; gap:5px;">
@@ -1621,9 +1726,12 @@ export class FrontpageController {
             3. SELECT PLAYABLE ROLE &amp; ARCHETYPE
           </div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
-            ${factionClasses.map((c) => `
+            ${factionClasses.map((c) => {
+              const wepName = EQUIPMENT_CATALOG[c.defaultEquipment?.weapon]?.name || c.defaultEquipment?.weapon || '';
+              const offName = EQUIPMENT_CATALOG[c.defaultEquipment?.offhand]?.name || c.defaultEquipment?.offhand || '';
+              return `
               <div class="fp-class-card ${draft.classId === c.id ? 'selected' : ''}"
-                   style="cursor:pointer; border:2px solid ${draft.classId === c.id ? '#38bdf8' : '#1e293b'}; background:${draft.classId === c.id ? '#172554' : '#090e1f'}; padding:8px 10px; display:flex; gap:10px; align-items:center;"
+                   style="cursor:pointer; border:2px solid ${draft.classId === c.id ? '#38bdf8' : '#1e293b'}; background:${draft.classId === c.id ? '#172554' : '#090e1f'}; padding:8px 10px; display:flex; gap:10px; align-items:flex-start;"
                    onclick="window._fp.setCreationClass('${c.id}')">
                 <canvas class="fp-class-avatar-cv" data-class-id="${c.id}" data-faction="${c.faction}" width="34" height="34"
                         style="width:34px; height:34px; border:1px solid ${draft.classId === c.id ? '#38bdf8' : '#334155'}; background:#080e1c; image-rendering:pixelated; border-radius:3px; flex-shrink:0;"></canvas>
@@ -1634,12 +1742,22 @@ export class FrontpageController {
                     </div>
                     <span style="color:#38bdf8; font-size:9.5px; font-weight:bold;">[${c.role}]</span>
                   </div>
-                  <div style="color:#94a3b8; font-size:10px; margin-top:3px; line-height:1.35;">
+                  <div style="color:#94a3b8; font-size:9.5px; margin-top:3px; line-height:1.35;">
                     ${c.desc}
                   </div>
+                  ${c.passiveName ? `
+                    <div style="color:#fde047; font-size:9px; margin-top:4px; line-height:1.3; border-top:1px solid rgba(148,163,184,0.2); padding-top:3px;">
+                      ✦ <b>${c.passiveName}:</b> <span style="color:#cbd5e1;">${c.passiveDesc || ''}</span>
+                    </div>
+                  ` : ''}
+                  ${wepName ? `
+                    <div style="color:#7dd3fc; font-size:8.5px; margin-top:2px;">
+                      ⚔️ Starter Kit: ${wepName}${offName ? ` + ${offName}` : ''}
+                    </div>
+                  ` : ''}
                 </div>
-              </div>
-            `).join('')}
+              </div>`;
+            }).join('')}
           </div>
         </div>
 
@@ -1652,13 +1770,20 @@ export class FrontpageController {
 
             <div style="background:#060a15; border:2px solid ${fm.color}; padding:14px; text-align:center; margin-bottom:12px;">
               <canvas id="fp-paperdoll-canvas" width="110" height="116" style="border:2px solid #ca8a04; background:radial-gradient(circle at 50% 60%, rgba(56,189,248,0.18), #070d1e); image-rendering:pixelated;"></canvas>
+              <div style="display:flex; justify-content:center; gap:4px; margin-top:6px;">
+                ${['idle', 'slash', 'cast', 'guard'].map((p) => `
+                  <button type="button" class="id-mini-btn" style="font-size:8.5px; padding:2px 6px; ${this.previewPose === p ? 'border-color:#facc15; color:#fde047; background:#1e293b;' : ''}"
+                          onclick="window._fp.setPreviewPose('${p}')">${p.toUpperCase()}</button>
+                `).join('')}
+              </div>
               <div style="font-family:var(--font-header); font-size:13px; color:#facc15; font-weight:bold; margin-top:6px;">
                 ${cls.name}
               </div>
               <div style="font-size:10px; color:${fm.color}; font-weight:600;">
                 ${fm.icon} ${draft.faction} Faction • ${cls.role}
               </div>
-              <div style="margin-top:10px;">
+              ${cls.passiveName ? `<div style="font-size:9px; color:#fde047; margin-top:3px;">✦ ${cls.passiveName}</div>` : ''}
+              <div style="margin-top:8px;">
                 <button type="button" class="util-btn" style="width:100%; font-size:10px; padding:5px 8px; border-color:#38bdf8; color:#7dd3fc; display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer;"
                         onclick="if(typeof window.playClassAwakening==='function'){window.playClassAwakening('${cls.id}');}else if(typeof window.playCinematicModal==='function'){window.playCinematicModal('${cls.id}');}">
                   <span>🎬</span> PREVIEW ${cls.name.toUpperCase()} AWAKENING (1080P)

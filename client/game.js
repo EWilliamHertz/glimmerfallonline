@@ -5,7 +5,13 @@ import {
   computeWorldTimeCycle,
   getBiomeWeatherProfile,
   createAtmosphereRenderer,
+  computeDirectionalShadowOffset,
 } from './game/atmosphereEffects.js';
+import { getAbilityIconHtml, getFactionCrestSvg } from './ui/abilityIcons.js';
+import { drawTileChunkTransitions } from './render/autoTiler.js';
+import { createVfxRenderer } from './render/vfxRenderer.js';
+import { buildCastFrameVariant } from './sprites/entityAndMonsterSprites.js';
+import { executeOfflineAbility, tickOfflineEntityDebuffsAndDoTs } from './engine/offlineCombat.js';
 import {
   PUZZLE_DEFINITIONS,
   createPuzzleProgress,
@@ -219,6 +225,16 @@ import {
   normalizeMailbox,
   sanitizeMailText,
   countBagItem,
+  FACTION_RESOURCE_CONFIG,
+  CLASS_PASSIVES,
+  getFactionResourceConfig,
+  getClassPassive,
+  ensureActorFactionState,
+  getActorFactionResourceSnapshot,
+  advanceFactionResourceOnCast,
+  tickActorCombatTimers,
+  shouldAutoRemasterRespec,
+  respecCharacterSkills,
 } from '../shared/protocol.js';
 
 import {
@@ -273,22 +289,27 @@ export function initGame() {
   }
   window.toggleTextAntiAliasing = toggleTextAntiAliasing;
 
+  const ZOOM_PRESETS = [1.5, 2, 3, 4];
+  function formatZoomLabel(z) {
+    return z === 1.5 ? '1.5x HD' : `${z}x`;
+  }
   let zoom = 3;
   try {
-    const savedZoom = parseInt(localStorage.getItem('glimmerfall_pixel_zoom'), 10);
-    if (savedZoom >= 2 && savedZoom <= 4) zoom = savedZoom;
+    const savedZoom = parseFloat(localStorage.getItem('glimmerfall_pixel_zoom'));
+    if (ZOOM_PRESETS.includes(savedZoom)) zoom = savedZoom;
   } catch (_) {}
   let viewW = 320;
   let viewH = 180;
 
   function setPixelZoom(val) {
-    zoom = Math.max(2, Math.min(4, Math.round(val)));
+    const num = Number(val);
+    zoom = ZOOM_PRESETS.reduce((best, cur) => (Math.abs(cur - num) < Math.abs(best - num) ? cur : best), 3);
     try {
       localStorage.setItem('glimmerfall_pixel_zoom', String(zoom));
     } catch (_) {}
     resizeCanvas();
     const zBtn = document.getElementById('zoom-label');
-    if (zBtn) zBtn.innerText = `${zoom}x`;
+    if (zBtn) zBtn.innerText = formatZoomLabel(zoom);
   }
 
   function resizeCanvas() {
@@ -315,7 +336,7 @@ export function initGame() {
     window.visualViewport.addEventListener('resize', resizeCanvas);
   }
   const initialZoomBtn = document.getElementById('zoom-label');
-  if (initialZoomBtn) initialZoomBtn.innerText = `${zoom}x`;
+  if (initialZoomBtn) initialZoomBtn.innerText = formatZoomLabel(zoom);
 
   const camera = { x: 0, y: 0 };
   const screenShake = { trauma: 0, offsetX: 0, offsetY: 0 };
@@ -568,6 +589,17 @@ export function initGame() {
     zenith: false,
     thornbark: false,
     frozen: false,
+    duskMarks: 0,
+    rootguardStacks: 0,
+    astralResonance: 0,
+    flashComboCount: 0,
+    chronoSnapReady: false,
+    echoPrimed: false,
+    voidform: false,
+    treantForm: false,
+    temporalApotheosis: false,
+    solarisDome: false,
+    bastionBanner: false,
     hitFlash: 0,
     bubble: null,
     bubbleTimer: 0,
@@ -2863,8 +2895,15 @@ export function initGame() {
     if (typeof prof.unreadMailCount === 'number' && !isSinglePlayer && net.connected) {
       unreadMailCount = prof.unreadMailCount;
     }
-    // Sanitize progression skills (strip unlearned / over-level / phantom abilities) and sanitize loadout
-    sanitizeProgressionSkills(prog);
+    // One-time automatic Operation Remaster free respec for legacy offline characters
+    if (!net.connected && shouldAutoRemasterRespec(prog)) {
+      const respecRes = respecCharacterSkills(prog);
+      if (respecRes.respecced) {
+        logMessage(`↺ [Operation Remaster] Refunded ${respecRes.refunded} legacy skill points so you can specialize your ${cls.name} kit! Press [P] anytime for a free respec.`, 'log-gain', 'combat');
+      }
+    }
+    // Sanitize progression skills (strip unlearned / over-level / class-mismatched abilities) and sanitize loadout
+    sanitizeProgressionSkills(prog, localProfile.classId);
     const starterId = cls.defaultLoadout?.[1];
     if (starterId && ABILITIES_CATALOG[starterId]) {
       prog.skills[starterId] = Math.max(1, getAbilityRank(prog, starterId));
@@ -2910,6 +2949,10 @@ export function initGame() {
     }
     if (document.getElementById('merchant-modal')?.style.display === 'block') {
       renderMerchantModal();
+    }
+    if (document.getElementById('spellbook-modal')?.style.display === 'block') {
+      renderSkillTreeUI();
+      renderKeybindUI();
     }
     if (isInitialSpawn && prof?.id && prof?.classId) {
       const seenKey = `gf_awakening_seen_${prof.id}`;
@@ -7801,6 +7844,16 @@ export function initGame() {
         player.zenith = Boolean(sp.zenith);
         player.thornbark = Boolean(sp.thornbark);
         player.frozen = Boolean(sp.frozen);
+        player.duskMarks = sp.duskMarks || 0;
+        player.rootguardStacks = sp.rootguardStacks || 0;
+        player.astralResonance = sp.astralResonance || 0;
+        player.chronoSnapReady = Boolean(sp.chronoSnapReady);
+        player.echoPrimed = Boolean(sp.echoPrimed);
+        player.voidform = Boolean(sp.voidform);
+        player.treantForm = Boolean(sp.treantForm);
+        player.temporalApotheosis = Boolean(sp.temporalApotheosis);
+        player.solarisDome = Boolean(sp.solarisDome);
+        player.bastionBanner = Boolean(sp.bastionBanner);
         player.bubble = sp.bubble;
         player.emote = sp.emote;
         player.skull = sp.skull || null;
@@ -8284,9 +8337,13 @@ export function initGame() {
             ...msg.progression,
             stats: { ...prog.stats, ...(msg.progression.stats || {}) },
             ranks: { ...prog.ranks, ...(msg.progression.ranks || {}) },
+            skills: msg.progression.skills ? { ...msg.progression.skills } : prog.skills,
             professions: { ...(prog.professions || {}), ...(msg.progression.professions || {}) },
             paragon: { ...(prog.paragon || {}), ...(msg.progression.paragon || {}) },
           };
+          if (msg.loadout) {
+            localProfile.loadout = sanitizeLoadout(msg.loadout, localProfile.classId, prog);
+          }
           player.hp = msg.hp ?? player.hp;
           player.maxHp = msg.maxHp ?? calcMaxHp(prog, localProfile.equipment, localProfile.classId);
           player.maxSolarCharge = msg.maxSolarCharge ?? calcMaxGlimmer(prog, localProfile.equipment, localProfile.classId);
@@ -8325,6 +8382,7 @@ export function initGame() {
           updatePlayerUI();
           updateActionBarBadges();
           renderStatsModal();
+          renderSkillTreeUI();
           renderKeybindUI();
           window.renderSkillsTabUI?.();
           if (document.getElementById('crafting-modal')?.style.display === 'block') {
@@ -8931,6 +8989,34 @@ export function initGame() {
       'width',
       `${Math.min(100, (player.solarCharge / Math.max(1, player.maxSolarCharge)) * 100).toFixed(1)}%`
     );
+
+    const crBar = uiEl('class-resource-bar');
+    if (crBar) {
+      const snap = getActorFactionResourceSnapshot(player, localProfile.faction);
+      const clsTheme = snap.faction === 'Umbri' ? 'cr-umbri' : snap.faction === 'Terra' ? 'cr-terra' : snap.faction === 'Aether' ? 'cr-aether' : 'cr-solari';
+      setClassIfChanged(crBar, clsTheme);
+      const labelTxt = snap.zenithActive ? '☀️ ZENITH!' : snap.chronoSnapReady ? '⏱️ SNAP!' : snap.echoPrimed ? '🔮 ECHO!' : snap.short;
+      setTextIfChanged(uiEl('cr-label'), labelTxt);
+      setTextIfChanged(uiEl('cr-val'), snap.mode === 'bar' ? `${snap.value}%` : `${snap.value}/${snap.max}`);
+      const crVis = uiEl('cr-visual');
+      if (crVis) {
+        const crSig = `${snap.mode}:${snap.value}:${snap.max}`;
+        if (crVis.dataset.crSig !== crSig) {
+          crVis.dataset.crSig = crSig;
+          if (snap.mode === 'bar') {
+            crVis.className = 'cr-bar-track';
+            crVis.innerHTML = `<div class="cr-bar-fill" style="width:${Math.min(100, (snap.value / Math.max(1, snap.max)) * 100).toFixed(1)}%"></div>`;
+          } else {
+            crVis.className = 'cr-pips';
+            let pips = '';
+            for (let i = 0; i < snap.max; i++) {
+              pips += `<span class="cr-pip${i < snap.value ? ' filled' : ''}"></span>`;
+            }
+            crVis.innerHTML = pips;
+          }
+        }
+      }
+    }
   }
 
   let lastSubLabelKey = '';
@@ -10234,8 +10320,12 @@ export function initGame() {
       updateQuestTrackerHUD();
     }
 
-    // Solari Paragon: Holy Radiance Burst on critical strike!
+    // Solari Passive & Paragon: Sunbrand +4 Solar Charge & Holy Radiance Burst on critical strike!
     if (isCrit) {
+      if (localProfile.faction === 'Solari' && ent) {
+        ent.sunbrandTimer = Math.max(ent.sunbrandTimer || 0, 4.0);
+        player.solarCharge = Math.min(player.maxSolarCharge || 100, (player.solarCharge || 0) + 4);
+      }
       const burstDmg = calcHolyRadianceBurstDmg(prog);
       if (burstDmg > 0) {
         spawnSparkBurst(ent.x, ent.y - 8, ['#facc15', '#fef08a', '#ffffff'], 14);
@@ -10250,19 +10340,44 @@ export function initGame() {
       }
     }
 
-    // Umbri Paragon: Void Leech on all damage dealt!
-    const leechPct = calcLifeLeechPct(prog, localProfile.faction) * (player.voidformTimer > 0 ? 2 : 1);
+    // Umbri Paragon + Dusk Marks + Graveglass Sepulcher Conduit: Void Leech on damage dealt!
+    const duskBonusLeech = isRite ? (player.activeDuskMarksSpent || 0) * 0.06 : 0;
+    const leechPct = calcLifeLeechPct(prog, localProfile.faction) * (player.voidformTimer > 0 ? 2 : 1) + duskBonusLeech;
     if (leechPct > 0 && !player.isDead) {
       const leechHeal = Math.max(1, Math.round(dmg * leechPct));
+      const overheal = (player.hp + leechHeal) - player.maxHp;
       player.hp = Math.min(player.maxHp, player.hp + leechHeal);
+      if (overheal > 0 && localProfile.classId === 'graveglass_oracle') {
+        const cap = Math.round(player.maxHp * (getClassPassive('graveglass_oracle').phylacteryCapRatio || 0.3));
+        player.shield = Math.min(cap, (player.shield || 0) + overheal);
+        player.shieldTimer = Math.max(player.shieldTimer || 0, 8.0);
+      }
+    }
+
+    // Nexus Weaver Passive: Prismatic Shatter starburst on chilled/frozen foes!
+    if (
+      localProfile.classId === 'nexus_weaver' &&
+      isRite &&
+      !String(spellName).includes('Shatter') &&
+      ((ent.freezeTimer || 0) > 0 || (ent.slowTimer || 0) > 0 || (ent.snareTimer || 0) > 0)
+    ) {
+      const shatterDmg = Math.max(4, Math.round(dmg * 0.45));
+      spawnSparkBurst(ent.x, ent.y - 8, ['#38bdf8', '#e0f2fe', '#c084fc'], 16);
+      spawnFCT(ent.x, ent.y - 18, `✨ PRISMATIC SHATTER +${shatterDmg}!`, '#7dd3fc', true);
+      for (const near of entities) {
+        if (!near.isDying && isHostileEntity(near) && near.type !== 'node' && near.type !== 'portal' && Math.hypot(near.x - ent.x, near.y - ent.y) <= 64) {
+          damageOfflineEntity(near, shatterDmg, true, false, 'Prismatic Shatter');
+        }
+      }
     }
 
     if (ent.hp <= 0) {
       killOfflineEntity(ent);
     } else if (isRite && !String(spellName).includes('Echo')) {
-      const shouldEcho = offlineEchoPrimed || (localProfile.faction === 'Aether' && Math.random() < 0.35);
+      const shouldEcho = Boolean(offlineEchoPrimed || player.echoPrimed) || (localProfile.faction === 'Aether' && Math.random() < 0.35);
       if (shouldEcho) {
         offlineEchoPrimed = false;
+        player.echoPrimed = false;
         const echoDmg = Math.max(2, Math.round(dmg * 0.45));
         setTimeout(() => {
           if (net.connected || ent.isDying || ent.hp <= 0) return;
@@ -10283,10 +10398,15 @@ export function initGame() {
       return;
     }
 
-    // Terra Paragon & Buffs: Damage Reduction!
-    const dmgRedPct = calcDamageReduction(prog) + (player.rootedBastionTimer > 0 ? 0.40 : 0);
+    // Terra Faction Mechanic: Rootguard stacking & Damage Reduction!
+    if (localProfile.faction === 'Terra') {
+      player.rootguardStacks = Math.min(5, (player.rootguardStacks || 0) + 1);
+    }
+    const rootguardDr = localProfile.faction === 'Terra' ? (player.rootguardStacks || 0) * 0.06 : 0;
+    const bannerDr = (player.bastionBannerTimer || 0) > 0 ? 0.25 : 0;
+    const dmgRedPct = calcDamageReduction(prog) + (player.rootedBastionTimer > 0 ? 0.40 : 0) + rootguardDr + bannerDr;
     if (dmgRedPct > 0) {
-      amount = Math.max(1, Math.round(amount * (1 - Math.min(0.70, dmgRedPct))));
+      amount = Math.max(1, Math.round(amount * (1 - Math.min(0.75, dmgRedPct))));
     }
 
     // Solari Sun Aegis Rebuke Reactive Counter
@@ -10297,10 +10417,13 @@ export function initGame() {
       spawnFCT(attackerRef.x, attackerRef.y - 8, `☀️ -${reb} REBUKE`, '#facc15');
     }
 
-    // Terra Faction Mechanic: Thornbark damage reflection!
+    // Terra Faction & Stonekin Elder Mechanic: Thornbark damage reflection!
     const reflectPct = player.thornbark ? (player.treantFormTimer > 0 ? 0.60 : 0.35) : localProfile.faction === 'Terra' ? 0.15 : 0;
     if (reflectPct > 0 && attackerRef && attackerRef.hp !== undefined) {
-      const refl = Math.max(1, Math.round(amount * reflectPct));
+      const stonekinBonus = localProfile.classId === 'stonekin_elder'
+        ? Math.max(1, Math.round((getEffectiveStats(prog, localProfile.equipment, localProfile.classId).bastion || 2) * (getClassPassive('stonekin_elder').bastionThornBonus || 0.2)))
+        : 0;
+      const refl = Math.max(1, Math.round(amount * reflectPct) + stonekinBonus);
       damageOfflineEntity(attackerRef, refl, false, false, 'Thornbark');
       spawnFCT(attackerRef.x, attackerRef.y - 8, `🌿 -${refl} THORNS`, '#4ade80');
     }
@@ -10324,6 +10447,12 @@ export function initGame() {
     }
 
     if (rem > 0) {
+      if ((player.solarisDomeTimer || 0) > 0 && player.hp - rem <= 1) {
+        player.hp = 1;
+        spawnFCT(player.x, player.y - 14, '☀️ SOLARIS AEGIS!', '#fef08a', true);
+        updatePlayerUI();
+        return;
+      }
       player.hp = Math.max(0, player.hp - rem);
       player.hitFlash = 0.14;
       audio.playHit(false);
@@ -10437,11 +10566,14 @@ export function initGame() {
     const needsTarget = [
       'cast_beam',
       'projectile',
+      'shardburst',
+      'glacial_spike',
       'drain_beam',
       'execute_beam',
       'drain_bolt',
       'execute_bolt',
       'shadow_step',
+      'echoing_paradox',
     ].includes(spec.kind);
 
     let acquiredTarget = null;
@@ -10457,7 +10589,7 @@ export function initGame() {
       }
       faceToward(tgt.x, tgt.y);
       acquiredTarget = tgt;
-    } else if (spec.kind === 'melee_cleave') {
+    } else if (spec.kind === 'melee_cleave' || spec.kind === 'serrated_mutilate' || spec.kind === 'crimson_rupture' || spec.kind === 'aegis_slam' || spec.kind === 'sunfire_lance') {
       const tgt = autoAcquireNearestHostile(rangePx);
       if (tgt && Math.hypot(tgt.x - player.x, tgt.y - player.y) <= rangePx + 8) {
         faceToward(tgt.x, tgt.y);
@@ -10465,10 +10597,12 @@ export function initGame() {
       }
     }
 
-    cooldowns[slot] = spec.baseCd * cdMult;
+    const flashTempoMult = (localProfile.faction === 'Aether' && isFlash) ? 0.88 : 1.0;
+    cooldowns[slot] = spec.baseCd * cdMult * flashTempoMult;
 
-    // Rites channel for castTime; Flashes fire instantly!
-    if (isRite && (spec.castTime || 0) > 0) {
+    const predictiveInstant = isRite && (player.chronoSnapReady || (localProfile.faction === 'Aether' && (player.astralResonance || 0) >= 4));
+    // Rites channel for castTime (unless Chrono-Snap / Resonance 4 makes them instant); Flashes fire instantly!
+    if (net.connected && isRite && (spec.castTime || 0) > 0 && !predictiveInstant) {
       const castSpeedMult = calcCastSpeedMult(prog) * (player.temporalApotheosisTimer > 0 ? 0.25 : 1.0);
       const effectiveDuration = Math.max(0.3, spec.castTime * castSpeedMult);
       isCasting = true;
@@ -10479,7 +10613,7 @@ export function initGame() {
       document.getElementById('cast-time').innerText = `${castDuration.toFixed(1)}s`;
     }
 
-    if (spec.kind === 'melee_cleave') {
+    if (spec.kind === 'melee_cleave' || spec.kind === 'serrated_mutilate' || spec.kind === 'crimson_rupture' || spec.kind === 'phantom_sever') {
       audio.playSlash();
       player.slashTimer = 0.22;
       slashArcs.push({
@@ -10490,17 +10624,17 @@ export function initGame() {
         age: 0,
         maxAge: 0.22,
       });
-    } else if (spec.kind === 'shield' || spec.kind === 'thornbark' || spec.kind === 'reactive_barrier' || spec.kind === 'iron_fortify' || spec.kind === 'treant_form') {
+    } else if (spec.kind === 'shield' || spec.kind === 'thornbark' || spec.kind === 'reactive_barrier' || spec.kind === 'iron_fortify' || spec.kind === 'treant_form' || spec.kind === 'aegis_slam' || spec.kind === 'monolith_wall') {
       audio.playShield();
-    } else if (spec.kind === 'heal' || spec.kind === 'heal_glimmer' || spec.kind === 'timeloop') {
+    } else if (spec.kind === 'heal' || spec.kind === 'heal_glimmer' || spec.kind === 'timeloop' || spec.kind === 'starlight_mend' || spec.kind === 'purifying_halo' || spec.kind === 'temporal_anchor') {
       audio.playChime();
-    } else if (spec.kind === 'stealth' || spec.kind === 'stealth_burst' || spec.kind === 'voidform') {
+    } else if (spec.kind === 'stealth' || spec.kind === 'stealth_burst' || spec.kind === 'voidform' || spec.kind === 'smoke_bomb') {
       audio.playStealth();
-    } else if (spec.kind === 'frost_nova' || spec.kind === 'stasis_bubble') {
+    } else if (spec.kind === 'frost_nova' || spec.kind === 'stasis_bubble' || spec.kind === 'glacial_spike') {
       audio.playFreeze();
-    } else if (spec.kind === 'dash' || spec.kind === 'shadow_step' || spec.kind === 'dash_cleave' || spec.kind === 'rift_teleport') {
+    } else if (spec.kind === 'dash' || spec.kind === 'shadow_step' || spec.kind === 'dash_cleave' || spec.kind === 'rift_teleport' || spec.kind === 'gale_spear' || spec.kind === 'sunfire_lance') {
       audio.playDash();
-    } else if (spec.kind === 'nova' || spec.kind === 'cleanse_sprint' || spec.kind === 'archon_form' || spec.kind === 'colossus_stomp' || spec.kind === 'apotheosis' || spec.kind === 'continental_quake' || spec.kind === 'singularity_collapse' || spec.kind === 'supernova') {
+    } else if (spec.kind === 'nova' || spec.kind === 'cleanse_sprint' || spec.kind === 'archon_form' || spec.kind === 'colossus_stomp' || spec.kind === 'apotheosis' || spec.kind === 'continental_quake' || spec.kind === 'singularity_collapse' || spec.kind === 'supernova' || spec.kind === 'judgement_verdict' || spec.kind === 'solaris_apotheosis' || spec.kind === 'tectonic_cataclysm' || spec.kind === 'astral_supernova') {
       audio.playZenith();
     }
 
@@ -10524,8 +10658,8 @@ export function initGame() {
       return;
     }
 
-    // Offline single-player simulation (full support for all 4 Factions & Rites/Flashes)
-    const rank = prog.ranks[slot] || 1;
+    // Offline single-player simulation (full support for all 4 Factions, 8 Class Kits & Rites/Flashes)
+    const rank = getAbilityRank(prog, spec.id);
     const baseEff = getEffectiveStats(prog, localProfile.equipment, localProfile.classId);
     const buffBonuses = getActiveCombatConsumableBonuses(player);
     const eff = {
@@ -10541,6 +10675,15 @@ export function initGame() {
     }
     if (isFlash) {
       player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 8);
+    }
+
+    const resGain = advanceFactionResourceOnCast(player, localProfile.faction, localProfile.classId, spec);
+    if (resGain.chronoSnapTriggered) {
+      const shaveSec = getClassPassive('chronomancer_sage').flashCdShaveSec || 0.6;
+      for (const s of ACTION_SLOTS) {
+        if (s !== slot && cooldowns[s] > 0) cooldowns[s] = Math.max(0, cooldowns[s] - shaveSec);
+      }
+      spawnFCT(player.x, player.y - 16, '⏱️ CHRONO-SNAP READY!', '#38bdf8', true);
     }
 
     if (isRite) {
@@ -10584,488 +10727,62 @@ export function initGame() {
       }
     }
 
-    if (spec.kind === 'cast_beam' && acquiredTarget) {
+    const runOfflineExecution = () => {
+      executeOfflineAbility({
+        spec,
+        rank,
+        slot,
+        eff,
+        critChance,
+        duskMarksSpent: resGain.duskMarksSpent || 0,
+        player,
+        localProfile,
+        prog,
+        entities,
+        acquiredTarget,
+        currentTarget,
+        groundZones,
+        projectiles,
+        skyBeams,
+        slashArcs,
+        afterimages,
+        mapBounds,
+        cooldowns,
+        currentRoomType,
+        isHostileEntity,
+        damageOfflineEntity,
+        spawnSparkBurst,
+        spawnSmokeBurst,
+        spawnFCT,
+        triggerScreenShake,
+        audio,
+        updatePlayerUI,
+        getFacingVector,
+      });
+    };
+
+    const instantCastOverride = resGain.chronoSnapConsumed || resGain.echoFromResonance;
+    if (resGain.chronoSnapConsumed) {
+      spawnFCT(player.x, player.y - 14, '⚡ CHRONO-SNAP INSTANT RITE!', '#7dd3fc', true);
+    } else if (resGain.echoFromResonance) {
+      spawnFCT(player.x, player.y - 14, '🔮 ASTRAL RESONANCE INSTANT!', '#38bdf8', true);
+    }
+
+    if (isRite && (spec.castTime || 0) > 0 && !instantCastOverride) {
+      const castSpeedMult = calcCastSpeedMult(prog) * (player.temporalApotheosisTimer > 0 ? 0.25 : 1.0);
+      const effectiveDuration = Math.max(0.3, spec.castTime * castSpeedMult);
       isCasting = true;
-      castDuration = spec.castTime || 0.95;
+      castDuration = effectiveDuration;
       castProgress = 0;
       document.getElementById('cast-bar-container').style.display = 'block';
       document.getElementById('cast-name').innerText = `RITE: ${spec.name.toUpperCase()}`;
       document.getElementById('cast-time').innerText = `${castDuration.toFixed(1)}s`;
-      const beamTargetId = acquiredTarget.id;
-      currentSpell = {
-        onComplete() {
-          const tgt = entities.find((e) => e.id === beamTargetId && !e.isDying);
-          if (!tgt) return;
-          audio.playSpell();
-          skyBeams.push({ x: tgt.x, y: tgt.y, color: spec.color || '#38bdf8', age: 0, maxAge: 0.45 });
-          if (spec.id === 'corona_cataclysm' || (spec.tier && spec.tier >= 7)) {
-            triggerScreenShake(0.40);
-          }
-          const dmg = Math.max(5, Math.floor(Math.random() * 5) + 10 + eff.power * 2 + rank * 3);
-          damageOfflineEntity(tgt, dmg, true, true, spec.name);
-          for (const near of entities) {
-            if (near !== tgt && !near.isDying && isHostileEntity(near) && near.type !== 'node' && near.type !== 'portal') {
-              if (Math.hypot(near.x - tgt.x, near.y - tgt.y) <= 56) {
-                damageOfflineEntity(near, Math.round(dmg * 0.55), false, false, spec.name);
-              }
-            }
-          }
-          updatePlayerUI();
-        },
-      };
+      currentSpell = { onComplete: runOfflineExecution };
       updatePlayerUI();
       return;
     }
 
-    if (spec.kind === 'projectile' && acquiredTarget) {
-      audio.playHammer();
-      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 18 + eff.resonance * 2);
-      projectiles.push({
-        id: `off_prj_${Date.now()}_${Math.random()}`,
-        type: spec.projType || 'orb',
-        color: spec.color,
-        spellName: spec.name,
-        isRite,
-        x: player.x,
-        y: player.y - 8,
-        targetId: acquiredTarget.id,
-        speed: spec.projType === 'aether_orb' ? 265 : 225,
-        rot: 0,
-        dmg: Math.max(3, Math.floor(Math.random() * 4) + 6 + eff.power + rank * 2),
-      });
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'ground_zone') {
-      const zx = acquiredTarget ? acquiredTarget.x : currentTarget && !currentTarget.isDying ? currentTarget.x : player.x;
-      const zy = acquiredTarget ? acquiredTarget.y : currentTarget && !currentTarget.isDying ? currentTarget.y : player.y;
-      groundZones.push({
-        id: `off_gz_${Date.now()}`,
-        type: spec.zoneType || 'consecration',
-        color: spec.color,
-        spellName: spec.name,
-        x: zx,
-        y: zy,
-        radius: rangePx,
-        tickDmg: Math.max(2, 2 + rank + Math.floor(eff.power * 0.5)),
-        age: 0,
-        maxAge: 6.2,
-        tickTimer: 0.2,
-      });
-      spawnFCT(zx, zy - 6, spec.name.toUpperCase(), spec.color || '#38bdf8');
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'nova' || spec.kind === 'frost_nova') {
-      groundZones.push({
-        id: `off_ring_${Date.now()}`,
-        type: spec.kind === 'frost_nova' ? 'frost_ring' : 'shockwave',
-        color: spec.color,
-        x: player.x,
-        y: player.y,
-        radius: rangePx,
-        age: 0,
-        maxAge: 0.45,
-      });
-      for (const e of [...entities]) {
-        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
-          if (Math.hypot(e.x - player.x, e.y - player.y) <= rangePx) {
-            const dmg = Math.max(5, 11 + Math.round(eff.power * 1.7) + rank * 3);
-            damageOfflineEntity(e, dmg, true, isRite, spec.name);
-            if (!e.isDying && spec.kind === 'frost_nova') {
-              e.frozen = true;
-              e.freezeTimer = 3.2;
-              spawnFCT(e.x, e.y - 10, '❄️ FROZEN!', '#bae6fd');
-            }
-          }
-        }
-      }
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'dash' || spec.kind === 'shadow_step') {
-      const startX = player.x;
-      const startY = player.y;
-      let targetX = startX;
-      let targetY = startY;
-
-      if (spec.kind === 'shadow_step' && acquiredTarget) {
-        const ang = Math.atan2(acquiredTarget.y - player.y, acquiredTarget.x - player.x);
-        targetX = Math.max(-mapBounds.halfW + 16, Math.min(mapBounds.halfW - 16, acquiredTarget.x + Math.cos(ang) * 18));
-        targetY = Math.max(-mapBounds.halfH + 16, Math.min(mapBounds.halfH - 16, acquiredTarget.y + Math.sin(ang) * 18));
-        damageOfflineEntity(acquiredTarget, 6 + eff.power + rank * 2, true, false, spec.name);
-      } else {
-        const { dx, dy } = getFacingVector();
-        const dist = ((spec.rangeYards || 8.5) + rank * 0.35) * YARD_PX;
-        targetX = Math.max(-mapBounds.halfW + 16, Math.min(mapBounds.halfW - 16, player.x + dx * dist));
-        targetY = Math.max(-mapBounds.halfH + 16, Math.min(mapBounds.halfH - 16, player.y + dy * dist));
-      }
-
-      // If landing in deep water, step back towards starting point until dry ground or bridge
-      if (!isWaterTile(startX, startY, currentRoomType) && isWaterTile(targetX, targetY, currentRoomType)) {
-        for (let step = 1; step <= 12; step++) {
-          const frac = 1 - step * 0.08;
-          const testX = startX + (targetX - startX) * frac;
-          const testY = startY + (targetY - startY) * frac;
-          if (!isWaterTile(testX, testY, currentRoomType)) {
-            targetX = testX;
-            targetY = testY;
-            break;
-          }
-        }
-      }
-
-      player.x = targetX;
-      player.y = targetY;
-
-      for (let s = 0; s < 4; s++) {
-        afterimages.push({
-          x: startX + (player.x - startX) * (s / 4),
-          y: startY + (player.y - startY) * (s / 4),
-          dir: player.dir,
-          age: 0,
-          maxAge: 0.28 + s * 0.04,
-        });
-      }
-      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 12);
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'shield' || spec.kind === 'thornbark') {
-      const absorb = 13 + eff.bastion * 3 + rank * 4;
-      player.shield = absorb;
-      player.thornbark = spec.kind === 'thornbark';
-      spawnFCT(player.x, player.y - 8, `+${absorb} SHIELD`, spec.color || '#38bdf8');
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'heal' || spec.kind === 'heal_glimmer') {
-      const healAmt = 7 + eff.bastion * 2 + rank * 3;
-      player.hp = Math.min(player.maxHp, player.hp + healAmt);
-      if (spec.kind === 'heal_glimmer') {
-        player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 25);
-      }
-      spawnFCT(player.x, player.y - 8, `+${healAmt} HP`, '#4ade80');
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'stealth') {
-      player.stealthed = true;
-      setTimeout(() => {
-        if (!net.connected) player.stealthed = false;
-      }, 3500);
-      spawnSmokeBurst(player.x, player.y, 16);
-      spawnFCT(player.x, player.y - 10, '🌑 STEALTH', '#c084fc');
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'timeloop') {
-      const rewindHp = Math.max(5, Math.round(player.maxHp * 0.25) + rank * 2);
-      player.hp = Math.min(player.maxHp, player.hp + rewindHp);
-      for (const s of ACTION_SLOTS) {
-        if (s !== slot && cooldowns[s] > 0) cooldowns[s] = Math.max(0, cooldowns[s] - (2.2 + rank * 0.3));
-      }
-      offlineEchoPrimed = true;
-      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 15);
-      spawnSparkBurst(player.x, player.y - 8, ['#38bdf8', '#e0f2fe', '#c084fc'], 14);
-      spawnFCT(player.x, player.y - 10, `⏳ REWIND +${rewindHp} HP & ECHO!`, '#7dd3fc', true);
-      updatePlayerUI();
-      return;
-    }
-
-    if ((spec.kind === 'drain_beam' || spec.kind === 'execute_beam') && acquiredTarget) {
-      let dmg = Math.max(4, 8 + Math.round(eff.power * 1.5) + rank * 3);
-      if (spec.kind === 'execute_beam' && acquiredTarget.hp <= acquiredTarget.maxHp * 0.5) {
-        dmg = Math.round(dmg * 1.5);
-      }
-      skyBeams.push({ x: acquiredTarget.x, y: acquiredTarget.y, color: spec.color || '#e11d48', age: 0, maxAge: 0.45 });
-      damageOfflineEntity(acquiredTarget, dmg, true, true, spec.name);
-      if (spec.kind === 'drain_beam') {
-        const drainHeal = Math.max(2, Math.round(dmg * 0.6));
-        player.hp = Math.min(player.maxHp, player.hp + drainHeal);
-        spawnFCT(player.x, player.y - 8, `+${drainHeal} SIPHON`, '#4ade80');
-      }
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'reactive_barrier') {
-      const shieldVal = 18 + eff.bastion * 3 + rank * 4;
-      player.shield = shieldVal;
-      player.rebukeTimer = 4.0;
-      spawnSparkBurst(player.x, player.y - 8, ['#facc15', '#fef08a', '#ffffff'], 16);
-      spawnFCT(player.x, player.y - 10, `☀️ REBUKE (+${shieldVal})`, spec.color || '#facc15');
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'cleanse_sprint') {
-      player.slowTimer = 0; player.snareTimer = 0; player.weakenTimer = 0;
-      player.auroraStrideTimer = 4.0;
-      spawnSparkBurst(player.x, player.y - 6, ['#fef08a', '#ffffff'], 12);
-      spawnFCT(player.x, player.y - 10, '✨ AURORA STRIDE (+50% SPD)!', '#fef08a');
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'archon_form') {
-      player.solarAscensionTimer = 8.0;
-      for (const s of [9, 10, 11, 12]) cooldowns[s] = 0;
-      spawnSparkBurst(player.x, player.y - 8, ['#fde047', '#facc15', '#ffffff'], 24, null, true);
-      spawnFCT(player.x, player.y - 14, '👑 SOLAR ASCENSION APEX ARCHON!', '#fde047', true);
-      triggerScreenShake(0.35);
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'stealth_burst') {
-      player.abyssalShroudTimer = 2.0;
-      player.stealthed = true;
-      setTimeout(() => { if (!net.connected) player.stealthed = false; }, 2000);
-      spawnSmokeBurst(player.x, player.y, 20);
-      spawnFCT(player.x, player.y - 10, '🌫️ ABYSSAL SHROUD (100% DODGE)!', '#9333ea', true);
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'dash_cleave') {
-      const { dx, dy } = getFacingVector();
-      const dist = 10 * YARD_PX;
-      const startX = player.x;
-      const startY = player.y;
-      player.x = Math.max(-mapBounds.halfW + 16, Math.min(mapBounds.halfW - 16, player.x + dx * dist));
-      player.y = Math.max(-mapBounds.halfH + 16, Math.min(mapBounds.halfH - 16, player.y + dy * dist));
-      for (let s = 0; s < 4; s++) {
-        afterimages.push({ x: startX + (player.x - startX) * (s / 4), y: startY + (player.y - startY) * (s / 4), dir: player.dir, age: 0, maxAge: 0.3 });
-      }
-      for (const e of [...entities]) {
-        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
-          if (Math.hypot(e.x - player.x, e.y - player.y) <= 80) {
-            damageOfflineEntity(e, Math.max(5, 12 + eff.power * 2 + rank * 3), true, false, spec.name);
-          }
-        }
-      }
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'voidform') {
-      player.voidformTimer = 8.0;
-      player.stealthed = true;
-      setTimeout(() => { if (!net.connected) player.stealthed = false; }, 8000);
-      spawnSmokeBurst(player.x, player.y, 24);
-      spawnFCT(player.x, player.y - 14, '👑 AVATAR OF THE VOID!', '#a855f7', true);
-      triggerScreenShake(0.35);
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'iron_fortify') {
-      player.rootedBastionTimer = 3.5;
-      spawnFCT(player.x, player.y - 10, '🌳 ROOTED BASTION (-40% DMG / CC IMMUNE)!', '#15803d', true);
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'bramble_burst') {
-      const burstRad = 8 * YARD_PX;
-      groundZones.push({ id: `off_ring_${Date.now()}`, type: 'shockwave', color: '#4ade80', x: player.x, y: player.y, radius: burstRad, age: 0, maxAge: 0.35 });
-      spawnFCT(player.x, player.y - 10, '🌿 BRAMBLE REVERSAL!', '#4ade80');
-      for (const e of [...entities]) {
-        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
-          if (Math.hypot(e.x - player.x, e.y - player.y) <= burstRad) {
-            damageOfflineEntity(e, 8 + eff.power + rank * 2, false, false, spec.name);
-          }
-        }
-      }
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'colossus_stomp') {
-      const stompRad = 10 * YARD_PX;
-      groundZones.push({ id: `off_ring_${Date.now()}`, type: 'shockwave', color: '#84cc16', x: player.x, y: player.y, radius: stompRad, age: 0, maxAge: 0.4 });
-      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 25);
-      spawnFCT(player.x, player.y - 10, '🪨 IRONWOOD COLOSSUS!', '#84cc16', true);
-      for (const e of [...entities]) {
-        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
-          if (Math.hypot(e.x - player.x, e.y - player.y) <= stompRad) {
-            damageOfflineEntity(e, 14 + eff.power * 2 + rank * 3, true, false, spec.name);
-          }
-        }
-      }
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'treant_form') {
-      player.shield = 250;
-      player.thornbark = true;
-      player.treantFormTimer = 8.0;
-      spawnFCT(player.x, player.y - 14, '👑 AVATAR OF THE IRONWOOD!', '#22c55e', true);
-      triggerScreenShake(0.35);
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'ethereal_jaunt') {
-      player.phaseShiftTimer = 1.2;
-      spawnSparkBurst(player.x, player.y - 8, ['#7dd3fc', '#bae6fd'], 12);
-      spawnFCT(player.x, player.y - 10, '🌌 PHASE SHIFT (UNTOUCHABLE)!', '#7dd3fc');
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'rift_teleport') {
-      const { dx, dy } = getFacingVector();
-      const dist = 11 * YARD_PX;
-      const startX = player.x;
-      const startY = player.y;
-      player.x = Math.max(-mapBounds.halfW + 16, Math.min(mapBounds.halfW - 16, player.x + dx * dist));
-      player.y = Math.max(-mapBounds.halfH + 16, Math.min(mapBounds.halfH - 16, player.y + dy * dist));
-      groundZones.push({ id: `off_gz_${Date.now()}`, type: 'frost_ring', color: '#38bdf8', x: startX, y: startY, radius: 48, age: 0, maxAge: 4.0 });
-      for (const e of [...entities]) {
-        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
-          if (Math.hypot(e.x - startX, e.y - startY) <= 52) {
-            damageOfflineEntity(e, 8 + eff.power + rank * 2, false, false, spec.name);
-          }
-        }
-      }
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'apotheosis') {
-      player.temporalApotheosisTimer = 8.0;
-      for (const s of ACTION_SLOTS) {
-        if (s !== slot) cooldowns[s] = 0;
-      }
-      spawnSparkBurst(player.x, player.y - 8, ['#e0f2fe', '#38bdf8', '#c084fc'], 24, null, true);
-      spawnFCT(player.x, player.y - 14, '👑 TEMPORAL APOTHEOSIS!', '#e0f2fe', true);
-      triggerScreenShake(0.35);
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'scythe_wave') {
-      const waveAngle = getFacingVector().angle;
-      slashArcs.push({ x: player.x, y: player.y - 6, angle: waveAngle, color: '#9333ea', age: 0, maxAge: 0.35 });
-      spawnFCT(player.x, player.y - 8, '🌑 ECLIPSE HARVESTER!', '#9333ea', true);
-      for (const e of [...entities]) {
-        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
-          if (Math.hypot(e.x - player.x, e.y - player.y) <= 20 * YARD_PX) {
-            damageOfflineEntity(e, 14 + eff.power * 2 + rank * 3, true, true, spec.name);
-          }
-        }
-      }
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'singularity_collapse') {
-      groundZones.push({ id: `off_gz_${Date.now()}`, type: 'gravity', color: '#c084fc', spellName: spec.name, x: player.x, y: player.y, radius: 16 * YARD_PX, tickDmg: 8 + rank * 2, age: 0, maxAge: 3.5, tickTimer: 0.2 });
-      spawnFCT(player.x, player.y - 12, '🌌 VOID ANNIHILATION APEX!', '#c084fc', true);
-      triggerScreenShake(0.40);
-      for (const e of [...entities]) {
-        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
-          if (Math.hypot(e.x - player.x, e.y - player.y) <= 16 * YARD_PX) {
-            damageOfflineEntity(e, 50 + eff.power * 3 + rank * 4, true, true, spec.name);
-          }
-        }
-      }
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'fissure_line') {
-      const { dx, dy } = getFacingVector();
-      spawnFCT(player.x, player.y - 8, '⛰️ TECTONIC FISSURE!', '#65a30d', true);
-      for (let step = 1; step <= 5; step++) {
-        const fx = player.x + dx * step * 28;
-        const fy = player.y + dy * step * 28;
-        groundZones.push({ id: `off_gz_${Date.now()}_${step}`, type: 'briar', color: '#65a30d', spellName: 'Tectonic Fissure', x: fx, y: fy, radius: 32, tickDmg: 4 + rank, age: 0, maxAge: 5.0, tickTimer: 0.3 });
-      }
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'continental_quake') {
-      const quakeRad = 16 * YARD_PX;
-      groundZones.push({ id: `off_ring_${Date.now()}`, type: 'shockwave', color: '#4ade80', x: player.x, y: player.y, radius: quakeRad, age: 0, maxAge: 0.6 });
-      spawnFCT(player.x, player.y - 12, '🌳 WRATH OF GAIA APEX!', '#4ade80', true);
-      triggerScreenShake(0.40);
-      for (const e of [...entities]) {
-        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
-          if (Math.hypot(e.x - player.x, e.y - player.y) <= quakeRad) {
-            e.frozen = true;
-            e.freezeTimer = 3.0;
-            damageOfflineEntity(e, 48 + eff.power * 3 + rank * 4, true, true, spec.name);
-          }
-        }
-      }
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'supernova') {
-      const cx = acquiredTarget ? acquiredTarget.x : player.x;
-      const cy = acquiredTarget ? acquiredTarget.y : player.y;
-      groundZones.push({ id: `off_ring_${Date.now()}`, type: 'shockwave', color: '#38bdf8', x: cx, y: cy, radius: 13 * YARD_PX, age: 0, maxAge: 0.5 });
-      spawnFCT(cx, cy - 10, '💥 SUPERNOVA COLLAPSE!', '#38bdf8', true);
-      triggerScreenShake(0.32);
-      for (const e of [...entities]) {
-        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
-          if (Math.hypot(e.x - cx, e.y - cy) <= 13 * YARD_PX) {
-            damageOfflineEntity(e, 16 + Math.round(eff.power * 1.8) + rank * 3, true, true, spec.name);
-          }
-        }
-      }
-      updatePlayerUI();
-      return;
-    }
-
-    if (spec.kind === 'stasis_bubble') {
-      const stasisRad = 14 * YARD_PX;
-      groundZones.push({ id: `off_gz_${Date.now()}`, type: 'frost_ring', color: '#0284c7', x: player.x, y: player.y, radius: stasisRad, age: 0, maxAge: 3.5 });
-      spawnFCT(player.x, player.y - 12, '🌌 CHRONO STASIS APEX!', '#7dd3fc', true);
-      triggerScreenShake(0.38);
-      for (const e of [...entities]) {
-        if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
-          if (Math.hypot(e.x - player.x, e.y - player.y) <= stasisRad) {
-            e.frozen = true;
-            e.freezeTimer = 3.5;
-            damageOfflineEntity(e, 50 + eff.power * 3 + rank * 4, true, true, spec.name);
-          }
-        }
-      }
-      updatePlayerUI();
-      return;
-    }
-
-    // Default Melee Cleave (Flare Strike, Whisper of the Void, Tectonic Slam, Reality Fracture)
-    let hitAny = false;
-    for (const e of [...entities]) {
-      if (!e.isDying && isHostileEntity(e) && e.type !== 'node' && e.type !== 'portal') {
-        if (Math.hypot(e.x - player.x, e.y - player.y) <= rangePx + 14) {
-          const isCrit = Math.random() < critChance;
-          const base = Math.max(2, Math.floor(Math.random() * 4) + 3 + eff.power + rank * 2);
-          const dmg = isCrit ? Math.round(base * 1.75) : base;
-          damageOfflineEntity(e, dmg, isCrit, isRite, spec.name);
-          hitAny = true;
-        }
-      }
-    }
-    if (hitAny) {
-      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 14 + eff.resonance * 2);
-    }
-    updatePlayerUI();
+    runOfflineExecution();
   };
 
   const runePuzzleUi = setupRunePuzzleUi({
@@ -11598,7 +11315,8 @@ export function initGame() {
   };
 
   window.cyclePixelZoom = function () {
-    const nextZoom = zoom === 3 ? 4 : zoom === 4 ? 2 : 3;
+    const idx = ZOOM_PRESETS.indexOf(zoom);
+    const nextZoom = ZOOM_PRESETS[(idx + 1) % ZOOM_PRESETS.length];
     setPixelZoom(nextZoom);
   };
 
@@ -11748,13 +11466,16 @@ export function initGame() {
       title = `Slot locked — reach Level ${reqLvl}.`;
     } else if (spec && learned) {
       cls += spec.tcgType?.includes('Flash') ? ' flash-card' : ' rite-card';
-      icon = spec.icon || '⚔️';
+      if ((spec.tier || 1) >= 7) {
+        cls += ` is-apex faction-${String(spec.faction || 'solari').toLowerCase()}`;
+      }
+      icon = getAbilityIconHtml(spec, 24);
       name = spec.short || 'Skill';
       nameColor = spec.color || '#e2e8f0';
       title = `${spec.name} (Rank ${rank}/5) • Press [${keyLabel}] or click to cast • Drag to move slot • Right-click to clear • Shift+click to rebind`;
     } else if (spec) {
       cls += ' slot-locked';
-      icon = spec.icon || '⚔️';
+      icon = getAbilityIconHtml(spec, 24);
       name = spec.short || 'Skill';
       nameColor = '#ef4444';
       title = `${spec.name} is unlearned — allocate a skill point in the Skill Tree or Spellbook first.`;
@@ -11921,9 +11642,10 @@ export function initGame() {
       orderTag: localProfile.orderTag,
     });
     const myFaction = resolved.faction;
+    const myClassId = resolved.classId;
     const keyLabel = formatKeyLabel(keybinds[targetSlot]);
     const learnedSkills = Object.values(ABILITIES_CATALOG)
-      .filter((ab) => ab.id !== 'harvest' && ab.faction === myFaction && getAbilityRank(prog, ab.id) >= 1)
+      .filter((ab) => ab.id !== 'harvest' && ab.faction === myFaction && (!ab.classId || ab.classId === myClassId) && getAbilityRank(prog, ab.id) >= 1)
       .sort((a, b) => (a.tier || 1) - (b.tier || 1));
 
     const buttonsHtml = learnedSkills
@@ -11932,7 +11654,7 @@ export function initGame() {
         const curSlotKey = curSlot ? formatKeyLabel(keybinds[curSlot]) : null;
         const r = getAbilityRank(prog, ab.id);
         return `<button type="button" class="quick-pick-ability-btn ${curSlot ? 'is-equipped' : ''}" onclick="assignSlotAbilityInGame(${targetSlot}, '${ab.id}')">
-          <span class="qp-icon">${ab.icon}</span>
+          <span class="qp-icon">${getAbilityIconHtml(ab, 20)}</span>
           <span class="qp-info">
             <span class="qp-name" style="color:${ab.color || '#facc15'};">${ab.name} <small style="color:#94a3b8;">(R${r}/5)</small></span>
             <span class="qp-status">${curSlot ? `✓ In Slot [${curSlotKey}] — Click to move to [${keyLabel}]` : `Click to equip in [${keyLabel}]`}</span>
@@ -12246,7 +11968,7 @@ export function initGame() {
   window.upgradeAbilityInTree = function (abilityId) {
     const spec = ABILITIES_CATALOG[abilityId];
     if (!spec) return;
-    if (!canUpgradeAbility(prog, abilityId)) {
+    if (!canUpgradeAbility(prog, abilityId, localProfile.classId)) {
       audio.playHurt();
       return;
     }
@@ -12269,6 +11991,7 @@ export function initGame() {
     spawnFCT(player.x, player.y - 14, `★ ${spec.name.toUpperCase()} (RANK ${newRank}/5)!`, spec.color || '#facc15', true);
     logMessage(`🌟 Upgraded ${spec.name} to Rank ${newRank}/5!`, 'log-gain', 'combat');
 
+    saveProgressionLocal();
     updateActionBarBadges();
     renderSkillTreeUI();
     renderKeybindUI();
@@ -12276,6 +11999,32 @@ export function initGame() {
     if (net.connected) {
       net.send({ type: 'upgrade_skill', abilityId });
     }
+  };
+
+  window.respecSkills = function () {
+    if (net.connected) {
+      net.send({ type: 'respec_skills' });
+      logMessage('↺ Requesting free skill point reset from server...', 'log-gain', 'combat');
+      return;
+    }
+    const res = respecCharacterSkills(prog, { force: true });
+    sanitizeProgressionSkills(prog, localProfile.classId);
+    localProfile.loadout = sanitizeLoadout(localProfile.loadout, localProfile.classId, prog);
+    if (prog.ranks) {
+      for (const s of ACTION_SLOTS) {
+        const abId = localProfile.loadout?.[s] ?? localProfile.loadout?.[String(s)];
+        prog.ranks[s] = abId ? getAbilityRank(prog, abId) : 0;
+      }
+    }
+    saveProgressionLocal();
+    audio.playChime?.();
+    spawnSparkBurst(player.x, player.y - 8, ['#38bdf8', '#fde047', '#ffffff'], 20);
+    spawnFCT(player.x, player.y - 14, `↺ SKILLS RESET (${prog.skillPoints} SP)!`, '#38bdf8', true);
+    logMessage(`↺ [Free Respec] Refunded all spent points (${res.refunded} returned, ${prog.skillPoints} SP ready to invest)!`, 'log-gain', 'combat');
+    updateActionBarBadges();
+    renderSkillTreeUI();
+    renderKeybindUI();
+    updatePlayerUI();
   };
 
   function renderSkillTreeUI() {
@@ -12293,6 +12042,10 @@ export function initGame() {
     localProfile.faction = resolved.faction;
     localProfile.classId = resolved.classId;
     const myFaction = resolved.faction;
+    const myClassId = resolved.classId;
+    const clsMeta = CLASSES_CATALOG[myClassId] || CLASSES_CATALOG.solari_vanguard;
+    const passiveSpec = getClassPassive(myClassId);
+    const resCfg = getFactionResourceConfig(myFaction);
     const sp = prog.skillPoints || 0;
 
     const spBadge = document.getElementById('sp-count-txt');
@@ -12302,21 +12055,22 @@ export function initGame() {
     if (banner) {
       banner.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:6px;">
-          <div style="display:flex; align-items:center; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span style="color:#fde047; font-size:12.5px; font-weight:800; letter-spacing:0.02em;">⚡ UNSPENT SKILL POINTS: <span id="sp-count-txt" class="skill-pts-badge" style="font-size:12px; padding:3px 9px;">${sp}</span></span>
             ${sp > 0 ? '<span style="color:#4ade80; font-weight:800; font-size:11px; animation:pulseAlloc 1.4s infinite alternate;">★ READY TO INVEST!</span>' : '<span style="color:#94a3b8; font-size:11px;">(Slay monsters or level up to earn +1 SP/level)</span>'}
             <button type="button" class="util-btn" style="padding:3px 7px; font-size:9px; border-color:#a16207; color:#fde047;" onclick="autoEquipLearnedAbilities()" title="Fill every empty Rite/Flash slot with abilities you have learned">⚡ AUTO-EQUIP LEARNED</button>
+            <button type="button" id="btn-free-respec" class="util-btn" style="padding:3px 8px; font-size:9px; border-color:#38bdf8; color:#7dd3fc;" onclick="respecSkills()" title="Reset all spent Skill Points for free and refund them immediately">↺ FREE RESPEC</button>
           </div>
           <div style="font-size:11px; color:#cbd5e1; font-family:var(--font-clean);">
-            CHAMPION LV. <b style="color:#facc15;">${prog.level || 1}</b> • <b style="color:${myFaction === 'Solari' ? '#facc15' : myFaction === 'Umbri' ? '#c084fc' : myFaction === 'Terra' ? '#4ade80' : '#38bdf8'};">${myFaction.toUpperCase()}</b>
+            CHAMPION LV. <b style="color:#facc15;">${prog.level || 1}</b> • <b style="color:${resCfg.color};">${clsMeta.name.toUpperCase()} (${myFaction.toUpperCase()})</b>
           </div>
         </div>
       `;
     }
 
-    // Filter skills for this tree and faction
+    // Filter skills for this tree, faction, and class specialization
     const treeSkills = Object.values(ABILITIES_CATALOG).filter(
-      (ab) => ab.tree === targetTree && (ab.faction === myFaction || ab.faction === 'All')
+      (ab) => ab.tree === targetTree && (ab.faction === myFaction || ab.faction === 'All') && (!ab.classId || ab.classId === myClassId)
     );
 
     // Group by Tier (1 to 7)
@@ -12330,7 +12084,17 @@ export function initGame() {
       { tier: 7, reqLevel: 30, name: 'APEX ULTIMATE' },
     ];
 
-    let html = '';
+    let html = `
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; background:rgba(8,14,32,0.92); border:1px solid ${resCfg.color}; border-radius:4px; padding:8px 10px; margin-bottom:10px;">
+        <div style="font-size:10px; color:#e2e8f0; flex:1; min-width:220px;">
+          <span style="color:${resCfg.color}; font-weight:800;">✦ CLASS PASSIVE — ${passiveSpec.name.toUpperCase()}:</span> ${passiveSpec.desc}
+        </div>
+        <div style="font-size:10px; color:#bae6fd; display:flex; align-items:center; gap:6px;">
+          ${getFactionCrestSvg(myFaction, 16)}
+          <span><b>${resCfg.name}:</b> ${resCfg.desc}</span>
+        </div>
+      </div>
+    `;
 
     for (const t of tiers) {
       const skillsInTier = treeSkills.filter((s) => (s.tier || 1) === t.tier);
@@ -12356,7 +12120,7 @@ export function initGame() {
 
       for (const ab of skillsInTier) {
         const curRank = getAbilityRank(prog, ab.id);
-        const canUp = canUpgradeAbility(prog, ab.id);
+        const canUp = canUpgradeAbility(prog, ab.id, myClassId);
         const isMax = curRank >= (ab.maxRank || 5);
         const isLearned = curRank >= 1;
         const rankNow = getRankStats(ab, Math.max(1, curRank));
@@ -12369,6 +12133,7 @@ export function initGame() {
         else if (!tierUnlocked) cardClass += ' locked';
 
         const castTimeTxt = ab.castTime > 0 ? `☀️ ${ab.castTime.toFixed(1)}s Cast Rite` : `⚡ Instant Flash`;
+        const classTag = ab.classId ? `<span style="font-size:8.5px; color:${resCfg.color}; border:1px solid ${resCfg.color}; border-radius:2px; padding:0 4px; margin-left:4px;">CLASS</span>` : '';
 
         let prereqName = '';
         let prereqMet = true;
@@ -12389,9 +12154,9 @@ export function initGame() {
           <div class="${cardClass}" data-ability-id="${ab.id}" draggable="${isLearned}" ondragstart="window.beginActionDrag(event, 'ability', '${ab.id}')" title="${isLearned ? 'Click a slot button below, click to pick, or drag to the action bar' : 'Unlearned'}${equippedSlot ? ` • Equipped in Slot ${equippedSlot} [${equippedKeyLabel}]` : ''}">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
               <div style="display:flex; align-items:center; gap:6px;">
-                <span style="font-size:18px;">${ab.icon}</span>
+                <span style="display:inline-flex; align-items:center;">${getAbilityIconHtml(ab, 24)}</span>
                 <div>
-                  <div style="font-weight:700; font-size:11.5px; color:${ab.color || '#facc15'};">${ab.name}</div>
+                  <div style="font-weight:700; font-size:11.5px; color:${ab.color || '#facc15'};">${ab.name}${classTag}</div>
                   <div style="font-size:9.5px; color:#38bdf8;">${castTimeTxt}</div>
                 </div>
               </div>
@@ -12558,15 +12323,15 @@ export function initGame() {
       const isRankable = typeof slot === 'number' && !isItemSlot;
       const curRank = isRankable && equippedSpec ? getAbilityRank(prog, spec.id) : 0;
       const isLearned = isRankable ? curRank >= 1 : true;
-      const canUpgrade = isRankable && canUpgradeAbility(prog, spec.id);
+      const canUpgrade = isRankable && canUpgradeAbility(prog, spec.id, localProfile.classId);
 
-      // Available choices for this slot: all learned abilities of the player's faction!
+      // Available choices for this slot: all learned abilities of the player's faction & class!
       const allowedChoices = isItemSlot
         ? Array.from(new Set((localProfile.inventory || []).map((it) => (typeof it === 'string' ? it : it?.id))))
             .map((id) => EQUIPMENT_CATALOG[id])
             .filter((it) => it && it.slot !== 'currency')
         : Object.values(ABILITIES_CATALOG)
-            .filter((ab) => ab.id !== 'harvest' && ab.faction === myFaction && getAbilityRank(prog, ab.id) >= 1)
+            .filter((ab) => ab.id !== 'harvest' && ab.faction === myFaction && (!ab.classId || ab.classId === localProfile.classId) && getAbilityRank(prog, ab.id) >= 1)
             .sort((a, b) => (a.tier || 1) - (b.tier || 1));
 
       const castTimeTxt = spec.castTime > 0 ? `${spec.castTime.toFixed(1)}s Cast` : 'Instant';
@@ -12576,7 +12341,7 @@ export function initGame() {
       row.innerHTML = `
         <div style="flex:1; padding-right:10px;">
           <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-            <span style="font-size:16px;">${isLearned ? spec.icon : '🔒'}</span>
+            <span style="display:inline-flex; align-items:center;">${isLearned ? (equippedSpec ? getAbilityIconHtml(spec, 18) : spec.icon) : '🔒'}</span>
             <b style="color:${spec.color}; font-size:12px;">${spec.name}</b>
             <span class="spec-pill">${spec.tcgType}</span>
             ${isRankable ? `<span class="rank-pill">${isLearned ? `RANK ${curRank}/5` : isEmptySlot ? 'EMPTY' : '🔒 UNLEARNED'}</span>` : ''}
@@ -12641,16 +12406,19 @@ export function initGame() {
     const myFaction = resolved.faction;
     const clsMeta = CLASSES_CATALOG[currentClass] || Object.values(CLASSES_CATALOG)[0];
     const facMeta = FACTIONS_META[myFaction] || {};
+    const resCfg = getFactionResourceConfig(myFaction);
+    const passiveSpec = getClassPassive(currentClass);
     const facColor = facMeta.color || '#facc15';
 
     const factionAbilities = Object.values(ABILITIES_CATALOG)
-      .filter((ab) => ab.id !== 'harvest' && ab.faction === myFaction)
-      .sort((a, b) => (a.tier || 1) - (b.tier || 1) || (a.minLevel || 1) - (b.minLevel || 1));
+      .filter((ab) => ab.id !== 'harvest' && ab.faction === myFaction && (!ab.classId || ab.classId === currentClass))
+      .sort((a, b) => (a.tier || 1) - (b.tier || 1) || (a.reqLevel || 1) - (b.reqLevel || 1));
 
     const slotLabels = ['[1]', '[2]', '[3]', '[4]', '[Q]', '[E]', '[R]', '[F]'];
-    const recIds = [1, 2, 3, 4, 5, 6, 7, 8]
-      .map((s) => clsMeta?.defaultLoadout?.[s])
-      .filter((id) => id && ABILITIES_CATALOG[id] && ABILITIES_CATALOG[id].faction === myFaction);
+    const recSource = clsMeta?.legacyDefaultLoadout || clsMeta?.defaultLoadout || {};
+    const recIds = [1, 2, 3, 4, 9, 10, 11, 12]
+      .map((s) => recSource?.[s])
+      .filter((id) => id && ABILITIES_CATALOG[id] && ABILITIES_CATALOG[id].faction === myFaction && (!ABILITIES_CATALOG[id].classId || ABILITIES_CATALOG[id].classId === currentClass));
     for (const ab of factionAbilities) {
       if (recIds.length >= 8) break;
       if (!recIds.includes(ab.id)) recIds.push(ab.id);
@@ -12660,17 +12428,17 @@ export function initGame() {
       const ab = ABILITIES_CATALOG[id];
       if (!ab) return '';
       return `
-        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:3px 0; gap:8px;">
-          <span style="color:${ab.color || facColor};"><b>${slotLabels[idx] || `[${idx + 1}]`} ${ab.name}</b> (${ab.type} • Lv.${ab.minLevel || 1})</span>
-          <span style="color:#94a3b8; text-align:right;">${ab.cost > 0 ? `${ab.cost} Glimmer` : 'Generates Glimmer'} • ${ab.cooldown}s CD</span>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:3px 0; gap:8px; align-items:center;">
+          <span style="color:${ab.color || facColor}; display:flex; align-items:center; gap:5px;">${getAbilityIconHtml(ab, 16)}<b>${slotLabels[idx] || `[${idx + 1}]`} ${ab.name}</b> <small style="color:#94a3b8;">(${ab.tcgType} • Lv.${ab.reqLevel || 1})</small></span>
+          <span style="color:#94a3b8; text-align:right;">${ab.cost > 0 ? `${ab.cost} Glimmer` : 'Generates Glimmer'} • ${ab.baseCd || 0}s CD</span>
         </div>
       `;
     }).join('');
 
-    const tier1Flash = factionAbilities.find((a) => a.type === 'Flash' && (a.tier || 1) === 1) || factionAbilities[0];
-    const tier1Rite = factionAbilities.find((a) => a.type === 'Rite' && (a.tier || 1) <= 2) || factionAbilities[1] || tier1Flash;
-    const midFlashes = factionAbilities.filter((a) => a.type === 'Flash' && (a.tier || 1) >= 2 && (a.tier || 1) <= 5);
-    const highRites = factionAbilities.filter((a) => a.type === 'Rite' && (a.tier || 1) >= 3 && (a.tier || 1) <= 6);
+    const tier1Flash = factionAbilities.find((a) => a.tcgType?.includes('Flash') && (a.tier || 1) === 1) || factionAbilities[0];
+    const tier1Rite = factionAbilities.find((a) => a.tcgType?.includes('Rite') && (a.tier || 1) <= 2) || factionAbilities[1] || tier1Flash;
+    const midFlashes = factionAbilities.filter((a) => a.tcgType?.includes('Flash') && (a.tier || 1) >= 2 && (a.tier || 1) <= 5);
+    const highRites = factionAbilities.filter((a) => a.tcgType?.includes('Rite') && (a.tier || 1) >= 3 && (a.tier || 1) <= 6);
     const apexAbilities = factionAbilities.filter((a) => (a.tier || 1) >= 7);
 
     const html = `
@@ -12691,6 +12459,10 @@ export function initGame() {
         <div style="font-size:10px; color:#94a3b8; margin-top:6px; line-height:1.4;">
           ${clsMeta?.desc || ''}
         </div>
+        <div style="margin-top:8px; padding:6px 8px; background:rgba(8,14,32,0.9); border:1px solid #334155; border-radius:4px; font-size:9.5px; color:#e2e8f0; display:flex; flex-direction:column; gap:3px;">
+          <div><b style="color:${facColor};">✦ CLASS PASSIVE — ${passiveSpec.name}:</b> ${passiveSpec.desc}</div>
+          <div><b style="color:#38bdf8;">✦ FACTION RESOURCE — ${resCfg.name}:</b> ${resCfg.desc}</div>
+        </div>
       </div>
 
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
@@ -12709,16 +12481,16 @@ export function initGame() {
           </div>
           <div style="display:flex; flex-direction:column; gap:5px; font-size:9.5px; color:#cbd5e1; line-height:1.4;">
             <div>
-              <b style="color:#facc15;">Power (Base ${clsMeta?.baseStats?.power || 5}):</b> Directly amplifies damage dealt by all ${myFaction} Flashes and heavy physical/elemental strikes.
+              <b style="color:#facc15;">Power (Lv.1 ${(clsMeta?.bonusStats?.power || 0) + 2}):</b> Directly amplifies damage dealt by all ${myFaction} Flashes and heavy physical/elemental strikes.
             </div>
             <div>
-              <b style="color:#c084fc;">Resonance (Base ${clsMeta?.baseStats?.resonance || 5}):</b> Scales ${myFaction} Rite potency, healing/shielding strength, and expands your Maximum Glimmer pool.
+              <b style="color:#c084fc;">Resonance (Lv.1 ${(clsMeta?.bonusStats?.resonance || 0) + 1}):</b> Scales ${myFaction} Rite potency, healing/shielding strength, and expands your Maximum Glimmer pool.
             </div>
             <div>
-              <b style="color:#4ade80;">Bastion (Base ${clsMeta?.baseStats?.bastion || 5}):</b> Increases Maximum Health and fortifies your defensive mitigation against boss telegraphs.
+              <b style="color:#4ade80;">Bastion (Lv.1 ${(clsMeta?.bonusStats?.bastion || 0) + 2}):</b> Increases Maximum Health and fortifies your defensive mitigation against boss telegraphs.
             </div>
             <div>
-              <b style="color:#38bdf8;">Tempo (Base ${clsMeta?.baseStats?.tempo || 5}):</b> Accelerates Rite channel speed, lowers cooldowns, and boosts critical strike cadence.
+              <b style="color:#38bdf8;">Tempo (Lv.1 ${(clsMeta?.bonusStats?.tempo || 0) + 1}):</b> Accelerates Rite channel speed, lowers cooldowns, and boosts critical strike cadence.
             </div>
           </div>
         </div>
@@ -12731,23 +12503,23 @@ export function initGame() {
         <div style="display:flex; flex-direction:column; gap:6px; font-size:10px; color:#cbd5e1; line-height:1.45;">
           <div>
             <b style="color:#facc15;">1. Glimmer Builder (Lv. 1 Starter Flash):</b>
-            Open with <b>${tier1Flash?.name || 'Starter Flash'} [1]</b> to strike immediately and generate Glimmer reserves without cast time.
+            Open with <b>${tier1Flash?.name || 'Starter Flash'} [1]</b> to strike immediately and build your ${resCfg.name} &amp; Glimmer reserves without cast time.
           </div>
           <div>
-            <b style="color:#38bdf8;">2. Core Channeled Rite (Lv. ${tier1Rite?.minLevel || 1}+):</b>
+            <b style="color:#38bdf8;">2. Core Channeled Rite (Lv. ${tier1Rite?.reqLevel || 1}+):</b>
             Spend your Glimmer channeling <b>${tier1Rite?.name || 'Core Rite'}</b> (${tier1Rite?.desc || ''}).
           </div>
           <div>
-            <b style="color:#4ade80;">3. Tactical Utility &amp; Mobility Flashes (Lv. 3–18):</b>
-            Unlock ${midFlashes.map((a) => `<b>${a.name}</b> (Lv.${a.minLevel})`).join(', ') || `mid-tier ${myFaction} Flashes`} in the <b>⚡ Flashes</b> tab to dodge boss telegraphs, shield yourself, and control positioning.
+            <b style="color:#4ade80;">3. Class Specialization &amp; Mobility Flashes (Lv. 3–18):</b>
+            Unlock ${midFlashes.map((a) => `<b>${a.name}</b> (Lv.${a.reqLevel || 1})`).join(', ') || `mid-tier ${myFaction} Flashes`} in the <b>⚡ Flashes</b> tab to dodge boss telegraphs, shield yourself, and control positioning.
           </div>
           <div>
             <b style="color:#c084fc;">4. High-Tier ${myFaction} Rites (Lv. 6–24):</b>
-            Invest Skill Points into ${highRites.map((a) => `<b>${a.name}</b> (Lv.${a.minLevel})`).join(', ') || `high-tier ${myFaction} Rites`} in the <b>☀️ Rites</b> tab to dominate dungeon elites and multi-phase bosses.
+            Invest Skill Points into ${highRites.map((a) => `<b>${a.name}</b> (Lv.${a.reqLevel || 1})`).join(', ') || `high-tier ${myFaction} Rites`} in the <b>☀️ Rites</b> tab to dominate dungeon elites and multi-phase bosses.
           </div>
           <div>
             <b style="color:#ef4444;">5. Level 70 Capstone &amp; Paragon:</b>
-            Unlock your ultimate ${myFaction} capstones (${apexAbilities.map((a) => `<b>${a.name}</b> (${a.type})`).join(' &amp; ') || 'Tier 7 Apex Spells'}) and climb up to Level 70 + Paragon 100 in Founder's Edition!
+            Unlock your ultimate ${clsMeta?.name || myFaction} capstones (${apexAbilities.map((a) => `<b>${a.name}</b> (${a.tcgType})`).join(' &amp; ') || 'Tier 7 Apex Spells'}) and climb up to Level 70 + Paragon 100 in Founder's Edition!
           </div>
         </div>
       </div>
@@ -12972,7 +12744,7 @@ export function initGame() {
           const aaCb = document.getElementById('settings-antialiasing-checkbox');
           if (aaCb) aaCb.checked = isTextAntiAliased;
           const zLbl = document.getElementById('zoom-label');
-          if (zLbl) zLbl.innerText = `${zoom}x`;
+          if (zLbl) zLbl.innerText = formatZoomLabel(zoom);
           if (typeof window.getUiScale === 'function') {
             const sObj = window.getUiScale();
             const sLbl = document.getElementById('ui-scale-label');
@@ -13194,8 +12966,9 @@ export function initGame() {
   canvas.addEventListener('wheel', (e) => {
     if (frontpage.isOpen) return;
     e.preventDefault();
-    if (e.deltaY < 0 && zoom < 4) setPixelZoom(zoom + 1);
-    else if (e.deltaY > 0 && zoom > 2) setPixelZoom(zoom - 1);
+    const idx = ZOOM_PRESETS.indexOf(zoom);
+    if (e.deltaY < 0 && idx >= 0 && idx < ZOOM_PRESETS.length - 1) setPixelZoom(ZOOM_PRESETS[idx + 1]);
+    else if (e.deltaY > 0 && idx > 0) setPixelZoom(ZOOM_PRESETS[idx - 1]);
   }, { passive: false });
 
   function resetInputs() {
@@ -13594,10 +13367,7 @@ export function initGame() {
       }
     }
 
-    if (player.rebukeTimer > 0) player.rebukeTimer = Math.max(0, player.rebukeTimer - dt);
-    if (player.auroraStrideTimer > 0) player.auroraStrideTimer = Math.max(0, player.auroraStrideTimer - dt);
     if (player.solarAscensionTimer > 0) {
-      player.solarAscensionTimer = Math.max(0, player.solarAscensionTimer - dt);
       player.ascensionPulse = (player.ascensionPulse || 0) + dt;
       if (player.ascensionPulse >= 1.2) {
         player.ascensionPulse = 0;
@@ -13611,12 +13381,17 @@ export function initGame() {
         }
       }
     }
-    if (player.abyssalShroudTimer > 0) player.abyssalShroudTimer = Math.max(0, player.abyssalShroudTimer - dt);
-    if (player.voidformTimer > 0) player.voidformTimer = Math.max(0, player.voidformTimer - dt);
-    if (player.rootedBastionTimer > 0) player.rootedBastionTimer = Math.max(0, player.rootedBastionTimer - dt);
-    if (player.treantFormTimer > 0) player.treantFormTimer = Math.max(0, player.treantFormTimer - dt);
-    if (player.phaseShiftTimer > 0) player.phaseShiftTimer = Math.max(0, player.phaseShiftTimer - dt);
-    if (player.temporalApotheosisTimer > 0) player.temporalApotheosisTimer = Math.max(0, player.temporalApotheosisTimer - dt);
+    if (!net.connected) {
+      tickActorCombatTimers(player, dt);
+      player.stealthed = (player.stealthedTimer || 0) > 0;
+      player.thornbark = (player.thornbarkTimer || 0) > 0;
+      player.zenith = (player.zenithTimer || 0) > 0;
+      player.voidform = (player.voidformTimer || 0) > 0;
+      player.treantForm = (player.treantFormTimer || 0) > 0;
+      player.temporalApotheosis = (player.temporalApotheosisTimer || 0) > 0;
+      player.solarisDome = (player.solarisDomeTimer || 0) > 0;
+      player.bastionBanner = (player.bastionBannerTimer || 0) > 0;
+    }
 
     // Temporary Campfires ticking & despawn
     for (let i = props.length - 1; i >= 0; i--) {
@@ -13976,16 +13751,12 @@ export function initGame() {
       screenShake.offsetY = 0;
     }
 
+    if (!net.connected) {
+      tickOfflineEntityDebuffsAndDoTs({ entities, dt, damageOfflineEntity });
+    }
     for (let i = entities.length - 1; i >= 0; i--) {
       const e = entities[i];
-      if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
-      if (!net.connected && e.freezeTimer > 0) {
-        e.freezeTimer = Math.max(0, e.freezeTimer - dt);
-        if (e.freezeTimer <= 0) e.frozen = false;
-      }
-      if (!net.connected && e.staggerTimer > 0) {
-        e.staggerTimer = Math.max(0, e.staggerTimer - dt);
-      }
+      if (net.connected && e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
       if (e.isDying) {
         e.deathAge = (e.deathAge || 0) + dt;
         e.y -= 22 * dt;
@@ -14413,9 +14184,11 @@ export function initGame() {
             triggerScreenShake(0.28);
             if (!player.isDead && !player.stealthed && Math.hypot(player.x - gz.x, player.y - gz.y) <= gz.radius) {
               damageOfflinePlayer(gz.damage || 14, `${gz.bossName || 'Boss'} ${gz.label || 'Cataclysm'}`, gz.bossRef);
-              const ang = Math.atan2(player.y - gz.y, player.x - gz.x);
-              player.x = Math.max(-mapBounds.halfW + 14, Math.min(mapBounds.halfW - 14, player.x + Math.cos(ang) * 24));
-              player.y = Math.max(-mapBounds.halfH + 14, Math.min(mapBounds.halfH - 14, player.y + Math.sin(ang) * 24));
+              if (!getClassPassive(localProfile.classId).knockbackImmune) {
+                const ang = Math.atan2(player.y - gz.y, player.x - gz.x);
+                player.x = Math.max(-mapBounds.halfW + 14, Math.min(mapBounds.halfW - 14, player.x + Math.cos(ang) * 24));
+                player.y = Math.max(-mapBounds.halfH + 14, Math.min(mapBounds.halfH - 14, player.y + Math.sin(ang) * 24));
+              }
               if (gz.snare) player.snareTimer = Math.max(player.snareTimer || 0, gz.snare);
             }
           }
@@ -14762,10 +14535,14 @@ export function initGame() {
     return sprites.tiles[`warzone_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.flagstone_0;
   }
 
+  let currentShadowOffX = 0;
+  let currentShadowOffY = 0;
   function drawPixelEllipseShadow(cx, cy, rx, ry) {
-    ctx.fillStyle = 'rgba(4, 6, 14, 0.55)';
-    ctx.fillRect(Math.round(cx - rx), Math.round(cy - ry + 1), Math.round(rx * 2), Math.round(ry * 2 - 2));
-    ctx.fillRect(Math.round(cx - rx + 2), Math.round(cy - ry), Math.round(rx * 2 - 4), Math.round(ry * 2));
+    const scx = cx + currentShadowOffX;
+    const scy = cy + currentShadowOffY;
+    ctx.fillStyle = 'rgba(4, 6, 14, 0.52)';
+    ctx.fillRect(Math.round(scx - rx), Math.round(scy - ry + 1), Math.round(rx * 2), Math.round(ry * 2 - 2));
+    ctx.fillRect(Math.round(scx - rx + 2), Math.round(scy - ry), Math.round(rx * 2 - 4), Math.round(ry * 2));
   }
 
   function drawPortalMist() {
@@ -14946,6 +14723,38 @@ export function initGame() {
   let tileChunkRoomKey = '';
   let animatedWaterTiles = null;
 
+  const tileSpriteMetaMap = new WeakMap();
+  if (sprites?.tiles) {
+    for (const [key, tileCanvas] of Object.entries(sprites.tiles)) {
+      if (!tileCanvas || typeof tileCanvas !== 'object') continue;
+      let meta;
+      if (key.startsWith('void_sea_') || key.startsWith('interior_void_')) {
+        meta = { category: 'void_sea', biome: 'void', isWall: true };
+      } else if (key.startsWith('river_water_')) {
+        meta = { category: 'water', biome: 'water', isWall: false };
+      } else if (key.startsWith('bridge_wood_')) {
+        meta = { category: 'bridge', biome: 'bridge', isWall: false };
+      } else if (key.startsWith('flagstone_') || key.startsWith('celestial_road_')) {
+        meta = { category: 'road', biome: 'road', isWall: false };
+      } else if (key.startsWith('mountain_rock_') || key.startsWith('mountain_peak_')) {
+        meta = { category: 'mountain', biome: 'mountain', isWall: true };
+      } else if (key.startsWith('sanctuary_grass_')) {
+        meta = { category: 'grass', biome: 'grass', isWall: false };
+      } else if (key.startsWith('interior_')) {
+        meta = { category: 'interior', biome: 'interior', isWall: key.startsWith('interior_wall_') };
+      } else {
+        const biomePrefix = key.split('_')[0];
+        meta = { category: 'biome', biome: biomePrefix, isWall: false };
+      }
+      tileSpriteMetaMap.set(tileCanvas, meta);
+    }
+  }
+  const DEFAULT_META_FALLBACK = { category: 'biome', biome: 'grass', isWall: false };
+  function getTileMeta(tx, ty) {
+    const t = pickTile(tx, ty);
+    return (t && tileSpriteMetaMap.get(t)) || DEFAULT_META_FALLBACK;
+  }
+
   function getTileChunk(chunkX, chunkY) {
     const key = `${tileChunkRoomKey}:${chunkX},${chunkY}`;
     const cached = tileChunkCache.get(key);
@@ -14973,6 +14782,16 @@ export function initGame() {
       }
     }
 
+    drawTileChunkTransitions({
+      cctx,
+      chunkX,
+      chunkY,
+      tileChunkTiles: TILE_CHUNK_TILES,
+      tileSize: TILE_SIZE,
+      getTileMeta,
+      sprites,
+    });
+
     const chunk = { canvas, water };
     if (tileChunkCache.size >= 192) tileChunkCache.clear();
     tileChunkCache.set(key, chunk);
@@ -14992,6 +14811,7 @@ export function initGame() {
   });
 
   const atmosphereRenderer = createAtmosphereRenderer();
+  const vfxRenderer = createVfxRenderer();
   let atmosphereMode = 'auto';
   try {
     const savedAtmo = localStorage.getItem('gf_atmo_mode');
@@ -15077,6 +14897,11 @@ export function initGame() {
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = currentBiomeTheme.startsWith('interior_') ? '#07050c' : '#070b19';
     ctx.fillRect(0, 0, viewW, viewH);
+
+    const timeCycle = computeWorldTimeCycle(Date.now(), atmosphereMode);
+    const dirShadow = computeDirectionalShadowOffset(timeCycle);
+    currentShadowOffX = dirShadow.dx || 0;
+    currentShadowOffY = dirShadow.dy || 0;
 
     activeCamLeft = Math.floor(camera.x + screenShake.offsetX - viewW / 2);
     activeCamTop = Math.floor(camera.y + screenShake.offsetY - viewH / 2);
@@ -15206,128 +15031,17 @@ export function initGame() {
       ctx.restore();
     }
 
-    // Ground Zones (Consecration, Nightfall Plague, Briar Snare, Gravity Well, Frost Ring, Shockwave)
-    for (const gz of groundZones) {
-      const pad = (gz.radius || 70) + 40;
-      if (!isWorldInViewport(gz.x, gz.y, camLeft, camTop, pad, pad)) continue;
-      const gx = Math.round(gz.x - camLeft);
-      const gy = Math.round(gz.y - camTop);
-      if (gz.type === 'consecration') {
-        const r = Math.round(gz.radius);
-        ctx.strokeStyle = '#facc15';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(gx - r, gy - Math.round(r * 0.65), r * 2, Math.round(r * 1.3));
-        ctx.fillStyle = 'rgba(250, 204, 21, 0.14)';
-        ctx.fillRect(gx - r + 2, gy - Math.round(r * 0.65) + 2, r * 2 - 4, Math.round(r * 1.3) - 4);
-      } else if (gz.type === 'plague') {
-        const r = Math.round(gz.radius);
-        ctx.fillStyle = 'rgba(168, 85, 247, 0.18)';
-        ctx.beginPath();
-        ctx.ellipse(gx, gy, r, Math.round(r * 0.65), 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#a855f7';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      } else if (gz.type === 'briar') {
-        const r = Math.round(gz.radius);
-        ctx.fillStyle = 'rgba(34, 197, 94, 0.16)';
-        ctx.beginPath();
-        ctx.ellipse(gx, gy, r, Math.round(r * 0.65), 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#4ade80';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      } else if (gz.type === 'gravity') {
-        const r = Math.round(gz.radius * (0.88 + Math.sin(globalTime * 5) * 0.08));
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.16)';
-        ctx.beginPath();
-        ctx.ellipse(gx, gy, r, Math.round(r * 0.65), 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      } else if (gz.type === 'frost_ring' || gz.type === 'shockwave') {
-        const progW = gz.age / Math.max(0.01, gz.maxAge);
-        const r = Math.round(gz.radius * progW);
-        ctx.strokeStyle = gz.type === 'frost_ring' ? '#7dd3fc' : (gz.color || '#fde047');
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.ellipse(gx, gy, Math.max(4, r), Math.max(3, Math.round(r * 0.68)), 0, 0, Math.PI * 2);
-        ctx.stroke();
-      } else if (gz.type === 'sanguine_pool') {
-        const r = Math.round(gz.radius || 62);
-        const pulse = 0.75 + Math.sin(globalTime * 6) * 0.15;
-        ctx.fillStyle = `rgba(239, 68, 68, ${0.14 * pulse})`;
-        ctx.beginPath();
-        ctx.ellipse(gx, gy, r, Math.round(r * 0.65), 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#ef4444';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      } else if (gz.type === 'telegraph') {
-        const r = Math.round(gz.radius || 70);
-        const ry = Math.round(r * 0.65);
-        const fillProg = Math.min(1, (gz.age || 0) / Math.max(0.1, gz.maxAge || 1.5));
-        const color = gz.color || '#ef4444';
-
-        // 1. Hazard floor aura
-        ctx.fillStyle = 'rgba(239, 68, 68, 0.12)';
-        ctx.beginPath();
-        ctx.ellipse(gx, gy, r, ry, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 2. Filling charge disk
-        const cr = Math.max(2, Math.round(r * fillProg));
-        const cry = Math.max(2, Math.round(ry * fillProg));
-        ctx.fillStyle = 'rgba(239, 68, 68, 0.28)';
-        ctx.beginPath();
-        ctx.ellipse(gx, gy, cr, cry, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 3. Dashed boundary ring
-        ctx.save();
-        ctx.setLineDash([5, 4]);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.ellipse(gx, gy, r, ry, 0, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-
-        // 4. Countdown warning label
-        const remain = Math.max(0, (gz.maxAge || 1.5) - (gz.age || 0));
-        const warnText = `⚠️ ${(remain).toFixed(1)}s`;
-        if (activeTextCtx) {
-          const gzPos = worldToScreen(gz.x, gz.y - ry - 4);
-          activeTextCtx.save();
-          activeTextCtx.font = '700 12.5px "Outfit", system-ui, sans-serif';
-          activeTextCtx.textAlign = 'center';
-          fillCrispShadowText(activeTextCtx, warnText, gzPos.sx, gzPos.sy, '#fde047', 1);
-          if (gz.label) {
-            const lPos = worldToScreen(gz.x, gz.y + 3);
-            activeTextCtx.font = '800 12px "Cinzel", serif';
-            fillCrispShadowText(activeTextCtx, gz.label, lPos.sx, lPos.sy, '#ffffff', 1);
-          }
-          activeTextCtx.restore();
-        } else {
-          ctx.font = '700 11px "Outfit", system-ui, sans-serif';
-          ctx.textAlign = 'center';
-          const wy = Math.round(gy - ry - 4);
-          ctx.fillStyle = '#05070f';
-          ctx.fillText(warnText, gx + 1, wy + 1);
-          ctx.fillStyle = '#fde047';
-          ctx.fillText(warnText, gx, wy);
-          if (gz.label) {
-            ctx.font = '800 10px "Cinzel", serif';
-            const ly = Math.round(gy + 3);
-            ctx.fillStyle = '#05070f';
-            ctx.fillText(gz.label, gx + 1, ly + 1);
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(gz.label, gx, ly);
-          }
-        }
-      }
-    }
+    // Ground Zones (Consecration, Nightfall Plague, Briar Snare, Gravity Well, Frost Ring, Shockwave, Telegraphs)
+    vfxRenderer.drawGroundZones(ctx, {
+      groundZones,
+      camLeft,
+      camTop,
+      globalTime,
+      activeTextCtx,
+      worldToScreen,
+      fillCrispShadowText,
+      isWorldInViewport,
+    });
 
     // Crisp steady Target Reticle (no flashing jitter)
     if (currentTarget && !currentTarget.isDying) {
@@ -15798,16 +15512,18 @@ export function initGame() {
             ctx.rotate((ent.deathAge || 0) * 3.5);
             ctx.drawImage(img, -img.width / 2, -img.height / 2);
           } else {
+            const drawImg = (ent.isBoss && (ent.cast || ent.castState))
+              ? buildCastFrameVariant(img, ent.cast?.color || ent.castState?.color || '#fde047')
+              : img;
             drawWorldSprite(
-              img,
-              Math.round(sx + shakeX - img.width / 2),
-              sy - img.height + 3,
+              drawImg,
+              Math.round(sx + shakeX - drawImg.width / 2),
+              sy - drawImg.height + 3,
               ent.hitFlash,
               ent.facingDir === -1 ? sx : null
             );
             if (ent.frozen) {
-              ctx.strokeStyle = '#7dd3fc';
-              ctx.strokeRect(sx - 9, sy - img.height + 4, 18, img.height - 2);
+              vfxRenderer.drawEntityAuraRings(ctx, { sx, sy, state: { frozen: true }, globalTime });
             }
           }
           ctx.restore();
@@ -16059,26 +15775,30 @@ export function initGame() {
           const sx = Math.round(rp.renderX - camLeft);
           const sy = Math.round(rp.renderY - camTop);
 
-          if (inSquad) {
-            ctx.strokeStyle = '#4ade80';
-            ctx.strokeRect(sx - 9, sy - 4, 18, 8);
-          } else if (hostile) {
-            ctx.strokeStyle = '#ef4444';
-            ctx.strokeRect(sx - 9, sy - 4, 18, 8);
-          }
-          if (rp.zenith) {
-            ctx.strokeStyle = '#fde047';
-            ctx.strokeRect(sx - 11, sy - 5, 22, 10);
-          }
-          if (rp.thornbark) {
-            ctx.strokeStyle = '#22c55e';
-            ctx.strokeRect(sx - 10, sy - 16, 20, 16);
-          }
-
           drawPixelEllipseShadow(sx, sy, 8, 3);
+          vfxRenderer.drawEntityAuraRings(ctx, {
+            sx,
+            sy,
+            state: {
+              inSquad,
+              hostile,
+              zenith: Boolean(rp.zenith || rp.isCasting || rp.solarisDome),
+              thornbark: Boolean(rp.thornbark || rp.bastionBanner),
+              voidform: Boolean(rp.voidform),
+              treantForm: Boolean(rp.treantForm),
+              temporalApotheosis: Boolean(rp.temporalApotheosis),
+            },
+            globalTime,
+          });
           const heroSet = getCharacterSprites(rp.faction, rp.classId, rp.equipment);
-          const frames = heroSet[rp.dir || 'down'] || heroSet.down;
-          const img = Array.isArray(frames) ? frames[rp.isMoving ? (Math.floor(rp.walkTimer || 0) % 2) + 1 : 0] : frames;
+          const rpDir = rp.dir || 'down';
+          const frames = heroSet[rpDir] || heroSet.down;
+          const rpPose = rp.isSlashing && heroSet.poses?.slash?.[rpDir]
+            ? heroSet.poses.slash[rpDir]
+            : rp.isCasting && heroSet.poses?.cast?.[rpDir]
+              ? heroSet.poses.cast[rpDir]
+              : null;
+          const img = rpPose || (Array.isArray(frames) ? frames[rp.isMoving ? (Math.floor(rp.walkTimer || 0) % 2) + 1 : 0] : frames);
           if (!img || !(img instanceof HTMLCanvasElement || img instanceof HTMLImageElement || (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap))) return;
 
           ctx.save();
@@ -16090,8 +15810,7 @@ export function initGame() {
             rp.hitFlash
           );
           if (rp.frozen) {
-            ctx.strokeStyle = '#7dd3fc';
-            ctx.strokeRect(sx - 9, sy - img.height + 4, 18, img.height - 2);
+            vfxRenderer.drawEntityAuraRings(ctx, { sx, sy: sy - (rp.z || 0), state: { frozen: true }, globalTime });
           }
           ctx.restore();
 
@@ -16131,7 +15850,7 @@ export function initGame() {
       });
     }
 
-    // Local Hero with Real-Time 24x26 Paperdoll Sprite + Faction States!
+    // Local Hero with Real-Time 26x28 Paperdoll Sprite, Combat Poses & Isometric Auras!
     if (!player.isDead) {
       renderables.push({
         y: player.y,
@@ -16142,17 +15861,30 @@ export function initGame() {
 
           const heroSet = getCharacterSprites(localProfile.faction, localProfile.classId, localProfile.equipment);
           const frames = heroSet[player.dir] || heroSet.down;
-          const img = Array.isArray(frames) ? frames[player.isMoving ? (Math.floor(player.walkTimer) % 2) + 1 : 0] : frames;
+          const activePose = player.slashTimer > 0 && heroSet.poses?.slash?.[player.dir]
+            ? heroSet.poses.slash[player.dir]
+            : isCasting && heroSet.poses?.cast?.[player.dir]
+              ? heroSet.poses.cast[player.dir]
+              : (player.shield > 0 && (player.rebukeTimer > 0 || player.thornbark)) && heroSet.poses?.guard?.[player.dir]
+                ? heroSet.poses.guard[player.dir]
+                : (inputs.shift && player.isMoving) && heroSet.poses?.dash?.[player.dir]
+                  ? heroSet.poses.dash[player.dir]
+                  : null;
+          const img = activePose || (Array.isArray(frames) ? frames[player.isMoving ? (Math.floor(player.walkTimer) % 2) + 1 : 0] : frames);
           if (!img || !(img instanceof HTMLCanvasElement || img instanceof HTMLImageElement || (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap))) return;
 
-          if (isCasting || player.zenith) {
-            ctx.strokeStyle = '#fde047';
-            ctx.strokeRect(sx - 12, sy - 6, 24, 12);
-          }
-          if (player.thornbark) {
-            ctx.strokeStyle = '#4ade80';
-            ctx.strokeRect(sx - 11, sy - 18, 22, 18);
-          }
+          vfxRenderer.drawEntityAuraRings(ctx, {
+            sx,
+            sy,
+            state: {
+              zenith: Boolean(isCasting || player.zenith || player.solarisDome),
+              thornbark: Boolean(player.thornbark || player.bastionBanner),
+              voidform: Boolean(player.voidform || (player.voidformTimer || 0) > 0),
+              treantForm: Boolean(player.treantForm || (player.treantFormTimer || 0) > 0),
+              temporalApotheosis: Boolean(player.temporalApotheosis || (player.temporalApotheosisTimer || 0) > 0),
+            },
+            globalTime,
+          });
 
           ctx.save();
           if (player.stealthed) ctx.globalAlpha = 0.48;
@@ -16163,8 +15895,7 @@ export function initGame() {
             player.hitFlash
           );
           if (player.frozen) {
-            ctx.strokeStyle = '#7dd3fc';
-            ctx.strokeRect(sx - 9, sy - player.z - img.height + 4, 18, img.height - 2);
+            vfxRenderer.drawEntityAuraRings(ctx, { sx, sy: sy - player.z, state: { frozen: true }, globalTime });
           }
           ctx.restore();
 
@@ -16222,64 +15953,9 @@ export function initGame() {
       }
     }
 
-    for (const sa of slashArcs) {
-      const sx = Math.round(sa.x - camLeft);
-      const sy = Math.round(sa.y - camTop);
-      const rad = 18 + (sa.age / sa.maxAge) * 8;
-      for (let step = -4; step <= 4; step++) {
-        const a = sa.angle + step * 0.2;
-        ctx.fillStyle = Math.abs(step) <= 1 ? '#ffffff' : (sa.color || '#facc15');
-        ctx.fillRect(Math.round(sx + Math.cos(a) * rad) - 2, Math.round(sy + Math.sin(a) * rad * 0.8) - 2, 4, 4);
-      }
-    }
-
-    for (const sb of skyBeams) {
-      const sx = Math.round(sb.x - camLeft);
-      const sy = Math.round(sb.y - camTop);
-      const w = Math.max(2, Math.round(16 * (1 - sb.age / sb.maxAge)));
-      ctx.fillStyle = sb.color === '#38bdf8' ? 'rgba(56, 189, 248, 0.42)' : 'rgba(250, 204, 21, 0.42)';
-      ctx.fillRect(Math.round(sx - w), 0, w * 2, sy);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(Math.round(sx - w / 2), 0, w, sy);
-    }
-
-    // All 4 Faction Projectile Visuals
-    for (const p of projectiles) {
-      if (!isWorldInViewport(p.x, p.y, camLeft, camTop, 32, 32)) continue;
-      const sx = Math.round(p.x - camLeft);
-      const sy = Math.round(p.y - camTop);
-      if (p.type === 'hammer') {
-        ctx.save();
-        ctx.translate(sx, sy);
-        ctx.rotate(p.rot || 0);
-        ctx.fillStyle = '#92400e';
-        ctx.fillRect(-1, -5, 2, 10);
-        ctx.fillStyle = '#facc15';
-        ctx.fillRect(-5, -6, 10, 5);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(-4, -5, 8, 2);
-        ctx.restore();
-      } else if (p.type === 'boulder') {
-        ctx.fillStyle = '#070a12';
-        ctx.fillRect(sx - 5, sy - 5, 10, 10);
-        ctx.fillStyle = '#78716c';
-        ctx.fillRect(sx - 4, sy - 4, 8, 8);
-        ctx.fillStyle = '#4ade80';
-        ctx.fillRect(sx - 2, sy - 2, 4, 3);
-      } else if (p.type === 'void_orb') {
-        ctx.fillStyle = '#3b0764';
-        ctx.fillRect(sx - 4, sy - 4, 8, 8);
-        ctx.fillStyle = '#c084fc';
-        ctx.fillRect(sx - 2, sy - 2, 4, 4);
-      } else {
-        ctx.fillStyle = '#070a12';
-        ctx.fillRect(sx - 4, sy - 4, 8, 8);
-        ctx.fillStyle = p.color || '#38bdf8';
-        ctx.fillRect(sx - 3, sy - 3, 6, 6);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(sx - 1, sy - 1, 2, 2);
-      }
-    }
+    vfxRenderer.drawSlashArcs(ctx, { slashArcs, camLeft, camTop });
+    vfxRenderer.drawSkyBeams(ctx, { skyBeams, camLeft, camTop, globalTime });
+    vfxRenderer.drawProjectiles(ctx, { projectiles, camLeft, camTop, globalTime, isWorldInViewport });
 
     for (const pt of particles) {
       if (!isWorldInViewport(pt.x, pt.y - pt.z, camLeft, camTop, 32, 32)) continue;
@@ -16341,7 +16017,6 @@ export function initGame() {
       }
     }
 
-    const timeCycle = computeWorldTimeCycle(Date.now(), atmosphereMode);
     const weather = getBiomeWeatherProfile(currentBiomeTheme, timeCycle.minuteOfDay, atmosphereMode, currentRoomType);
     atmosphereRenderer.render({
       ctx,
@@ -16359,6 +16034,9 @@ export function initGame() {
       entities,
       remotePlayers,
       npcs,
+      skyBeams,
+      projectiles,
+      groundZones,
       globalTime,
     });
 

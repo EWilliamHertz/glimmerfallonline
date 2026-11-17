@@ -1342,6 +1342,153 @@ export const UNIVERSAL_SEARCH_ITEMS = [
   },
   {
     "type": "item",
+    "id": "dawn_scepter",
+    "name": "Aurora Dawn Scepter",
+    "icon": "🌅",
+    "slot": "weapon",
+    "rarity": "Awakened",
+    "faction": null,
+    "desc": "Radiant celestial scepter attuned to Aurora Marshal healing rites (+2 Resonance, +1 Bastion).",
+    "whatItDoes": "Equip Stats: +1 Bastion, +2 Resonance",
+    "guidePrice": null,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "nightblade_twin_daggers",
+    "name": "Nightblade Twin Fangs",
+    "icon": "🗡️",
+    "slot": "weapon",
+    "rarity": "Awakened",
+    "faction": null,
+    "desc": "Paired Duskveil assassin stilettos balanced for stealth ambushes (+2 Power, +1 Tempo).",
+    "whatItDoes": "Equip Stats: +2 Power, +1 Tempo",
+    "guidePrice": null,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "shadow_buckler",
+    "name": "Duskveil Shadow Buckler",
+    "icon": "🌑",
+    "slot": "offhand",
+    "rarity": "Umbri Relic",
+    "faction": null,
+    "desc": "Featherweight wrist-buckler etched with eclipse sigils (+2 Tempo, +1 Power).",
+    "whatItDoes": "Equip Stats: +1 Power, +2 Tempo",
+    "guidePrice": null,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "rootdeep_thorn_spear",
+    "name": "Rootdeep Thorn-Spear",
+    "icon": "🔱",
+    "slot": "weapon",
+    "rarity": "Awakened",
+    "faction": null,
+    "desc": "Barbed ironwood hunting spear favored by Forest Wardens (+2 Power, +1 Tempo).",
+    "whatItDoes": "Equip Stats: +2 Power, +1 Tempo",
+    "guidePrice": null,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "granite_tower_shield",
+    "name": "Granite Monolith Shield",
+    "icon": "🪨",
+    "slot": "offhand",
+    "rarity": "Terra Relic",
+    "faction": null,
+    "desc": "Immovable carved-stone tower shield of the Stonekin Elders (+3 Bastion).",
+    "whatItDoes": "Equip Stats: +3 Bastion",
+    "guidePrice": null,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "chrono_pocketwatch",
+    "name": "Astral Chrono-Astrolabe",
+    "icon": "⏳",
+    "slot": "offhand",
+    "rarity": "Aether Relic",
+    "faction": null,
+    "desc": "Spinning Mirrorgate timepiece harmonizing Flash & Rite cadences (+2 Tempo, +1 Resonance).",
+    "whatItDoes": "Equip Stats: +1 Resonance, +2 Tempo",
+    "guidePrice": null,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "starfall_focus_wand",
+    "name": "Starfall Leyline Wand",
+    "icon": "🌠",
+    "slot": "weapon",
+    "rarity": "Awakened",
+    "faction": null,
+    "desc": "Crystalline conduit channeling glacial spikes and astral meteors (+2 Resonance, +1 Power).",
+    "whatItDoes": "Equip Stats: +1 Power, +2 Resonance",
+    "guidePrice": null,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
     "id": "solar_gold",
     "name": "Solar Gold Sovereign",
     "icon": "🪙",
@@ -12937,10 +13084,10 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
     "id": "solari_vanguard",
     "name": "Solari Vanguard",
     "faction": "Solari",
-    "role": "Radiant Frontliner • Guard & Zenith",
+    "role": "Radiant Tank • Aegis & Verdict",
     "icon": "☀️",
     "color": "#facc15",
-    "desc": "Sun-forged champion wielding radiant steel, starlight barriers, and Daystar novas.",
+    "desc": "Sun-forged frontline bulwark chaining foes with Sunfire Lance, rallying behind Bastion Banner, and executing with Judgement Verdict.",
     "bonusStats": {
       "power": 1,
       "bastion": 2,
@@ -12983,18 +13130,25 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "desc": "1.0s sun-pillar Rite dealing (11-15 + 2×Power + 3×Rank) CRIT DMG + splash."
       },
       {
-        "id": "judgement_of_the_sun",
-        "name": "Judgement of the Sun",
+        "id": "bastion_banner",
+        "name": "Bastion Banner",
         "kind": "Rite",
-        "reqLevel": 6,
-        "desc": "Hurls a solar hammer for (7-10 + Power + 2×Rank) DMG (+25 bonus Glimmer on kill!)."
+        "reqLevel": 18,
+        "desc": "Vanguard Exclusive Rite: Plants a Sunspire War-Standard granting squadmates +25% DR and pulsing radiant damage for 8s."
       },
       {
-        "id": "consecrated_ground",
-        "name": "Consecrated Ground",
+        "id": "judgement_verdict",
+        "name": "Judgement Verdict",
         "kind": "Rite",
-        "reqLevel": 12,
-        "desc": "Sanctifies ground for 6s: burns foes & grants +2 Power to allies inside."
+        "reqLevel": 30,
+        "desc": "Vanguard Apex Rite: Drops a colossal radiant hammer dealing massive damage scaled by Shield + Bastion!"
+      },
+      {
+        "id": "aegis_slam",
+        "name": "Aegis Slam",
+        "kind": "Flash",
+        "reqLevel": 3,
+        "desc": "Vanguard Exclusive Flash: Shield-slams target, stunning for 1.5s, generating 3.5x Taunt threat & +15 Solar Charge."
       },
       {
         "id": "radiant_bulwark",
@@ -13004,18 +13158,11 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "desc": "Summons starlight Guard shields absorbing (14 + 3×Bastion + 4×Rank) DMG."
       },
       {
-        "id": "blessing_of_dawn",
-        "name": "Blessing of Dawn",
-        "kind": "Rite",
-        "reqLevel": 6,
-        "desc": "Restores (8 + 2×Bastion + 3×Rank) HP to you and nearby squadmates."
-      },
-      {
-        "id": "wrath_of_the_daystar",
-        "name": "Wrath of the Daystar",
-        "kind": "Rite",
-        "reqLevel": 24,
-        "desc": "Spends 30 Glimmer for a 14y solar nova dealing heavy CRIT DMG & knockback."
+        "id": "sunfire_lance",
+        "name": "Sunfire Lance",
+        "kind": "Flash",
+        "reqLevel": 12,
+        "desc": "Vanguard Exclusive Flash: Radiant spear leap to target, pulling nearby foes inward & applying Sunbrand."
       },
       {
         "id": "blinding_radiance",
@@ -13034,22 +13181,22 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
     "id": "aurora_marshal",
     "name": "Aurora Marshal",
     "faction": "Solari",
-    "role": "Celestial Commander • Nexus Healer",
+    "role": "Celestial Healer • Starlight Sanctuary",
     "icon": "☀️",
     "color": "#facc15",
-    "desc": "Herald of Dawn commanding Decree of the Sun and Daybreak to mend allies and Outpost Nexuses.",
+    "desc": "Herald of Dawn mending allies with bouncing Starlight Mend, purifying debuffs with Purifying Halo, and raising Solaris Apotheosis domes.",
     "bonusStats": {
-      "power": 1,
+      "power": 0,
       "bastion": 1,
-      "resonance": 1,
+      "resonance": 2,
       "tempo": 0
     },
     "starterGear": [
       {
         "slot": "weapon",
-        "id": "solari_spellblade",
-        "name": "Solari Spellblade",
-        "icon": "🗡️"
+        "id": "dawn_scepter",
+        "name": "Aurora Dawn Scepter",
+        "icon": "🌅"
       },
       {
         "slot": "armor",
@@ -13073,32 +13220,32 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "desc": "Radiant cleave dealing (4-7 + Power + 2×Rank) DMG & generating Glimmer."
       },
       {
-        "id": "solar_flare",
-        "name": "Solar Flare",
+        "id": "starlight_mend",
+        "name": "Starlight Mend",
         "kind": "Rite",
         "reqLevel": 3,
-        "desc": "1.0s sun-pillar Rite dealing (11-15 + 2×Power + 3×Rank) CRIT DMG + splash."
+        "desc": "Marshal Exclusive Rite: Radiant surge healing self and bouncing to the lowest-HP ally (overheal becomes Radiant Barrier!)."
       },
       {
-        "id": "decree_of_the_sun",
-        "name": "Decree of the Sun",
-        "kind": "Rite",
-        "reqLevel": 18,
-        "desc": "Solar edict scorching foes in 12y & restoring +3 HP to allied Outpost/Sanctuary Nexus!"
-      },
-      {
-        "id": "consecrated_ground",
-        "name": "Consecrated Ground",
+        "id": "aurora_beam",
+        "name": "Aurora Beam",
         "kind": "Rite",
         "reqLevel": 12,
-        "desc": "Sanctifies ground for 6s: burns foes & grants +2 Power to allies inside."
+        "desc": "Marshal Exclusive Rite: Fires a searing solar prism beam scorching foes & healing nearby squadmates."
       },
       {
-        "id": "radiant_bulwark",
-        "name": "Radiant Bulwark",
+        "id": "solaris_apotheosis",
+        "name": "Solaris Apotheosis",
+        "kind": "Rite",
+        "reqLevel": 30,
+        "desc": "Marshal Apex Rite: Summons a golden Sanctuary Dome for 6s surging ally HP/Glimmer & mending allied Outpost Nexus!"
+      },
+      {
+        "id": "purifying_halo",
+        "name": "Purifying Halo",
         "kind": "Flash",
-        "reqLevel": 3,
-        "desc": "Summons starlight Guard shields absorbing (14 + 3×Bastion + 4×Rank) DMG."
+        "reqLevel": 18,
+        "desc": "Marshal Exclusive Flash: Instant AoE cleanse purging all snares/weakens on squad & granting +30% speed for 4s."
       },
       {
         "id": "daybreak",
@@ -13108,11 +13255,11 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "desc": "Restores HP, grants +25 Glimmer, and cleanses all slows/weakness."
       },
       {
-        "id": "wrath_of_the_daystar",
-        "name": "Wrath of the Daystar",
+        "id": "decree_of_the_sun",
+        "name": "Decree of the Sun",
         "kind": "Rite",
-        "reqLevel": 24,
-        "desc": "Spends 30 Glimmer for a 14y solar nova dealing heavy CRIT DMG & knockback."
+        "reqLevel": 18,
+        "desc": "Solar edict scorching foes in 12y & restoring +3 HP to allied Outpost/Sanctuary Nexus!"
       },
       {
         "id": "blinding_radiance",
@@ -13123,7 +13270,7 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
       }
     ],
     "ingredients": [],
-    "passiveLabel": "+1 Power • +1 Bastion • +1 Resonance"
+    "passiveLabel": "+1 Bastion • +2 Resonance"
   },
   {
     "type": "character",
@@ -13131,10 +13278,10 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
     "id": "umbral_assassin",
     "name": "Umbral Assassin",
     "faction": "Umbri",
-    "role": "Stealth Executioner • Void Harvest",
+    "role": "Stealth Executioner • Dusk Marks",
     "icon": "🌑",
     "color": "#c084fc",
-    "desc": "Duskveil stalker vanishing in shadow, teleporting with Shadow Step, and executing foes with Unmake.",
+    "desc": "Duskveil stalker shredding foes with Serrated Mutilate, detonating Crimson Rupture bleeds, and blitzing through Phantom Sever clones.",
     "bonusStats": {
       "power": 2,
       "bastion": 0,
@@ -13144,9 +13291,9 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
     "starterGear": [
       {
         "slot": "weapon",
-        "id": "scythe_soulreaper",
-        "name": "Scythe of the Soulreaper",
-        "icon": "⛏️"
+        "id": "nightblade_twin_daggers",
+        "name": "Nightblade Twin Fangs",
+        "icon": "🗡️"
       },
       {
         "slot": "armor",
@@ -13156,9 +13303,9 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
       },
       {
         "slot": "offhand",
-        "id": "graveglass_lantern",
-        "name": "Graveglass Focus",
-        "icon": "🏮"
+        "id": "shadow_buckler",
+        "name": "Duskveil Shadow Buckler",
+        "icon": "🌑"
       }
     ],
     "abilities": [
@@ -13191,32 +13338,32 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "desc": "Spreads Duskveil miasma for 6s: deals Void DMG/tick & slows enemies by 45%."
       },
       {
-        "id": "veil_of_dusk",
-        "name": "Veil of Dusk",
-        "kind": "Flash",
-        "reqLevel": 6,
-        "desc": "Vanish into Stealth for 3.5s: mobs drop aggro, +35% speed & Ambush CRIT!"
-      },
-      {
-        "id": "siphon_soul",
-        "name": "Siphon Soul",
-        "kind": "Rite",
-        "reqLevel": 6,
-        "desc": "Rips vitality from target enemy, healing you for 60% of all DMG dealt!"
-      },
-      {
-        "id": "graveglass_ward",
-        "name": "Graveglass Ward",
+        "id": "serrated_mutilate",
+        "name": "Serrated Mutilate",
         "kind": "Flash",
         "reqLevel": 3,
-        "desc": "Shrouds you in spectral Graveglass absorbing incoming damage."
+        "desc": "Assassin Exclusive Flash: Instant twin-fang strike dealing double-hit shadow DMG & granting +2 Dusk Marks."
       },
       {
-        "id": "shadow_step",
-        "name": "Shadow Step",
+        "id": "crimson_rupture",
+        "name": "Crimson Rupture",
         "kind": "Flash",
         "reqLevel": 12,
-        "desc": "Teleports through shadow directly behind your target & empowers next strike!"
+        "desc": "Assassin Exclusive Finisher: Consumes all Dusk Marks for a ferocious shadow bleed (+25% DMG per Mark!)."
+      },
+      {
+        "id": "smoke_bomb",
+        "name": "Umbral Smoke Bomb",
+        "kind": "Flash",
+        "reqLevel": 18,
+        "desc": "Assassin Exclusive Flash: Drops a 6s twilight smoke veil granting Stealth, +100% Ambush Crit & blinding nearby foes."
+      },
+      {
+        "id": "phantom_sever",
+        "name": "Phantom Sever",
+        "kind": "Flash",
+        "reqLevel": 30,
+        "desc": "Assassin Apex Flash: Shadow clones omni-slash up to 5 enemies within 14y for guaranteed Critical Strikes!"
       }
     ],
     "ingredients": [],
@@ -13228,10 +13375,10 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
     "id": "graveglass_oracle",
     "name": "Graveglass Oracle",
     "faction": "Umbri",
-    "role": "Blood-Hex Reaper • Life Drain",
+    "role": "Blood-Hex Caster • Sepulcher Drain",
     "icon": "🌑",
     "color": "#c084fc",
-    "desc": "Sepulcher mystic draining life-force via Siphon Soul, Soul Tithe, and Nightfall Plague.",
+    "desc": "Sepulcher mystic crippling enemies with Hex of Frailty, hurling Graveglass Shardbursts, and channeling Harbinger's Requiem.",
     "bonusStats": {
       "power": 1,
       "bastion": 0,
@@ -13267,6 +13414,34 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "desc": "Twin shadow-scythe slash generating Glimmer (+45% CRIT from Stealth!)."
       },
       {
+        "id": "graveglass_shardburst",
+        "name": "Graveglass Shardburst",
+        "kind": "Rite",
+        "reqLevel": 12,
+        "desc": "Oracle Exclusive Rite: Hurls homing graveglass shards shattering for heavy shadow DMG & siphoning 45% as HP."
+      },
+      {
+        "id": "soul_covenant",
+        "name": "Soul Covenant",
+        "kind": "Rite",
+        "reqLevel": 18,
+        "desc": "Oracle Exclusive Rite: Sacrifices 12% current HP for a massive blood-nova, +45 Glimmer & Blood Phylactery shield!"
+      },
+      {
+        "id": "harbingers_requiem",
+        "name": "Harbinger's Requiem",
+        "kind": "Rite",
+        "reqLevel": 30,
+        "desc": "Oracle Apex Rite: Drains all foes in 14y simultaneously, healing 75% of total damage & slowing by 50%!"
+      },
+      {
+        "id": "hex_of_frailty",
+        "name": "Hex of Frailty",
+        "kind": "Flash",
+        "reqLevel": 3,
+        "desc": "Oracle Exclusive Flash: Curses target for 8s (-20% ATK, +20% incoming Rite DMG) & grants +1 Dusk Mark."
+      },
+      {
         "id": "siphon_soul",
         "name": "Siphon Soul",
         "kind": "Rite",
@@ -13274,39 +13449,11 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "desc": "Rips vitality from target enemy, healing you for 60% of all DMG dealt!"
       },
       {
-        "id": "soul_tithe",
-        "name": "Soul Tithe",
-        "kind": "Rite",
-        "reqLevel": 3,
-        "desc": "Fires a Void bolt dealing shadow DMG, draining HP & granting +24 Glimmer."
-      },
-      {
-        "id": "nightfall_plague",
-        "name": "Nightfall Plague",
-        "kind": "Rite",
-        "reqLevel": 12,
-        "desc": "Spreads Duskveil miasma for 6s: deals Void DMG/tick & slows enemies by 45%."
-      },
-      {
         "id": "graveglass_ward",
         "name": "Graveglass Ward",
         "kind": "Flash",
         "reqLevel": 3,
         "desc": "Shrouds you in spectral Graveglass absorbing incoming damage."
-      },
-      {
-        "id": "veil_of_dusk",
-        "name": "Veil of Dusk",
-        "kind": "Flash",
-        "reqLevel": 6,
-        "desc": "Vanish into Stealth for 3.5s: mobs drop aggro, +35% speed & Ambush CRIT!"
-      },
-      {
-        "id": "unmake",
-        "name": "Unmake",
-        "kind": "Rite",
-        "reqLevel": 18,
-        "desc": "Obliterates target with Void collapse (+50% Execution DMG if target < 50% HP!)."
       },
       {
         "id": "shadow_step",
@@ -13325,10 +13472,10 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
     "id": "forest_warden",
     "name": "Forest Warden",
     "faction": "Terra",
-    "role": "Primal Bruiser • Overwhelm & Roots",
+    "role": "Primal Bruiser • Spear & Spores",
     "icon": "🌿",
     "color": "#4ade80",
-    "desc": "Guardian of Glimmer Orchard snaring enemies in Briar Snare and charging with Wildshape Surge.",
+    "desc": "Agile guardian impaling foes with Gale Spear, saturating battlefields with Spore Volley, and unleashing Pack Hunt wolves.",
     "bonusStats": {
       "power": 1,
       "bastion": 1,
@@ -13338,9 +13485,9 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
     "starterGear": [
       {
         "slot": "weapon",
-        "id": "ironwood_maul",
-        "name": "Ironwood Greathammer",
-        "icon": "🔨"
+        "id": "rootdeep_thorn_spear",
+        "name": "Rootdeep Thorn-Spear",
+        "icon": "🔱"
       },
       {
         "slot": "armor",
@@ -13364,18 +13511,11 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "desc": "Crushing earth cleave triggering Overwhelm splash & generating Glimmer."
       },
       {
-        "id": "earthshatter",
-        "name": "Earthshatter",
+        "id": "spore_volley",
+        "name": "Spore Volley",
         "kind": "Rite",
-        "reqLevel": 18,
-        "desc": "Ruptures the earth in 13y for massive Overwhelm CRIT DMG & knockback!"
-      },
-      {
-        "id": "ancient_boulder",
-        "name": "Stonekin Boulder",
-        "kind": "Rite",
-        "reqLevel": 3,
-        "desc": "Hurls a mossy monolith boulder dealing heavy Overwhelm DMG."
+        "reqLevel": 12,
+        "desc": "Warden Exclusive Rite: Unleashes toxic Rootdeep spores dealing nature damage over time & healing self."
       },
       {
         "id": "briar_snare",
@@ -13385,25 +13525,25 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "desc": "Entangling roots for 6s: snares enemy movement by 65% & deals thorn DMG!"
       },
       {
-        "id": "barkskin_infusion",
-        "name": "Barkskin Infusion",
+        "id": "tempest_of_thorns",
+        "name": "Tempest of Thorns",
+        "kind": "Rite",
+        "reqLevel": 30,
+        "desc": "Warden Apex Rite: Whirlwind razor-leaf storm cleaving all enemies in 14y for devastating nature CRIT damage!"
+      },
+      {
+        "id": "gale_spear",
+        "name": "Gale Spear",
         "kind": "Flash",
         "reqLevel": 3,
-        "desc": "Grants Ironwood Shield + Thornbark (reflects 35% melee DMG back at attackers!)."
+        "desc": "Warden Exclusive Flash: Hurls an emerald spear and surges forward, poisoning foes & stacking +1 Rootguard."
       },
       {
-        "id": "verdant_renewal",
-        "name": "Verdant Renewal",
-        "kind": "Rite",
-        "reqLevel": 6,
-        "desc": "Blooms Glimmer flora restoring (9 + 2×Bastion + 3×Rank) HP to self & squad."
-      },
-      {
-        "id": "overwhelm_roar",
-        "name": "Primal Overwhelm",
-        "kind": "Rite",
-        "reqLevel": 12,
-        "desc": "Thunderous roar damaging & weakening nearby enemies (-2 ATK for 5s)."
+        "id": "pack_hunt",
+        "name": "Pack Hunt",
+        "kind": "Flash",
+        "reqLevel": 18,
+        "desc": "Warden Exclusive Flash: Unleashes phantom Ironwood Wolves shredding enemies in 10y, +35% speed & +20 Glimmer!"
       },
       {
         "id": "wildshape_surge",
@@ -13411,6 +13551,13 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "kind": "Flash",
         "reqLevel": 12,
         "desc": "Primal beast-charge 9y forward, trampling foes & granting +15 Glimmer!"
+      },
+      {
+        "id": "verdant_renewal",
+        "name": "Verdant Renewal",
+        "kind": "Rite",
+        "reqLevel": 6,
+        "desc": "Blooms Glimmer flora restoring (9 + 2×Bastion + 3×Rank) HP to self & squad."
       }
     ],
     "ingredients": [],
@@ -13422,10 +13569,10 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
     "id": "stonekin_elder",
     "name": "Stonekin Elder",
     "faction": "Terra",
-    "role": "Colossal Tank • Thornbark Reflect",
+    "role": "Colossal Tank • Seismic Control",
     "icon": "🌿",
     "color": "#4ade80",
-    "desc": "Ancient Rootdeep juggernaut encased in Barkskin Infusion, shattering battlefields with Tectonic Slam.",
+    "desc": "Unstoppable Rootdeep titan commanding Seismic Taunt, raising Monolith Bulwarks, and crushing packs with Tectonic Cataclysm.",
     "bonusStats": {
       "power": 1,
       "bastion": 2,
@@ -13447,9 +13594,9 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
       },
       {
         "slot": "offhand",
-        "id": "bramble_buckler",
-        "name": "Thornbark Buckler",
-        "icon": "🪵"
+        "id": "granite_tower_shield",
+        "name": "Granite Monolith Shield",
+        "icon": "🪨"
       }
     ],
     "abilities": [
@@ -13461,25 +13608,32 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "desc": "Crushing earth cleave triggering Overwhelm splash & generating Glimmer."
       },
       {
-        "id": "ancient_boulder",
-        "name": "Stonekin Boulder",
+        "id": "monolith_wall",
+        "name": "Monolith Bulwark",
         "kind": "Rite",
-        "reqLevel": 3,
-        "desc": "Hurls a mossy monolith boulder dealing heavy Overwhelm DMG."
+        "reqLevel": 12,
+        "desc": "Elder Exclusive Rite: Encases Elder in living granite (+30 + 4×Bastion Shield & 50% Thornbark reflect for 7s)!"
       },
       {
-        "id": "earthshatter",
-        "name": "Earthshatter",
+        "id": "earthen_grasp",
+        "name": "Earthen Grasp",
         "kind": "Rite",
         "reqLevel": 18,
-        "desc": "Ruptures the earth in 13y for massive Overwhelm CRIT DMG & knockback!"
+        "desc": "Elder Exclusive Rite: Stony roots erupt to drag all foes in 11y to your feet and stun/snare for 2.5s!"
       },
       {
-        "id": "briar_snare",
-        "name": "Briar Snare",
+        "id": "tectonic_cataclysm",
+        "name": "Tectonic Cataclysm",
         "kind": "Rite",
-        "reqLevel": 6,
-        "desc": "Entangling roots for 6s: snares enemy movement by 65% & deals thorn DMG!"
+        "reqLevel": 30,
+        "desc": "Elder Apex Rite: Triple-shockwave seismic slam dealing colossal earth damage & fortifying +120 Shield!"
+      },
+      {
+        "id": "seismic_taunt",
+        "name": "Seismic Taunt",
+        "kind": "Flash",
+        "reqLevel": 3,
+        "desc": "Elder Exclusive Flash: Earth-tremor challenge forcing 3.5x Taunt threat in 12y, weakening foes & +1 Rootguard!"
       },
       {
         "id": "barkskin_infusion",
@@ -13489,11 +13643,11 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "desc": "Grants Ironwood Shield + Thornbark (reflects 35% melee DMG back at attackers!)."
       },
       {
-        "id": "verdant_renewal",
-        "name": "Verdant Renewal",
-        "kind": "Rite",
+        "id": "rooted_bastion",
+        "name": "Rooted Bastion",
+        "kind": "Flash",
         "reqLevel": 6,
-        "desc": "Blooms Glimmer flora restoring (9 + 2×Bastion + 3×Rank) HP to self & squad."
+        "desc": "Roots into deep earth: gains 40% Damage Reduction and Crowd Control immunity for 3.5s!"
       },
       {
         "id": "overwhelm_roar",
@@ -13501,13 +13655,6 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "kind": "Rite",
         "reqLevel": 12,
         "desc": "Thunderous roar damaging & weakening nearby enemies (-2 ATK for 5s)."
-      },
-      {
-        "id": "wildshape_surge",
-        "name": "Wildshape Surge",
-        "kind": "Flash",
-        "reqLevel": 12,
-        "desc": "Primal beast-charge 9y forward, trampling foes & granting +15 Glimmer!"
       }
     ],
     "ingredients": [],
@@ -13519,15 +13666,15 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
     "id": "chronomancer_sage",
     "name": "Chronomancer Sage",
     "faction": "Aether",
-    "role": "Time-Bender • Flash Tempo & Echo",
+    "role": "Time-Bender • Anchor & Paradox",
     "icon": "🔮",
     "color": "#38bdf8",
-    "desc": "Mirrorgate scholar bending spacetime with Chrono Shift, Gravity Well, and Time Loop Paradox.",
+    "desc": "Mirrorgate scholar rewinding combat via Temporal Anchor, dilating foes in Sands of Lethargy, and firing Fractured Timelines.",
     "bonusStats": {
-      "power": 1,
+      "power": 0,
       "bastion": 0,
       "resonance": 1,
-      "tempo": 1
+      "tempo": 2
     },
     "starterGear": [
       {
@@ -13544,9 +13691,9 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
       },
       {
         "slot": "offhand",
-        "id": "mirror_shield",
-        "name": "Mirror Shield",
-        "icon": "🪞"
+        "id": "chrono_pocketwatch",
+        "name": "Astral Chrono-Astrolabe",
+        "icon": "⏳"
       }
     ],
     "abilities": [
@@ -13558,32 +13705,11 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "desc": "Slices spacetime in a 7.5y arc, generating Astral Glimmer."
       },
       {
-        "id": "astral_convergence",
-        "name": "Astral Convergence",
-        "kind": "Rite",
-        "reqLevel": 6,
-        "desc": "1.0s Rite calling down cosmic starfall beams (+35% chance to Echo twice!)."
-      },
-      {
-        "id": "arcane_bolt",
-        "name": "Temporal Lance",
-        "kind": "Flash",
-        "reqLevel": 3,
-        "desc": "Fires an accelerating orb of distorted time dealing Arcane DMG +20 Glimmer."
-      },
-      {
-        "id": "gravity_well",
-        "name": "Gravity Well",
+        "id": "sands_of_lethargy",
+        "name": "Sands of Lethargy",
         "kind": "Rite",
         "reqLevel": 12,
-        "desc": "Spawns a cosmic vortex for 6s that pulls enemies inward & ticks arcane DMG!"
-      },
-      {
-        "id": "mirror_barrier",
-        "name": "Mirror Barrier",
-        "kind": "Flash",
-        "reqLevel": 3,
-        "desc": "Refractive prism shield absorbing damage for you & nearby squadmates."
+        "desc": "Chronomancer Exclusive Rite: Creates a 6s chrono-dilation field slowing enemies by 55% & ticking arcane DMG."
       },
       {
         "id": "time_loop_paradox",
@@ -13593,11 +13719,25 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "desc": "Rewinds wounds (+HP), shaves 2.5s off active cooldowns & primes Spell Echo!"
       },
       {
-        "id": "frost_nova",
-        "name": "Frost Nova",
+        "id": "fractured_timeline",
+        "name": "Fractured Timeline",
+        "kind": "Rite",
+        "reqLevel": 30,
+        "desc": "Chronomancer Apex Rite: Unleashes 3 staggered temporal echo blasts from alternate timelines!"
+      },
+      {
+        "id": "temporal_anchor",
+        "name": "Temporal Anchor",
         "kind": "Flash",
-        "reqLevel": 12,
-        "desc": "Shatters star-ice in 11y, dealing CRIT DMG & freezing/chilling foes for 3.5s!"
+        "reqLevel": 3,
+        "desc": "Chronomancer Exclusive Flash: Sets a Time Anchor (6s); cast again to rewind position, heal 30% HP & reset Flash CDs!"
+      },
+      {
+        "id": "echoing_paradox",
+        "name": "Echoing Paradox",
+        "kind": "Flash",
+        "reqLevel": 18,
+        "desc": "Chronomancer Exclusive Flash: Fires an instant arcane echo beam, primes guaranteed Spell Echo & shaves 2s off all CDs!"
       },
       {
         "id": "chrono_shift",
@@ -13605,10 +13745,17 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "kind": "Flash",
         "reqLevel": 6,
         "desc": "Instant temporal blink 9.5y leaving time-afterimages & +12 Glimmer."
+      },
+      {
+        "id": "mirror_barrier",
+        "name": "Mirror Barrier",
+        "kind": "Flash",
+        "reqLevel": 3,
+        "desc": "Refractive prism shield absorbing damage for you & nearby squadmates."
       }
     ],
     "ingredients": [],
-    "passiveLabel": "+1 Power • +1 Resonance • +1 Tempo"
+    "passiveLabel": "+1 Resonance • +2 Tempo"
   },
   {
     "type": "character",
@@ -13616,10 +13763,10 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
     "id": "nexus_weaver",
     "name": "Nexus Weaver",
     "faction": "Aether",
-    "role": "Arcane Battlemage • Starfall & Freeze",
+    "role": "Starfall Battlemage • Shatter Combo",
     "icon": "🔮",
     "color": "#38bdf8",
-    "desc": "Weaver of cosmic leylines freezing foes with Frost Nova and calling down Astral Convergence.",
+    "desc": "Leyline battlemage freezing foes with Glacial Spike, chaining enemies with Arcane Tether, and shattering them under Meteor Constellations.",
     "bonusStats": {
       "power": 1,
       "bastion": 0,
@@ -13629,9 +13776,9 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
     "starterGear": [
       {
         "slot": "weapon",
-        "id": "chronocore_staff",
-        "name": "Astral Chrono-Staff",
-        "icon": "🪄"
+        "id": "starfall_focus_wand",
+        "name": "Starfall Leyline Wand",
+        "icon": "🌠"
       },
       {
         "slot": "armor",
@@ -13655,39 +13802,32 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "desc": "Slices spacetime in a 7.5y arc, generating Astral Glimmer."
       },
       {
-        "id": "arcane_bolt",
-        "name": "Temporal Lance",
-        "kind": "Flash",
-        "reqLevel": 3,
-        "desc": "Fires an accelerating orb of distorted time dealing Arcane DMG +20 Glimmer."
-      },
-      {
-        "id": "astral_convergence",
-        "name": "Astral Convergence",
+        "id": "glacial_spike",
+        "name": "Glacial Spike",
         "kind": "Rite",
-        "reqLevel": 6,
-        "desc": "1.0s Rite calling down cosmic starfall beams (+35% chance to Echo twice!)."
-      },
-      {
-        "id": "gravity_well",
-        "name": "Gravity Well",
-        "kind": "Rite",
-        "reqLevel": 12,
-        "desc": "Spawns a cosmic vortex for 6s that pulls enemies inward & ticks arcane DMG!"
-      },
-      {
-        "id": "mirror_barrier",
-        "name": "Mirror Barrier",
-        "kind": "Flash",
         "reqLevel": 3,
-        "desc": "Refractive prism shield absorbing damage for you & nearby squadmates."
+        "desc": "Weaver Exclusive Rite: Fires a star-ice spear that freezes target for 2.2s and primes Prismatic Shatter!"
       },
       {
-        "id": "time_loop_paradox",
-        "name": "Time Loop Paradox",
+        "id": "meteor_constellation",
+        "name": "Meteor Constellation",
         "kind": "Rite",
         "reqLevel": 18,
-        "desc": "Rewinds wounds (+HP), shaves 2.5s off active cooldowns & primes Spell Echo!"
+        "desc": "Weaver Exclusive Rite: Calls down cascading star-meteors (+45% Shatter bonus vs frozen targets)!"
+      },
+      {
+        "id": "astral_supernova",
+        "name": "Astral Supernova",
+        "kind": "Rite",
+        "reqLevel": 30,
+        "desc": "Weaver Apex Rite: Pulls enemies into a prismatic core, freezing & shattering for colossal Arcane CRIT damage!"
+      },
+      {
+        "id": "arcane_tether",
+        "name": "Arcane Tether",
+        "kind": "Flash",
+        "reqLevel": 12,
+        "desc": "Weaver Exclusive Flash: Lightning-tethers nearby foes, stunning for 1.5s & restoring +25 Glimmer!"
       },
       {
         "id": "frost_nova",
@@ -13697,11 +13837,18 @@ export const UNIVERSAL_SEARCH_CHARACTERS = [
         "desc": "Shatters star-ice in 11y, dealing CRIT DMG & freezing/chilling foes for 3.5s!"
       },
       {
-        "id": "chrono_shift",
-        "name": "Chrono Shift",
-        "kind": "Flash",
+        "id": "astral_convergence",
+        "name": "Astral Convergence",
+        "kind": "Rite",
         "reqLevel": 6,
-        "desc": "Instant temporal blink 9.5y leaving time-afterimages & +12 Glimmer."
+        "desc": "1.0s Rite calling down cosmic starfall beams (+35% chance to Echo twice!)."
+      },
+      {
+        "id": "mirror_barrier",
+        "name": "Mirror Barrier",
+        "kind": "Flash",
+        "reqLevel": 3,
+        "desc": "Refractive prism shield absorbing damage for you & nearby squadmates."
       }
     ],
     "ingredients": [],

@@ -246,8 +246,15 @@ export function createAmbientRenderer({
         ctx.fillRect(sx - 2 + sway, sy - 4, 1, 1);
         ctx.fillRect(sx + 1 - sway, sy - 6, 1, 1);
         ctx.fillRect(sx + 3, sy - 3, 1, 1);
-        if (h > 0.78) {
-          const petal = h > 0.89 ? '#7dd3fc' : '#fde047';
+        if (lush && h < 0.36) {
+          // Lush Terra fern frond / clover moss cluster
+          ctx.fillStyle = '#15803d';
+          ctx.fillRect(sx - 4, sy - 2, 2, 2);
+          ctx.fillStyle = '#86efac';
+          ctx.fillRect(sx - 4, sy - 3, 1, 1);
+        }
+        if (h > 0.76) {
+          const petal = lush ? (h > 0.88 ? '#bef264' : '#fde047') : (h > 0.89 ? '#7dd3fc' : '#fde047');
           ctx.fillStyle = petal;
           ctx.fillRect(sx, sy - 7, 1, 1);
           ctx.fillRect(sx - 1, sy - 6, 1, 1);
@@ -255,12 +262,18 @@ export function createAmbientRenderer({
           ctx.fillRect(sx, sy - 5, 1, 1);
           ctx.fillStyle = '#f8fafc';
           ctx.fillRect(sx, sy - 6, 1, 1);
+          // Fallen blossom speck nearby
+          ctx.fillStyle = petal;
+          ctx.fillRect(sx + 4, sy + 1, 1, 1);
         }
         break;
       }
       case 'glowcap': {
+        const isAbyssal = theme === 'abyssal';
         const pulse = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(t * 2.6 + h * 40));
-        ctx.fillStyle = `rgba(168, 85, 247, ${0.08 + pulse * 0.10})`;
+        ctx.fillStyle = isAbyssal
+          ? `rgba(45, 212, 191, ${0.07 + pulse * 0.10})`
+          : `rgba(168, 85, 247, ${0.08 + pulse * 0.10})`;
         ctx.fillRect(sx - 5, sy - 6, 11, 1);
         ctx.fillRect(sx - 3, sy - 7, 7, 1);
         ctx.fillStyle = 'rgba(3, 8, 14, 0.42)';
@@ -268,28 +281,49 @@ export function createAmbientRenderer({
         ctx.fillStyle = '#e2e8f0';
         ctx.fillRect(sx - 2, sy - 2, 1, 3);
         ctx.fillRect(sx + 2, sy - 3, 1, 4);
-        ctx.fillStyle = '#6b21a8';
+        ctx.fillStyle = isAbyssal ? '#4c1d95' : '#6b21a8';
         ctx.fillRect(sx - 4, sy - 4, 4, 2);
         ctx.fillRect(sx, sy - 5, 5, 2);
-        ctx.fillStyle = '#c084fc';
+        ctx.fillStyle = isAbyssal ? '#2dd4bf' : '#c084fc';
         ctx.fillRect(sx - 3, sy - 5, 2, 1);
         ctx.fillRect(sx + 1, sy - 6, 2, 1);
-        ctx.fillStyle = '#f0abfc';
+        ctx.fillStyle = isAbyssal ? '#99f6e4' : '#f0abfc';
         ctx.fillRect(sx - 3, sy - 5, 1, 1);
         ctx.fillRect(sx + 2, sy - 6, 1, 1);
+        // Rising necrotic/bioluminescent spore mote
+        const drift = (t * 6 + h * 24) % 14;
+        ctx.fillStyle = isAbyssal
+          ? `rgba(94, 234, 212, ${(1 - drift / 14) * 0.65})`
+          : `rgba(216, 180, 254, ${(1 - drift / 14) * 0.65})`;
+        ctx.fillRect(sx + Math.round(Math.sin(t * 2 + h * 15) * 2), Math.round(sy - 7 - drift), 1, 1);
         break;
       }
       case 'sunleaf': {
+        const isStarfall = theme === 'starfall';
         const sway = Math.round(Math.sin(t * 2.4 + h * 23));
         ctx.fillStyle = 'rgba(3, 8, 14, 0.35)';
         ctx.fillRect(sx - 3, sy, 7, 1);
-        ctx.fillStyle = '#713f12';
-        ctx.fillRect(sx - 2, sy - 3, 1, 3);
-        ctx.fillRect(sx + 1, sy - 4, 1, 4);
-        ctx.fillStyle = '#facc15';
-        ctx.fillRect(sx - 2 + sway, sy - 4, 1, 1);
-        ctx.fillRect(sx + 1 - sway, sy - 5, 1, 1);
-        const rise = (t * 7 + h * 30) % 18;
+        if (isStarfall && h < 0.45) {
+          // Scorched basalt crater shard with starfire crack
+          ctx.fillStyle = '#1e1b2e';
+          ctx.fillRect(sx - 3, sy - 3, 6, 3);
+          ctx.fillStyle = '#ea580c';
+          ctx.fillRect(sx - 2, sy - 2, 3, 1);
+          ctx.fillStyle = '#fde047';
+          ctx.fillRect(sx - 1, sy - 2, 1, 1);
+        } else {
+          ctx.fillStyle = '#713f12';
+          ctx.fillRect(sx - 2, sy - 3, 1, 3);
+          ctx.fillRect(sx + 1, sy - 4, 1, 4);
+          ctx.fillStyle = '#facc15';
+          ctx.fillRect(sx - 2 + sway, sy - 4, 1, 1);
+          ctx.fillRect(sx + 1 - sway, sy - 5, 1, 1);
+          if (h > 0.72) {
+            ctx.fillStyle = '#fef08a';
+            ctx.fillRect(sx + sway, sy - 6, 1, 1);
+          }
+        }
+        const rise = (t * 8 + h * 30) % 18;
         const a = 1 - rise / 18;
         ctx.fillStyle = `rgba(251, 146, 60, ${0.15 + a * 0.55})`;
         ctx.fillRect(sx + 3, Math.round(sy - 6 - rise), 1, 1);
@@ -308,8 +342,11 @@ export function createAmbientRenderer({
         ctx.fillRect(sx - 1, sy - 5 + bob, 2, 5);
         ctx.fillStyle = '#e0f2fe';
         ctx.fillRect(sx - 1, sy - 5 + bob, 1, 3);
-        ctx.fillStyle = `rgba(125, 211, 252, ${0.30 + pulse * 0.45})`;
-        ctx.fillRect(sx, sy - 8 + bob, 1, 1);
+        // Tiny orbiting rune pixel around shard tip
+        const rx = sx + Math.round(Math.cos(t * 2.4 + h * 19) * 4);
+        const ry = sy - 9 + bob + Math.round(Math.sin(t * 2.4 + h * 19) * 2);
+        ctx.fillStyle = `rgba(125, 211, 252, ${0.35 + pulse * 0.50})`;
+        ctx.fillRect(rx, ry, 1, 1);
         break;
       }
       case 'starlight': {
@@ -339,6 +376,7 @@ export function createAmbientRenderer({
       }
       case 'ash': {
         const flicker = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 5.2 + h * 33));
+        const emberRise = (t * 9 + h * 21) % 12;
         ctx.fillStyle = 'rgba(3, 6, 12, 0.48)';
         ctx.fillRect(sx - 3, sy, 7, 1);
         ctx.fillStyle = '#1e293b';
@@ -347,6 +385,8 @@ export function createAmbientRenderer({
         ctx.fillRect(sx - 1, sy - 2, 3, 1);
         ctx.fillStyle = `rgba(249, 115, 22, ${flicker})`;
         ctx.fillRect(sx + 1, sy - 3, 1, 1);
+        ctx.fillStyle = `rgba(253, 224, 71, ${(1 - emberRise / 12) * 0.65})`;
+        ctx.fillRect(sx - 1, Math.round(sy - 4 - emberRise), 1, 1);
         break;
       }
       default:
@@ -390,16 +430,16 @@ export function createAmbientRenderer({
     switch (getCurrentBiomeTheme()) {
       case 'sanctuary': return ['#fda4af', '#fde68a', '#a7f3d0'];
       case 'terra':
-      case 'terra_grove': return ['#bef264', '#86efac'];
+      case 'terra_grove': return ['#bef264', '#4ade80', '#fde047'];
       case 'umbri':
-      case 'umbri_labyrinth': return ['#c084fc', '#e9d5ff'];
-      case 'abyssal': return ['#e879f9', '#38bdf8'];
+      case 'umbri_labyrinth': return ['#c084fc', '#e9d5ff', '#a855f7'];
+      case 'abyssal': return ['#e879f9', '#a855f7', '#38bdf8'];
       case 'solari':
-      case 'solari_vault': return ['#fbbf24', '#fef08a'];
-      case 'starfall': return ['#fb923c', '#fde047'];
+      case 'solari_vault': return ['#fbbf24', '#fef08a', '#fb923c'];
+      case 'starfall': return ['#fb923c', '#fde047', '#38bdf8'];
       case 'aether':
-      case 'aether_archive': return ['#7dd3fc', '#e0f2fe'];
-      case 'warzone': return ['#fb923c', '#fde68a'];
+      case 'aether_archive': return ['#7dd3fc', '#e0f2fe', '#818cf8'];
+      case 'warzone': return ['#fb923c', '#fbbf24', '#fde68a'];
       case 'ruins': return ['#94a3b8', '#7dd3fc'];
       case 'celestial': return ['#fef08a', '#ffffff'];
       case 'interior_tavern': return ['#fde68a', '#fb923c', '#fef3c7'];
@@ -413,9 +453,18 @@ export function createAmbientRenderer({
     }
   }
 
+  function resolveBiomeMoteKind(biome) {
+    if (biome === 'umbri' || biome === 'umbri_labyrinth' || biome === 'abyssal') return 'shadow_wisp';
+    if (biome === 'terra' || biome === 'terra_grove') return 'blossom_petal';
+    if (biome === 'aether' || biome === 'aether_archive') return 'arcane_rune';
+    if (biome === 'solari' || biome === 'solari_vault' || biome === 'starfall' || biome === 'warzone') return 'golden_ember';
+    return 'default';
+  }
+
   function drawAirMotes(camLeft, camTop) {
     const t = getGlobalTime();
     const biome = getCurrentBiomeTheme();
+    const moteKind = resolveBiomeMoteKind(biome);
     const { halfW, halfH } = getMapBounds();
     const { viewW, viewH } = getViewSize();
     const palette = ambientMotePalette();
@@ -436,25 +485,77 @@ export function createAmbientRenderer({
         const wy = gy * cell + 6 + h3 * (cell - 12);
         const outside = wx < -halfW || wx >= halfW || wy < -halfH || wy >= halfH;
 
+        let driftX = Math.sin(t * 0.55 + h * 20) * (outside ? 9 : 6);
         let driftY = Math.cos(t * 0.70 + h2 * 20) * 4;
-        if (!outside && (biome === 'sanctuary' || biome === 'starfall' || biome === 'celestial')) {
-          driftY += ((t * (7 + h3 * 5) + h * 40) % 24) - 12;
-        } else if (!outside && (biome === 'solari' || biome === 'solari_vault' || biome === 'warzone')) {
-          driftY -= ((t * (8 + h3 * 5) + h * 40) % 24) - 12;
+
+        if (!outside) {
+          if (moteKind === 'shadow_wisp') {
+            driftX = Math.sin(t * 0.95 + h * 22) * 10;
+            driftY -= ((t * (5 + h3 * 4) + h * 34) % 22) - 11;
+          } else if (moteKind === 'blossom_petal') {
+            driftX = Math.sin(t * 1.35 + h * 25) * 9;
+            driftY += ((t * (5.5 + h3 * 4) + h * 36) % 24) - 12;
+          } else if (moteKind === 'arcane_rune') {
+            driftX = Math.sin(t * 0.65 + h * 16) * 4;
+            driftY = Math.cos(t * 1.15 + h2 * 22) * 5;
+          } else if (moteKind === 'golden_ember') {
+            driftX = Math.sin(t * 2.1 + h * 24) * 5;
+            driftY -= ((t * (10 + h3 * 6) + h * 40) % 28) - 14;
+          } else if (biome === 'sanctuary' || biome === 'celestial') {
+            driftY += ((t * (7 + h3 * 5) + h * 40) % 24) - 12;
+          }
         }
 
-        const sx = Math.round(wx - camLeft + Math.sin(t * 0.55 + h * 20) * (outside ? 9 : 6));
+        const sx = Math.round(wx - camLeft + driftX);
         const sy = Math.round(wy - camTop + driftY);
-        if (sx < -4 || sx > viewW + 4 || sy < -4 || sy > viewH + 4) continue;
+        if (sx < -5 || sx > viewW + 5 || sy < -5 || sy > viewH + 5) continue;
 
         const twinkle = 0.5 + 0.5 * Math.sin(t * 2.4 + h3 * 30);
         const palIdx = Math.floor(h2 * palette.length) % palette.length;
         const color = outside ? (h2 > 0.5 ? '#7dd3fc' : '#e0f2fe') : palette[palIdx];
-        ctx.globalAlpha = outside ? 0.16 + twinkle * 0.20 : 0.28 + twinkle * 0.28;
+        ctx.globalAlpha = outside ? 0.16 + twinkle * 0.20 : 0.30 + twinkle * 0.32;
         ctx.fillStyle = color;
-        const big = h3 > 0.82;
-        ctx.fillRect(sx, sy, big ? 2 : 1, 1);
-        if (big) ctx.fillRect(sx, sy - 1, 1, 1);
+
+        if (outside || moteKind === 'default') {
+          const big = h3 > 0.82;
+          ctx.fillRect(sx, sy, big ? 2 : 1, 1);
+          if (big) ctx.fillRect(sx, sy - 1, 1, 1);
+        } else if (moteKind === 'shadow_wisp') {
+          // Drifting violet shadow wisp with soft dark-violet trailing tail
+          ctx.fillRect(sx, sy, 2, 1);
+          ctx.fillRect(sx, sy - 1, 1, 1);
+          ctx.globalAlpha = 0.18 + twinkle * 0.18;
+          ctx.fillStyle = '#7e22ce';
+          ctx.fillRect(sx - Math.round(Math.cos(t + h * 10)), sy + 1, 2, 1);
+        } else if (moteKind === 'blossom_petal') {
+          // Fluttering emerald/gold blossom petal rotating between horizontal and vertical pixel pair
+          const flip = Math.cos(t * 3.2 + h3 * 14) > 0;
+          ctx.fillRect(sx, sy, flip ? 2 : 1, flip ? 1 : 2);
+          if (h3 > 0.72) {
+            ctx.fillStyle = '#fef9c3';
+            ctx.fillRect(sx, sy, 1, 1);
+          }
+        } else if (moteKind === 'arcane_rune') {
+          // Floating cyan geometric rune diamond
+          if (h3 > 0.62) {
+            ctx.fillRect(sx, sy - 1, 1, 1);
+            ctx.fillRect(sx - 1, sy, 1, 1);
+            ctx.fillRect(sx + 1, sy, 1, 1);
+            ctx.fillRect(sx, sy + 1, 1, 1);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(sx, sy, 1, 1);
+          } else {
+            ctx.fillRect(sx, sy, 2, 2);
+          }
+        } else if (moteKind === 'golden_ember') {
+          // Buoyant rising golden ember spark with bright core on larger sparks
+          const big = h3 > 0.74;
+          ctx.fillRect(sx, sy, big ? 2 : 1, big ? 2 : 1);
+          if (big) {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(sx, sy, 1, 1);
+          }
+        }
       }
     }
     ctx.restore();

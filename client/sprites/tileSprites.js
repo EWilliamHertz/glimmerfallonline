@@ -4,7 +4,7 @@ export function buildTileSprites(sprites) {
   // ==========================================
   // 1. TERRAIN TILES (Sanctuary, Warzone, Arena + All 4 Faction Biomes)
   // ==========================================
-  // Sanctuary Grass
+  // Sanctuary Grass (richer moss speckles, clover & micro-pebbles)
   for (let v = 0; v < 4; v++) {
     const { c, ctx } = makeCanvas(16, 16);
     rect(ctx, 0, 0, 16, 16, '#15342b');
@@ -12,39 +12,66 @@ export function buildTileSprites(sprites) {
       for (let x = 0; x < 16; x++) {
         const r = hash2d(x, y, 10 + v);
         if (r < 0.16) px(ctx, x, y, '#1d4739');
-        else if (r < 0.24) px(ctx, x, y, '#0f261f');
-        else if (r > 0.96) px(ctx, x, y, '#2b6a52');
+        else if (r < 0.25) px(ctx, x, y, '#0f261f');
+        else if (r > 0.95) px(ctx, x, y, '#2b6a52');
+        else if (r > 0.91 && r <= 0.93) px(ctx, x, y, '#193d31');
       }
     }
     const bx = (v * 5 + 3) % 13;
     const by = (v * 7 + 4) % 12;
     px(ctx, bx, by, '#34d399');
     px(ctx, bx + 1, by + 1, '#10b981');
-    if (v === 2) {
+    if (v === 1) {
+      // Tiny moss-edged pebble
+      px(ctx, 3, 11, '#334155');
+      px(ctx, 4, 11, '#475569');
+      px(ctx, 3, 12, '#0f261f');
+    } else if (v === 2) {
       px(ctx, 11, 5, '#facc15');
       px(ctx, 11, 6, '#10b981');
+      px(ctx, 4, 3, '#2b6a52');
+    } else if (v === 3) {
+      px(ctx, 10, 12, '#34d399');
+      px(ctx, 11, 11, '#10b981');
     }
     sprites.tiles[`sanctuary_grass_${v}`] = c;
   }
 
-  // Flagstone Path
+  // Flagstone Path (chiseled bevel highlights, bottom mortar shadow & subtle speckles)
   for (let v = 0; v < 2; v++) {
     const { c, ctx } = makeCanvas(16, 16);
     rect(ctx, 0, 0, 16, 16, '#2a3142');
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const r = hash2d(x, y, 25 + v);
+        if (r < 0.10) px(ctx, x, y, '#232938');
+        else if (r > 0.93) px(ctx, x, y, '#333c52');
+      }
+    }
     rect(ctx, 0, 0, 16, 1, '#151924');
     rect(ctx, 0, 8, 16, 1, '#151924');
-    rect(ctx, v === 0 ? 7 : 11, 0, 1, 8, '#151924');
-    rect(ctx, v === 0 ? 3 : 7, 8, 1, 8, '#151924');
+    const seamTop = v === 0 ? 7 : 11;
+    const seamBot = v === 0 ? 3 : 7;
+    rect(ctx, seamTop, 0, 1, 8, '#151924');
+    rect(ctx, seamBot, 8, 1, 8, '#151924');
+    // Top bevel highlights & lower slab shade
     rect(ctx, 1, 1, 5, 1, '#3b455e');
+    rect(ctx, (seamTop + 2) % 14, 1, 4, 1, '#3b455e');
     rect(ctx, 5, 9, 6, 1, '#3b455e');
-    if (v === 1) {
+    rect(ctx, 1, 7, 5, 1, '#1e2433');
+    rect(ctx, 4, 15, 7, 1, '#1e2433');
+    if (v === 0) {
+      px(ctx, 12, 5, '#475569');
+      px(ctx, 1, 13, '#1d4739'); // subtle crevice moss
+    } else {
       px(ctx, 4, 4, '#ca8a04');
       px(ctx, 12, 12, '#eab308');
+      px(ctx, 13, 3, '#475569');
     }
     sprites.tiles[`flagstone_${v}`] = c;
   }
 
-  // Warzone Obsidian Slate
+  // Warzone Obsidian Slate (fractured basalt bevels & subtle cinder pebbles)
   for (let v = 0; v < 4; v++) {
     const { c, ctx } = makeCanvas(16, 16);
     rect(ctx, 0, 0, 16, 16, '#111625');
@@ -52,10 +79,18 @@ export function buildTileSprites(sprites) {
       for (let x = 0; x < 16; x++) {
         const r = hash2d(x, y, 40 + v);
         if (r < 0.18) px(ctx, x, y, '#182036');
-        else if (r < 0.26) px(ctx, x, y, '#0b0e18');
+        else if (r < 0.27) px(ctx, x, y, '#0b0e18');
+        else if (r > 0.96) px(ctx, x, y, '#232e4d');
       }
     }
-    if (v === 2) {
+    if (v === 0) {
+      rect(ctx, 2, 11, 4, 1, '#1e293b');
+      px(ctx, 10, 4, '#334155');
+    } else if (v === 1) {
+      rect(ctx, 6, 3, 5, 1, '#1e293b');
+      px(ctx, 4, 12, '#475569');
+      px(ctx, 5, 12, '#0b0e18');
+    } else if (v === 2) {
       px(ctx, 3, 4, '#0284c7');
       px(ctx, 4, 4, '#38bdf8');
       px(ctx, 5, 5, '#0284c7');
@@ -70,15 +105,28 @@ export function buildTileSprites(sprites) {
   for (let v = 0; v < 4; v++) {
     const { c, ctx } = makeCanvas(16, 16);
     rect(ctx, 0, 0, 16, 16, '#2d2618');
+    for (let y = 1; y < 15; y++) {
+      for (let x = 1; x < 15; x++) {
+        const r = hash2d(x, y, 55 + v);
+        if (r < 0.12) px(ctx, x, y, '#261f13');
+        else if (r > 0.92) px(ctx, x, y, '#3b311f');
+      }
+    }
     rect(ctx, 0, 0, 16, 1, '#1c170d');
     rect(ctx, 0, 0, 1, 16, '#1c170d');
     rect(ctx, 1, 1, 14, 1, '#453922');
+    rect(ctx, 1, 15, 14, 1, '#231d11');
     if (v === 1 || v === 3) {
       rect(ctx, 6, 6, 4, 4, '#713f12');
       rect(ctx, 7, 7, 2, 2, '#eab308');
+      px(ctx, 7, 7, '#fef08a');
     } else if (v === 2) {
       px(ctx, 4, 11, '#ca8a04');
       px(ctx, 11, 4, '#facc15');
+      px(ctx, 10, 11, '#57472a');
+    } else {
+      px(ctx, 3, 12, '#57472a');
+      px(ctx, 12, 4, '#57472a');
     }
     sprites.tiles[`solari_${v}`] = c;
   }
@@ -91,10 +139,17 @@ export function buildTileSprites(sprites) {
       for (let x = 0; x < 16; x++) {
         const r = hash2d(x, y, 70 + v);
         if (r < 0.16) px(ctx, x, y, '#1f1438');
-        else if (r < 0.24) px(ctx, x, y, '#0c0717');
+        else if (r < 0.25) px(ctx, x, y, '#0c0717');
+        else if (r > 0.96) px(ctx, x, y, '#2d1c4f');
       }
     }
-    if (v === 2) {
+    if (v === 0) {
+      px(ctx, 4, 11, '#2d1c4f');
+      px(ctx, 5, 11, '#4c1d95');
+    } else if (v === 1) {
+      px(ctx, 11, 4, '#334155');
+      px(ctx, 12, 4, '#475569');
+    } else if (v === 2) {
       rect(ctx, 4, 8, 5, 3, '#3b0764');
       px(ctx, 6, 9, '#a855f7');
     } else if (v === 3) {
@@ -112,17 +167,23 @@ export function buildTileSprites(sprites) {
       for (let x = 0; x < 16; x++) {
         const r = hash2d(x, y, 90 + v);
         if (r < 0.2) px(ctx, x, y, '#1b3d22');
-        else if (r < 0.28) px(ctx, x, y, '#0d1f10');
+        else if (r < 0.29) px(ctx, x, y, '#0d1f10');
+        else if (r > 0.95) px(ctx, x, y, '#275930');
       }
     }
-    if (v === 1) {
+    if (v === 0) {
+      px(ctx, 3, 4, '#22c55e');
+      px(ctx, 12, 11, '#3f6212');
+    } else if (v === 1) {
       px(ctx, 5, 5, '#4ade80');
       px(ctx, 6, 6, '#22c55e');
+      px(ctx, 11, 3, '#334155');
     } else if (v === 2) {
       px(ctx, 10, 9, '#fde047'); // Glimmer blossom
       px(ctx, 10, 10, '#4ade80');
     } else if (v === 3) {
       rect(ctx, 3, 12, 5, 2, '#3f6212');
+      px(ctx, 4, 12, '#65a30d');
     }
     sprites.tiles[`terra_${v}`] = c;
   }
@@ -131,15 +192,26 @@ export function buildTileSprites(sprites) {
   for (let v = 0; v < 4; v++) {
     const { c, ctx } = makeCanvas(16, 16);
     rect(ctx, 0, 0, 16, 16, '#0b192e');
+    for (let y = 1; y < 15; y++) {
+      for (let x = 1; x < 15; x++) {
+        const r = hash2d(x, y, 105 + v);
+        if (r < 0.12) px(ctx, x, y, '#081324');
+        else if (r > 0.93) px(ctx, x, y, '#163259');
+      }
+    }
     rect(ctx, 0, 0, 16, 1, '#07101f');
     rect(ctx, 0, 0, 1, 16, '#07101f');
     rect(ctx, 1, 1, 14, 1, '#132a4a');
+    rect(ctx, 1, 15, 14, 1, '#091426');
     if (v === 1) {
       rect(ctx, 7, 7, 2, 2, '#0284c7');
       px(ctx, 7, 7, '#7dd3fc');
     } else if (v === 2) {
       px(ctx, 4, 5, '#38bdf8');
       px(ctx, 12, 11, '#818cf8');
+    } else if (v === 3) {
+      rect(ctx, 4, 8, 3, 1, '#1e3a5f');
+      px(ctx, 11, 5, '#38bdf8');
     }
     sprites.tiles[`aether_${v}`] = c;
   }
@@ -324,14 +396,21 @@ export function buildTileSprites(sprites) {
         if (r < 0.24) px(ctx, x, y, '#0f0c19');
         else if (r < 0.44) px(ctx, x, y, '#251e38');
         else if (r > 0.92) px(ctx, x, y, '#38bdf8');
+        else if (r > 0.87 && r <= 0.90) px(ctx, x, y, '#31274a');
       }
     }
-    if (v === 1) {
+    if (v === 0) {
+      px(ctx, 4, 11, '#475569');
+      px(ctx, 5, 11, '#64748b');
+    } else if (v === 1) {
       rect(ctx, 3, 6, 5, 1, '#ea580c');
       px(ctx, 5, 6, '#fde047');
     } else if (v === 2) {
       rect(ctx, 8, 10, 4, 1, '#0284c7');
       px(ctx, 9, 10, '#bae6fd');
+    } else {
+      px(ctx, 11, 4, '#334155');
+      px(ctx, 12, 4, '#475569');
     }
     sprites.tiles[`starfall_${v}`] = c;
   }
@@ -346,16 +425,118 @@ export function buildTileSprites(sprites) {
         if (r < 0.26) px(ctx, x, y, '#070510');
         else if (r < 0.46) px(ctx, x, y, '#1c1236');
         else if (r > 0.92) px(ctx, x, y, '#a855f7');
+        else if (r > 0.88 && r <= 0.90) px(ctx, x, y, '#291a4d');
       }
     }
-    if (v === 1) {
+    if (v === 0) {
+      rect(ctx, 3, 12, 3, 1, '#291a4d');
+    } else if (v === 1) {
       rect(ctx, 2, 8, 6, 1, '#7e22ce');
       px(ctx, 4, 8, '#e879f9');
+    } else if (v === 2) {
+      px(ctx, 11, 10, '#0f766e');
+      px(ctx, 12, 10, '#2dd4bf');
     } else if (v === 3) {
       rect(ctx, 9, 4, 4, 1, '#0d9488');
       px(ctx, 10, 4, '#5eead4');
     }
     sprites.tiles[`abyssal_${v}`] = c;
+  }
+
+  // ==========================================
+  // 2. AUTOTILER CLIFF & SHORELINE TRIM TILES
+  // ==========================================
+  // 16x16 Vertical Granite Cliff Wall & Shadow Skirt for mountain ridge southern edges
+  for (let v = 0; v < 2; v++) {
+    const { c, ctx } = makeCanvas(16, 16);
+    // Base stratified granite cliff wall
+    rect(ctx, 0, 0, 16, 16, '#1e2530');
+    // Top crag rim & sunlit rock lip
+    rect(ctx, 0, 0, 16, 2, '#374254');
+    rect(ctx, 0, 1, 16, 1, '#4b5970');
+    px(ctx, v === 0 ? 3 : 7, 0, '#64748b');
+    px(ctx, v === 0 ? 11 : 13, 0, '#64748b');
+    // Stratified rock face layers
+    rect(ctx, 0, 3, 16, 4, '#28313e');
+    rect(ctx, 0, 7, 16, 4, '#1e2530');
+    rect(ctx, 0, 11, 16, 3, '#151b26');
+    // Vertical cliff fissures & rocky highlights
+    const f1 = v === 0 ? 4 : 6;
+    const f2 = v === 0 ? 11 : 13;
+    rect(ctx, f1, 2, 1, 11, '#0f172a');
+    rect(ctx, f2, 3, 1, 10, '#0f172a');
+    rect(ctx, f1 + 1, 3, 2, 1, '#4b5970');
+    rect(ctx, (f2 + 2) % 14, 7, 3, 1, '#374254');
+    if (v === 1) {
+      // Subtle highland moss / lichen patch on cliff ledge
+      px(ctx, 2, 2, '#1d4739');
+      px(ctx, 3, 2, '#2b6a52');
+      px(ctx, 9, 5, '#4b5970');
+    } else {
+      px(ctx, 8, 4, '#64748b');
+      px(ctx, 1, 8, '#374254');
+    }
+    // Deep bottom shadow skirt grounding cliff into walkable terrain
+    rect(ctx, 0, 14, 16, 2, '#090d16');
+    rect(ctx, 0, 13, 16, 1, '#111622');
+    sprites.tiles[`cliff_face_${v}`] = c;
+  }
+
+  // Subtle Sand/Stone Riverbank & Sea Edge Trim Strips (16x16 transparent overlay strips)
+  {
+    // North edge trim (land north of water)
+    const { c: cn, ctx: ctxN } = makeCanvas(16, 16);
+    rect(ctxN, 0, 0, 16, 1, '#1e293b');
+    rect(ctxN, 0, 1, 16, 1, '#64748b');
+    px(ctxN, 2, 1, '#94a3b8');
+    px(ctxN, 8, 1, '#94a3b8');
+    px(ctxN, 13, 1, '#94a3b8');
+    rect(ctxN, 1, 2, 4, 1, '#bae6fd');
+    rect(ctxN, 7, 2, 5, 1, '#bae6fd');
+    px(ctxN, 14, 2, '#e0f2fe');
+    px(ctxN, 3, 3, '#e0f2fe');
+    px(ctxN, 10, 3, '#bae6fd');
+    sprites.tiles.shore_foam_n = cn;
+
+    // South edge trim (land south of water)
+    const { c: cs, ctx: ctxS } = makeCanvas(16, 16);
+    rect(ctxS, 0, 15, 16, 1, '#1e293b');
+    rect(ctxS, 0, 14, 16, 1, '#64748b');
+    px(ctxS, 3, 14, '#94a3b8');
+    px(ctxS, 9, 14, '#94a3b8');
+    px(ctxS, 14, 14, '#94a3b8');
+    rect(ctxS, 2, 13, 4, 1, '#bae6fd');
+    rect(ctxS, 8, 13, 5, 1, '#bae6fd');
+    px(ctxS, 1, 13, '#e0f2fe');
+    px(ctxS, 5, 12, '#e0f2fe');
+    px(ctxS, 11, 12, '#bae6fd');
+    sprites.tiles.shore_foam_s = cs;
+
+    // West edge trim (land west of water)
+    const { c: cw, ctx: ctxW } = makeCanvas(16, 16);
+    rect(ctxW, 0, 0, 1, 16, '#1e293b');
+    rect(ctxW, 1, 0, 1, 16, '#64748b');
+    px(ctxW, 1, 3, '#94a3b8');
+    px(ctxW, 1, 10, '#94a3b8');
+    rect(ctxW, 2, 2, 1, 4, '#bae6fd');
+    rect(ctxW, 2, 9, 1, 5, '#bae6fd');
+    px(ctxW, 2, 7, '#e0f2fe');
+    px(ctxW, 3, 4, '#e0f2fe');
+    px(ctxW, 3, 11, '#bae6fd');
+    sprites.tiles.shore_foam_w = cw;
+
+    // East edge trim (land east of water)
+    const { c: ce, ctx: ctxE } = makeCanvas(16, 16);
+    rect(ctxE, 15, 0, 1, 16, '#1e293b');
+    rect(ctxE, 14, 0, 1, 16, '#64748b');
+    px(ctxE, 14, 4, '#94a3b8');
+    px(ctxE, 14, 11, '#94a3b8');
+    rect(ctxE, 13, 1, 1, 5, '#bae6fd');
+    rect(ctxE, 13, 8, 1, 4, '#bae6fd');
+    px(ctxE, 13, 14, '#e0f2fe');
+    px(ctxE, 12, 3, '#e0f2fe');
+    px(ctxE, 12, 10, '#bae6fd');
+    sprites.tiles.shore_foam_e = ce;
   }
 
   // Interior Floors, Carpets, Wainscoted Walls, Void Surround & Exit Doormat

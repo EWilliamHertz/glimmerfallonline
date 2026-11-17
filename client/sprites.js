@@ -70,18 +70,10 @@ export function buildSpriteSheet() {
   // ==========================================
   // 3. DEFAULT FACTION HERO SPRITES (Via Paperdoll Composer)
   // ==========================================
-  sprites.heroByFaction.Solari = getCharacterSprites('Solari', 'solari_vanguard', {
-    weapon: 'solari_spellblade', armor: 'sunforged_plate', offhand: 'radiant_shield',
-  });
-  sprites.heroByFaction.Umbri = getCharacterSprites('Umbri', 'umbral_assassin', {
-    weapon: 'scythe_soulreaper', armor: 'duskveil_shroud', offhand: 'graveglass_lantern',
-  });
-  sprites.heroByFaction.Terra = getCharacterSprites('Terra', 'forest_warden', {
-    weapon: 'ironwood_maul', armor: 'ironwood_armor', offhand: 'bramble_buckler',
-  });
-  sprites.heroByFaction.Aether = getCharacterSprites('Aether', 'chronomancer_sage', {
-    weapon: 'chronocore_staff', armor: 'starweave_robe', offhand: 'mirror_shield',
-  });
+  sprites.heroByFaction.Solari = getCharacterSprites('Solari', 'solari_vanguard', {});
+  sprites.heroByFaction.Umbri = getCharacterSprites('Umbri', 'umbral_assassin', {});
+  sprites.heroByFaction.Terra = getCharacterSprites('Terra', 'forest_warden', {});
+  sprites.heroByFaction.Aether = getCharacterSprites('Aether', 'chronomancer_sage', {});
   sprites.hero = sprites.heroByFaction.Solari;
 
   buildNpcSprites(sprites);

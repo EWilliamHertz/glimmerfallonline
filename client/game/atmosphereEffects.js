@@ -151,6 +151,69 @@ export function computeWorldTimeCycle(nowMs = Date.now(), overrideMode = 'auto')
 }
 
 /**
+ * Compute subtle sun/moon directional ground shadow offset across Dawn, Noon, Twilight, and Night.
+ * @param {{ minuteOfDay?: number }} [timeCycle]
+ */
+export function computeDirectionalShadowOffset(timeCycle) {
+  const rawMinute = timeCycle && typeof timeCycle.minuteOfDay === 'number' && Number.isFinite(timeCycle.minuteOfDay)
+    ? timeCycle.minuteOfDay
+    : 720;
+  const m = ((rawMinute % DAY_CYCLE_DURATION_SECONDS) + DAY_CYCLE_DURATION_SECONDS) % DAY_CYCLE_DURATION_SECONDS;
+
+  // Dawn: 05:00 (300) -> 07:29 (449) — long westward morning shadows
+  if (m >= 300 && m < 450) {
+    const t = (m - 300) / 150;
+    return {
+      dx: +(-5.0 + 2.4 * t).toFixed(2),
+      dy: +(1.6 - 0.6 * t).toFixed(2),
+      scaleX: +(1.35 - 0.20 * t).toFixed(2),
+      alpha: +(0.36 + 0.12 * t).toFixed(2),
+    };
+  }
+
+  // Morning to Solar Noon: 07:30 (450) -> 11:59 (719)
+  if (m >= 450 && m < 720) {
+    const t = (m - 450) / 270;
+    return {
+      dx: +(-2.6 * (1 - t)).toFixed(2),
+      dy: +(1.0 - 0.5 * t).toFixed(2),
+      scaleX: +(1.15 - 0.15 * t).toFixed(2),
+      alpha: +(0.48 + 0.07 * t).toFixed(2),
+    };
+  }
+
+  // Solar Noon to Late Afternoon: 12:00 (720) -> 17:59 (1079)
+  if (m >= 720 && m < 1080) {
+    const t = (m - 720) / 360;
+    return {
+      dx: +(2.6 * t).toFixed(2),
+      dy: +(0.5 + 0.6 * t).toFixed(2),
+      scaleX: +(1.0 + 0.18 * t).toFixed(2),
+      alpha: +(0.55 - 0.08 * t).toFixed(2),
+    };
+  }
+
+  // Twilight / Dusk: 18:00 (1080) -> 20:29 (1229) — long eastward sunset shadows
+  if (m >= 1080 && m < 1230) {
+    const t = (m - 1080) / 150;
+    return {
+      dx: +(2.6 + 2.0 * t).toFixed(2),
+      dy: +(1.1 + 0.4 * t).toFixed(2),
+      scaleX: +(1.18 + 0.16 * t).toFixed(2),
+      alpha: +(0.47 - 0.19 * t).toFixed(2),
+    };
+  }
+
+  // Nightfall: 20:30 (1230) -> 04:59 (299) — soft diffuse moonlit shadow
+  return {
+    dx: 0.8,
+    dy: 1.0,
+    scaleX: 0.96,
+    alpha: 0.26,
+  };
+}
+
+/**
  * Determine active weather for the current room biome (and optional roomType) and world clock.
  */
 export function getBiomeWeatherProfile(biomeTheme, minuteOfDay, overrideMode = 'auto', roomType = '') {
@@ -300,30 +363,84 @@ export function createAtmosphereRenderer() {
     return lightCtx;
   }
 
-  function collectLights({ camLeft, camTop, viewW, viewH, player, props, entities, remotePlayers, npcs, lighting, globalTime }) {
+  function resolveApexAuraColor(actor) {
+    if (!actor) return null;
+    if (actor.temporalApotheosis || (actor.temporalApotheosisTimer || 0) > 0) return '#38bdf8';
+    if (actor.voidform || (actor.voidformTimer || 0) > 0) return '#c084fc';
+    if (actor.treantForm || (actor.treantFormTimer || 0) > 0) return '#4ade80';
+    if (actor.zenith || actor.isCasting) return '#fde047';
+    return null;
+  }
+
+  function resolveGroundZoneGlow(gz) {
+    if (gz.color) return gz.color;
+    switch (gz.type) {
+      case 'consecration': return '#fde047';
+      case 'plague': return '#c084fc';
+      case 'briar': return '#4ade80';
+      case 'gravity':
+      case 'singularity': return '#38bdf8';
+      case 'frost_ring': return '#7dd3fc';
+      case 'sanguine_pool':
+      case 'telegraph': return '#ef4444';
+      default: return '#fde047';
+    }
+  }
+
+  function collectLights({
+    camLeft,
+    camTop,
+    viewW,
+    viewH,
+    player,
+    props,
+    entities,
+    remotePlayers,
+    npcs,
+    skyBeams,
+    projectiles,
+    groundZones,
+    lighting,
+    globalTime,
+  }) {
+    const safeLighting = lighting || { isCaveDarkness: false, mode: 'overworld', darkAlpha: 0, lanternPower: 0.5 };
+    const t = globalTime || 0;
     const lights = [];
     const margin = 140;
 
-    // 1. Player adventurer lantern aura (stronger in caves & night, boosted by Ember-Fox / Moon-Owl familiars)
+    // 1. Player adventurer lantern aura (stronger in caves & night, boosted by Ember-Fox / Moon-Owl familiars & Apex/Zenith)
     if (player) {
       const px = player.x - camLeft;
       const py = player.y - 10 - camTop;
-      const flicker = Math.sin(globalTime * 5.2) * 2.5;
+      const flicker = Math.sin(t * 5.2) * 2.5;
       const famBoost = Math.max(0, Number(player.familiarLanternBonus) || 0);
-      const playerRadius = (lighting.isCaveDarkness
+      const playerRadius = (safeLighting.isCaveDarkness
         ? 112 + flicker
-        : (lighting.mode === 'interior' ? 86 : 92 + flicker)) + famBoost;
+        : (safeLighting.mode === 'interior' ? 86 : 92 + flicker)) + famBoost;
       lights.push({
         sx: px,
         sy: py,
         r: playerRadius,
         glow: '#fde68a',
-        strength: lighting.isCaveDarkness ? 1.0 : 0.72,
+        strength: safeLighting.isCaveDarkness ? 1.0 : 0.72,
         isPlayer: true,
       });
+
+      const apexColor = resolveApexAuraColor(player);
+      if (apexColor) {
+        lights.push({
+          sx: px,
+          sy: py,
+          r: 102 + Math.sin(t * 6.0) * 5,
+          glow: apexColor,
+          strength: 0.95,
+          emitBloom: true,
+          isSpellLight: true,
+        });
+      }
     }
 
-    // 2. Remote players bring warm torches beside the explorer
+    // 2. Remote players bring warm torches beside the explorer (+ Apex/Zenith state bloom)
     if (remotePlayers) {
       const iter = typeof remotePlayers.values === 'function' ? remotePlayers.values() : remotePlayers;
       for (const rp of iter) {
@@ -334,6 +451,19 @@ export function createAtmosphereRenderer() {
         const sy = ry - 10 - camTop;
         if (sx < -margin || sx > viewW + margin || sy < -margin || sy > viewH + margin) continue;
         lights.push({ sx, sy, r: 66, glow: '#fde68a', strength: 0.55 });
+
+        const rpApexColor = resolveApexAuraColor(rp);
+        if (rpApexColor) {
+          lights.push({
+            sx,
+            sy,
+            r: 86 + Math.sin(t * 5.6 + rx * 0.05) * 4,
+            glow: rpApexColor,
+            strength: 0.85,
+            emitBloom: true,
+            isSpellLight: true,
+          });
+        }
       }
     }
 
@@ -345,7 +475,7 @@ export function createAtmosphereRenderer() {
         const sx = pr.x - camLeft;
         const sy = pr.y + (spec.dy || 0) - camTop;
         if (sx < -margin || sx > viewW + margin || sy < -margin || sy > viewH + margin) continue;
-        const pulse = Math.sin(globalTime * 4.1 + Math.abs(pr.x * 0.13) + Math.abs(pr.y * 0.07)) * 3;
+        const pulse = Math.sin(t * 4.1 + Math.abs(pr.x * 0.13) + Math.abs(pr.y * 0.07)) * 3;
         lights.push({
           sx,
           sy,
@@ -370,14 +500,14 @@ export function createAtmosphereRenderer() {
             ? '#facc15'
             : (skType.includes('spring') ? '#4ade80' : '#38bdf8');
           const baseRadius = ent.isGrand ? 112 : (isOreOrCrystal ? 88 : 66);
-          const pulse = Math.sin(globalTime * 3.0 + Math.abs(ent.x)) * 3;
+          const pulse = Math.sin(t * 3.0 + Math.abs(ent.x)) * 3;
           lights.push({
             sx,
             sy,
             r: baseRadius + pulse,
             glow: glowColor,
             strength: ent.isGrand ? 1.05 : 0.88,
-            emitBloom: isOreOrCrystal || ent.isGrand || lighting.isCaveDarkness,
+            emitBloom: isOreOrCrystal || ent.isGrand || safeLighting.isCaveDarkness,
           });
         } else if (ent.type === 'portal' || ent.type === 'shrine') {
           const sx = ent.x - camLeft;
@@ -396,7 +526,7 @@ export function createAtmosphereRenderer() {
     }
 
     // 5. Townsfolk subtle hearth aura so friendly NPCs are readable in dusk
-    if (Array.isArray(npcs) && lighting.darkAlpha > 0.15) {
+    if (Array.isArray(npcs) && safeLighting.darkAlpha > 0.15) {
       for (const npc of npcs) {
         const sx = npc.x - camLeft;
         const sy = npc.y - 10 - camTop;
@@ -408,6 +538,76 @@ export function createAtmosphereRenderer() {
           glow: '#fef08a',
           strength: 0.50,
           emitBloom: false,
+        });
+      }
+    }
+
+    // 6. Dynamic Spell & Combat VFX Lighting (Sky Beams, Projectiles, Ground Zones)
+    if (Array.isArray(skyBeams)) {
+      for (const sb of skyBeams) {
+        if (!sb) continue;
+        const sx = sb.x - camLeft;
+        const sy = sb.y - camTop;
+        if (sx < -margin || sx > viewW + margin || sy < -margin || sy > viewH + margin) continue;
+        const fade = 1 - clamp01((sb.age || 0) / Math.max(0.01, sb.maxAge || 0.45));
+        lights.push({
+          sx,
+          sy,
+          r: 86 + fade * 48,
+          glow: sb.color || '#facc15',
+          strength: 0.45 + fade * 0.70,
+          emitBloom: true,
+          isSpellLight: true,
+        });
+      }
+    }
+
+    if (Array.isArray(projectiles)) {
+      for (const p of projectiles) {
+        if (!p) continue;
+        const sx = p.x - camLeft;
+        const sy = p.y - camTop;
+        if (sx < -margin || sx > viewW + margin || sy < -margin || sy > viewH + margin) continue;
+        const glow = p.color || (
+          p.type === 'hammer' ? '#facc15' :
+          p.type === 'boulder' ? '#4ade80' :
+          p.type === 'void_orb' ? '#c084fc' :
+          '#38bdf8'
+        );
+        const radius = p.type === 'dagger' || p.type === 'boulder' ? 46 : 62;
+        lights.push({
+          sx,
+          sy,
+          r: radius,
+          glow,
+          strength: 0.76,
+          emitBloom: true,
+          isSpellLight: true,
+        });
+      }
+    }
+
+    if (Array.isArray(groundZones)) {
+      for (const gz of groundZones) {
+        if (!gz) continue;
+        const sx = gz.x - camLeft;
+        const sy = gz.y - camTop;
+        const zoneMargin = Math.max(margin, (gz.radius || 70) + 40);
+        if (sx < -zoneMargin || sx > viewW + zoneMargin || sy < -zoneMargin || sy > viewH + zoneMargin) continue;
+        const maxAge = Math.max(0.01, gz.maxAge || 4.0);
+        const age = gz.age || 0;
+        const lifeFade = gz.type === 'shockwave'
+          ? clamp01(1 - age / maxAge)
+          : (maxAge - age < 0.25 ? clamp01((maxAge - age) / 0.25) : 1);
+        const pulse = Math.sin(t * 4.5 + Math.abs(gz.x * 0.1)) * 4;
+        lights.push({
+          sx,
+          sy,
+          r: Math.max(48, Math.round((gz.radius || 64) * 1.12)) + pulse,
+          glow: resolveGroundZoneGlow(gz),
+          strength: (gz.type === 'telegraph' ? 0.65 : 0.88) * lifeFade,
+          emitBloom: true,
+          isSpellLight: true,
         });
       }
     }
@@ -484,6 +684,9 @@ export function createAtmosphereRenderer() {
     entities,
     remotePlayers,
     npcs,
+    skyBeams,
+    projectiles,
+    groundZones,
     globalTime,
   }) {
     const lighting = getRoomLightingProfile(biomeTheme, timeCycle, weather);
@@ -491,8 +694,30 @@ export function createAtmosphereRenderer() {
     // 1. Outdoor precipitation/ash behind nightfall vignette mask
     renderWeather(ctx, { dt, viewW, viewH, weather, globalTime });
 
-    const lights = (lighting.darkAlpha > 0.02 || lighting.lanternPower > 0.35)
-      ? collectLights({ camLeft, camTop, viewW, viewH, player, props, entities, remotePlayers, npcs, lighting, globalTime })
+    const hasDynamicSpellVfx = Boolean(
+      (Array.isArray(skyBeams) && skyBeams.length > 0) ||
+      (Array.isArray(projectiles) && projectiles.length > 0) ||
+      (Array.isArray(groundZones) && groundZones.length > 0) ||
+      resolveApexAuraColor(player)
+    );
+
+    const lights = (lighting.darkAlpha > 0.02 || lighting.lanternPower > 0.35 || hasDynamicSpellVfx)
+      ? collectLights({
+        camLeft,
+        camTop,
+        viewW,
+        viewH,
+        player,
+        props,
+        entities,
+        remotePlayers,
+        npcs,
+        skyBeams,
+        projectiles,
+        groundZones,
+        lighting,
+        globalTime,
+      })
       : [];
 
     // 2. Subterranean cave darkness or nocturnal vignette with radial light punch-outs
@@ -558,14 +783,19 @@ export function createAtmosphereRenderer() {
       }
     }
 
-    // 3. Soft warm/arcane light bloom spilling around active lanterns, hearths & glowing crystals
-    if (lighting.lanternPower > 0.25 && lights.length > 0) {
+    // 3. Soft warm/arcane light bloom spilling around active lanterns, hearths, crystals & active spells
+    if ((lighting.lanternPower > 0.25 || hasDynamicSpellVfx) && lights.length > 0) {
       ctx.save();
+      let bloomCount = 0;
       for (const light of lights) {
         if (!light.emitBloom) continue;
+        if (!light.isSpellLight && lighting.lanternPower <= 0.25) continue;
+        if (bloomCount >= 48) break;
+        bloomCount += 1;
         const glowR = Math.round(light.r * 0.72);
         const grad = ctx.createRadialGradient(light.sx, light.sy, 2, light.sx, light.sy, glowR);
-        const alpha = +(0.12 * lighting.lanternPower * light.strength).toFixed(3);
+        const power = light.isSpellLight ? Math.max(0.55, lighting.lanternPower) : lighting.lanternPower;
+        const alpha = +(0.12 * power * light.strength).toFixed(3);
         grad.addColorStop(0, hexToRgba(light.glow, alpha * 1.45));
         grad.addColorStop(0.55, hexToRgba(light.glow, alpha * 0.55));
         grad.addColorStop(1, 'rgba(0,0,0,0)');
@@ -576,7 +806,7 @@ export function createAtmosphereRenderer() {
       }
 
       // Draw crisp translucent daylight shaft beam inside cave mouths
-      if (lighting.hasEntryCone && mapBounds) {
+      if (lighting.lanternPower > 0.25 && lighting.hasEntryCone && mapBounds) {
         const exitX = 0 - camLeft;
         const exitY = mapBounds.halfH - camTop;
         if (exitY > -120 && exitY < viewH + 140) {
@@ -600,7 +830,7 @@ export function createAtmosphereRenderer() {
     return lighting;
   }
 
-  return { render };
+  return { render, collectLights };
 }
 
 function hexToRgba(hex, alpha) {
