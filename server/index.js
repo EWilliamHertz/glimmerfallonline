@@ -13,6 +13,7 @@ import { PartyManager } from './partyManager.js';
 import { ExchangeManager } from './exchangeManager.js';
 import { TradeManager } from './tradeManager.js';
 import { DuelManager } from './duelManager.js';
+import { TcgManager } from './tcgManager.js';
 import { RoomManager } from './roomManager.js';
 import { TICK_RATE, ROOM_TYPES, ROOM_CONFIGS } from '../shared/protocol.js';
 
@@ -97,7 +98,8 @@ function extractRequestToken(req, body = null) {
   return '';
 }
 
-export async function handleApiRequest(req, res, { accounts, rooms = null }) {
+export async function handleApiRequest(req, res, { accounts, rooms = null, tcg = null }) {
+  const tcgEngine = tcg || rooms?.tcg || new TcgManager();
   if (req.method === 'OPTIONS') {
     res.writeHead(204, CORS_HEADERS);
     res.end();
@@ -512,6 +514,75 @@ export async function handleApiRequest(req, res, { accounts, rooms = null }) {
         editionTier: result.editionTier,
         profile: result.profile || null,
       });
+      return true;
+    }
+
+    // ---- 1v1 GlimmerFallTCG.com Tavern Card Duel Endpoints ----
+    if (pathname === '/api/tcg/cards' && req.method === 'GET') {
+      const cards = await tcgEngine.getCards(url.searchParams.get('refresh') === '1');
+      sendJson(res, 200, { ok: true, total: cards.length, cards });
+      return true;
+    }
+
+    if (pathname === '/api/tcg/decks' && req.method === 'GET') {
+      const data = await tcgEngine.getDecks(url.searchParams.get('refresh') === '1');
+      sendJson(res, 200, { ok: true, ...data });
+      return true;
+    }
+
+    if (pathname === '/api/tcg/decks' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const currentAcc = await verifyWithRefresh(extractRequestToken(req, body));
+      const saved = await tcgEngine.saveDeck({
+        username: body.username || currentAcc?.displayName || 'Summoner',
+        deckName: body.deck_name || body.deckName || 'Custom Tavern Deck',
+        deckCards: body.deck_cards || body.deckCards || [],
+      });
+      sendJson(res, 200, { ok: true, deck: saved });
+      return true;
+    }
+
+    if (pathname === '/api/tcg/matchmaking' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const currentAcc = await verifyWithRefresh(extractRequestToken(req, body));
+      const matchRes = await tcgEngine.startMatch({
+        username: body.username || currentAcc?.displayName || 'Summoner',
+        playerId: currentAcc?.id || body.playerId || null,
+        deckId: body.deckId,
+        deckName: body.deckName,
+        faction: body.faction,
+        deckCards: body.deckCards,
+        vsAI: Boolean(body.vsAI),
+        aiDeckName: body.aiDeckName,
+        roomCode: body.roomCode,
+      });
+      sendJson(res, 200, { ok: true, ...matchRes });
+      return true;
+    }
+
+    if (pathname === '/api/tcg/match' && req.method === 'GET') {
+      const matchId = url.searchParams.get('id');
+      const slot = Number(url.searchParams.get('slot') || 1);
+      const isSpectator = url.searchParams.get('isSpectator') === 'true';
+      const matchRes = await tcgEngine.getMatch(matchId, slot, isSpectator);
+      sendJson(res, 200, { ok: true, ...matchRes });
+      return true;
+    }
+
+    if (pathname === '/api/tcg/action' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const actRes = await tcgEngine.performAction({
+        matchId: body.matchId,
+        slot: body.slot || 1,
+        action: body.action,
+        payload: body.payload || {},
+      });
+      sendJson(res, 200, actRes);
+      return true;
+    }
+
+    if (pathname === '/api/tcg/featured' && req.method === 'GET') {
+      sendJson(res, 200, { ok: true, matches: tcgEngine.listLiveMatches() });
       return true;
     }
 

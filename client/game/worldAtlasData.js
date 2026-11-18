@@ -413,7 +413,7 @@
         north: 'CORAL_COAST',
         south: 'STARLIGHT_GROVE',
         west: 'TERRA_ORCHARD',
-        east: null
+        east: 'LUMINOUS_CAVERN'
       },
       landmarks: [
         { x: 50, y: 26, icon: '🪷', name: 'Sylphira the Spring Matriarch', sub: '★ Lv.24 Oasis Boss', desc: 'Guardian of the Sunken Oasis dropping Primordial Bark Armor.' },
@@ -538,6 +538,36 @@
       ],
       objectives: 'Channel Moonwell Healing Springs, harvest Starlight timber & herbs, challenge Archdruid Elaria.',
       travel: 'Walk South from Starlight Grove or East from Ambergris Crags (Sunspire Highlands).'
+    },
+    LUMINOUS_CAVERN: {
+      id: 'LUMINOUS_CAVERN',
+      name: 'CrystalEcho Caverns & Subterranean Grotto',
+      sub: 'Bioluminescent Geode Grotto & Underground Streams',
+      level: 'Lv. 10 – 24',
+      dangerTag: 'CRYSTAL GROTTO',
+      color: '#38bdf8',
+      borderColor: '#e879f9',
+      faction: '💎 Order of the Sunspire Delvers (Open Realm)',
+      desc: 'A shimmering subterranean cavern network beneath Sanctuary Gardens and Sunken Oasis, rich with Copper, Star-Iron, and Mithril seams, glowing Crystal Geodes, and subterranean angling pools.',
+      gridPos: { col: 2, row: 7 },
+      neighbors: {
+        north: null,
+        south: 'SANCTUARY_HUB',
+        west: 'SUNKEN_OASIS',
+        east: null
+      },
+      landmarks: [
+        { x: 50, y: 26, icon: '💎', name: 'Crystallis the Echo Warden', sub: '★ Lv.20 Cavern Boss', desc: 'Subterranean crystal guardian dropping the Mirror Shield.' },
+        { x: 50, y: 68, icon: '🧭', name: 'Explorer Korin & Hearth', sub: 'CrystalEcho Geologist', desc: 'Guides subterranean mining, geode tapping & cavern bounties.' },
+        { x: 32, y: 50, icon: '⛏️', name: 'Bioluminescent Geodes & Ore Seams', sub: 'Copper, Iron & Mithril [E]', desc: 'Mine mineral veins and tap glowing Crystal Geodes.' }
+      ],
+      entities: [
+        { name: 'Crystallis the Echo Warden', type: 'Cavern Boss', hp: '650 HP', desc: 'Drops the Mirror Shield & Astral Mineral Dust.' },
+        { name: 'CrystalEcho Geode-Stalkers & Prism-Shell Golems', type: 'Cavern Construct', hp: '130 – 175 HP', desc: 'Guard mineral seams and drop Glimmer Shards.' },
+        { name: 'Explorer Korin', type: 'Geologist Mentor', hp: 'Immortal', desc: 'Oversees subterranean expeditions and campfire cooking.' }
+      ],
+      objectives: 'Mine Copper, Iron & Mithril veins, tap Crystal Geodes, angle subterranean trout, defeat Crystallis.',
+      travel: 'Enter the CrystalEcho Cavern Archway in South Sanctuary Gardens or walk East from Sunken Oasis.'
     }
   };
 

@@ -1,4 +1,6 @@
 import { setupSkillGuidesUi } from './game/skillGuidesUi.js';
+import { TcgTavernDuelController } from './tcgTavernDuel.js';
+import { setupWorldEventsAndHeroShare } from './game/heroCardShare.js';
 import { playInGameCinematic } from './game/cinematicOverlay.js';
 import { createAmbientRenderer } from './game/ambientRenderer.js';
 import {
@@ -4863,6 +4865,9 @@ export function initGame() {
       logMessage('🍺 Rested by the warm hearthfire — full Health & Glimmer Charge restored!', 'log-solari');
       updatePlayerUI();
       saveCurrentVitals();
+    } else if (act.action === 'openTcgDuel') {
+      window.closeDialogue();
+      window.openTcgTavernDuel?.();
     } else if (act.action === 'advance') {
       window.advanceDialogue();
     } else if (act.action === 'prev') {
@@ -5728,8 +5733,9 @@ export function initGame() {
           { type: 'aleKeg', x: -126, y: -62 },
           { type: 'campfire', stationId: 'campfire_hearth', x: 86, y: -78, label: '🍲 Inn Cooking Hearth [Click / E]' },
           { type: 'bookshelf', x: 142, y: -96 },
+          { type: 'tcgDuelTable', x: 12, y: 18, label: '🃏 1v1 GlimmerFall TCG Duel Table [Click / E]' },
           { type: 'diningTable', x: -94, y: 18 },
-          { type: 'diningTable', x: 88, y: 18 },
+          { type: 'diningTable', x: 96, y: 18 },
           { type: 'diningTable', x: -94, y: -22 },
           { type: 'cozyBed', x: 142, y: 46 },
           { type: 'streetLantern', x: -146, y: 92 },
@@ -5748,8 +5754,9 @@ export function initGame() {
                 speaker: 'INNKEEPER GARRICK • HEARTHSTONE INN',
                 spriteKey: 'merchantProvisionsNpc',
                 merchantId: 'merchant_tavern',
-                text: 'Welcome inside out of the wind! Pull up a chair by the roaring hearth, grab a tankard of golden cider, or cook your fresh catch on our inn griddle.\n\nAdventurers always recover their strength fastest indoors!',
+                text: 'Welcome inside out of the wind! Pull up a chair by the roaring hearth, grab a tankard of golden cider, challenge a patron or GlimmerBot at our 1v1 GlimmerFall TCG Duel Table, or cook your fresh catch on our inn griddle.\n\nAdventurers always recover their strength fastest indoors!',
                 actions: [
+                  { label: '🃏 PLAY 1V1 GLIMMERFALL TCG (TAVERN DUEL)', action: 'openTcgDuel', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
                   { label: '✨ REST AT HEARTH (FULL HP & GLIMMER)', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac; font-weight:bold;' },
                   { label: '🍺 TAVERN DRINKS & RATIONS SHOP', action: 'openShop', style: 'border-color:#fbbf24; color:#fde047; font-weight:bold;' },
                   { label: '🍲 OPEN COOKING HEARTH', action: 'openStation_campfire_hearth', style: 'border-color:#fb923c; color:#fed7aa;' },
@@ -5769,8 +5776,11 @@ export function initGame() {
               {
                 speaker: 'MINSTREL LYRA-SONG • HEARTHSTONE INN',
                 spriteKey: 'heraldNpc',
-                text: 'Every champion needs a warm refuge when twilight or autumn rain sweeps across Sanctuary Haven. Travel west to the Solari Smithy or south to the Rootdeep Apothecary House to visit our guildmasters indoors!',
-                actions: [{ label: '🎵 APPRECIATE THE TUNE', action: 'close' }],
+                text: 'Every champion needs a warm refuge when twilight or autumn rain sweeps across Sanctuary Haven. Have you tried a match of GlimmerFall TCG at our velvet duel table yet?',
+                actions: [
+                  { label: '🃏 PLAY 1V1 GLIMMERFALL TCG', action: 'openTcgDuel', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+                  { label: '🎵 APPRECIATE THE TUNE', action: 'close' },
+                ],
               },
               {
                 speaker: 'MINSTREL LYRA-SONG • HEARTHSTONE INN',
@@ -5960,7 +5970,8 @@ export function initGame() {
           { type: 'tavernBar', x: 0, y: -82, label: '🍷 Velvet Veil Night Bar' },
           { type: 'celestialLoom', stationId: 'celestial_loom', x: -72, y: -22, label: '🧵 Velvet Shadow Loom [Click / E]' },
           { type: 'goldChestPile', x: 124, y: -26 },
-          { type: 'diningTable', x: 76, y: 18 },
+          { type: 'tcgDuelTable', x: 18, y: 18, label: '🃏 Velvet Veil 1v1 GlimmerFall TCG Table [Click / E]' },
+          { type: 'diningTable', x: 84, y: 18 },
           { type: 'bookshelf', x: -126, y: 24 },
           { type: 'umbriBrazierAltar', x: -116, y: -82 },
           { type: 'umbriBrazierAltar', x: 116, y: -82 },
@@ -5979,8 +5990,9 @@ export function initGame() {
               speaker: 'MISTRESS VEXIS • VELVET VEIL PARLOR',
               spriteKey: 'shadowBrokerNpc',
               merchantId: 'merchant_tailor',
-              text: 'Hush... leave the graveyard fog at the threshold. Inside the Velvet Veil, brokers trade rare twilight silks and tired blades regain their edge.',
+              text: 'Hush... leave the graveyard fog at the threshold. Inside the Velvet Veil, brokers trade rare twilight silks, duel with Graveglass Veil TCG decks, and tired blades regain their edge.',
               actions: [
+                { label: '🃏 PLAY 1V1 GLIMMERFALL TCG', action: 'openTcgDuel', style: 'border-color:#c084fc; color:#f3e8ff; font-weight:bold;' },
                 { label: '🧵 USE SHADOW LOOM', action: 'openStation_celestial_loom', style: 'border-color:#c084fc; color:#e9d5ff; font-weight:bold;' },
                 { label: '🛒 TAILORING SILKS & WARES', action: 'openShop', style: 'border-color:#a855f7; color:#f3e8ff;' },
                 { label: '✨ REST IN SHADOWS', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac;' },
@@ -6041,6 +6053,7 @@ export function initGame() {
           { type: 'campfire', stationId: 'campfire_hearth', x: 96, y: -78, label: '🐟 Galley Seafood Skillet [Click / E]' },
           { type: 'aleKeg', x: -128, y: -86 },
           { type: 'aleKeg', x: -128, y: -56 },
+          { type: 'tcgDuelTable', x: 0, y: 18, label: '🃏 Mariner 1v1 GlimmerFall TCG Table [Click / E]' },
           { type: 'mapTable', x: 86, y: 18, label: '🗺️ Sea Chart & Reef Log' },
           { type: 'diningTable', x: -86, y: 18 },
           { type: 'cozyBed', x: 142, y: -80 },
@@ -6059,8 +6072,9 @@ export function initGame() {
               speaker: 'CAPTAIN BRINE • MARINER TAVERN',
               spriteKey: 'anglerFinnNpc',
               merchantId: 'merchant_tavern',
-              text: 'Ahoy! Wipe the Coral Coast sea spray off your boots and warm up by our driftwood fireplace. Pan-sear your fresh catch right here at the galley skillet!',
+              text: 'Ahoy! Wipe the Coral Coast sea spray off your boots and warm up by our driftwood fireplace. Pan-sear your fresh catch at the galley skillet or deal a round of 1v1 GlimmerFall TCG!',
               actions: [
+                { label: '🃏 PLAY 1V1 GLIMMERFALL TCG', action: 'openTcgDuel', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
                 { label: '✨ REST AT GALLEY HEARTH (FULL VITALS)', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac; font-weight:bold;' },
                 { label: '🐟 OPEN GALLEY COOKING HEARTH', action: 'openStation_campfire_hearth', style: 'border-color:#38bdf8; color:#bae6fd; font-weight:bold;' },
                 { label: '🍺 GALLEY PROVISIONS & TONICS', action: 'openShop', style: 'border-color:#fbbf24; color:#fde047;' },
@@ -6071,6 +6085,52 @@ export function initGame() {
               speaker: 'CAPTAIN BRINE • MARINER TAVERN',
               spriteKey: 'anglerFinnNpc',
               text: 'When squalls blow off Brinelight Shallows at dusk, keep one eye on the bamboo pier lanterns—and if you delve into the pitch-black Vaults or Labyrinths inland, watch for glowing ore veins and the silver cone of surface light marking your exit!',
+            },
+          ],
+        });
+      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_GUILD_HALL) {
+        props.push(
+          { type: 'hearthFireplace', x: 0, y: -96, label: '🔥 Vanguard Guildhall Hearth [Click / E]' },
+          { type: 'factionCrestSolari', x: -56, y: -108 },
+          { type: 'factionCrestLeaf', x: 0, y: -112 },
+          { type: 'factionCrestAether', x: 56, y: -108 },
+          { type: 'mapTable', x: 0, y: -22, label: '🗺️ Continental Campaign War-Table [Click / E]' },
+          { type: 'tcgDuelTable', x: 54, y: 28, label: '🃏 Vanguard 1v1 GlimmerFall TCG Table [Click / E]' },
+          { type: 'trainingDummy', x: -64, y: -18, label: '🥋 Vanguard Combat DPS Dummy [Click / E]' },
+          { type: 'weaponRack', x: -132, y: -86, label: '⚔️ Vanguard Armory Rack [Click / E]' },
+          { type: 'weaponRack', x: 132, y: -86, label: '⚔️ Vanguard Armory Rack [Click / E]' },
+          { type: 'archeryTarget', x: -138, y: -18, label: '🎯 Guild Marksman Target [Click / E]' },
+          { type: 'archeryTarget', x: 138, y: -18, label: '🎯 Guild Marksman Target [Click / E]' },
+          { type: 'bookshelf', x: -88, y: -92, label: '📖 Chronicles of the First Nexus [Click / E]' },
+          { type: 'bookshelf', x: 88, y: -92, label: '📖 Codex of the Four Covenants [Click / E]' },
+          { type: 'bardHarpStand', x: 84, y: -42, label: '🎵 Gilded Vanguard Harp [Click / E]' },
+          { type: 'supplyCrate', x: -136, y: 48, label: '📦 Quartermaster Supply Cache [Click / E]' },
+          { type: 'supplyCrate', x: 136, y: 48, label: '📦 Quartermaster Supply Cache [Click / E]' },
+          { type: 'bountyBoard', isBountyBoard: true, x: -78, y: 38, label: '📜 Guildhall Bounty Ledger [Click / E]' },
+          { type: 'sleepingPetFox', x: 46, y: -64, label: '🦊 Guild Mascot Ember-Fox [Click / E]' },
+          { type: 'cozyBed', x: 144, y: -4, label: '🛏️ Champion Bunk [Click / E]' },
+          { type: 'streetLantern', x: -146, y: 92 },
+          { type: 'streetLantern', x: 146, y: 92 }
+        );
+        npcs.push({
+          id: 'npc_guildmaster_thorne',
+          name: 'Guildmaster Thorne',
+          role: 'Adventurers Guild Commander [Click / T]',
+          spriteKey: 'warzoneArchonNpc',
+          x: 0,
+          y: -52,
+          dialogue: [
+            {
+              speaker: 'GUILDMASTER THORNE • VANGUARD GUILDHALL',
+              spriteKey: 'warzoneArchonNpc',
+              text: 'Welcome to the Adventurers Vanguard Guildhall! Every object in our lodge is yours to use: study the Continental War-Table, duel at the 1v1 GlimmerFall TCG Table, practice combinations on the archery targets, rummage Quartermaster Supply Crates, or claim contracts from the Bounty Ledger.\n\nHave you explored the CrystalEcho Caverns south of Sanctuary Gardens yet?',
+              actions: [
+                { label: '🃏 PLAY 1V1 GLIMMERFALL TCG (GUILD TABLE)', action: 'openTcgDuel', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+                { label: '📜 OPEN GUILD BOUNTY LEDGER', action: 'openBountyBoard', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+                { label: '✨ REST AT GUILD HEARTH (FULL VITALS)', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac; font-weight:bold;' },
+                { label: '📬 CHECK GUILD MAILBOX', action: 'openMail', style: 'border-color:#38bdf8; color:#bae6fd;' },
+                { label: '👋 FOR THE REALM!', action: 'close' },
+              ],
             },
           ],
         });
@@ -6158,7 +6218,14 @@ export function initGame() {
           label: "📋 Cottage Archive Notice Board [Click / E]",
         },
         { type: 'cityHouseB', x: 255, y: -135 },
-        { type: 'cityHouseA', x: -275, y: 95 },
+        { type: 'doorThresholdGlow', x: -275, y: 122 },
+        {
+          type: 'cityHouseA',
+          x: -275,
+          y: 95,
+          label: '🛡️ Vanguard Adventurers Guildhall [Enter]',
+          doorway: { targetRoom: ROOM_TYPES.INTERIOR_GUILD_HALL, x: -275, y: 122, radius: 16 },
+        },
         { type: 'doorThresholdGlow', x: 275, y: 122 },
         {
           type: 'tavernBuilding',
@@ -6173,6 +6240,12 @@ export function initGame() {
           x: 236,
           y: 118,
           label: '📋 Hearthstone Inn Notice Board [Click / E]',
+        },
+        {
+          type: 'tcgDuelTable',
+          x: 236,
+          y: 154,
+          label: '🃏 Hearthstone Patio 1v1 GlimmerFall TCG Table [Click / E]',
         },
         { type: 'cityHouseA', x: -175, y: -255 },
         { type: 'cityHouseB', x: -65, y: -255 },
@@ -6203,12 +6276,31 @@ export function initGame() {
         { type: 'pillar', x: 235, y: -35 },
         { type: 'brazier', x: 145, y: 75 },
         { type: 'brazier', x: 235, y: 75 },
-        { type: 'stoneBench', x: 190, y: -52 },
+        { type: 'stoneBench', x: 190, y: -52, label: '🪑 Courtyard Rest Bench [Click / E]' },
+        { type: 'trainingDummy', x: 172, y: 18, label: '🥋 Vanguard Combat DPS Dummy [Click / E]' },
+        { type: 'mysteryPeddlerCart', x: -115, y: 122, label: '🔮 Astral Mystery Peddler Cart [Click / E]' },
+        { type: 'archeryTarget', x: 195, y: 58, label: '🎯 Precision Archery Target [Click / E]' },
+        { type: 'archeryTarget', x: 235, y: 58, label: '🎯 Precision Archery Target [Click / E]' },
+        { type: 'weaponRack', x: 145, y: 20, label: '⚔️ Trial Yard Weapon Rack [Click / E]' },
+        { type: 'supplyCrate', x: -248, y: -18, label: '📦 Workshop Supply Crate [Click / E]' },
+        { type: 'supplyCrate', x: 242, y: 132, label: '📦 Tavern Provision Crate [Click / E]' },
+        { type: 'alchemistAlembic', x: -232, y: 110, label: '⚗️ Copper Distillation Alembic [Click / E]' },
+        { type: 'arcaneTelescope', x: -64, y: -112, label: '🔭 Sanctuary Stargazer Telescope [Click / E]' },
+        { type: 'bardHarpStand', x: 54, y: -12, label: '🎵 Plaza Concert Harp [Click / E]' },
 
         // 7. South Memorial Gardens & Starter Skilling Groves
-        { type: 'monument', x: 0, y: 245 },
-        { type: 'stoneBench', x: -45, y: 245 },
-        { type: 'stoneBench', x: 45, y: 245 },
+        { type: 'monument', x: 0, y: 245, label: '🗿 First Nexus Memorial Monument [Click / E]' },
+        { type: 'runicObelisk', x: 0, y: 198, label: '🔮 Covenant Lore Obelisk [Click / E]' },
+        { type: 'crystalGeode', x: -215, y: 255, label: '💎 Shimmering Crystal Geode [Click / E]' },
+        {
+          type: 'cavernEntrance',
+          x: -245,
+          y: 262,
+          label: '🕳️ CrystalEcho Caverns Entrance [Enter / E]',
+          doorway: { targetRoom: ROOM_TYPES.LUMINOUS_CAVERN, x: -245, y: 274, radius: 18 },
+        },
+        { type: 'stoneBench', x: -45, y: 245, label: '🪑 Memorial Garden Bench [Click / E]' },
+        { type: 'stoneBench', x: 45, y: 245, label: '🪑 Memorial Garden Bench [Click / E]' },
         { type: 'blossomTree', x: -85, y: 215 },
         { type: 'blossomTree', x: 85, y: 215 },
         { type: 'ancientOak', x: -185, y: 235 },
@@ -7178,9 +7270,63 @@ export function initGame() {
           { type: 'flowerBed', x: 125, y: -35 },
           { type: 'crystalPillar', x: -165, y: -75 },
           { type: 'crystalPillar', x: 165, y: -75 },
+          { type: 'treasureCoffer', x: -195, y: -145, label: '💰 Hidden Moonwell Treasure Coffer [Click / E]' },
           { type: 'streetLantern', x: -62, y: 128 },
           { type: 'streetLantern', x: 62, y: 128 }
         );
+      } else if (resolvedRoomType === ROOM_TYPES.LUMINOUS_CAVERN) {
+        if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'CRYSTALECHO CAVERNS';
+        if (zoneLabel) zoneLabel.innerText = 'CrystalEcho Caverns';
+        arenaBanner.style.display = 'none';
+        props.push(
+          {
+            type: 'cavernEntrance',
+            x: 0,
+            y: 225,
+            label: '🚪 Surface Steps to Sanctuary Haven [Enter / E]',
+            exitDoor: { roomType: ROOM_TYPES.SANCTUARY_HUB, x: -245, y: 235, dir: 'up' },
+          },
+          { type: 'campfire', stationId: 'campfire_hearth', x: -55, y: 155, label: '🔥 Subterranean Explorer Hearth [Click / E]' },
+          { type: 'bountyBoard', isBountyBoard: true, x: 55, y: 155, label: '📜 Cavern Expedition Board [Click / E]' },
+          { type: 'mysteryPeddlerCart', x: 112, y: 175, label: '🔮 Subterranean Mystery Peddler Cart [Click / E]' },
+          { type: 'treasureCoffer', x: -210, y: -210, label: '💰 Deep Grotto Treasure Coffer [Click / E]' },
+          { type: 'treasureCoffer', x: 210, y: -210, label: '💰 Echo Sanctum Treasure Coffer [Click / E]' },
+          { type: 'woodenSign', x: 0, y: 175, label: '🪧 W: Sunken Oasis | S: Sanctuary Haven | N: Echo Warden Sanctum' },
+          { type: 'runicObelisk', x: 0, y: -95, label: '🔮 Subterranean Echo Obelisk [Click / E]' },
+          { type: 'arcaneTelescope', x: -85, y: 135, label: '🔭 Subterranean Prism Scope [Click / E]' },
+          { type: 'supplyCrate', x: 92, y: 145, label: '📦 Delver Supply Cache [Click / E]' },
+          { type: 'supplyCrate', x: -92, y: -15, label: '📦 Miner Supply Cache [Click / E]' },
+          { type: 'crystalGeode', x: -145, y: 85, label: '💎 Bioluminescent Crystal Geode [Click / E]' },
+          { type: 'crystalGeode', x: 145, y: 85, label: '💎 Bioluminescent Crystal Geode [Click / E]' },
+          { type: 'crystalGeode', x: -165, y: -115, label: '💎 Bioluminescent Crystal Geode [Click / E]' },
+          { type: 'crystalGeode', x: 165, y: -115, label: '💎 Bioluminescent Crystal Geode [Click / E]' },
+          { type: 'crystalPillar', x: -125, y: -15 },
+          { type: 'crystalPillar', x: 125, y: -15 },
+          { type: 'crystalPillar', x: -125, y: -185 },
+          { type: 'crystalPillar', x: 125, y: -185 },
+          { type: 'brazier', x: -45, y: 195 },
+          { type: 'brazier', x: 45, y: 195 }
+        );
+        npcs.push({
+          id: 'npc_delver_korin',
+          name: 'Explorer Korin',
+          role: 'CrystalEcho Geologist [Click / T]',
+          spriteKey: 'cartographerNpc',
+          x: 0,
+          y: 148,
+          dialogue: [
+            {
+              speaker: 'EXPLORER KORIN • CRYSTALECHO CAVERNS',
+              spriteKey: 'cartographerNpc',
+              text: 'Behold the CrystalEcho Caverns! Beneath Sanctuary Haven and the Sunken Oasis runs a network of bioluminescent geodes, underground trout streams, and rich Copper, Star-Iron, and Mithril seams.\n\nTap the glowing Crystal Geodes, rummage our Delver Supply Caches, or roast your subterranean catch over the Explorer Hearth!',
+              actions: [
+                { label: '🔥 OPEN EXPLORER HEARTH', action: 'openStation_campfire_hearth', style: 'border-color:#fb923c; color:#fed7aa; font-weight:bold;' },
+                { label: '📜 CAVERN BOUNTIES', action: 'openBountyBoard', style: 'border-color:#38bdf8; color:#bae6fd; font-weight:bold;' },
+                { label: '👋 HAPPY DELVING', action: 'close' },
+              ],
+            },
+          ],
+        });
       }
     }
   }
@@ -7458,6 +7604,18 @@ export function initGame() {
         { id: 'moonwell_mob_2', name: 'Silvermist Grove-Keeper', sub: 'Lv.22 Moonwell Sentinel', type: 'mob', spriteKey: 'terraWarden', x: 125, y: 35, origX: 125, origY: 35, hp: 210, maxHp: 210, damage: 14, xpReward: 230, speed: 52, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
         { id: 'moonwell_mob_3', name: 'Lunar Briar-Stalker', sub: 'Lv.26 Wilds Guardian', type: 'mob', spriteKey: 'mobTerra', x: -95, y: -95, origX: -95, origY: -95, hp: 245, maxHp: 245, damage: 16, xpReward: 270, speed: 55, aggroRange: 122, attackRange: 30, radius: 16, hitFlash: 0 },
         { id: 'moonwell_boss', name: 'Archdruid Elaria of the Silvermist', sub: '★ Lv.32 Matriarch of the Moonwell Sanctum', type: 'mob', isBoss: true, dropGear: 'elder_treant_staff', spriteKey: 'elderBarkhide', x: 0, y: -235, origX: 0, origY: -235, hp: 960, maxHp: 960, damage: 22, xpReward: 920, speed: 44, aggroRange: 145, attackRange: 36, radius: 24, hitFlash: 0 }
+      );
+    } else if (currentRoomType === ROOM_TYPES.LUMINOUS_CAVERN) {
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 185;
+      }
+      entities.push(
+        { id: 'cavern_node_1', name: 'CrystalEcho Resonance Spire', sub: 'Subterranean Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: -35, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
+        { id: 'cavern_mob_1', name: 'CrystalEcho Geode-Stalker', sub: 'Lv.12 Subterranean Construct', type: 'mob', spriteKey: 'mobAether', x: -115, y: 45, origX: -115, origY: 45, hp: 130, maxHp: 130, damage: 9, xpReward: 135, speed: 50, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'cavern_mob_2', name: 'CrystalEcho Geode-Stalker', sub: 'Lv.12 Subterranean Construct', type: 'mob', spriteKey: 'mobAether', x: 115, y: 45, origX: 115, origY: 45, hp: 130, maxHp: 130, damage: 9, xpReward: 135, speed: 50, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'cavern_mob_3', name: 'Prism-Shell Golem', sub: 'Lv.16 Cavern Sentinel', type: 'mob', spriteKey: 'graniteBoss', x: -95, y: -95, origX: -95, origY: -95, hp: 175, maxHp: 175, damage: 12, xpReward: 185, speed: 44, aggroRange: 118, attackRange: 30, radius: 18, hitFlash: 0 },
+        { id: 'cavern_boss', name: 'Crystallis the Echo Warden', sub: '★ Lv.20 Sovereign of CrystalEcho Caverns', type: 'mob', isBoss: true, dropGear: 'mirror_shield', spriteKey: 'bossAether', x: 0, y: -225, origX: 0, origY: -225, hp: 650, maxHp: 650, damage: 17, xpReward: 620, speed: 42, aggroRange: 140, attackRange: 34, radius: 24, hitFlash: 0 }
       );
     } else if (ROOM_CONFIGS[currentRoomType]?.isInterior) {
       if (!hasCustomSpawn) {
@@ -8688,6 +8846,28 @@ export function initGame() {
             spawnFCT(player.x, player.y - 18, 'HONORABLE DEFEAT ⚔️', '#94a3b8');
           }
           triggerScreenShake(0.18);
+          break;
+        }
+
+        case 'tcg_duel_invite': {
+          audio.playPartyInvite?.();
+          tcgTavernDuelUi.onIncomingInvite(msg);
+          break;
+        }
+
+        case 'tcg_match_joined': {
+          audio.playChime?.();
+          tcgTavernDuelUi.onServerMatchJoined(msg);
+          break;
+        }
+
+        case 'tcg_state_update': {
+          tcgTavernDuelUi.onServerStateUpdate(msg);
+          break;
+        }
+
+        case 'tcg_error': {
+          logMessage(`🃏 [Tavern TCG] ${msg.error || 'Action failed'}`, 'log-solari', 'combat');
           break;
         }
 
@@ -10871,6 +11051,356 @@ export function initGame() {
     return false;
   }
 
+  const tcgTavernDuelUi = new TcgTavernDuelController({
+    getPlayerName: () => localProfile?.name || player?.name || 'Summoner',
+    getPlayerFaction: () => localProfile?.faction || player?.faction || 'Solari',
+    getOnlinePlayers: () => {
+      const list = [];
+      for (const p of remotePlayers.values()) {
+        if (p && p.name) list.push({ id: p.id, name: p.name, faction: p.faction });
+      }
+      return list;
+    },
+    sendWs: (payload) => {
+      if (net && net.connected && typeof net.send === 'function') {
+        net.send(payload);
+        return true;
+      }
+      return false;
+    },
+    apiBase: '',
+    onMatchVictory: ({ vsAI, deckName }) => {
+      const glimReward = vsAI ? 85 : 150;
+      addPlayerGold(localProfile, glimReward);
+      awardXP(vsAI ? 120 : 220, 'Tavern TCG Victory');
+      if (!net.connected) {
+        awardProfessionXP('rites', 28, 'GlimmerFall TCG Duel', false);
+        awardProfessionXP('flashes', 28, 'GlimmerFall TCG Duel', false);
+      }
+      saveProgressionLocal();
+      updatePlayerUI();
+      spawnSparkBurst(player.x, player.y - 14, ['#fde047', '#38bdf8', '#c084fc', '#4ade80'], 28);
+      spawnFCT(player.x, player.y - 20, `🃏 TCG VICTOR! +${glimReward}✨`, '#facc15', true);
+      logMessage(
+        `🃏 [Tavern TCG Victory] You triumphed at the GlimmerFall TCG Table piloting "${deckName}" (+${glimReward} Glimmer & +${vsAI ? 120 : 220} XP)!`,
+        'log-solari',
+        'chat'
+      );
+    },
+    onLogChat: (txt) => logMessage(txt, 'log-quest', 'chat'),
+  });
+
+  window.openTcgTavernDuel = function (targetPlayerName = '') {
+    audio.playChime?.();
+    tcgTavernDuelUi.open(targetPlayerName);
+  };
+
+  setupWorldEventsAndHeroShare({
+    getPlayerProfile: () => localProfile,
+    getPlayerEntity: () => player,
+    getCurrentRoomType: () => currentRoomType,
+    getCharacterSpriteCanvas: () => {
+      try {
+        const charSpr = getCharacterSprites(
+          localProfile?.faction || player?.faction || 'Solari',
+          localProfile?.classId || player?.classId || 'solari_vanguard',
+          localProfile?.equipment || player?.equipment || {}
+        );
+        return charSpr?.down?.[0] || charSpr?.idle?.[0] || null;
+      } catch (_) {
+        return null;
+      }
+    },
+    onTeleportToEvent: (ev) => {
+      if (!ev?.primaryRoom) return;
+      if (currentRoomType === ev.primaryRoom) {
+        spawnFCT(player.x, player.y - 18, `${ev.shortTitle.toUpperCase()} ACTIVE HERE!`, ev.color || '#facc15', true);
+        logMessage(`📢 [World Event] You are already in ${ev.primaryRoomLabel}! (${ev.subtitle.trim()})`, 'log-solari', 'chat');
+        return;
+      }
+      transitionToRoom(ev.primaryRoom, null, null, 'down');
+      logMessage(`⚡ [World Event Travel] Travelling to ${ev.primaryRoomLabel} for ${ev.title}!`, 'log-solari', 'chat');
+    },
+    onGrantReferralGold: (goldAmt, refHero) => {
+      addPlayerGold(localProfile, goldAmt);
+      saveProgressionLocal();
+      updatePlayerUI();
+      spawnFCT(player.x, player.y - 20, `🎁 +${goldAmt}g RECRUIT BONUS (${refHero})!`, '#fde047', true);
+    },
+    onLogMessage: (txt, cls) => logMessage(txt, cls || 'log-solari', 'chat'),
+  });
+
+  const INTERACTIVE_PROP_TYPES = new Set([
+    'tcgDuelTable',
+    'trainingDummy',
+    'mysteryPeddlerCart',
+    'treasureCoffer',
+    'ancientWell',
+    'grandFountain',
+    'fountain',
+    'arcaneTelescope',
+    'aetherArmillary',
+    'runicObelisk',
+    'monument',
+    'solariSundial',
+    'terraMenhir',
+    'umbriBrazierAltar',
+    'bookshelf',
+    'alchemyShelf',
+    'mapTable',
+    'alchemistAlembic',
+    'weaponRack',
+    'archeryTarget',
+    'supplyCrate',
+    'aleKeg',
+    'crystalGeode',
+    'cozyBed',
+    'hearthFireplace',
+    'stoneBench',
+    'sleepingPetCat',
+    'sleepingPetFox',
+    'bardHarpStand',
+  ]);
+
+  const propInteractCooldowns = new Map();
+
+  function isInteractiveWorldProp(pr) {
+    if (!pr || pr.doorway || pr.exitDoor || pr.stationId || pr.isBountyBoard || pr.noticeBoardId || pr.puzzleId || pr.specialStation || pr.isPostbox) {
+      return false;
+    }
+    return INTERACTIVE_PROP_TYPES.has(pr.type);
+  }
+
+  function tryInteractWorldObject(pr) {
+    if (!pr || !isInteractiveWorldProp(pr)) return false;
+    const key = `${currentRoomType}_${pr.type}_${Math.round(pr.x)}_${Math.round(pr.y)}`;
+    const now = Date.now();
+    const readyAt = propInteractCooldowns.get(key) || 0;
+    if (now < readyAt) {
+      const waitSec = Math.max(1, Math.ceil((readyAt - now) / 1000));
+      spawnFCT(pr.x, pr.y - 16, `⏳ WAIT ${waitSec}S`, '#94a3b8');
+      return true;
+    }
+
+    faceToward(pr.x, pr.y);
+    const t = pr.type;
+
+    if (t === 'tcgDuelTable') {
+      window.openTcgTavernDuel();
+      spawnSparkBurst(pr.x, pr.y - 12, ['#fde047', '#38bdf8', '#c084fc'], 18);
+      spawnFCT(pr.x, pr.y - 18, '🃏 1V1 GLIMMERFALL TCG!', '#facc15', true);
+      return true;
+    }
+
+    if (t === 'trainingDummy') {
+      propInteractCooldowns.set(key, now + 3500);
+      (audio.playSlash || audio.playHit || audio.playChime)?.call(audio);
+      const lvl = localProfile?.progression?.level || player.level || 1;
+      const basePwr = (player.effPower || 12) + lvl * 4;
+      const isCrit = Math.random() < (player.critChance || 0.25) + 0.25;
+      const hitDmg = Math.round(basePwr * (isCrit ? 2.15 : 1.25) * (0.92 + Math.random() * 0.16));
+      const estDps = Math.round(hitDmg * 1.45);
+      spawnSparkBurst(pr.x, pr.y - 12, ['#ef4444', '#fde047', '#ffffff'], 22);
+      spawnFCT(pr.x, pr.y - 20, `⚔️ ${hitDmg}${isCrit ? ' CRIT!' : ''} • ${estDps} DPS`, isCrit ? '#facc15' : '#fb923c', true);
+      logMessage(
+        `🥋 [Combat DPS Dummy] You unleash a full combination for ${hitDmg}${isCrit ? ' CRITICAL' : ''} damage (Estimated Burst Output: ${estDps} DPS)!`,
+        'log-gain',
+        'combat'
+      );
+      if (!net.connected) {
+        awardProfessionXP('combat_mastery', 24, 'Target Dummy DPS Drill', false);
+        awardProfessionXP('flashes', 18, 'Target Dummy Combo', false);
+      }
+      return true;
+    }
+
+    if (t === 'mysteryPeddlerCart') {
+      propInteractCooldowns.set(key, now + 20000);
+      (audio.playResonance || audio.playChime)?.call(audio);
+      const curios = [
+        { id: 'chrono_lotus', qty: 1, label: '1x Chrono Lotus' },
+        { id: 'void_orchid', qty: 1, label: '1x Void Orchid' },
+        { id: 'ancient_relic_fragment', qty: 1, label: '1x Ancient Relic Fragment' },
+        { id: 'glimmer_shard', qty: 2, label: '2x Glimmer Shards' },
+      ];
+      const pick = curios[Math.floor(Math.random() * curios.length)];
+      const added = addItemToBackpack(localProfile, pick.id, pick.qty);
+      player.shrineBuff = { affinity: 'aether', name: 'Astral Peddler Fortune', timer: 60 };
+      saveProgressionLocal();
+      updatePlayerUI();
+      spawnSparkBurst(pr.x, pr.y - 14, ['#c084fc', '#fde047', '#38bdf8'], 24);
+      spawnFCT(pr.x, pr.y - 20, `🔮 ${added ? `+${pick.label}` : 'ASTRAL FORTUNE'}!`, '#c084fc', true);
+      logMessage(
+        `🔮 [Astral Mystery Peddler] You draw a shimmering curio parcel: ${added ? `${pick.label} + ` : ''}60s Astral Peddler Fortune blessing!`,
+        'log-solari',
+        'chat'
+      );
+      return true;
+    }
+
+    if (t === 'treasureCoffer') {
+      propInteractCooldowns.set(key, now + 45000);
+      (audio.playLevelUp || audio.playChime)?.call(audio);
+      addPlayerGold(localProfile, 45);
+      const added = addItemToBackpack(localProfile, 'glimmer_shard', 2);
+      awardXP(65, 'Hidden Covenant Coffer');
+      saveProgressionLocal();
+      updatePlayerUI();
+      spawnSparkBurst(pr.x, pr.y - 12, ['#fde047', '#4ade80', '#ffffff'], 28);
+      spawnFCT(pr.x, pr.y - 20, `💰 +45g${added ? ' & 2x SHARDS' : ''}!`, '#facc15', true);
+      logMessage(
+        `💰 [Hidden Covenant Coffer] You unlatch the ornate treasure coffer and claim +45 Solar Gold${added ? ', 2x Glimmer Shards,' : ''} and +65 XP!`,
+        'log-solari',
+        'chat'
+      );
+      return true;
+    }
+
+    if (t === 'ancientWell' || t === 'grandFountain' || t === 'fountain') {
+      propInteractCooldowns.set(key, now + 10000);
+      (audio.playSplash || audio.playChime)?.call(audio);
+      const healAmt = Math.max(6, Math.round(player.maxHp * 0.35));
+      player.hp = Math.min(player.maxHp, player.hp + healAmt);
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 25);
+      updatePlayerUI();
+      spawnSparkBurst(pr.x, pr.y - 10, ['#38bdf8', '#fde047', '#ffffff'], 18);
+      spawnFCT(player.x, player.y - 18, `💧 +${healAmt} HP • +25 GLIMMER!`, '#38bdf8', true);
+      logMessage(`💧 [Wellspring] You draw crystal water from ${pr.label || 'the wellspring'}, restoring +${healAmt} HP and +25 Glimmer!`, 'log-heal', 'chat');
+      if (!net.connected) awardProfessionXP('resonance_extraction', 18, 'Wellspring Draw', false);
+      return true;
+    }
+
+    if (t === 'arcaneTelescope' || t === 'aetherArmillary') {
+      propInteractCooldowns.set(key, now + 12000);
+      (audio.playResonance || audio.playChime)?.call(audio);
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 30);
+      updatePlayerUI();
+      spawnSparkBurst(pr.x, pr.y - 14, ['#38bdf8', '#c084fc', '#fde047'], 20);
+      spawnFCT(player.x, player.y - 18, '🔭 CONSTELLATION CHARTED! +30 GLIMMER', '#7dd3fc', true);
+      logMessage('🔭 [Stargazer Scope] You align the brass lenses with the Astral Continuum, charting a shimmering leyline constellation (+30 Glimmer & Rites insight)!', 'log-gain', 'chat');
+      if (!net.connected) {
+        awardProfessionXP('rites', 22, 'Constellation Charting', false);
+        awardProfessionXP('resonance_extraction', 16, 'Astral Observation', false);
+      }
+      return true;
+    }
+
+    if (t === 'runicObelisk' || t === 'monument' || t === 'solariSundial' || t === 'terraMenhir' || t === 'umbriBrazierAltar') {
+      propInteractCooldowns.set(key, now + 15000);
+      (audio.playZenith || audio.playChime)?.call(audio);
+      const buffLabel = t === 'solariSundial' ? 'Solar Zenith' : t === 'terraMenhir' ? 'Rootdeep Ward' : t === 'umbriBrazierAltar' ? 'Duskveil Shroud' : 'First-Era Resonance';
+      const aff = t === 'solariSundial' ? 'solari' : t === 'terraMenhir' ? 'terra' : t === 'umbriBrazierAltar' ? 'umbri' : 'aether';
+      player.shrineBuff = { affinity: aff, name: buffLabel, timer: 60 };
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 25);
+      updatePlayerUI();
+      spawnSparkBurst(pr.x, pr.y - 14, ['#fde047', '#38bdf8', '#c084fc', '#4ade80'], 24);
+      spawnFCT(player.x, player.y - 18, `✨ ${buffLabel.toUpperCase()} ATTUNED!`, '#fde047', true);
+      logMessage(`✨ [Ancient Monument] You commune with ${pr.label || 'the Covenant monument'}, receiving ${buffLabel} (+Stats for 60s & +25 Glimmer)!`, 'log-solari', 'chat');
+      if (!net.connected) awardProfessionXP('rites', 20, 'Monument Communion', false);
+      return true;
+    }
+
+    if (t === 'bookshelf' || t === 'alchemyShelf' || t === 'mapTable' || t === 'alchemistAlembic') {
+      propInteractCooldowns.set(key, now + 10000);
+      audio.playChime?.();
+      const loreSnippets = [
+        '📜 [Codex] "Before the Sundering, the Crystal Heart beat as one across Solari, Terra, Umbri, and Aether."',
+        '📜 [Codex] "Harmonic Extractors sing sleeping beast-spirits out of raw ores, herbs, and fish into Echo-Prints."',
+        '📜 [Codex] "Three-socket Runewords—such as Sovereign Trinity and Dawnbreaker—awaken ancient weapon multipliers."',
+        '📜 [Codex] "Deep beneath Sanctuary Gardens and Sunken Oasis lie the bioluminescent CrystalEcho Caverns."',
+      ];
+      const snippet = loreSnippets[Math.abs(Math.round(pr.x + pr.y + now / 1000)) % loreSnippets.length];
+      spawnSparkBurst(pr.x, pr.y - 12, ['#a855f7', '#38bdf8', '#fde047'], 16);
+      spawnFCT(player.x, player.y - 18, '📖 ANCIENT CODEX STUDIED!', '#c084fc', true);
+      logMessage(snippet, 'log-quest', 'chat');
+      if (!net.connected) {
+        const skillId = (t === 'alchemyShelf' || t === 'alchemistAlembic') ? 'rite_binding' : 'rites';
+        awardProfessionXP(skillId, 22, 'Scholarly Study', false);
+      }
+      return true;
+    }
+
+    if (t === 'weaponRack' || t === 'archeryTarget') {
+      propInteractCooldowns.set(key, now + 8000);
+      (audio.playSlash || audio.playHit || audio.playChime)?.call(audio);
+      spawnSparkBurst(pr.x, pr.y - 12, ['#fb923c', '#fde047', '#ffffff'], 16);
+      spawnFCT(player.x, player.y - 18, '🎯 MARTIAL DRILL! +XP', '#fb923c', true);
+      logMessage(`⚔️ [Training Drill] You practice rapid forms at ${pr.label || 'the martial station'}, sharpening your reflexes!`, 'log-gain', 'combat');
+      if (!net.connected) {
+        awardProfessionXP('flashes', 20, 'Martial Drill', false);
+        awardProfessionXP('combat_mastery', 16, 'Martial Drill', false);
+      }
+      return true;
+    }
+
+    if (t === 'supplyCrate' || t === 'aleKeg') {
+      propInteractCooldowns.set(key, now + 30000);
+      audio.playChime?.();
+      const rewards = [
+        { id: 'sunbloom_herb', qty: 2, label: '2x Sunbloom Herb' },
+        { id: 'raw_glimmer_minnow', qty: 2, label: '2x Raw Glimmer Minnow' },
+        { id: 'glimmer_shard', qty: 1, label: '1x Glimmer Shard' },
+      ];
+      const pick = rewards[Math.abs(Math.round(pr.x + pr.y)) % rewards.length];
+      const added = addItemToBackpack(localProfile, pick.id, pick.qty);
+      addPlayerGold(localProfile, 12);
+      saveProgressionLocal();
+      updatePlayerUI();
+      spawnSparkBurst(pr.x, pr.y - 10, ['#fde047', '#4ade80', '#ffffff'], 18);
+      spawnFCT(pr.x, pr.y - 18, added ? `📦 +${pick.label} & +12g!` : '📦 +12 SOLAR GOLD!', '#fde047', true);
+      logMessage(`📦 [Supply Cache] You rummage through ${pr.label || 'the supply cache'} and recover ${added ? `${pick.label} + ` : ''}12 Solar Gold!`, 'log-gain', 'chat');
+      if (!net.connected) awardProfessionXP('glimmerweaving', 16, 'Supply Scavenging', false);
+      return true;
+    }
+
+    if (t === 'crystalGeode') {
+      propInteractCooldowns.set(key, now + 10000);
+      (audio.playMine || audio.playChime)?.call(audio);
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 22);
+      const bonusId = Math.random() < 0.5 ? 'astral_mineral_dust' : 'glimmer_shard';
+      const added = addItemToBackpack(localProfile, bonusId, 1);
+      saveProgressionLocal();
+      updatePlayerUI();
+      spawnSparkBurst(pr.x, pr.y - 10, ['#e879f9', '#38bdf8', '#ffffff'], 20);
+      spawnFCT(pr.x, pr.y - 18, added ? `💎 +1x ${EQUIPMENT_CATALOG[bonusId]?.name || bonusId}!` : '💎 +22 GLIMMER!', '#e879f9', true);
+      logMessage(`💎 [Crystal Geode] Harmonic resonance rings through the geode (+22 Glimmer${added ? ` & +1x ${EQUIPMENT_CATALOG[bonusId]?.name || bonusId}` : ''})!`, 'log-gain', 'combat');
+      if (!net.connected) awardProfessionXP('resonance_extraction', 24, 'Crystal Geode', false);
+      return true;
+    }
+
+    if (t === 'cozyBed' || t === 'hearthFireplace' || t === 'stoneBench') {
+      propInteractCooldowns.set(key, now + 8000);
+      audio.playChime?.();
+      player.hp = player.maxHp;
+      player.solarCharge = player.maxSolarCharge;
+      updatePlayerUI();
+      spawnSparkBurst(player.x, player.y - 12, ['#4ade80', '#fde047', '#ffffff'], 18);
+      spawnFCT(player.x, player.y - 18, '✨ WELL RESTED! FULL VITALS', '#4ade80', true);
+      logMessage(`✨ [Rest] You take a moment to rest at ${pr.label || 'the resting spot'}, restoring 100% Health and Glimmer!`, 'log-heal', 'chat');
+      return true;
+    }
+
+    if (t === 'sleepingPetCat' || t === 'sleepingPetFox' || t === 'bardHarpStand') {
+      propInteractCooldowns.set(key, now + 6000);
+      audio.playChime?.();
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 15);
+      updatePlayerUI();
+      spawnSparkBurst(pr.x, pr.y - 10, ['#f472b6', '#fde047', '#38bdf8'], 14);
+      const msg = t === 'bardHarpStand' ? '🎵 CELESTIAL CHORD! +15 GLIMMER' : '🐾 PURR... FAMILIAR BLESSING!';
+      spawnFCT(pr.x, pr.y - 16, msg, '#f472b6', true);
+      logMessage(
+        t === 'bardHarpStand'
+          ? '🎵 [Concert Harp] You strum a resonant chord across the gilded strings (+15 Glimmer)!'
+          : '🐾 [Cozy Companion] You gently pet the slumbering familiar. It purrs warmly (+15 Glimmer)!',
+        'log-heal',
+        'chat'
+      );
+      return true;
+    }
+
+    return false;
+  }
+
   window.harvestTarget = function () {
     // 0. Check for nearby Building Doorway / Interior Exit, Notice Boards, Vault Puzzles, Artisan Station, or Bounty Board
     if (!currentTarget || (currentTarget.type !== 'shrine' && currentTarget.type !== 'node')) {
@@ -10947,6 +11477,12 @@ export function initGame() {
     }
     const maxHarvestDist = node?.isGrand ? 160 : 7.0 * YARD_PX;
     if (!node || Math.hypot(node.x - player.x, node.y - player.y) > maxHarvestDist) {
+      const nearInteractiveProp = props.find(
+        (pr) => isInteractiveWorldProp(pr) && Math.hypot(pr.x - player.x, pr.y - player.y) <= 84
+      );
+      if (nearInteractiveProp && tryInteractWorldObject(nearInteractiveProp)) {
+        return;
+      }
       logMessage('[Gathering] Step near an Ore Vein, Herb Cluster, Glimmer Node, or Artisan Station first!', 'log-combat');
       return;
     }
@@ -12839,7 +13375,11 @@ export function initGame() {
     transitionToRoom(dest);
   }
 
-  canvas.addEventListener('mousedown', (e) => {
+  let autoWalkTarget = null;
+  let autoHarvestNodeId = null;
+  let lastTouchCanvasPointerAt = 0;
+
+  function handleCanvasPrimaryPointer(e) {
     if (player.isDead || deathScreenVisible || frontpage.isOpen) return;
     window.clearHoveredEquipment?.();
     audio.init();
@@ -12858,11 +13398,23 @@ export function initGame() {
       }
     }
     if (clickedNpc) {
-      interactWithNpc(clickedNpc);
+      autoHarvestNodeId = null;
+      if (Math.hypot(player.x - clickedNpc.x, player.y - clickedNpc.y) <= 92) {
+        autoWalkTarget = null;
+        interactWithNpc(clickedNpc);
+      } else {
+        faceToward(clickedNpc.x, clickedNpc.y);
+        autoWalkTarget = {
+          x: clickedNpc.x,
+          y: clickedNpc.y + 18,
+          stopDist: 56,
+          onArrive: () => interactWithNpc(clickedNpc),
+        };
+      }
       return;
     }
 
-    // Direct click on any Market Stall, Cosmic Artisan Station, or Bounty Board prop
+    // Direct click on any Market Stall, Cosmic Artisan Station, Doorway, or Special Prop
     for (const pr of props) {
       if (pr.type.startsWith('marketStall')) {
         const dx = Math.abs(pr.x - wx);
@@ -12870,6 +13422,7 @@ export function initGame() {
         if (dx <= 36 && dy >= -48 && dy <= 20) {
           const merchant = npcs.find((n) => n.stallId === pr.id || Math.hypot(n.x - pr.x, n.y - pr.y) < 44);
           if (merchant) {
+            autoHarvestNodeId = null;
             interactWithNpc(merchant);
             return;
           }
@@ -12880,15 +13433,29 @@ export function initGame() {
         if (dx <= 34 && dy >= -48 && dy <= 24) {
           const anchorX = pr.doorway?.x ?? pr.x;
           const anchorY = pr.doorway?.y ?? pr.y;
+          autoHarvestNodeId = null;
           faceToward(anchorX, anchorY);
           if (Math.hypot(player.x - anchorX, player.y - anchorY) <= 96) {
+            autoWalkTarget = null;
             if (pr.exitDoor) {
               transitionToRoom(pr.exitDoor.roomType, pr.exitDoor.x, pr.exitDoor.y, pr.exitDoor.dir || 'down');
             } else {
               transitionToRoom(pr.doorway.targetRoom, null, null, 'up');
             }
           } else {
-            logMessage(`[Doorway] Walk up to ${pr.label || 'the doorway'} to step inside!`, 'log-solari', 'chat');
+            autoWalkTarget = {
+              x: anchorX,
+              y: anchorY,
+              stopDist: 28,
+              onArrive: () => {
+                if (pr.exitDoor) {
+                  transitionToRoom(pr.exitDoor.roomType, pr.exitDoor.x, pr.exitDoor.y, pr.exitDoor.dir || 'down');
+                } else {
+                  transitionToRoom(pr.doorway.targetRoom, null, null, 'up');
+                }
+              },
+            };
+            logMessage(`[Doorway] Walking to ${pr.label || 'the doorway'}...`, 'log-solari', 'chat');
             spawnFCT(anchorX, anchorY - 14, 'WALK TO DOOR', '#fbbf24');
           }
           return;
@@ -12897,13 +13464,19 @@ export function initGame() {
         const dx = Math.abs(pr.x - wx);
         const dy = wy - pr.y;
         if (dx <= 34 && dy >= -44 && dy <= 18) {
+          autoHarvestNodeId = null;
           faceToward(pr.x, pr.y);
-          if (Math.hypot(player.x - pr.x, player.y - pr.y) <= 135) {
+          const triggerSpecial = () => {
             if (pr.noticeBoardId || pr.puzzleId || pr.specialStation || pr.isPostbox) tryInteractSpecialProp(pr);
             else if (pr.stationId) window.openCraftingModal(pr.stationId);
             else window.openBountyBoard();
+          };
+          if (Math.hypot(player.x - pr.x, player.y - pr.y) <= 135) {
+            autoWalkTarget = null;
+            triggerSpecial();
           } else {
-            logMessage(`[Interact] Step closer to use ${pr.label || 'this object'}!`, 'log-solari', 'chat');
+            autoWalkTarget = { x: pr.x, y: pr.y + 18, stopDist: 64, onArrive: triggerSpecial };
+            logMessage(`[Interact] Walking to ${pr.label || 'this object'}...`, 'log-solari', 'chat');
             spawnFCT(pr.x, pr.y - 14, 'STEP CLOSER', '#38bdf8');
           }
           return;
@@ -12949,24 +13522,87 @@ export function initGame() {
 
     if (clicked) {
       if (clicked.type === 'portal') {
+        autoHarvestNodeId = null;
         if (Math.hypot(clicked.x - player.x, clicked.y - player.y) <= 95 || e.button === 2) {
           enterPortalEntity(clicked);
         } else {
           setTarget(clicked);
+          autoWalkTarget = { x: clicked.x, y: clicked.y, stopDist: 54, onArrive: () => enterPortalEntity(clicked) };
           logMessage(`[Waygate] Step closer or right-click ${clicked.name} to travel!`, 'log-quest', 'chat');
         }
         return;
       }
       setTarget(clicked);
       faceToward(clicked.x, clicked.y);
-      if (e.button === 2 || clicked.type === 'node') {
-        if (clicked.type === 'node') window.harvestTarget();
-        else window.castAbility(1);
+      if (e.button === 2 || clicked.type === 'node' || clicked.type === 'shrine') {
+        if (clicked.type === 'node' || clicked.type === 'shrine') {
+          const maxNodeDist = clicked.isGrand ? 160 : 7.0 * YARD_PX;
+          if (Math.hypot(clicked.x - player.x, clicked.y - player.y) <= maxNodeDist) {
+            autoWalkTarget = null;
+            autoHarvestNodeId = clicked.id;
+            window.harvestTarget();
+          } else {
+            autoWalkTarget = {
+              x: clicked.x,
+              y: clicked.y + 18,
+              stopDist: Math.min(52, maxNodeDist - 12),
+              onArrive: () => {
+                autoHarvestNodeId = clicked.id;
+                window.harvestTarget();
+              },
+            };
+            spawnFCT(clicked.x, clicked.y - 16, '⛏️ WALKING TO EXTRACT...', '#38bdf8');
+          }
+        } else {
+          autoHarvestNodeId = null;
+          window.castAbility(1);
+        }
       }
-    } else if (e.button === 2) {
+      return;
+    }
+
+    // Check interactive world props (wells, telescopes, obelisks, bookshelves, crates, geodes, targets, beds, etc.)
+    for (const pr of props) {
+      if (!isInteractiveWorldProp(pr)) continue;
+      const dx = Math.abs(pr.x - wx);
+      const dy = wy - pr.y;
+      if (dx <= 30 && dy >= -42 && dy <= 18) {
+        autoHarvestNodeId = null;
+        faceToward(pr.x, pr.y);
+        if (Math.hypot(player.x - pr.x, player.y - pr.y) <= 115) {
+          autoWalkTarget = null;
+          tryInteractWorldObject(pr);
+        } else {
+          autoWalkTarget = {
+            x: pr.x,
+            y: pr.y + 18,
+            stopDist: 56,
+            onArrive: () => tryInteractWorldObject(pr),
+          };
+          spawnFCT(pr.x, pr.y - 14, '✨ WALKING TO INTERACT...', '#fde047');
+        }
+        return;
+      }
+    }
+
+    if (e.button === 2) {
+      autoHarvestNodeId = null;
       faceToward(wx, wy);
       window.castAbility(1);
     }
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+      e.preventDefault();
+      lastTouchCanvasPointerAt = Date.now();
+      handleCanvasPrimaryPointer(e);
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('mousedown', (e) => {
+    if (Date.now() - lastTouchCanvasPointerAt < 450) return;
+    handleCanvasPrimaryPointer(e);
   });
 
   window.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -12996,6 +13632,11 @@ export function initGame() {
     inputs,
     cycleTarget: () => cycleTarget(),
     harvestTarget: () => window.harvestTarget(),
+    interactTarget: () => {
+      const nearNpc = npcs.find((n) => Math.hypot(player.x - n.x, player.y - n.y) <= 78);
+      if (nearNpc) interactWithNpc(nearNpc);
+      else window.harvestTarget();
+    },
     onFirstTouch: () => audio.init(),
   });
 
@@ -13471,6 +14112,34 @@ export function initGame() {
       if (inputs.axisX || inputs.axisY) {
         mx += inputs.axisX;
         my += inputs.axisY;
+      }
+
+      if (mx !== 0 || my !== 0) {
+        autoWalkTarget = null;
+        autoHarvestNodeId = null;
+      } else if (autoWalkTarget) {
+        const dxAuto = autoWalkTarget.x - player.x;
+        const dyAuto = autoWalkTarget.y - player.y;
+        const distAuto = Math.hypot(dxAuto, dyAuto);
+        if (distAuto <= (autoWalkTarget.stopDist || 48)) {
+          const arriveCb = autoWalkTarget.onArrive;
+          const lookX = autoWalkTarget.x;
+          const lookY = autoWalkTarget.y;
+          autoWalkTarget = null;
+          faceToward(lookX, lookY);
+          arriveCb?.();
+        } else if (distAuto > 0.5) {
+          mx = dxAuto / distAuto;
+          my = dyAuto / distAuto;
+        }
+      } else if (autoHarvestNodeId && !isCasting) {
+        const ahNode = entities.find((e) => e.id === autoHarvestNodeId && (e.type === 'node' || e.type === 'shrine'));
+        const maxDist = ahNode?.isGrand ? 160 : 7.0 * YARD_PX;
+        if (!ahNode || ahNode.charges <= 0 || Math.hypot(ahNode.x - player.x, ahNode.y - player.y) > maxDist) {
+          autoHarvestNodeId = null;
+        } else if (performance.now() >= harvestReadyAt + 50) {
+          window.harvestTarget();
+        }
       }
 
       if (mx !== 0 || my !== 0) {
@@ -15268,6 +15937,36 @@ export function initGame() {
           } else if (pr.type === 'cattailReed') {
             img = sprites.props.cattailReed || sprites.props.pillar;
             shadowRx = 5; shadowRy = 2;
+          } else if (pr.type === 'arcaneTelescope') {
+            const list = sprites.props.arcaneTelescope;
+            img = (Array.isArray(list) ? list[Math.floor(globalTime * 2.0 + Math.abs(pr.x)) % list.length] : list) || sprites.props.aetherArmillary || sprites.props.pillar;
+            shadowRx = 11; shadowRy = 4;
+          } else if (pr.type === 'runicObelisk') {
+            const list = sprites.props.runicObelisk;
+            img = (Array.isArray(list) ? list[Math.floor(globalTime * 2.2 + Math.abs(pr.x)) % list.length] : list) || sprites.props.monument || sprites.props.pillar;
+            shadowRx = 10; shadowRy = 4;
+          } else if (pr.type === 'archeryTarget') {
+            img = sprites.props.archeryTarget || sprites.props.pillar;
+            shadowRx = 10; shadowRy = 3;
+          } else if (pr.type === 'supplyCrate') {
+            img = sprites.props.supplyCrate || sprites.props.aleKeg || sprites.props.pillar;
+            shadowRx = 11; shadowRy = 4;
+          } else if (pr.type === 'crystalGeode') {
+            const list = sprites.props.crystalGeode;
+            img = (Array.isArray(list) ? list[Math.floor(globalTime * 2.5 + Math.abs(pr.x)) % list.length] : list) || sprites.props.pillar;
+            shadowRx = 11; shadowRy = 4;
+          } else if (pr.type === 'alchemistAlembic') {
+            const list = sprites.props.alchemistAlembic;
+            img = (Array.isArray(list) ? list[Math.floor(globalTime * 2.8 + Math.abs(pr.x)) % list.length] : list) || sprites.props.alchemyShelf || sprites.props.pillar;
+            shadowRx = 12; shadowRy = 4;
+          } else if (pr.type === 'bardHarpStand') {
+            const list = sprites.props.bardHarpStand;
+            img = (Array.isArray(list) ? list[Math.floor(globalTime * 2.4 + Math.abs(pr.x)) % list.length] : list) || sprites.props.pillar;
+            shadowRx = 8; shadowRy = 3;
+          } else if (pr.type === 'cavernEntrance') {
+            const list = sprites.props.cavernEntrance;
+            img = (Array.isArray(list) ? list[Math.floor(globalTime * 2.0 + Math.abs(pr.x)) % list.length] : list) || sprites.props.ruinedArch || sprites.props.pillar;
+            shadowRx = 18; shadowRy = 6;
           }
 
           if (Array.isArray(img)) {

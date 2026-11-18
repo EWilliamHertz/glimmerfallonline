@@ -3688,6 +3688,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "ABYSSAL_RIFT",
             "zoneName": "The Abyssal Rift"
+          },
+          {
+            "zoneId": "LUMINOUS_CAVERN",
+            "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
           }
         ]
       }
@@ -3737,6 +3741,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "ABYSSAL_RIFT",
             "zoneName": "The Abyssal Rift"
+          },
+          {
+            "zoneId": "LUMINOUS_CAVERN",
+            "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
           }
         ]
       }
@@ -4045,6 +4053,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "SUNKEN_OASIS",
             "zoneName": "Whispering Springs & Sunken Oasis"
+          },
+          {
+            "zoneId": "LUMINOUS_CAVERN",
+            "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
           }
         ]
       }
@@ -4101,6 +4113,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "SUNKEN_OASIS",
             "zoneName": "Whispering Springs & Sunken Oasis"
+          },
+          {
+            "zoneId": "LUMINOUS_CAVERN",
+            "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
           }
         ]
       }
@@ -4191,6 +4207,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "SUNKEN_OASIS",
             "zoneName": "Whispering Springs & Sunken Oasis"
+          },
+          {
+            "zoneId": "LUMINOUS_CAVERN",
+            "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
           }
         ]
       }
@@ -4240,6 +4260,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "SUNKEN_OASIS",
             "zoneName": "Whispering Springs & Sunken Oasis"
+          },
+          {
+            "zoneId": "LUMINOUS_CAVERN",
+            "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
           }
         ]
       }
@@ -4761,6 +4785,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "NEXUS_FORGOTTEN_RUINS",
             "zoneName": "Forgotten First Nexus Ruins"
+          },
+          {
+            "zoneId": "LUMINOUS_CAVERN",
+            "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
           },
           {
             "zoneId": "NEXUS_WARZONE",
@@ -5534,6 +5562,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "CORAL_COAST",
             "zoneName": "Coral Coast & Maritime Docks"
+          },
+          {
+            "zoneId": "LUMINOUS_CAVERN",
+            "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
           }
         ]
       }
@@ -5616,6 +5648,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "CORAL_COAST",
             "zoneName": "Coral Coast & Maritime Docks"
+          },
+          {
+            "zoneId": "LUMINOUS_CAVERN",
+            "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
           }
         ]
       }
@@ -5728,6 +5764,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "NEXUS_FORGOTTEN_RUINS",
             "zoneName": "Forgotten First Nexus Ruins"
+          },
+          {
+            "zoneId": "LUMINOUS_CAVERN",
+            "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
           },
           {
             "zoneId": "NEXUS_WARZONE",
@@ -5944,6 +5984,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "NEXUS_FORGOTTEN_RUINS",
             "zoneName": "Forgotten First Nexus Ruins"
+          },
+          {
+            "zoneId": "LUMINOUS_CAVERN",
+            "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
           },
           {
             "zoneId": "NEXUS_WARZONE",
@@ -6879,6 +6923,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "SUNKEN_OASIS",
             "zoneName": "Whispering Springs & Sunken Oasis"
+          },
+          {
+            "zoneId": "LUMINOUS_CAVERN",
+            "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
           }
         ]
       },
@@ -7036,6 +7084,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "SUNKEN_OASIS",
             "zoneName": "Whispering Springs & Sunken Oasis"
+          },
+          {
+            "zoneId": "LUMINOUS_CAVERN",
+            "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
           }
         ]
       }
@@ -18713,7 +18765,7 @@ export const UNIVERSAL_SEARCH_ZONES = [
       "north": "CORAL_COAST",
       "south": "STARLIGHT_GROVE",
       "west": "TERRA_ORCHARD",
-      "east": null
+      "east": "LUMINOUS_CAVERN"
     },
     "landmarks": [
       {
@@ -19791,6 +19843,265 @@ export const UNIVERSAL_SEARCH_ZONES = [
             "id": "iridescent_shell",
             "name": "Iridescent Nautilus Shell",
             "icon": "🐚"
+          }
+        ]
+      }
+    ],
+    "npcsHere": []
+  },
+  {
+    "type": "zone",
+    "id": "LUMINOUS_CAVERN",
+    "name": "CrystalEcho Caverns & Subterranean Grotto",
+    "sub": "Bioluminescent Geode Grotto & Underground Streams",
+    "level": "Lv. 10 – 24",
+    "dangerTag": "CRYSTAL GROTTO",
+    "faction": "💎 Order of the Sunspire Delvers (Open Realm)",
+    "color": "#38bdf8",
+    "borderColor": "#e879f9",
+    "desc": "A shimmering subterranean cavern network beneath Sanctuary Gardens and Sunken Oasis, rich with Copper, Star-Iron, and Mithril seams, glowing Crystal Geodes, and subterranean angling pools.",
+    "travel": "Enter the CrystalEcho Cavern Archway in South Sanctuary Gardens or walk East from Sunken Oasis.",
+    "objectives": "Mine Copper, Iron & Mithril veins, tap Crystal Geodes, angle subterranean trout, defeat Crystallis.",
+    "neighbors": {
+      "north": null,
+      "south": "SANCTUARY_HUB",
+      "west": "SUNKEN_OASIS",
+      "east": null
+    },
+    "landmarks": [
+      {
+        "x": 50,
+        "y": 26,
+        "icon": "💎",
+        "name": "Crystallis the Echo Warden",
+        "sub": "★ Lv.20 Cavern Boss",
+        "desc": "Subterranean crystal guardian dropping the Mirror Shield."
+      },
+      {
+        "x": 50,
+        "y": 68,
+        "icon": "🧭",
+        "name": "Explorer Korin & Hearth",
+        "sub": "CrystalEcho Geologist",
+        "desc": "Guides subterranean mining, geode tapping & cavern bounties."
+      },
+      {
+        "x": 32,
+        "y": 50,
+        "icon": "⛏️",
+        "name": "Bioluminescent Geodes & Ore Seams",
+        "sub": "Copper, Iron & Mithril [E]",
+        "desc": "Mine mineral veins and tap glowing Crystal Geodes."
+      }
+    ],
+    "entities": [
+      {
+        "name": "Crystallis the Echo Warden",
+        "type": "Cavern Boss",
+        "hp": "650 HP",
+        "desc": "Drops the Mirror Shield & Astral Mineral Dust."
+      },
+      {
+        "name": "CrystalEcho Geode-Stalkers & Prism-Shell Golems",
+        "type": "Cavern Construct",
+        "hp": "130 – 175 HP",
+        "desc": "Guard mineral seams and drop Glimmer Shards."
+      },
+      {
+        "name": "Explorer Korin",
+        "type": "Geologist Mentor",
+        "hp": "Immortal",
+        "desc": "Oversees subterranean expeditions and campfire cooking."
+      }
+    ],
+    "gatheringNodes": [
+      {
+        "nodeId": "copper_tin_vein",
+        "nodeName": "Sun-Copper & Star-Tin Seam",
+        "reqLevel": 1,
+        "xp": 22,
+        "yields": [
+          {
+            "id": "sun_copper_ore",
+            "name": "Sun-Copper Ore",
+            "icon": "🟠"
+          },
+          {
+            "id": "star_tin_mineral",
+            "name": "Star-Tin Mineral",
+            "icon": "⚪"
+          }
+        ]
+      },
+      {
+        "nodeId": "iron_coal_vein",
+        "nodeName": "Star-Iron & Umbral Coal Vein",
+        "reqLevel": 10,
+        "xp": 38,
+        "yields": [
+          {
+            "id": "iron_ore",
+            "name": "Raw Iron Ore",
+            "icon": "🪨"
+          },
+          {
+            "id": "umbral_coal",
+            "name": "Umbral Shadow-Coal",
+            "icon": "⚫"
+          },
+          {
+            "id": "astral_mineral_dust",
+            "name": "Astral Mineral Flux",
+            "icon": "✨"
+          }
+        ]
+      },
+      {
+        "nodeId": "mithril_vein",
+        "nodeName": "Astral Mithril Meteorite Vein",
+        "reqLevel": 25,
+        "xp": 65,
+        "yields": [
+          {
+            "id": "mithril_astral_ore",
+            "name": "Astral Mithril Ore",
+            "icon": "🔷"
+          },
+          {
+            "id": "umbral_coal",
+            "name": "Umbral Shadow-Coal",
+            "icon": "⚫"
+          },
+          {
+            "id": "astral_mineral_dust",
+            "name": "Astral Mineral Flux",
+            "icon": "✨"
+          }
+        ]
+      },
+      {
+        "nodeId": "herb_cluster_low",
+        "nodeName": "Sunbloom & Gloomcap Patch",
+        "reqLevel": 1,
+        "xp": 24,
+        "yields": [
+          {
+            "id": "sunbloom_herb",
+            "name": "Sunbloom Petal",
+            "icon": "🌼"
+          },
+          {
+            "id": "gloomcap_spore",
+            "name": "Gloomcap Spore-Cluster",
+            "icon": "🍄"
+          }
+        ]
+      },
+      {
+        "nodeId": "herb_cluster_high",
+        "nodeName": "Chrono-Lotus & Starleaf Bloom",
+        "reqLevel": 20,
+        "xp": 72,
+        "yields": [
+          {
+            "id": "chrono_lotus",
+            "name": "Chrono-Lotus Blossom",
+            "icon": "🪷"
+          },
+          {
+            "id": "empyrean_starleaf",
+            "name": "Empyrean Starleaf",
+            "icon": "🌟"
+          }
+        ]
+      },
+      {
+        "nodeId": "fiber_bloom_high",
+        "nodeName": "Shadow-Silk & Celestial Gossamer Cocoon",
+        "reqLevel": 20,
+        "xp": 72,
+        "yields": [
+          {
+            "id": "shadow_silk",
+            "name": "Duskveil Shadow-Silk",
+            "icon": "🕸️"
+          },
+          {
+            "id": "celestial_gossamer",
+            "name": "Celestial Gossamer Thread",
+            "icon": "🧶"
+          }
+        ]
+      },
+      {
+        "nodeId": "healing_spring",
+        "nodeName": "Luminous Restorative Spring",
+        "reqLevel": 1,
+        "xp": 35,
+        "yields": [
+          {
+            "id": "sunbloom_herb",
+            "name": "Sunbloom Petal",
+            "icon": "🌼"
+          },
+          {
+            "id": "astral_mineral_dust",
+            "name": "Astral Mineral Flux",
+            "icon": "✨"
+          }
+        ]
+      },
+      {
+        "nodeId": "fish_shallows",
+        "nodeName": "Shimmering Tide Pool",
+        "reqLevel": 1,
+        "xp": 22,
+        "yields": [
+          {
+            "id": "raw_glimmer_minnow",
+            "name": "Raw Glimmer Minnow",
+            "icon": "🐟"
+          },
+          {
+            "id": "pearl_clam",
+            "name": "Shimmering Pearl Clam",
+            "icon": "🦪"
+          }
+        ]
+      },
+      {
+        "nodeId": "fish_river",
+        "nodeName": "Sunlit River Run",
+        "reqLevel": 15,
+        "xp": 42,
+        "yields": [
+          {
+            "id": "raw_solar_trout",
+            "name": "Raw Solar Trout",
+            "icon": "🐠"
+          },
+          {
+            "id": "golden_scale",
+            "name": "Radiant Golden Scale",
+            "icon": "✨"
+          }
+        ]
+      },
+      {
+        "nodeId": "tree_duskveil",
+        "nodeName": "Duskveil Shadow-Willow",
+        "reqLevel": 35,
+        "xp": 80,
+        "yields": [
+          {
+            "id": "duskveil_logs",
+            "name": "Duskveil Shadow-Willow Logs",
+            "icon": "🪵"
+          },
+          {
+            "id": "void_resin",
+            "name": "Abyssal Void Resin",
+            "icon": "🟣"
           }
         ]
       }

@@ -352,7 +352,7 @@ test('RoomManager initializes Starfall Crater, Abyssal Rift, skilling veins, and
     partyManager: { getPartyForMember: () => null },
   });
   try {
-    assert.equal(rm.rooms.size, 21);
+    assert.equal(rm.rooms.size, 22);
     const starfall = rm.rooms.get('starfall_crater_1');
     const abyssal = rm.rooms.get('abyssal_rift_1');
     const hub = rm.rooms.get('sanctuary_hub_1');
@@ -361,7 +361,8 @@ test('RoomManager initializes Starfall Crater, Abyssal Rift, skilling veins, and
     const sunkenOasis = rm.rooms.get('sunken_oasis_1');
     const solarHighlands = rm.rooms.get('solar_highlands_1');
     const moonwell = rm.rooms.get('moonwell_sanctum_1');
-    assert.ok(starfall && abyssal && hub && timberlands && coral && sunkenOasis && solarHighlands && moonwell);
+    const luminousCavern = rm.rooms.get('luminous_cavern_1');
+    assert.ok(starfall && abyssal && hub && timberlands && coral && sunkenOasis && solarHighlands && moonwell && luminousCavern);
 
     assert.ok(starfall.entities.some((e) => e.id === 'sf_boss' && e.isBoss));
     assert.ok(abyssal.entities.some((e) => e.id === 'aby_boss' && e.isBoss));

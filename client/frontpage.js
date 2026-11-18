@@ -100,6 +100,11 @@ export class FrontpageController {
     if (!this.net || typeof this.net.getRealmStatus !== 'function') return null;
     try {
       const status = await this.net.getRealmStatus(2200);
+      if (status?.isCloudShellAuthRedirect && !this._autoSwitchedFromCloudShellRedirect) {
+        this._autoSwitchedFromCloudShellRedirect = true;
+        await this.switchRealmBackend('https://ws.glimmerfall.online');
+        return this.realmStatus;
+      }
       const prevSig = this.realmStatus ? `${this.realmStatus.reachable}:${this.realmStatus.dbConnected}:${this.realmStatus.base}:${this.realmStatus.isCloudShellAuthRedirect}` : '';
       const nextSig = `${status.reachable}:${status.dbConnected}:${status.base}:${status.isCloudShellAuthRedirect}`;
       this.realmStatus = status;

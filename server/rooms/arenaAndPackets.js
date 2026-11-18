@@ -1096,6 +1096,57 @@ export const arenaAndPacketsMethods = {
         this.duels?.handleForfeit(client);
         break;
 
+      // 1v1 GlimmerFallTCG.com Tavern Card Duels
+      case 'tcg_challenge_invite':
+        this.tcg?.handleChallengeInvite(client, msg).catch((err) => {
+          client.send?.({ type: 'sys_msg', category: 'combat', text: `🃏 [Tavern TCG] ${err.message}` });
+        });
+        break;
+
+      case 'tcg_challenge_respond':
+        this.tcg?.handleChallengeRespond(client, msg).catch((err) => {
+          client.send?.({ type: 'sys_msg', category: 'combat', text: `🃏 [Tavern TCG] ${err.message}` });
+        });
+        break;
+
+      case 'tcg_start_match':
+        this.tcg?.startMatch({
+          username: client.displayName || msg.username || 'Summoner',
+          playerId: client.id,
+          deckId: msg.deckId,
+          deckName: msg.deckName,
+          faction: msg.faction,
+          deckCards: msg.deckCards,
+          vsAI: Boolean(msg.vsAI),
+          aiDeckName: msg.aiDeckName,
+          roomCode: msg.roomCode,
+        }).then((res) => {
+          client.send?.({
+            type: 'tcg_match_joined',
+            ...res,
+          });
+        }).catch((err) => {
+          client.send?.({
+            type: 'tcg_error',
+            error: err.message || 'Could not start TCG match.',
+          });
+        });
+        break;
+
+      case 'tcg_action':
+        this.tcg?.performAction({
+          matchId: msg.matchId,
+          slot: msg.slot || 1,
+          action: msg.action,
+          payload: msg.payload || {},
+        }).catch((err) => {
+          client.send?.({
+            type: 'tcg_error',
+            error: err.message || 'Illegal TCG move.',
+          });
+        });
+        break;
+
       // Player Profile & Gear Inspect
       case 'inspect_player':
         this.handleInspectPlayer(client, msg.target);

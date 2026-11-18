@@ -1491,4 +1491,271 @@ export function buildPropSprites(sprites) {
     px(ctx, 16 + f, 7, '#4ade80');
     sprites.props.constructCradle.push(addPixelOutline(c));
   }
+
+  // ==========================================
+  // 9. INTERACTIVE WORLD EXPANSION PROPS (Telescope, Obelisk, Archery Target, Supply Crate, Geode, Alembic, Harp, Cavern Arch)
+  // ==========================================
+  // Gilded Brass & Crystal Stargazer Telescope (28x32, 2 frames)
+  sprites.props.arcaneTelescope = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(28, 32);
+    // Stone base & mahogany tripod legs
+    rect(ctx, 5, 27, 18, 4, '#334155');
+    rect(ctx, 7, 20, 3, 8, '#78350f');
+    rect(ctx, 13, 18, 2, 10, '#451a03');
+    rect(ctx, 18, 20, 3, 8, '#78350f');
+    // Brass mount gear
+    rect(ctx, 11, 14, 6, 5, '#b45309');
+    rect(ctx, 12, 15, 4, 3, '#facc15');
+    // Angled telescope barrel (pointing up-right)
+    rect(ctx, 5, 13, 6, 4, '#ca8a04');
+    rect(ctx, 9, 10, 8, 5, '#d97706');
+    rect(ctx, 15, 6, 8, 6, '#eab308');
+    rect(ctx, 16, 7, 6, 2, '#fef08a');
+    // Glowing astral objective lens
+    rect(ctx, 21, 5, 4, 6, '#0284c7');
+    rect(ctx, 22, 6, 2, 4, f === 0 ? '#38bdf8' : '#7dd3fc');
+    px(ctx, 23, 6 + f, '#ffffff');
+    px(ctx, 24, 3 - f, '#fde047');
+    sprites.props.arcaneTelescope.push(addPixelOutline(c));
+  }
+
+  // Ancient First-Era Covenant Lore Obelisk (24x36, 2 frames)
+  sprites.props.runicObelisk = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(24, 36);
+    rect(ctx, 3, 30, 18, 5, '#1e293b');
+    rect(ctx, 5, 27, 14, 3, '#334155');
+    rect(ctx, 7, 6, 10, 21, '#1e1b4b');
+    rect(ctx, 8, 7, 8, 19, '#312e81');
+    rect(ctx, 9, 3, 6, 4, '#4c1d95');
+    rect(ctx, 11, 1, 2, 2, '#fde047');
+    // Pulsing 4-Covenant rune glyphs
+    rect(ctx, 10, 8, 4, 2, f === 0 ? '#facc15' : '#fef08a');
+    rect(ctx, 10, 12, 4, 2, f === 0 ? '#38bdf8' : '#bae6fd');
+    rect(ctx, 10, 16, 4, 2, f === 0 ? '#4ade80' : '#bbf7d0');
+    rect(ctx, 10, 20, 4, 2, f === 0 ? '#c084fc' : '#f3e8ff');
+    px(ctx, 6, 14 - f, '#38bdf8');
+    px(ctx, 17, 11 + f, '#fde047');
+    sprites.props.runicObelisk.push(addPixelOutline(c));
+  }
+
+  // Straw Bullseye Archery Target Stand (24x28)
+  {
+    const { c, ctx } = makeCanvas(24, 28);
+    // Timber easel legs
+    rect(ctx, 5, 18, 3, 8, '#451a03');
+    rect(ctx, 16, 18, 3, 8, '#451a03');
+    rect(ctx, 11, 19, 2, 7, '#78350f');
+    // Circular straw target & concentric rings
+    rect(ctx, 4, 4, 16, 16, '#ca8a04');
+    rect(ctx, 5, 5, 14, 14, '#f8fafc');
+    rect(ctx, 7, 7, 10, 10, '#2563eb');
+    rect(ctx, 9, 9, 6, 6, '#dc2626');
+    rect(ctx, 11, 11, 2, 2, '#facc15');
+    // Feathered arrow stuck in bullseye
+    rect(ctx, 12, 9, 7, 1, '#78350f');
+    px(ctx, 18, 8, '#f8fafc');
+    px(ctx, 19, 9, '#ef4444');
+    sprites.props.archeryTarget = addPixelOutline(c);
+  }
+
+  // Banded Oak Adventurer Supply Crate & Barrel Cache (24x22)
+  {
+    const { c, ctx } = makeCanvas(24, 22);
+    // Oak crate on left
+    rect(ctx, 2, 6, 13, 13, '#78350f');
+    rect(ctx, 3, 7, 11, 11, '#b45309');
+    rect(ctx, 2, 6, 13, 2, '#451a03');
+    rect(ctx, 2, 17, 13, 2, '#451a03');
+    rect(ctx, 4, 9, 9, 2, '#92400e');
+    // Gold supply star badge
+    rect(ctx, 7, 11, 3, 3, '#facc15');
+    px(ctx, 8, 12, '#ffffff');
+    // Small ration barrel on right
+    rect(ctx, 14, 9, 8, 10, '#451a03');
+    rect(ctx, 15, 10, 6, 8, '#92400e');
+    rect(ctx, 14, 12, 8, 1, '#64748b');
+    rect(ctx, 14, 16, 8, 1, '#64748b');
+    sprites.props.supplyCrate = addPixelOutline(c);
+  }
+
+  // Bioluminescent Subterranean Crystal Geode (26x26, 2 frames)
+  sprites.props.crystalGeode = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(26, 26);
+    rect(ctx, 3, 15, 20, 9, '#1e293b');
+    rect(ctx, 5, 11, 16, 11, '#334155');
+    // Amethyst & cyan crystal cluster inside hollow rock
+    rect(ctx, 7, 12, 12, 8, '#3b0764');
+    rect(ctx, 8, 6, 4, 12, '#9333ea');
+    rect(ctx, 9, 7, 2, 9, '#e879f9');
+    rect(ctx, 13, 5, 4, 13, '#0284c7');
+    rect(ctx, 14, 6, 2, 10, '#38bdf8');
+    px(ctx, 10, 8 - f, '#ffffff');
+    px(ctx, 14, 7 + f, '#ffffff');
+    px(ctx, 6, 9 - f, '#fde047');
+    px(ctx, 19, 10 + f, '#7dd3fc');
+    sprites.props.crystalGeode.push(addPixelOutline(c));
+  }
+
+  // Alchemist's Copper Alembic & Retort Workbench (26x26, 2 frames)
+  sprites.props.alchemistAlembic = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(26, 26);
+    rect(ctx, 2, 14, 22, 10, '#451a03');
+    rect(ctx, 3, 15, 20, 5, '#78350f');
+    rect(ctx, 2, 13, 22, 2, '#b45309');
+    // Copper distillation dome & coil
+    rect(ctx, 5, 6, 6, 7, '#d97706');
+    rect(ctx, 6, 4, 4, 3, '#f59e0b');
+    rect(ctx, 11, 6, 5, 2, '#fb923c');
+    // Glowing emerald receiving flask
+    rect(ctx, 15, 8, 6, 5, '#15803d');
+    rect(ctx, 16, 9, 4, 3, f === 0 ? '#4ade80' : '#86efac');
+    px(ctx, 17, 7 - f, '#bbf7d0');
+    sprites.props.alchemistAlembic.push(addPixelOutline(c));
+  }
+
+  // Gilded Tavern & Plaza Concert Harp Stand (20x26, 2 frames)
+  sprites.props.bardHarpStand = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(20, 26);
+    rect(ctx, 5, 21, 10, 3, '#78350f');
+    rect(ctx, 6, 6, 2, 15, '#d97706');
+    rect(ctx, 6, 5, 9, 3, '#facc15');
+    rect(ctx, 13, 8, 2, 13, '#b45309');
+    // Shimmering harp strings
+    for (let sx = 9; sx <= 12; sx++) {
+      rect(ctx, sx, 8, 1, 12, (sx + f) % 2 === 0 ? '#fef08a' : '#38bdf8');
+    }
+    px(ctx, 15, 3 - f, '#f472b6');
+    px(ctx, 4, 4 + f, '#38bdf8');
+    sprites.props.bardHarpStand.push(addPixelOutline(c));
+  }
+
+  // Bioluminescent CrystalEcho Cavern Entrance Archway (38x38, 2 frames)
+  sprites.props.cavernEntrance = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(38, 38);
+    // Craggy stone outer arch
+    rect(ctx, 3, 14, 32, 22, '#1e293b');
+    rect(ctx, 5, 8, 28, 26, '#334155');
+    rect(ctx, 9, 4, 20, 6, '#475569');
+    // Dark subterranean cave mouth with glowing crystal steps
+    rect(ctx, 11, 14, 16, 22, '#090d16');
+    rect(ctx, 13, 12, 12, 4, '#0f172a');
+    rect(ctx, 13, 32, 12, 3, '#1e3a8a');
+    rect(ctx, 15, 33, 8, 2, f === 0 ? '#38bdf8' : '#7dd3fc');
+    // Protruding crystal shards around cave arch
+    rect(ctx, 6, 18, 4, 8, '#0284c7');
+    rect(ctx, 7, 19, 2, 6, '#38bdf8');
+    rect(ctx, 28, 18, 4, 8, '#9333ea');
+    rect(ctx, 29, 19, 2, 6, '#e879f9');
+    rect(ctx, 17, 5, 4, 6, '#2dd4bf');
+    px(ctx, 18, 6 + f, '#ffffff');
+    sprites.props.cavernEntrance.push(addPixelOutline(c));
+  }
+
+  // 1v1 GlimmerFallTCG.com Tavern Duel Table & Playmat (34x26, 2 frames)
+  sprites.props.tcgDuelTable = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(34, 26);
+    // Left & right carved tavern stools
+    rect(ctx, 1, 10, 4, 9, '#78350f');
+    rect(ctx, 1, 9, 4, 3, '#b45309');
+    rect(ctx, 29, 10, 4, 9, '#78350f');
+    rect(ctx, 29, 9, 4, 3, '#b45309');
+    // Heavy oak table legs & apron
+    rect(ctx, 7, 17, 3, 6, '#451a03');
+    rect(ctx, 24, 17, 3, 6, '#451a03');
+    rect(ctx, 6, 6, 22, 13, '#78350f');
+    rect(ctx, 7, 5, 20, 12, '#92400e');
+    // Gold-trimmed royal arena playmat
+    rect(ctx, 9, 6, 16, 10, '#facc15');
+    rect(ctx, 10, 7, 14, 8, '#1e1b4b');
+    // Center battlefield divider line
+    rect(ctx, 10, 11, 14, 1, '#312e81');
+    // P1 & P2 deck stacks + miniature cards in play
+    rect(ctx, 11, 8, 2, 3, '#f59e0b'); // Solari deck
+    rect(ctx, 15, 8, 2, 2, '#38bdf8'); // Aether card
+    rect(ctx, 18, 8, 2, 2, '#4ade80'); // Terra card
+    rect(ctx, 21, 12, 2, 3, '#a855f7'); // Umbri deck
+    rect(ctx, 14, 12, 2, 2, '#facc15'); // Solari entity
+    rect(ctx, 17, 12, 2, 2, '#c084fc'); // Umbri entity
+    // Animated Resonance energy orbs on table corners
+    px(ctx, 11, 13, f === 0 ? '#38bdf8' : '#7dd3fc');
+    px(ctx, 22, 8, f === 0 ? '#facc15' : '#fef08a');
+    sprites.props.tcgDuelTable.push(addPixelOutline(c));
+  }
+
+  // Vanguard Combat Target Dummy & DPS Meter Post (22x28, 2 frames)
+  sprites.props.trainingDummy = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(22, 28);
+    // Heavy oak base & central post
+    rect(ctx, 5, 22, 12, 3, '#451a03');
+    rect(ctx, 7, 20, 8, 3, '#78350f');
+    rect(ctx, 9, 6, 4, 15, '#92400e');
+    // Crossbar arms
+    rect(ctx, 2, 10, 18, 3, '#78350f');
+    // Padded straw & steel breastplate torso
+    rect(ctx, 6, 9, 10, 10, '#d97706');
+    rect(ctx, 7, 10, 8, 8, '#f59e0b');
+    rect(ctx, 7, 11, 8, 5, '#64748b');
+    rect(ctx, 8, 12, 6, 3, '#94a3b8');
+    // Burlap head & target bullseye on chest
+    rect(ctx, 7, 3, 8, 6, '#eab308');
+    rect(ctx, 8, 4, 6, 4, '#fde047');
+    px(ctx, 9, 5, '#451a03');
+    px(ctx, 12, 5, '#451a03');
+    // Round practice shield mounted on left arm
+    rect(ctx, 1, 9, 4, 7, '#b91c1c');
+    rect(ctx, 2, 10, 2, 5, '#facc15');
+    // Hit spark glint
+    px(ctx, 11, 13, f === 0 ? '#ef4444' : '#fde047');
+    sprites.props.trainingDummy.push(addPixelOutline(c));
+  }
+
+  // Astral Mystery Peddler Curio Cart (32x26, 2 frames)
+  sprites.props.mysteryPeddlerCart = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(32, 26);
+    // Spoked wooden wagon wheels
+    rect(ctx, 5, 17, 7, 7, '#451a03');
+    rect(ctx, 6, 18, 5, 5, '#92400e');
+    px(ctx, 8, 20, '#facc15');
+    rect(ctx, 20, 17, 7, 7, '#451a03');
+    rect(ctx, 21, 18, 5, 5, '#92400e');
+    px(ctx, 23, 20, '#facc15');
+    // Wagon bed & starlight purple/gold canopy
+    rect(ctx, 3, 13, 26, 5, '#78350f');
+    rect(ctx, 4, 4, 24, 10, '#4c1d95');
+    rect(ctx, 5, 5, 22, 8, '#6d28d9');
+    rect(ctx, 4, 11, 24, 2, '#facc15');
+    // Glowing potion bottles & relic curios on counter
+    rect(ctx, 8, 12, 3, 3, '#38bdf8');
+    rect(ctx, 14, 11, 4, 4, '#f59e0b');
+    rect(ctx, 20, 12, 3, 3, '#4ade80');
+    // Hanging astral lantern
+    rect(ctx, 27, 7, 3, 4, f === 0 ? '#fde047' : '#38bdf8');
+    px(ctx, 11, 7, f === 0 ? '#fef08a' : '#e879f9');
+    px(ctx, 19, 6, f === 0 ? '#7dd3fc' : '#fef08a');
+    sprites.props.mysteryPeddlerCart.push(addPixelOutline(c));
+  }
+
+  // Hidden Covenant Treasure Coffer (20x18, 2 frames)
+  sprites.props.treasureCoffer = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(20, 18);
+    rect(ctx, 3, 6, 14, 9, '#78350f');
+    rect(ctx, 4, 4, 12, 4, '#b45309');
+    // Gold trim bands & ruby clasp
+    rect(ctx, 3, 8, 14, 2, '#facc15');
+    rect(ctx, 5, 4, 2, 11, '#eab308');
+    rect(ctx, 13, 4, 2, 11, '#eab308');
+    rect(ctx, 9, 7, 2, 4, f === 0 ? '#ef4444' : '#fde047');
+    px(ctx, 10, 3 - f, '#fef08a');
+    sprites.props.treasureCoffer.push(addPixelOutline(c));
+  }
 }

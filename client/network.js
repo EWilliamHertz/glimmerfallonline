@@ -643,6 +643,31 @@ export class MultiplayerClient {
     }
 
     if (res?.type === 'opaqueredirect' || (res?.status >= 300 && res?.status < 400)) {
+      if (action && this.ws && this.ws.readyState === 1) {
+        try {
+          const wsData = await this.wsRpc(action, body || {}, 4000);
+          if (wsData && wsData.ok) return wsData;
+        } catch (_) {}
+      }
+      for (const fbBase of ['https://ws.glimmerfall.online', 'https://glimmerfall.online']) {
+        if (base === fbBase) continue;
+        try {
+          const fbRes = await doFetch(`${fbBase}${path}`, 4000);
+          if (fbRes && fbRes.type !== 'opaqueredirect' && !(fbRes.status >= 300 && fbRes.status < 400)) {
+            res = fbRes;
+            this._activeFallbackBase = fbBase;
+            try {
+              if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('glimmerfall_server_url', fbBase);
+              }
+            } catch (_) {}
+            break;
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (res?.type === 'opaqueredirect' || (res?.status >= 300 && res?.status < 400)) {
       throw new Error('Cloud Shell Preview auth session expired. Reload from Cloud Shell Preview or switch to Live Online DB below.');
     }
 

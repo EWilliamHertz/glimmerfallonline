@@ -430,7 +430,8 @@ export const worldPopulationMethods = {
       room.type === ROOM_TYPES.CHRONOCORE_CITADEL ||
       room.type === ROOM_TYPES.SUNKEN_OASIS ||
       room.type === ROOM_TYPES.SOLAR_HIGHLANDS ||
-      room.type === ROOM_TYPES.MOONWELL_SANCTUM
+      room.type === ROOM_TYPES.MOONWELL_SANCTUM ||
+      room.type === ROOM_TYPES.LUMINOUS_CAVERN
     ) {
       this.populateSubZoneDungeon(room);
     } else if (room.type === ROOM_TYPES.ARENA_3V3) {

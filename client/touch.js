@@ -12,9 +12,10 @@ export function shouldEnableTouch() {
     const q = new URLSearchParams(window.location.search);
     if (q.get('touch') === '1') return true;
     if (q.get('touch') === '0') return false;
-    // Touch-first devices (iPad, phones, tablets) get the virtual stick automatically.
+    // Touch-first devices (iPad, iPadOS desktop-mode Safari, phones, tablets) get the virtual stick automatically.
     const coarse = window.matchMedia?.('(pointer: coarse)')?.matches;
-    return Boolean(coarse) && window.innerWidth <= 1366;
+    const hasTouchPoints = typeof navigator !== 'undefined' && Number(navigator.maxTouchPoints) > 1;
+    return (Boolean(coarse) || hasTouchPoints) && window.innerWidth <= 1440;
   } catch (_) {
     return false;
   }
@@ -23,13 +24,21 @@ export function shouldEnableTouch() {
 const TOUCH_CSS = `
   body.touch-mode #minimap-panel { transform: scale(0.62); transform-origin: top right; top: 6px; right: 6px; }
   body.touch-mode #bottom-bar-dock { bottom: calc(6px + env(safe-area-inset-bottom, 0px)); transform-origin: bottom center; }
-  body.touch-mode .action-button { width: 48px; height: 52px; }
-  body.touch-mode #canvas-container { touch-action: none; }
-  #touch-layer { position: fixed; inset: 0; z-index: 40; pointer-events: none; display: none; font-family: var(--font-header, monospace); }
+  body.touch-mode .action-button { width: 48px; height: 52px; touch-action: manipulation; }
+  body.touch-mode #canvas-container,
+  #canvas-container,
+  #game-canvas,
+  #text-canvas {
+    touch-action: none !important;
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+  }
+  #touch-layer { position: fixed; inset: 0; z-index: 40; pointer-events: none; display: none; font-family: var(--font-header, monospace); touch-action: none; }
   body.touch-mode #touch-layer { display: block; }
   #touch-stick {
-    position: absolute; left: 18px; bottom: 96px; width: 104px; height: 104px;
-    background: rgba(8, 12, 24, 0.55); border: 3px solid #38bdf8;
+    position: absolute; left: max(18px, env(safe-area-inset-left, 18px)); bottom: 96px; width: 108px; height: 108px;
+    background: rgba(8, 12, 24, 0.58); border: 3px solid #38bdf8;
     box-shadow: 0 0 0 2px #05070f, 4px 4px 0 rgba(0,0,0,0.7);
     border-radius: 50%; pointer-events: auto; touch-action: none;
   }
@@ -41,21 +50,48 @@ const TOUCH_CSS = `
   #touch-knob {
     position: absolute; left: 50%; top: 50%; width: 42px; height: 42px; margin: -21px 0 0 -21px;
     background: #0f172a; border: 3px solid #facc15; box-shadow: 0 0 0 2px #05070f;
-    border-radius: 50%; image-rendering: pixelated;
+    border-radius: 50%; image-rendering: pixelated; pointer-events: none;
   }
   .touch-btn {
-    position: absolute; width: 54px; height: 54px; pointer-events: auto; touch-action: none;
-    background: rgba(8, 12, 24, 0.72); border: 3px solid #475569; color: #f8fafc;
+    position: absolute; width: 56px; height: 56px; pointer-events: auto; touch-action: none;
+    background: rgba(8, 12, 24, 0.78); border: 3px solid #475569; color: #f8fafc;
     box-shadow: 0 0 0 2px #05070f, 3px 3px 0 rgba(0,0,0,0.7);
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-    font-size: 6px; text-shadow: 1px 1px 0 #000; user-select: none; -webkit-user-select: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    font-size: 7.5px; font-weight: 800; text-shadow: 1px 1px 0 #000; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    border-radius: 6px;
   }
-  .touch-btn .ti { font-size: 18px; line-height: 1; }
+  .touch-btn .ti { font-size: 16px; line-height: 1; }
   .touch-btn.active { border-color: #facc15; background: rgba(51, 38, 6, 0.85); transform: translate(1px, 1px); }
-  #touch-btn-sprint { right: 18px; bottom: 96px; border-color: #38bdf8; }
-  #touch-btn-target { right: 82px; bottom: 112px; border-color: #ef4444; }
-  #touch-btn-harvest { right: 18px; bottom: 160px; border-color: #c084fc; }
-  #touch-btn-chat { right: 82px; bottom: 176px; border-color: #94a3b8; }
+  #touch-btn-sprint { right: max(18px, env(safe-area-inset-right, 18px)); bottom: 96px; border-color: #38bdf8; }
+  #touch-btn-target { right: calc(max(18px, env(safe-area-inset-right, 18px)) + 64px); bottom: 112px; border-color: #ef4444; }
+  #touch-btn-harvest { right: max(18px, env(safe-area-inset-right, 18px)); bottom: 160px; border-color: #c084fc; }
+  #touch-btn-interact { right: calc(max(18px, env(safe-area-inset-right, 18px)) + 64px); bottom: 176px; border-color: #4ade80; }
+  #touch-btn-chat { right: max(18px, env(safe-area-inset-right, 18px)); bottom: 224px; border-color: #94a3b8; width: 56px; height: 42px; }
+  @media (max-width: 920px), (max-height: 600px) {
+    body.touch-mode #social-chat-panel {
+      width: 230px;
+      padding: 4px 6px;
+      opacity: 0.86;
+    }
+    body.touch-mode #combat-log {
+      max-height: 54px !important;
+      font-size: 8px;
+    }
+    body.touch-mode.touch-chat-minimized #social-chat-panel #combat-log,
+    body.touch-mode.touch-chat-minimized #social-chat-panel .chat-input-row,
+    body.touch-mode.touch-chat-minimized #social-chat-panel .emote-strip {
+      display: none !important;
+    }
+    body.touch-mode #touch-stick {
+      width: 96px;
+      height: 96px;
+    }
+    body.touch-mode .touch-btn {
+      width: 50px;
+      height: 50px;
+      font-size: 7px;
+    }
+  }
 `;
 
 export function updateTouchUiButtons(enabled) {
@@ -85,7 +121,7 @@ export function toggleTouchControls(force) {
   return next;
 }
 
-export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstTouch }) {
+export function initTouchControls({ inputs, cycleTarget, harvestTarget, interactTarget, onFirstTouch }) {
   const style = document.createElement('style');
   style.textContent = TOUCH_CSS;
   document.head.appendChild(style);
@@ -94,10 +130,11 @@ export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstT
   layer.id = 'touch-layer';
   layer.innerHTML = `
     <div id="touch-stick"><div id="touch-knob"></div></div>
-    <div class="touch-btn" id="touch-btn-sprint">SPRINT</div>
-    <div class="touch-btn" id="touch-btn-target">TARGET</div>
-    <div class="touch-btn" id="touch-btn-harvest">GLIMMER</div>
-    <div class="touch-btn" id="touch-btn-chat">CHAT</div>
+    <div class="touch-btn" id="touch-btn-sprint"><span class="ti">⚡</span><span>SPRINT</span></div>
+    <div class="touch-btn" id="touch-btn-target"><span class="ti">🎯</span><span>TARGET</span></div>
+    <div class="touch-btn" id="touch-btn-harvest"><span class="ti">⛏️</span><span>GLIMMER</span></div>
+    <div class="touch-btn" id="touch-btn-interact"><span class="ti">💬</span><span>ACT / NPC</span></div>
+    <div class="touch-btn" id="touch-btn-chat"><span class="ti">🗨️</span><span>CHAT</span></div>
   `;
   document.body.appendChild(layer);
 
@@ -174,6 +211,7 @@ export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstT
 
   function bindTap(id, handler) {
     const el = layer.querySelector(id);
+    if (!el) return null;
     el.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       onFirstTouch?.();
@@ -196,9 +234,16 @@ export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstT
   });
   bindTap('#touch-btn-target', () => cycleTarget());
   bindTap('#touch-btn-harvest', () => harvestTarget());
+  bindTap('#touch-btn-interact', () => {
+    if (typeof interactTarget === 'function') interactTarget();
+    else harvestTarget();
+  });
   bindTap('#touch-btn-chat', () => {
+    if (window.innerWidth <= 920 || window.innerHeight <= 600) {
+      document.body.classList.toggle('touch-chat-minimized');
+    }
     const inp = document.getElementById('chat-input');
-    if (inp) inp.focus();
+    if (inp && !document.body.classList.contains('touch-chat-minimized')) inp.focus();
   });
 
   // Measure env(safe-area-inset-bottom) without hard-coding device values.
@@ -247,12 +292,36 @@ export function initTouchControls({ inputs, cycleTarget, harvestTarget, onFirstT
   setTimeout(fitDock, 50);
   setTimeout(fitDock, 800);
 
-  // Block page pinch-zoom / scroll ONLY while actively interacting with the game canvas
-  document.addEventListener('gesturestart', (e) => {
-    if (e.target.closest?.('#canvas-container, #touch-layer, canvas')) {
+  // Block page pinch-zoom / double-tap zoom on iPad & iPhone while actively interacting with the game canvas or HUD
+  const blockZoomGesture = (e) => {
+    if (e.target.closest?.('#canvas-container, #touch-layer, #hud, canvas, .action-button, .touch-btn')) {
       e.preventDefault();
     }
-  });
+  };
+  document.addEventListener('gesturestart', blockZoomGesture, { passive: false });
+  document.addEventListener('gesturechange', blockZoomGesture, { passive: false });
+  document.addEventListener('gestureend', blockZoomGesture, { passive: false });
+  document.addEventListener('dblclick', blockZoomGesture, { passive: false });
+
+  // Prevent iOS/iPadOS rapid double-tap smart zoom when double-tapping to extract or cast abilities
+  let lastGameplayTouchEndAt = 0;
+  document.addEventListener('touchend', (e) => {
+    const landingEl = document.getElementById('landing-overlay');
+    const fpEl = document.getElementById('frontpage-overlay');
+    if ((landingEl && landingEl.style.display !== 'none') || (fpEl && fpEl.style.display !== 'none')) {
+      return;
+    }
+    if (e.target.closest?.('.landing-overlay, #landing-overlay, #frontpage-overlay, .modal, #chat-log, input, textarea, select, [data-scrollable="true"], .overflow-y-auto, .overflow-auto')) {
+      return;
+    }
+    if (e.target.closest?.('#canvas-container, #touch-layer, canvas, .action-button, .touch-btn')) {
+      const now = Date.now();
+      if (now - lastGameplayTouchEndAt <= 340) {
+        e.preventDefault();
+      }
+      lastGameplayTouchEndAt = now;
+    }
+  }, { passive: false });
 
   document.addEventListener('touchmove', (e) => {
     // 1. NEVER block touchmove on landing page, frontpage, modals, chat, or scrollable UI!

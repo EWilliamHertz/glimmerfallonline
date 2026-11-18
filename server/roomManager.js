@@ -83,18 +83,25 @@ import { lootAndMythicMethods } from './rooms/lootAndMythic.js';
 import { entityDeathAndProgressionMethods } from './rooms/entityDeathAndProgression.js';
 import { socialAndTickMethods } from './rooms/socialAndTick.js';
 import { getOrderPresetForFaction } from './accountsStore.js';
+import { TcgManager } from './tcgManager.js';
 
 export class RoomManager {
   constructor(opts = {}) {
     const config = (opts && (opts.accountsStore !== undefined || opts.partyManager !== undefined || opts.exchangeManager !== undefined))
       ? opts
       : { accountsStore: opts };
-    const { accountsStore, partyManager, exchangeManager, tradeManager, duelManager } = config;
+    const { accountsStore, partyManager, exchangeManager, tradeManager, duelManager, tcgManager } = config;
     this.accounts = accountsStore;
     this.parties = partyManager;
     this.exchange = exchangeManager;
     this.trades = tradeManager;
     this.duels = duelManager;
+    this.tcg = tcgManager || new TcgManager({
+      getClientById: (id) => this.getClientById(id),
+      findClientByName: (name) => this.findClientByName(name),
+      getRoomById: (id) => this.rooms.get(id),
+      broadcastToRoom: (room, msg) => this.broadcastToRoom(room, msg),
+    });
     this.clients = new Map(); // playerId -> PlayerSession
     this.rooms = new Map();   // roomId -> RoomInstance
     this.arenaQueue = [];     // Array of { leaderId, memberIds, queuedAt }
@@ -121,6 +128,7 @@ export class RoomManager {
     this.getOrCreatePublicRoom(ROOM_TYPES.SUNKEN_OASIS);
     this.getOrCreatePublicRoom(ROOM_TYPES.SOLAR_HIGHLANDS);
     this.getOrCreatePublicRoom(ROOM_TYPES.MOONWELL_SANCTUM);
+    this.getOrCreatePublicRoom(ROOM_TYPES.LUMINOUS_CAVERN);
 
     this.tickInterval = setInterval(() => this.tickAllRooms(), TICK_MS);
   }

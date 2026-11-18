@@ -69,3 +69,38 @@ test('Skill-Gated Mastery Shrines enforce skill level requirements and grant 180
     rm.stop();
   }
 });
+
+test('CrystalEcho Caverns (LUMINOUS_CAVERN), Vanguard Guildhall, and interactive world props are wired', async () => {
+  const fs = await import('node:fs');
+  const accounts = new AccountsStore({ persistencePath: null });
+  const rm = new RoomManager(accounts);
+  try {
+    const cavern = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.LUMINOUS_CAVERN);
+    assert.ok(cavern, 'LUMINOUS_CAVERN room must be created');
+    assert.equal(protocol.isRoomUnlockedForEdition(protocol.ROOM_TYPES.LUMINOUS_CAVERN, 'free'), true, 'LUMINOUS_CAVERN must be open to all players');
+    assert.equal(protocol.isRoomUnlockedForEdition(protocol.ROOM_TYPES.CORAL_COAST, 'free'), true, 'CORAL_COAST must be open to all players');
+    assert.equal(protocol.isRoomUnlockedForEdition(protocol.ROOM_TYPES.SUNKEN_OASIS, 'free'), true, 'SUNKEN_OASIS must be open to all players');
+    assert.equal(protocol.isRoomUnlockedForEdition(protocol.ROOM_TYPES.NEXUS_FORGOTTEN_RUINS, 'free'), true, 'NEXUS_FORGOTTEN_RUINS must be open to all players');
+    assert.ok(cavern.entities.some((e) => e.id === 'cavern_boss'), 'LUMINOUS_CAVERN must spawn Crystallis the Echo Warden boss');
+    assert.ok(cavern.entities.some((e) => e.skillingType === 'mithril_vein'), 'LUMINOUS_CAVERN must spawn skilling veins');
+
+    const propSrc = fs.readFileSync('client/sprites/propSprites.js', 'utf8');
+    const gameSrc = fs.readFileSync('client/game.js', 'utf8');
+    for (const key of [
+      'arcaneTelescope',
+      'runicObelisk',
+      'archeryTarget',
+      'supplyCrate',
+      'crystalGeode',
+      'alchemistAlembic',
+      'bardHarpStand',
+      'cavernEntrance',
+    ]) {
+      assert.ok(propSrc.includes(`sprites.props.${key}`), `propSprites.js must synthesize ${key}`);
+      assert.ok(gameSrc.includes(key), `client/game.js must wire and render ${key}`);
+    }
+    assert.ok(gameSrc.includes('function tryInteractWorldObject(pr)'), 'client/game.js must define tryInteractWorldObject');
+  } finally {
+    rm.stop();
+  }
+});

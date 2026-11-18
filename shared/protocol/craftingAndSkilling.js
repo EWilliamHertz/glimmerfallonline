@@ -2073,6 +2073,26 @@ export const SKILLING_LAYOUTS = {
     ['fish_reef', -65, 25],
     ['fish_reef', 65, 25],
   ],
+  [ROOM_TYPES.LUMINOUS_CAVERN]: [
+    // CrystalEcho Caverns — Subterranean Mineral Seams, Bioluminescent Flora & Underground Springs
+    ['copper_tin_vein', -180, 140],
+    ['copper_tin_vein', 180, 140],
+    ['iron_coal_vein', -220, 40],
+    ['iron_coal_vein', 220, 40],
+    ['iron_coal_vein', -140, -60],
+    ['iron_coal_vein', 140, -60],
+    ['mithril_vein', -180, -180],
+    ['mithril_vein', 180, -180],
+    ['herb_cluster_low', -95, 110],
+    ['herb_cluster_low', 95, 110],
+    ['herb_cluster_high', -95, -130],
+    ['fiber_bloom_high', 95, -130],
+    ['healing_spring', 0, 95],
+    ['fish_shallows', -75, 15],
+    ['fish_river', 75, 15],
+    ['tree_duskveil', -230, -110],
+    ['tree_duskveil', 230, -110],
+  ],
   [ROOM_TYPES.NEXUS_WARZONE]: [
     // South Sanctuary Vale Meadows
     ['iron_coal_vein', -320, 1280],
