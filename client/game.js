@@ -6287,6 +6287,9 @@ export function initGame() {
         { type: 'alchemistAlembic', x: -232, y: 110, label: '⚗️ Copper Distillation Alembic [Click / E]' },
         { type: 'arcaneTelescope', x: -64, y: -112, label: '🔭 Sanctuary Stargazer Telescope [Click / E]' },
         { type: 'bardHarpStand', x: 54, y: -12, label: '🎵 Plaza Concert Harp [Click / E]' },
+        { type: 'wishingShrine', x: -58, y: -14, label: '🌟 Celestial Wishing Shrine [Click / E]' },
+        { type: 'ancientSundialClock', x: 64, y: -112, label: '⏳ Chrono-Astrolabe Sundial [Click / E]' },
+        { type: 'covenantBannerStand', x: -242, y: 122, label: '🚩 Vanguard Rally Standard [Click / E]' },
 
         // 7. South Memorial Gardens & Starter Skilling Groves
         { type: 'monument', x: 0, y: 245, label: '🗿 First Nexus Memorial Monument [Click / E]' },
@@ -7224,6 +7227,8 @@ export function initGame() {
           { type: 'campfire', x: 0, y: 125, label: '🔥 Oasis Traveler Hearth' },
           { type: 'woodenSign', x: -45, y: 155, label: '🪧 W: Glimmer Orchard | N: Coral Coast | S: Starlight Grove' },
           { type: 'bountyBoard', isBountyBoard: true, x: 75, y: 145, label: '📜 Oasis Expedition Board [Click / E]' },
+          { type: 'fishermanNetRack', x: 52, y: 86, label: '🦀 Oasis Mariner Net & Crab Trap [Click / E]' },
+          { type: 'wishingShrine', x: -58, y: 86, label: '🌟 Mirage Wishing Shrine [Click / E]' },
           { type: 'terraAltar', stationId: 'terra_altar', x: -125, y: 145, label: '🌿 Oasis Botanical Loom [Click / E]' },
           { type: 'flowerBed', x: -85, y: 75 },
           { type: 'flowerBed', x: 85, y: 75 },
@@ -11121,6 +11126,13 @@ export function initGame() {
       transitionToRoom(ev.primaryRoom, null, null, 'down');
       logMessage(`⚡ [World Event Travel] Travelling to ${ev.primaryRoomLabel} for ${ev.title}!`, 'log-solari', 'chat');
     },
+    onTravelToRoom: (targetRoom) => {
+      if (!targetRoom || currentRoomType === targetRoom) return;
+      transitionToRoom(targetRoom, null, null, 'down');
+    },
+    onOpenTcgDuel: () => {
+      window.openTcgTavernDuel?.();
+    },
     onGrantReferralGold: (goldAmt, refHero) => {
       addPlayerGold(localProfile, goldAmt);
       saveProgressionLocal();
@@ -11135,6 +11147,10 @@ export function initGame() {
     'trainingDummy',
     'mysteryPeddlerCart',
     'treasureCoffer',
+    'wishingShrine',
+    'ancientSundialClock',
+    'fishermanNetRack',
+    'covenantBannerStand',
     'ancientWell',
     'grandFountain',
     'fountain',
@@ -11189,6 +11205,64 @@ export function initGame() {
       window.openTcgTavernDuel();
       spawnSparkBurst(pr.x, pr.y - 12, ['#fde047', '#38bdf8', '#c084fc'], 18);
       spawnFCT(pr.x, pr.y - 18, '🃏 1V1 GLIMMERFALL TCG!', '#facc15', true);
+      return true;
+    }
+
+    if (t === 'wishingShrine') {
+      propInteractCooldowns.set(key, now + 15000);
+      (audio.playZenith || audio.playChime)?.call(audio);
+      player.shrineBuff = { affinity: 'solari', name: 'Celestial Starlight Wish', timer: 90 };
+      player.hp = player.maxHp;
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 35);
+      updatePlayerUI();
+      spawnSparkBurst(pr.x, pr.y - 14, ['#fde047', '#38bdf8', '#ffffff'], 24);
+      spawnFCT(player.x, player.y - 20, '🌟 STARLIGHT WISH GRANTED! +35 GLIMMER', '#fde047', true);
+      logMessage('🌟 [Celestial Wishing Shrine] Your wish echoes across the Astral Continuum! Full Health restored, +35 Glimmer & 90s Celestial Starlight Blessing!', 'log-solari', 'chat');
+      if (!net.connected) awardProfessionXP('rites', 24, 'Celestial Wishing Shrine', false);
+      return true;
+    }
+
+    if (t === 'ancientSundialClock') {
+      propInteractCooldowns.set(key, now + 10000);
+      (audio.playResonance || audio.playChime)?.call(audio);
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 20);
+      updatePlayerUI();
+      spawnSparkBurst(pr.x, pr.y - 12, ['#38bdf8', '#fde047', '#c084fc'], 18);
+      spawnFCT(pr.x, pr.y - 18, '⏳ CHRONO-ASTROLABE SYNCHRONIZED!', '#38bdf8', true);
+      logMessage('⏳ [Chrono-Astrolabe Pillar] You align the brass chrono-rings (+20 Glimmer & +22 Rites XP)! Click the top World Event Pill anytime to jump to active realm hotspots.', 'log-quest', 'chat');
+      if (!net.connected) awardProfessionXP('rites', 22, 'Chrono-Astrolabe Calibration', false);
+      return true;
+    }
+
+    if (t === 'fishermanNetRack') {
+      propInteractCooldowns.set(key, now + 22000);
+      (audio.playSplash || audio.playChime)?.call(audio);
+      const catches = [
+        { id: 'raw_glimmer_minnow', qty: 2, label: '2x Raw Glimmer Minnow' },
+        { id: 'raw_silver_trout', qty: 1, label: '1x Raw Silver Trout' },
+        { id: 'raw_golden_koi', qty: 1, label: '1x Raw Golden Koi' },
+      ];
+      const pick = catches[Math.floor(Math.random() * catches.length)];
+      const added = addItemToBackpack(localProfile, pick.id, pick.qty);
+      saveProgressionLocal();
+      updatePlayerUI();
+      spawnSparkBurst(pr.x, pr.y - 10, ['#38bdf8', '#4ade80', '#fde047'], 18);
+      spawnFCT(pr.x, pr.y - 18, added ? `🦀 +${pick.label}!` : '🦀 TRAP CHECKED (+XP)!', '#38bdf8', true);
+      logMessage(`🦀 [Mariner Crab Trap & Net] You haul in the coastal net and recover ${added ? pick.label : 'fresh sea-salt (+Fishing insight)'}!`, 'log-gain', 'chat');
+      if (!net.connected) awardProfessionXP('resonance_extraction', 24, 'Mariner Trap Haul', false);
+      return true;
+    }
+
+    if (t === 'covenantBannerStand') {
+      propInteractCooldowns.set(key, now + 12000);
+      (audio.playZenith || audio.playChime)?.call(audio);
+      player.shrineBuff = { affinity: 'solari', name: 'Vanguard Rally Standard', timer: 60 };
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 30);
+      updatePlayerUI();
+      spawnSparkBurst(pr.x, pr.y - 14, ['#ef4444', '#facc15', '#ffffff'], 20);
+      spawnFCT(player.x, player.y - 18, '🚩 VANGUARD RALLY! +30 GLIMMER', '#facc15', true);
+      logMessage('🚩 [War-Order Rally Banner] You salute the Covenant Standard, gaining +30 Glimmer and a 60s Vanguard Rally Aura!', 'log-solari', 'combat');
+      if (!net.connected) awardProfessionXP('combat_mastery', 22, 'Covenant Rally Standard', false);
       return true;
     }
 

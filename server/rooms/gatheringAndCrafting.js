@@ -69,6 +69,7 @@ import {
   computeFamiliarBonuses,
   NEXUS_FAMILIARS_CATALOG,
 } from '../../shared/protocol.js';
+import { getActiveWorldEvent, isRoomInActiveWorldEvent } from '../../shared/worldEvents.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
 
 export const gatheringAndCraftingMethods = {
@@ -223,10 +224,28 @@ export const gatheringAndCraftingMethods = {
         isCrit: added,
       });
 
+      const activeEv = isRoomInActiveWorldEvent(room.type) ? getActiveWorldEvent() : null;
+      const evGatherMult = activeEv?.bonuses?.gatheringXpMult || 1.0;
+      const effProfXp = Math.round((skSpec.xp || 25) * evGatherMult);
+
       this.awardPlayerXP(player, 4, skSpec.name);
-      this.awardProfessionXP(player, skSpec.profession, skSpec.xp || 25, skSpec.name);
+      this.awardProfessionXP(player, skSpec.profession, effProfXp, activeEv ? `${skSpec.name} (${activeEv.shortTitle})` : skSpec.name);
       if (skSpec.secondaryProfession) {
-        this.awardProfessionXP(player, skSpec.secondaryProfession, Math.max(8, Math.round((skSpec.xp || 25) * 0.35)), skSpec.name);
+        this.awardProfessionXP(player, skSpec.secondaryProfession, Math.max(8, Math.round(effProfXp * 0.35)), skSpec.name);
+      }
+      if (activeEv?.bonuses?.bonusItem && Math.random() < 0.28) {
+        const bId = activeEv.bonuses.bonusItem;
+        if (this.accounts.addItemToInventory(player.id, bId, 1)) {
+          const bName = EQUIPMENT_CATALOG[bId]?.name || bId;
+          room.fxQueue.push({
+            kind: 'fct',
+            x: node.x,
+            y: node.y - 18,
+            text: `${activeEv.shortTitle.toUpperCase()} BONUS: +1x ${bName}!`,
+            color: activeEv.color || '#fde047',
+            isCrit: true,
+          });
+        }
       }
 
       player.questState = player.questState || {};

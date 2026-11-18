@@ -558,12 +558,82 @@ export function createAmbientRenderer({
         }
       }
     }
+    drawAmbientCritters(camLeft, camTop, t, biome, halfW, halfH, viewW, viewH);
     ctx.restore();
+  }
+
+  function drawAmbientCritters(camLeft, camTop, t, biome, halfW, halfH, viewW, viewH) {
+    if (biome.startsWith('interior_')) return;
+    const critterCell = 156;
+    const cgx0 = Math.floor(camLeft / critterCell) - 1;
+    const cgx1 = Math.floor((camLeft + viewW) / critterCell) + 1;
+    const cgy0 = Math.floor(camTop / critterCell) - 1;
+    const cgy1 = Math.floor((camTop + viewH) / critterCell) + 1;
+
+    for (let gy = cgy0; gy <= cgy1; gy++) {
+      for (let gx = cgx0; gx <= cgx1; gx++) {
+        const h = ambientHash(gx, gy, 77);
+        if (h > 0.42) continue;
+        const h2 = ambientHash(gx, gy, 78);
+        const h3 = ambientHash(gx, gy, 79);
+        const baseWx = gx * critterCell + 24 + h2 * (critterCell - 48);
+        const baseWy = gy * critterCell + 24 + h3 * (critterCell - 48);
+        if (Math.abs(baseWx) > halfW - 32 || Math.abs(baseWy) > halfH - 32) continue;
+
+        const orbitX = Math.sin(t * (1.2 + h2 * 0.8) + h * 25) * 18;
+        const orbitY = Math.cos(t * (1.5 + h3 * 0.7) + h2 * 25) * 11;
+        const sx = Math.round(baseWx + orbitX - camLeft);
+        const sy = Math.round(baseWy + orbitY - camTop);
+        if (sx < -12 || sx > viewW + 12 || sy < -12 || sy > viewH + 12) continue;
+
+        const flap = Math.sin(t * 11 + h * 40) > 0;
+        ctx.globalAlpha = 0.88;
+
+        if (biome === 'aether' || biome === 'aether_archive') {
+          // Bioluminescent Crystal Flutter-Moth
+          const wingColor = h2 > 0.5 ? '#38bdf8' : '#e879f9';
+          ctx.fillStyle = 'rgba(0,0,0,0.28)';
+          ctx.fillRect(sx - 1, sy + 6, 3, 1);
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillRect(sx, sy, 1, 2);
+          ctx.fillStyle = wingColor;
+          if (flap) {
+            ctx.fillRect(sx - 2, sy - 1, 2, 2);
+            ctx.fillRect(sx + 1, sy - 1, 2, 2);
+          } else {
+            ctx.fillRect(sx - 1, sy, 1, 2);
+            ctx.fillRect(sx + 1, sy, 1, 2);
+          }
+        } else if (biome === 'umbri' || biome === 'umbri_labyrinth' || biome === 'abyssal') {
+          // Glowing Lantern-Firefly / Dusk Moth
+          ctx.fillStyle = 'rgba(192, 132, 252, 0.28)';
+          ctx.fillRect(sx - 2, sy - 2, 5, 5);
+          ctx.fillStyle = flap ? '#fde047' : '#c084fc';
+          ctx.fillRect(sx, sy, 2, 2);
+        } else {
+          // Sanctuary / Terra / Solari Golden & Azure Pixel Butterfly
+          const wingColor = h2 > 0.6 ? '#facc15' : h2 > 0.3 ? '#38bdf8' : '#f472b6';
+          ctx.fillStyle = 'rgba(0,0,0,0.25)';
+          ctx.fillRect(sx, sy + 5, 2, 1);
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(sx, sy, 1, 2);
+          ctx.fillStyle = wingColor;
+          if (flap) {
+            ctx.fillRect(sx - 2, sy - 1, 2, 2);
+            ctx.fillRect(sx + 1, sy - 1, 2, 2);
+          } else {
+            ctx.fillRect(sx - 1, sy - 1, 1, 2);
+            ctx.fillRect(sx + 1, sy - 1, 1, 2);
+          }
+        }
+      }
+    }
   }
 
   return {
     drawSeaAmbient,
     drawGroundAmbient,
     drawAirMotes,
+    drawAmbientCritters,
   };
 }

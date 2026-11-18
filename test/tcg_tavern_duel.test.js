@@ -179,11 +179,25 @@ test('Tavern TCG Duel Table sprite and interactive tavern placements are wired',
   assert.ok(propSpritesSrc.includes('sprites.props.trainingDummy = []'));
   assert.ok(propSpritesSrc.includes('sprites.props.mysteryPeddlerCart = []'));
   assert.ok(propSpritesSrc.includes('sprites.props.treasureCoffer = []'));
+  assert.ok(propSpritesSrc.includes('sprites.props.wishingShrine = []'));
+  assert.ok(propSpritesSrc.includes('sprites.props.ancientSundialClock = []'));
+  assert.ok(propSpritesSrc.includes('sprites.props.fishermanNetRack = []'));
+  assert.ok(propSpritesSrc.includes('sprites.props.covenantBannerStand = []'));
   assert.ok(gameSrc.includes("'tcgDuelTable'"));
   assert.ok(gameSrc.includes("'trainingDummy'"));
   assert.ok(gameSrc.includes("'mysteryPeddlerCart'"));
   assert.ok(gameSrc.includes("'treasureCoffer'"));
+  assert.ok(gameSrc.includes("'wishingShrine'"));
+  assert.ok(gameSrc.includes("'ancientSundialClock'"));
+  assert.ok(gameSrc.includes("'fishermanNetRack'"));
+  assert.ok(gameSrc.includes("'covenantBannerStand'"));
   assert.ok(gameSrc.includes('window.openTcgTavernDuel'));
   assert.ok(gameSrc.includes('setupWorldEventsAndHeroShare'));
   assert.ok(tcgUiSrc.includes('TAVERN 1V1 CARD DUEL ARENA'));
+
+  const heroShareSrc = fs.readFileSync(new URL('../client/game/heroCardShare.js', import.meta.url), 'utf8');
+  const ambientSrc = fs.readFileSync(new URL('../client/game/ambientRenderer.js', import.meta.url), 'utf8');
+  assert.ok(heroShareSrc.includes('openActivityFinderModal'));
+  assert.ok(heroShareSrc.includes('RECOMMENDED_ACTIVITIES'));
+  assert.ok(ambientSrc.includes('drawAmbientCritters'));
 });

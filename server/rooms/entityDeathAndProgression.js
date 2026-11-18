@@ -66,6 +66,7 @@ import {
   BOUNTY_CONTRACTS,
   computeFamiliarBonuses,
 } from '../../shared/protocol.js';
+import { getActiveWorldEvent, isRoomInActiveWorldEvent } from '../../shared/worldEvents.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
 
 export const entityDeathAndProgressionMethods = {
@@ -159,7 +160,9 @@ export const entityDeathAndProgressionMethods = {
       if (killerPlayer) recipients.add(killerPlayer.id);
 
       const squadBonusMult = recipients.size > 1 ? 1.25 : 1.0;
-      const xpAmt = Math.round(ent.xpReward * squadBonusMult);
+      const activeEv = isRoomInActiveWorldEvent(room.type) ? getActiveWorldEvent() : null;
+      const evCombatMult = activeEv?.bonuses?.combatXpMult || 1.0;
+      const xpAmt = Math.round(ent.xpReward * squadBonusMult * evCombatMult);
       const isTrainingDummy = ent.type === 'dummy';
 
       for (const pid of recipients) {

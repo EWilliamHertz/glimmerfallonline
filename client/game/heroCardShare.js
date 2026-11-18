@@ -5,6 +5,7 @@
 
 import { getActiveWorldEvent } from '../../shared/worldEvents.js';
 import {
+  ROOM_TYPES,
   FACTIONS_META,
   CLASSES_CATALOG,
   EQUIPMENT_CATALOG,
@@ -13,19 +14,90 @@ import {
 
 const REF_CLAIMED_KEY = 'glimmerfall_referral_bonus_claimed_v1';
 
+export const RECOMMENDED_ACTIVITIES = [
+  {
+    roomType: ROOM_TYPES.SANCTUARY_HUB,
+    title: '🏛️ Sanctuary Haven & Artisan Plaza (Lv. 1–10)',
+    desc: 'Safe capital hub with all 7 Artisan Stations, Grand Exchange, Bank Vault, Vanguard Guildhall, and Hearthstone Inn.',
+    badge: 'SAFE HUB & CRAFTING',
+    color: '#4ade80',
+  },
+  {
+    roomType: ROOM_TYPES.INTERIOR_TAVERN,
+    title: '🃏 Hearthstone Inn 1v1 GlimmerFall TCG Arena (All Levels)',
+    desc: 'Sit at the velvet duel table to battle GlimmerBot AI or online players with 40-card preconstructed & community decks!',
+    badge: '1V1 CARD DUEL (+150✨)',
+    color: '#facc15',
+  },
+  {
+    roomType: ROOM_TYPES.LUMINOUS_CAVERN,
+    title: '💎 CrystalEcho Caverns & Subterranean Grotto (Lv. 10–24)',
+    desc: 'Bioluminescent caverns rich with Copper, Star-Iron, Mithril veins, glowing Crystal Geodes, and Echo Warden Crystallis.',
+    badge: 'MINING & BOSS GROTTO',
+    color: '#e879f9',
+  },
+  {
+    roomType: ROOM_TYPES.CORAL_COAST,
+    title: '🌊 Coral Coast & Brinelight Fishing Pier (Lv. 10–25)',
+    desc: 'Cast lines for Silver Trout, Golden Koi, and Abyssal Eels along the twilight pier or visit Captain Brine in the Mariner Tavern.',
+    badge: 'FISHING & COASTAL PVE',
+    color: '#38bdf8',
+  },
+  {
+    roomType: ROOM_TYPES.SUNKEN_OASIS,
+    title: '🌴 Emerald Sunken Oasis & Mirage Springs (Lv. 12–28)',
+    desc: 'Verdant desert spring teeming with Sunbloom Herbs, Chrono-Lotus, healing water pools, and Oasis Guardians.',
+    badge: 'HERBALISM & OASIS',
+    color: '#22e07b',
+  },
+  {
+    roomType: ROOM_TYPES.SOLAR_HIGHLANDS,
+    title: '☀️ Sunspire Highlands & Ambergris Crags (Lv. 16–32)',
+    desc: 'High-altitude Solari peaks with rich ore seams, ancient sundials, and Starfall Meteor Shower events.',
+    badge: 'HIGH-TIER MINING & PVE',
+    color: '#f59e0b',
+  },
+  {
+    roomType: ROOM_TYPES.MOONWELL_SANCTUM,
+    title: '🌙 Silvermist Moonwell & Druid Sanctum (Lv. 20–38)',
+    desc: 'Sacred moonlit grove with high-level botanical nodes, hidden treasure coffers, and restorative Moonwell waters.',
+    badge: 'DRUID GROVE & LOOT',
+    color: '#a855f7',
+  },
+  {
+    roomType: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
+    title: '🏛️ Forgotten First Nexus Ruins (Lv. 18–35)',
+    desc: 'Ancient subterranean ruins with Covenant Rune Vault puzzles, elite constructs, and Relic Fragment drops.',
+    badge: 'DUNGEON & RUNE PUZZLES',
+    color: '#60a5fa',
+  },
+  {
+    roomType: ROOM_TYPES.NEXUS_WARZONE,
+    title: '⚔️ Continental Caldera Warzone & World Bosses (Lv. 15–50)',
+    desc: 'Massive central battlefield featuring the 4 Covenant Outpost Nexuses, Shattered Nexus Siege events, and World Bosses.',
+    badge: 'WORLD BOSSES & SIEGE',
+    color: '#ef4444',
+  },
+];
+
 export function setupWorldEventsAndHeroShare({
   getPlayerProfile = () => ({}),
   getPlayerEntity = () => ({}),
   getCurrentRoomType = () => 'sanctuary_hub',
   getCharacterSpriteCanvas = () => null,
   onTeleportToEvent = () => {},
+  onTravelToRoom = () => {},
+  onOpenTcgDuel = () => {},
   onGrantReferralGold = () => {},
   onLogMessage = () => {},
 } = {}) {
-  // 1. Check incoming ?ref=<HeroName> referral deep-link
+  // 1. Check incoming ?ref=<HeroName> referral deep-link & ?instant=1 ad funnel
   try {
     if (typeof window !== 'undefined' && window.location?.search) {
       const params = new URLSearchParams(window.location.search);
+      if (params.get('instant') === '1' || params.get('quickplay') === '1') {
+        window._pendingPlayOnBoot = true;
+      }
       const refHero = (params.get('ref') || '').trim().slice(0, 32);
       if (refHero && !localStorage.getItem(REF_CLAIMED_KEY)) {
         localStorage.setItem(REF_CLAIMED_KEY, refHero);
@@ -287,12 +359,120 @@ export function setupWorldEventsAndHeroShare({
     drawHeroCardCanvas(cv);
   }
 
+  function openActivityFinderModal() {
+    if (typeof document === 'undefined') return;
+    let modal = document.getElementById('gf-activity-finder-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'gf-activity-finder-modal';
+      modal.style.cssText =
+        'position:fixed; inset:0; z-index:9550; background:rgba(4,7,15,0.86); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; padding:12px;';
+      document.body.appendChild(modal);
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.style.display = 'none';
+      });
+    }
+
+    const ev = getActiveWorldEvent();
+    const curRoom = getCurrentRoomType();
+
+    modal.innerHTML = `
+      <div style="background:#0f172a; border:2px solid #facc15; border-radius:16px; padding:16px; max-width:780px; width:100%; max-height:90vh; overflow-y:auto; color:#f8fafc; box-shadow:0 20px 60px rgba(0,0,0,0.92);">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; border-bottom:1px solid rgba(148,163,184,0.2); padding-bottom:10px; margin-bottom:12px;">
+          <div>
+            <h3 style="margin:0; font-size:17px; color:#fde047;">🧭 GLIMMERFALL ACTIVITY, WORLD EVENT & REALM FINDER</h3>
+            <p style="margin:2px 0 0; font-size:11.5px; color:#94a3b8;">Jump directly into live 15-minute World Events, 1v1 Tavern TCG Duels, or recommended zones!</p>
+          </div>
+          <button type="button" id="gf-act-finder-close" style="background:transparent; border:1px solid #475569; color:#cbd5e1; border-radius:8px; padding:5px 10px; cursor:pointer;">✖ Close</button>
+        </div>
+
+        <!-- Featured Live 15-Minute World Event -->
+        <div style="background:linear-gradient(135deg, rgba(30,27,75,0.9), rgba(15,23,42,0.95)); border:2px solid ${ev.color}; border-radius:12px; padding:12px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:220px;">
+            <div style="font-size:10px; font-weight:900; color:${ev.color}; letter-spacing:1px;">⚡ ACTIVE 15-MINUTE REALM EVENT (⏳ ${ev.countdownText} REMAINING)</div>
+            <div style="font-size:16px; font-weight:900; color:#fff; margin-top:2px;">${ev.title} — ${ev.primaryRoomLabel}</div>
+            <div style="font-size:11.5px; color:#cbd5e1; margin-top:3px;">${ev.subtitle}</div>
+          </div>
+          <button type="button" id="gf-act-go-event" style="background:linear-gradient(135deg,#f59e0b,#facc15); color:#090d16; font-weight:900; border:none; border-radius:10px; padding:10px 16px; cursor:pointer; font-size:12px;">
+            ⚡ Travel to ${ev.primaryRoomLabel} ▸
+          </button>
+        </div>
+
+        <!-- Quick Feature Buttons -->
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
+          <button type="button" id="gf-act-open-tcg" style="flex:1; min-width:190px; background:rgba(250,204,21,0.15); border:1.5px solid #facc15; color:#fde047; font-weight:800; border-radius:10px; padding:9px 12px; cursor:pointer; font-size:12px;">
+            🃏 Play 1v1 GlimmerFall TCG Duel
+          </button>
+          <button type="button" id="gf-act-open-share" style="flex:1; min-width:190px; background:rgba(56,189,248,0.15); border:1.5px solid #38bdf8; color:#bae6fd; font-weight:800; border-radius:10px; padding:9px 12px; cursor:pointer; font-size:12px;">
+            📸 Share Pixel Hero Card &amp; Recruit Link
+          </button>
+        </div>
+
+        <!-- Recommended Continental Zones & Activities -->
+        <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">
+          Continental Zones, Dungeons &amp; Gathering Hotspots
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(330px, 1fr)); gap:8px;">
+          ${RECOMMENDED_ACTIVITIES.map((act) => {
+            const isHere = curRoom === act.roomType;
+            return `
+              <div style="background:rgba(9,13,24,0.82); border:1px solid ${isHere ? '#4ade80' : 'rgba(148,163,184,0.22)'}; border-radius:11px; padding:10px 12px; display:flex; flex-direction:column; justify-content:space-between; gap:8px;">
+                <div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+                    <span style="font-size:13px; font-weight:800; color:${act.color};">${act.title}</span>
+                  </div>
+                  <span style="display:inline-block; margin-top:3px; font-size:9.5px; font-weight:800; background:${act.color}22; color:${act.color}; border:1px solid ${act.color}55; padding:1px 6px; border-radius:99px;">${act.badge}</span>
+                  <p style="font-size:11px; color:#94a3b8; margin:5px 0 0; line-height:1.38;">${act.desc}</p>
+                </div>
+                <div style="display:flex; justify-content:flex-end;">
+                  <button
+                    type="button"
+                    data-gf-travel-room="${act.roomType}"
+                    style="background:${isHere ? 'rgba(74,222,128,0.18)' : 'rgba(56,189,248,0.18)'}; border:1px solid ${isHere ? '#4ade80' : '#38bdf8'}; color:${isHere ? '#86efac' : '#bae6fd'}; font-weight:800; font-size:11px; padding:5px 12px; border-radius:8px; cursor:pointer;"
+                  >
+                    ${isHere ? '✓ Currently Here' : '🧭 Travel Here ▸'}
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    modal.style.display = 'flex';
+    document.getElementById('gf-act-finder-close')?.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+    document.getElementById('gf-act-go-event')?.addEventListener('click', () => {
+      modal.style.display = 'none';
+      onTeleportToEvent(ev);
+    });
+    document.getElementById('gf-act-open-tcg')?.addEventListener('click', () => {
+      modal.style.display = 'none';
+      onOpenTcgDuel();
+    });
+    document.getElementById('gf-act-open-share')?.addEventListener('click', () => {
+      modal.style.display = 'none';
+      openHeroShareModal();
+    });
+    modal.querySelectorAll('[data-gf-travel-room]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetRoom = btn.getAttribute('data-gf-travel-room');
+        modal.style.display = 'none';
+        if (targetRoom) onTravelToRoom(targetRoom);
+      });
+    });
+  }
+
   if (typeof window !== 'undefined') {
     window.openHeroShareCard = openHeroShareModal;
+    window.openActivityFinder = openActivityFinderModal;
   }
 
   return {
     openHeroShareModal,
+    openActivityFinderModal,
     tickWorldEventHud,
   };
 }

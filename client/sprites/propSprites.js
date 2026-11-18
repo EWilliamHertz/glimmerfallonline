@@ -1758,4 +1758,77 @@ export function buildPropSprites(sprites) {
     px(ctx, 10, 3 - f, '#fef08a');
     sprites.props.treasureCoffer.push(addPixelOutline(c));
   }
+
+  // Celestial Wishing Shrine (24x28, 2 frames)
+  sprites.props.wishingShrine = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(24, 28);
+    // Marble stepped pedestal & basin
+    rect(ctx, 4, 21, 16, 4, '#64748b');
+    rect(ctx, 5, 19, 14, 3, '#94a3b8');
+    rect(ctx, 6, 14, 12, 6, '#e2e8f0');
+    rect(ctx, 7, 15, 10, 3, f === 0 ? '#38bdf8' : '#7dd3fc');
+    // Twin golden pillars & arched crown
+    rect(ctx, 6, 6, 2, 9, '#d97706');
+    rect(ctx, 16, 6, 2, 9, '#d97706');
+    rect(ctx, 5, 4, 14, 3, '#facc15');
+    // Floating starlight crystal core
+    rect(ctx, 10, 8 - f, 4, 4, '#fde047');
+    px(ctx, 11, 9 - f, '#ffffff');
+    px(ctx, 9, 16, '#fde047');
+    px(ctx, 14, 16, '#fde047');
+    sprites.props.wishingShrine.push(addPixelOutline(c));
+  }
+
+  // Chrono-Astrolabe Sundial Pillar (24x28, 2 frames)
+  sprites.props.ancientSundialClock = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(24, 28);
+    rect(ctx, 5, 22, 14, 3, '#334155');
+    rect(ctx, 7, 14, 10, 8, '#475569');
+    rect(ctx, 8, 12, 8, 10, '#64748b');
+    // Brass astrolabe ring & glowing chrono-needle
+    rect(ctx, 6, 4, 12, 10, '#b45309');
+    rect(ctx, 7, 5, 10, 8, '#1e1b4b');
+    rect(ctx, 11, 6, 2, 6, '#facc15');
+    rect(ctx, 8 + f, 8, 7, 2, '#38bdf8');
+    px(ctx, 11, 8, '#ffffff');
+    sprites.props.ancientSundialClock.push(addPixelOutline(c));
+  }
+
+  // Mariner Drying Net Rack & Crab Trap (26x22, 2 frames)
+  sprites.props.fishermanNetRack = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(26, 22);
+    // Bamboo drying frame posts
+    rect(ctx, 3, 4, 2, 15, '#78350f');
+    rect(ctx, 21, 4, 2, 15, '#78350f');
+    rect(ctx, 3, 5, 20, 2, '#92400e');
+    // Draped sea-green mesh net & floats
+    rect(ctx, 5, 7, 16, 8, '#0f766e');
+    rect(ctx, 6, 8, 14, 6, '#14b8a6');
+    px(ctx, 7, 6, '#f97316');
+    px(ctx, 12, 6, '#f97316');
+    px(ctx, 17, 6, '#f97316');
+    // Wooden crab pot beside rack
+    rect(ctx, 14, 14, 7, 5, '#b45309');
+    rect(ctx, 15, 15, 5, 3, '#78350f');
+    px(ctx, 9, 10 + f, '#38bdf8');
+    sprites.props.fishermanNetRack.push(addPixelOutline(c));
+  }
+
+  // War-Order Covenant Rally Banner Stand (20x30, 2 frames)
+  sprites.props.covenantBannerStand = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(20, 30);
+    rect(ctx, 6, 25, 8, 3, '#475569');
+    rect(ctx, 9, 3, 2, 23, '#d97706');
+    rect(ctx, 4, 5, 12, 2, '#facc15');
+    // Embroidered crimson/gold pennant
+    rect(ctx, 5, 7, 10, 14 + f, '#991b1b');
+    rect(ctx, 6, 8, 8, 12, '#dc2626');
+    rect(ctx, 8, 10, 4, 4, '#facc15');
+    px(ctx, 9, 11, '#ffffff');
+    sprites.props.covenantBannerStand.push(addPixelOutline(c));
+  }
 }
