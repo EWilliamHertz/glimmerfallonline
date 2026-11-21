@@ -197,7 +197,14 @@ test('Tavern TCG Duel Table sprite and interactive tavern placements are wired',
 
   const heroShareSrc = fs.readFileSync(new URL('../client/game/heroCardShare.js', import.meta.url), 'utf8');
   const ambientSrc = fs.readFileSync(new URL('../client/game/ambientRenderer.js', import.meta.url), 'utf8');
+  const indexHtml = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.ok(heroShareSrc.includes('openActivityFinderModal'));
   assert.ok(heroShareSrc.includes('RECOMMENDED_ACTIVITIES'));
   assert.ok(ambientSrc.includes('drawAmbientCritters'));
+  assert.ok(
+    indexHtml.indexOf('id="dynamic-world-event-pill"') > indexHtml.indexOf('id="bottom-bar-dock"') &&
+    indexHtml.indexOf('id="dynamic-world-event-pill"') < indexHtml.indexOf('id="xp-bar-wrap"'),
+    'World Event notification pill must sit inside #bottom-bar-dock directly above #xp-bar-wrap'
+  );
+  assert.ok(heroShareSrc.includes('gf-we-go-btn') && !heroShareSrc.includes('top:44px'), 'World Event notification must use persistent clickable GO button above XP bar instead of overlapping top menu');
 });

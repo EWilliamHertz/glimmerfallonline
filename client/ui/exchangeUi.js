@@ -2,7 +2,8 @@
 // AetherSwap Continental Exchange UI & Offer Book
 // ==========================================
 
-import { EQUIPMENT_CATALOG } from '../../shared/protocol.js';
+import { EQUIPMENT_CATALOG, getItemGuidePrice } from '../../shared/protocol.js';
+export { getItemGuidePrice };
 import { getItemIconDataUrl } from '../itemSprites.js';
 import { getRarityColor, getPlayerGold, countItemInBackpack } from './inventoryHelpers.js';
 
@@ -30,40 +31,6 @@ export const POPULAR_EXCHANGE_PRODUCTS = [
   { id: 'scout_leather_tunic', trend: '🥋 STARTER POPULAR', tag: 'Novice Mobility Tunic', volume: '380 trades' },
   { id: 'crown_of_dawn', trend: '👑 APEX TITAN DEMAND', tag: 'Aurelius Sovereign Titan', volume: '45 trades' },
 ];
-
-export function getItemGuidePrice(itemId) {
-  const it = EQUIPMENT_CATALOG[itemId];
-  if (!it) return 50;
-  if (it.guidePrice) return it.guidePrice;
-  if (it.rarity?.includes('Apex') || it.rarity?.includes('Mythic')) return 1250;
-  if (it.rarity?.includes('Continental Set') || it.rarity?.includes('Ancient Set') || it.set) return 500;
-  if (it.slot === 'currency') {
-    if (itemId === 'solar_gold') return 1;
-    if (itemId === 'glimmer_shard') return 8;
-    if (itemId === 'chrono_gem') return 25;
-    if (itemId === 'verdant_amber') return 22;
-    if (itemId === 'void_essence') return 30;
-    return 10;
-  }
-  if (it.slot === 'consumable') {
-    if (itemId === 'minor_healing_salve') return 10;
-    if (itemId === 'glimmer_draught') return 12;
-    if (itemId === 'major_vitality_elixir') return 25;
-    if (itemId === 'sweet_apple') return 3;
-    if (itemId === 'fresh_crusty_bread') return 6;
-    if (itemId === 'field_rations') return 10;
-    return 15;
-  }
-  if (it.slot === 'material') {
-    if (itemId === 'iron_ore') return 6;
-    if (itemId === 'bronze_bar') return 14;
-    if (itemId === 'ancient_relic_fragment') return 18;
-    return 10;
-  }
-  if (it.id?.startsWith('iron_') || it.id?.startsWith('scout_') || it.id?.startsWith('novice_')) return 45;
-  if (it.slot === 'ring' || it.slot === 'cape' || it.slot === 'neck') return 110;
-  return 75;
-}
 
 let authoritativeOffers = null;
 

@@ -116,7 +116,7 @@ export function renderAchievementsModal({
   activeModalTab = activeTab;
   activeCategoryFilter = category;
 
-  const modal = document.getElementById('achievements-modal');
+  const modal = document.getElementById('achievements-hub-inner') || document.getElementById('achievements-modal');
   if (!modal) return;
 
   const completedMap = prog?.achievements?.completed || {};

@@ -3509,6 +3509,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "MOONWELL_SANCTUM",
             "zoneName": "Silvermist Moonwell & Druid Sanctum"
+          },
+          {
+            "zoneId": "FROSTSPIRE_GLACIER",
+            "zoneName": "Frostspire Glacier & Aurora Outlook"
           }
         ]
       }
@@ -3570,6 +3574,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "MOONWELL_SANCTUM",
             "zoneName": "Silvermist Moonwell & Druid Sanctum"
+          },
+          {
+            "zoneId": "FROSTSPIRE_GLACIER",
+            "zoneName": "Frostspire Glacier & Aurora Outlook"
           }
         ]
       },
@@ -4211,6 +4219,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "LUMINOUS_CAVERN",
             "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
+          },
+          {
+            "zoneId": "FROSTSPIRE_GLACIER",
+            "zoneName": "Frostspire Glacier & Aurora Outlook"
           }
         ]
       }
@@ -4264,6 +4276,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "LUMINOUS_CAVERN",
             "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
+          },
+          {
+            "zoneId": "FROSTSPIRE_GLACIER",
+            "zoneName": "Frostspire Glacier & Aurora Outlook"
           }
         ]
       }
@@ -4332,6 +4348,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "MOONWELL_SANCTUM",
             "zoneName": "Silvermist Moonwell & Druid Sanctum"
+          },
+          {
+            "zoneId": "FROSTSPIRE_GLACIER",
+            "zoneName": "Frostspire Glacier & Aurora Outlook"
           }
         ]
       }
@@ -4377,6 +4397,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "MOONWELL_SANCTUM",
             "zoneName": "Silvermist Moonwell & Druid Sanctum"
+          },
+          {
+            "zoneId": "FROSTSPIRE_GLACIER",
+            "zoneName": "Frostspire Glacier & Aurora Outlook"
           }
         ]
       }
@@ -4791,8 +4815,8 @@ export const UNIVERSAL_SEARCH_ITEMS = [
             "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
           },
           {
-            "zoneId": "NEXUS_WARZONE",
-            "zoneName": "The Continental Nexus Caldera"
+            "zoneId": "FROSTSPIRE_GLACIER",
+            "zoneName": "Frostspire Glacier & Aurora Outlook"
           }
         ]
       }
@@ -5566,6 +5590,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "LUMINOUS_CAVERN",
             "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
+          },
+          {
+            "zoneId": "FROSTSPIRE_GLACIER",
+            "zoneName": "Frostspire Glacier & Aurora Outlook"
           }
         ]
       }
@@ -5652,6 +5680,10 @@ export const UNIVERSAL_SEARCH_ITEMS = [
           {
             "zoneId": "LUMINOUS_CAVERN",
             "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
+          },
+          {
+            "zoneId": "FROSTSPIRE_GLACIER",
+            "zoneName": "Frostspire Glacier & Aurora Outlook"
           }
         ]
       }
@@ -5770,8 +5802,8 @@ export const UNIVERSAL_SEARCH_ITEMS = [
             "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
           },
           {
-            "zoneId": "NEXUS_WARZONE",
-            "zoneName": "The Continental Nexus Caldera"
+            "zoneId": "FROSTSPIRE_GLACIER",
+            "zoneName": "Frostspire Glacier & Aurora Outlook"
           }
         ]
       },
@@ -5990,8 +6022,8 @@ export const UNIVERSAL_SEARCH_ITEMS = [
             "zoneName": "CrystalEcho Caverns & Subterranean Grotto"
           },
           {
-            "zoneId": "NEXUS_WARZONE",
-            "zoneName": "The Continental Nexus Caldera"
+            "zoneId": "FROSTSPIRE_GLACIER",
+            "zoneName": "Frostspire Glacier & Aurora Outlook"
           }
         ]
       },
@@ -10125,6 +10157,258 @@ export const UNIVERSAL_SEARCH_ITEMS = [
     "droppedBy": [
       "Lv. 30+ World & Dungeon Bosses"
     ],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "slayer_helm",
+    "name": "Vanguard Slayer Helm",
+    "icon": "🪖",
+    "slot": "head",
+    "rarity": "Legendary",
+    "faction": null,
+    "desc": "Reinforced trophy visor forged by the Vanguard Slayer Order (+3 Power, +3 Bastion, +2 Resonance, +15% damage against active Slayer task targets).",
+    "whatItDoes": "Equip Stats: +3 Power, +3 Bastion, +2 Resonance",
+    "guidePrice": 4500,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "quest_point_cape",
+    "name": "Cape of Canonical Lore (Quest Cape)",
+    "icon": "📜",
+    "slot": "cape",
+    "rarity": "Skill Mastery",
+    "faction": null,
+    "desc": "Royal cobalt cloak stitched with silver filigree, awarded exclusively to Adventurers who complete every canonical quest across GlimmerFall (+4 All Stats).",
+    "whatItDoes": "Equip Stats: +4 Power, +4 Bastion, +4 Resonance, +4 Tempo",
+    "guidePrice": 5000,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "cluescroll_easy",
+    "name": "Sealed Clue Scroll (Easy)",
+    "icon": "📜",
+    "slot": "consumable",
+    "rarity": "Uncommon",
+    "faction": null,
+    "desc": "A weatherworn parchment hiding a two-step Sanctuary & Coast Treasure Trail riddle. Click to inspect your next clue.",
+    "whatItDoes": "A weatherworn parchment hiding a two-step Sanctuary & Coast Treasure Trail riddle. Click to inspect your next clue.",
+    "guidePrice": 250,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "cluescroll_medium",
+    "name": "Sealed Clue Scroll (Medium)",
+    "icon": "📜",
+    "slot": "consumable",
+    "rarity": "Rare",
+    "faction": null,
+    "desc": "An Astral-sealed parchment charting a three-step Continental Treasure Trail. Rewards mid-tier caskets & Ranger gear.",
+    "whatItDoes": "An Astral-sealed parchment charting a three-step Continental Treasure Trail. Rewards mid-tier caskets & Ranger gear.",
+    "guidePrice": 750,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "cluescroll_hard",
+    "name": "Sealed Clue Scroll (Hard)",
+    "icon": "📜",
+    "slot": "consumable",
+    "rarity": "Epic",
+    "faction": null,
+    "desc": "A gilded cipher scroll leading through dangerous Warzone & Boss territories across four Treasure Trail steps.",
+    "whatItDoes": "A gilded cipher scroll leading through dangerous Warzone & Boss territories across four Treasure Trail steps.",
+    "guidePrice": 2200,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "casket_easy",
+    "name": "Treasure Casket (Easy)",
+    "icon": "🎁",
+    "slot": "consumable",
+    "rarity": "Uncommon",
+    "faction": null,
+    "desc": "A brass-bound Treasure Trail coffer. Open to claim Solar Gold, Glimmer Shards, and rare Trimmed Cloaks.",
+    "whatItDoes": "A brass-bound Treasure Trail coffer. Open to claim Solar Gold, Glimmer Shards, and rare Trimmed Cloaks.",
+    "guidePrice": 400,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "casket_medium",
+    "name": "Treasure Casket (Medium)",
+    "icon": "🎁",
+    "slot": "consumable",
+    "rarity": "Rare",
+    "faction": null,
+    "desc": "A jewel-inlaid Treasure Trail chest holding precious runes and a chance at iconic Ranger Boots.",
+    "whatItDoes": "A jewel-inlaid Treasure Trail chest holding precious runes and a chance at iconic Ranger Boots.",
+    "guidePrice": 1200,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "casket_hard",
+    "name": "Treasure Casket (Hard)",
+    "icon": "👑",
+    "slot": "consumable",
+    "rarity": "Epic",
+    "faction": null,
+    "desc": "An ornate Masterwork Treasure Trail strongbox prized by gilded hunters for Robin Hood Hats and Gilded Helms.",
+    "whatItDoes": "An ornate Masterwork Treasure Trail strongbox prized by gilded hunters for Robin Hood Hats and Gilded Helms.",
+    "guidePrice": 3500,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "gilded_sun_helm",
+    "name": "Gilded Sunspire Greathelm",
+    "icon": "👑",
+    "slot": "head",
+    "rarity": "Legendary",
+    "faction": null,
+    "desc": "Rare gold-leaf parade armor recovered exclusively from Hard Treasure Trail caskets (+3 Bastion, +2 Power).",
+    "whatItDoes": "Equip Stats: +2 Power, +3 Bastion",
+    "guidePrice": 4200,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "ranger_boots",
+    "name": "Greenweave Ranger Boots",
+    "icon": "🥾",
+    "slot": "feet",
+    "rarity": "Epic",
+    "faction": null,
+    "desc": "Supple forest-dyed scout boots treasured from Medium & Hard Treasure Trail caskets (+3 Tempo, +2 Power).",
+    "whatItDoes": "Equip Stats: +2 Power, +3 Tempo",
+    "guidePrice": 3800,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "robin_hood_hat",
+    "name": "Wayfarer's Feather Cap",
+    "icon": "🎩",
+    "slot": "head",
+    "rarity": "Epic",
+    "faction": null,
+    "desc": "Plumed sharpshooter beret unlocked through Continental Treasure Trails (+3 Tempo, +2 Resonance).",
+    "whatItDoes": "Equip Stats: +2 Resonance, +3 Tempo",
+    "guidePrice": 3400,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "trimmed_solari_cape",
+    "name": "Gold-Trimmed Dawn Cape",
+    "icon": "🧣",
+    "slot": "cape",
+    "rarity": "Rare",
+    "faction": null,
+    "desc": "Ceremonial embroidered Treasure Trail mantle (+2 Power, +2 Bastion).",
+    "whatItDoes": "Equip Stats: +2 Power, +2 Bastion",
+    "guidePrice": 1600,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
     "bountyRewards": [],
     "extractsTo": null,
     "decodedFrom": [],
@@ -19616,7 +19900,7 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "objectives": "Channel Moonwell Healing Springs, harvest Starlight timber & herbs, challenge Archdruid Elaria.",
     "neighbors": {
       "north": "STARLIGHT_GROVE",
-      "south": null,
+      "south": "FROSTSPIRE_GLACIER",
       "west": "SOLAR_HIGHLANDS",
       "east": "CORAL_COAST"
     },
@@ -19863,7 +20147,7 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "travel": "Enter the CrystalEcho Cavern Archway in South Sanctuary Gardens or walk East from Sunken Oasis.",
     "objectives": "Mine Copper, Iron & Mithril veins, tap Crystal Geodes, angle subterranean trout, defeat Crystallis.",
     "neighbors": {
-      "north": null,
+      "north": "FROSTSPIRE_GLACIER",
       "south": "SANCTUARY_HUB",
       "west": "SUNKEN_OASIS",
       "east": null
@@ -20102,6 +20386,247 @@ export const UNIVERSAL_SEARCH_ZONES = [
             "id": "void_resin",
             "name": "Abyssal Void Resin",
             "icon": "🟣"
+          }
+        ]
+      }
+    ],
+    "npcsHere": []
+  },
+  {
+    "type": "zone",
+    "id": "FROSTSPIRE_GLACIER",
+    "name": "Frostspire Glacier & Aurora Outlook",
+    "sub": "Aurora Leyline Peaks, Mithril Ridges & Alpine TCG Camp",
+    "level": "Lv. 22 – 38",
+    "dangerTag": "AURORA GLACIER",
+    "faction": "❄️ Alpine Expedition Frontier (Open Realm)",
+    "color": "#7dd3fc",
+    "borderColor": "#38bdf8",
+    "desc": "A high-altitude crystalline glacier bathed in shimmering aurora light, featuring rich Mithril deposits, an unfrozen Thermal Healing Spring, Alpine Supply Sleds, Aurora Crystal Obelisks, and the sovereign frost spirit Borealis.",
+    "travel": "Walk South from Silvermist Moonwell or North from CrystalEcho Caverns (or warp via Activity Finder).",
+    "objectives": "Mine 4 Mithril Seams, harvest Ice-Melt pools, tap Aurora Crystal Obelisks, duel Skald Thrym, conquer Borealis.",
+    "neighbors": {
+      "north": "MOONWELL_SANCTUM",
+      "south": null,
+      "west": "SOLAR_HIGHLANDS",
+      "east": "LUMINOUS_CAVERN"
+    },
+    "landmarks": [
+      {
+        "x": 50,
+        "y": 24,
+        "icon": "❄️",
+        "name": "Borealis, Crown of Eternal Rime",
+        "sub": "★ Lv.34 Glacier Boss",
+        "desc": "Ancient alpine spirit dropping the Chronos Singularity Core."
+      },
+      {
+        "x": 50,
+        "y": 66,
+        "icon": "🔮",
+        "name": "Aurora Crystal Obelisk & Thermal Spring",
+        "sub": "Restorative Leyline [E]",
+        "desc": "Touch the crystal obelisk for 90s Frostward Blessing & +40 Glimmer."
+      },
+      {
+        "x": 30,
+        "y": 50,
+        "icon": "🛷",
+        "name": "Glacial Expedition Camp & Supply Sleds",
+        "sub": "1v1 TCG Table & Alpine Loot",
+        "desc": "Challenge Skald Thrym to alpine 1v1 TCG duels and loot supply sleds."
+      }
+    ],
+    "entities": [
+      {
+        "name": "Borealis, Crown of Eternal Rime",
+        "type": "Glacier Boss",
+        "hp": "1,080 HP",
+        "desc": "Drops high-tier Mithril loot & Chronos Singularity Core."
+      },
+      {
+        "name": "Frostfang Tundra-Stalkers & Glacier Sentinels",
+        "type": "Alpine Guardians",
+        "hp": "240 – 295 HP",
+        "desc": "High-XP endgame beasts patrolling Mithril veins."
+      },
+      {
+        "name": "Glaciologist Vael & Skald Thrym",
+        "type": "Expedition Camp",
+        "hp": "Immortal",
+        "desc": "Offer alpine bounties, Hearth cooking & 1v1 TCG challenges."
+      }
+    ],
+    "gatheringNodes": [
+      {
+        "nodeId": "mithril_vein",
+        "nodeName": "Astral Mithril Meteorite Vein",
+        "reqLevel": 25,
+        "xp": 65,
+        "yields": [
+          {
+            "id": "mithril_astral_ore",
+            "name": "Astral Mithril Ore",
+            "icon": "🔷"
+          },
+          {
+            "id": "umbral_coal",
+            "name": "Umbral Shadow-Coal",
+            "icon": "⚫"
+          },
+          {
+            "id": "astral_mineral_dust",
+            "name": "Astral Mineral Flux",
+            "icon": "✨"
+          }
+        ]
+      },
+      {
+        "nodeId": "iron_coal_vein",
+        "nodeName": "Star-Iron & Umbral Coal Vein",
+        "reqLevel": 10,
+        "xp": 38,
+        "yields": [
+          {
+            "id": "iron_ore",
+            "name": "Raw Iron Ore",
+            "icon": "🪨"
+          },
+          {
+            "id": "umbral_coal",
+            "name": "Umbral Shadow-Coal",
+            "icon": "⚫"
+          },
+          {
+            "id": "astral_mineral_dust",
+            "name": "Astral Mineral Flux",
+            "icon": "✨"
+          }
+        ]
+      },
+      {
+        "nodeId": "copper_tin_vein",
+        "nodeName": "Sun-Copper & Star-Tin Seam",
+        "reqLevel": 1,
+        "xp": 22,
+        "yields": [
+          {
+            "id": "sun_copper_ore",
+            "name": "Sun-Copper Ore",
+            "icon": "🟠"
+          },
+          {
+            "id": "star_tin_mineral",
+            "name": "Star-Tin Mineral",
+            "icon": "⚪"
+          }
+        ]
+      },
+      {
+        "nodeId": "tree_ironbark",
+        "nodeName": "Ancient Ironbark Oak",
+        "reqLevel": 15,
+        "xp": 45,
+        "yields": [
+          {
+            "id": "ironbark_logs",
+            "name": "Ancient Ironbark Logs",
+            "icon": "🪵"
+          },
+          {
+            "id": "hardened_sap",
+            "name": "Hardened Ironbark Sap",
+            "icon": "🟤"
+          }
+        ]
+      },
+      {
+        "nodeId": "herb_cluster_high",
+        "nodeName": "Chrono-Lotus & Starleaf Bloom",
+        "reqLevel": 20,
+        "xp": 72,
+        "yields": [
+          {
+            "id": "chrono_lotus",
+            "name": "Chrono-Lotus Blossom",
+            "icon": "🪷"
+          },
+          {
+            "id": "empyrean_starleaf",
+            "name": "Empyrean Starleaf",
+            "icon": "🌟"
+          }
+        ]
+      },
+      {
+        "nodeId": "fiber_bloom_high",
+        "nodeName": "Shadow-Silk & Celestial Gossamer Cocoon",
+        "reqLevel": 20,
+        "xp": 72,
+        "yields": [
+          {
+            "id": "shadow_silk",
+            "name": "Duskveil Shadow-Silk",
+            "icon": "🕸️"
+          },
+          {
+            "id": "celestial_gossamer",
+            "name": "Celestial Gossamer Thread",
+            "icon": "🧶"
+          }
+        ]
+      },
+      {
+        "nodeId": "healing_spring",
+        "nodeName": "Luminous Restorative Spring",
+        "reqLevel": 1,
+        "xp": 35,
+        "yields": [
+          {
+            "id": "sunbloom_herb",
+            "name": "Sunbloom Petal",
+            "icon": "🌼"
+          },
+          {
+            "id": "astral_mineral_dust",
+            "name": "Astral Mineral Flux",
+            "icon": "✨"
+          }
+        ]
+      },
+      {
+        "nodeId": "fish_reef",
+        "nodeName": "Prismatic Coral Reef",
+        "reqLevel": 35,
+        "xp": 75,
+        "yields": [
+          {
+            "id": "raw_prism_salmon",
+            "name": "Raw Prismatic Salmon",
+            "icon": "🍣"
+          },
+          {
+            "id": "iridescent_shell",
+            "name": "Iridescent Nautilus Shell",
+            "icon": "🐚"
+          }
+        ]
+      },
+      {
+        "nodeId": "fish_river",
+        "nodeName": "Sunlit River Run",
+        "reqLevel": 15,
+        "xp": 42,
+        "yields": [
+          {
+            "id": "raw_solar_trout",
+            "name": "Raw Solar Trout",
+            "icon": "🐠"
+          },
+          {
+            "id": "golden_scale",
+            "name": "Radiant Golden Scale",
+            "icon": "✨"
           }
         ]
       }

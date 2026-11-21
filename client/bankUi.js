@@ -98,15 +98,15 @@ export function saveBank(profile, bankItems) {
     if (typeof window.saveProgressionLocal === 'function') {
       window.saveProgressionLocal();
     }
-    if (window.net?.connected) {
-      window.net.send({
-        type: 'sync_bank',
-        bank: bankItems,
-        inventory: profile.inventory || [],
-        equipment: profile.equipment || {},
-      });
-    }
   }
+}
+
+function sendAuthoritativeBankOp(op, payload = {}) {
+  if (typeof window !== 'undefined' && window.net?.connected) {
+    window.net.send({ type: 'bank_op', op, ...payload });
+    return true;
+  }
+  return false;
 }
 
 export function calculateBankValue(profile) {
@@ -133,6 +133,12 @@ export function depositInventoryItemToBank(profile, invIndex, qty = 'all') {
 
   const inBagQty = typeof itemObj === 'object' && itemObj.qty ? itemObj.qty : 1;
   const depositQty = qty === 'all' ? inBagQty : Math.min(inBagQty, Math.max(1, Number(qty) || 1));
+
+  if (sendAuthoritativeBankOp('deposit', { slotIndex: idx, qty })) {
+    safePlay('playShield');
+    safeFCT(`DEPOSITED ${itemDef.name.toUpperCase()} (x${depositQty})`, '#38bdf8');
+    return;
+  }
 
   const bank = getBankItems(profile);
 
@@ -182,6 +188,10 @@ export function depositInventoryItemToBank(profile, invIndex, qty = 'all') {
  */
 export function quickStackBackpackToBank(profile) {
   if (!profile || !Array.isArray(profile.inventory) || profile.inventory.length === 0) return 0;
+  if (sendAuthoritativeBankOp('quick_stack')) {
+    safePlay('playShield');
+    return 1;
+  }
   const bank = getBankItems(profile);
   const bankById = new Map();
   for (let i = 0; i < bank.length; i++) {
@@ -234,6 +244,10 @@ export function quickStackBackpackToBank(profile) {
 
 export function depositAllInventoryToBank(profile) {
   if (!profile || !profile.inventory || profile.inventory.length === 0) return;
+  if (sendAuthoritativeBankOp('deposit_all')) {
+    safePlay('playShield');
+    return;
+  }
   const inv = [...profile.inventory];
   let depositedCount = 0;
 
@@ -278,6 +292,10 @@ export function depositAllInventoryToBank(profile) {
 
 export function depositAllMaterialsToBank(profile) {
   if (!profile || !profile.inventory || profile.inventory.length === 0) return;
+  if (sendAuthoritativeBankOp('deposit_materials')) {
+    safePlay('playShield');
+    return;
+  }
   const inv = [...profile.inventory];
   let depositedCount = 0;
 
@@ -326,6 +344,10 @@ export function depositAllMaterialsToBank(profile) {
 
 export function depositWornGearToBank(profile) {
   if (!profile || !profile.equipment) return;
+  if (sendAuthoritativeBankOp('deposit_worn')) {
+    safePlay('playHurt');
+    return;
+  }
   const eq = { ...profile.equipment };
   const bank = getBankItems(profile);
   const bankCap = getEffectiveBankCapacity(profile);
@@ -374,6 +396,12 @@ export function withdrawBankItemToInventory(profile, bankIndex, qty = 1) {
   const inv = Array.isArray(profile.inventory) ? profile.inventory : [];
   const inBankQty = typeof bankObj === 'object' && bankObj.qty ? bankObj.qty : 1;
   const withdrawQty = qty === 'all' ? inBankQty : Math.min(inBankQty, Math.max(1, Number(qty) || 1));
+
+  if (sendAuthoritativeBankOp('withdraw', { bankIndex: idx, qty })) {
+    safePlay('playPickup');
+    safeFCT(`WITHDREW ${itemDef.name.toUpperCase()} (x${withdrawQty})`, '#4ade80');
+    return;
+  }
 
   let existingInBag = inv.find((it) => (typeof it === 'string' ? it : it.id) === itemId);
   if (!existingInBag && inv.length >= 28) {
@@ -459,6 +487,11 @@ export function sortBankItems(profile, sortKey = currentBankSort) {
     }
     return String(itA.name || '').localeCompare(String(itB.name || ''));
   });
+  if (sendAuthoritativeBankOp('sort', {
+    orderedItemIds: sorted.map((b) => (typeof b === 'string' ? b : b?.id)).filter(Boolean),
+  })) {
+    return sorted;
+  }
   saveBank(profile, sorted);
   return sorted;
 }

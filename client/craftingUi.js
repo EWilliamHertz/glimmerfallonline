@@ -414,10 +414,12 @@ export function renderBountyModal() {
   if (!modal || !body) return;
 
   const bountyState = typeof window.getBountyBoardState === 'function' ? window.getBountyBoardState() : {};
+  const slayerSection = typeof window.getSlayerPanelHtml === 'function' ? window.getSlayerPanelHtml() : '';
   const coinGlyph = '<span class="coin-glyph" aria-label="Gold"></span>';
 
   body.innerHTML = `
     <div style="display:flex; flex-direction:column; gap:10px; font-family:var(--font-body); color:#e2e8f0;">
+      ${slayerSection}
       <div style="background:rgba(15,23,42,0.8); border:1px solid #ca8a04; border-left:4px solid #facc15; border-radius:4px; padding:9px 12px; font-size:9.5px; color:#cbd5e1; line-height:1.45;">
         <b style="color:#fde047;">⚔️ REPEATABLE VANGUARD &amp; ARTISAN CONTRACTS:</b> Accept any contract below, complete its objective in the world, and return to claim Gold, Character XP, Skill XP, and Cosmic Crafting Materials! Completed contracts immediately refresh for another run.
       </div>

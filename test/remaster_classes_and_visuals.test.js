@@ -596,6 +596,42 @@ test('Cloud Shell Preview Realm Switching, Redirect Detection & Clean Glimmer Fo
     assert.equal(st.reachable, false);
     await assert.rejects(() => net.login({ username: 'swagyser', password: 'pw' }), /Cloud Shell Preview auth session expired/);
 
+    // Connected WebSocket RPC server errors surface exact server reason instead of hitting expired Cloud Shell HTTP proxy
+    net.ws = {
+      readyState: 1,
+      send(raw) {
+        const pkt = JSON.parse(raw);
+        setTimeout(() => {
+          const p = net.pendingRpc.get(pkt.reqId);
+          if (p) {
+            clearTimeout(p.timer);
+            net.pendingRpc.delete(pkt.reqId);
+            p.resolve({ type: 'auth_rpc_res', reqId: pkt.reqId, ok: false, error: 'Invalid password for account.' });
+          }
+        }, 5);
+      },
+    };
+    await assert.rejects(() => net.login({ username: 'swagyser', password: 'bad' }), /Invalid password for account/);
+    net.ws = null;
+
+    // Cross-origin Live DB HTTP failover recovers from Cloud Shell HTML / opaqueredirect
+    globalThis.fetch = async (url) => {
+      if (String(url).startsWith('https://ws.glimmerfall.online')) {
+        return {
+          type: 'cors',
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ ok: true, token: 'tok_fb', profile: { id: 'acc_fb', username: 'swagyser', isGuest: false, characters: [] } }),
+        };
+      }
+      return { type: 'opaqueredirect', ok: false, status: 0 };
+    };
+    const recoveredProf = await net.login({ username: 'swagyser', password: 'pw' });
+    assert.equal(recoveredProf.username, 'swagyser');
+    assert.equal(net.getServerBase(), 'https://ws.glimmerfall.online');
+    net.setServerBase('');
+
     // Frontpage formats float-drift solarCharge (28.900000000000005 -> 28.9) cleanly
     const { FrontpageController } = await import('../client/frontpage.js');
     const fp = new FrontpageController({

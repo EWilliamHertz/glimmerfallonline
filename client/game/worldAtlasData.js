@@ -523,7 +523,7 @@
       gridPos: { col: 1, row: 7 },
       neighbors: {
         north: 'STARLIGHT_GROVE',
-        south: null,
+        south: 'FROSTSPIRE_GLACIER',
         west: 'SOLAR_HIGHLANDS',
         east: 'CORAL_COAST'
       },
@@ -551,7 +551,7 @@
       desc: 'A shimmering subterranean cavern network beneath Sanctuary Gardens and Sunken Oasis, rich with Copper, Star-Iron, and Mithril seams, glowing Crystal Geodes, and subterranean angling pools.',
       gridPos: { col: 2, row: 7 },
       neighbors: {
-        north: null,
+        north: 'FROSTSPIRE_GLACIER',
         south: 'SANCTUARY_HUB',
         west: 'SUNKEN_OASIS',
         east: null
@@ -568,6 +568,36 @@
       ],
       objectives: 'Mine Copper, Iron & Mithril veins, tap Crystal Geodes, angle subterranean trout, defeat Crystallis.',
       travel: 'Enter the CrystalEcho Cavern Archway in South Sanctuary Gardens or walk East from Sunken Oasis.'
+    },
+    FROSTSPIRE_GLACIER: {
+      id: 'FROSTSPIRE_GLACIER',
+      name: 'Frostspire Glacier & Aurora Outlook',
+      sub: 'Aurora Leyline Peaks, Mithril Ridges & Alpine TCG Camp',
+      level: 'Lv. 22 – 38',
+      dangerTag: 'AURORA GLACIER',
+      color: '#7dd3fc',
+      borderColor: '#38bdf8',
+      faction: '❄️ Alpine Expedition Frontier (Open Realm)',
+      desc: 'A high-altitude crystalline glacier bathed in shimmering aurora light, featuring rich Mithril deposits, an unfrozen Thermal Healing Spring, Alpine Supply Sleds, Aurora Crystal Obelisks, and the sovereign frost spirit Borealis.',
+      gridPos: { col: 0, row: 7 },
+      neighbors: {
+        north: 'MOONWELL_SANCTUM',
+        south: null,
+        west: 'SOLAR_HIGHLANDS',
+        east: 'LUMINOUS_CAVERN'
+      },
+      landmarks: [
+        { x: 50, y: 24, icon: '❄️', name: 'Borealis, Crown of Eternal Rime', sub: '★ Lv.34 Glacier Boss', desc: 'Ancient alpine spirit dropping the Chronos Singularity Core.' },
+        { x: 50, y: 66, icon: '🔮', name: 'Aurora Crystal Obelisk & Thermal Spring', sub: 'Restorative Leyline [E]', desc: 'Touch the crystal obelisk for 90s Frostward Blessing & +40 Glimmer.' },
+        { x: 30, y: 50, icon: '🛷', name: 'Glacial Expedition Camp & Supply Sleds', sub: '1v1 TCG Table & Alpine Loot', desc: 'Challenge Skald Thrym to alpine 1v1 TCG duels and loot supply sleds.' }
+      ],
+      entities: [
+        { name: 'Borealis, Crown of Eternal Rime', type: 'Glacier Boss', hp: '1,080 HP', desc: 'Drops high-tier Mithril loot & Chronos Singularity Core.' },
+        { name: 'Frostfang Tundra-Stalkers & Glacier Sentinels', type: 'Alpine Guardians', hp: '240 – 295 HP', desc: 'High-XP endgame beasts patrolling Mithril veins.' },
+        { name: 'Glaciologist Vael & Skald Thrym', type: 'Expedition Camp', hp: 'Immortal', desc: 'Offer alpine bounties, Hearth cooking & 1v1 TCG challenges.' }
+      ],
+      objectives: 'Mine 4 Mithril Seams, harvest Ice-Melt pools, tap Aurora Crystal Obelisks, duel Skald Thrym, conquer Borealis.',
+      travel: 'Walk South from Silvermist Moonwell or North from CrystalEcho Caverns (or warp via Activity Finder).'
     }
   };
 

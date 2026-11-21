@@ -2,6 +2,7 @@ import { CLASSES_CATALOG } from "./factionsAndClasses.js";
 import { EQUIPMENT_CATALOG, getActiveSetBonuses, getActiveRuneword } from "./setsAndRunewords.js";
 import { PROFESSIONS_CATALOG } from "./craftingAndSkilling.js";
 import { computeFamiliarBonuses } from "./familiarsAndMail.js";
+import { normalizeSlayerState, normalizeClueState } from "./osrsLoopsCatalog.js";
 
 export const TRIAL_MAX_LEVEL = 10;
 export const TRIAL_MAX_PROFESSION_LEVEL = 30;
@@ -272,6 +273,9 @@ export function createDefaultProgression() {
     tempering: {},
     familiars: { unlockedIds: [], activeId: null },
     achievements: { completed: {}, unlockedTitles: [] },
+    slayer: normalizeSlayerState(),
+    clue: normalizeClueState(),
+    collectionLog: {},
     equippedTitle: null,
   };
 }

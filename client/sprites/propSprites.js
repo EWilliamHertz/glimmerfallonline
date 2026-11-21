@@ -1831,4 +1831,44 @@ export function buildPropSprites(sprites) {
     px(ctx, 9, 11, '#ffffff');
     sprites.props.covenantBannerStand.push(addPixelOutline(c));
   }
+
+  // Aurora Crystal Obelisk (22x34, 2 frames — Glacial Leyline Shrine)
+  sprites.props.auroraCrystalObelisk = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(22, 34);
+    rect(ctx, 4, 27, 14, 4, '#334155');
+    rect(ctx, 5, 25, 12, 3, '#64748b');
+    // Glacial spire crystal
+    rect(ctx, 7, 10, 8, 16, '#0284c7');
+    rect(ctx, 8, 6, 6, 19, '#38bdf8');
+    rect(ctx, 9, 4, 4, 20, '#bae6fd');
+    rect(ctx, 10, 2, 2, 18, '#ffffff');
+    // Pulsing borealis rune band
+    rect(ctx, 8, 14 + f, 6, 2, f === 0 ? '#a855f7' : '#5eead4');
+    px(ctx, 10, 11 - f, '#f0abfc');
+    sprites.props.auroraCrystalObelisk.push(addPixelOutline(c));
+  }
+
+  // Glacial Expedition Supply Sled (28x22, 2 frames)
+  sprites.props.glacialSupplySled = [];
+  for (let f = 0; f < 2; f++) {
+    const { c, ctx } = makeCanvas(28, 22);
+    // Curved steel-shod ski runners
+    rect(ctx, 2, 17, 23, 2, '#94a3b8');
+    px(ctx, 1, 15, '#cbd5e1');
+    px(ctx, 2, 16, '#cbd5e1');
+    rect(ctx, 6, 14, 2, 3, '#78350f');
+    rect(ctx, 19, 14, 2, 3, '#78350f');
+    // Timber deck & bundled cargo crates
+    rect(ctx, 4, 12, 20, 3, '#92400e');
+    rect(ctx, 6, 6, 9, 6, '#b45309');
+    rect(ctx, 7, 7, 7, 4, '#d97706');
+    rect(ctx, 16, 8, 6, 4, '#0369a1');
+    // Hanging warm expedition lantern
+    rect(ctx, 22, 7, 3, 5, '#475569');
+    px(ctx, 23, 9, f === 0 ? '#fde047' : '#fb923c');
+    // Frost rim accents
+    rect(ctx, 6, 6, 9, 1, '#e0f2fe');
+    sprites.props.glacialSupplySled.push(addPixelOutline(c));
+  }
 }

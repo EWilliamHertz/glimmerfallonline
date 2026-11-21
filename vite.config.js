@@ -12,6 +12,16 @@ function autoStartMmoBackend() {
     configureServer(server) {
       stopping = false;
 
+      server.middlewares.use((req, _res, next) => {
+        const cleanUrl = (req.url || '').split('?')[0];
+        if (cleanUrl === '/newcards' || cleanUrl === '/newcards/') {
+          req.url = '/newcards/index.html';
+        } else if (cleanUrl === '/admin' || cleanUrl === '/admin/') {
+          req.url = '/admin/index.html';
+        }
+        next();
+      });
+
       const ensureBackend = () => {
         if (stopping) return;
         const probe = net.createConnection({ host: '127.0.0.1', port: 3001 });

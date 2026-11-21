@@ -58,6 +58,20 @@ export const RECOMMENDED_ACTIVITIES = [
     color: '#f59e0b',
   },
   {
+    roomType: ROOM_TYPES.INTERIOR_TCG_PAVILION,
+    title: '🃏 Grand GlimmerFall TCG Pavilion & Dueling Hall (All Levels)',
+    desc: 'Tournament hall in Northeast Sanctuary Haven with 3 interactive 1v1 TCG Duel Tables, Lucky Draw Totem & Card Lore Compendiums.',
+    badge: 'TCG TOURNAMENT HALL',
+    color: '#38bdf8',
+  },
+  {
+    roomType: ROOM_TYPES.FROSTSPIRE_GLACIER,
+    title: '❄️ Frostspire Glacier & Aurora Outlook (Lv. 22–38)',
+    desc: 'Arctic frontier rich with Mithril veins, Ice-Melt fishing pools, Aurora Crystal Obelisks, Supply Sleds & Boss Borealis.',
+    badge: 'ALPINE ENDGAME & MITHRIL',
+    color: '#7dd3fc',
+  },
+  {
     roomType: ROOM_TYPES.MOONWELL_SANCTUM,
     title: '🌙 Silvermist Moonwell & Druid Sanctum (Lv. 20–38)',
     desc: 'Sacred moonlit grove with high-level botanical nodes, hidden treasure coffers, and restorative Moonwell waters.',
@@ -112,43 +126,82 @@ export function setupWorldEventsAndHeroShare({
     }
   } catch (_) {}
 
-  // 2. Mount 15-Minute Dynamic World Event HUD Pill
+  // 2. Mount 15-Minute Dynamic World Event HUD Banner directly above the XP bar
   let lastBucket = -1;
+  function wireEventBannerEvents(pill) {
+    if (!pill || pill.dataset.weWired === '1') return;
+    pill.dataset.weWired = '1';
+    const stopBubble = (e) => {
+      e.stopPropagation();
+    };
+    pill.addEventListener('mousedown', stopBubble);
+    pill.addEventListener('pointerdown', stopBubble);
+    pill.addEventListener('touchstart', stopBubble, { passive: true });
+    const goBtn = pill.querySelector('#gf-we-go-btn');
+    if (goBtn) {
+      goBtn.addEventListener('mousedown', stopBubble);
+      goBtn.addEventListener('pointerdown', stopBubble);
+      goBtn.addEventListener('touchstart', stopBubble, { passive: true });
+      goBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const ev = getActiveWorldEvent();
+        if (getCurrentRoomType() === ev.primaryRoom) {
+          openActivityFinderModal();
+        } else {
+          onTeleportToEvent(ev);
+        }
+      });
+    }
+    pill.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const ev = getActiveWorldEvent();
+      if (getCurrentRoomType() === ev.primaryRoom) {
+        openActivityFinderModal();
+      } else {
+        onTeleportToEvent(ev);
+      }
+    });
+  }
+
   function ensureEventBannerDom() {
     if (typeof document === 'undefined') return null;
     let el = document.getElementById('dynamic-world-event-pill');
-    if (el) return el;
-    const hud = document.getElementById('hud') || document.body;
+    if (el) {
+      if (!el.querySelector('#gf-we-go-btn')) {
+        el.innerHTML = `
+          <span id="gf-we-title"></span>
+          <span id="gf-we-room"></span>
+          <span id="gf-we-timer"></span>
+          <button type="button" id="gf-we-go-btn">⚡ GO ▸</button>
+        `;
+      }
+      wireEventBannerEvents(el);
+      return el;
+    }
+    const dock = document.getElementById('bottom-bar-dock');
+    const xpWrap = document.getElementById('xp-bar-wrap');
+    const host = dock || document.getElementById('hud') || document.body;
     el = document.createElement('div');
     el.id = 'dynamic-world-event-pill';
-    el.style.cssText = [
-      'position:fixed',
-      'top:44px',
-      'left:50%',
-      'transform:translateX(-50%)',
-      'z-index:180',
-      'background:rgba(9,13,24,0.9)',
-      'border:1.5px solid #facc15',
-      'border-radius:99px',
-      'padding:4px 12px',
-      'display:flex',
-      'align-items:center',
-      'gap:8px',
-      'font-size:10.5px',
-      'color:#f8fafc',
-      'cursor:pointer',
-      'box-shadow:0 4px 16px rgba(0,0,0,0.75)',
-      'touch-action:manipulation',
-      'white-space:nowrap',
-      'max-width:94vw',
-      'overflow:hidden',
-    ].join(';');
-    el.title = 'Click to travel to the active Dynamic World Event zone!';
-    el.addEventListener('click', () => {
-      const ev = getActiveWorldEvent();
-      onTeleportToEvent(ev);
-    });
-    hud.appendChild(el);
+    el.className = 'world-event-xp-banner';
+    if (!dock) {
+      el.style.cssText = 'position:fixed; bottom:86px; left:50%; transform:translateX(-50%); z-index:180;';
+    }
+    el.title = 'Click GO to travel to the active Dynamic World Event zone!';
+    el.innerHTML = `
+      <span id="gf-we-title"></span>
+      <span id="gf-we-room"></span>
+      <span id="gf-we-timer"></span>
+      <button type="button" id="gf-we-go-btn">⚡ GO ▸</button>
+    `;
+    if (dock && xpWrap && xpWrap.parentElement === dock) {
+      dock.insertBefore(el, xpWrap);
+    } else {
+      host.appendChild(el);
+    }
+    wireEventBannerEvents(el);
     return el;
   }
 
@@ -156,16 +209,36 @@ export function setupWorldEventsAndHeroShare({
     const ev = getActiveWorldEvent();
     const pill = ensureEventBannerDom();
     if (!pill) return;
-    const inZone = ev.rooms.includes(getCurrentRoomType());
+    const curRoom = getCurrentRoomType();
+    const inPrimary = curRoom === ev.primaryRoom;
+    const inBonusRoom = ev.rooms.includes(curRoom);
     pill.style.borderColor = ev.color;
-    pill.innerHTML = `
-      <span style="font-weight:900; color:${ev.color};">${ev.shortTitle}</span>
-      <span style="color:#cbd5e1;">${ev.primaryRoomLabel}</span>
-      <span style="background:rgba(255,255,255,0.1); padding:1px 6px; border-radius:99px; font-weight:700; color:#fde047;">⏳ ${ev.countdownText}</span>
-      <span style="color:${inZone ? '#4ade80' : '#38bdf8'}; font-weight:800; font-size:9.5px;">
-        ${inZone ? '✓ ACTIVE HERE (+35% XP)' : '⚡ GO ▸'}
-      </span>
-    `;
+    const titleEl = pill.querySelector('#gf-we-title');
+    const roomEl = pill.querySelector('#gf-we-room');
+    const timerEl = pill.querySelector('#gf-we-timer');
+    const goBtn = pill.querySelector('#gf-we-go-btn');
+    if (titleEl) {
+      titleEl.textContent = ev.shortTitle;
+      titleEl.style.color = ev.color;
+    }
+    if (roomEl) {
+      roomEl.textContent = ev.primaryRoomLabel;
+    }
+    if (timerEl) {
+      timerEl.textContent = `⏳ ${ev.countdownText}`;
+    }
+    if (goBtn) {
+      if (inPrimary) {
+        goBtn.textContent = '✓ ACTIVE (+35% XP)';
+        goBtn.classList.add('in-zone');
+      } else if (inBonusRoom) {
+        goBtn.textContent = '⚡ MAIN HUB ▸';
+        goBtn.classList.remove('in-zone');
+      } else {
+        goBtn.textContent = '⚡ GO ▸';
+        goBtn.classList.remove('in-zone');
+      }
+    }
     if (lastBucket !== -1 && lastBucket !== ev.bucket) {
       onLogMessage(`📢 [World Event] ${ev.title} has begun in ${ev.primaryRoomLabel}! (${ev.subtitle.trim()})`, 'log-solari');
     }
@@ -466,13 +539,20 @@ export function setupWorldEventsAndHeroShare({
   }
 
   if (typeof window !== 'undefined') {
-    window.openHeroShareCard = openHeroShareModal;
+    window.openHeroShareCard = () => {
+      if (typeof window.openMenuHub === 'function' && document.getElementById('adventure-hub-modal')) {
+        window.openMenuHub('share');
+      } else {
+        openHeroShareModal();
+      }
+    };
     window.openActivityFinder = openActivityFinderModal;
   }
 
   return {
     openHeroShareModal,
     openActivityFinderModal,
+    drawHeroCardCanvas,
     tickWorldEventHud,
   };
 }

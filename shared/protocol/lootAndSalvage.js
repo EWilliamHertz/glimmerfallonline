@@ -178,6 +178,15 @@ export function rollMobLootDrops({
     }
   }
 
+  // 5. Treasure Trails Sealed Clue Scrolls (8% Mobs, 25% Elites, 45% Bosses)
+  const clueChance = isBoss ? 0.45 : isElite ? 0.25 : 0.08;
+  if (Math.random() < clueChance) {
+    const clueId = isBoss || mobLv >= 28 ? 'cluescroll_hard' : isElite || mobLv >= 14 ? 'cluescroll_medium' : 'cluescroll_easy';
+    if (EQUIPMENT_CATALOG[clueId]) {
+      drops.push({ kind: 'item', itemId: clueId, qty: 1, ttl: 75 });
+    }
+  }
+
   return drops;
 }
 

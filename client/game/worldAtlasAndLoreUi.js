@@ -6,6 +6,7 @@ import { WORLD_ATLAS_REGIONS } from "./worldAtlasData.js";
 import { QUEST_CATALOG } from "./questCatalogData.js";
 import { ROOM_TYPES, EQUIPMENT_CATALOG, CHAMPION_TITLES, ACHIEVEMENTS_CATALOG, isRoomUnlockedForEdition } from "../../shared/protocol.js";
 import { UNIVERSAL_SEARCH_ZONES, searchMapZones } from "../../landing/src/data/universalSearchData.js";
+import { renderCollectionLogView } from "./osrsLoopsUi.js";
 
 export function setupWorldAtlasAndLoreUi({
   getQuestState,
@@ -560,7 +561,9 @@ export function setupWorldAtlasAndLoreUi({
       'IRONWOOD_TIMBERLANDS',
       'CORAL_COAST',
       'STARLIGHT_GROVE',
-      'MOONWELL_SANCTUM'
+      'MOONWELL_SANCTUM',
+      'LUMINOUS_CAVERN',
+      'FROSTSPIRE_GLACIER'
     ];
 
     return `
@@ -906,14 +909,18 @@ export function setupWorldAtlasAndLoreUi({
     const tabQuestsBtn = document.getElementById('lore-tab-quests');
     const tabMapBtn = document.getElementById('lore-tab-map');
     const tabChronicleBtn = document.getElementById('lore-tab-chronicle');
+    const tabCollectionBtn = document.getElementById('lore-tab-collection');
     if (tabQuestsBtn) tabQuestsBtn.className = `st-tab-btn ${currentLoreTab === 'quests' ? 'active' : ''}`;
     if (tabMapBtn) tabMapBtn.className = `st-tab-btn ${currentLoreTab === 'map' ? 'active' : ''}`;
     if (tabChronicleBtn) tabChronicleBtn.className = `st-tab-btn ${currentLoreTab === 'chronicle' ? 'active' : ''}`;
+    if (tabCollectionBtn) tabCollectionBtn.className = `st-tab-btn ${currentLoreTab === 'collection' ? 'active' : ''}`;
 
     if (currentLoreTab === 'quests') {
       renderQuestLogView(body);
     } else if (currentLoreTab === 'map') {
       renderWorldAtlasView(body);
+    } else if (currentLoreTab === 'collection') {
+      renderCollectionLogView(body, (typeof window !== 'undefined' && window.prog) || {});
     } else {
       renderChronicleView(body);
     }

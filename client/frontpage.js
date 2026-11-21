@@ -439,6 +439,7 @@ export class FrontpageController {
           if (prof) this.syncFromProfile(prof);
         }).catch(() => {});
       }
+      this.refreshRealmStatus();
       const mpChars = this.net?.profile?.characters || [];
       const active = mpChars.find((c) => c.id === this.net?.profile?.activeCharacterId) || mpChars[0];
       if (active) this.selectedCharacterId = active.id;
@@ -1818,23 +1819,27 @@ export class FrontpageController {
     const rawKey = typeof window !== 'undefined' ? window.prompt('Enter your GlimmerFall Founder Serial Key (GF-XXXX-XXXX-XXXX):') : '';
     if (!rawKey) return;
     try {
-      const token = this.net?.token || localStorage.getItem('glimmerfall_id_token') || '';
-      const res = await fetch('/api/account/redeem-key', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'X-GlimmerFall-Token': token } : {}),
-        },
-        body: JSON.stringify({
-          key: rawKey.trim(),
-          displayName: this.net?.profile?.displayName || this.getSelectedCharacter()?.name || 'Adventurer',
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        this.authMessage = `⚠️ ${data.error || 'Could not redeem serial key.'}`;
-        this.render();
-        return;
+      const payload = {
+        key: rawKey.trim(),
+        displayName: this.net?.profile?.displayName || this.getSelectedCharacter()?.name || 'Adventurer',
+      };
+      let data;
+      if (this.net?.apiCall) {
+        data = await this.net.apiCall('/api/account/redeem-key', 'POST', payload);
+      } else {
+        const token = this.net?.token || localStorage.getItem('glimmerfall_id_token') || '';
+        const res = await fetch(`${this.net?.getServerBase?.() || ''}/api/account/redeem-key`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'X-GlimmerFall-Token': token } : {}),
+          },
+          body: JSON.stringify(payload),
+        });
+        data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || 'Could not redeem serial key.');
+        }
       }
       localStorage.setItem('gf_founder_serial_key', data.key?.key || rawKey.trim().toUpperCase());
       if (data.profile && this.net) {

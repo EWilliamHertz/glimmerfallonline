@@ -3,128 +3,12 @@
 // Interactive Stall Merchants with Lore Conversations & Direct Store Purchasing
 // ==========================================
 
-import { EQUIPMENT_CATALOG } from '../shared/protocol.js';
+import { EQUIPMENT_CATALOG, MERCHANT_CATALOGS, getMerchantSellPrice } from '../shared/protocol.js';
 import { getItemIconDataUrl } from './itemSprites.js';
-import { getPlayerGold, deductPlayerGold, addItemToBackpack, getRarityColor } from './equipmentUi.js';
+import { getPlayerGold, deductPlayerGold, addPlayerGold, addItemToBackpack, getRarityColor } from './equipmentUi.js';
 
+export { MERCHANT_CATALOGS };
 let currentActiveMerchantId = 'merchant_apothecary';
-
-export const MERCHANT_CATALOGS = {
-  merchant_apothecary: {
-    id: 'merchant_apothecary',
-    name: 'Alchemist Faye',
-    title: 'Apothecary & Potions Merchant',
-    icon: '⚖️',
-    spriteKey: 'merchantApothecaryNpc',
-    badgeColor: '#38bdf8',
-    greeting: 'Welcome to my Apothecary stall! Here I distill mountain roots and concentrated aether into restorative elixirs.',
-    loreIntro: 'Vitality salves mend flesh wounds and heal HP, while Leyline Glimmer Draughts restore ability charge. You can drink them directly from your 28-slot backpack during battle.',
-    stationId: 'aether_crucible',
-    stationHint: 'Train Rite-Binding at the bubbling Aetherial Crucible right beside my apothecary stall using herbs + essences!',
-    wares: [
-      { itemId: 'sunbloom_herb', price: 7, note: 'Fresh golden herb for Rite-Binding at the Aetherial Crucible.' },
-      { itemId: 'astral_mineral_dust', price: 12, note: 'Leyline mineral flux for draughts & Star-Iron smelting.' },
-      { itemId: 'minor_healing_salve', price: 10, note: 'Mends wounds immediately. Restores +35 HP on use.' },
-      { itemId: 'glimmer_draught', price: 12, note: 'Effervescent tonic. Restores +40 Glimmer Charge.' },
-      { itemId: 'major_vitality_elixir', price: 25, note: 'Concentrated brew. Restores +80 HP on use.' },
-    ],
-  },
-  merchant_provisions: {
-    id: 'merchant_provisions',
-    name: 'Farmer Bran',
-    title: 'Provisions & Rations Merchant',
-    icon: '🍎',
-    spriteKey: 'merchantProvisionsNpc',
-    badgeColor: '#4ade80',
-    greeting: 'Hail and well met! An adventurer cannot venture into the ruins on an empty stomach. Stock up on hearty sustenance!',
-    loreIntro: 'Eating baked bread loaves, fresh orchard apples, or smoked trail rations recovers your Health between skirmishes. Click any food in your backpack to consume it.',
-    stationId: 'celestial_loom',
-    stationHint: 'Train Glimmerweaving at the Celestial Loom & Hearth right beside my stall using Starlight Flax, Shadow-Silk & orchard fruit!',
-    wares: [
-      { itemId: 'starlight_flax', price: 7, note: 'Silky grove fiber spun into cloaks & tunics on the Celestial Loom.' },
-      { itemId: 'sweet_apple', price: 3, note: 'Crisp orchard fruit. Restores +15 HP or bakes into pies & rations.' },
-      { itemId: 'fresh_crusty_bread', price: 6, note: 'Warm crusty loaf. Restores +25 HP on use.' },
-      { itemId: 'field_rations', price: 10, note: 'Smoked jerky and trail fruits. Restores +35 HP on use.' },
-    ],
-  },
-  merchant_smith: {
-    id: 'merchant_smith',
-    name: 'Blacksmith Torvin',
-    title: 'Smithing & Ore Wares Merchant',
-    icon: '⚒️',
-    spriteKey: 'merchantSmithNpc',
-    badgeColor: '#fb923c',
-    greeting: 'Ho there! Blacksmith Torvin at your service. Reliable metalwork is what separates champions from fallen recruits!',
-    loreIntro: 'I supply raw ores and beginner blades. To train Relic-Forging, smelt ores + cosmic minerals and hammer gear at the Cosmic Star-Anvil right beside my forge!',
-    stationId: 'cosmic_anvil',
-    stationHint: 'Train Relic-Forging at the glowing Cosmic Star-Anvil right beside my stall — combine Ores + Minerals into bars, blades & gems!',
-    wares: [
-      { itemId: 'sun_copper_ore', price: 6, note: 'Warm copper ore — alloy with Star-Tin at the Cosmic Star-Anvil.' },
-      { itemId: 'star_tin_mineral', price: 6, note: 'Crystalline star-tin mineral for smelting Bronze Bars.' },
-      { itemId: 'iron_ore', price: 8, note: 'Quarried iron ore rock ready for Star-Iron & Steel smelting.' },
-      { itemId: 'iron_broadsword', price: 28, note: 'Forged combat blade (+2 Power).' },
-      { itemId: 'iron_heater_shield', price: 24, note: 'Reinforced defense shield (+2 Bastion).' },
-    ],
-  },
-  merchant_relics: {
-    id: 'merchant_relics',
-    name: 'Relic-Seeker Moira',
-    title: 'Aether Curios & Relics Merchant',
-    icon: '✨',
-    spriteKey: 'merchantRelicsNpc',
-    badgeColor: '#c084fc',
-    greeting: 'Greetings, seeker. I unearth remnants of the First Nexus across the continental ruins. What curios do you seek?',
-    loreIntro: 'First Nexus relic fragments, raw glimmer shards, and temporal chrono-gems pulse with leyline power and command great value in the AetherSwap Market.',
-    wares: [
-      { itemId: 'ancient_relic_fragment', price: 18, note: 'Carved First Nexus keystone shard.' },
-      { itemId: 'glimmer_shard', price: 22, note: 'Raw continental aether crystal valued by traders.' },
-      { itemId: 'chrono_gem', price: 32, note: 'Temporal jewel channeling chronomantic resonance.' },
-      { itemId: 'apprentice_focus_orb', price: 28, note: 'Arcane off-hand orb (+2 Resonance).' },
-      { itemId: 'echo_print_ember_fox', price: 65, note: 'Solari Construct Blueprint • Compile Dawnkit Ember-Fox at Construct Cradle.' },
-      { itemId: 'echo_print_ankyloling', price: 70, note: 'Terra Construct Blueprint • Compile Mossback Ankyloling at Construct Cradle.' },
-      { itemId: 'echo_print_wisp_imp', price: 85, note: 'Umbri Construct Blueprint • Compile Graveglass Wisp-Imp at Construct Cradle.' },
-      { itemId: 'echo_print_prism_sprite', price: 110, note: 'Aether Construct Blueprint • Compile Chrono-Prism Sprite at Construct Cradle.' },
-    ],
-  },
-  merchant_tailor: {
-    id: 'merchant_tailor',
-    name: 'Shadow Stitcher Silvan',
-    title: 'Glimmerweaving & Silk Merchant',
-    icon: '🧵',
-    spriteKey: 'shadowBrokerNpc',
-    badgeColor: '#a855f7',
-    greeting: 'Step into the twilight, wanderer. In the Umbri Undercity, we spin silence and void-threads into garments that turn blades.',
-    loreIntro: 'I stock starlight flax, dark umbral coal, and raw fibers. You can weave protective travel mantles, cowls, and mystic vestments right at the Celestial Loom in our market district.',
-    stationId: 'celestial_loom',
-    stationHint: 'Train Glimmerweaving at the Celestial Loom right beside my stall in the Umbri Undercity using botanical fibers and shadow silks!',
-    wares: [
-      { itemId: 'starlight_flax', price: 6, note: 'Luminescent fiber ready for spinning into fine yarn.' },
-      { itemId: 'umbral_coal', price: 8, note: 'Subterranean void fuel for forging dark alloys and dyes.' },
-      { itemId: 'scout_leather_tunic', price: 26, note: 'Lightweight scouting tunic (+2 Bastion, +1 Tempo).' },
-      { itemId: 'cloth_cape', price: 22, note: 'Flowing traveler mantle (+1 Bastion).' },
-    ],
-  },
-  merchant_tavern: {
-    id: 'merchant_tavern',
-    name: 'Innkeeper Garrick',
-    title: 'Hearthstone Innkeeper & Brewmaster',
-    icon: '🍺',
-    spriteKey: 'merchantProvisionsNpc',
-    badgeColor: '#fbbf24',
-    greeting: 'Pull up a stool by the hearthfire, traveler! Nothing beats crusty loaves, sweet orchard apples, and restorative tonics after an expedition.',
-    loreIntro: 'My tavern cellar is stocked with hot rations for health and frothy glimmer draughts for rapid ability recovery.',
-    stationId: 'campfire_hearth',
-    stationHint: 'Cook freshly caught Coral Coast fish & savory traveler feasts right on the tavern hearth!',
-    wares: [
-      { itemId: 'sweet_apple', price: 3, note: 'Crisp orchard fruit (+15 HP).' },
-      { itemId: 'fresh_crusty_bread', price: 6, note: 'Oven-warm loaf straight from the brick hearth (+25 HP).' },
-      { itemId: 'field_rations', price: 10, note: 'Hearty smoked traveler feast (+35 HP).' },
-      { itemId: 'minor_healing_salve', price: 10, note: 'Soothing herbal tonic (+35 HP).' },
-      { itemId: 'glimmer_draught', price: 12, note: 'Sparkling golden brew (+40 Glimmer Charge).' },
-      { itemId: 'major_vitality_elixir', price: 25, note: 'Reserve vintage elixir (+80 HP).' },
-    ],
-  },
-};
 
 export function getMerchantDialoguePages(merchantId) {
   const cat = MERCHANT_CATALOGS[merchantId] || MERCHANT_CATALOGS.merchant_apothecary;
@@ -289,6 +173,32 @@ export function renderMerchantModal(merchantId = null) {
         }).join('')}
       </div>
 
+      <!-- Sell Backpack Items Strip -->
+      <div style="background:#080e1d; border:1px solid #1e293b; border-radius:4px; padding:8px 10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-size:10px; font-weight:800; color:#fbbf24; font-family:var(--font-header);">🪙 SELL BACKPACK ITEMS (40% VALUE)</span>
+          <span style="font-size:8.5px; color:#94a3b8;">Click to sell 1 or All from your bag</span>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; max-height:110px; overflow-y:auto;">
+          ${inv.map((entry, idx) => {
+            const id = typeof entry === 'string' ? entry : entry?.id;
+            const qty = typeof entry === 'object' && entry?.qty ? entry.qty : 1;
+            const sellVal = getMerchantSellPrice(id);
+            const it = id ? EQUIPMENT_CATALOG[id] : null;
+            if (!it || sellVal <= 0) return '';
+            const col = getRarityColor(it.rarity);
+            return `
+              <div style="display:inline-flex; align-items:center; gap:5px; background:#0d1527; border:1px solid ${col}66; border-radius:4px; padding:3px 6px;">
+                <img class="pixel-art" src="${getItemIconDataUrl(id, 18)}" width="18" height="18" style="image-rendering:pixelated;" alt="${it.name}" />
+                <span style="font-size:9px; color:${col}; font-weight:700;">${it.name}${qty > 1 ? ` ×${qty}` : ''}</span>
+                <button type="button" class="id-mini-btn" style="font-size:8px; padding:2px 5px; border-color:#ca8a04; color:#fde047;" onclick="window.sellMerchantItem('${cat.id}', ${idx}, 1)">+${sellVal}g</button>
+                ${qty > 1 ? `<button type="button" class="id-mini-btn" style="font-size:8px; padding:2px 5px; border-color:#4ade80; color:#86efac;" onclick="window.sellMerchantItem('${cat.id}', ${idx}, ${qty})">All (+${sellVal * qty}g)</button>` : ''}
+              </div>
+            `;
+          }).join('') || '<span style="font-size:9px; color:#64748b;">No sellable items in backpack.</span>'}
+        </div>
+      </div>
+
       <!-- Footer Info -->
       <div style="font-size:8.5px; color:#94a3b8; text-align:center; margin-top:4px; border-top:1px solid #1e293b; padding-top:6px;">
         💡 Purchased items are placed directly into your 28-slot backpack [B] / [I]. Consumables heal HP or restore charge when left-clicked!
@@ -336,14 +246,13 @@ export function buyMerchantItem(merchantId, itemId, qty = 1) {
     window.saveProgressionLocal();
   }
 
-  // Sync to server if connected
+  // Sync to server if connected (server resolves canonical merchant price authoritatively)
   if (window.net?.connected) {
     window.net.send({
       type: 'buy_merchant_item',
       merchantId: cat.id,
       itemId,
       qty,
-      unitPrice: ware.price,
     });
   }
 
@@ -373,6 +282,53 @@ export function buyMerchantItem(merchantId, itemId, qty = 1) {
   renderMerchantModal(cat.id);
 }
 
+export function sellMerchantItem(merchantId, slotIndex, qty = 1) {
+  const cat = MERCHANT_CATALOGS[merchantId] || MERCHANT_CATALOGS.merchant_apothecary;
+  const profile = window.localProfile;
+  if (!profile || !Array.isArray(profile.inventory)) return;
+  const idx = Number(slotIndex);
+  if (idx < 0 || idx >= profile.inventory.length) return;
+
+  const entry = profile.inventory[idx];
+  const itemId = typeof entry === 'string' ? entry : entry?.id;
+  const item = itemId ? EQUIPMENT_CATALOG[itemId] : null;
+  const unitVal = getMerchantSellPrice(itemId);
+  if (!item || unitVal <= 0) return;
+
+  const inSlotQty = typeof entry === 'object' && entry?.qty ? entry.qty : 1;
+  const sellQty = Math.max(1, Math.min(inSlotQty, Number(qty) || 1));
+  const totalGold = unitVal * sellQty;
+
+  if (window.net?.connected) {
+    window.net.send({
+      type: 'sell_merchant_item',
+      merchantId: cat.id,
+      slotIndex: idx,
+      itemId,
+      qty: sellQty,
+    });
+    return;
+  }
+
+  if (sellQty >= inSlotQty) {
+    profile.inventory.splice(idx, 1);
+  } else if (typeof entry === 'object') {
+    entry.qty -= sellQty;
+  }
+  addPlayerGold(profile, totalGold);
+  if (typeof window.saveProgressionLocal === 'function') window.saveProgressionLocal();
+  if (window.audio?.playPickup) window.audio.playPickup();
+  if (typeof window.spawnFCT === 'function' && window.player) {
+    window.spawnFCT(window.player.x, window.player.y - 14, `+${totalGold} GOLD (${sellQty}x ${item.name.toUpperCase()})`, '#fde047', true);
+  }
+  if (typeof window.logMessage === 'function') {
+    window.logMessage(`🪙 Sold ${sellQty}x ${item.name} to ${cat.name} for ${totalGold} Solar Gold.`, 'log-gain', 'combat');
+  }
+  if (typeof window.updatePlayerUI === 'function') window.updatePlayerUI();
+  if (typeof window.renderInventoryModal === 'function') window.renderInventoryModal({ profile });
+  renderMerchantModal(cat.id);
+}
+
 export function openMerchantShop(merchantId) {
   currentActiveMerchantId = merchantId || 'merchant_apothecary';
   renderMerchantModal(currentActiveMerchantId);
@@ -385,5 +341,6 @@ export function openMerchantShop(merchantId) {
 if (typeof window !== 'undefined') {
   window.openMerchantShop = openMerchantShop;
   window.buyMerchantItem = buyMerchantItem;
+  window.sellMerchantItem = sellMerchantItem;
   window.renderMerchantModal = renderMerchantModal;
 }

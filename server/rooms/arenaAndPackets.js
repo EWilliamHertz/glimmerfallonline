@@ -66,10 +66,128 @@ import {
   getSalvageYield,
   applyTemperingUpgrade,
   ACHIEVEMENTS_CATALOG,
+  getMerchantWarePrice,
+  getProfessionLevelCap,
+  toggleDevotionInList,
+  assignSlayerTask,
+  skipSlayerTask,
+  purchaseSlayerUnlock,
+  normalizeClueState,
+  startClueScroll,
+  evaluateClueStep,
+  rollClueCasketRewards,
 } from '../../shared/protocol.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
 
 export const arenaAndPacketsMethods = {
+  checkActionRateLimit(client, actionKey, minIntervalMs = 250) {
+    if (!client) return false;
+    client._actionCooldowns = client._actionCooldowns || {};
+    const now = Date.now();
+    const last = client._actionCooldowns[actionKey] || 0;
+    if (now - last < minIntervalMs) return false;
+    client._actionCooldowns[actionKey] = now;
+    return true;
+  },
+
+  handleClueAttempt(room, client, reqItemId = null, extraCtx = {}) {
+    const acc = this.accounts.accountsById.get(client.id);
+    if (!acc || client.isDead) return;
+    this.accounts.ensureDefaultCharacter(acc);
+    const inv = acc.inventory || [];
+    const scrollIdx = inv.findIndex((entry) => {
+      const id = typeof entry === 'string' ? entry : entry?.id;
+      if (reqItemId && id !== reqItemId) return false;
+      return Boolean(EQUIPMENT_CATALOG[id]?.isClueScroll);
+    });
+    if (scrollIdx < 0) {
+      client.send({ type: 'sys_msg', category: 'quest', text: '📜 [Treasure Trails] You do not carry a Sealed Clue Scroll in your backpack.' });
+      return;
+    }
+    const scrollId = typeof inv[scrollIdx] === 'string' ? inv[scrollIdx] : inv[scrollIdx]?.id;
+    const item = EQUIPMENT_CATALOG[scrollId];
+    const prog = client.prog || acc.progression || createDefaultProgression();
+    let clue = normalizeClueState(prog.clue);
+
+    if (!clue.activeTier || clue.activeTier !== item.clueTier || !clue.steps.length) {
+      clue = startClueScroll(clue, item.clueTier);
+      prog.clue = clue;
+      this.accounts.saveProgression(client.id, prog);
+      client.send({ type: 'clue_state', clue, started: true });
+      client.send({ type: 'progression_sync', progression: prog, hp: client.hp, maxHp: client.maxHp, maxSolarCharge: client.maxSolarCharge });
+      return;
+    }
+
+    const evalRes = evaluateClueStep(clue, {
+      roomType: room?.type,
+      x: client.x,
+      y: client.y,
+      npcId: extraCtx.npcId || null,
+      talkedNpcs: acc.questState?.talkedNpcs,
+      emoteId: extraCtx.emoteId || client._lastEmoteId,
+      lastEmoteId: client._lastEmoteId,
+    });
+    if (!evalRes.advanced) {
+      client.send({ type: 'clue_state', clue: evalRes.state, message: evalRes.reason });
+      return;
+    }
+
+    prog.clue = evalRes.state;
+    this.accounts.saveProgression(client.id, prog);
+    if (evalRes.completed) {
+      this.accounts.removeItemFromInventory(client.id, scrollIdx, 1);
+      this.accounts.addItemToInventory(client.id, evalRes.casketItemId, 1);
+      this.refreshClientFromAccount(client.id);
+      if (room) {
+        room.fxQueue.push({ kind: 'spark', x: client.x, y: client.y - 8, colors: ['#fde047', '#38bdf8', '#ffffff'], count: 22 });
+        room.fxQueue.push({ kind: 'fct', x: client.x, y: client.y - 16, text: `🎁 TREASURE CASKET (${evalRes.completedTier.toUpperCase()})!`, color: '#fde047', isCrit: true });
+      }
+      client.send({
+        type: 'sys_msg',
+        category: 'quest',
+        text: `🎁 [Treasure Trails] Solved all steps! Claimed a ${EQUIPMENT_CATALOG[evalRes.casketItemId]?.name || 'Reward Casket'}!`,
+      });
+    } else if (room) {
+      room.fxQueue.push({ kind: 'fct', x: client.x, y: client.y - 16, text: `📜 CLUE STEP ${evalRes.stepNumber}/${evalRes.totalSteps}!`, color: '#38bdf8', isCrit: true });
+    }
+    client.send({ type: 'clue_state', clue: prog.clue, completed: Boolean(evalRes.completed) });
+    client.send({ type: 'progression_sync', progression: prog, hp: client.hp, maxHp: client.maxHp, maxSolarCharge: client.maxSolarCharge });
+  },
+
+  syncSocialState(client) {
+    if (!client || !this.guilds) return;
+    client.send({
+      type: 'social_relations',
+      ...this.guilds.getSocialSnapshot(client.id),
+    });
+  },
+
+  handleOpenCasket(room, client, slotIdx, item) {
+    const acc = this.accounts.accountsById.get(client.id);
+    if (!acc) return;
+    if ((acc.inventory?.length || 0) >= 27) {
+      client.send({ type: 'sys_msg', category: 'trade', text: '🎒 [Treasure Trails] Keep at least 2 free backpack slots to open this Reward Casket.' });
+      return;
+    }
+    if (!this.accounts.removeItemFromInventory(client.id, slotIdx, 1)) return;
+    const rewards = rollClueCasketRewards(item.clueTier || 'easy');
+    const newlyClaimed = [];
+    for (const rw of rewards) {
+      if (this.accounts.addItemToInventory(client.id, rw.itemId, rw.qty || 1)) {
+        newlyClaimed.push(rw);
+      }
+    }
+    this.accounts.recordCollectionUnlock(client.id, newlyClaimed.map((r) => r.itemId));
+    this.awardPlayerXP(client, 85, `Treasure Casket (${item.clueTier})`);
+    this.refreshClientFromAccount(client.id);
+    const summary = newlyClaimed.map((r) => `${r.qty}x ${EQUIPMENT_CATALOG[r.itemId]?.name || r.itemId}`).join(', ');
+    if (room) {
+      room.fxQueue.push({ kind: 'spark', x: client.x, y: client.y - 10, colors: ['#fde047', '#f59e0b', '#ffffff'], count: 24 });
+      room.fxQueue.push({ kind: 'fct', x: client.x, y: client.y - 18, text: '👑 CASKET OPENED!', color: '#fde047', isCrit: true });
+    }
+    client.send({ type: 'sys_msg', category: 'quest', text: `🎁 [Treasure Casket] Unsealed loot: ${summary}!` });
+    client.send({ type: 'casket_opened', tier: item.clueTier, rewards: newlyClaimed });
+  },
   // 3v3 Ranked Nexus Arena Matchmaking
   // ==========================================
   getArenaLobbyInfo() {
@@ -527,6 +645,12 @@ export const arenaAndPacketsMethods = {
       }
 
       case 'mail_send': {
+        if (!this.checkActionRateLimit(client, 'mail_send', 1200)) break;
+        const mailAcc = this.accounts?.accountsById?.get(client.id);
+        if (this.accounts?.isAccountMuted?.(mailAcc)) {
+          client.send({ type: 'mail_action_res', ok: false, action: 'send', error: 'Muted accounts cannot send mail.' });
+          break;
+        }
         this.accounts
           .sendMailParcel({
             senderAccountId: client.id,
@@ -637,12 +761,19 @@ export const arenaAndPacketsMethods = {
             const idx = inv.findIndex((it) => (typeof it === 'string' ? it : it?.id) === item.id);
             if (idx !== -1) {
               this.accounts.equipFromInventory(client.id, idx, preferredSocket);
+              this.refreshClientFromAccount(client.id);
             } else {
-              const targetSlot = item.slot === 'armor' ? 'body' : item.slot === 'offhand' ? 'shield' : item.slot;
-              const nextEquip = { ...(client.equipment || {}), [targetSlot]: item.id };
-              this.accounts.updateProfile(client.id, { equipment: nextEquip });
+              const clsDefaults = Object.values(CLASSES_CATALOG[client.classId]?.defaultEquipment || {});
+              if (clsDefaults.includes(item.id)) {
+                const targetSlot = item.slot === 'armor' ? 'body' : item.slot === 'offhand' ? 'shield' : item.slot;
+                const nextEquip = { ...(client.equipment || {}), [targetSlot]: item.id };
+                this.accounts.updateProfile(client.id, { equipment: nextEquip });
+                this.refreshClientFromAccount(client.id);
+              } else {
+                item = null;
+                client.send({ type: 'sys_msg', category: 'combat', text: '❌ You must own this item in your backpack to equip it.' });
+              }
             }
-            this.refreshClientFromAccount(client.id);
           }
         }
         if (item && room) {
@@ -704,6 +835,15 @@ export const arenaAndPacketsMethods = {
         const itId = typeof slotEntry === 'string' ? slotEntry : slotEntry?.id;
         const item = itId ? EQUIPMENT_CATALOG[itId] : null;
         if (!item || item.slot !== 'consumable') break;
+
+        if (item.isClueScroll) {
+          this.handleClueAttempt(room, client, itId, msg);
+          break;
+        }
+        if (item.isRewardCasket) {
+          this.handleOpenCasket(room, client, slotIdx, item);
+          break;
+        }
 
         if (item.temperTargetMax) {
           const ch = this.accounts.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
@@ -852,11 +992,13 @@ export const arenaAndPacketsMethods = {
       }
 
       case 'buy_merchant_item': {
+        if (!this.checkActionRateLimit(client, 'merchant_buy', 80)) break;
+        const merchantId = msg.merchantId ? String(msg.merchantId).trim() : null;
         const itemId = String(msg.itemId || '').trim();
-        const qty = Math.max(1, Math.min(50, Number(msg.qty) || 1));
-        const price = Number(msg.unitPrice) || 0;
-        if (itemId && price > 0) {
-          const res = this.accounts.buyMerchantItem(client.id, itemId, price, qty);
+        const qty = Math.max(1, Math.min(50, Math.floor(Number(msg.qty) || 1)));
+        const canonicalPrice = getMerchantWarePrice(merchantId, itemId);
+        if (itemId && canonicalPrice && canonicalPrice > 0) {
+          const res = this.accounts.buyMerchantItem(client.id, itemId, canonicalPrice, qty);
           if (res.success) {
             this.refreshClientFromAccount(client.id);
             if (room) {
@@ -864,7 +1006,7 @@ export const arenaAndPacketsMethods = {
                 kind: 'fct',
                 x: client.x,
                 y: client.y - 12,
-                text: `+${qty}x ${res.item?.name?.toUpperCase() || itemId} (-${price * qty}g)`,
+                text: `+${qty}x ${res.item?.name?.toUpperCase() || itemId} (-${canonicalPrice * qty}g)`,
                 color: '#4ade80',
               });
             }
@@ -877,35 +1019,152 @@ export const arenaAndPacketsMethods = {
               color: '#ef4444',
             });
           }
+        } else if (room) {
+          room.fxQueue.push({
+            kind: 'fct',
+            x: client.x,
+            y: client.y - 12,
+            text: '❌ ITEM NOT SOLD BY MERCHANT',
+            color: '#ef4444',
+          });
+        }
+        break;
+      }
+
+      case 'sell_merchant_item': {
+        if (!this.checkActionRateLimit(client, 'merchant_sell', 80)) break;
+        const slotIdx = Number(msg.slotIndex);
+        const qty = Math.max(1, Math.min(999, Math.floor(Number(msg.qty) || 1)));
+        const res = this.accounts.sellMerchantItem(client.id, slotIdx, qty);
+        if (res.success) {
+          this.refreshClientFromAccount(client.id);
+          if (room) {
+            room.fxQueue.push({
+              kind: 'fct',
+              x: client.x,
+              y: client.y - 12,
+              text: `+${res.totalGold}G (${res.qty}x ${res.item?.name?.toUpperCase() || res.itemId})`,
+              color: '#fde047',
+            });
+          }
+        } else if (res.reason && room) {
+          room.fxQueue.push({
+            kind: 'fct',
+            x: client.x,
+            y: client.y - 12,
+            text: `❌ ${res.reason.toUpperCase()}`,
+            color: '#ef4444',
+          });
+        }
+        break;
+      }
+
+      case 'bank_op': {
+        if (!this.checkActionRateLimit(client, 'bank_op', 80)) break;
+        const op = String(msg.op || '').trim();
+        let res = { ok: false };
+        if (op === 'deposit') {
+          res = this.accounts.depositToBank(client.id, msg.slotIndex, msg.qty ?? 'all');
+        } else if (op === 'withdraw') {
+          res = this.accounts.withdrawFromBank(client.id, msg.bankIndex, msg.qty ?? 1);
+        } else if (op === 'deposit_all') {
+          res = this.accounts.depositAllToBank(client.id, { onlyMaterials: false });
+        } else if (op === 'deposit_materials') {
+          res = this.accounts.depositAllToBank(client.id, { onlyMaterials: true });
+        } else if (op === 'quick_stack') {
+          res = this.accounts.depositAllToBank(client.id, { quickStackOnly: true });
+        } else if (op === 'deposit_worn') {
+          res = this.accounts.depositWornGearToBank(client.id);
+        } else if (op === 'sort') {
+          res = this.accounts.sortBank(client.id, msg.orderedItemIds);
+        }
+        if (res.ok) {
+          this.refreshClientFromAccount(client.id);
+        } else if (res.reason) {
+          client.send({ type: 'sys_msg', category: 'trade', text: `🏛️ [AetherVault] ${res.reason}.` });
+          this.refreshClientFromAccount(client.id);
         }
         break;
       }
 
       case 'sync_bank': {
-        this.accounts.syncBankAndInventory(client.id, msg.bank, msg.inventory, msg.equipment);
+        // Legacy full-array bank overwrite is disabled in multiplayer for anti-dupe security;
+        // resync the client back to authoritative server storage.
         this.refreshClientFromAccount(client.id);
+        break;
+      }
+
+      case 'complete_quest': {
+        if (!this.checkActionRateLimit(client, 'complete_quest', 400)) break;
+        const questId = String(msg.questId || '').trim();
+        const res = this.accounts.completeCanonicalQuest(client.id, questId);
+        if (res.ok) {
+          const rw = res.spec.rewards || {};
+          if (rw.xp > 0) this.awardPlayerXP(client, rw.xp, res.spec.title);
+          if (rw.glimmer > 0) {
+            client.solarCharge = Math.min(client.maxSolarCharge, (client.solarCharge || 0) + rw.glimmer);
+          }
+          if (rw.professionXp && typeof rw.professionXp === 'object') {
+            for (const [profId, amt] of Object.entries(rw.professionXp)) {
+              if (amt > 0) this.awardProfessionXP(client, profId, amt, res.spec.title);
+            }
+          }
+          if (res.questCapeAwarded) {
+            client.send({
+              type: 'sys_msg',
+              category: 'quest',
+              text: '📜 [GRANDMASTER MILESTONE] You completed every canonical quest and earned the Cape of Canonical Lore (Quest Cape)!',
+            });
+            if (room) {
+              room.fxQueue.push({ kind: 'fct', x: client.x, y: client.y - 22, text: '📜 QUEST POINT CAPE UNLOCKED!', color: '#38bdf8', isCrit: true });
+            }
+          }
+          this.refreshClientFromAccount(client.id);
+        } else if (res.reason && !res.alreadyCompleted) {
+          client.send({ type: 'sys_msg', category: 'quest', text: `[Quest] ${res.reason}.` });
+        }
         break;
       }
 
       case 'sync_quest_state': {
         if (msg.questState && typeof msg.questState === 'object') {
-          this.accounts.saveQuestState(client.id, msg.questState);
-          client.questState = msg.questState;
-          // Do NOT echo refreshClientFromAccount(client.id) here — echoing profile_updated
-          // on every quest state save triggers an infinite client<->server profile loop!
+          // completedQuests is strictly server-authoritative via complete_quest
+          const existingCompleted = { ...(client.questState?.completedQuests || {}) };
+          const mergedState = {
+            ...msg.questState,
+            completedQuests: existingCompleted,
+          };
+          this.accounts.saveQuestState(client.id, mergedState);
+          client.questState = mergedState;
         }
         break;
       }
 
       case 'sync_profession_progress': {
+        if (!this.checkActionRateLimit(client, 'sync_prof', 800)) break;
         if (msg.professions && typeof msg.professions === 'object') {
-          const updated = this.accounts.saveProfessionProgress(client.id, msg.professions);
-          if (updated) {
-            client.prog = updated;
-            for (const professionId of Object.keys(PROFESSION_MASTERY_CAPES)) {
-              this.grantProfessionMasteryCape(client, professionId);
+          const profCap = getProfessionLevelCap(client);
+          const bounded = {};
+          for (const profId of Object.keys(PROFESSIONS_CATALOG)) {
+            const inc = msg.professions[profId];
+            if (!inc || typeof inc !== 'object') continue;
+            const curXp = Math.max(0, Math.floor(Number(client.prog?.professions?.[profId]?.xp) || 0));
+            const incXp = Math.max(0, Math.floor(Number(inc.xp) || 0));
+            // Bound arbitrary client profession XP delta to <= 60 XP per sync to block XP spoofing
+            const delta = Math.max(0, Math.min(60, incXp - curXp));
+            if (delta > 0 && getProfessionLevelFromXp(curXp) < profCap) {
+              bounded[profId] = { xp: curXp + delta };
             }
-            client.send({ type: 'progression_sync', progression: updated });
+          }
+          if (Object.keys(bounded).length > 0) {
+            const updated = this.accounts.saveProfessionProgress(client.id, bounded);
+            if (updated) {
+              client.prog = updated;
+              for (const professionId of Object.keys(PROFESSION_MASTERY_CAPES)) {
+                this.grantProfessionMasteryCape(client, professionId);
+              }
+              client.send({ type: 'progression_sync', progression: updated });
+            }
           }
         }
         break;
@@ -1011,9 +1270,294 @@ export const arenaAndPacketsMethods = {
         if (room) this.handleEmote(room, client, msg.emoteId);
         break;
 
-      case 'party_invite':
+      case 'toggle_devotion': {
+        if (!this.checkActionRateLimit(client, 'devotion', 120)) break;
+        const devId = String(msg.devotionId || '').trim();
+        const res = toggleDevotionInList(
+          client.activeDevotions || [],
+          devId,
+          client.prog?.level || 1,
+          client.solarCharge || 0
+        );
+        if (!res.ok) {
+          client.send({ type: 'sys_msg', category: 'combat', text: `🙏 [Devotion] ${res.reason}.` });
+          client.send({ type: 'devotion_sync', activeDevotions: client.activeDevotions || [] });
+          break;
+        }
+        client.activeDevotions = res.list;
+        client.send({ type: 'devotion_sync', activeDevotions: client.activeDevotions });
+        if (room && res.devotion) {
+          room.fxQueue.push({
+            kind: 'fct',
+            x: client.x,
+            y: client.y - 16,
+            text: res.active ? `${res.devotion.icon} ${res.devotion.shortName.toUpperCase()} ON` : `${res.devotion.icon} ${res.devotion.shortName.toUpperCase()} OFF`,
+            color: res.active ? res.devotion.color : '#94a3b8',
+          });
+        }
+        break;
+      }
+
+      case 'slayer_assign': {
+        if (!this.checkActionRateLimit(client, 'slayer', 250)) break;
+        const prog = client.prog || createDefaultProgression();
+        const res = assignSlayerTask(prog.slayer, String(msg.masterId || 'scout_vaelen'), prog.level || 1);
+        if (!res.ok) {
+          client.send({ type: 'sys_msg', category: 'quest', text: `⚔️ [Slayer] ${res.reason}.` });
+          break;
+        }
+        prog.slayer = res.state;
+        client.prog = prog;
+        this.accounts.saveProgression(client.id, prog);
+        client.send({ type: 'progression_sync', progression: prog, hp: client.hp, maxHp: client.maxHp, maxSolarCharge: client.maxSolarCharge });
+        client.send({
+          type: 'sys_msg',
+          category: 'quest',
+          text: `⚔️ [Vanguard Slayer] New Task: Slay ${res.task.targetCount}x ${res.task.name} in ${res.task.roomHint}!`,
+        });
+        break;
+      }
+
+      case 'slayer_skip': {
+        if (!this.checkActionRateLimit(client, 'slayer', 250)) break;
+        const prog = client.prog || createDefaultProgression();
+        const res = skipSlayerTask(prog.slayer, Boolean(msg.blockToo));
+        if (!res.ok) {
+          client.send({ type: 'sys_msg', category: 'quest', text: `⚔️ [Slayer] ${res.reason}.` });
+          break;
+        }
+        prog.slayer = res.state;
+        client.prog = prog;
+        this.accounts.saveProgression(client.id, prog);
+        client.send({ type: 'progression_sync', progression: prog, hp: client.hp, maxHp: client.maxHp, maxSolarCharge: client.maxSolarCharge });
+        client.send({
+          type: 'sys_msg',
+          category: 'quest',
+          text: `⚔️ [Vanguard Slayer] ${Boolean(msg.blockToo) ? 'Blocked' : 'Skipped'} "${res.skippedName}"${res.resetStreak ? ' (Streak reset to 0)' : ` (-${res.cost} Slayer Pts)`}.`,
+        });
+        break;
+      }
+
+      case 'slayer_unlock': {
+        if (!this.checkActionRateLimit(client, 'slayer', 250)) break;
+        const prog = client.prog || createDefaultProgression();
+        const res = purchaseSlayerUnlock(prog.slayer, String(msg.unlockId || '').trim());
+        if (!res.ok) {
+          client.send({ type: 'sys_msg', category: 'quest', text: `⚔️ [Slayer] ${res.reason}.` });
+          break;
+        }
+        prog.slayer = res.state;
+        client.prog = prog;
+        if (res.grantItemId) {
+          this.accounts.addItemToInventory(client.id, res.grantItemId, 1);
+          this.accounts.recordCollectionUnlock(client.id, [res.grantItemId]);
+        }
+        this.accounts.saveProgression(client.id, prog);
+        this.refreshClientFromAccount(client.id);
+        client.send({ type: 'progression_sync', progression: prog, hp: client.hp, maxHp: client.maxHp, maxSolarCharge: client.maxSolarCharge });
+        client.send({
+          type: 'sys_msg',
+          category: 'quest',
+          text: `🏆 [Vanguard Slayer] Unlocked perk: ${res.perk.name}!`,
+        });
+        break;
+      }
+
+      case 'clue_attempt': {
+        if (!this.checkActionRateLimit(client, 'clue', 250)) break;
+        this.handleClueAttempt(room, client, msg.itemId || null, msg);
+        break;
+      }
+
+      case 'party_invite': {
+        const tgt = this.getClientById?.(msg.target) || this.findClientByName?.(msg.target);
+        if (tgt && this.guilds?.isIgnored(tgt.id, client.id, client.displayName)) break;
         this.parties.invitePlayer(client, msg.target);
         break;
+      }
+
+      case 'social_relations_sync':
+      case 'guild_state':
+        this.syncSocialState(client);
+        break;
+
+      case 'guild_create': {
+        if (!this.checkActionRateLimit(client, 'guild', 500)) break;
+        const acc = this.accounts?.accountsById?.get(client.id);
+        const res = this.guilds?.createGuild(acc, msg.name, msg.tag, msg.color);
+        if (!res?.ok) {
+          client.send({ type: 'sys_msg', category: 'chat', text: `🏰 [Guild] ${res?.reason || 'Guild service unavailable.'}` });
+          break;
+        }
+        this.refreshClientFromAccount(client.id);
+        this.syncSocialState(client);
+        client.send({ type: 'sys_msg', category: 'quest', text: `🏰 [Guild] Founded <${res.guild.tag}> ${res.guild.name}!` });
+        break;
+      }
+
+      case 'guild_invite': {
+        if (!this.checkActionRateLimit(client, 'guild', 400)) break;
+        const acc = this.accounts?.accountsById?.get(client.id);
+        const res = this.guilds?.inviteMember(acc, msg.target);
+        if (!res?.ok) {
+          client.send({ type: 'sys_msg', category: 'chat', text: `🏰 [Guild] ${res?.reason || 'Could not invite.'}` });
+          break;
+        }
+        res.targetClient.send({ type: 'guild_invite', ...res.invite });
+        client.send({ type: 'sys_msg', category: 'chat', text: `🏰 [Guild] Sent invite to ${res.targetClient.displayName}.` });
+        break;
+      }
+
+      case 'guild_accept': {
+        const acc = this.accounts?.accountsById?.get(client.id);
+        const res = this.guilds?.acceptInvite(acc, String(msg.guildId || ''));
+        if (!res?.ok) {
+          client.send({ type: 'sys_msg', category: 'chat', text: `🏰 [Guild] ${res?.reason || 'Could not join.'}` });
+          break;
+        }
+        this.refreshClientFromAccount(client.id);
+        for (const mid of res.guild.members.keys()) {
+          const online = this.clients.get(mid);
+          if (online) this.syncSocialState(online);
+        }
+        client.send({ type: 'sys_msg', category: 'quest', text: `🏰 [Guild] Joined <${res.guild.tag}> ${res.guild.name}!` });
+        break;
+      }
+
+      case 'guild_leave': {
+        const acc = this.accounts?.accountsById?.get(client.id);
+        const res = this.guilds?.leaveGuild(acc);
+        if (!res?.ok) {
+          client.send({ type: 'sys_msg', category: 'chat', text: `🏰 [Guild] ${res?.reason || 'Failed to leave.'}` });
+          break;
+        }
+        this.syncSocialState(client);
+        for (const mid of res.guild?.members?.keys() || []) {
+          const online = this.clients.get(mid);
+          if (online) this.syncSocialState(online);
+        }
+        client.send({ type: 'sys_msg', category: 'chat', text: `🏰 [Guild] Left ${res.guildName}.` });
+        break;
+      }
+
+      case 'guild_rank': {
+        const acc = this.accounts?.accountsById?.get(client.id);
+        const res = this.guilds?.setMemberRank(acc, String(msg.targetId || ''), String(msg.rank || ''));
+        if (!res?.ok) {
+          client.send({ type: 'sys_msg', category: 'chat', text: `🏰 [Guild] ${res?.reason || 'Rank update failed.'}` });
+          break;
+        }
+        for (const mid of res.guild.members.keys()) {
+          const online = this.clients.get(mid);
+          if (online) this.syncSocialState(online);
+        }
+        break;
+      }
+
+      case 'guild_kick': {
+        const acc = this.accounts?.accountsById?.get(client.id);
+        const res = this.guilds?.kickMember(acc, String(msg.targetId || ''));
+        if (!res?.ok) {
+          client.send({ type: 'sys_msg', category: 'chat', text: `🏰 [Guild] ${res?.reason || 'Kick failed.'}` });
+          break;
+        }
+        const kickedClient = this.clients.get(msg.targetId);
+        if (kickedClient) {
+          this.syncSocialState(kickedClient);
+          kickedClient.send({ type: 'sys_msg', category: 'combat', text: `🏰 [Guild] You were removed from ${res.guild.name}.` });
+        }
+        for (const mid of res.guild.members.keys()) {
+          const online = this.clients.get(mid);
+          if (online) this.syncSocialState(online);
+        }
+        break;
+      }
+
+      case 'guild_motd': {
+        const acc = this.accounts?.accountsById?.get(client.id);
+        const res = this.guilds?.setMotd(acc, msg.motd);
+        if (!res?.ok) {
+          client.send({ type: 'sys_msg', category: 'chat', text: `🏰 [Guild] ${res?.reason || 'MOTD update failed.'}` });
+          break;
+        }
+        for (const mid of res.guild.members.keys()) {
+          const online = this.clients.get(mid);
+          if (online) this.syncSocialState(online);
+        }
+        break;
+      }
+
+      case 'guild_bank_deposit': {
+        if (!this.checkActionRateLimit(client, 'guild_bank', 200)) break;
+        const res = this.guilds?.depositGuildBank(client.id, msg.slotIndex, msg.qty || 1);
+        if (!res?.ok) {
+          client.send({ type: 'sys_msg', category: 'trade', text: `🏛️ [Guild Vault] ${res?.reason || 'Deposit failed.'}` });
+          break;
+        }
+        this.refreshClientFromAccount(client.id);
+        for (const mid of res.guild.members.keys()) {
+          const online = this.clients.get(mid);
+          if (online) this.syncSocialState(online);
+        }
+        break;
+      }
+
+      case 'guild_bank_withdraw': {
+        if (!this.checkActionRateLimit(client, 'guild_bank', 200)) break;
+        const res = this.guilds?.withdrawGuildBank(client.id, msg.bankIndex, msg.qty || 1);
+        if (!res?.ok) {
+          client.send({ type: 'sys_msg', category: 'trade', text: `🏛️ [Guild Vault] ${res?.reason || 'Withdraw failed.'}` });
+          break;
+        }
+        this.refreshClientFromAccount(client.id);
+        for (const mid of res.guild.members.keys()) {
+          const online = this.clients.get(mid);
+          if (online) this.syncSocialState(online);
+        }
+        break;
+      }
+
+      case 'friend_add':
+      case 'ignore_add': {
+        if (!this.checkActionRateLimit(client, 'relation', 200)) break;
+        const relation = msg.type === 'ignore_add' ? 'ignore' : 'friend';
+        const res = this.guilds?.addRelation(client.id, msg.target, relation);
+        if (!res?.ok) {
+          client.send({ type: 'sys_msg', category: 'chat', text: `[Social] ${res?.reason || 'Failed to update list.'}` });
+          break;
+        }
+        this.syncSocialState(client);
+        client.send({ type: 'sys_msg', category: 'quest', text: `[Social] Added ${res.target.name} to your ${relation === 'ignore' ? 'Ignore' : 'Friends'} list.` });
+        break;
+      }
+
+      case 'friend_remove':
+      case 'ignore_remove': {
+        const relation = msg.type === 'ignore_remove' ? 'ignore' : 'friend';
+        const res = this.guilds?.removeRelation(client.id, msg.target, relation);
+        if (res?.ok) this.syncSocialState(client);
+        break;
+      }
+
+      case 'report_player': {
+        if (!this.checkActionRateLimit(client, 'report_player', 3000)) {
+          client.send({ type: 'sys_msg', category: 'combat', text: '[Report] Please wait a moment before filing another report.' });
+          break;
+        }
+        const chatCtx = Array.isArray(room?.recentChatLog) ? room.recentChatLog.slice(-15) : [];
+        const res = this.guilds?.submitReport({
+          reporter: client,
+          targetName: msg.targetName,
+          reason: msg.reason,
+          chatContext: chatCtx,
+        });
+        if (!res?.ok) {
+          client.send({ type: 'sys_msg', category: 'combat', text: `[Report] ${res?.reason || 'Unable to submit report.'}` });
+          break;
+        }
+        client.send({ type: 'sys_msg', category: 'quest', text: `🛡️ [Moderation] Report logged for ${res.report.targetName}. Thank you for keeping the realm safe.` });
+        break;
+      }
 
       case 'party_respond':
         this.parties.respondInvite(client, msg.inviteId, Boolean(msg.accept));
@@ -1033,6 +1577,11 @@ export const arenaAndPacketsMethods = {
         break;
 
       case 'exchange_place_order':
+        if (!this.checkActionRateLimit(client, 'exchange_place', 400)) break;
+        if (this.accounts?.isAccountMuted?.(this.accounts.accountsById.get(client.id))) {
+          client.send?.({ type: 'sys_msg', category: 'combat', text: '🔇 [Moderation] Muted accounts cannot place AetherSwap orders.' });
+          break;
+        }
         if (!isFounderEdition(client)) {
           client.send?.({
             type: 'sys_msg',
@@ -1054,7 +1603,10 @@ export const arenaAndPacketsMethods = {
         break;
 
       // Direct Player Trading
-      case 'trade_request':
+      case 'trade_request': {
+        if (!this.checkActionRateLimit(client, 'trade_request', 800)) break;
+        const trTgt = this.getClientById?.(msg.target) || this.findClientByName?.(msg.target);
+        if (trTgt && this.guilds?.isIgnored(trTgt.id, client.id, client.displayName)) break;
         if (!isFounderEdition(client)) {
           client.send?.({
             type: 'sys_msg',
@@ -1066,6 +1618,7 @@ export const arenaAndPacketsMethods = {
         }
         this.trades?.handleRequest(client, msg.target);
         break;
+      }
 
       case 'trade_respond':
         this.trades?.handleRespond(client, msg.inviteId, Boolean(msg.accept));

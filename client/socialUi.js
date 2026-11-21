@@ -7,6 +7,7 @@ import {
   ORDER_PRESETS,
   getOrderPresetsForFaction,
   EMOTES_CATALOG,
+  DEVOTIONS_CATALOG,
 } from '../shared/protocol.js';
 
 export function drawPixelNameplateAndBubbles(ctx, {
@@ -26,6 +27,7 @@ export function drawPixelNameplateAndBubbles(ctx, {
   isHostile = false,
   tcgLinked = false,
   skull = null,
+  devotions = [],
   bubble = null,
   emote = null,
   globalTime = 0,
@@ -142,6 +144,35 @@ export function drawPixelNameplateAndBubbles(ctx, {
       ctx.fillStyle = '#94a3b8';
       ctx.fillRect(skX + 4, skY + 6, 1, 1);
       ctx.fillRect(skX + 6, skY + 6, 1, 1);
+    }
+    topBadgeY = skY;
+  }
+
+  // 2d. Overhead Covenant Devotions (OSRS-style Protection / Offensive Prayer Icons)
+  if (Array.isArray(devotions) && devotions.length > 0) {
+    const devIcons = devotions
+      .map((id) => DEVOTIONS_CATALOG[id])
+      .filter(Boolean);
+    if (devIcons.length > 0) {
+      const iconGap = isHd ? 17 : 14;
+      const totalW = devIcons.length * iconGap + 6;
+      const boxH = isHd ? 15 : 13;
+      const boxX = Math.round(rx - totalW / 2);
+      const boxY = Math.round(topBadgeY - boxH - 3);
+      ctx.fillStyle = 'rgba(10, 16, 36, 0.92)';
+      ctx.fillRect(boxX, boxY, totalW, boxH);
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(boxX + 0.5, boxY + 0.5, totalW - 1, boxH - 1);
+      ctx.font = `${isHd ? 11 : 9.5}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      devIcons.forEach((d, idx) => {
+        const ix = boxX + 3 + iconGap * idx + iconGap / 2;
+        ctx.fillText(d.icon, ix, boxY + boxH / 2 + 0.5);
+      });
+      ctx.textBaseline = 'alphabetic';
+      topBadgeY = boxY;
     }
   }
 

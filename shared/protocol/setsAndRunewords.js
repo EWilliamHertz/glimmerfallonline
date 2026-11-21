@@ -1,10 +1,12 @@
 import { ROOM_TYPES } from "./rooms.js";
 import { EQUIPMENT_GEAR } from "./equipmentGear.js";
 import { EQUIPMENT_MATERIALS } from "./equipmentMaterials.js";
+import { OSRS_LOOPS_ITEMS } from "./osrsLoopsCatalog.js";
 
 export const EQUIPMENT_CATALOG = {
   ...EQUIPMENT_GEAR,
   ...EQUIPMENT_MATERIALS,
+  ...OSRS_LOOPS_ITEMS,
 };
 
 // ==========================================

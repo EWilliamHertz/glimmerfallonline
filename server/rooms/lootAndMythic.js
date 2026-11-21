@@ -201,7 +201,16 @@ export const lootAndMythicMethods = {
           const added = this.accounts.addItemToInventory(taker.id, l.itemId, l.qty || 1);
           if (added) {
             room.loot.splice(i, 1);
+            const colUnlocked = this.accounts.recordCollectionUnlock?.(taker.id, [l.itemId]) || [];
             this.refreshClientFromAccount(taker.id);
+            if (colUnlocked.length > 0) {
+              taker.send({
+                type: 'sys_msg',
+                category: 'quest',
+                text: `📖 [Collection Log] New slot unlocked: ${itemDef.name}!`,
+              });
+              room.fxQueue.push({ kind: 'fct', x: taker.x, y: taker.y - 26, text: `📖 COLLECTION: ${itemDef.name.toUpperCase()}`, color: '#fde047', isCrit: true });
+            }
             const isSet = itemDef.rarity.includes('Set') || itemDef.rarity.includes('Apex');
             let fctText = `✦ ${itemDef.name.toUpperCase()}`;
             if (itemDef.slot === 'currency') fctText = `+${l.qty || 1} ${itemDef.name.toUpperCase()}`;

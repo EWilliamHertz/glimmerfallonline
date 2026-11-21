@@ -53,11 +53,12 @@ export const DYNAMIC_WORLD_EVENTS = [
     id: 'crystalecho_harmonic_convergence',
     title: '💎 CRYSTALECHO HARMONIC CONVERGENCE',
     shortTitle: '💎 Crystal Harmonic',
-    subtitle: 'Subterranean leylines sing! +35% Rites & Flashes XP + +25% Combat XP in Caverns & Moonwell',
+    subtitle: 'Subterranean & alpine leylines sing! +35% Rites & Flashes XP + +25% Combat XP in Caverns, Frostspire & Moonwell',
     color: '#e879f9',
     borderColor: '#c084fc',
     rooms: [
       ROOM_TYPES.LUMINOUS_CAVERN,
+      ROOM_TYPES.FROSTSPIRE_GLACIER,
       ROOM_TYPES.MOONWELL_SANCTUM,
       ROOM_TYPES.AETHER_SPIRE,
     ],

@@ -67,6 +67,8 @@ import {
   getActiveCombatConsumableBonuses,
   resolveAbilityNumbers,
   getClassPassive,
+  computeDevotionModifiers,
+  doesMobMatchSlayerTask,
 } from '../../shared/protocol.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
 
@@ -737,9 +739,20 @@ export const combatRitesAndDamageMethods = {
   },
 
   applyAuthoritativeDamage(room, attackerPlayer, targetWrap, dmg, isCrit, spellName, isRite = false) {
+    if (attackerPlayer?.activeDevotions?.length) {
+      const devMods = computeDevotionModifiers(attackerPlayer.activeDevotions);
+      if (devMods.dmgMult > 1) dmg = Math.max(1, Math.round(dmg * devMods.dmgMult));
+    }
+    if (
+      attackerPlayer?.equipment?.head === 'slayer_helm' &&
+      targetWrap.kind === 'entity' &&
+      doesMobMatchSlayerTask(attackerPlayer.prog?.slayer?.task, targetWrap.ref?.name)
+    ) {
+      dmg = Math.max(1, Math.round(dmg * 1.15));
+    }
     const t = targetWrap.ref;
     if (targetWrap.kind === 'player') {
-      this.damagePlayerSession(room, t, dmg, attackerPlayer ? attackerPlayer.displayName : spellName, isCrit, attackerPlayer);
+      this.damagePlayerSession(room, t, dmg, attackerPlayer ? attackerPlayer.displayName : spellName, isCrit, attackerPlayer, isRite);
     } else {
       if (!t || t.isDying) return;
       if ((t.staggerTimer || 0) > 0) {
@@ -857,8 +870,18 @@ export const combatRitesAndDamageMethods = {
     }
   },
 
-  damagePlayerSession(room, targetPlayer, amount, attackerName, isCrit = false, attackerRef = null) {
+  damagePlayerSession(room, targetPlayer, amount, attackerName, isCrit = false, attackerRef = null, isRite = false) {
     if (targetPlayer.isDead || targetPlayer.hp <= 0) return;
+
+    // Covenant Devotions: Ward of Steel (-35% Melee) & Astral Aegis (-35% Rite/Spell)
+    if (targetPlayer.activeDevotions?.length) {
+      const devMods = computeDevotionModifiers(targetPlayer.activeDevotions);
+      const isSpellOrZone = Boolean(isRite || (!attackerRef && attackerName));
+      const prayerDr = isSpellOrZone ? (devMods.riteDr || 0) : (devMods.meleeDr || 0);
+      if (prayerDr > 0) {
+        amount = Math.max(1, Math.round(amount * (1 - prayerDr)));
+      }
+    }
 
     // Umbri Paragon: Dodge Chance!
     const dodgeChance = targetPlayer.abyssalShroudTimer > 0 ? 1.0 : calcDodgeChance(targetPlayer.prog);

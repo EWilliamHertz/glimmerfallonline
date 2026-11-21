@@ -65,6 +65,7 @@ import {
   ELITE_AFFIXES,
   BOUNTY_CONTRACTS,
   computeFamiliarBonuses,
+  advanceSlayerKill,
 } from '../../shared/protocol.js';
 import { getActiveWorldEvent, isRoomInActiveWorldEvent } from '../../shared/worldEvents.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
@@ -188,6 +189,41 @@ export const entityDeathAndProgressionMethods = {
               isBoss: Boolean(ent.isBoss),
               mobType: ent.type,
             });
+            if (p.prog?.slayer?.task) {
+              const sRes = advanceSlayerKill(p.prog.slayer, ent.name);
+              if (sRes.matched) {
+                p.prog.slayer = sRes.state;
+                this.accounts.saveProgression(p.id, p.prog);
+                if (sRes.xpGained > 0) {
+                  this.awardProfessionXP(p, 'combat_mastery', sRes.xpGained, 'Vanguard Slayer');
+                }
+                if (sRes.completed) {
+                  this.awardPlayerXP(p, sRes.xpGained, `Slayer Complete (${sRes.completedName})`);
+                  room.fxQueue.push({
+                    kind: 'fct',
+                    x: p.x,
+                    y: p.y - 20,
+                    text: `⚔️ SLAYER COMPLETE! +${sRes.pointsAwarded} PTS`,
+                    color: '#fde047',
+                    isCrit: true,
+                  });
+                  p.send({
+                    type: 'sys_msg',
+                    category: 'quest',
+                    text: `⚔️ [Vanguard Slayer] Completed "${sRes.completedName}" (Streak ${sRes.streak}${sRes.streakMult > 1 ? ` · ${sRes.streakMult}x Bonus!` : ''})! Awarded +${sRes.pointsAwarded} Slayer Points!`,
+                  });
+                } else {
+                  room.fxQueue.push({
+                    kind: 'fct',
+                    x: p.x,
+                    y: p.y - 20,
+                    text: `🗡️ SLAYER ${sRes.state.task.progress}/${sRes.state.task.targetCount}`,
+                    color: '#fb923c',
+                  });
+                }
+                p.send({ type: 'progression_sync', progression: p.prog, hp: p.hp, maxHp: p.maxHp, maxSolarCharge: p.maxSolarCharge });
+              }
+            }
           }
           if (ent.isBoss && ent.dropGear && EQUIPMENT_CATALOG[ent.dropGear]) {
             p.send({

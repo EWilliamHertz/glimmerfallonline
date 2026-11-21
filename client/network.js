@@ -7,9 +7,8 @@ const TOKEN_STORAGE_KEY = 'glimmerfall_auth_token';
 const PROFILE_CACHE_KEY = 'glimmerfall_cached_mp_profile_v1';
 
 export const KNOWN_SERVER_FALLBACKS = [
+  'https://ws.glimmerfall.online',
   'https://glimmerfall.online',
-  'https://gore-kilometer-stylist.ngrok-free.dev',
-  'https://hampton-honor-daniel-fisheries.trycloudflare.com',
 ];
 
 export function normalizeServerUrl(rawUrl) {
@@ -56,6 +55,7 @@ export class MultiplayerClient {
     this.token = this.loadStoredToken();
     this._profile = this.token ? this.loadCachedProfile() : null;
     this.pingMs = 0;
+    this.pingJitterMs = 0;
     this.onPing = null;
     this.reconnectTimer = null;
     this.pingInterval = null;
@@ -165,8 +165,11 @@ export class MultiplayerClient {
       }
       if (this.isLocalOrigin()) {
         // A realm URL saved in persistent localStorage must not hijack localhost or Cloud Shell
-        // web preview across sessions. Only honor explicit per-tab sessionStorage overrides.
+        // web preview across sessions. Only honor explicit per-tab sessionStorage or active failover overrides.
         try { localStorage.removeItem('glimmerfall_server_url'); } catch (_) {}
+        if (this._activeFallbackBase) {
+          return this._activeFallbackBase;
+        }
         try {
           const tabOverride = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('glimmerfall_server_url') : '';
           if (tabOverride) return normalizeServerUrl(tabOverride);
@@ -199,6 +202,7 @@ export class MultiplayerClient {
   setServerBase(url) {
     const clean = url ? normalizeServerUrl(String(url).trim().replace(/\/+$/, '')) : '';
     this.manualServerOverride = Boolean(clean);
+    this._activeFallbackBase = clean || null;
     this.reconnectAttempt = 0;
     try {
       if (clean && !this.isLocalOrigin()) localStorage.setItem('glimmerfall_server_url', clean);
@@ -227,6 +231,10 @@ export class MultiplayerClient {
         headers: { 'ngrok-skip-browser-warning': '1' },
       });
       if (res?.type === 'opaqueredirect' || (res?.status >= 300 && res?.status < 400)) {
+        return { ok: false, reachable: false, dbConnected: false, totalAccounts: 0, isCloudShellAuthRedirect: true, base };
+      }
+      const ctype = (res?.headers?.get?.('content-type') || '').toLowerCase();
+      if (ctype.includes('text/html')) {
         return { ok: false, reachable: false, dbConnected: false, totalAccounts: 0, isCloudShellAuthRedirect: true, base };
       }
       if (!res || !res.ok) {
@@ -279,23 +287,41 @@ export class MultiplayerClient {
       this.wakeServer();
       try {
         const gBase = this.getServerBase();
-        const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-        const abortTimer = ctrl ? setTimeout(() => ctrl.abort(), 2500) : null;
-        const res = await fetch(`${gBase}/api/auth/guest`, {
-          signal: ctrl ? ctrl.signal : undefined,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': '1',
-            ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
-          },
-          body: JSON.stringify({
-            token: this.token || undefined,
-            clientProgression,
-          }),
-        });
-        if (abortTimer) clearTimeout(abortTimer);
-        if (res.ok) {
+        const tryGuestFetch = async (targetBase, redirectMode = 'manual', timeoutMs = 2800) => {
+          const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+          const abortTimer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+          try {
+            return await fetch(`${targetBase}/api/auth/guest`, {
+              signal: ctrl ? ctrl.signal : undefined,
+              method: 'POST',
+              redirect: redirectMode,
+              headers: {
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': '1',
+                ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+              },
+              body: JSON.stringify({
+                token: this.token || undefined,
+                clientProgression,
+              }),
+            });
+          } finally {
+            if (abortTimer) clearTimeout(abortTimer);
+          }
+        };
+        let res = await tryGuestFetch(gBase, 'manual', 2800).catch(() => null);
+        const ctype = (res?.headers?.get?.('content-type') || '').toLowerCase();
+        if ((!res || res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400) || ctype.includes('text/html')) && !gBase) {
+          const fbRes = await tryGuestFetch('https://ws.glimmerfall.online', 'follow', 6500).catch(() => null);
+          if (fbRes && fbRes.ok && !(fbRes.headers?.get?.('content-type') || '').toLowerCase().includes('text/html')) {
+            res = fbRes;
+            this._activeFallbackBase = 'https://ws.glimmerfall.online';
+            try {
+              if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('glimmerfall_server_url', 'https://ws.glimmerfall.online');
+            } catch (_) {}
+          }
+        }
+        if (res && res.ok) {
           const data = await res.json();
           const prevCached = this.profile || this.loadCachedProfile();
           const hasEstablishedPrev = Boolean(
@@ -446,6 +472,10 @@ export class MultiplayerClient {
         }
         if (msg.type === 'pong' && typeof msg.ts === 'number') {
           const sampleMs = Math.max(1, Math.round(performance.now() - msg.ts));
+          if (this.pingMs > 0 && sampleMs < 1000) {
+            const delta = Math.abs(sampleMs - this.pingMs);
+            this.pingJitterMs = Math.round(this.pingJitterMs * 0.7 + delta * 0.3);
+          }
           const nextPing = computeNextPingMs({
             prevPingMs: this.pingMs,
             sampleMs,
@@ -510,8 +540,10 @@ export class MultiplayerClient {
     // hammers a sleeping or saturated host and prevents it from recovering.
     const attempt = Math.min(this.reconnectAttempt, 5);
     this.reconnectAttempt += 1;
-    // Hospital / school firewall failover: if blocked on current endpoint, try unblocked mirror
-    if (this.reconnectAttempt >= 2 && !this.manualServerOverride && !this.isLocalOrigin()) {
+    // Hospital / school firewall & Cloud Shell failover: if blocked on current endpoint, try unblocked mirror
+    const hostStr = typeof window !== 'undefined' ? String(window.location?.hostname || '').toLowerCase() : '';
+    const canFailoverLocal = !this.isLocalOrigin() || hostStr.endsWith('.cloudshell.dev');
+    if (this.reconnectAttempt >= 2 && !this.manualServerOverride && canFailoverLocal) {
       this.cycleNextFallbackServer();
     }
     const delay = Math.min(30000, 1000 * 2 ** attempt) + Math.floor(Math.random() * 400);
@@ -594,21 +626,27 @@ export class MultiplayerClient {
     // If WebSocket is already connected, try WS RPC first for supported actions (zero CORS overhead!)
     if (action && this.ws && this.ws.readyState === 1) {
       try {
-        const wsRes = await this.wsRpc(action, body || {}, 3500);
-        if (wsRes && wsRes.ok) return wsRes;
+        const wsRes = await this.wsRpc(action, body || {}, 4500);
+        if (wsRes && typeof wsRes.ok === 'boolean') {
+          if (wsRes.ok) return wsRes;
+          throw new Error(wsRes.error || 'Server request failed');
+        }
       } catch (wsErr) {
-        console.warn('[Network] wsRpc failed, attempting HTTP fallback:', wsErr?.message || wsErr);
+        if (wsErr?.message && !/timed out|Cannot reach the GlimmerFall server/i.test(wsErr.message)) {
+          throw wsErr;
+        }
+        console.warn('[Network] wsRpc transport failed, attempting HTTP fallback:', wsErr?.message || wsErr);
       }
     }
 
     const base = this.getServerBase();
-    const doFetch = (url, timeoutMs = 3500) => {
+    const doFetch = (url, timeoutMs = 4500, redirectMode = 'manual') => {
       const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
       const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
       return fetch(url, {
         signal: ctrl ? ctrl.signal : undefined,
         method,
-        redirect: 'manual',
+        redirect: redirectMode,
         headers: {
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': '1',
@@ -620,21 +658,51 @@ export class MultiplayerClient {
       });
     };
 
+    const isProxyRedirectOrHtml = (r) => {
+      if (!r) return false;
+      if (r.type === 'opaqueredirect' || (r.status >= 300 && r.status < 400)) return true;
+      const ct = (r.headers?.get?.('content-type') || '').toLowerCase();
+      return ct.includes('text/html');
+    };
+
+    const tryLiveFallbacks = async () => {
+      for (const fbBase of ['https://ws.glimmerfall.online', 'https://glimmerfall.online']) {
+        if (base === fbBase) continue;
+        try {
+          const fbRes = await doFetch(`${fbBase}${path}`, 10000, 'follow');
+          if (fbRes && !isProxyRedirectOrHtml(fbRes)) {
+            this._activeFallbackBase = fbBase;
+            try {
+              if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('glimmerfall_server_url', fbBase);
+              }
+            } catch (_) {}
+            return fbRes;
+          }
+        } catch (_) {}
+      }
+      return null;
+    };
+
     let res;
     try {
-      res = await doFetch(base ? `${base}${path}` : path);
+      res = await doFetch(base ? `${base}${path}` : path, base ? 8000 : 4500, base ? 'follow' : 'manual');
     } catch (_networkErr) {
-      // Game server asleep/unreachable: same-origin cloud /api fallback shares the persistent realm
+      // Game server asleep/unreachable: try same-origin or live fallback hosts
       if (base) {
         try {
-          res = await doFetch(path);
+          res = await doFetch(path, 4500, 'manual');
         } catch (_) {
           res = null;
         }
       }
+      if (!res || isProxyRedirectOrHtml(res)) {
+        const fbRes = await tryLiveFallbacks();
+        if (fbRes) res = fbRes;
+      }
       if (!res) {
         if (action && this.ws && this.ws.readyState === 1) {
-          const data = await this.wsRpc(action, body || {}, 4000);
+          const data = await this.wsRpc(action, body || {}, 4500);
           if (!data.ok) throw new Error(data.error || 'Server request failed');
           return data;
         }
@@ -642,32 +710,25 @@ export class MultiplayerClient {
       }
     }
 
-    if (res?.type === 'opaqueredirect' || (res?.status >= 300 && res?.status < 400)) {
+    if (isProxyRedirectOrHtml(res)) {
       if (action && this.ws && this.ws.readyState === 1) {
         try {
-          const wsData = await this.wsRpc(action, body || {}, 4000);
-          if (wsData && wsData.ok) return wsData;
-        } catch (_) {}
-      }
-      for (const fbBase of ['https://ws.glimmerfall.online', 'https://glimmerfall.online']) {
-        if (base === fbBase) continue;
-        try {
-          const fbRes = await doFetch(`${fbBase}${path}`, 4000);
-          if (fbRes && fbRes.type !== 'opaqueredirect' && !(fbRes.status >= 300 && fbRes.status < 400)) {
-            res = fbRes;
-            this._activeFallbackBase = fbBase;
-            try {
-              if (typeof sessionStorage !== 'undefined') {
-                sessionStorage.setItem('glimmerfall_server_url', fbBase);
-              }
-            } catch (_) {}
-            break;
+          const wsData = await this.wsRpc(action, body || {}, 4500);
+          if (wsData && typeof wsData.ok === 'boolean') {
+            if (wsData.ok) return wsData;
+            throw new Error(wsData.error || 'Server request failed');
           }
-        } catch (_) {}
+        } catch (wsErr) {
+          if (wsErr?.message && !/timed out|Cannot reach the GlimmerFall server/i.test(wsErr.message)) {
+            throw wsErr;
+          }
+        }
       }
+      const fbRes = await tryLiveFallbacks();
+      if (fbRes) res = fbRes;
     }
 
-    if (res?.type === 'opaqueredirect' || (res?.status >= 300 && res?.status < 400)) {
+    if (isProxyRedirectOrHtml(res)) {
       throw new Error('Cloud Shell Preview auth session expired. Reload from Cloud Shell Preview or switch to Live Online DB below.');
     }
 

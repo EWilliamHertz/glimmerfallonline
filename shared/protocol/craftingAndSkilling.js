@@ -2093,6 +2093,28 @@ export const SKILLING_LAYOUTS = {
     ['tree_duskveil', -230, -110],
     ['tree_duskveil', 230, -110],
   ],
+  [ROOM_TYPES.FROSTSPIRE_GLACIER]: [
+    // Frostspire Glacier — High-Tier Mithril Seams, Alpine Ironbark Pines & Ice-Melt Pools
+    ['mithril_vein', -195, -185],
+    ['mithril_vein', 195, -185],
+    ['mithril_vein', -225, 25],
+    ['mithril_vein', 225, 25],
+    ['iron_coal_vein', -135, -75],
+    ['iron_coal_vein', 135, -75],
+    ['copper_tin_vein', -155, 130],
+    ['copper_tin_vein', 155, 130],
+    ['tree_ironbark', -245, -120],
+    ['tree_ironbark', 245, -120],
+    ['tree_ironbark', -230, 185],
+    ['tree_ironbark', 230, 185],
+    ['herb_cluster_high', -105, 115],
+    ['herb_cluster_high', 105, 115],
+    ['fiber_bloom_high', -105, -145],
+    ['fiber_bloom_high', 105, -145],
+    ['healing_spring', 0, 105],
+    ['fish_reef', -72, 22],
+    ['fish_river', 72, 22],
+  ],
   [ROOM_TYPES.NEXUS_WARZONE]: [
     // South Sanctuary Vale Meadows
     ['iron_coal_vein', -320, 1280],

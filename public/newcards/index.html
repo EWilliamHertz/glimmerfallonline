@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GlimmerFall TCG — 322 Card Pool Design Review (/newcards)</title>
+  <link rel="icon" type="image/png" href="/GlimmerFall_official_multicolor_logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,600;1,700&family=Inter:wght@400;500;600;700;800&display=swap" />
+  <style>
+    :root {
+      --bg: #070a12;
+      --bg-card: #0f1626;
+      --bg-panel: #11192c;
+      --border: #1e293b;
+      --border-hi: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --solari: #facc15;
+      --umbri: #c084fc;
+      --terra: #84cc16;
+      --aether: #38bdf8;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse 80% 45% at 50% 0%, rgba(56, 189, 248, 0.10), transparent 70%),
+        radial-gradient(circle at 85% 20%, rgba(192, 132, 252, 0.08), transparent 55%),
+        var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    header.topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      backdrop-filter: blur(14px);
+      background: rgba(7, 10, 18, 0.88);
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 14px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand img {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+    }
+    .brand h1 {
+      margin: 0;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-style: italic;
+      font-weight: 700;
+      font-size: 24px;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, #f8fafc 0%, #38bdf8 55%, #facc15 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .brand p {
+      margin: 1px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.9);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .tab-btn {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 13px;
+      padding: 8px 14px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, #0284c7, #0ea5e9);
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(14, 165, 233, 0.35);
+    }
+    .tab-btn:hover:not(.active) { color: #fff; }
+
+    .controls-bar {
+      max-width: 1440px;
+      margin: 18px auto 0;
+      padding: 0 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .filter-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .pill {
+      appearance: none;
+      border: 1px solid var(--border-hi);
+      background: rgba(17, 25, 44, 0.85);
+      color: var(--muted);
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 7px 13px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .pill:hover { border-color: #64748b; color: #fff; }
+    .pill.active { background: #f1f5f9; color: #090d16; border-color: #f1f5f9; }
+    .pill[data-faction="Solari"].active { background: var(--solari); color: #1a1200; border-color: var(--solari); }
+    .pill[data-faction="Umbri"].active { background: var(--umbri); color: #190729; border-color: var(--umbri); }
+    .pill[data-faction="Terra"].active { background: var(--terra); color: #0f1d00; border-color: var(--terra); }
+    .pill[data-faction="Aether"].active { background: var(--aether); color: #031926; border-color: var(--aether); }
+
+    .search-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .search-input, .select-input {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--border-hi);
+      color: var(--text);
+      font-size: 13px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      outline: none;
+    }
+    .search-input { min-width: 230px; }
+    .search-input:focus, .select-input:focus { border-color: var(--aether); }
+
+    .toggle-bleed {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--muted);
+      background: rgba(17, 25, 44, 0.85);
+      border: 1px solid var(--border-hi);
+      padding: 7px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .toggle-bleed input { accent-color: #ef4444; cursor: pointer; }
+
+    .status-banner {
+      max-width: 1440px;
+      margin: 14px auto 0;
+      padding: 0 20px;
+    }
+    .status-card {
+      background: rgba(15, 22, 38, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+    .status-card strong { color: var(--text); }
+
+    .grid {
+      max-width: 1440px;
+      margin: 18px auto 60px;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+      gap: 20px;
+    }
+    .card-tile {
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px;
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      text-align: left;
+    }
+    .card-tile:hover {
+      transform: translateY(-5px);
+      border-color: rgba(56, 189, 248, 0.65);
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(56, 189, 248, 0.25);
+    }
+    .card-thumb-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 63 / 88;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #080b13;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card-thumb-wrap.bleed-aspect {
+      aspect-ratio: 69 / 94;
+      border-radius: 6px;
+    }
+    .card-thumb-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .card-badge-corner {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      padding: 3px 7px;
+      border-radius: 5px;
+      background: rgba(7, 10, 18, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      color: #e2e8f0;
+      backdrop-filter: blur(4px);
+    }
+    .card-badge-kenzi {
+      border-color: rgba(56, 189, 248, 0.55);
+      color: #7dd3fc;
+    }
+    .tile-meta {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 0 2px;
+    }
+    .tile-title {
+      font-weight: 700;
+      font-size: 13.5px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tile-code {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .tile-sub {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 0 2px 2px;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+    .tag-chip {
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 5px;
+      background: rgba(148, 163, 184, 0.12);
+      color: #cbd5e1;
+    }
+
+    /* Live Kenzi CSS composite card fallback for unrendered Oracle catalog items */
+    .live-art-frame {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #14171f;
+    }
+    .live-art-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .live-art-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(10,12,18,0.82) 0%, rgba(10,12,18,0) 22%, rgba(10,12,18,0) 68%, rgba(10,12,18,0.94) 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 10px;
+      pointer-events: none;
+    }
+    .live-top { display: flex; align-items: center; gap: 7px; }
+    .live-cost {
+      width: 28px; height: 28px; border-radius: 6px;
+      display: grid; place-items: center;
+      font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 700; font-size: 18px;
+      background: #0f172a; border: 2px solid currentColor; color: #fff; flex-shrink: 0;
+    }
+    .live-name {
+      font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 700; font-size: 15px;
+      text-transform: uppercase; color: #fff; text-shadow: 0 2px 4px #000;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .live-bot { display: flex; flex-direction: column; gap: 5px; }
+    .live-banner {
+      background: #e2e8f0; color: #0f172a;
+      font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 700; font-size: 11px;
+      padding: 2px 7px; border-radius: 3px; width: fit-content;
+    }
+    .live-desc { font-size: 10px; line-height: 1.25; color: #e2e8f0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+    /* Pop-up Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(3, 6, 13, 0.84);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-dialog {
+      position: relative;
+      width: 100%;
+      max-width: 1060px;
+      max-height: 92vh;
+      overflow-y: auto;
+      background: linear-gradient(160deg, #11192e 0%, #0a0f1c 100%);
+      border: 1px solid #334155;
+      border-radius: 18px;
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.85);
+      display: grid;
+      grid-template-columns: minmax(300px, 430px) 1fr;
+      gap: 0;
+    }
+    @media (max-width: 820px) {
+      .modal-dialog { grid-template-columns: 1fr; }
+    }
+    .modal-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 5;
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      border: 1px solid #334155;
+      background: rgba(15, 23, 42, 0.9);
+      color: #f8fafc;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .modal-close:hover { background: #ef4444; border-color: #ef4444; }
+
+    .modal-stage {
+      background: radial-gradient(circle at 50% 45%, rgba(56, 189, 248, 0.08), rgba(4, 6, 12, 0.96) 75%);
+      padding: 24px 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      border-right: 1px solid var(--border);
+    }
+    .modal-mode-bar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+    }
+    .mode-btn {
+      appearance: none;
+      border: 1px solid #334155;
+      background: rgba(15, 23, 42, 0.85);
+      color: var(--muted);
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+    }
+    .mode-btn.active { background: #38bdf8; color: #05131f; border-color: #38bdf8; }
+    .mode-btn:disabled { opacity: 0.38; cursor: not-allowed; }
+
+    .modal-card-img-box {
+      position: relative;
+      width: 100%;
+      max-width: 375px;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 22px 55px rgba(0, 0, 0, 0.78);
+      transition: transform 0.2s ease;
+      cursor: zoom-in;
+    }
+    .modal-card-img-box.zoomed {
+      transform: scale(1.16);
+      cursor: zoom-out;
+      z-index: 4;
+    }
+    .modal-card-img-box img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .modal-nav-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 375px;
+      gap: 10px;
+    }
+    .nav-btn {
+      appearance: none;
+      border: 1px solid #334155;
+      background: rgba(15, 23, 42, 0.9);
+      color: #e2e8f0;
+      font-size: 12.5px;
+      font-weight: 700;
+      padding: 7px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .nav-btn:hover { border-color: #38bdf8; color: #fff; }
+
+    .modal-details {
+      padding: 26px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .detail-kicker {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .faction-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid currentColor;
+    }
+    .faction-badge img { width: 16px; height: 16px; object-fit: contain; }
+    .modal-title {
+      margin: 0;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-style: italic;
+      font-weight: 700;
+      font-size: 34px;
+      line-height: 1.05;
+      text-transform: uppercase;
+      color: #fff;
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
+      gap: 10px;
+    }
+    .stat-box {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .stat-label { font-size: 10.5px; text-transform: uppercase; color: var(--muted); font-weight: 700; letter-spacing: 0.4px; }
+    .stat-val { font-size: 16px; font-weight: 800; color: #f8fafc; margin-top: 3px; }
+    .rules-panel {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-hi);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .rules-panel h3 {
+      margin: 0 0 6px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--muted);
+    }
+    .rules-panel p {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.5;
+      color: #f8fafc;
+    }
+    .lore-panel {
+      background: rgba(15, 23, 42, 0.45);
+      border-left: 3px solid #475569;
+      padding: 10px 14px;
+      font-style: italic;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #cbd5e1;
+    }
+    .qa-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: auto;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+    .qa-pill {
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      color: #86efac;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <img src="/GlimmerFall_official_multicolor_logo.png" alt="GlimmerFall" />
+        <div>
+          <h1>GlimmerFall 322-Card Design Review</h1>
+          <p>Kenzi Official Print Layout Samples &amp; Full 322 Neon Database Oracle &bull; Click any card to inspect</p>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" id="tab-samples" data-tab="samples">Kenzi Design Samples (<span id="sample-count">0</span>)</button>
+        <button class="tab-btn" id="tab-all" data-tab="all">Full 322 Pool (<span id="all-count">322</span>)</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="controls-bar">
+    <div class="filter-group" id="faction-filters">
+      <button class="pill active" data-faction="ALL">All Factions</button>
+      <button class="pill" data-faction="Solari">Solari</button>
+      <button class="pill" data-faction="Umbri">Umbri</button>
+      <button class="pill" data-faction="Terra">Terra</button>
+      <button class="pill" data-faction="Aether">Aether</button>
+    </div>
+
+    <div class="search-wrap">
+      <select class="select-input" id="filter-type">
+        <option value="ALL">All Types</option>
+        <option value="Entity">Entity</option>
+        <option value="Flash">Flash</option>
+        <option value="Relic">Relic</option>
+        <option value="Rite">Rite</option>
+      </select>
+      <select class="select-input" id="filter-rarity">
+        <option value="ALL">All Rarities</option>
+        <option value="Common">Common</option>
+        <option value="Uncommon">Uncommon</option>
+        <option value="Rare">Rare</option>
+        <option value="Epic">Epic</option>
+      </select>
+      <input class="search-input" id="search-box" type="search" placeholder="Search name, #AWK, keyword, text..." />
+      <label class="toggle-bleed" title="Toggle 69x94mm Print Bleed (Clean Factory Margins) vs 63x88mm Cut Trim">
+        <input type="checkbox" id="bleed-toggle" />
+        Show Print Bleed (69&times;94mm)
+      </label>
+    </div>
+  </section>
+
+  <div class="status-banner">
+    <div class="status-card" id="status-line">
+      <span>Loading Kenzi sample renders and Neon PostgreSQL card catalog...</span>
+    </div>
+  </div>
+
+  <main class="grid" id="card-grid"></main>
+
+  <!-- Pop-up Modal -->
+  <div class="modal-backdrop" id="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-dialog" id="modal-dialog">
+      <button class="modal-close" id="modal-close" aria-label="Close modal">&times;</button>
+
+      <div class="modal-stage">
+        <div class="modal-mode-bar" id="modal-mode-bar">
+          <button class="mode-btn active" data-mode="trimmed">Trimmed Card (63&times;88mm)</button>
+          <button class="mode-btn" data-mode="bleed">Print Bleed (69&times;94mm)</button>
+          <button class="mode-btn" data-mode="raw">Raw Art</button>
+          <button class="mode-btn" data-mode="back">Card Back</button>
+        </div>
+
+        <div class="modal-card-img-box" id="modal-img-box" title="Click image to zoom">
+          <img id="modal-img" src="" alt="Card preview" />
+        </div>
+
+        <div class="modal-nav-row">
+          <button class="nav-btn" id="modal-prev">&larr; Prev Card</button>
+          <span style="font-size:12px; color:var(--muted);" id="modal-counter">1 / 16</span>
+          <button class="nav-btn" id="modal-next">Next Card &rarr;</button>
+        </div>
+      </div>
+
+      <div class="modal-details">
+        <div class="detail-kicker" id="modal-kicker"></div>
+        <h2 class="modal-title" id="modal-title">Card Name</h2>
+
+        <div class="stat-grid" id="modal-stats"></div>
+
+        <div class="rules-panel">
+          <h3>Rules Text (Neon DB Verbatim)</h3>
+          <p id="modal-desc">&mdash;</p>
+        </div>
+
+        <div class="lore-panel" id="modal-lore" style="display:none;"></div>
+
+        <div class="qa-tags" id="modal-qa"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const FACTION_META = {
+      Solari: { color: '#facc15', crest: '/solari_nobg.png' },
+      Umbri:  { color: '#c084fc', crest: '/umbri_nobg.png' },
+      Terra:  { color: '#84cc16', crest: '/terra_nobg.png' },
+      Aether: { color: '#38bdf8', crest: '/aether_nobg.png' },
+    };
+
+    const state = {
+      tab: 'samples',
+      faction: 'ALL',
+      type: 'ALL',
+      rarity: 'ALL',
+      search: '',
+      showBleed: false,
+      samples: [],
+      samplesByNum: new Map(),
+      allCards: [],
+      filtered: [],
+      modalIdx: -1,
+      modalMode: 'trimmed',
+    };
+
+    const gridEl = document.getElementById('card-grid');
+    const statusEl = document.getElementById('status-line');
+    const bleedToggle = document.getElementById('bleed-toggle');
+
+    function escapeHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    async function loadData() {
+      const [sRes, cRes] = await Promise.all([
+        fetch('/newcards/samples_manifest.json').then(r => r.json()),
+        fetch('/api/tcg/cards').then(r => r.json()).catch(() => ({ ok: false, cards: [] })),
+      ]);
+
+      state.samples = (sRes.cards || []).map(c => ({ ...c, isKenziSample: true }));
+      state.samplesByNum = new Map(state.samples.map(c => [Number(c.collector_number), c]));
+      document.getElementById('sample-count').textContent = state.samples.length;
+
+      const rawAll = cRes.cards || [];
+      state.allCards = rawAll.map(c => {
+        const num = Number(c.collector_number);
+        const s = state.samplesByNum.get(num);
+        return s ? { ...c, ...s, isKenziSample: true } : { ...c, isKenziSample: false };
+      });
+      document.getElementById('all-count').textContent = state.allCards.length || 322;
+
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const src = state.tab === 'samples' ? state.samples : state.allCards;
+      const q = state.search.trim().toLowerCase();
+
+      state.filtered = src.filter(c => {
+        if (state.faction !== 'ALL' && c.faction !== state.faction) return false;
+        if (state.type !== 'ALL' && c.card_type !== state.type) return false;
+        if (state.rarity !== 'ALL' && c.rarity !== state.rarity) return false;
+        if (q) {
+          const hay = `${c.name} awK #${String(c.collector_number).padStart(3,'0')} ${c.collector_number} ${c.keywords || ''} ${c.description || ''} ${c.sample_note || ''}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+
+      renderGrid();
+    }
+
+    function renderGrid() {
+      const n = state.filtered.length;
+      if (state.tab === 'samples') {
+        statusEl.innerHTML = `<span>Showing <strong>${n}</strong> rendered Kenzi-design sample cards (covering all 4 factions, rarities, multi-keywords, longest name <strong>#318</strong>, longest text <strong>#061</strong>, and Expansion #101&ndash;#322). Click any card to inspect.</span><span>Mode: <strong>${state.showBleed ? '69&times;94mm Factory Print Bleed (No Cut Line)' : '63&times;88mm Trimmed Card'}</strong></span>`;
+      } else {
+        statusEl.innerHTML = `<span>Showing <strong>${n}</strong> of <strong>${state.allCards.length}</strong> total cards from Neon PostgreSQL (cards + cards2). Cards with a <strong style="color:#7dd3fc;">KENZI RENDER</strong> badge use the newly rendered 600 DPI artwork.</span><span>Click any card to open details modal</span>`;
+      }
+
+      if (!n) {
+        gridEl.innerHTML = `<div style="grid-column:1/-1; padding:40px; text-align:center; color:var(--muted);">No cards match those filters.</div>`;
+        return;
+      }
+
+      gridEl.innerHTML = state.filtered.map((c, idx) => {
+        const num = Number(c.collector_number);
+        const code = `${c.set_code || 'AWK'} #${String(num).padStart(3, '0')}`;
+        const fcol = (FACTION_META[c.faction] || FACTION_META.Aether).color;
+        const imgUrl = c.isKenziSample
+          ? (state.showBleed ? c.bleed_url : c.trimmed_url)
+          : c.image_url;
+
+        const mediaHtml = c.isKenziSample
+          ? `<img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(c.name)}" loading="lazy" />`
+          : `<div class="live-art-frame">
+               <img src="${escapeHtml(imgUrl || '')}" alt="${escapeHtml(c.name)}" loading="lazy" />
+               <div class="live-art-overlay">
+                 <div class="live-top">
+                   <span class="live-cost" style="color:${fcol};">${escapeHtml(c.cost ?? 0)}</span>
+                   <span class="live-name">${escapeHtml(c.name)}</span>
+                 </div>
+                 <div class="live-bot">
+                   <span class="live-banner">${escapeHtml(c.faction?.toUpperCase())} &bull; ${escapeHtml(c.card_type?.toUpperCase())}</span>
+                   ${c.description ? `<div class="live-desc">${escapeHtml(c.description)}</div>` : ''}
+                 </div>
+               </div>
+             </div>`;
+
+        return `
+          <button class="card-tile" data-idx="${idx}" type="button">
+            <div class="card-thumb-wrap ${state.showBleed && c.isKenziSample ? 'bleed-aspect' : ''}">
+              ${mediaHtml}
+              <span class="card-badge-corner ${c.isKenziSample ? 'card-badge-kenzi' : ''}">
+                ${c.isKenziSample ? 'KENZI RENDER' : code}
+              </span>
+            </div>
+            <div class="tile-meta">
+              <span class="tile-title">${escapeHtml(c.name)}</span>
+              <span class="tile-code">${code}</span>
+            </div>
+            <div class="tile-sub">
+              <span style="color:${fcol}; font-weight:700;">${escapeHtml(c.faction)} &bull; ${escapeHtml(c.card_type)}</span>
+              <span class="tag-chip">${escapeHtml(c.rarity)}${c.power != null ? ` &bull; ${c.power}/${c.health}` : ''}</span>
+            </div>
+          </button>
+        `;
+      }).join('');
+
+      gridEl.querySelectorAll('.card-tile').forEach(btn => {
+        btn.addEventListener('click', () => openModal(Number(btn.dataset.idx)));
+      });
+    }
+
+    function openModal(idx) {
+      if (idx < 0 || idx >= state.filtered.length) return;
+      state.modalIdx = idx;
+      const c = state.filtered[idx];
+      if (!c.isKenziSample && (state.modalMode === 'trimmed' || state.modalMode === 'bleed')) {
+        state.modalMode = 'raw';
+      } else if (c.isKenziSample && state.modalMode === 'raw') {
+        state.modalMode = state.showBleed ? 'bleed' : 'trimmed';
+      } else if (c.isKenziSample && state.modalMode !== 'back') {
+        state.modalMode = state.showBleed ? 'bleed' : 'trimmed';
+      }
+      renderModal();
+      document.getElementById('modal-backdrop').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      document.getElementById('modal-backdrop').classList.remove('open');
+      document.getElementById('modal-img-box').classList.remove('zoomed');
+      document.body.style.overflow = '';
+      state.modalIdx = -1;
+    }
+
+    function renderModal() {
+      const c = state.filtered[state.modalIdx];
+      if (!c) return;
+      const num = Number(c.collector_number);
+      const code = `${c.set_code || 'AWK'} #${String(num).padStart(3, '0')}`;
+      const fm = FACTION_META[c.faction] || FACTION_META.Aether;
+
+      document.getElementById('modal-counter').textContent = `${state.modalIdx + 1} / ${state.filtered.length}`;
+      document.getElementById('modal-title').textContent = c.name;
+
+      document.getElementById('modal-kicker').innerHTML = `
+        <span class="faction-badge" style="color:${fm.color}; background:${fm.color}18;">
+          <img src="${fm.crest}" alt="" /> ${escapeHtml(c.faction)}
+        </span>
+        <span class="tag-chip">${escapeHtml(code)}</span>
+        <span class="tag-chip">${escapeHtml(c.card_type)}</span>
+        <span class="tag-chip">${escapeHtml(c.rarity)}</span>
+        <span class="tag-chip">${num <= 100 ? 'Set 1: Core (#001-#100)' : 'Set 2: Cards2 (#101-#322)'}</span>
+      `;
+
+      const kw = c.keywords && c.keywords !== 'None' ? c.keywords : 'None';
+      const ph = c.card_type === 'Entity' ? `${c.power ?? 0} / ${c.health ?? 0}` : 'N/A';
+      document.getElementById('modal-stats').innerHTML = `
+        <div class="stat-box"><div class="stat-label">Glimmer Cost</div><div class="stat-val">${escapeHtml(c.cost ?? 0)}</div></div>
+        <div class="stat-box"><div class="stat-label">Power / Health</div><div class="stat-val">${escapeHtml(ph)}</div></div>
+        <div class="stat-box"><div class="stat-label">Keywords</div><div class="stat-val" style="font-size:14px;">${escapeHtml(kw)}</div></div>
+        <div class="stat-box"><div class="stat-label">Print Spec</div><div class="stat-val" style="font-size:13.5px;">63&times;88mm (600 DPI)</div></div>
+      `;
+
+      document.getElementById('modal-desc').textContent = (c.description && c.description.trim())
+        ? c.description
+        : '(Vanilla unit — no rules text ability)';
+
+      const loreEl = document.getElementById('modal-lore');
+      if (c.lore && c.lore.trim()) {
+        loreEl.style.display = 'block';
+        loreEl.textContent = `"${c.lore}"`;
+      } else {
+        loreEl.style.display = 'none';
+      }
+
+      const qaTags = [];
+      if (c.isKenziSample) qaTags.push(`<span class="qa-pill">&#10003; Rendered in Kenzi 600 DPI Template</span>`);
+      if (c.sample_note) qaTags.push(`<span class="qa-pill">${escapeHtml(c.sample_note)}</span>`);
+      qaTags.push(`<span>Source: Neon DB (${num <= 100 ? 'cards' : 'cards2'})</span>`);
+      document.getElementById('modal-qa').innerHTML = qaTags.join('');
+
+      // Mode buttons
+      const modeBar = document.getElementById('modal-mode-bar');
+      modeBar.querySelectorAll('.mode-btn').forEach(btn => {
+        const m = btn.dataset.mode;
+        btn.disabled = !c.isKenziSample && (m === 'trimmed' || m === 'bleed');
+        btn.classList.toggle('active', m === state.modalMode);
+      });
+
+      let src = c.image_url;
+      if (state.modalMode === 'back') src = '/newcards/card_back.webp';
+      else if (state.modalMode === 'bleed' && c.bleed_url) src = c.bleed_url;
+      else if (state.modalMode === 'trimmed' && c.trimmed_url) src = c.trimmed_url;
+      document.getElementById('modal-img').src = src || '';
+      document.getElementById('modal-img-box').classList.remove('zoomed');
+    }
+
+    // Event bindings
+    document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      state.tab = b.dataset.tab;
+      applyFilters();
+    }));
+
+    document.getElementById('faction-filters').addEventListener('click', e => {
+      const btn = e.target.closest('.pill');
+      if (!btn) return;
+      document.querySelectorAll('#faction-filters .pill').forEach(x => x.classList.remove('active'));
+      btn.classList.add('active');
+      state.faction = btn.dataset.faction;
+      applyFilters();
+    });
+
+    document.getElementById('filter-type').addEventListener('change', e => { state.type = e.target.value; applyFilters(); });
+    document.getElementById('filter-rarity').addEventListener('change', e => { state.rarity = e.target.value; applyFilters(); });
+    document.getElementById('search-box').addEventListener('input', e => { state.search = e.target.value; applyFilters(); });
+    bleedToggle.addEventListener('change', e => { state.showBleed = e.target.checked; renderGrid(); });
+
+    document.getElementById('modal-mode-bar').addEventListener('click', e => {
+      const btn = e.target.closest('.mode-btn');
+      if (!btn || btn.disabled) return;
+      state.modalMode = btn.dataset.mode;
+      renderModal();
+    });
+    document.getElementById('modal-img-box').addEventListener('click', () => {
+      document.getElementById('modal-img-box').classList.toggle('zoomed');
+    });
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+    document.getElementById('modal-backdrop').addEventListener('click', e => {
+      if (e.target.id === 'modal-backdrop') closeModal();
+    });
+    document.getElementById('modal-prev').addEventListener('click', () => {
+      if (state.filtered.length) openModal((state.modalIdx - 1 + state.filtered.length) % state.filtered.length);
+    });
+    document.getElementById('modal-next').addEventListener('click', () => {
+      if (state.filtered.length) openModal((state.modalIdx + 1) % state.filtered.length);
+    });
+    document.addEventListener('keydown', e => {
+      if (state.modalIdx === -1) return;
+      if (e.key === 'Escape') closeModal();
+      else if (e.key === 'ArrowLeft') openModal((state.modalIdx - 1 + state.filtered.length) % state.filtered.length);
+      else if (e.key === 'ArrowRight') openModal((state.modalIdx + 1) % state.filtered.length);
+    });
+
+    loadData();
+  </script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 import { setupSkillGuidesUi } from './game/skillGuidesUi.js';
 import { TcgTavernDuelController } from './tcgTavernDuel.js';
 import { setupWorldEventsAndHeroShare } from './game/heroCardShare.js';
+import { setupUnifiedMenuHub, LEGACY_MODAL_TO_HUB_TAB } from './game/unifiedMenuHub.js';
 import { playInGameCinematic } from './game/cinematicOverlay.js';
 import { createAmbientRenderer } from './game/ambientRenderer.js';
 import {
@@ -111,7 +112,33 @@ import {
   getSalvageYield,
   isGearSalvageable,
   isHighValueSalvage,
+  ClientSnapshotReconstructor,
+  DEVOTIONS_CATALOG,
+  toggleDevotionInList,
+  computeDevotionModifiers,
+  normalizeSlayerState,
+  assignSlayerTask,
+  doesMobMatchSlayerTask,
+  advanceSlayerKill,
+  skipSlayerTask,
+  purchaseSlayerUnlock,
+  normalizeClueState,
+  startClueScroll,
+  evaluateClueStep,
+  rollClueCasketRewards,
+  recordCollectionItems,
 } from '../shared/protocol.js';
+import {
+  renderSlayerPanelHtml,
+  renderCollectionLogView,
+  renderDropTableModal,
+  renderClueScrollModal,
+} from './game/osrsLoopsUi.js';
+import {
+  buildContextMenuEntries,
+  openOsrsContextMenu,
+  closeOsrsContextMenu,
+} from './game/osrsContextMenu.js';
 import {
   initEmoteWheel,
   openEmoteWheel,
@@ -612,10 +639,17 @@ export function initGame() {
     emoteTimer: 0,
     skull: null,
     skullTimer: 0,
+    devotions: [],
   };
   window.player = player;
 
   const remotePlayers = new Map();
+  const clientSnapState = new ClientSnapshotReconstructor();
+  const clickMarkers = [];
+  let followPlayerId = null;
+  let autoRetaliateEnabled = localStorage.getItem('gf_auto_retaliate') !== '0';
+  let lastAutoRetaliateAt = 0;
+  let lastDevotionRenderSig = '';
   let currentParty = null;
   let pendingPartyInvite = null;
   let pendingTradeInvite = null;
@@ -1682,28 +1716,32 @@ export function initGame() {
 
     const qpAwarded = quest.questPoints || 1;
 
-    try {
-      if (quest.rewards?.xp) awardXP(quest.rewards.xp, quest.title);
-    } catch (e) {
-      console.warn('[Quest] Error awarding XP:', e);
-    }
-    try {
-      if (quest.rewards?.glimmer) {
-        player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + quest.rewards.glimmer);
+    if (net.connected) {
+      net.send({ type: 'complete_quest', questId: quest.id });
+    } else {
+      try {
+        if (quest.rewards?.xp) awardXP(quest.rewards.xp, quest.title);
+      } catch (e) {
+        console.warn('[Quest] Error awarding XP:', e);
       }
-    } catch (_) {}
-    try {
-      if (quest.rewards?.professionXp) {
-        for (const [profId, pAmt] of Object.entries(quest.rewards.professionXp)) {
-          awardProfessionXP(profId, pAmt, quest.title, true);
+      try {
+        if (quest.rewards?.glimmer) {
+          player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + quest.rewards.glimmer);
         }
-      }
-    } catch (_) {}
-    try {
-      if (quest.rewards?.gold && typeof addPlayerGold === 'function') {
-        addPlayerGold(localProfile, quest.rewards.gold);
-      }
-    } catch (_) {}
+      } catch (_) {}
+      try {
+        if (quest.rewards?.professionXp) {
+          for (const [profId, pAmt] of Object.entries(quest.rewards.professionXp)) {
+            awardProfessionXP(profId, pAmt, quest.title, false);
+          }
+        }
+      } catch (_) {}
+      try {
+        if (quest.rewards?.gold && typeof addPlayerGold === 'function') {
+          addPlayerGold(localProfile, quest.rewards.gold);
+        }
+      } catch (_) {}
+    }
 
     spawnSparkBurst(player.x, player.y - 12, ['#fde047', '#ffffff', '#38bdf8', '#86efac', '#ec4899', '#f97316'], 36);
     spawnFCT(player.x, player.y - 18, `★ QUEST COMPLETE: ${quest.title.toUpperCase()}! ★`, '#facc15', true);
@@ -1712,6 +1750,16 @@ export function initGame() {
     let nextQuest = null;
     if (quest.nextQuestId && QUEST_CATALOG[quest.nextQuestId]) {
       nextQuest = QUEST_CATALOG[quest.nextQuestId];
+    }
+
+    // Quest Point Cape Milestone: Complete every canonical quest across the realm
+    const allDone = Object.keys(QUEST_CATALOG).every((qId) => Boolean(questState.completedQuests?.[qId]));
+    if (!net.connected && allDone && !questState.questCapeAwarded) {
+      questState.questCapeAwarded = true;
+      addItemToBackpack(localProfile, 'quest_point_cape', 1);
+      recordOfflineCollectionUnlock(['quest_point_cape']);
+      spawnFCT(player.x, player.y - 24, '📜 QUEST POINT CAPE UNLOCKED!', '#38bdf8', true);
+      logMessage('📜 [GRANDMASTER] Completed every canonical quest and received the Cape of Canonical Lore (Quest Cape)!', 'log-quest', 'chat');
     }
 
     saveQuestState();
@@ -2405,24 +2453,33 @@ export function initGame() {
     }
 
     const availableList = [];
+    const lockedList = [];
     for (const qId of Object.keys(QUEST_CATALOG)) {
       const q = QUEST_CATALOG[qId];
       const isCompleted = Boolean(questState.completedQuests?.[qId]);
-      const isActive = Boolean(questState.activeQuests?.[qId]);            const prereqMet = isQuestPrereqMet(q);
-      if (!isCompleted && !isActive && prereqMet) {
-        availableList.push(q);
+      const isActive = Boolean(questState.activeQuests?.[qId]);
+      const prereqMet = isQuestPrereqMet(q);
+      if (!isCompleted && !isActive) {
+        if (prereqMet) availableList.push(q);
+        else lockedList.push(q);
       }
     }
 
     body.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #1e293b; padding-bottom:6px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #1e293b; padding-bottom:6px; flex-wrap:wrap; gap:6px;">
         <div>
           <span style="font-family:var(--font-header); font-size:13px; color:#facc15; font-weight:bold;">
             📜 SUMMONER QUEST JOURNAL
           </span>
           <span style="font-size:10px; color:#94a3b8; margin-left:8px;">
-            Active: <b style="color:#38bdf8;">${activeList.length}</b> | Available: <b style="color:#fde047;">${availableList.length}</b> | Completed: <b style="color:#4ade80;">${completedList.length}</b> | 🛡️ Quest Points: <b style="color:#facc15;">${getTotalCompletedQuestPoints()} / ${getMaxQuestPoints()}</b>
+            <b style="color:#fde047;">In Progress: ${activeList.length}</b> ·
+            <b style="color:#f87171;">Not Started: ${availableList.length + lockedList.length}</b> ·
+            <b style="color:#4ade80;">Complete: ${completedList.length}</b> ·
+            🛡️ QP: <b style="color:#facc15;">${getTotalCompletedQuestPoints()} / ${getMaxQuestPoints()}</b>
           </span>
+          <div style="font-size:9px; color:#7dd3fc; margin-top:2px;">
+            📜 Quest Point Cape Milestone: Complete all ${Object.keys(QUEST_CATALOG).length} canonical quests (${completedList.length}/${Object.keys(QUEST_CATALOG).length}).
+          </div>
         </div>
         <div style="display:flex; gap:6px;">
           <button class="id-mini-btn" onclick="resetAllQuests(true)" title="Restart all quests from Awakening" style="font-size:9.5px; padding:3px 8px; border-color:#f59e0b; color:#fbbf24;">
@@ -2510,18 +2567,18 @@ export function initGame() {
         `}
       </div>
 
-      <!-- Section 2: Available Quests in the Realm -->
-      ${availableList.length > 0 ? `
+      <!-- Section 2: Available & Prerequisite-Locked Quests in the Realm -->
+      ${(availableList.length > 0 || lockedList.length > 0) ? `
         <div style="margin-bottom:14px;">
-          <div style="font-size:11px; font-weight:bold; color:#facc15; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">
-            ⭐ Available Quests in the Realm (${availableList.length})
+          <div style="font-size:11px; font-weight:bold; color:#f87171; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">
+            🔴 Not Started Quests (${availableList.length + lockedList.length})
           </div>
           <div style="display:flex; flex-direction:column; gap:6px;">
             ${availableList.map((q) => `
-              <div style="background:#090e1d; border:1px solid #334155; border-radius:5px; padding:8px 10px;">
+              <div style="background:#090e1d; border:1px solid #ef4444; border-left:3px solid #f87171; border-radius:5px; padding:8px 10px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
-                  <span style="font-family:var(--font-header); font-size:11px; font-weight:bold; color:#facc15;">
-                    ⭐ ${q.title}
+                  <span style="font-family:var(--font-header); font-size:11px; font-weight:bold; color:#fca5a5;">
+                    🔴 ${q.title}
                   </span>
                   <span style="font-size:9.5px; color:#94a3b8;">
                     Giver: <b style="color:#38bdf8;">${getNpcName(q.giverId)}</b>
@@ -2532,6 +2589,19 @@ export function initGame() {
                   <span>Speak with ${getNpcName(q.giverId)} to accept</span>
                   <span style="color:#fde047;">+${q.rewards.xp} XP | +${q.rewards.glimmer || 0} Glimmer</span>
                 </div>
+              </div>
+            `).join('')}
+            ${lockedList.map((q) => `
+              <div style="background:#070a14; border:1px dashed #475569; border-left:3px solid #dc2626; border-radius:5px; padding:7px 10px; opacity:0.82;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                  <span style="font-family:var(--font-header); font-size:10.5px; font-weight:bold; color:#f87171;">
+                    🔒 ${q.title}
+                  </span>
+                  <span style="font-size:8.5px; color:#fbbf24; background:#1e1b4b; padding:1px 6px; border-radius:3px;">
+                    Requires: ${QUEST_CATALOG[q.prereqQuestId]?.title || q.prereqQuestId}
+                  </span>
+                </div>
+                <div style="font-size:9.5px; color:#64748b;">${q.description}</div>
               </div>
             `).join('')}
           </div>
@@ -2607,18 +2677,35 @@ export function initGame() {
     const tabQuestsBtn = document.getElementById('lore-tab-quests');
     const tabMapBtn = document.getElementById('lore-tab-map');
     const tabChronicleBtn = document.getElementById('lore-tab-chronicle');
+    const tabCollectionBtn = document.getElementById('lore-tab-collection');
     if (tabQuestsBtn) tabQuestsBtn.className = `st-tab-btn ${currentLoreTab === 'quests' ? 'active' : ''}`;
     if (tabMapBtn) tabMapBtn.className = `st-tab-btn ${currentLoreTab === 'map' ? 'active' : ''}`;
     if (tabChronicleBtn) tabChronicleBtn.className = `st-tab-btn ${currentLoreTab === 'chronicle' ? 'active' : ''}`;
+    if (tabCollectionBtn) tabCollectionBtn.className = `st-tab-btn ${currentLoreTab === 'collection' ? 'active' : ''}`;
 
     if (currentLoreTab === 'quests') {
       renderQuestLogView(body);
     } else if (currentLoreTab === 'map') {
       renderWorldAtlasView(body);
+    } else if (currentLoreTab === 'collection') {
+      renderCollectionLogView(body, prog);
     } else {
       renderChronicleView(body);
     }
   }
+
+  window.openCollectionLog = function () {
+    currentLoreTab = 'collection';
+    if (document.getElementById('lore-modal')?.style.display !== 'block') {
+      window.toggleModal('lore-modal');
+    }
+    renderLoreModal();
+  };
+
+  window.openDropTableForEntity = function (ent) {
+    renderDropTableModal(ent);
+    audio.playChime?.();
+  };
 
   function updateQuestTrackerHUD() {
     const container = document.getElementById('quest-tracker');
@@ -2815,6 +2902,18 @@ export function initGame() {
     }
   }
 
+  let unifiedMenuHub = null;
+
+  function isLegacyPanelOpen(id) {
+    if (document.getElementById(id)?.style.display === 'block') return true;
+    if (!unifiedMenuHub) return false;
+    if (id === 'equipment-modal' || id === 'paperdoll-modal' || id === 'cards-modal' || id === 'inventory-modal') {
+      return unifiedMenuHub.isGearBagOpen();
+    }
+    const tab = LEGACY_MODAL_TO_HUB_TAB[id];
+    return tab ? unifiedMenuHub.isHubTabOpen(tab) : false;
+  }
+
   function recalcVitalsFromProfile(initialProf = null, isInitialSpawn = false) {
     player.maxHp = calcMaxHp(prog, localProfile.equipment, localProfile.classId);
     player.maxSolarCharge = calcMaxGlimmer(prog, localProfile.equipment, localProfile.classId);
@@ -2852,7 +2951,7 @@ export function initGame() {
     const cls = CLASSES_CATALOG[resolved.classId] || CLASSES_CATALOG.solari_vanguard;
     const pId = prof.activeCharacterId || prof.id || 'default';
     let resolvedBank = Array.isArray(prof.bank) ? [...prof.bank] : [];
-    if (resolvedBank.length === 0 && typeof localStorage !== 'undefined') {
+    if (!net.connected && resolvedBank.length === 0 && typeof localStorage !== 'undefined') {
       try {
         const cached = localStorage.getItem(`glimmerfall_bank_cache_${pId}`);
         if (cached) {
@@ -2862,7 +2961,7 @@ export function initGame() {
           }
         }
       } catch (_) {}
-    } else if (resolvedBank.length > 0 && typeof localStorage !== 'undefined') {
+    } else if (typeof localStorage !== 'undefined') {
       try {
         localStorage.setItem(`glimmerfall_bank_cache_${pId}`, JSON.stringify(resolvedBank));
       } catch (_) {}
@@ -2896,6 +2995,9 @@ export function initGame() {
       professions: { ...createDefaultProgression().professions, ...(prof.progression?.professions || {}) },
       paragon: { ...(prof.progression?.paragon || {}) },
       familiars: normalizeFamiliarState(prof.progression?.familiars),
+      slayer: normalizeSlayerState(prof.progression?.slayer),
+      clue: normalizeClueState(prof.progression?.clue),
+      collectionLog: { ...(prof.progression?.collectionLog || {}) },
     };
     if (typeof prof.unreadMailCount === 'number' && !isSinglePlayer && net.connected) {
       unreadMailCount = prof.unreadMailCount;
@@ -2933,16 +3035,18 @@ export function initGame() {
     updatePlayerUI();
     updateActionBarBadges();
     restoreLearnedBarOnce();
-    if (document.getElementById('equipment-modal')?.style.display === 'block' || document.getElementById('paperdoll-modal')?.style.display === 'block') {
+    if (typeof renderDevotionPrayerBar === 'function') renderDevotionPrayerBar();
+    if (typeof updateAutoRetaliateButton === 'function') updateAutoRetaliateButton();
+    if (isLegacyPanelOpen('equipment-modal')) {
       renderEquipmentModal({ profile: localProfile });
     }
-    if (document.getElementById('inventory-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('inventory-modal')) {
       renderInventoryModal({ profile: localProfile });
     }
-    if (document.getElementById('echo-cradle-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('echo-cradle-modal')) {
       renderActiveEchoModal?.();
     }
-    if (document.getElementById('mail-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('mail-modal')) {
       renderActiveMailModal?.();
     }
     syncMailUnreadPip?.();
@@ -2955,7 +3059,7 @@ export function initGame() {
     if (document.getElementById('merchant-modal')?.style.display === 'block') {
       renderMerchantModal();
     }
-    if (document.getElementById('spellbook-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('spellbook-modal')) {
       renderSkillTreeUI();
       renderKeybindUI();
     }
@@ -3169,6 +3273,7 @@ export function initGame() {
 
   window.triggerEmote = function (emoteId) {
     const em = EMOTES_CATALOG[emoteId] || EMOTES_CATALOG.wave;
+    player.lastEmoteId = em.id;
     audio.playEmote();
     if (net.connected) {
       net.send({ type: 'emote', emoteId: em.id });
@@ -3195,7 +3300,7 @@ export function initGame() {
     addPlayerGold(ach.rewardGold || 50);
     awardXP(ach.rewardXp || 60, ach.name);
     saveProgressionLocal();
-    if (document.getElementById('achievements-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('achievements-modal')) {
       window.renderAchievementsModalUI();
     }
   }
@@ -3218,6 +3323,10 @@ export function initGame() {
   };
 
   window.toggleAchievementsModal = function () {
+    if (unifiedMenuHub && document.getElementById('adventure-hub-modal')) {
+      unifiedMenuHub.switchHubTab('awards', { toggleIfAlreadyActive: true });
+      return;
+    }
     const m = document.getElementById('achievements-modal');
     if (!m) return;
     if (m.style.display === 'none' || !m.style.display) {
@@ -3303,6 +3412,13 @@ export function initGame() {
     const item = EQUIPMENT_CATALOG[itemId];
     if (!item) return 'not-usable';
     if (item.slot === 'keystone') return useKeystoneItem(item, idx, inv);
+    if (item.isClueScroll) {
+      openOrAttemptClueScroll(itemId);
+      return 'used';
+    }
+    if (item.isRewardCasket) {
+      return openRewardCasketItem(item, idx, inv);
+    }
     if (item.slot !== 'consumable') return 'not-consumable';
 
     if (item.temperTargetMax) {
@@ -3331,7 +3447,7 @@ export function initGame() {
       updatePlayerUI();
       renderEquipmentModal({ profile: localProfile });
       renderStatsModal();
-      if (document.getElementById('inventory-modal')?.style.display === 'block') {
+      if (isLegacyPanelOpen('inventory-modal')) {
         renderInventoryModal({ profile: localProfile });
       }
       audio.playChime?.();
@@ -3403,13 +3519,13 @@ export function initGame() {
     localProfile.inventory = inv;
     saveProgressionLocal();
     updatePlayerUI();
-    if (document.getElementById('inventory-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('inventory-modal')) {
       renderInventoryModal({ profile: localProfile });
     }
-    if (document.getElementById('echo-cradle-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('echo-cradle-modal')) {
       renderActiveEchoModal?.();
     }
-    if (document.getElementById('mail-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('mail-modal')) {
       renderActiveMailModal?.();
     }
     syncMailUnreadPip?.();
@@ -3473,7 +3589,7 @@ export function initGame() {
       localProfile.inventory = inv;
       saveProgressionLocal();
       updatePlayerUI();
-      if (document.getElementById('inventory-modal')?.style.display === 'block') {
+      if (isLegacyPanelOpen('inventory-modal')) {
         renderInventoryModal({ profile: localProfile });
       }
     }
@@ -3755,7 +3871,7 @@ export function initGame() {
     updatePlayerUI();
     spawnFCT(player.x, player.y - 14, `EQUIPPED ${item.name.toUpperCase()}`, '#fde047');
     renderInventoryModal({ profile: localProfile });
-    if (document.getElementById('equipment-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('equipment-modal')) {
       renderEquipmentModal({ profile: localProfile });
     }
   };
@@ -3851,13 +3967,13 @@ export function initGame() {
     const itemDef = EQUIPMENT_CATALOG[itemId];
     spawnFCT(player.x, player.y - 14, `UNEQUIPPED ${itemDef?.name?.toUpperCase() || slotKey.toUpperCase()}`, '#94a3b8');
     renderEquipmentModal({ profile: localProfile });
-    if (document.getElementById('inventory-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('inventory-modal')) {
       renderInventoryModal({ profile: localProfile });
     }
-    if (document.getElementById('echo-cradle-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('echo-cradle-modal')) {
       renderActiveEchoModal?.();
     }
-    if (document.getElementById('mail-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('mail-modal')) {
       renderActiveMailModal?.();
     }
     syncMailUnreadPip?.();
@@ -5277,13 +5393,13 @@ export function initGame() {
 
     updatePlayerUI();
     updateQuestTrackerHUD();
-    if (document.getElementById('inventory-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('inventory-modal')) {
       renderInventoryModal({ profile: localProfile });
     }
-    if (document.getElementById('echo-cradle-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('echo-cradle-modal')) {
       renderActiveEchoModal?.();
     }
-    if (document.getElementById('mail-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('mail-modal')) {
       renderActiveMailModal?.();
     }
     syncMailUnreadPip?.();
@@ -5299,6 +5415,171 @@ export function initGame() {
     }
     return questState.bounties;
   }
+
+  function recordOfflineCollectionUnlock(itemIds = []) {
+    const res = recordCollectionItems(prog.collectionLog, itemIds);
+    prog.collectionLog = res.log;
+    if (res.newlyUnlocked.length > 0) {
+      saveProgressionLocal();
+      for (const id of res.newlyUnlocked) {
+        const def = EQUIPMENT_CATALOG[id];
+        if (def) {
+          spawnFCT(player.x, player.y - 24, `📖 COLLECTION: ${def.name.toUpperCase()}`, '#fde047', true);
+          logMessage(`📖 [Collection Log] New slot unlocked: ${def.name}!`, 'log-quest', 'chat');
+        }
+      }
+      if (document.getElementById('lore-modal')?.style.display === 'block' && currentLoreTab === 'collection') {
+        renderLoreModal();
+      }
+    }
+  }
+
+  function openOrAttemptClueScroll(itemId, isAttempt = false) {
+    const item = EQUIPMENT_CATALOG[itemId];
+    if (!item || !item.isClueScroll) return;
+    if (net.connected) {
+      net.send({ type: 'clue_attempt', itemId, npcId: null, emoteId: player.lastEmoteId || null });
+      return;
+    }
+    let clue = normalizeClueState(prog.clue);
+    if (!clue.activeTier || clue.activeTier !== item.clueTier || !clue.steps.length) {
+      clue = startClueScroll(clue, item.clueTier);
+      prog.clue = clue;
+      saveProgressionLocal();
+      renderClueScrollModal({ clue, itemId, roomType: currentRoomType, x: player.x, y: player.y });
+      return;
+    }
+    if (!isAttempt) {
+      renderClueScrollModal({ clue, itemId, roomType: currentRoomType, x: player.x, y: player.y });
+      return;
+    }
+    const evalRes = evaluateClueStep(clue, {
+      roomType: currentRoomType,
+      x: player.x,
+      y: player.y,
+      talkedNpcs: questState.talkedNpcs,
+      emoteId: player.lastEmoteId,
+      lastEmoteId: player.lastEmoteId,
+    });
+    if (!evalRes.advanced) {
+      renderClueScrollModal({ clue: evalRes.state, itemId, roomType: currentRoomType, x: player.x, y: player.y, feedback: evalRes.reason });
+      return;
+    }
+    prog.clue = evalRes.state;
+    if (evalRes.completed) {
+      const inv = localProfile.inventory || [];
+      const idx = inv.findIndex((it) => (typeof it === 'string' ? it : it?.id) === itemId);
+      if (idx >= 0) inv.splice(idx, 1);
+      addItemToBackpack(localProfile, evalRes.casketItemId, 1);
+      saveProgressionLocal();
+      spawnSparkBurst(player.x, player.y - 8, ['#fde047', '#38bdf8', '#ffffff'], 22);
+      spawnFCT(player.x, player.y - 16, `🎁 TREASURE CASKET (${evalRes.completedTier.toUpperCase()})!`, '#fde047', true);
+      logMessage(`🎁 [Treasure Trails] Solved all steps! Claimed a ${EQUIPMENT_CATALOG[evalRes.casketItemId]?.name || 'Reward Casket'}!`, 'log-quest', 'chat');
+      const cm = document.getElementById('clue-scroll-modal');
+      if (cm) cm.style.display = 'none';
+      if (isLegacyPanelOpen('inventory-modal')) renderInventoryModal({ profile: localProfile });
+    } else {
+      saveProgressionLocal();
+      audio.playChime?.();
+      spawnFCT(player.x, player.y - 16, `📜 CLUE STEP ${evalRes.stepNumber}/${evalRes.totalSteps}!`, '#38bdf8', true);
+      renderClueScrollModal({ clue: prog.clue, itemId, roomType: currentRoomType, x: player.x, y: player.y });
+    }
+  }
+
+  function openRewardCasketItem(item, idx, inv) {
+    if (net.connected) {
+      net.send({ type: 'use_consumable', slotIndex: idx, itemId: item.id });
+      return 'used';
+    }
+    if (inv.length >= 27) {
+      spawnFCT(player.x, player.y - 14, '🎒 FREE 2 SLOTS TO OPEN CASKET!', '#ef4444');
+      return 'blocked';
+    }
+    if (typeof inv[idx] === 'object' && inv[idx].qty > 1) inv[idx].qty--;
+    else inv.splice(idx, 1);
+    const rewards = rollClueCasketRewards(item.clueTier || 'easy');
+    const gainedIds = [];
+    for (const rw of rewards) {
+      addItemToBackpack(localProfile, rw.itemId, rw.qty || 1);
+      gainedIds.push(rw.itemId);
+    }
+    recordOfflineCollectionUnlock(gainedIds);
+    awardXP(85, `Treasure Casket (${item.clueTier})`);
+    saveProgressionLocal();
+    audio.playQuestCompleteFanfare?.();
+    const summary = rewards.map((r) => `${r.qty}x ${EQUIPMENT_CATALOG[r.itemId]?.name || r.itemId}`).join(', ');
+    spawnSparkBurst(player.x, player.y - 10, ['#fde047', '#f59e0b', '#ffffff'], 24);
+    spawnFCT(player.x, player.y - 18, '👑 CASKET OPENED!', '#fde047', true);
+    logMessage(`🎁 [Treasure Casket] Unsealed loot: ${summary}!`, 'log-quest', 'chat');
+    updatePlayerUI();
+    if (isLegacyPanelOpen('inventory-modal')) renderInventoryModal({ profile: localProfile });
+    return 'used';
+  }
+
+  window.attemptActiveClueScroll = function (itemId) {
+    const cleanId = itemId || (localProfile.inventory || []).map((it) => (typeof it === 'string' ? it : it?.id)).find((id) => EQUIPMENT_CATALOG[id]?.isClueScroll);
+    if (!cleanId) return;
+    openOrAttemptClueScroll(cleanId, true);
+  };
+
+  window.getSlayerPanelHtml = function () {
+    return renderSlayerPanelHtml(prog);
+  };
+
+  window.assignSlayerContract = function (masterId) {
+    if (net.connected) {
+      net.send({ type: 'slayer_assign', masterId });
+      return;
+    }
+    const res = assignSlayerTask(prog.slayer, masterId, prog.level || 1);
+    if (!res.ok) {
+      logMessage(`⚔️ [Vanguard Slayer] ${res.reason}.`, 'log-combat', 'chat');
+      return;
+    }
+    prog.slayer = res.state;
+    saveProgressionLocal();
+    audio.playChime?.();
+    spawnFCT(player.x, player.y - 14, `🗡️ SLAYER TASK ASSIGNED!`, '#fb923c', true);
+    logMessage(`⚔️ [Vanguard Slayer] New Task: Slay ${res.task.targetCount}x ${res.task.name} in ${res.task.roomHint}!`, 'log-quest', 'chat');
+    renderBountyModal();
+  };
+
+  window.skipSlayerContract = function (blockToo = false) {
+    if (net.connected) {
+      net.send({ type: 'slayer_skip', blockToo: Boolean(blockToo) });
+      return;
+    }
+    const res = skipSlayerTask(prog.slayer, Boolean(blockToo));
+    if (!res.ok) {
+      logMessage(`⚔️ [Vanguard Slayer] ${res.reason}.`, 'log-combat', 'chat');
+      return;
+    }
+    prog.slayer = res.state;
+    saveProgressionLocal();
+    logMessage(`⚔️ [Vanguard Slayer] ${blockToo ? 'Blocked' : 'Skipped'} "${res.skippedName}".`, 'log-quest', 'chat');
+    renderBountyModal();
+  };
+
+  window.buySlayerUnlock = function (unlockId) {
+    if (net.connected) {
+      net.send({ type: 'slayer_unlock', unlockId });
+      return;
+    }
+    const res = purchaseSlayerUnlock(prog.slayer, unlockId);
+    if (!res.ok) {
+      logMessage(`⚔️ [Vanguard Slayer] ${res.reason}.`, 'log-combat', 'chat');
+      return;
+    }
+    prog.slayer = res.state;
+    if (res.grantItemId) {
+      addItemToBackpack(localProfile, res.grantItemId, 1);
+      recordOfflineCollectionUnlock([res.grantItemId]);
+    }
+    saveProgressionLocal();
+    audio.playChime?.();
+    logMessage(`🏆 [Vanguard Slayer] Unlocked perk: ${res.perk.name}!`, 'log-quest', 'chat');
+    renderBountyModal();
+  };
 
   window.getBountyBoardState = function () {
     return ensureBountyState();
@@ -5409,13 +5690,13 @@ export function initGame() {
     logMessage(`🏆 [Bounty Claimed] Completed "${contract.title}" (+${contract.rewardXp} XP, +${contract.rewardGold} Solar Gold${itemsSummary ? `, ${itemsSummary}` : ''})!`, 'log-quest', 'chat');
     updatePlayerUI();
     renderBountyModal();
-    if (document.getElementById('inventory-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('inventory-modal')) {
       renderInventoryModal({ profile: localProfile });
     }
-    if (document.getElementById('echo-cradle-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('echo-cradle-modal')) {
       renderActiveEchoModal?.();
     }
-    if (document.getElementById('mail-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('mail-modal')) {
       renderActiveMailModal?.();
     }
     syncMailUnreadPip?.();
@@ -6134,6 +6415,67 @@ export function initGame() {
             },
           ],
         });
+      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_TCG_PAVILION) {
+        props.push(
+          { type: 'hearthFireplace', x: 0, y: -112, label: '🔥 Pavilion Hearthfire [Click / E]' },
+          { type: 'factionCrestSolari', x: -72, y: -118 },
+          { type: 'factionCrestLeaf', x: 0, y: -126 },
+          { type: 'factionCrestAether', x: 72, y: -118 },
+          { type: 'tcgDuelTable', x: 0, y: -16, label: '🃏 Grand Championship 1v1 TCG Table [Click / E]' },
+          { type: 'tcgDuelTable', x: -94, y: 12, label: '🃏 West Bronze 1v1 TCG Table [Click / E]' },
+          { type: 'tcgDuelTable', x: 94, y: 12, label: '🃏 East Auric 1v1 TCG Table [Click / E]' },
+          { type: 'wishingShrine', x: -92, y: -68, label: '🌟 Top-Deck Lucky Wish Shrine [Click / E]' },
+          { type: 'covenantBannerStand', x: 92, y: -68, label: '🚩 Continental TCG Rally Standard [Click / E]' },
+          { type: 'ancientSundialClock', x: 0, y: 42, label: '⏳ Round Clock & Swiss Timer [Click / E]' },
+          { type: 'bookshelf', x: -138, y: -102, label: '📖 First Edition 322-Card Compendium [Click / E]' },
+          { type: 'bookshelf', x: 138, y: -102, label: '📖 40-Card Meta Deck Archive [Click / E]' },
+          { type: 'bountyBoard', isBountyBoard: true, x: -138, y: -24, label: '📜 TCG & Arena Contract Board [Click / E]' },
+          { type: 'supplyCrate', x: 142, y: -24, label: '📦 Sleeve & Deckbox Cache [Click / E]' },
+          { type: 'sleepingPetCat', x: -52, y: -76, label: '🐈 Pavilion Lucky Tabby [Click / E]' },
+          { type: 'streetLantern', x: -158, y: 92 },
+          { type: 'streetLantern', x: 158, y: 92 }
+        );
+        npcs.push(
+          {
+            id: 'npc_tcg_grandmaster_solis',
+            name: 'Grandmaster Solis',
+            role: 'TCG Tournament Director [Click / T]',
+            spriteKey: 'warzoneArchonNpc',
+            x: 0,
+            y: -62,
+            dialogue: [
+              {
+                speaker: 'GRANDMASTER SOLIS • GRAND TCG PAVILION',
+                spriteKey: 'warzoneArchonNpc',
+                text: 'Welcome to the Grand GlimmerFall TCG Pavilion! Every hero begins with our complete First Edition 322-card catalog and curated 40-card decks — no pack paywalls required.\n\nStep up to any velvet table or click Challenge right here to test your deck against our GlimmerBot AI or duel another adventurer live!',
+                actions: [
+                  { label: '🃏 START 1V1 GLIMMERFALL TCG DUEL', action: 'openTcgDuel', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+                  { label: '✨ REST AT HEARTH (FULL VITALS)', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac; font-weight:bold;' },
+                  { label: '👋 GOOD LUCK AT THE TABLES', action: 'close' },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'npc_tcg_archivist_lyra',
+            name: 'Archivist Lyra',
+            role: 'First Edition Collector [Click / T]',
+            spriteKey: 'cartographerNpc',
+            x: 78,
+            y: -36,
+            dialogue: [
+              {
+                speaker: 'ARCHIVIST LYRA • CARD ARCHIVE',
+                spriteKey: 'cartographerNpc',
+                text: 'You can build and sync your personal decks on GlimmerFallTCG.com, or test preconstructed decks like Solar Singularity, Gaia\'s Loop, Fractured Continuum, and The Graveglass Veil directly in the Pavilion.\n\nTouch the Top-Deck Shrine for a fresh 90-second Starlight Wish before heading north to Frostspire Glacier!',
+                actions: [
+                  { label: '🃏 PLAY 1V1 CARD DUEL', action: 'openTcgDuel', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+                  { label: '📚 CLOSE', action: 'close' },
+                ],
+              },
+            ],
+          }
+        );
       }
       return;
     }
@@ -6217,7 +6559,14 @@ export function initGame() {
           y: -116,
           label: "📋 Cottage Archive Notice Board [Click / E]",
         },
-        { type: 'cityHouseB', x: 255, y: -135 },
+        { type: 'doorThresholdGlow', x: 255, y: -110 },
+        {
+          type: 'cityHouseB',
+          x: 255,
+          y: -135,
+          label: '🃏 Grand GlimmerFall TCG Pavilion [Enter]',
+          doorway: { targetRoom: ROOM_TYPES.INTERIOR_TCG_PAVILION, x: 255, y: -110, radius: 15 },
+        },
         { type: 'doorThresholdGlow', x: -275, y: 122 },
         {
           type: 'cityHouseA',
@@ -7324,14 +7673,84 @@ export function initGame() {
               speaker: 'EXPLORER KORIN • CRYSTALECHO CAVERNS',
               spriteKey: 'cartographerNpc',
               text: 'Behold the CrystalEcho Caverns! Beneath Sanctuary Haven and the Sunken Oasis runs a network of bioluminescent geodes, underground trout streams, and rich Copper, Star-Iron, and Mithril seams.\n\nTap the glowing Crystal Geodes, rummage our Delver Supply Caches, or roast your subterranean catch over the Explorer Hearth!',
-              actions: [
-                { label: '🔥 OPEN EXPLORER HEARTH', action: 'openStation_campfire_hearth', style: 'border-color:#fb923c; color:#fed7aa; font-weight:bold;' },
-                { label: '📜 CAVERN BOUNTIES', action: 'openBountyBoard', style: 'border-color:#38bdf8; color:#bae6fd; font-weight:bold;' },
-                { label: '👋 HAPPY DELVING', action: 'close' },
-              ],
-            },
-          ],
-        });
+            actions: [
+              { label: '🔥 OPEN EXPLORER HEARTH', action: 'openStation_campfire_hearth', style: 'border-color:#fb923c; color:#fed7aa; font-weight:bold;' },
+              { label: '📜 CAVERN BOUNTIES', action: 'openBountyBoard', style: 'border-color:#38bdf8; color:#bae6fd; font-weight:bold;' },
+              { label: '👋 HAPPY DELVING', action: 'close' },
+            ],
+          },
+        ],
+      });
+      } else if (resolvedRoomType === ROOM_TYPES.FROSTSPIRE_GLACIER) {
+        if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'FROSTSPIRE GLACIER';
+        if (zoneLabel) zoneLabel.innerText = 'Frostspire Glacier';
+        arenaBanner.style.display = 'none';
+        props.push(
+          { type: 'auroraCrystalObelisk', x: -58, y: -18, label: '🔮 Aurora Resonance Obelisk [Click / E]' },
+          { type: 'auroraCrystalObelisk', x: 58, y: -18, label: '🔮 Aurora Resonance Obelisk [Click / E]' },
+          { type: 'glacialSupplySled', x: -86, y: 150, label: '🛷 Frostspire Expedition Supply Sled [Click / E]' },
+          { type: 'glacialSupplySled', x: 96, y: 148, label: '🛷 Alpine Quartermaster Sled [Click / E]' },
+          { type: 'campfire', stationId: 'campfire_hearth', x: 0, y: 148, label: '🔥 Glacier Basecamp Hearth [Click / E]' },
+          { type: 'tcgDuelTable', x: 56, y: 162, label: '🃏 Alpine Camp 1v1 TCG Table [Click / E]' },
+          { type: 'bountyBoard', isBountyBoard: true, x: -56, y: 162, label: '📜 Frostspire Expedition Ledger [Click / E]' },
+          { type: 'ancientSundialClock', x: 0, y: 176, label: '⏳ Frostspire Meridian Dial [Click / E]' },
+          { type: 'woodenSign', x: 0, y: 215, label: '🪧 N: Silvermist Moonwell | W: Sunspire Highlands | E: CrystalEcho Caverns' },
+          { type: 'treasureCoffer', x: -230, y: -220, label: '💰 Borealis Frozen Treasure Coffer [Click / E]' },
+          { type: 'treasureCoffer', x: 230, y: -220, label: '💰 Frostfang Summit Coffer [Click / E]' },
+          { type: 'crystalGeode', x: -175, y: 65, label: '💎 Glaciated Prism Geode [Click / E]' },
+          { type: 'crystalGeode', x: 175, y: 65, label: '💎 Glaciated Prism Geode [Click / E]' },
+          { type: 'crystalPillar', x: -135, y: -135 },
+          { type: 'crystalPillar', x: 135, y: -135 },
+          { type: 'pineTree', x: -250, y: -45 },
+          { type: 'pineTree', x: 250, y: -45 },
+          { type: 'pineTree', x: -245, y: 145 },
+          { type: 'pineTree', x: 245, y: 145 },
+          { type: 'mountainCrag', x: -265, y: -175 },
+          { type: 'mountainCrag', x: 265, y: -175 },
+          { type: 'brazier', x: -44, y: 192 },
+          { type: 'brazier', x: 44, y: 192 }
+        );
+        npcs.push(
+          {
+            id: 'npc_frost_glaciologist_vael',
+            name: 'Glaciologist Vael',
+            role: 'Aurora Expedition Lead [Click / T]',
+            spriteKey: 'cartographerNpc',
+            x: -24,
+            y: 134,
+            dialogue: [
+              {
+                speaker: 'GLACIOLOGIST VAEL • FROSTSPIRE GLACIER',
+                spriteKey: 'cartographerNpc',
+                text: 'Welcome to Frostspire Glacier — GlimmerFall\'s highest alpine frontier! Four Mithril seams, ice-melt fishing pools, and a Thermal Healing Spring sustain our camp against the mountain chill.\n\nAlign with the glowing Aurora Crystal Obelisks for a 90s Frostward Blessing, search our frosted Expedition Supply Sleds, or steel yourself for Borealis to the north!',
+                actions: [
+                  { label: '🔥 OPEN BASECAMP HEARTH', action: 'openStation_campfire_hearth', style: 'border-color:#fb923c; color:#fed7aa; font-weight:bold;' },
+                  { label: '📜 FROSTSPIRE BOUNTIES', action: 'openBountyBoard', style: 'border-color:#38bdf8; color:#bae6fd; font-weight:bold;' },
+                  { label: '❄️ STAY FROSTY', action: 'close' },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'npc_frost_skald_thrym',
+            name: 'Skald Thrym',
+            role: 'Winterhold TCG Challenger [Click / T]',
+            spriteKey: 'bardNpc',
+            x: 36,
+            y: 138,
+            dialogue: [
+              {
+                speaker: 'SKALD THRYM • ALPINE TCG CAMP',
+                spriteKey: 'bardNpc',
+                text: 'Even above the clouds, nothing warms a traveler\'s blood faster than a razor-sharp 1v1 GlimmerFall TCG duel by the campfire! Pull up a chair at our alpine velvet table whenever you want a match.',
+                actions: [
+                  { label: '🃏 CHALLENGE SKALD THRYM TO 1V1 TCG', action: 'openTcgDuel', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
+                  { label: '👋 ANOTHER TIME', action: 'close' },
+                ],
+              },
+            ],
+          }
+        );
       }
     }
   }
@@ -7622,6 +8041,18 @@ export function initGame() {
         { id: 'cavern_mob_3', name: 'Prism-Shell Golem', sub: 'Lv.16 Cavern Sentinel', type: 'mob', spriteKey: 'graniteBoss', x: -95, y: -95, origX: -95, origY: -95, hp: 175, maxHp: 175, damage: 12, xpReward: 185, speed: 44, aggroRange: 118, attackRange: 30, radius: 18, hitFlash: 0 },
         { id: 'cavern_boss', name: 'Crystallis the Echo Warden', sub: '★ Lv.20 Sovereign of CrystalEcho Caverns', type: 'mob', isBoss: true, dropGear: 'mirror_shield', spriteKey: 'bossAether', x: 0, y: -225, origX: 0, origY: -225, hp: 650, maxHp: 650, damage: 17, xpReward: 620, speed: 42, aggroRange: 140, attackRange: 34, radius: 24, hitFlash: 0 }
       );
+    } else if (currentRoomType === ROOM_TYPES.FROSTSPIRE_GLACIER) {
+      if (!hasCustomSpawn) {
+        player.x = 0;
+        player.y = 185;
+      }
+      entities.push(
+        { id: 'frost_node_1', name: 'Aurora Resonance Spire', sub: 'Glacial Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: -35, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
+        { id: 'frost_mob_1', name: 'Frostfang Tundra-Stalker', sub: 'Lv.24 Glacial Beast', type: 'mob', spriteKey: 'terraWarden', x: -125, y: 45, origX: -125, origY: 45, hp: 240, maxHp: 240, damage: 16, xpReward: 260, speed: 55, aggroRange: 120, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'frost_mob_2', name: 'Frostfang Tundra-Stalker', sub: 'Lv.24 Glacial Beast', type: 'mob', spriteKey: 'terraWarden', x: 125, y: 45, origX: 125, origY: 45, hp: 240, maxHp: 240, damage: 16, xpReward: 260, speed: 55, aggroRange: 120, attackRange: 28, radius: 16, hitFlash: 0 },
+        { id: 'frost_mob_3', name: 'Rimeforged Glacier Sentinel', sub: 'Lv.28 Ice Golem', type: 'mob', spriteKey: 'graniteBoss', x: -95, y: -105, origX: -95, origY: -105, hp: 295, maxHp: 295, damage: 19, xpReward: 320, speed: 44, aggroRange: 125, attackRange: 30, radius: 18, hitFlash: 0 },
+        { id: 'frost_boss', name: 'Borealis, Crown of Eternal Rime', sub: '★ Lv.34 Sovereign of Frostspire Glacier', type: 'mob', isBoss: true, dropGear: 'chronos_singularity_core', spriteKey: 'bossAether', x: 0, y: -235, origX: 0, origY: -235, hp: 1080, maxHp: 1080, damage: 25, xpReward: 1050, speed: 44, aggroRange: 145, attackRange: 36, radius: 24, hitFlash: 0 }
+      );
     } else if (ROOM_CONFIGS[currentRoomType]?.isInterior) {
       if (!hasCustomSpawn) {
         const icfg = ROOM_CONFIGS[currentRoomType];
@@ -7827,6 +8258,9 @@ export function initGame() {
     if (currentRoomType === ROOM_TYPES.MOONWELL_SANCTUM) {
       return ` • <span style="color:#4ade80; font-weight:800;">[SILVERMIST MOONWELL]</span>`;
     }
+    if (currentRoomType === ROOM_TYPES.FROSTSPIRE_GLACIER) {
+      return ` • <span style="color:#7dd3fc; font-weight:800;">[FROSTSPIRE GLACIER]</span>`;
+    }
     if (currentRoomType === ROOM_TYPES.STARLIGHT_GROVE) {
       return ` • <span style="color:#86efac; font-weight:800;">[STARLIGHT GROVE]</span>`;
     }
@@ -7883,12 +8317,15 @@ export function initGame() {
     }
     const roomPop = remotePlayers.size + 1;
     const ping = net.pingMs || 1;
+    const jitter = net.pingJitterMs || 0;
     const pingColor = ping < 55 ? '#4ade80' : ping < 130 ? '#facc15' : '#f87171';
-    const key = `on|${ping}|${roomPop}|${currentRoomMax}|${onlineTotal}|${dangerTag}`;
+    const regionStr = net.getServerBase()?.includes('glimmerfall.online') ? 'EU-STHLM' : 'REALM';
+    const key = `on|${ping}|${jitter}|${roomPop}|${currentRoomMax}|${onlineTotal}|${dangerTag}`;
     if (key === lastNetPillKey) return;
     lastNetPillKey = key;
+    pill.title = `Connected to ${regionStr} Global Realm (${ping}ms RTT, ±${jitter}ms jitter). Click for Room Browser & Social [O].`;
     pill.innerHTML = `
-      <div class="net-pill-line1" style="color:${pingColor};">● ONLINE • ${ping}ms${dangerTag}</div>
+      <div class="net-pill-line1" style="color:${pingColor};">● ${regionStr} • ${ping}ms${dangerTag}</div>
       <div class="net-pill-line2">${roomPop}/${currentRoomMax} IN ZONE • ${onlineTotal} ONLINE</div>
     `;
   }
@@ -8024,6 +8461,10 @@ export function initGame() {
         player.emote = sp.emote;
         player.skull = sp.skull || null;
         player.skullTimer = sp.skullTimer || 0;
+        if (Array.isArray(sp.devotions)) {
+          player.devotions = sp.devotions;
+          if (typeof renderDevotionPrayerBar === 'function') renderDevotionPrayerBar();
+        }
 
         if (sp.isDead && !player.isDead) {
           player.isDead = true;
@@ -8246,6 +8687,9 @@ export function initGame() {
             }, 140);
           }
           logMessage(`[Combat] ${fx.attackerName} struck you for ${fx.dmg}!`, 'log-combat', 'combat');
+          if (typeof triggerAutoRetaliate === 'function') {
+            triggerAutoRetaliate(fx.attackerX, fx.attackerY);
+          }
         }
       } else if (fx.kind === 'smoke') {
         if (fx.isDeath) {
@@ -8476,7 +8920,14 @@ export function initGame() {
             saveQuestState();
             updateQuestTrackerHUD();
           }
-          applyServerSnapshot(msg.snapshot);
+          applyServerSnapshot(
+            clientSnapState.applyPacket({
+              type: 'world_state',
+              roomId: msg.roomId,
+              onlineTotal,
+              ...(msg.snapshot || {}),
+            })
+          );
           updateNetStatusPill();
           net.currentCoords = { x: player.x, y: player.y };
           syncNetProfileLastPosition();
@@ -8485,15 +8936,48 @@ export function initGame() {
         }
 
         case 'world_state':
+        case 'world_delta':
           if (currentRoomId && msg.roomId === currentRoomId && !isTransitioningZone) {
             onlineTotal = msg.onlineTotal || 1;
-            applyServerSnapshot(msg);
+            const fullSnap = clientSnapState.applyPacket(msg);
+            applyServerSnapshot(fullSnap);
           }
           break;
 
         case 'mythic_state':
           onlineMythic = msg.mythic ? { ...msg.mythic, _syncedAt: globalTime } : null;
           updateMythicHud();
+          break;
+
+        case 'devotion_sync':
+          player.devotions = Array.isArray(msg.activeDevotions) ? msg.activeDevotions : [];
+          if (typeof renderDevotionPrayerBar === 'function') renderDevotionPrayerBar(true);
+          break;
+
+        case 'clue_state': {
+          if (msg.clue) {
+            prog.clue = normalizeClueState(msg.clue);
+            saveProgressionLocal();
+          }
+          if (msg.completed) {
+            const cm = document.getElementById('clue-scroll-modal');
+            if (cm) cm.style.display = 'none';
+          } else {
+            const carriedScroll = (localProfile.inventory || []).map((it) => (typeof it === 'string' ? it : it?.id)).find((id) => EQUIPMENT_CATALOG[id]?.isClueScroll);
+            renderClueScrollModal({
+              clue: prog.clue,
+              itemId: carriedScroll,
+              roomType: currentRoomType,
+              x: player.x,
+              y: player.y,
+              feedback: msg.message || '',
+            });
+          }
+          break;
+        }
+
+        case 'casket_opened':
+          audio.playQuestCompleteFanfare?.();
           break;
 
         case 'progression_sync': {
@@ -8551,6 +9035,13 @@ export function initGame() {
           renderSkillTreeUI();
           renderKeybindUI();
           window.renderSkillsTabUI?.();
+          window.prog = prog;
+          if (document.getElementById('bounty-modal')?.style.display === 'block') {
+            renderBountyModal();
+          }
+          if (document.getElementById('lore-modal')?.style.display === 'block' && currentLoreTab === 'collection') {
+            renderLoreModal();
+          }
           if (document.getElementById('crafting-modal')?.style.display === 'block') {
             renderCraftingModal();
           }
@@ -8692,14 +9183,14 @@ export function initGame() {
             hp: player.hp,
             maxHp: player.maxHp,
           });
-          if (document.getElementById('social-modal')?.style.display === 'block') {
+          if (isLegacyPanelOpen('social-modal')) {
             refreshSocialModalView();
           }
           break;
 
         case 'rooms_list':
           publicRoomsList = msg.rooms || [];
-          if (document.getElementById('social-modal')?.style.display === 'block') {
+          if (isLegacyPanelOpen('social-modal')) {
             refreshSocialModalView();
           }
           break;
@@ -8728,7 +9219,7 @@ export function initGame() {
             mailStatusMsg = { ok: false, text: msg.error || 'Herald Post action failed.' };
             audio.playHurt?.();
           }
-          if (document.getElementById('mail-modal')?.style.display === 'block') {
+          if (isLegacyPanelOpen('mail-modal')) {
             renderActiveMailModal();
           }
           break;
@@ -9331,7 +9822,7 @@ export function initGame() {
       ? Number(msg.unreadCount)
       : localMailbox.filter((m) => !m.read).length;
     syncMailUnreadPip();
-    if (document.getElementById('mail-modal')?.style.display === 'block') {
+    if (isLegacyPanelOpen('mail-modal')) {
       renderActiveMailModal();
     }
   }
@@ -9447,6 +9938,11 @@ export function initGame() {
   }
 
   window.toggleEchoCradleModal = function (forcedTab = null) {
+    if (forcedTab) echoModalTab = forcedTab;
+    if (unifiedMenuHub && document.getElementById('adventure-hub-modal')) {
+      unifiedMenuHub.switchHubTab('echoes', { toggleIfAlreadyActive: forcedTab === null });
+      return;
+    }
     const modal = document.getElementById('echo-cradle-modal');
     if (!modal) return;
     const isOpening = forcedTab !== null || modal.style.display !== 'block';
@@ -9462,6 +9958,7 @@ export function initGame() {
   window.closeEchoCradleModal = function () {
     const modal = document.getElementById('echo-cradle-modal');
     if (modal) modal.style.display = 'none';
+    if (unifiedMenuHub?.isHubTabOpen('echoes')) unifiedMenuHub.closeMenuHub();
   };
 
   function handleOfflineClaimMail(mailId) {
@@ -9622,13 +10119,17 @@ export function initGame() {
   }
 
   window.toggleMailModal = function (forcedTab = 'inbox') {
+    mailModalTab = forcedTab || 'inbox';
+    mailStatusMsg = null;
+    if (unifiedMenuHub && document.getElementById('adventure-hub-modal')) {
+      unifiedMenuHub.switchHubTab('mail', { toggleIfAlreadyActive: false });
+      return;
+    }
     const modal = document.getElementById('mail-modal');
     if (!modal) return;
     const opening = modal.style.display !== 'block' || (forcedTab && mailModalTab !== forcedTab);
     document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
     if (opening) {
-      mailModalTab = forcedTab || 'inbox';
-      mailStatusMsg = null;
       modal.style.display = 'block';
       if (net.connected && !isSinglePlayer) {
         net.send({ type: 'mail_list' });
@@ -9643,6 +10144,7 @@ export function initGame() {
   window.closeMailModal = function () {
     const modal = document.getElementById('mail-modal');
     if (modal) modal.style.display = 'none';
+    if (unifiedMenuHub?.isHubTabOpen('mail')) unifiedMenuHub.closeMenuHub();
   };
 
   // ==========================================
@@ -9858,6 +10360,7 @@ export function initGame() {
               existing.qty = (existing.qty || 1) + (l.qty || 1);
             }
             localProfile.inventory = inv;
+            recordOfflineCollectionUnlock([l.itemId]);
             saveProgressionLocal();
             audio.playPickup();
 
@@ -9868,13 +10371,14 @@ export function initGame() {
             spawnFCT(player.x, player.y - 14, fctText, itemDef.slot === 'currency' ? '#fde047' : '#4ade80');
             spawnSparkBurst(l.x, l.y, ['#fde047', '#ffffff'], 8);
             updatePlayerUI();
-            if (document.getElementById('inventory-modal')?.style.display === 'block') {
+            if (isLegacyPanelOpen('inventory-modal')) {
               renderInventoryModal({ profile: localProfile });
             }
           } else if (inv.length < 28) {
             lootDrops.splice(i, 1);
             inv.push({ id: l.itemId, qty: l.qty || 1 });
             localProfile.inventory = inv;
+            recordOfflineCollectionUnlock([l.itemId]);
             saveProgressionLocal();
             audio.playPickup();
 
@@ -9887,7 +10391,7 @@ export function initGame() {
             spawnFCT(player.x, player.y - 14, fctText, isSet ? '#facc15' : itemDef.slot === 'currency' ? '#fde047' : itemDef.slot === 'consumable' ? '#4ade80' : '#38bdf8', isSet);
             spawnSparkBurst(l.x, l.y, isSet ? ['#facc15', '#fef08a', '#ffffff'] : ['#38bdf8', '#bae6fd', '#ffffff'], 12);
             updatePlayerUI();
-            if (document.getElementById('inventory-modal')?.style.display === 'block') {
+            if (isLegacyPanelOpen('inventory-modal')) {
               renderInventoryModal({ profile: localProfile });
             }
           } else {
@@ -10310,6 +10814,23 @@ export function initGame() {
     }, 3000);
   }
 
+  function processOfflineSlayerKill(ent) {
+    if (!prog.slayer?.task || !ent?.name) return;
+    const sRes = advanceSlayerKill(prog.slayer, ent.name);
+    if (!sRes.matched) return;
+    prog.slayer = sRes.state;
+    saveProgressionLocal();
+    if (sRes.xpGained > 0) awardProfessionXP('combat_mastery', sRes.xpGained, 'Vanguard Slayer');
+    if (sRes.completed) {
+      awardXP(sRes.xpGained, `Slayer Complete (${sRes.completedName})`);
+      spawnFCT(player.x, player.y - 20, `⚔️ SLAYER COMPLETE! +${sRes.pointsAwarded} PTS`, '#fde047', true);
+      logMessage(`⚔️ [Vanguard Slayer] Completed "${sRes.completedName}" (Streak ${sRes.streak})! Awarded +${sRes.pointsAwarded} Slayer Points!`, 'log-quest', 'chat');
+    } else {
+      spawnFCT(player.x, player.y - 20, `🗡️ SLAYER ${sRes.state.task.progress}/${sRes.state.task.targetCount}`, '#fb923c');
+    }
+    if (document.getElementById('bounty-modal')?.style.display === 'block') renderBountyModal();
+  }
+
   function killOfflineEntity(ent) {
     if (!ent || ent.isDying) return;
     ent.isDying = true;
@@ -10390,6 +10911,7 @@ export function initGame() {
     if (ent.type === 'mob') {
       spawnOfflineLoot(ent);
       onPlayerKilledMob(currentRoomType, ent.name, ent.isBoss, ent.id, ent.type);
+      processOfflineSlayerKill(ent);
     }
 
     ent.inCombat = false;
@@ -10449,6 +10971,15 @@ export function initGame() {
     if (!ent || ent.isDying || ent.type === 'node' || ent.type === 'portal') return;
     if ((ent.staggerTimer || 0) > 0) {
       dmg = Math.max(1, Math.round(dmg * INTERRUPT_VULN_MULT));
+    }
+    if (attackerRef === player && spellName !== 'Thornbark' && spellName !== 'Sun Rebuke') {
+      const devMods = computeDevotionModifiers(player.devotions || []);
+      if (devMods.dmgMult > 1) {
+        dmg = Math.max(1, Math.round(dmg * devMods.dmgMult));
+      }
+      if (localProfile.equipment?.head === 'slayer_helm' && doesMobMatchSlayerTask(prog.slayer?.task, ent.name)) {
+        dmg = Math.max(1, Math.round(dmg * 1.15));
+      }
     }
     ent.hp = Math.max(0, ent.hp - dmg);
     ent.hitFlash = 0.14;
@@ -10581,7 +11112,7 @@ export function initGame() {
     }
   }
 
-  function damageOfflinePlayer(amount, attackerName, attackerRef = null, isCrit = false) {
+  function damageOfflinePlayer(amount, attackerName, attackerRef = null, isCrit = false, isRite = false) {
     if (player.isDead || player.hp <= 0) return;
 
     // Umbri Paragon: Dodge Chance!
@@ -10597,9 +11128,11 @@ export function initGame() {
     }
     const rootguardDr = localProfile.faction === 'Terra' ? (player.rootguardStacks || 0) * 0.06 : 0;
     const bannerDr = (player.bastionBannerTimer || 0) > 0 ? 0.25 : 0;
-    const dmgRedPct = calcDamageReduction(prog) + (player.rootedBastionTimer > 0 ? 0.40 : 0) + rootguardDr + bannerDr;
+    const devMods = computeDevotionModifiers(player.devotions || []);
+    const devDr = isRite ? (devMods.riteDr || 0) : (devMods.meleeDr || 0);
+    const dmgRedPct = calcDamageReduction(prog) + (player.rootedBastionTimer > 0 ? 0.40 : 0) + rootguardDr + bannerDr + devDr;
     if (dmgRedPct > 0) {
-      amount = Math.max(1, Math.round(amount * (1 - Math.min(0.75, dmgRedPct))));
+      amount = Math.max(1, Math.round(amount * (1 - Math.min(0.85, dmgRedPct))));
     }
 
     // Solari Sun Aegis Rebuke Reactive Counter
@@ -10663,6 +11196,9 @@ export function initGame() {
       }
 
       logMessage(`[Combat] ${attackerName} strikes you for ${rem} damage!`, 'log-combat');
+      if (typeof triggerAutoRetaliate === 'function') {
+        triggerAutoRetaliate(attackerRef?.x, attackerRef?.y, attackerRef);
+      }
 
       if (player.hp <= 0) {
         player.isDead = true;
@@ -11100,7 +11636,7 @@ export function initGame() {
     tcgTavernDuelUi.open(targetPlayerName);
   };
 
-  setupWorldEventsAndHeroShare({
+  const heroShareControls = setupWorldEventsAndHeroShare({
     getPlayerProfile: () => localProfile,
     getPlayerEntity: () => player,
     getCurrentRoomType: () => currentRoomType,
@@ -11142,6 +11678,50 @@ export function initGame() {
     onLogMessage: (txt, cls) => logMessage(txt, cls || 'log-solari', 'chat'),
   });
 
+  function syncSettingsCheckboxValues() {
+    const touchCb = document.getElementById('settings-touch-checkbox');
+    if (touchCb) touchCb.checked = document.body.classList.contains('touch-mode');
+    const compassCb = document.getElementById('settings-compass-checkbox');
+    if (compassCb) compassCb.checked = questCompassEnabled;
+    const crtCb = document.getElementById('settings-crt-checkbox');
+    if (crtCb) crtCb.checked = document.getElementById('crt-overlay')?.style.display === 'block';
+    const aaCb = document.getElementById('settings-antialiasing-checkbox');
+    if (aaCb) aaCb.checked = isTextAntiAliased;
+    const zLbl = document.getElementById('zoom-label');
+    if (zLbl) zLbl.innerText = formatZoomLabel(zoom);
+    if (typeof window.getUiScale === 'function') {
+      const sObj = window.getUiScale();
+      const sLbl = document.getElementById('ui-scale-label');
+      if (sLbl) sLbl.innerText = sObj.label;
+    }
+  }
+
+  unifiedMenuHub = setupUnifiedMenuHub({
+    getProfile: () => localProfile,
+    audio,
+    renderEquipmentModal,
+    renderInventoryModal,
+    drawHeroCardCanvas: heroShareControls?.drawHeroCardCanvas,
+    getCurrentRoomType: () => currentRoomType,
+    onPrepareTab: (tabId) => {
+      if (tabId === 'stats') renderStatsModal();
+      if (tabId === 'spells') switchSkillTreeTab(currentSkillTreeTab || 'flashes');
+      if (tabId === 'skills') window.renderSkillsModal?.();
+      if (tabId === 'social') {
+        if (net.connected) net.send({ type: 'list_rooms' });
+        refreshSocialModalView();
+      }
+      if (tabId === 'echoes') renderActiveEchoModal?.();
+      if (tabId === 'mail') {
+        if (net.connected && !isSinglePlayer) net.send({ type: 'mail_list' });
+        else ensureOfflineMailbox?.();
+        renderActiveMailModal?.();
+      }
+      if (tabId === 'awards') window.renderAchievementsModalUI?.();
+    },
+    onSyncSettingsUi: syncSettingsCheckboxValues,
+  });
+
   const INTERACTIVE_PROP_TYPES = new Set([
     'tcgDuelTable',
     'trainingDummy',
@@ -11151,6 +11731,8 @@ export function initGame() {
     'ancientSundialClock',
     'fishermanNetRack',
     'covenantBannerStand',
+    'auroraCrystalObelisk',
+    'glacialSupplySled',
     'ancientWell',
     'grandFountain',
     'fountain',
@@ -11263,6 +11845,35 @@ export function initGame() {
       spawnFCT(player.x, player.y - 18, '🚩 VANGUARD RALLY! +30 GLIMMER', '#facc15', true);
       logMessage('🚩 [War-Order Rally Banner] You salute the Covenant Standard, gaining +30 Glimmer and a 60s Vanguard Rally Aura!', 'log-solari', 'combat');
       if (!net.connected) awardProfessionXP('combat_mastery', 22, 'Covenant Rally Standard', false);
+      return true;
+    }
+
+    if (t === 'auroraCrystalObelisk') {
+      propInteractCooldowns.set(key, now + 18000);
+      (audio.playZenith || audio.playChime)?.call(audio);
+      player.shrineBuff = { affinity: 'aether', name: 'Aurora Frostward Blessing', timer: 90 };
+      player.hp = player.maxHp;
+      player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + 40);
+      updatePlayerUI();
+      spawnSparkBurst(pr.x, pr.y - 14, ['#38bdf8', '#a855f7', '#5eead4', '#ffffff'], 26);
+      spawnFCT(player.x, player.y - 20, '❄️ AURORA FROSTWARD! +40 GLIMMER', '#7dd3fc', true);
+      logMessage('🔮 [Aurora Crystal Obelisk] Borealis light surges through your weapon! Full HP restored, +40 Glimmer & 90s Aurora Frostward Blessing!', 'log-aether', 'chat');
+      if (!net.connected) awardProfessionXP('rites', 28, 'Aurora Obelisk Resonance', false);
+      return true;
+    }
+
+    if (t === 'glacialSupplySled') {
+      propInteractCooldowns.set(key, now + 24000);
+      (audio.playPickup || audio.playChime)?.call(audio);
+      const goldGain = 14 + Math.floor(Math.random() * 15);
+      addPlayerGold(localProfile, goldGain);
+      const addedMithril = Math.random() < 0.45 ? addItemToBackpack(localProfile, 'mithril_ore', 1) : addItemToBackpack(localProfile, 'glimmer_shard', 2);
+      saveProgressionLocal();
+      updatePlayerUI();
+      spawnSparkBurst(pr.x, pr.y - 10, ['#fde047', '#7dd3fc', '#ffffff'], 20);
+      spawnFCT(pr.x, pr.y - 18, addedMithril ? `🛷 +${goldGain}G & ALPINE SUPPLY!` : `🛷 +${goldGain}G & RATIONS!`, '#fde047', true);
+      logMessage(`🛷 [Glacial Expedition Sled] You unpack frozen pioneer caches for +${goldGain} Solar Gold${addedMithril ? ' & alpine mineral reserves' : ''}!`, 'log-gain', 'chat');
+      if (!net.connected) awardProfessionXP('artisans', 20, 'Expedition Cache Recovery', false);
       return true;
     }
 
@@ -11668,7 +12279,7 @@ export function initGame() {
           awardProfessionXP(skSpec.secondaryProfession, Math.max(8, Math.round((skSpec.xp || 25) * 0.35)), skSpec.name, false);
         }
         awardXP(4, skSpec.name);
-        if (document.getElementById('inventory-modal')?.style.display === 'block') {
+        if (isLegacyPanelOpen('inventory-modal')) {
           renderInventoryModal({ profile: localProfile });
         }
       }
@@ -13293,6 +13904,28 @@ export function initGame() {
   };
 
   window.toggleModal = function (id) {
+    if (unifiedMenuHub) {
+      if (id === 'gearbag-modal') {
+        unifiedMenuHub.openGearAndBag('both', { toggleIfOpen: true });
+        return;
+      }
+      if ((id === 'equipment-modal' || id === 'paperdoll-modal' || id === 'cards-modal') && document.getElementById('gearbag-modal')) {
+        unifiedMenuHub.openGearAndBag('equip', { toggleIfOpen: true });
+        return;
+      }
+      if (id === 'inventory-modal' && document.getElementById('gearbag-modal')) {
+        unifiedMenuHub.openGearAndBag('inv', { toggleIfOpen: true });
+        return;
+      }
+      const mappedHubTab = LEGACY_MODAL_TO_HUB_TAB[id];
+      if (mappedHubTab && document.getElementById('adventure-hub-modal')) {
+        unifiedMenuHub.switchHubTab(mappedHubTab, { toggleIfAlreadyActive: true });
+        return;
+      }
+      unifiedMenuHub.restoreMountedHubPanel();
+      unifiedMenuHub.restoreGearBagPanels();
+    }
+
     const el = document.getElementById(id);
     if (!el) return;
     const opening = el.style.display !== 'block';
@@ -13353,21 +13986,7 @@ export function initGame() {
           syncAudioMixerUI();
         }
         if (id === 'settings-modal') {
-          const touchCb = document.getElementById('settings-touch-checkbox');
-          if (touchCb) touchCb.checked = document.body.classList.contains('touch-mode');
-          const compassCb = document.getElementById('settings-compass-checkbox');
-          if (compassCb) compassCb.checked = questCompassEnabled;
-          const crtCb = document.getElementById('settings-crt-checkbox');
-          if (crtCb) crtCb.checked = document.getElementById('crt-overlay')?.style.display === 'block';
-          const aaCb = document.getElementById('settings-antialiasing-checkbox');
-          if (aaCb) aaCb.checked = isTextAntiAliased;
-          const zLbl = document.getElementById('zoom-label');
-          if (zLbl) zLbl.innerText = formatZoomLabel(zoom);
-          if (typeof window.getUiScale === 'function') {
-            const sObj = window.getUiScale();
-            const sLbl = document.getElementById('ui-scale-label');
-            if (sLbl) sLbl.innerText = sObj.label;
-          }
+          syncSettingsCheckboxValues();
         }
       } catch (err) {
         console.warn('[toggleModal] Non-fatal modal render error:', id, err);
@@ -13453,11 +14072,290 @@ export function initGame() {
   let autoHarvestNodeId = null;
   let lastTouchCanvasPointerAt = 0;
 
+  function spawnClickMarker(wx, wy, color = '#fde047') {
+    clickMarkers.push({ x: wx, y: wy, color, age: 0, maxAge: 0.52 });
+    if (clickMarkers.length > 8) clickMarkers.shift();
+  }
+
+  function updateAutoRetaliateButton() {
+    const btn = document.getElementById('btn-auto-retaliate');
+    if (!btn) return;
+    btn.textContent = autoRetaliateEnabled ? '⚔️ AUTO: ON' : '⚔️ AUTO: OFF';
+    btn.classList.toggle('off', !autoRetaliateEnabled);
+  }
+
+  window.toggleAutoRetaliate = function () {
+    autoRetaliateEnabled = !autoRetaliateEnabled;
+    try { localStorage.setItem('gf_auto_retaliate', autoRetaliateEnabled ? '1' : '0'); } catch (_) {}
+    updateAutoRetaliateButton();
+    logMessage(`[Combat] Auto-Retaliate is now ${autoRetaliateEnabled ? 'ENABLED' : 'DISABLED'}.`, 'log-combat', 'combat');
+  };
+
+  function triggerAutoRetaliate(attackerX, attackerY, attackerRef = null) {
+    if (!autoRetaliateEnabled || player.isDead || deathScreenVisible || isCasting) return;
+    const now = performance.now();
+    if (now - lastAutoRetaliateAt < 1250 || (cooldowns[1] || 0) > 0) return;
+    if (inputs.w || inputs.a || inputs.s || inputs.d || inputs.up || inputs.down || inputs.left || inputs.right || inputs.axisX || inputs.axisY) {
+      return;
+    }
+    let tgt = attackerRef && !attackerRef.isDying && attackerRef.hp > 0 ? attackerRef : null;
+    if (!tgt && currentTarget && !currentTarget.isDying && (currentTarget.isRemotePlayer || isHostileEntity(currentTarget))) {
+      tgt = currentTarget;
+    }
+    if (!tgt && attackerX !== undefined && attackerY !== undefined) {
+      let bestDist = 140;
+      for (const e of entities) {
+        if (!e || e.isDying || !isHostileEntity(e)) continue;
+        const d = Math.hypot(e.x - attackerX, e.y - attackerY);
+        if (d < bestDist) { bestDist = d; tgt = e; }
+      }
+      if (!tgt) {
+        for (const rp of remotePlayers.values()) {
+          if (!rp || rp.isDead || !isRemoteHostile(rp)) continue;
+          const d = Math.hypot((rp.renderX ?? rp.x) - attackerX, (rp.renderY ?? rp.y) - attackerY);
+          if (d < bestDist) {
+            bestDist = d;
+            tgt = { id: `p_${rp.id}`, playerId: rp.id, isRemotePlayer: true, name: rp.name, x: rp.renderX ?? rp.x, y: rp.renderY ?? rp.y, hp: rp.hp, maxHp: rp.maxHp, radius: 14 };
+          }
+        }
+      }
+    }
+    if (!tgt) return;
+    lastAutoRetaliateAt = now;
+    setTarget(tgt);
+    faceToward(tgt.x, tgt.y);
+    if (Math.hypot(tgt.x - player.x, tgt.y - player.y) <= 135) {
+      window.castAbility(1);
+    } else if (!autoWalkTarget) {
+      autoWalkTarget = {
+        x: tgt.x,
+        y: tgt.y,
+        stopDist: 72,
+        onArrive: () => {
+          faceToward(tgt.x, tgt.y);
+          window.castAbility(1);
+        },
+      };
+    }
+  }
+
+  function renderDevotionPrayerBar(force = false) {
+    const bar = document.getElementById('devotion-prayer-bar');
+    if (!bar) return;
+    const activeSet = new Set(player.devotions || []);
+    const sig = `${prog.level}|${[...activeSet].sort().join(',')}`;
+    if (!force && sig === lastDevotionRenderSig) return;
+    lastDevotionRenderSig = sig;
+    bar.innerHTML = Object.values(DEVOTIONS_CATALOG).map((dev) => {
+      const unlocked = (prog.level || 1) >= dev.reqLevel;
+      const isActive = activeSet.has(dev.id);
+      const cls = `devotion-pill-btn${isActive ? ' active' : ''}${unlocked ? '' : ' locked'}`;
+      const title = `${dev.name} (Lv.${dev.reqLevel}) — ${dev.desc} [Drains ${dev.drainPerSec}/s Glimmer]`;
+      return `<button type="button" class="${cls}" onclick="toggleDevotion('${dev.id}')" title="${title.replace(/"/g, '&quot;')}">${dev.icon} ${dev.shortName || dev.name}</button>`;
+    }).join('');
+  }
+
+  window.toggleDevotion = function (devotionId) {
+    if (player.isDead || frontpage.isOpen) return;
+    const res = toggleDevotionInList(player.devotions || [], devotionId, prog.level || 1, player.solarCharge || 0);
+    if (!res.ok) {
+      logMessage(`🙏 [Devotion] ${res.reason}.`, 'log-combat', 'combat');
+      return;
+    }
+    if (net.connected) {
+      net.send({ type: 'toggle_devotion', devotionId });
+    }
+    player.devotions = res.list;
+    renderDevotionPrayerBar(true);
+    audio.playChime?.();
+  };
+
+  function walkAndRun(wx, wy, reachDist, stopDist, markerColor, onArrive) {
+    followPlayerId = null;
+    autoHarvestNodeId = null;
+    spawnClickMarker(wx, wy, markerColor);
+    if (Math.hypot(player.x - wx, player.y - wy) <= reachDist) {
+      autoWalkTarget = null;
+      faceToward(wx, wy);
+      onArrive?.();
+      return;
+    }
+    faceToward(wx, wy);
+    autoWalkTarget = { x: wx, y: wy, stopDist, onArrive };
+  }
+
+  function handleOsrsContextMenuAction(choice) {
+    if (!choice || choice.action === 'cancel') return;
+    const p = choice.payload;
+    switch (choice.action) {
+      case 'walk_here':
+        followPlayerId = null;
+        autoHarvestNodeId = null;
+        spawnClickMarker(p.wx, p.wy, '#fde047');
+        autoWalkTarget = { x: p.wx, y: p.wy, stopDist: 8 };
+        break;
+      case 'take_loot':
+        walkAndRun(p.x, p.y, 16, 10, '#fde047', () => {});
+        break;
+      case 'attack_entity':
+        setTarget(p);
+        walkAndRun(p.x, p.y, 140, 80, '#ef4444', () => {
+          faceToward(p.x, p.y);
+          window.castAbility(1);
+        });
+        break;
+      case 'attack_player':
+        setTarget({
+          id: `p_${p.id}`,
+          playerId: p.id,
+          isRemotePlayer: true,
+          name: p.name,
+          sub: `Lv.${p.level} ${p.faction} ${p.orderTag ? `<${p.orderTag}>` : ''}`,
+          x: p.renderX ?? p.x,
+          y: p.renderY ?? p.y,
+          hp: p.hp,
+          maxHp: p.maxHp,
+          radius: 14,
+        });
+        walkAndRun(p.renderX ?? p.x, p.renderY ?? p.y, 140, 72, '#ef4444', () => {
+          faceToward(p.renderX ?? p.x, p.renderY ?? p.y);
+          window.castAbility(1);
+        });
+        break;
+      case 'harvest_node': {
+        setTarget(p);
+        const maxDist = p.isGrand ? 160 : 7.0 * YARD_PX;
+        walkAndRun(p.x, p.y, maxDist, Math.min(52, maxDist - 12), '#38bdf8', () => {
+          autoHarvestNodeId = p.id;
+          window.harvestTarget();
+        });
+        break;
+      }
+      case 'enter_portal':
+        walkAndRun(p.x, p.y, 95, 52, '#38bdf8', () => enterPortalEntity(p));
+        break;
+      case 'talk_npc':
+        walkAndRun(p.x, p.y + 18, 92, 56, '#fde047', () => interactWithNpc(p));
+        break;
+      case 'bank_npc':
+        walkAndRun(p.x, p.y + 18, 92, 56, '#4ade80', () => {
+          questState.bankVisited = true;
+          saveQuestState();
+          window.toggleModal('bank-modal');
+        });
+        break;
+      case 'exchange_npc':
+        walkAndRun(p.x, p.y + 18, 92, 56, '#38bdf8', () => window.toggleModal('exchange-modal'));
+        break;
+      case 'shop_npc':
+        walkAndRun(p.x, p.y + 18, 92, 56, '#fb923c', () => {
+          const pages = getMerchantDialoguePages(p.merchantType || p.id);
+          openDialogue(pages, p.spriteKey, p.id);
+        });
+        break;
+      case 'use_prop': {
+        const triggerProp = () => {
+          if (p.exitDoor) transitionToRoom(p.exitDoor.roomType, p.exitDoor.x, p.exitDoor.y, p.exitDoor.dir || 'down');
+          else if (p.doorway) transitionToRoom(p.doorway.targetRoom, null, null, 'up');
+          else if (p.noticeBoardId || p.puzzleId || p.specialStation || p.isPostbox) tryInteractSpecialProp(p);
+          else if (p.stationId) window.openCraftingModal(p.stationId);
+          else if (p.isBountyBoard) window.openBountyBoard();
+          else tryInteractWorldObject(p);
+        };
+        const ax = p.doorway?.x ?? p.x;
+        const ay = p.doorway?.y ?? p.y;
+        walkAndRun(ax, ay, 115, 56, '#fbbf24', triggerProp);
+        break;
+      }
+      case 'follow_player':
+        autoWalkTarget = null;
+        autoHarvestNodeId = null;
+        followPlayerId = p.id;
+        logMessage(`👣 Following ${p.name}... (Press WASD or click ground to stop)`, 'log-solari', 'chat');
+        break;
+      case 'trade_player':
+        setTarget({ id: `p_${p.id}`, playerId: p.id, isRemotePlayer: true, name: p.name });
+        window.tradeTargetedPlayer();
+        break;
+      case 'inspect_player':
+        window.inspectPlayerByName(p.name);
+        break;
+      case 'duel_player':
+        setTarget({ id: `p_${p.id}`, playerId: p.id, isRemotePlayer: true, name: p.name });
+        window.duelTargetedPlayer();
+        break;
+      case 'invite_player':
+        window.sendPartyInviteTo(p.id);
+        break;
+      case 'whisper_player': {
+        const inp = document.getElementById('chat-input');
+        if (inp) {
+          inp.focus();
+          inp.value = `/w ${p.name} `;
+        }
+        break;
+      }
+      case 'add_friend':
+        if (net.connected) net.send({ type: 'friend_add', target: p.name });
+        else logMessage('[Friends] Enter Multiplayer Realm to add friends.', 'log-combat', 'chat');
+        break;
+      case 'report_player':
+        if (typeof window.openReportModal === 'function') window.openReportModal(p.name);
+        else logMessage(`[Report] Reported ${p.name} for review.`, 'log-combat', 'chat');
+        break;
+      case 'drop_table':
+        if (typeof window.openDropTableForEntity === 'function') {
+          window.openDropTableForEntity(p);
+        } else {
+          logMessage(`[Bestiary] ${p.name} (Lv.${p.level || 1}) — ${p.sub || 'Defeat in the wild to claim Sovereigns, Shards, and Gear.'}`, 'log-quest', 'chat');
+        }
+        break;
+      case 'examine':
+        logMessage(`[Examine] ${p.name ? `${p.name}: ` : ''}${p.desc || 'Nothing unusual.'}`, 'log-quest', 'chat');
+        break;
+      default:
+        break;
+    }
+  }
+
   function handleCanvasPrimaryPointer(e) {
+    closeOsrsContextMenu();
     if (player.isDead || deathScreenVisible || frontpage.isOpen) return;
     window.clearHoveredEquipment?.();
     audio.init();
     const { wx, wy } = screenToWorld(e.clientX, e.clientY);
+
+    if (e.button === 2) {
+      const entries = buildContextMenuEntries({
+        wx,
+        wy,
+        npcs,
+        props,
+        entities,
+        remotePlayers,
+        lootDrops,
+        equipmentCatalog: EQUIPMENT_CATALOG,
+        isHostileEntity,
+        isRemoteHostile,
+        isClickOnNpc,
+        isInteractiveWorldProp,
+      });
+      openOsrsContextMenu({
+        clientX: e.clientX,
+        clientY: e.clientY,
+        entries,
+        onSelect: handleOsrsContextMenuAction,
+      });
+      return;
+    }
+
+    // Direct click on ground loot drop (left-click walks to pick up)
+    for (const drop of lootDrops) {
+      if (Math.hypot((drop.x || 0) - wx, (drop.y || 0) - wy) <= 22) {
+        walkAndRun(drop.x, drop.y, 16, 10, '#fde047', () => {});
+        return;
+      }
+    }
 
     // Direct click on any NPC (covering head, nameplate, body, feet, and overhead quest glyph)
     let clickedNpc = null;
@@ -13472,19 +14370,7 @@ export function initGame() {
       }
     }
     if (clickedNpc) {
-      autoHarvestNodeId = null;
-      if (Math.hypot(player.x - clickedNpc.x, player.y - clickedNpc.y) <= 92) {
-        autoWalkTarget = null;
-        interactWithNpc(clickedNpc);
-      } else {
-        faceToward(clickedNpc.x, clickedNpc.y);
-        autoWalkTarget = {
-          x: clickedNpc.x,
-          y: clickedNpc.y + 18,
-          stopDist: 56,
-          onArrive: () => interactWithNpc(clickedNpc),
-        };
-      }
+      walkAndRun(clickedNpc.x, clickedNpc.y + 18, 92, 56, '#fde047', () => interactWithNpc(clickedNpc));
       return;
     }
 
@@ -13496,8 +14382,7 @@ export function initGame() {
         if (dx <= 36 && dy >= -48 && dy <= 20) {
           const merchant = npcs.find((n) => n.stallId === pr.id || Math.hypot(n.x - pr.x, n.y - pr.y) < 44);
           if (merchant) {
-            autoHarvestNodeId = null;
-            interactWithNpc(merchant);
+            walkAndRun(merchant.x, merchant.y + 18, 92, 56, '#fb923c', () => interactWithNpc(merchant));
             return;
           }
         }
@@ -13507,52 +14392,31 @@ export function initGame() {
         if (dx <= 34 && dy >= -48 && dy <= 24) {
           const anchorX = pr.doorway?.x ?? pr.x;
           const anchorY = pr.doorway?.y ?? pr.y;
-          autoHarvestNodeId = null;
-          faceToward(anchorX, anchorY);
-          if (Math.hypot(player.x - anchorX, player.y - anchorY) <= 96) {
-            autoWalkTarget = null;
-            if (pr.exitDoor) {
-              transitionToRoom(pr.exitDoor.roomType, pr.exitDoor.x, pr.exitDoor.y, pr.exitDoor.dir || 'down');
-            } else {
-              transitionToRoom(pr.doorway.targetRoom, null, null, 'up');
-            }
-          } else {
-            autoWalkTarget = {
-              x: anchorX,
-              y: anchorY,
-              stopDist: 28,
-              onArrive: () => {
-                if (pr.exitDoor) {
-                  transitionToRoom(pr.exitDoor.roomType, pr.exitDoor.x, pr.exitDoor.y, pr.exitDoor.dir || 'down');
-                } else {
-                  transitionToRoom(pr.doorway.targetRoom, null, null, 'up');
-                }
-              },
-            };
+          const enterDoor = () => {
+            if (pr.exitDoor) transitionToRoom(pr.exitDoor.roomType, pr.exitDoor.x, pr.exitDoor.y, pr.exitDoor.dir || 'down');
+            else transitionToRoom(pr.doorway.targetRoom, null, null, 'up');
+          };
+          if (Math.hypot(player.x - anchorX, player.y - anchorY) > 96) {
             logMessage(`[Doorway] Walking to ${pr.label || 'the doorway'}...`, 'log-solari', 'chat');
             spawnFCT(anchorX, anchorY - 14, 'WALK TO DOOR', '#fbbf24');
           }
+          walkAndRun(anchorX, anchorY, 96, 28, '#fbbf24', enterDoor);
           return;
         }
       } else if (pr.stationId || pr.isBountyBoard || pr.noticeBoardId || pr.puzzleId || pr.specialStation || pr.isPostbox) {
         const dx = Math.abs(pr.x - wx);
         const dy = wy - pr.y;
         if (dx <= 34 && dy >= -44 && dy <= 18) {
-          autoHarvestNodeId = null;
-          faceToward(pr.x, pr.y);
           const triggerSpecial = () => {
             if (pr.noticeBoardId || pr.puzzleId || pr.specialStation || pr.isPostbox) tryInteractSpecialProp(pr);
             else if (pr.stationId) window.openCraftingModal(pr.stationId);
             else window.openBountyBoard();
           };
-          if (Math.hypot(player.x - pr.x, player.y - pr.y) <= 135) {
-            autoWalkTarget = null;
-            triggerSpecial();
-          } else {
-            autoWalkTarget = { x: pr.x, y: pr.y + 18, stopDist: 64, onArrive: triggerSpecial };
+          if (Math.hypot(player.x - pr.x, player.y - pr.y) > 135) {
             logMessage(`[Interact] Walking to ${pr.label || 'this object'}...`, 'log-solari', 'chat');
             spawnFCT(pr.x, pr.y - 14, 'STEP CLOSER', '#38bdf8');
           }
+          walkAndRun(pr.x, pr.y + 18, 135, 64, '#38bdf8', triggerSpecial);
           return;
         }
       }
@@ -13572,9 +14436,11 @@ export function initGame() {
           maxHp: rp.maxHp,
           radius: 14,
         });
-        if (e.button === 2 && isRemoteHostile(rp)) {
-          faceToward(rp.renderX, rp.renderY);
-          window.castAbility(1);
+        if (isRemoteHostile(rp)) {
+          walkAndRun(rp.renderX, rp.renderY, 140, 72, '#ef4444', () => {
+            faceToward(rp.renderX, rp.renderY);
+            window.castAbility(1);
+          });
         }
         return;
       }
@@ -13596,41 +14462,24 @@ export function initGame() {
 
     if (clicked) {
       if (clicked.type === 'portal') {
-        autoHarvestNodeId = null;
-        if (Math.hypot(clicked.x - player.x, clicked.y - player.y) <= 95 || e.button === 2) {
-          enterPortalEntity(clicked);
-        } else {
-          setTarget(clicked);
-          autoWalkTarget = { x: clicked.x, y: clicked.y, stopDist: 54, onArrive: () => enterPortalEntity(clicked) };
-          logMessage(`[Waygate] Step closer or right-click ${clicked.name} to travel!`, 'log-quest', 'chat');
-        }
+        walkAndRun(clicked.x, clicked.y, 95, 54, '#38bdf8', () => enterPortalEntity(clicked));
         return;
       }
       setTarget(clicked);
-      faceToward(clicked.x, clicked.y);
-      if (e.button === 2 || clicked.type === 'node' || clicked.type === 'shrine') {
-        if (clicked.type === 'node' || clicked.type === 'shrine') {
-          const maxNodeDist = clicked.isGrand ? 160 : 7.0 * YARD_PX;
-          if (Math.hypot(clicked.x - player.x, clicked.y - player.y) <= maxNodeDist) {
-            autoWalkTarget = null;
-            autoHarvestNodeId = clicked.id;
-            window.harvestTarget();
-          } else {
-            autoWalkTarget = {
-              x: clicked.x,
-              y: clicked.y + 18,
-              stopDist: Math.min(52, maxNodeDist - 12),
-              onArrive: () => {
-                autoHarvestNodeId = clicked.id;
-                window.harvestTarget();
-              },
-            };
-            spawnFCT(clicked.x, clicked.y - 16, '⛏️ WALKING TO EXTRACT...', '#38bdf8');
-          }
-        } else {
-          autoHarvestNodeId = null;
-          window.castAbility(1);
+      if (clicked.type === 'node' || clicked.type === 'shrine') {
+        const maxNodeDist = clicked.isGrand ? 160 : 7.0 * YARD_PX;
+        if (Math.hypot(clicked.x - player.x, clicked.y - player.y) > maxNodeDist) {
+          spawnFCT(clicked.x, clicked.y - 16, '⛏️ WALKING TO EXTRACT...', '#38bdf8');
         }
+        walkAndRun(clicked.x, clicked.y + 18, maxNodeDist, Math.min(52, maxNodeDist - 12), '#38bdf8', () => {
+          autoHarvestNodeId = clicked.id;
+          window.harvestTarget();
+        });
+      } else {
+        walkAndRun(clicked.x, clicked.y, 135, 72, '#ef4444', () => {
+          faceToward(clicked.x, clicked.y);
+          window.castAbility(1);
+        });
       }
       return;
     }
@@ -13641,30 +14490,24 @@ export function initGame() {
       const dx = Math.abs(pr.x - wx);
       const dy = wy - pr.y;
       if (dx <= 30 && dy >= -42 && dy <= 18) {
-        autoHarvestNodeId = null;
-        faceToward(pr.x, pr.y);
-        if (Math.hypot(player.x - pr.x, player.y - pr.y) <= 115) {
-          autoWalkTarget = null;
-          tryInteractWorldObject(pr);
-        } else {
-          autoWalkTarget = {
-            x: pr.x,
-            y: pr.y + 18,
-            stopDist: 56,
-            onArrive: () => tryInteractWorldObject(pr),
-          };
+        if (Math.hypot(player.x - pr.x, player.y - pr.y) > 115) {
           spawnFCT(pr.x, pr.y - 14, '✨ WALKING TO INTERACT...', '#fde047');
         }
+        walkAndRun(pr.x, pr.y + 18, 115, 56, '#fde047', () => tryInteractWorldObject(pr));
         return;
       }
     }
 
-    if (e.button === 2) {
-      autoHarvestNodeId = null;
-      faceToward(wx, wy);
-      window.castAbility(1);
-    }
+    // OSRS Click-to-Move on empty terrain
+    followPlayerId = null;
+    autoHarvestNodeId = null;
+    spawnClickMarker(wx, wy, '#fde047');
+    autoWalkTarget = { x: wx, y: wy, stopDist: 8 };
   }
+
+  document.addEventListener('click', (ev) => {
+    if (!ev.target?.closest?.('#gf-osrs-context-menu')) closeOsrsContextMenu();
+  });
 
   canvas.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'touch' || e.pointerType === 'pen') {
@@ -13756,7 +14599,8 @@ export function initGame() {
       return;
     }
 
-    // Escape cancels a picked-but-not-yet-placed Rite/Flash.
+    // Escape cancels a picked-but-not-yet-placed Rite/Flash and closes context menu.
+    if (e.key === 'Escape') closeOsrsContextMenu();
     if (e.key === 'Escape' && pendingAssign) {
       e.preventDefault();
       e.stopPropagation();
@@ -13889,6 +14733,8 @@ export function initGame() {
         window.closeCraftingModal?.();
         window.closeEchoCradleModal?.();
         window.closeMailModal?.();
+        window.closeMenuHub?.();
+        window.closeGearAndBag?.();
         window.closeQuickSlotPicker?.();
         if (skPopup) {
           skPopup.classList.remove('active');
@@ -14136,14 +14982,23 @@ export function initGame() {
     const isNearHealingSpring = entities.some((e) => e.type === 'node' && e.skillingType === 'healing_spring' && (e.charges ?? 0) > 0 && Math.hypot(e.x - player.x, e.y - player.y) <= 75);
     const springRegen = isNearHealingSpring ? 6.0 : 0;
 
-    // Vitality Health Regeneration (+2.5 HP/s baseline + 0.5 HP/s per Terra Bulwark point + Campfire/Spring)
-    const hpRegen = calcHpRegenPerSec(prog) + campfireRegen + springRegen;
+    // Vitality Health Regeneration (+2.5 HP/s baseline + Devotion Sacred Renewal)
+    const offDevMods = computeDevotionModifiers(player.devotions || []);
+    const hpRegen = calcHpRegenPerSec(prog) + campfireRegen + springRegen + (offDevMods.hpRegenPerSec || 0);
     if (hpRegen > 0 && !player.isDead && player.hp < player.maxHp) {
       player.hp = Math.min(player.maxHp, player.hp + hpRegen * dt);
     }
 
-    // Baseline Glimmer resonance recovery (+3.5 Glimmer/s + Campfire/Spring)
-    if (!player.isDead && player.solarCharge < player.maxSolarCharge) {
+    // Covenant Devotions drain Glimmer when active; otherwise baseline Glimmer recovery
+    if (!player.isDead && offDevMods.drainPerSec > 0) {
+      player.solarCharge = Math.max(0, (player.solarCharge || 0) + (campfireRegen + springRegen - offDevMods.drainPerSec) * dt);
+      if (!net.connected && player.solarCharge <= 0 && (player.devotions?.length || 0) > 0) {
+        player.devotions = [];
+        renderDevotionPrayerBar(true);
+        spawnFCT(player.x, player.y - 16, '🙏 GLIMMER EXHAUSTED', '#94a3b8');
+        logMessage('🙏 [Devotion] Glimmer Charge exhausted — overhead prayers deactivated!', 'log-combat', 'combat');
+      }
+    } else if (!player.isDead && player.solarCharge < player.maxSolarCharge) {
       player.solarCharge = Math.min(player.maxSolarCharge, player.solarCharge + (3.5 + campfireRegen + springRegen) * dt);
     }
 
@@ -14191,6 +15046,22 @@ export function initGame() {
       if (mx !== 0 || my !== 0) {
         autoWalkTarget = null;
         autoHarvestNodeId = null;
+        followPlayerId = null;
+      } else if (followPlayerId) {
+        const fp = remotePlayers.get(followPlayerId);
+        if (!fp || fp.isDead) {
+          followPlayerId = null;
+        } else {
+          const fx = fp.renderX ?? fp.x;
+          const fy = fp.renderY ?? fp.y;
+          const dFollow = Math.hypot(fx - player.x, fy - player.y);
+          if (dFollow > 34) {
+            mx = (fx - player.x) / dFollow;
+            my = (fy - player.y) / dFollow;
+          } else {
+            faceToward(fx, fy);
+          }
+        }
       } else if (autoWalkTarget) {
         const dxAuto = autoWalkTarget.x - player.x;
         const dyAuto = autoWalkTarget.y - player.y;
@@ -14468,7 +15339,8 @@ export function initGame() {
       }
     }
 
-    const remoteAlpha = smoothLerpFactor(14, dt);
+    const remoteRate = net.pingMs > 180 ? 10 : net.pingMs > 100 ? 12 : 14;
+    const remoteAlpha = smoothLerpFactor(remoteRate, dt);
     for (const rp of remotePlayers.values()) {
       if (Math.hypot((rp.x || 0) - (rp.renderX || 0), (rp.y || 0) - (rp.renderY || 0)) > 220) {
         rp.renderX = rp.x;
@@ -14945,7 +15817,7 @@ export function initGame() {
             audio.playHit(true);
             triggerScreenShake(0.28);
             if (!player.isDead && !player.stealthed && Math.hypot(player.x - gz.x, player.y - gz.y) <= gz.radius) {
-              damageOfflinePlayer(gz.damage || 14, `${gz.bossName || 'Boss'} ${gz.label || 'Cataclysm'}`, gz.bossRef);
+              damageOfflinePlayer(gz.damage || 14, `${gz.bossName || 'Boss'} ${gz.label || 'Cataclysm'}`, gz.bossRef, false, true);
               if (!getClassPassive(localProfile.classId).knockbackImmune) {
                 const ang = Math.atan2(player.y - gz.y, player.x - gz.x);
                 const rawKbX = Math.max(-mapBounds.halfW + 14, Math.min(mapBounds.halfW - 14, player.x + Math.cos(ang) * 24));
@@ -15193,6 +16065,18 @@ export function initGame() {
         return sprites.tiles[`void_sea_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
       }
       return sprites.tiles[`abyssal_${Math.abs(tx * 13 + ty * 19) % 4}`] || sprites.tiles.umbri_0 || sprites.tiles.flagstone_0;
+    }
+
+    if (currentBiomeTheme === 'frost') {
+      // Alpine glacial causeway, ice-melt crystal pools & drifted frost snowfield
+      const d2 = tx * tx + ty * ty;
+      if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) {
+        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
+      }
+      if (d2 >= 16 && d2 <= 36) {
+        return sprites.tiles[`frost_ice_${Math.abs(tx + ty) % 2}`] || sprites.tiles.frost_0;
+      }
+      return sprites.tiles[`frost_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.aether_0 || sprites.tiles.flagstone_0;
     }
 
     if (['solari', 'umbri', 'terra', 'aether'].includes(currentBiomeTheme)) {
@@ -15606,6 +16490,14 @@ export function initGame() {
       lastClockText = nextText;
       clockEl.innerText = nextText;
     }
+    const clockBtn = uiEl('minimap-clock-pill');
+    if (clockBtn) {
+      const nowDate = new Date();
+      const utcHhMm = `${String(nowDate.getUTCHours()).padStart(2, '0')}:${String(nowDate.getUTCMinutes()).padStart(2, '0')} UTC`;
+      const localHhMm = nowDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const nextSiegeMin = 30 - (nowDate.getUTCMinutes() % 30);
+      clockBtn.title = `Realm Time: ${cycle.formattedClock} (${phaseText}) • Global UTC: ${utcHhMm} • Your Local: ${localHhMm} • Next Nexus Siege in ~${nextSiegeMin}m (Click to toggle Auto / Bright Daylight)`;
+    }
   }
 
   window.toggleAtmosphereMode = function () {
@@ -15823,6 +16715,26 @@ export function initGame() {
       ctx.fillRect(tx - rr, ty + h - 4, 2, 4);
       ctx.fillRect(tx + rr - 5, ty + h - 2, 5, 2);
       ctx.fillRect(tx + rr - 2, ty + h - 4, 2, 4);
+    }
+
+    // OSRS Animated Click-to-Move Ground X-Cross Markers
+    for (let i = clickMarkers.length - 1; i >= 0; i--) {
+      const m = clickMarkers[i];
+      m.age += 0.016;
+      if (m.age >= m.maxAge) {
+        clickMarkers.splice(i, 1);
+        continue;
+      }
+      const progM = m.age / m.maxAge;
+      const spread = Math.max(1, Math.round(6 * (1 - progM)));
+      const mx = Math.round(m.x - camLeft);
+      const my = Math.round(m.y - camTop);
+      ctx.fillStyle = m.color || '#fde047';
+      ctx.fillRect(mx - spread, my - spread, 2, 2);
+      ctx.fillRect(mx + spread - 1, my - spread, 2, 2);
+      ctx.fillRect(mx - spread, my + spread - 1, 2, 2);
+      ctx.fillRect(mx + spread - 1, my + spread - 1, 2, 2);
+      ctx.fillRect(mx - 1, my - 1, 2, 2);
     }
 
     const renderables = [];
@@ -16636,6 +17548,7 @@ export function initGame() {
             isHostile: hostile,
             tcgLinked: rp.tcgLinked,
             skull: rp.skull,
+            devotions: rp.devotions || [],
             bubble: rp.bubble,
             emote: rp.emote,
             globalTime,
@@ -16720,6 +17633,7 @@ export function initGame() {
             isSelf: true,
             tcgLinked: localProfile.tcgLinked,
             skull: player.skull,
+            devotions: player.devotions || [],
             bubble: player.bubble,
             emote: player.emote,
             globalTime,
@@ -17006,6 +17920,8 @@ export function initGame() {
   updateActionBarBadges();
   renderKeybindUI();
   renderStatsModal();
+  renderDevotionPrayerBar(true);
+  updateAutoRetaliateButton();
   renderPartyHud(currentParty, localProfile.id, {
     id: localProfile.id,
     name: localProfile.displayName,

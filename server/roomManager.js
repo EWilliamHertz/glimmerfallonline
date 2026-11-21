@@ -69,6 +69,7 @@ import {
   ELITE_AFFIXES,
   BOUNTY_CONTRACTS,
   ensureActorFactionState,
+  createSnapCache,
 } from '../shared/protocol.js';
 
 import { SIEGE_INTERVAL_MS, nextThirtyMinBoundary } from './rooms/constants.js';
@@ -87,15 +88,16 @@ import { TcgManager } from './tcgManager.js';
 
 export class RoomManager {
   constructor(opts = {}) {
-    const config = (opts && (opts.accountsStore !== undefined || opts.partyManager !== undefined || opts.exchangeManager !== undefined))
+    const config = (opts && (opts.accountsStore !== undefined || opts.partyManager !== undefined || opts.exchangeManager !== undefined || opts.guildManager !== undefined))
       ? opts
       : { accountsStore: opts };
-    const { accountsStore, partyManager, exchangeManager, tradeManager, duelManager, tcgManager } = config;
+    const { accountsStore, partyManager, exchangeManager, tradeManager, duelManager, tcgManager, guildManager } = config;
     this.accounts = accountsStore;
     this.parties = partyManager;
     this.exchange = exchangeManager;
     this.trades = tradeManager;
     this.duels = duelManager;
+    this.guilds = guildManager || null;
     this.tcg = tcgManager || new TcgManager({
       getClientById: (id) => this.getClientById(id),
       findClientByName: (name) => this.findClientByName(name),
@@ -105,6 +107,7 @@ export class RoomManager {
     this.clients = new Map(); // playerId -> PlayerSession
     this.rooms = new Map();   // roomId -> RoomInstance
     this.arenaQueue = [];     // Array of { leaderId, memberIds, queuedAt }
+    this.tickSamples = [];    // Rolling tick durations (ms) for /api/metrics
 
     // Create default persistent instances for Sanctuary, Warzone, 4 Faction Biomes, and 5 Explorable Sub-Zones/Ruins
     this.getOrCreatePublicRoom(ROOM_TYPES.SANCTUARY_HUB);
@@ -129,6 +132,7 @@ export class RoomManager {
     this.getOrCreatePublicRoom(ROOM_TYPES.SOLAR_HIGHLANDS);
     this.getOrCreatePublicRoom(ROOM_TYPES.MOONWELL_SANCTUM);
     this.getOrCreatePublicRoom(ROOM_TYPES.LUMINOUS_CAVERN);
+    this.getOrCreatePublicRoom(ROOM_TYPES.FROSTSPIRE_GLACIER);
 
     this.tickInterval = setInterval(() => this.tickAllRooms(), TICK_MS);
   }
@@ -442,6 +446,8 @@ export class RoomManager {
       portalQuestDone: false,
       speechBubble: null,
       activeEmote: null,
+      activeDevotions: [],
+      _snapCache: createSnapCache(),
       send(packet) {
         if (ws.readyState === 1) {
           ws.send(JSON.stringify(packet));
@@ -632,6 +638,7 @@ export class RoomManager {
     client.castState = null;
     client.portalCooldown = 1.0;
     client.roomEpoch = (client.roomEpoch || 0) + 1;
+    client._snapCache = createSnapCache();
 
     const hasReqCoords = reqX !== null && reqY !== null && Number.isFinite(Number(reqX)) && Number.isFinite(Number(reqY));
     if (hasReqCoords) {
@@ -697,6 +704,27 @@ export class RoomManager {
         p.ws.send(encoded);
       }
     }
+  }
+
+  getTickStats() {
+    const samples = this.tickSamples || [];
+    if (samples.length === 0) {
+      return { avgMs: 0, p95Ms: 0, maxMs: 0, sampleCount: 0 };
+    }
+    let sum = 0;
+    let maxMs = 0;
+    for (const s of samples) {
+      sum += s;
+      if (s > maxMs) maxMs = s;
+    }
+    const sorted = samples.slice().sort((a, b) => a - b);
+    const p95Idx = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95));
+    return {
+      avgMs: Number((sum / samples.length).toFixed(2)),
+      p95Ms: Number(sorted[p95Idx].toFixed(2)),
+      maxMs: Number(maxMs.toFixed(2)),
+      sampleCount: samples.length,
+    };
   }
 
   broadcastToAll(packet) {

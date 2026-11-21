@@ -3,6 +3,7 @@
 // ==========================================
 
 import crypto from 'node:crypto';
+import { performance } from 'node:perf_hooks';
 import {
   TICK_MS,
   YARD_PX,
@@ -66,6 +67,9 @@ import {
   BOUNTY_CONTRACTS,
   tickActorCombatTimers,
   getClassPassive,
+  buildClientSnapshotPacket,
+  createSnapCache,
+  computeDevotionModifiers,
 } from '../../shared/protocol.js';
 import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './constants.js';
 
@@ -77,6 +81,17 @@ export const socialAndTickMethods = {
     let text = String(rawText || '').trim().slice(0, 140);
     if (!text) return;
 
+    const acc = this.accounts?.accountsById?.get(sender.id);
+    if ((sender.mutedUntil || acc?.mutedUntil || 0) > Date.now()) {
+      const remMin = Math.max(1, Math.ceil(((sender.mutedUntil || acc.mutedUntil) - Date.now()) / 60000));
+      sender.send({
+        type: 'sys_msg',
+        category: 'combat',
+        text: `🔇 [Moderation] You are muted for ${remMin}m${acc?.muteReason ? ` (${acc.muteReason})` : ''}.`,
+      });
+      return;
+    }
+
     let channel = rawChannel || 'say';
 
     if (text.startsWith('/')) {
@@ -84,13 +99,65 @@ export const socialAndTickMethods = {
       const cmd = (spaceIdx === -1 ? text.slice(1) : text.slice(1, spaceIdx)).toLowerCase();
       const arg = spaceIdx === -1 ? '' : text.slice(spaceIdx + 1).trim();
 
-      if (cmd === 'f' || cmd === 'faction') {
+      if (cmd === 'w' || cmd === 'whisper' || cmd === 'pm' || cmd === 'tell') {
+        const sp2 = arg.indexOf(' ');
+        if (sp2 === -1) {
+          sender.send({ type: 'sys_msg', category: 'whisper', text: '[Whisper] Usage: /w <player> <message>' });
+          return;
+        }
+        let targetClient = null;
+        let msgBody = '';
+        // Match longest online player name prefix when names contain spaces
+        const argLow = arg.toLowerCase();
+        for (const c of this.clients.values()) {
+          const n = String(c.displayName || '').toLowerCase();
+          if (n && argLow.startsWith(n + ' ') && n.length > (targetClient?.displayName?.length || 0)) {
+            targetClient = c;
+            msgBody = arg.slice(n.length + 1).trim();
+          }
+        }
+        if (!targetClient) {
+          const tName = arg.slice(0, sp2).trim();
+          msgBody = arg.slice(sp2 + 1).trim();
+          targetClient = this.findClientByName(tName);
+        }
+        this.deliverPrivateWhisper(sender, targetClient, msgBody, arg.slice(0, sp2).trim());
+        return;
+      } else if (cmd === 'r' || cmd === 'reply') {
+        if (!arg || !sender._lastWhisperFrom) {
+          sender.send({ type: 'sys_msg', category: 'whisper', text: '[Whisper] Nobody has whispered you yet, or message empty.' });
+          return;
+        }
+        const targetClient = this.findClientByName(sender._lastWhisperFrom);
+        this.deliverPrivateWhisper(sender, targetClient, arg, sender._lastWhisperFrom);
+        return;
+      } else if (cmd === 'guild') {
+        const parts = arg.split(/\s+/).filter(Boolean);
+        const sub = (parts[0] || '').toLowerCase();
+        if (sub === 'create' && parts.length >= 3) {
+          const tag = parts[parts.length - 1];
+          const gName = parts.slice(1, -1).join(' ');
+          this.handlePacket(sender, { type: 'guild_create', name: gName, tag });
+          return;
+        } else if (sub === 'invite' && parts[1]) {
+          this.handlePacket(sender, { type: 'guild_invite', target: parts.slice(1).join(' ') });
+          return;
+        } else if (sub === 'leave') {
+          this.handlePacket(sender, { type: 'guild_leave' });
+          return;
+        } else if (sub === 'motd') {
+          this.handlePacket(sender, { type: 'guild_motd', motd: parts.slice(1).join(' ') });
+          return;
+        }
+        channel = 'order';
+        text = arg;
+      } else if (cmd === 'f' || cmd === 'faction') {
         channel = 'faction';
         text = arg;
       } else if (cmd === 'p' || cmd === 'party') {
         channel = 'party';
         text = arg;
-      } else if (cmd === 'o' || cmd === 'g' || cmd === 'order' || cmd === 'guild') {
+      } else if (cmd === 'o' || cmd === 'g' || cmd === 'order') {
         channel = 'order';
         text = arg;
       } else if (cmd === 's' || cmd === 'say') {
@@ -137,6 +204,12 @@ export const socialAndTickMethods = {
     }
     text = checkRes.text;
 
+    if (room) {
+      if (!room.recentChatLog) room.recentChatLog = [];
+      room.recentChatLog.push({ sender: sender.displayName, text, channel, ts: Date.now() });
+      if (room.recentChatLog.length > 25) room.recentChatLog.shift();
+    }
+
     const packet = {
       type: 'chat_msg',
       channel,
@@ -148,9 +221,14 @@ export const socialAndTickMethods = {
       ts: Date.now(),
     };
 
+    const sendFiltered = (c) => {
+      if (this.guilds?.isIgnored(c.id, sender.id, sender.displayName)) return;
+      c.send(packet);
+    };
+
     if (channel === 'faction') {
       for (const c of this.clients.values()) {
-        if (c.faction === sender.faction) c.send(packet);
+        if (c.faction === sender.faction) sendFiltered(c);
       }
     } else if (channel === 'party') {
       const party = this.parties.getPartyForPlayer(sender.id);
@@ -158,29 +236,73 @@ export const socialAndTickMethods = {
         sender.send({ type: 'sys_msg', category: 'party', text: '[Party] You are not in a squad yet! Click a player or type /invite <name>.' });
         return;
       }
-      this.parties.broadcastToParty(party.id, packet);
+      for (const member of this.parties.getPartyMembers(sender.id)) {
+        sendFiltered(member);
+      }
     } else if (channel === 'order') {
+      const guild = this.guilds?.getGuildForAccount(sender.id);
+      if (guild) {
+        for (const mId of guild.members.keys()) {
+          const online = this.clients.get(mId);
+          if (online) sendFiltered(online);
+        }
+        return;
+      }
       const tag = sender.orderTag;
       if (!tag || tag === 'NONE') {
-        sender.send({ type: 'sys_msg', category: 'chat', text: '[Order] Set an Order Banner in [G] Account first!' });
+        sender.send({ type: 'sys_msg', category: 'chat', text: '[Guild] Create or join a Guild in [O] Social or set an Order Banner!' });
         return;
       }
       for (const c of this.clients.values()) {
-        if (c.orderTag === tag) c.send(packet);
+        if (c.orderTag === tag) sendFiltered(c);
       }
     } else {
       sender.speechBubble = {
         text: text.slice(0, 68),
         expiresAt: Date.now() + 5500,
       };
-      if (room) this.broadcastToRoom(room, packet);
-      else sender.send(packet);
+      if (room) {
+        for (const c of room.players.values()) sendFiltered(c);
+      } else {
+        sender.send(packet);
+      }
     }
+  },
+
+  deliverPrivateWhisper(sender, targetClient, rawText, targetLabel = '') {
+    let text = String(rawText || '').trim().slice(0, 140);
+    if (!text) return;
+    if (!targetClient) {
+      sender.send({ type: 'sys_msg', category: 'whisper', text: `[Whisper] Champion "${targetLabel}" is not currently online.` });
+      return;
+    }
+    if (targetClient.id === sender.id) {
+      sender.send({ type: 'sys_msg', category: 'whisper', text: '[Whisper] You cannot whisper yourself.' });
+      return;
+    }
+    if (this.guilds?.isIgnored(targetClient.id, sender.id, sender.displayName)) {
+      sender.send({ type: 'sys_msg', category: 'whisper', text: `[Whisper] ${targetClient.displayName} is not receiving whispers right now.` });
+      return;
+    }
+    if (!this.chatSpamFilter) this.chatSpamFilter = new ChatSpamFilter();
+    const checkRes = this.chatSpamFilter.checkMessage(sender.id, text);
+    if (!checkRes.allow) {
+      sender.send({ type: 'sys_msg', category: 'combat', text: checkRes.reason });
+      return;
+    }
+    text = checkRes.text;
+    targetClient._lastWhisperFrom = sender.displayName;
+    sender._lastWhisperFrom = targetClient.displayName;
+
+    const ts = Date.now();
+    sender.send({ type: 'whisper_msg', dir: 'out', partnerId: targetClient.id, partnerName: targetClient.displayName, text, ts });
+    targetClient.send({ type: 'whisper_msg', dir: 'in', partnerId: sender.id, partnerName: sender.displayName, text, ts });
   },
 
   handleEmote(room, sender, emoteId) {
     const em = EMOTES_CATALOG[emoteId];
     if (!em) return;
+    sender._lastEmoteId = emoteId;
     sender.activeEmote = { emoteId, expiresAt: Date.now() + 3600 };
     this.broadcastToRoom(room, {
       type: 'emote_fx',
@@ -197,6 +319,7 @@ export const socialAndTickMethods = {
   // 20 Hz Tick Simulation Loop
   // ==========================================
   tickAllRooms() {
+    const tickStart = performance.now();
     this.processMatchmaking();
     const dt = TICK_MS / 1000;
     const now = Date.now();
@@ -204,6 +327,12 @@ export const socialAndTickMethods = {
 
     for (const room of this.rooms.values()) {
       this.tickRoom(room, dt, now);
+    }
+    const elapsedMs = performance.now() - tickStart;
+    this.tickSamples = this.tickSamples || [];
+    this.tickSamples.push(elapsedMs);
+    if (this.tickSamples.length > 120) {
+      this.tickSamples.shift();
     }
   },
 
@@ -330,15 +459,23 @@ export const socialAndTickMethods = {
       const nearHealingSpring = room.entities.some((e) => e.type === 'node' && e.skillingType === 'healing_spring' && (e.charges ?? 0) > 0 && Math.hypot(e.x - p.x, e.y - p.y) <= 75);
       const springRegen = nearHealingSpring ? 6.0 : 0;
 
-      // Vitality Health Regeneration (+2.5 HP/s baseline + 0.5 HP/s per Terra Bulwark point + Campfire/Spring + Familiar Vigor)
+      // Vitality Health Regeneration (+2.5 HP/s baseline + 0.5 HP/s per Terra Bulwark point + Campfire/Spring + Familiar Vigor + Sanctuary Grace Devotion)
+      const devMods = computeDevotionModifiers(p.activeDevotions || []);
       const famIdleHpPerSec = (computeFamiliarBonuses(p.prog?.familiars?.activeId).idleHpRegen || 0) / 5;
-      const hpRegen = calcHpRegenPerSec(p.prog) + campfireRegen + springRegen + famIdleHpPerSec;
+      const hpRegen = calcHpRegenPerSec(p.prog) + campfireRegen + springRegen + famIdleHpPerSec + (devMods.hpRegenPerSec || 0);
       if (hpRegen > 0 && !p.isDead && p.hp < p.maxHp) {
         p.hp = Math.min(p.maxHp, p.hp + hpRegen * dt);
       }
 
-      // Baseline Glimmer resonance recovery (+3.5 Glimmer/s + Campfire/Spring)
-      if (!p.isDead && p.solarCharge < p.maxSolarCharge) {
+      // Covenant Devotions drain Glimmer when active; otherwise baseline Glimmer recovery (+3.5/s + Campfire/Spring)
+      if (!p.isDead && devMods.drainPerSec > 0) {
+        p.solarCharge = Math.max(0, (p.solarCharge || 0) + (campfireRegen + springRegen - devMods.drainPerSec) * dt);
+        if (p.solarCharge <= 0 && (p.activeDevotions?.length || 0) > 0) {
+          p.activeDevotions = [];
+          p.send?.({ type: 'devotion_sync', activeDevotions: [] });
+          p.send?.({ type: 'sys_msg', category: 'combat', text: '🙏 [Devotion] Glimmer Charge exhausted — overhead prayers deactivated!' });
+        }
+      } else if (!p.isDead && p.solarCharge < p.maxSolarCharge) {
         p.solarCharge = Math.min(p.maxSolarCharge, p.solarCharge + (3.5 + campfireRegen + springRegen) * dt);
       }
 
@@ -1172,16 +1309,23 @@ export const socialAndTickMethods = {
     // 6b. Loot Shard pickups
     this.tickLoot(room, dt);
 
-    // 7. Broadcast 20 Hz Authoritative Snapshot
+    // 7. Broadcast 20 Hz Authoritative Delta-Compressed & Spatially-Culled Snapshots
     const snapshot = this.buildSnapshot(room, now);
     const fx = room.fxQueue.length > 0 ? room.fxQueue.splice(0, room.fxQueue.length) : undefined;
-    this.broadcastToRoom(room, {
-      type: 'world_state',
-      roomId: room.id,
-      onlineTotal: this.clients.size,
-      ...snapshot,
-      fx,
-    });
+    const onlineTotal = this.clients.size;
+    for (const p of room.players.values()) {
+      if (!p.ws || p.ws.readyState !== 1) continue;
+      if (!p._snapCache) p._snapCache = createSnapCache();
+      const pkt = buildClientSnapshotPacket({
+        roomId: room.id,
+        onlineTotal,
+        fullSnapshot: snapshot,
+        fx,
+        viewer: p,
+        clientSnapCache: p._snapCache,
+      });
+      p.ws.send(JSON.stringify(pkt));
+    }
   },
 
   buildSnapshot(room, now = Date.now()) {
@@ -1236,6 +1380,7 @@ export const socialAndTickMethods = {
         emote: p.activeEmote ? p.activeEmote.emoteId : null,
         title: p.title || null,
         activeFamiliarId: p.prog?.familiars?.activeId || null,
+        devotions: p.activeDevotions || [],
       });
     }
 

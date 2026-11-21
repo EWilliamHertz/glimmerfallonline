@@ -294,7 +294,7 @@ export function renderEquipmentModal({ profile }) {
           </div>
         </div>
 
-        <button class="util-btn" style="width:100%; margin-top:10px; border-color:#d97706; color:#fed7aa;" onclick="toggleModal('inventory-modal')">
+        <button class="util-btn" style="width:100%; margin-top:10px; border-color:#d97706; color:#fed7aa;" onclick="document.getElementById('gearbag-modal')?.style.display === 'block' && window.switchGearBagPane ? window.switchGearBagPane(window.innerWidth < 860 ? 'inv' : 'both') : toggleModal('inventory-modal')">
           🎒 OPEN 28-SLOT BACKPACK [B]
         </button>
 

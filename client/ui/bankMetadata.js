@@ -274,7 +274,17 @@ export function classifyBankItem(itemId) {
     if (minReq && minReq > 1) tierLabel = `Sk.${minReq}`;
   } else if (it.slot === 'consumable') {
     category = 'consumable';
-    if (it.temperTargetMax) {
+    if (it.isClueScroll) {
+      skills.add('combat_mastery');
+      roleIcon = '📜';
+      roleLabel = 'Clue Scroll';
+      tierLabel = String(it.clueTier || 'easy').toUpperCase();
+    } else if (it.isRewardCasket) {
+      skills.add('combat_mastery');
+      roleIcon = '🎁';
+      roleLabel = 'Treasure Casket';
+      tierLabel = String(it.clueTier || 'easy').toUpperCase();
+    } else if (it.temperTargetMax) {
       skills.add('relic_forging');
       skills.add('combat_mastery');
       roleIcon = '🔨';

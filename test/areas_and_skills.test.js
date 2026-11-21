@@ -100,6 +100,39 @@ test('CrystalEcho Caverns (LUMINOUS_CAVERN), Vanguard Guildhall, and interactive
       assert.ok(gameSrc.includes(key), `client/game.js must wire and render ${key}`);
     }
     assert.ok(gameSrc.includes('function tryInteractWorldObject(pr)'), 'client/game.js must define tryInteractWorldObject');
+
+    // Frostspire Glacier & Grand GlimmerFall TCG Pavilion verification
+    const frost = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.FROSTSPIRE_GLACIER);
+    assert.ok(frost, 'FROSTSPIRE_GLACIER room must be created');
+    assert.equal(protocol.isRoomUnlockedForEdition(protocol.ROOM_TYPES.FROSTSPIRE_GLACIER, 'free'), true, 'FROSTSPIRE_GLACIER must be open to all players');
+    assert.ok(frost.entities.some((e) => e.id === 'frost_boss'), 'FROSTSPIRE_GLACIER must spawn Borealis boss');
+    assert.ok(frost.entities.some((e) => e.skillingType === 'mithril_vein'), 'FROSTSPIRE_GLACIER must spawn Mithril veins');
+    for (const key of ['auroraCrystalObelisk', 'glacialSupplySled']) {
+      assert.ok(propSrc.includes(`sprites.props.${key}`), `propSprites.js must synthesize ${key}`);
+      assert.ok(gameSrc.includes(key), `client/game.js must wire ${key}`);
+    }
+    const pavCfg = protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.INTERIOR_TCG_PAVILION];
+    assert.equal(pavCfg.isInterior, true, 'INTERIOR_TCG_PAVILION must be marked isInterior: true');
+
+    // Streamlined Micro-Menu & Unified Hub + Combined Gear/Bag DOM verification
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const hubStart = indexHtml.indexOf('id="micro-menu"');
+    const hubEnd = indexHtml.indexOf('id="siege-banner"');
+    const microDockHtml = indexHtml.slice(hubStart, hubEnd);
+    const navButtons = microDockHtml.match(/class="[^"]*micro-nav-btn[^"]*"/g) || [];
+    assert.equal(navButtons.length, 6, 'Top micro-menu dock must stay de-cramped with 6 focused buttons');
+    const idxQuests = microDockHtml.indexOf('id="micro-btn-quests"');
+    const idxTcg = microDockHtml.indexOf('id="micro-btn-tcg"');
+    const idxMenu = microDockHtml.indexOf('id="micro-btn-menu"');
+    assert.ok(idxQuests < idxTcg && idxTcg < idxMenu, 'Quests must sit on left, TCG in middle, Menu on right');
+    assert.ok(indexHtml.includes('id="gearbag-modal"'), 'Combined Gear & Bag modal must exist in index.html');
+    assert.ok(indexHtml.includes('id="adventure-hub-modal"'), 'Tabbed Adventure & System Hub modal must exist in index.html');
+
+    // Verify unifiedMenuHub module imports clean EMOTES_CATALOG & switches tabs cleanly
+    const hubMod = await import('../client/game/unifiedMenuHub.js');
+    assert.ok(Array.isArray(hubMod.HUB_TAB_SPECS) && hubMod.HUB_TAB_SPECS.length === 10);
+    assert.equal(hubMod.LEGACY_MODAL_TO_HUB_TAB['social-modal'], 'social');
+    assert.equal(hubMod.LEGACY_MODAL_TO_HUB_TAB['settings-modal'], 'menu');
   } finally {
     rm.stop();
   }

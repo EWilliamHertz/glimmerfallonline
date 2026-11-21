@@ -22,6 +22,7 @@ import {
   resolveFactionAndClass,
   PROFESSIONS_CATALOG,
   getProfessionLevelFromXp,
+  getTotalProfessionLevel,
   sanitizeLoadout,
   sanitizeProgressionSkills,
   shouldAutoRemasterRespec,
@@ -39,6 +40,13 @@ import {
   countBagItem,
   deductBagItems,
   addBagItem,
+  getBankCapacityCap,
+  getMerchantSellPrice,
+  QUEST_REWARDS_CATALOG,
+  normalizeSlayerState,
+  normalizeClueState,
+  normalizeCollectionLog,
+  recordCollectionItems,
 } from '../shared/protocol.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -310,6 +318,10 @@ export class AccountsStore {
         progression: accProg,
         statsMeta: row.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
         activeCharacterId: row.active_character_id || null,
+        mutedUntil: Number(row.muted_until) || 0,
+        bannedUntil: Number(row.banned_until) || 0,
+        muteReason: row.mute_reason || '',
+        banReason: row.ban_reason || '',
         createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
         lastLoginAt: row.last_login_at ? new Date(row.last_login_at).toISOString() : new Date().toISOString(),
       };
@@ -400,6 +412,10 @@ export class AccountsStore {
       progression: accProg,
       statsMeta: row.stats_meta || { kills: 0, arenaWins: 0, siegeClaims: 0 },
       activeCharacterId: row.active_character_id || null,
+      mutedUntil: Number(row.muted_until) || 0,
+      bannedUntil: Number(row.banned_until) || 0,
+      muteReason: row.mute_reason || '',
+      banReason: row.ban_reason || '',
       hp: row.hp != null ? Number(row.hp) : null,
       solarCharge: row.solar_charge != null ? Number(row.solar_charge) : null,
       lastPosition: row.last_position || null,
@@ -549,9 +565,10 @@ export class AccountsStore {
                 id, username, username_lower, display_name, password_hash, is_guest, sso_subject,
                 tcg_linked, tcg_handle, tcg_email, tcg_synced_at, faction, class_id,
                 order_tag, order_name, order_color, loadout, equipment, progression, stats_meta,
-                active_character_id, created_at, last_login_at, inventory, bank, quest_state, hp, solar_charge, last_position
+                active_character_id, created_at, last_login_at, inventory, bank, quest_state, hp, solar_charge, last_position,
+                muted_until, banned_until, mute_reason, ban_reason
               ) VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33
               )
               ON CONFLICT (id) DO UPDATE SET
                 username = EXCLUDED.username,
@@ -580,7 +597,11 @@ export class AccountsStore {
                 quest_state = EXCLUDED.quest_state,
                 hp = EXCLUDED.hp,
                 solar_charge = EXCLUDED.solar_charge,
-                last_position = EXCLUDED.last_position`,
+                last_position = EXCLUDED.last_position,
+                muted_until = EXCLUDED.muted_until,
+                banned_until = EXCLUDED.banned_until,
+                mute_reason = EXCLUDED.mute_reason,
+                ban_reason = EXCLUDED.ban_reason`,
               [
                 a.id, a.username, a.usernameLower, a.displayName, a.passwordHash, a.isGuest, a.ssoSubject,
                 a.tcgLinked, a.tcgHandle, a.tcgEmail, a.tcgSyncedAt, a.faction, a.classId,
@@ -598,6 +619,10 @@ export class AccountsStore {
                 a.hp != null ? a.hp : null,
                 a.solarCharge != null ? a.solarCharge : null,
                 JSON.stringify(a.lastPosition || null),
+                Number(a.mutedUntil) || 0,
+                Number(a.bannedUntil) || 0,
+                a.muteReason || '',
+                a.banReason || '',
               ]
             )
           );
@@ -1141,6 +1166,10 @@ export class AccountsStore {
     if (!acc || !this.verifyPassword(password, acc.passwordHash)) {
       throw new Error('Invalid password for this GlimmerFall ID.');
     }
+    if ((acc.bannedUntil || 0) > Date.now()) {
+      const remMin = Math.max(1, Math.ceil((acc.bannedUntil - Date.now()) / 60000));
+      throw new Error(`Account suspended for ${remMin}m${acc.banReason ? ` (${acc.banReason})` : ''}.`);
+    }
     acc.lastLoginAt = new Date().toISOString();
     this.ensureDefaultCharacter(acc);
     this.schedulePersist(acc.id, acc.activeCharacterId);
@@ -1616,6 +1645,12 @@ export class AccountsStore {
         : (base.familiars?.activeId ?? null),
     });
     const remasterRespecV2 = Boolean(base?.remasterRespecV2 || incoming?.remasterRespecV2);
+    const slayer = normalizeSlayerState(incoming.slayer !== undefined ? incoming.slayer : base.slayer);
+    const clue = normalizeClueState(incoming.clue !== undefined ? incoming.clue : base.clue);
+    const collectionLog = normalizeCollectionLog({
+      ...normalizeCollectionLog(base.collectionLog),
+      ...normalizeCollectionLog(incoming.collectionLog),
+    });
     return sanitizeProgressionSkills({
       level: lvl,
       xp,
@@ -1635,9 +1670,28 @@ export class AccountsStore {
         completed: completedAch,
         unlockedTitles: Array.from(unlockedTitlesSet),
       },
+      slayer,
+      clue,
+      collectionLog,
       equippedTitle,
       remasterRespecV2,
     });
+  }
+
+  recordCollectionUnlock(accountId, itemIds = []) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc || !Array.isArray(itemIds) || itemIds.length === 0) return [];
+    this.ensureDefaultCharacter(acc);
+    const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+    const prog = acc.progression || createDefaultProgression();
+    const res = recordCollectionItems(prog.collectionLog, itemIds);
+    prog.collectionLog = res.log;
+    acc.progression = prog;
+    if (ch) ch.progression = prog;
+    if (res.newlyUnlocked.length > 0) {
+      this.schedulePersist(acc.id, ch?.id);
+    }
+    return res.newlyUnlocked;
   }
 
   saveProgression(accountId, progression, statsMetaPatch = null) {
@@ -1658,6 +1712,370 @@ export class AccountsStore {
       ch.statsMeta = acc.statsMeta;
     }
     this.schedulePersist(acc.id, ch?.id);
+  }
+
+  _syncCharacterStorage(acc) {
+    if (!acc) return;
+    const ch = this.charactersByAccount.get(acc.id)?.get(acc.activeCharacterId);
+    if (ch) {
+      ch.bank = acc.bank;
+      ch.inventory = acc.inventory;
+      ch.equipment = acc.equipment;
+      ch.gold = acc.gold;
+      ch.questState = acc.questState;
+    }
+    this.schedulePersist(acc.id, ch?.id);
+  }
+
+  _mergeStackIntoList(list, itemId, qty, maxSlots) {
+    const cleanQty = Math.max(1, Math.floor(Number(qty) || 1));
+    const existing = list.find((entry) => (typeof entry === 'string' ? entry : entry?.id) === itemId);
+    if (existing) {
+      if (typeof existing === 'string') {
+        list[list.indexOf(existing)] = { id: itemId, qty: 1 + cleanQty };
+      } else {
+        existing.qty = (existing.qty || 1) + cleanQty;
+      }
+      return true;
+    }
+    if (list.length >= maxSlots) return false;
+    list.push({ id: itemId, qty: cleanQty });
+    return true;
+  }
+
+  depositToBank(accountId, slotIndex, qty = 'all') {
+    const acc = this.accountsById.get(accountId);
+    if (!acc) return { ok: false, reason: 'Account missing' };
+    this.ensureDefaultCharacter(acc);
+    acc.inventory = Array.isArray(acc.inventory) ? acc.inventory : [];
+    acc.bank = Array.isArray(acc.bank) ? acc.bank : [];
+
+    const idx = Number(slotIndex);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= acc.inventory.length) {
+      return { ok: false, reason: 'Invalid backpack slot' };
+    }
+    const itemObj = acc.inventory[idx];
+    const itemId = typeof itemObj === 'string' ? itemObj : itemObj?.id;
+    const itemDef = itemId ? EQUIPMENT_CATALOG[itemId] : null;
+    if (!itemDef) return { ok: false, reason: 'Invalid item' };
+
+    const inBagQty = typeof itemObj === 'object' && itemObj?.qty ? itemObj.qty : 1;
+    const depositQty = qty === 'all' ? inBagQty : Math.min(inBagQty, Math.max(1, Math.floor(Number(qty) || 1)));
+    const bankCap = getBankCapacityCap(acc);
+
+    if (!this._mergeStackIntoList(acc.bank, itemId, depositQty, bankCap)) {
+      return { ok: false, reason: `AetherVault is full (${bankCap}/${bankCap})` };
+    }
+    if (depositQty >= inBagQty) {
+      acc.inventory.splice(idx, 1);
+    } else if (typeof itemObj === 'object') {
+      itemObj.qty -= depositQty;
+    }
+    this._syncCharacterStorage(acc);
+    return { ok: true, itemId, item: itemDef, qty: depositQty };
+  }
+
+  withdrawFromBank(accountId, bankIndex, qty = 1) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc) return { ok: false, reason: 'Account missing' };
+    this.ensureDefaultCharacter(acc);
+    acc.inventory = Array.isArray(acc.inventory) ? acc.inventory : [];
+    acc.bank = Array.isArray(acc.bank) ? acc.bank : [];
+
+    const idx = Number(bankIndex);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= acc.bank.length) {
+      return { ok: false, reason: 'Invalid vault slot' };
+    }
+    const bankObj = acc.bank[idx];
+    const itemId = typeof bankObj === 'string' ? bankObj : bankObj?.id;
+    const itemDef = itemId ? EQUIPMENT_CATALOG[itemId] : null;
+    if (!itemDef) return { ok: false, reason: 'Invalid vaulted item' };
+
+    const inBankQty = typeof bankObj === 'object' && bankObj?.qty ? bankObj.qty : 1;
+    const withdrawQty = qty === 'all' ? inBankQty : Math.min(inBankQty, Math.max(1, Math.floor(Number(qty) || 1)));
+
+    if (!this._mergeStackIntoList(acc.inventory, itemId, withdrawQty, 28)) {
+      return { ok: false, reason: 'Backpack is full (28/28)' };
+    }
+    if (withdrawQty >= inBankQty) {
+      acc.bank.splice(idx, 1);
+    } else if (typeof bankObj === 'object') {
+      bankObj.qty -= withdrawQty;
+    }
+    this._syncCharacterStorage(acc);
+    return { ok: true, itemId, item: itemDef, qty: withdrawQty };
+  }
+
+  depositAllToBank(accountId, { onlyMaterials = false, quickStackOnly = false } = {}) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc) return { ok: false, reason: 'Account missing' };
+    this.ensureDefaultCharacter(acc);
+    acc.inventory = Array.isArray(acc.inventory) ? acc.inventory : [];
+    acc.bank = Array.isArray(acc.bank) ? acc.bank : [];
+
+    const bankCap = getBankCapacityCap(acc);
+    const bankIds = new Set(acc.bank.map((b) => (typeof b === 'string' ? b : b?.id)).filter(Boolean));
+    let movedTypes = 0;
+    let movedItems = 0;
+
+    for (let i = acc.inventory.length - 1; i >= 0; i--) {
+      const entry = acc.inventory[i];
+      const itemId = typeof entry === 'string' ? entry : entry?.id;
+      const itemDef = itemId ? EQUIPMENT_CATALOG[itemId] : null;
+      if (!itemDef) continue;
+      if (onlyMaterials && itemDef.slot !== 'material') continue;
+      if (quickStackOnly && !bankIds.has(itemId)) continue;
+
+      const inBagQty = typeof entry === 'object' && entry?.qty ? entry.qty : 1;
+      if (!this._mergeStackIntoList(acc.bank, itemId, inBagQty, bankCap)) continue;
+      acc.inventory.splice(i, 1);
+      bankIds.add(itemId);
+      movedTypes += 1;
+      movedItems += inBagQty;
+    }
+
+    if (movedTypes > 0) this._syncCharacterStorage(acc);
+    return { ok: true, movedTypes, movedItems };
+  }
+
+  depositWornGearToBank(accountId) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc) return { ok: false, reason: 'Account missing' };
+    this.ensureDefaultCharacter(acc);
+    acc.bank = Array.isArray(acc.bank) ? acc.bank : [];
+    const eq = { ...(acc.equipment || {}) };
+    const bankCap = getBankCapacityCap(acc);
+    let moved = 0;
+
+    for (const slotKey of VALID_EQUIP_SLOTS) {
+      const itemId = eq[slotKey];
+      if (!itemId || !EQUIPMENT_CATALOG[itemId]) continue;
+      if (!this._mergeStackIntoList(acc.bank, itemId, 1, bankCap)) break;
+      delete eq[slotKey];
+      if (slotKey === 'body') delete eq.armor;
+      if (slotKey === 'shield') delete eq.offhand;
+      moved += 1;
+    }
+    acc.equipment = eq;
+    if (moved > 0) this._syncCharacterStorage(acc);
+    return { ok: true, moved };
+  }
+
+  sortBank(accountId, orderedItemIds = []) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc || !Array.isArray(orderedItemIds)) return { ok: false };
+    this.ensureDefaultCharacter(acc);
+    acc.bank = Array.isArray(acc.bank) ? acc.bank : [];
+
+    // Reorder strictly preserving exact multiset of existing bank items
+    const byId = new Map();
+    for (const entry of acc.bank) {
+      const id = typeof entry === 'string' ? entry : entry?.id;
+      const qty = typeof entry === 'object' && entry?.qty ? entry.qty : 1;
+      if (!id) continue;
+      byId.set(id, (byId.get(id) || 0) + qty);
+    }
+    const nextBank = [];
+    for (const reqId of orderedItemIds) {
+      const id = String(reqId || '').trim();
+      if (!id || !byId.has(id)) continue;
+      nextBank.push({ id, qty: byId.get(id) });
+      byId.delete(id);
+    }
+    for (const [id, qty] of byId.entries()) {
+      nextBank.push({ id, qty });
+    }
+    acc.bank = nextBank;
+    this._syncCharacterStorage(acc);
+    return { ok: true };
+  }
+
+  sellMerchantItem(accountId, slotIndex, qty = 1) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc) return { success: false, reason: 'Account missing' };
+    this.ensureDefaultCharacter(acc);
+    acc.inventory = Array.isArray(acc.inventory) ? acc.inventory : [];
+
+    const idx = Number(slotIndex);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= acc.inventory.length) {
+      return { success: false, reason: 'Invalid backpack slot' };
+    }
+    const entry = acc.inventory[idx];
+    const itemId = typeof entry === 'string' ? entry : entry?.id;
+    const itemDef = itemId ? EQUIPMENT_CATALOG[itemId] : null;
+    const unitVal = getMerchantSellPrice(itemId);
+    if (!itemDef || unitVal <= 0) {
+      return { success: false, reason: 'This item cannot be sold' };
+    }
+
+    const inBagQty = typeof entry === 'object' && entry?.qty ? entry.qty : 1;
+    const sellQty = Math.max(1, Math.min(inBagQty, Math.floor(Number(qty) || 1)));
+    const totalGold = unitVal * sellQty;
+
+    if (!this.removeItemFromInventory(accountId, idx, sellQty)) {
+      return { success: false, reason: 'Could not remove item' };
+    }
+    if (!this.addItemToInventory(accountId, 'solar_gold', totalGold)) {
+      acc.gold = (acc.gold || 0) + totalGold;
+      this._syncCharacterStorage(acc);
+    }
+    return { success: true, itemId, item: itemDef, qty: sellQty, totalGold };
+  }
+
+  completeCanonicalQuest(accountId, questId) {
+    const acc = this.accountsById.get(accountId);
+    if (!acc) return { ok: false, reason: 'Account missing' };
+    this.ensureDefaultCharacter(acc);
+    const spec = QUEST_REWARDS_CATALOG[questId];
+    if (!spec) return { ok: false, reason: 'Unknown quest' };
+
+    acc.questState = acc.questState && typeof acc.questState === 'object' ? acc.questState : {};
+    acc.questState.completedQuests = acc.questState.completedQuests || {};
+    acc.questState.activeQuests = acc.questState.activeQuests || {};
+    acc.questState.trackedQuests = acc.questState.trackedQuests || {};
+
+    if (acc.questState.completedQuests[questId]) {
+      return { ok: false, reason: 'Quest already completed', alreadyCompleted: true };
+    }
+    if (spec.prereqQuestId && !acc.questState.completedQuests[spec.prereqQuestId]) {
+      return { ok: false, reason: 'Prerequisite quest not completed' };
+    }
+
+    acc.questState.completedQuests[questId] = true;
+    delete acc.questState.activeQuests[questId];
+    delete acc.questState.trackedQuests[questId];
+
+    const goldReward = Number(spec.rewards?.gold || 0);
+    if (goldReward > 0) {
+      if (!this.addItemToInventory(accountId, 'solar_gold', goldReward)) {
+        acc.gold = (acc.gold || 0) + goldReward;
+      }
+    }
+
+    const allQuestIds = Object.keys(QUEST_REWARDS_CATALOG);
+    let questCapeAwarded = false;
+    if (!acc.questState.questCapeAwarded && allQuestIds.every((id) => Boolean(acc.questState.completedQuests[id]))) {
+      acc.questState.questCapeAwarded = true;
+      questCapeAwarded = true;
+      if (!this.addItemToInventory(accountId, 'quest_point_cape', 1)) {
+        const cap = getBankCapacityCap(acc);
+        this._mergeStackIntoList(acc.bank || (acc.bank = []), 'quest_point_cape', 1, cap);
+      }
+      this.recordCollectionUnlock(accountId, ['quest_point_cape']);
+    }
+
+    this._syncCharacterStorage(acc);
+    return { ok: true, questId, spec, questCapeAwarded };
+  }
+
+  isAccountMuted(acc) {
+    return Boolean(acc && (acc.mutedUntil || 0) > Date.now());
+  }
+
+  isAccountBanned(acc) {
+    return Boolean(acc && (acc.bannedUntil || 0) > Date.now());
+  }
+
+  setModerationStatus(accountIdOrName, { mutedUntil = null, bannedUntil = null, muteReason = null, banReason = null } = {}) {
+    const clean = String(accountIdOrName || '').trim().toLowerCase();
+    let acc = this.accountsById.get(accountIdOrName) || this.accountsById.get(this.idByUsername.get(clean));
+    if (!acc) {
+      for (const candidate of this.accountsById.values()) {
+        if ((candidate.displayName || '').toLowerCase() === clean) {
+          acc = candidate;
+          break;
+        }
+      }
+    }
+    if (!acc) return { ok: false, reason: 'Account not found' };
+    if (mutedUntil !== null) acc.mutedUntil = Math.max(0, Number(mutedUntil) || 0);
+    if (bannedUntil !== null) acc.bannedUntil = Math.max(0, Number(bannedUntil) || 0);
+    if (muteReason !== null) acc.muteReason = String(muteReason).slice(0, 140);
+    if (banReason !== null) acc.banReason = String(banReason).slice(0, 140);
+    this.schedulePersist(acc.id, acc.activeCharacterId);
+    return { ok: true, account: acc };
+  }
+
+  getHiscores({ category = 'overall', page = 1, pageSize = 20, search = '' } = {}) {
+    const cleanCat = String(category || 'overall').trim();
+    const cleanSearch = String(search || '').trim().toLowerCase();
+    const cleanPageSize = Math.max(1, Math.min(50, Number(pageSize) || 20));
+    const cleanPage = Math.max(1, Number(page) || 1);
+    const isProf = Boolean(PROFESSIONS_CATALOG[cleanCat]);
+
+    const entries = [];
+    for (const acc of this.accountsById.values()) {
+      if ((acc.bannedUntil || 0) > Date.now()) continue;
+      this.ensureDefaultCharacter(acc);
+      this.syncAccountFromActiveChar(acc);
+      const name = acc.displayName || acc.username || 'Champion';
+      if (cleanSearch && !name.toLowerCase().includes(cleanSearch) && !(acc.orderTag || '').toLowerCase().includes(cleanSearch)) {
+        continue;
+      }
+      const prog = acc.progression || createDefaultProgression();
+      const totalSkillLv = getTotalProfessionLevel(prog.professions || {});
+      const questCount = Object.values(acc.questState?.completedQuests || {}).filter(Boolean).length;
+      const collectionCount = Object.keys(prog.collectionLog || {}).length;
+      const bossKills = Number(acc.statsMeta?.kills || 0);
+      const arenaWins = Number(acc.statsMeta?.arenaWins || 0);
+
+      let score = totalSkillLv * 100 + (prog.level || 1);
+      let primaryLabel = `Total ${totalSkillLv}`;
+      let secondaryXp = Number(prog.xp || 0);
+      if (isProf) {
+        const pEntry = prog.professions?.[cleanCat] || { level: 1, xp: 0 };
+        score = (pEntry.level || 1) * 1e9 + (pEntry.xp || 0);
+        primaryLabel = `Lv.${pEntry.level || 1}`;
+        secondaryXp = Number(pEntry.xp || 0);
+      } else if (cleanCat === 'quest_points') {
+        score = questCount;
+        primaryLabel = `${questCount} Quests`;
+      } else if (cleanCat === 'boss_kills') {
+        score = bossKills;
+        primaryLabel = `${bossKills} Kills`;
+      } else if (cleanCat === 'collection_log') {
+        score = collectionCount;
+        primaryLabel = `${collectionCount} Uniques`;
+      } else if (cleanCat === 'arena_mmr') {
+        score = arenaWins;
+        primaryLabel = `${arenaWins} Wins`;
+      }
+
+      entries.push({
+        id: acc.id,
+        name,
+        faction: acc.faction || 'Solari',
+        classId: acc.classId || 'solari_vanguard',
+        orderTag: acc.orderTag || '',
+        championLevel: prog.level || 1,
+        totalSkillLevel: totalSkillLv,
+        score,
+        primaryLabel,
+        secondaryXp,
+        questCount,
+        bossKills,
+        collectionCount,
+        arenaWins,
+      });
+    }
+
+    entries.sort((a, b) => (b.score - a.score) || (b.secondaryXp - a.secondaryXp) || a.name.localeCompare(b.name));
+    const totalCount = entries.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / cleanPageSize));
+    const safePage = Math.min(cleanPage, totalPages);
+    const start = (safePage - 1) * cleanPageSize;
+    const rows = entries.slice(start, start + cleanPageSize).map((row, idx) => ({
+      rank: start + idx + 1,
+      ...row,
+    }));
+    return {
+      category: cleanCat,
+      page: safePage,
+      pageSize: cleanPageSize,
+      totalPages,
+      totalCount,
+      rows,
+    };
   }
 
   syncBankAndInventory(accountId, bank, inventory, equipment = null) {

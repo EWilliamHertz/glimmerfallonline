@@ -2523,3 +2523,226 @@
     max-height: 360px;
   }
 }
+
+/* ==========================================
+   UNIFIED ADVENTURE HUB & COMBINED GEAR + BAG
+   ========================================== */
+#adventure-hub-modal {
+  width: 1060px;
+  max-width: 97vw;
+  height: 88vh;
+  max-height: 840px;
+  padding: 12px 14px;
+}
+
+.hub-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #334155;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.hub-shell {
+  display: grid;
+  grid-template-columns: 178px 1fr;
+  gap: 12px;
+  height: calc(100% - 48px);
+  min-height: 0;
+}
+
+.hub-tabs-col {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-right: 1px solid #1e293b;
+  padding-right: 10px;
+  overflow-y: auto;
+}
+
+.hub-tab-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: #090e1d;
+  border: 1px solid #1e293b;
+  color: #cbd5e1;
+  border-radius: 5px;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.hub-tab-btn:hover {
+  background: #131c36;
+  border-color: #38bdf8;
+  color: #f8fafc;
+}
+
+.hub-tab-btn.active {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.32), rgba(15, 23, 42, 0.96));
+  border-color: #facc15;
+  color: #fde047;
+  box-shadow: inset 3px 0 0 #facc15;
+}
+
+.hub-tab-key {
+  font-size: 8.5px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.hub-tab-btn.active .hub-tab-key {
+  color: #fde68a;
+}
+
+.hub-viewport {
+  overflow-y: auto;
+  padding-right: 4px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.hub-mounted-body .modal-close {
+  display: none !important;
+}
+
+.hub-inline-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hub-inline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #1e293b;
+  padding-bottom: 8px;
+}
+
+.hub-emote-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.hub-emote-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  background: #0a1024;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #f8fafc;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.hub-emote-card:hover {
+  transform: translateY(-2px);
+  border-color: #ec4899;
+  background: #17122b;
+}
+
+.hub-emote-icon {
+  font-size: 24px;
+}
+
+.hub-emote-name {
+  font-weight: 800;
+  font-size: 11px;
+  color: #fbcfe8;
+}
+
+.hub-emote-phrase {
+  font-size: 9.5px;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+#gearbag-modal {
+  width: 1040px;
+  max-width: 97vw;
+  max-height: 90vh;
+  padding: 12px 14px;
+}
+
+.gearbag-pane-switcher {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.gearbag-pane-switcher .id-mini-btn.active {
+  border-color: #facc15;
+  color: #fde047;
+  background: rgba(250, 204, 21, 0.14);
+}
+
+.gearbag-grid {
+  display: grid;
+  grid-template-columns: 1.12fr 0.88fr;
+  gap: 14px;
+  max-height: calc(90vh - 76px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.gearbag-pane {
+  background: rgba(8, 12, 24, 0.72);
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 10px;
+  min-width: 0;
+}
+
+#gearbag-modal[data-pane-mode="equip"] .gearbag-grid,
+#gearbag-modal[data-pane-mode="inv"] .gearbag-grid {
+  grid-template-columns: 1fr;
+}
+
+#gearbag-modal[data-pane-mode="equip"] .gearbag-inv-pane {
+  display: none;
+}
+
+#gearbag-modal[data-pane-mode="inv"] .gearbag-equip-pane {
+  display: none;
+}
+
+@media (max-width: 820px) {
+  .hub-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .hub-tabs-col {
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid #1e293b;
+    padding-right: 0;
+    padding-bottom: 8px;
+    overflow-x: auto;
+  }
+  .hub-tab-btn {
+    width: auto;
+    white-space: nowrap;
+    padding: 6px 10px;
+  }
+  .hub-tab-key {
+    display: none;
+  }
+  .gearbag-grid {
+    grid-template-columns: 1fr;
+  }
+}

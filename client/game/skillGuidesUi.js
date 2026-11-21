@@ -23,6 +23,10 @@ export function setupSkillGuidesUi({ getProg, getProfile, audio, toggleModal }) 
   let currentSkillsModalFilter = 'all';
 
   window.toggleSkillsTab = function () {
+    if (document.getElementById('adventure-hub-modal')) {
+      toggleModal('skills-modal');
+      return;
+    }
     const modal = document.getElementById('skills-modal');
     if (modal) {
       const isVisible = modal.style.display !== 'none';

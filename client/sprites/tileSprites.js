@@ -443,6 +443,43 @@ export function buildTileSprites(sprites) {
     sprites.tiles[`abyssal_${v}`] = c;
   }
 
+  // Frostspire Glacier Snow & Permafrost Slate Tiles
+  for (let v = 0; v < 4; v++) {
+    const { c, ctx } = makeCanvas(16, 16);
+    rect(ctx, 0, 0, 16, 16, '#dbeafe');
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const r = hash2d(x, y, 620 + v);
+        if (r < 0.25) px(ctx, x, y, '#bfdbfe');
+        else if (r < 0.45) px(ctx, x, y, '#e0f2fe');
+        else if (r > 0.92) px(ctx, x, y, '#ffffff');
+        else if (r > 0.86 && r <= 0.90) px(ctx, x, y, '#93c5fd');
+      }
+    }
+    if (v === 1) {
+      rect(ctx, 3, 5, 4, 1, '#93c5fd');
+      px(ctx, 4, 4, '#ffffff');
+    } else if (v === 2) {
+      rect(ctx, 9, 10, 5, 1, '#7dd3fc');
+      px(ctx, 11, 9, '#e0f2fe');
+    } else if (v === 3) {
+      px(ctx, 5, 11, '#38bdf8');
+      px(ctx, 6, 11, '#ffffff');
+    }
+    sprites.tiles[`frost_${v}`] = c;
+  }
+
+  // Glacial Clear Blue Ice Sheet Tiles
+  for (let v = 0; v < 2; v++) {
+    const { c, ctx } = makeCanvas(16, 16);
+    rect(ctx, 0, 0, 16, 16, '#38bdf8');
+    rect(ctx, 0, 0, 16, 16, 'rgba(186, 230, 253, 0.35)');
+    rect(ctx, 2 + v * 3, 3, 6, 1, '#e0f2fe');
+    rect(ctx, 7 - v * 2, 11, 5, 1, '#bae6fd');
+    px(ctx, 12, 5 + v, '#ffffff');
+    sprites.tiles[`frost_ice_${v}`] = c;
+  }
+
   // ==========================================
   // 2. AUTOTILER CLIFF & SHORELINE TRIM TILES
   // ==========================================

@@ -11,6 +11,7 @@ import { WebSocketServer } from 'ws';
 import { AccountsStore } from './accountsStore.js';
 import { PartyManager } from './partyManager.js';
 import { ExchangeManager } from './exchangeManager.js';
+import { GuildManager } from './guildManager.js';
 import { TradeManager } from './tradeManager.js';
 import { DuelManager } from './duelManager.js';
 import { TcgManager } from './tcgManager.js';
@@ -112,12 +113,29 @@ export async function handleApiRequest(req, res, { accounts, rooms = null, tcg =
     sendJson(res, 200, {
       ok: true,
       service: 'glimmerfall-online-2d-mmo',
+      realm: 'EU-Stockholm Global Realm',
       uptimeSec: Math.round(process.uptime()),
       tickRate: TICK_RATE,
+      tickStats: rooms ? rooms.getTickStats() : null,
       dbConnected: accounts.dbConnected,
       onlinePlayers: rooms ? rooms.clients.size : 0,
       activeRooms: rooms ? rooms.rooms.size : 0,
       timestamp: new Date().toISOString(),
+    });
+    return true;
+  }
+
+  if (pathname === '/api/metrics' && req.method === 'GET') {
+    sendJson(res, 200, {
+      ok: true,
+      realm: 'EU-Stockholm Global Realm',
+      uptimeSec: Math.round(process.uptime()),
+      tickRate: TICK_RATE,
+      tickStats: rooms ? rooms.getTickStats() : { avgMs: 0, p95Ms: 0, maxMs: 0, sampleCount: 0 },
+      onlinePlayers: rooms ? rooms.clients.size : 0,
+      activeRooms: rooms ? rooms.rooms.size : 0,
+      dbConnected: accounts.dbConnected,
+      serverUtcTime: new Date().toISOString(),
     });
     return true;
   }
@@ -156,12 +174,15 @@ export async function handleApiRequest(req, res, { accounts, rooms = null, tcg =
       sendJson(res, 200, {
         ok: true,
         service: 'glimmerfall-online-2d-mmo',
+        realm: 'EU-Stockholm Global Realm',
         tickRate: TICK_RATE,
+        tickStats: rooms ? rooms.getTickStats() : null,
         dbConnected: accounts.dbConnected,
         totalAccounts: accounts.accountsById.size,
         onlinePlayers: rooms ? rooms.clients.size : 0,
         rooms: rooms ? rooms.listPublicRooms() : [],
         ssoBridge: 'glimmerfalltcg.com',
+        serverUtcTime: new Date().toISOString(),
       });
       return true;
     }
@@ -586,6 +607,24 @@ export async function handleApiRequest(req, res, { accounts, rooms = null, tcg =
       return true;
     }
 
+    if (pathname === '/api/exchange/history' && req.method === 'GET') {
+      const itemId = url.searchParams.get('itemId') || '';
+      const limit = Number(url.searchParams.get('limit') || 25);
+      const history = rooms?.exchange ? rooms.exchange.getItemPriceHistory(itemId, limit) : [];
+      sendJson(res, 200, { ok: true, itemId: itemId || null, history });
+      return true;
+    }
+
+    if (pathname === '/api/hiscores' && req.method === 'GET') {
+      const category = url.searchParams.get('category') || 'overall';
+      const page = Number(url.searchParams.get('page') || 1);
+      const pageSize = Number(url.searchParams.get('limit') || 20);
+      const search = url.searchParams.get('search') || '';
+      const board = accounts.getHiscores({ category, page, pageSize, search });
+      sendJson(res, 200, { ok: true, ...board });
+      return true;
+    }
+
     sendJson(res, 404, { ok: false, error: `Unknown API endpoint: ${pathname}` });
     return true;
   } catch (err) {
@@ -596,7 +635,6 @@ export async function handleApiRequest(req, res, { accounts, rooms = null, tcg =
 
 export function createGlimmerFallServer() {
   const accounts = new AccountsStore();
-  const ready = accounts.init();
 
   let rooms = null;
   const parties = new PartyManager(
@@ -608,6 +646,17 @@ export function createGlimmerFallServer() {
     accountsStore: accounts,
     getClientById: (id) => rooms?.getClientById(id),
     broadcastToAll: (msg) => rooms?.broadcastToAll(msg),
+  });
+
+  const guilds = new GuildManager({
+    accountsStore: accounts,
+    getClientById: (id) => rooms?.getClientById(id),
+    findClientByName: (name) => rooms?.findClientByName(name),
+  });
+
+  const ready = accounts.init().then(async () => {
+    await exchange.initAsync(accounts.db);
+    await guilds.initAsync(accounts.db);
   });
 
   const trades = new TradeManager({
@@ -629,6 +678,7 @@ export function createGlimmerFallServer() {
     exchangeManager: exchange,
     tradeManager: trades,
     duelManager: duels,
+    guildManager: guilds,
   });
 
   const server = http.createServer(async (req, res) => {
@@ -665,7 +715,7 @@ export function createGlimmerFallServer() {
     const handledApi = await handleApiRequest(req, res, { accounts, rooms });
     if (handledApi) return;
 
-    // Serve hidden /admin portal directly from public/admin/index.html or dist/admin/index.html
+    // Serve hidden /admin portal and /newcards design showcase directly from public/ or dist/
     if (pathname === '/admin' || pathname === '/admin/' || pathname === '/admin/index.html') {
       const pubAdmin = path.resolve(__dirname, '../public/admin/index.html');
       const distAdmin = path.resolve(DIST_DIR, 'admin/index.html');
@@ -673,6 +723,17 @@ export function createGlimmerFallServer() {
       if (targetAdmin) {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         fs.createReadStream(targetAdmin).pipe(res);
+        return;
+      }
+    }
+
+    if (pathname === '/newcards' || pathname === '/newcards/' || pathname === '/newcards/index.html') {
+      const pubNewCards = path.resolve(__dirname, '../public/newcards/index.html');
+      const distNewCards = path.resolve(DIST_DIR, 'newcards/index.html');
+      const targetNewCards = fs.existsSync(pubNewCards) ? pubNewCards : (fs.existsSync(distNewCards) ? distNewCards : null);
+      if (targetNewCards) {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        fs.createReadStream(targetNewCards).pipe(res);
         return;
       }
     }
@@ -830,6 +891,16 @@ export function createGlimmerFallServer() {
     recentTimes.push(now);
     accountRecentLogins.set(account.id, recentTimes);
 
+    if (accounts.isAccountBanned(account)) {
+      try {
+        ws.send(JSON.stringify({ type: 'sys_msg', category: 'combat', text: `[Moderation] Account suspended${account.banReason ? `: ${account.banReason}` : '.'}` }));
+        ws.close(4403, 'Account suspended');
+      } catch (_) {}
+      clearInterval(heartbeatTimer);
+      cleanupIp();
+      return;
+    }
+
     const session = rooms.attachConnection(ws, account, preferredRoom, reqX, reqY, reqCharId);
     if (issuedToken) {
       session.send({ type: 'session_token', token: issuedToken });
@@ -899,10 +970,12 @@ export function createGlimmerFallServer() {
     }
     rooms.stop();
     exchange.save();
+    await exchange.flush().catch(() => {});
+    await guilds.flush().catch(() => {});
     await accounts.flushToPostgres().catch(() => {});
   };
 
-  return { server, wss, accounts, parties, exchange, trades, duels, rooms, ready, shutdown };
+  return { server, wss, accounts, parties, exchange, trades, duels, guilds, rooms, ready, shutdown };
 }
 
 const isMain =

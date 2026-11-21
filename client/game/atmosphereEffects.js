@@ -229,6 +229,9 @@ export function getBiomeWeatherProfile(biomeTheme, minuteOfDay, overrideMode = '
   if (theme === 'warzone' || theme === 'starfall') {
     return { kind: 'embers', intensity: 0.45, label: 'ASH DRIFT', icon: '✨' };
   }
+  if (theme === 'frost') {
+    return { kind: 'embers', intensity: 0.55, label: 'AURORA SNOW', icon: '❄️' };
+  }
 
   if (overrideMode === 'rain' && (RAIN_ELIGIBLE_BIOMES.has(theme) || theme === 'sanctuary')) {
     return { kind: 'rain', intensity: 0.85, label: 'RAIN', icon: '🌧️' };

@@ -226,7 +226,7 @@ export function renderInventoryModal({ profile }) {
     </div>
 
     <div style="display:flex; justify-content:space-between; gap:8px; margin-top:12px;">
-      <button class="util-btn" style="flex:1; border-color:#fb923c; color:#fed7aa;" onclick="toggleModal('equipment-modal')">
+      <button class="util-btn" style="flex:1; border-color:#fb923c; color:#fed7aa;" onclick="document.getElementById('gearbag-modal')?.style.display === 'block' && window.switchGearBagPane ? window.switchGearBagPane(window.innerWidth < 860 ? 'equip' : 'both') : toggleModal('equipment-modal')">
         ⚔️ WORN GEAR [K]
       </button>
     </div>

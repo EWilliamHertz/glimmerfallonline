@@ -145,6 +145,90 @@ export async function initDatabaseSchema() {
       redeemed_username TEXT,
       redeemed_at TIMESTAMPTZ
     );
+    CREATE TABLE IF NOT EXISTS glimmerfall_exchange_orders (
+      order_id TEXT PRIMARY KEY,
+      player_id TEXT NOT NULL,
+      player_name TEXT NOT NULL DEFAULT '',
+      slot INTEGER NOT NULL,
+      mode TEXT NOT NULL,
+      item_id TEXT NOT NULL,
+      qty INTEGER NOT NULL,
+      filled_qty INTEGER NOT NULL DEFAULT 0,
+      unit_price INTEGER NOT NULL,
+      total_price INTEGER NOT NULL,
+      progress INTEGER NOT NULL DEFAULT 0,
+      completed BOOLEAN NOT NULL DEFAULT FALSE,
+      collected BOOLEAN NOT NULL DEFAULT FALSE,
+      escrow_gold INTEGER NOT NULL DEFAULT 0,
+      escrow_items INTEGER NOT NULL DEFAULT 0,
+      payout_gold INTEGER NOT NULL DEFAULT 0,
+      payout_items INTEGER NOT NULL DEFAULT 0,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_gf_exchange_item ON glimmerfall_exchange_orders(item_id, completed, mode);
+    CREATE INDEX IF NOT EXISTS idx_gf_exchange_player ON glimmerfall_exchange_orders(player_id, collected);
+    CREATE TABLE IF NOT EXISTS glimmerfall_exchange_trades (
+      id SERIAL PRIMARY KEY,
+      item_id TEXT NOT NULL,
+      match_price INTEGER NOT NULL,
+      match_qty INTEGER NOT NULL,
+      gross_gold INTEGER NOT NULL,
+      tariff INTEGER NOT NULL,
+      buyer_id TEXT NOT NULL,
+      seller_id TEXT NOT NULL,
+      traded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_gf_exchange_trades_item ON glimmerfall_exchange_trades(item_id, traded_at DESC);
+
+    ALTER TABLE glimmerfall_accounts ADD COLUMN IF NOT EXISTS muted_until BIGINT NOT NULL DEFAULT 0;
+    ALTER TABLE glimmerfall_accounts ADD COLUMN IF NOT EXISTS banned_until BIGINT NOT NULL DEFAULT 0;
+    ALTER TABLE glimmerfall_accounts ADD COLUMN IF NOT EXISTS mute_reason TEXT NOT NULL DEFAULT '';
+    ALTER TABLE glimmerfall_accounts ADD COLUMN IF NOT EXISTS ban_reason TEXT NOT NULL DEFAULT '';
+
+    CREATE TABLE IF NOT EXISTS glimmerfall_guilds (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      name_lower TEXT UNIQUE NOT NULL,
+      tag TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#facc15',
+      leader_id TEXT NOT NULL,
+      motd TEXT NOT NULL DEFAULT '',
+      bank JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS glimmerfall_guild_members (
+      guild_id TEXT NOT NULL REFERENCES glimmerfall_guilds(id) ON DELETE CASCADE,
+      account_id TEXT NOT NULL,
+      member_name TEXT NOT NULL DEFAULT '',
+      rank TEXT NOT NULL DEFAULT 'Member',
+      joined_at BIGINT NOT NULL,
+      PRIMARY KEY (guild_id, account_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_gf_guild_member_acc ON glimmerfall_guild_members(account_id);
+
+    CREATE TABLE IF NOT EXISTS glimmerfall_social_relations (
+      account_id TEXT NOT NULL,
+      target_account_id TEXT NOT NULL,
+      relation TEXT NOT NULL,
+      target_name TEXT NOT NULL DEFAULT '',
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (account_id, target_account_id, relation)
+    );
+
+    CREATE TABLE IF NOT EXISTS glimmerfall_reports (
+      id TEXT PRIMARY KEY,
+      reporter_id TEXT NOT NULL,
+      reporter_name TEXT NOT NULL,
+      target_id TEXT,
+      target_name TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      chat_context JSONB NOT NULL DEFAULT '[]'::jsonb,
+      status TEXT NOT NULL DEFAULT 'open',
+      created_at BIGINT NOT NULL
+    );
   `);
 
   return true;

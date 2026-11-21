@@ -717,56 +717,26 @@
       </div>
     </div>
 
-    <!-- TOP-OVERHEAD: Micro-Menu Dock Anchored Between Avatar & Minimap -->
+    <!-- TOP-OVERHEAD: Streamlined Micro-Menu Dock (Quests Left • TCG Center • Menu Right) -->
     <div id="micro-menu" class="overhead-menu-dock">
       <div class="overhead-menu-inner">
-        <button class="util-btn micro-nav-btn" onclick="toggleModal('spellbook-modal')" title="Spells & Keybinds [P]">
-          <span class="nav-icon">📖</span><span class="nav-label">SPELLS</span><span class="nav-key">[P]</span><span id="skill-pt-pip" class="pt-pip">+1</span>
-        </button>
-        <button class="util-btn micro-nav-btn" onclick="toggleModal('char-modal')" title="Character Stats & Attributes [C]">
-          <span class="nav-icon">📊</span><span class="nav-label">STATS</span><span class="nav-key">[C]</span><span id="stat-pt-pip" class="pt-pip">+2</span>
-        </button>
-        <button type="button" class="util-btn micro-nav-btn" style="border-color:#fb923c; color:#fed7aa;" onclick="window.toggleModal && window.toggleModal('equipment-modal')" title="Equipped Gear [K]">
-          <span class="nav-icon">⚔️</span><span class="nav-label">GEAR</span><span class="nav-key">[K]</span>
-        </button>
-        <button class="util-btn micro-nav-btn" style="border-color:#4ade80;" onclick="toggleModal('social-modal')" title="Online Players & Rooms [O]">
-          <span class="nav-icon">👥</span><span class="nav-label">SOCIAL</span><span class="nav-key">[O]</span>
-        </button>
-        <button class="util-btn micro-nav-btn" style="border-color:#38bdf8; color:#7dd3fc;" onclick="openWorldMap()" title="World Map [M]">
-          <span class="nav-icon">🗺️</span><span class="nav-label">MAP</span><span class="nav-key">[M]</span>
-        </button>
-        <button class="util-btn micro-nav-btn" onclick="openQuestLog()" title="Quests & Objectives [L]">
+        <button id="micro-btn-quests" type="button" class="util-btn micro-nav-btn" style="border-color:#f59e0b; color:#fde68a;" onclick="openQuestLog()" title="Quests &amp; Objectives [L]">
           <span class="nav-icon">📜</span><span class="nav-label">QUESTS</span><span class="nav-key">[L]</span>
         </button>
-        <button class="util-btn micro-nav-btn" id="btn-skills-tab" style="border-color:#38bdf8; color:#7dd3fc;" onclick="toggleSkillsTab()" title="Open Skill Progression & Entity Level [N]">
-          <span class="nav-icon">✨</span><span class="nav-label">SKILLS</span><span class="nav-key">[N]</span>
+        <button id="micro-btn-map" type="button" class="util-btn micro-nav-btn" style="border-color:#38bdf8; color:#7dd3fc;" onclick="openWorldMap()" title="World Map [M]">
+          <span class="nav-icon">🗺️</span><span class="nav-label">MAP</span><span class="nav-key">[M]</span>
         </button>
-        <button class="util-btn micro-nav-btn" style="border-color:#ec4899; color:#fbcfe8;" onclick="window.toggleEmoteWheel && window.toggleEmoteWheel()" title="Radial Emote Wheel [V]">
-          <span class="nav-icon">🎭</span><span class="nav-label">EMOTE</span><span class="nav-key">[V]</span>
-        </button>
-        <button class="util-btn micro-nav-btn" style="border-color:#facc15; color:#fef08a;" onclick="window.toggleAchievementsModal && window.toggleAchievementsModal()" title="Achievements &amp; Lore Codex [Y]">
-          <span class="nav-icon">🏆</span><span class="nav-label">AWARDS</span><span class="nav-key">[Y]</span>
-        </button>
-        <button class="util-btn micro-nav-btn" style="border-color:#c084fc; color:#f3e8ff;" onclick="window.toggleEchoCradleModal && window.toggleEchoCradleModal('library')" title="Summoner-Knight Echoes, Extractor &amp; Cradle [G]">
-          <span class="nav-icon">🐾</span><span class="nav-label">ECHOES</span><span class="nav-key">[G]</span>
-        </button>
-        <button class="util-btn micro-nav-btn" style="border-color:#eab308; color:#fef9c3;" onclick="window.toggleMailModal && window.toggleMailModal()" title="Herald Postbox — Letters &amp; Parcels">
-          <span class="nav-icon">📬</span><span class="nav-label">MAIL</span><span class="nav-key">[POST]</span><span id="mail-unread-pip" class="pt-pip" style="background:#ca8a04; display:none;">0</span>
-        </button>
-        <button class="util-btn micro-nav-btn" style="border-color:#f59e0b; color:#fef3c7;" onclick="toggleModal('inventory-modal')" title="Backpack Inventory [B]">
-          <span class="nav-icon">🎒</span><span class="nav-label">BAG</span><span class="nav-key">[B]</span><span id="inv-count-pip" class="pt-pip" style="background:#b45309; display:none;">0</span>
-        </button>
-        <button id="micro-btn-tcg" type="button" class="util-btn micro-nav-btn" style="border-color:#facc15; color:#fde047;" onclick="window.openTcgTavernDuel && window.openTcgTavernDuel()" title="1v1 GlimmerFall TCG Tavern Card Duel">
+        <button id="micro-btn-tcg" type="button" class="util-btn micro-nav-btn micro-nav-tcg" onclick="window.openTcgTavernDuel && window.openTcgTavernDuel()" title="1v1 GlimmerFall TCG Tavern Card Duel">
           <span class="nav-icon">🃏</span><span class="nav-label">TCG</span><span class="nav-key">[1V1]</span>
         </button>
         <button id="micro-btn-finder" type="button" class="util-btn micro-nav-btn" style="border-color:#4ade80; color:#86efac;" onclick="window.openActivityFinder && window.openActivityFinder()" title="Live World Events, Recommended Zones &amp; Activity Finder">
           <span class="nav-icon">🧭</span><span class="nav-label">FINDER</span><span class="nav-key">[GO]</span>
         </button>
-        <button id="micro-btn-herocard" type="button" class="util-btn micro-nav-btn" style="border-color:#38bdf8; color:#bae6fd;" onclick="window.openHeroShareCard && window.openHeroShareCard()" title="Share 16-Bit Pixel Hero Card &amp; Recruit Link">
-          <span class="nav-icon">📸</span><span class="nav-label">SHARE</span><span class="nav-key">[PNG]</span>
+        <button id="micro-btn-loadout" type="button" class="util-btn micro-nav-btn" style="border-color:#fb923c; color:#fed7aa;" onclick="window.openGearAndBag ? window.openGearAndBag('both') : toggleModal('equipment-modal')" title="Equipped Gear &amp; 28-Slot Bag [K / B]">
+          <span class="nav-icon">⚔️</span><span class="nav-label">GEAR &amp; BAG</span><span class="nav-key">[B]</span><span id="inv-count-pip" class="pt-pip" style="background:#b45309; display:none;">0</span>
         </button>
-        <button id="micro-btn-menu" type="button" class="util-btn micro-nav-btn" style="border-color:#94a3b8; color:#cbd5e1;" onclick="window.toggleModal && window.toggleModal('settings-modal')" title="System Menu [ESC]">
-          <span class="nav-icon">⚙️</span><span class="nav-label">MENU</span><span class="nav-key">[ESC]</span>
+        <button id="micro-btn-menu" type="button" class="util-btn micro-nav-btn" style="border-color:#cbd5e1; color:#f8fafc;" onclick="window.openMenuHub ? window.openMenuHub('menu') : toggleModal('settings-modal')" title="Adventure Hub &amp; System Menu (Spells, Stats, Social, Mail, Share, Settings) [ESC]">
+          <span class="nav-icon">☰</span><span class="nav-label">MENU</span><span class="nav-key">[ESC]</span><span id="hub-alert-pip" class="pt-pip" style="background:#16a34a; display:none;">!</span>
         </button>
       </div>
     </div>
@@ -855,6 +825,8 @@
           <button class="chat-tab" data-filter="chat" onclick="setChatFilter('chat')">CHAT</button>
           <button class="chat-tab" data-filter="faction" onclick="setChatFilter('faction')">FAC</button>
           <button class="chat-tab" data-filter="party" onclick="setChatFilter('party')">PTY</button>
+          <button class="chat-tab" data-filter="whisper" onclick="setChatFilter('whisper')">PM</button>
+          <button class="chat-tab" data-filter="trade" onclick="setChatFilter('trade')">TRD</button>
           <button class="chat-tab" data-filter="combat" onclick="setChatFilter('combat')">LOG</button>
         </div>
         <div class="emote-strip" title="Pixel Emotes [V]">
@@ -905,6 +877,18 @@
     </div>
 
     <div id="bottom-bar-dock" class="ui-draggable-panel">
+      <div id="dynamic-world-event-pill" class="world-event-xp-banner" title="Click GO to travel to the active Dynamic World Event zone!">
+        <span id="gf-we-title">✨ WORLD EVENT</span>
+        <span id="gf-we-room">CrystalEcho Caverns</span>
+        <span id="gf-we-timer">⏳ 15:00</span>
+        <button type="button" id="gf-we-go-btn">⚡ GO ▸</button>
+      </div>
+      <div id="osrs-prayer-and-combat-strip">
+        <div id="devotion-prayer-bar" title="Covenant Devotions (OSRS Overhead Prayers) — powered by Glimmer Charge"></div>
+        <button type="button" id="btn-auto-retaliate" onclick="toggleAutoRetaliate()" title="Auto-Retaliate: Automatically strike back when attacked">
+          ⚔️ AUTO: ON
+        </button>
+      </div>
       <div id="xp-bar-wrap">
         <div id="xp-bar-fill"></div>
         <div id="xp-bar-txt">LV.1 SOLARI VANGUARD • XP 0 / 80</div>
@@ -945,6 +929,72 @@
     </div>
 
     <!-- MODAL 0: Realm Skills, Professions & Entity Combat Level [N] -->
+    <!-- UNIFIED MODAL: Large Tabbed Adventure & System Hub [ESC] -->
+    <div id="adventure-hub-modal" class="modal panel" style="display: none;">
+      <div class="hub-top-bar">
+        <div class="modal-title" style="font-size: 14px; color: #fde047; font-family: var(--font-header); letter-spacing: 0.6px;">
+          ☰ GLIMMERFALL ADVENTURE &amp; SYSTEM MENU <span style="color:#94a3b8; font-size:10px; font-weight:600;">[ESC]</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button type="button" class="id-mini-btn" style="border-color:#38bdf8; color:#bae6fd; font-size:9.5px; padding:3px 9px;" onclick="window.openGearAndBag && window.openGearAndBag('both')">⚔️ Gear &amp; Bag</button>
+          <button type="button" class="id-mini-btn" style="border-color:#facc15; color:#fde047; font-size:9.5px; padding:3px 9px;" onclick="window.closeMenuHub && window.closeMenuHub(); window.openFrontpage && window.openFrontpage();">👤 Switch Hero</button>
+          <div class="modal-close" onclick="window.closeMenuHub ? window.closeMenuHub() : toggleModal('adventure-hub-modal')">✕</div>
+        </div>
+      </div>
+      <div class="hub-shell">
+        <div id="adventure-hub-tabs" class="hub-tabs-col">
+          <button type="button" class="hub-tab-btn" data-hub-tab="menu" onclick="window.openMenuHub('menu', { playSound: false })">
+            <span>⚙️ Settings</span><span class="hub-tab-key">[ESC]</span>
+          </button>
+          <button type="button" class="hub-tab-btn" data-hub-tab="spells" onclick="window.openMenuHub('spells')">
+            <span>📖 Spells <span id="skill-pt-pip" class="pt-pip">+1</span></span><span class="hub-tab-key">[P]</span>
+          </button>
+          <button type="button" class="hub-tab-btn" data-hub-tab="stats" onclick="window.openMenuHub('stats')">
+            <span>📊 Stats <span id="stat-pt-pip" class="pt-pip">+2</span></span><span class="hub-tab-key">[C]</span>
+          </button>
+          <button type="button" class="hub-tab-btn" data-hub-tab="skills" onclick="window.openMenuHub('skills')">
+            <span>✨ Skills</span><span class="hub-tab-key">[N]</span>
+          </button>
+          <button type="button" class="hub-tab-btn" data-hub-tab="social" onclick="window.openMenuHub('social')">
+            <span>👥 Social</span><span class="hub-tab-key">[O]</span>
+          </button>
+          <button type="button" class="hub-tab-btn" data-hub-tab="echoes" onclick="window.openMenuHub('echoes')">
+            <span>🐾 Echoes</span><span class="hub-tab-key">[G]</span>
+          </button>
+          <button type="button" class="hub-tab-btn" data-hub-tab="mail" onclick="window.openMenuHub('mail')">
+            <span>📬 Mail <span id="mail-unread-pip" class="pt-pip" style="background:#ca8a04; display:none;">0</span></span><span class="hub-tab-key">[POST]</span>
+          </button>
+          <button type="button" class="hub-tab-btn" data-hub-tab="awards" onclick="window.openMenuHub('awards')">
+            <span>🏆 Awards</span><span class="hub-tab-key">[Y]</span>
+          </button>
+          <button type="button" class="hub-tab-btn" data-hub-tab="emote" onclick="window.openMenuHub('emote')">
+            <span>🎭 Emotes</span><span class="hub-tab-key">[V]</span>
+          </button>
+          <button type="button" class="hub-tab-btn" data-hub-tab="share" onclick="window.openMenuHub('share')">
+            <span>📸 Share Card</span><span class="hub-tab-key">[PNG]</span>
+          </button>
+        </div>
+        <div id="adventure-hub-viewport" class="hub-viewport"></div>
+      </div>
+    </div>
+
+    <!-- UNIFIED MODAL: Combined Worn Equipment Paperdoll & 28-Slot Backpack [K / B] -->
+    <div id="gearbag-modal" class="modal panel" data-pane-mode="both" style="display: none;" onmouseleave="window.clearHoveredEquipment && window.clearHoveredEquipment()">
+      <div class="modal-header" style="border-bottom:1px solid #334155; padding-bottom:8px; margin-bottom:10px;">
+        <div class="modal-title" style="color:#fde047; font-size:13px; font-family:var(--font-header);">⚔️ HERO LOADOUT — GEAR &amp; 28-SLOT BAG [K / B]</div>
+        <div class="gearbag-pane-switcher">
+          <button type="button" class="id-mini-btn active" data-gb-pane="both" onclick="window.switchGearBagPane && window.switchGearBagPane('both')">Split View</button>
+          <button type="button" class="id-mini-btn" data-gb-pane="equip" onclick="window.switchGearBagPane && window.switchGearBagPane('equip')">⚔️ Gear [K]</button>
+          <button type="button" class="id-mini-btn" data-gb-pane="inv" onclick="window.switchGearBagPane && window.switchGearBagPane('inv')">🎒 Bag [B]</button>
+          <div class="modal-close" style="margin-left:6px;" onclick="window.closeGearAndBag ? window.closeGearAndBag() : toggleModal('gearbag-modal')">✕</div>
+        </div>
+      </div>
+      <div class="gearbag-grid">
+        <div id="gearbag-equip-host" class="gearbag-pane gearbag-equip-pane"></div>
+        <div id="gearbag-inv-host" class="gearbag-pane gearbag-inv-pane"></div>
+      </div>
+    </div>
+
     <div id="skills-modal" class="modal panel" style="width: 860px; max-width: 96vw; max-height: 90vh; display: none;">
       <div class="skills-modal-header">
         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -1339,6 +1389,7 @@
             <button type="button" class="st-tab-btn active" id="lore-tab-quests" onclick="switchLoreTab('quests')">📜 QUEST LOG</button>
             <button type="button" class="st-tab-btn" id="lore-tab-map" onclick="switchLoreTab('map')">🗺️ WORLD ATLAS &amp; REGIONS [M]</button>
             <button type="button" class="st-tab-btn" id="lore-tab-chronicle" onclick="switchLoreTab('chronicle')">📖 ANCIENT CHRONICLE [L]</button>
+            <button type="button" class="st-tab-btn" id="lore-tab-collection" onclick="switchLoreTab('collection')">🏆 COLLECTION LOG</button>
           </div>
         </div>
       </div>
@@ -1486,6 +1537,28 @@
       <div id="bounty-modal-body" style="margin-top: 8px; overflow-y: auto; max-height: calc(88vh - 105px); padding-right: 4px;"></div>
     </div>
 
+    <!-- MODAL 10C: Monster Drop Table Preview -->
+    <div id="drop-table-modal" class="modal panel" style="width: 440px; max-width: 94vw; max-height: 82vh; display: none;">
+      <div class="modal-header" style="border-bottom: 1px solid rgba(192, 132, 252, 0.35); padding-bottom: 8px;">
+        <div class="modal-title" style="font-size: 13px; color: #c084fc; font-family: var(--font-header); letter-spacing: 0.5px;">
+          📖 MONSTER DROP TABLE
+        </div>
+        <div class="modal-close" onclick="toggleModal('drop-table-modal')">✕</div>
+      </div>
+      <div id="drop-table-modal-body" style="margin-top: 8px; overflow-y: auto; max-height: calc(82vh - 95px);"></div>
+    </div>
+
+    <!-- MODAL 10D: Treasure Trails Clue Scroll -->
+    <div id="clue-scroll-modal" class="modal panel" style="width: 460px; max-width: 94vw; display: none;">
+      <div class="modal-header" style="border-bottom: 1px solid rgba(250, 204, 21, 0.35); padding-bottom: 8px;">
+        <div class="modal-title" style="font-size: 13px; color: #fde047; font-family: var(--font-header); letter-spacing: 0.5px;">
+          📜 TREASURE TRAILS CLUE SCROLL
+        </div>
+        <div class="modal-close" onclick="toggleModal('clue-scroll-modal')">✕</div>
+      </div>
+      <div id="clue-scroll-modal-body" style="margin-top: 8px;"></div>
+    </div>
+
     <!-- MODAL 10B: Covenant Vault Rune Lock Puzzle -->
     <div id="rune-puzzle-modal" class="modal panel" style="width: 460px; max-width: 94vw; display: none; flex-direction: column; gap: 10px;">
       <div class="modal-header" style="border-bottom: 1px solid rgba(56, 189, 248, 0.35); padding-bottom: 8px;">
@@ -1539,7 +1612,7 @@
     </div>
 
     <!-- MODAL 13: Achievements, Titles & TCG Lore Codex [Y] -->
-    <div id="achievements-modal" class="modal panel" style="width: 860px; max-width: 96vw; max-height: 90vh; display: none;"></div>
+    <div id="achievements-modal" class="modal panel" style="width: 860px; max-width: 96vw; max-height: 90vh; display: none;"><div id="achievements-hub-inner"></div></div>
   </div>
 
   <!-- Glimmerfall Legendary Quest Complete Scroll Modal -->

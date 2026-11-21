@@ -11,19 +11,88 @@ export const EXCHANGE_TARIFF_RATE = 0.02; // 2% trade tariff on completed sales
 export const MAX_OFFER_SLOTS = 8;
 
 export class ExchangeManager {
-  constructor({ accountsStore, getClientById, broadcastToAll, dataDir }) {
+  constructor({ accountsStore, getClientById, broadcastToAll, dataDir, db = null }) {
     this.accounts = accountsStore;
     this.getClientById = getClientById;
     this.broadcastToAll = broadcastToAll;
     this.dataDir = dataDir || path.resolve('server/data');
     this.filePath = path.join(this.dataDir, 'exchange_orders.json');
+    this.db = db || accountsStore?.db || null;
 
     // orderId -> OrderRecord
     this.orders = new Map();
     // playerId -> Set<orderId>
     this.playerOrders = new Map();
+    // Recent matched trades ring buffer (also mirrored to PostgreSQL when connected)
+    this.recentTrades = [];
+    this._dirtyOrderIds = new Set();
+    this._deletedOrderIds = new Set();
+    this._pendingTrades = [];
+    this._dbFlushPromise = null;
 
     this.init();
+  }
+
+  async initAsync(dbPool = null) {
+    const db = dbPool || this.db || this.accounts?.db || null;
+    if (!db) return false;
+    this.db = db;
+    try {
+      const res = await this.db.query(
+        'SELECT * FROM glimmerfall_exchange_orders WHERE collected = FALSE ORDER BY created_at ASC'
+      );
+      if (res.rows.length > 0) {
+        this.orders.clear();
+        this.playerOrders.clear();
+        for (const r of res.rows) {
+          const o = {
+            orderId: r.order_id,
+            playerId: r.player_id,
+            playerName: r.player_name || '',
+            slot: Number(r.slot),
+            mode: r.mode,
+            itemId: r.item_id,
+            qty: Number(r.qty),
+            filledQty: Number(r.filled_qty || 0),
+            unitPrice: Number(r.unit_price),
+            totalPrice: Number(r.total_price),
+            progress: Number(r.progress || 0),
+            completed: Boolean(r.completed),
+            collected: Boolean(r.collected),
+            escrowGold: Number(r.escrow_gold || 0),
+            escrowItems: Number(r.escrow_items || 0),
+            payoutGold: Number(r.payout_gold || 0),
+            payoutItems: Number(r.payout_items || 0),
+            createdAt: Number(r.created_at),
+            updatedAt: Number(r.updated_at),
+          };
+          this.orders.set(o.orderId, o);
+          if (!this.playerOrders.has(o.playerId)) {
+            this.playerOrders.set(o.playerId, new Set());
+          }
+          this.playerOrders.get(o.playerId).add(o.orderId);
+        }
+        this.seedAllianceLiquidity();
+      } else {
+        for (const o of this.orders.values()) {
+          this._dirtyOrderIds.add(o.orderId);
+        }
+        await this.flush();
+      }
+      const trRes = await this.db.query(
+        'SELECT item_id, match_price, match_qty, traded_at FROM glimmerfall_exchange_trades ORDER BY traded_at DESC LIMIT 250'
+      );
+      this.recentTrades = trRes.rows.map((r) => ({
+        itemId: r.item_id,
+        price: Number(r.match_price),
+        qty: Number(r.match_qty),
+        tradedAt: new Date(r.traded_at).toISOString(),
+      })).reverse();
+      return true;
+    } catch (err) {
+      console.warn('[AetherSwap] Failed to load exchange orders from PostgreSQL:', err.message);
+      return false;
+    }
   }
 
   init() {
@@ -58,6 +127,89 @@ export class ExchangeManager {
     } catch (err) {
       console.warn('[AetherSwap] Failed to persist exchange orders:', err.message);
     }
+    if (this.db) {
+      this.flush().catch((err) => {
+        console.warn('[AetherSwap] PostgreSQL sync error:', err.message);
+      });
+    }
+  }
+
+  markOrderDirty(orderId) {
+    if (!orderId) return;
+    this._deletedOrderIds.delete(orderId);
+    this._dirtyOrderIds.add(orderId);
+  }
+
+  markOrderDeleted(orderId) {
+    if (!orderId) return;
+    this._dirtyOrderIds.delete(orderId);
+    this._deletedOrderIds.add(orderId);
+  }
+
+  async flush() {
+    if (!this.db) return;
+    const run = async () => {
+      const upserts = Array.from(this._dirtyOrderIds);
+      const deletes = Array.from(this._deletedOrderIds);
+      const trades = this._pendingTrades.splice(0, this._pendingTrades.length);
+      this._dirtyOrderIds.clear();
+      this._deletedOrderIds.clear();
+
+      for (const orderId of upserts) {
+        const o = this.orders.get(orderId);
+        if (!o) continue;
+        await this.db.query(
+          `INSERT INTO glimmerfall_exchange_orders (
+            order_id, player_id, player_name, slot, mode, item_id, qty, filled_qty,
+            unit_price, total_price, progress, completed, collected, escrow_gold,
+            escrow_items, payout_gold, payout_items, created_at, updated_at
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+          ON CONFLICT (order_id) DO UPDATE SET
+            filled_qty = EXCLUDED.filled_qty,
+            progress = EXCLUDED.progress,
+            completed = EXCLUDED.completed,
+            collected = EXCLUDED.collected,
+            escrow_gold = EXCLUDED.escrow_gold,
+            escrow_items = EXCLUDED.escrow_items,
+            payout_gold = EXCLUDED.payout_gold,
+            payout_items = EXCLUDED.payout_items,
+            updated_at = EXCLUDED.updated_at`,
+          [
+            o.orderId, o.playerId, o.playerName || '', o.slot, o.mode, o.itemId, o.qty, o.filledQty || 0,
+            o.unitPrice, o.totalPrice, o.progress || 0, Boolean(o.completed), Boolean(o.collected),
+            o.escrowGold || 0, o.escrowItems || 0, o.payoutGold || 0, o.payoutItems || 0,
+            o.createdAt, o.updatedAt,
+          ]
+        );
+      }
+
+      if (deletes.length > 0) {
+        await this.db.query('DELETE FROM glimmerfall_exchange_orders WHERE order_id = ANY($1::text[])', [deletes]);
+      }
+
+      for (const tr of trades) {
+        await this.db.query(
+          `INSERT INTO glimmerfall_exchange_trades (item_id, match_price, match_qty, gross_gold, tariff, buyer_id, seller_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [tr.itemId, tr.matchPrice, tr.matchQty, tr.grossGold, tr.tariff, tr.buyerId, tr.sellerId]
+        );
+      }
+    };
+
+    const prev = this._dbFlushPromise;
+    const next = prev ? prev.catch(() => {}).then(run) : run();
+    this._dbFlushPromise = next;
+    try {
+      await next;
+    } finally {
+      if (this._dbFlushPromise === next) this._dbFlushPromise = null;
+    }
+  }
+
+  getItemPriceHistory(itemId, limit = 25) {
+    const cleanId = String(itemId || '').trim();
+    const list = cleanId ? this.recentTrades.filter((t) => t.itemId === cleanId) : this.recentTrades;
+    return list.slice(-Math.max(1, Math.min(100, limit)));
   }
 
   seedAllianceLiquidity() {
@@ -259,6 +411,7 @@ export class ExchangeManager {
     };
 
     this.orders.set(orderId, order);
+    this.markOrderDirty(orderId);
     if (!this.playerOrders.has(client.id)) {
       this.playerOrders.set(client.id, new Set());
     }
@@ -355,6 +508,27 @@ export class ExchangeManager {
           sell.completed = true;
           sell.progress = 100;
         }
+
+        this.markOrderDirty(buy.orderId);
+        this.markOrderDirty(sell.orderId);
+        this.recentTrades.push({
+          itemId,
+          price: matchPrice,
+          qty: matchQty,
+          tradedAt: new Date().toISOString(),
+        });
+        if (this.recentTrades.length > 500) {
+          this.recentTrades.splice(0, this.recentTrades.length - 500);
+        }
+        this._pendingTrades.push({
+          itemId,
+          matchPrice,
+          matchQty,
+          grossGold,
+          tariff,
+          buyerId: buy.playerId,
+          sellerId: sell.playerId,
+        });
 
         matched = true;
 
@@ -467,6 +641,9 @@ export class ExchangeManager {
       targetOrder.collected = true;
       this.orders.delete(targetOrder.orderId);
       this.playerOrders.get(client.id)?.delete(targetOrder.orderId);
+      this.markOrderDeleted(targetOrder.orderId);
+    } else {
+      this.markOrderDirty(targetOrder.orderId);
     }
 
     this.accounts.updateProfile(client.id, {
@@ -534,6 +711,7 @@ export class ExchangeManager {
     targetOrder.collected = true;
     this.orders.delete(targetOrder.orderId);
     this.playerOrders.get(client.id)?.delete(targetOrder.orderId);
+    this.markOrderDeleted(targetOrder.orderId);
 
     this.accounts.updateProfile(client.id, {
       inventory: profile.inventory,
