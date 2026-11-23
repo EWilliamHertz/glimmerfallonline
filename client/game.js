@@ -309,7 +309,7 @@ import {
   PRIMEVAL_RAID_CONFIG,
 } from '../shared/protocol.js';
 
-import { DEFAULT_KEYBINDS, PORTAL_ID_TO_ROOM } from "./game/dialoguesData.js";
+import { DEFAULT_KEYBINDS, PORTAL_ID_TO_ROOM, AWAKENING_DIALOGUE } from "./game/dialoguesData.js";
 import { QUEST_CATALOG } from "./game/questCatalogData.js";
 
 export function initGame() {
@@ -5322,7 +5322,7 @@ export function initGame() {
     getProps: () => props,
     getPlayer: () => player,
     getCamera: () => camera,
-    net,
+    getNet: () => net,
     isSinglePlayer: () => isSinglePlayer,
     hasEnteredWorld: () => hasEnteredWorld,
     saveProgressionLocal: () => saveProgressionLocal(),
@@ -6900,7 +6900,13 @@ export function initGame() {
   if (bootTarget.surface === 'loadout') {
     try {
       frontpage.open();
-      if (requestedTrainSkill && PROFESSIONS_CATALOG[requestedTrainSkill]) {
+      if (typeof window !== 'undefined' && window._pendingCreateOnBoot) {
+        window._pendingCreateOnBoot = false;
+        frontpage.beginCharacterCreation();
+      } else if (typeof window !== 'undefined' && window._pendingPlayOnBoot) {
+        window._pendingPlayOnBoot = false;
+        frontpage.playSelectedCharacter();
+      } else if (requestedTrainSkill && PROFESSIONS_CATALOG[requestedTrainSkill]) {
         if (typeof window !== 'undefined') window._pendingTrainSkillId = requestedTrainSkill;
         if (frontpage.playMode === 'singleplayer' || (frontpage.net?.profile && !frontpage.net.profile.isGuest)) {
           frontpage.playSelectedCharacter();

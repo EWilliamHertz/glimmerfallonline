@@ -311,31 +311,9 @@ export class FrontpageController {
         isPlaceholder: !cachedProfile.activeCharacterId,
       }];
     }
-    // If still connecting with no cached cloud roster yet, expose local fallback tagged as placeholder
-    if (typeof window !== 'undefined' && window.localProfile) {
-      const lp = window.localProfile;
-      return [{
-        id: lp.id || 'mp_char_cached',
-        name: lp.displayName || 'Champion',
-        faction: lp.faction || 'Solari',
-        classId: lp.classId || 'solari_vanguard',
-        orderTag: lp.orderTag || 'SUN',
-        equipment: lp.equipment || {},
-        loadout: lp.loadout || {},
-        inventory: lp.inventory || [],
-        bank: lp.bank || [],
-        progression: createDefaultProgression(),
-        homeBiome: ROOM_TYPES.SANCTUARY_HUB,
-        isPlaceholder: true,
-      }];
-    }
-    // Fallback to offline singleplayer roster so UI controls stay responsive
-    const spFallback = this.getSinglePlayerRoster();
-    if (Array.isArray(spFallback) && spFallback.length > 0) {
-      return spFallback.map((c) => ({ ...c, isPlaceholder: true }));
-    }
+    // If still connecting with no cached cloud roster yet, keep Multiplayer isolated from Singleplayer roster
     return [{
-      id: 'sp_char_starter',
+      id: 'mp_char_default',
       name: 'Solari Vanguard',
       faction: 'Solari',
       classId: 'solari_vanguard',
@@ -440,9 +418,9 @@ export class FrontpageController {
         }).catch(() => {});
       }
       this.refreshRealmStatus();
-      const mpChars = this.net?.profile?.characters || [];
+      const mpChars = this.getActiveRoster();
       const active = mpChars.find((c) => c.id === this.net?.profile?.activeCharacterId) || mpChars[0];
-      if (active) this.selectedCharacterId = active.id;
+      this.selectedCharacterId = active ? active.id : null;
     }
 
     if (this.isOpen) this.render();
@@ -1132,6 +1110,11 @@ export class FrontpageController {
       this.startPreviewLoop();
       if (this.playMode === 'multiplayer') {
         this.refreshRealmStatus();
+        if (this.net && !this.net.connected && typeof this.net.bootstrapAndConnect === 'function') {
+          this.net.bootstrapAndConnect().then((prof) => {
+            if (prof) this.syncFromProfile(prof);
+          }).catch(() => {});
+        }
       }
     }
   }

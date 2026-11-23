@@ -268,17 +268,32 @@
 
             var root = document.getElementById('frontpage-body');
             if (!root) return;
+            var mode = 'singleplayer';
+            try { mode = localStorage.getItem('glimmerfall_play_mode') || 'singleplayer'; } catch (_) {}
+            var isSingle = mode !== 'multiplayer';
             var SP_KEY_V2 = 'glimmerfall_sp_roster_v2';
             var SP_KEY_V1 = 'glimmerfall_sp_roster_v1';
             var SP_ACTIVE = 'glimmerfall_sp_active_id';
+            var MP_CACHE_KEY = 'glimmerfall_profile_cache';
+            var MP_ACTIVE = 'glimmerfall_active_char_id';
             var roster = [];
             try {
-              var raw = localStorage.getItem(SP_KEY_V2) || localStorage.getItem(SP_KEY_V1);
-              if (raw) roster = JSON.parse(raw);
+              if (isSingle) {
+                var raw = localStorage.getItem(SP_KEY_V2) || localStorage.getItem(SP_KEY_V1);
+                if (raw) roster = JSON.parse(raw);
+              } else {
+                var mpRaw = localStorage.getItem(MP_CACHE_KEY);
+                if (mpRaw) {
+                  var mpProf = JSON.parse(mpRaw);
+                  if (mpProf && Array.isArray(mpProf.characters) && mpProf.characters.length > 0) {
+                    roster = mpProf.characters;
+                  }
+                }
+              }
             } catch (_) {}
             if (!Array.isArray(roster) || roster.length === 0) {
               roster = [{
-                id: 'sp_char_starter',
+                id: isSingle ? 'sp_char_starter' : 'mp_char_default',
                 name: 'Solari Vanguard',
                 faction: 'Solari',
                 classId: 'solari_vanguard',
@@ -286,16 +301,15 @@
                 level: 1,
                 role: 'Radiant Bulwark & Frontline Tank'
               }];
-              try {
-                localStorage.setItem(SP_KEY_V2, JSON.stringify(roster));
-                localStorage.setItem(SP_ACTIVE, 'sp_char_starter');
-              } catch (_) {}
+              if (isSingle) {
+                try {
+                  localStorage.setItem(SP_KEY_V2, JSON.stringify(roster));
+                  localStorage.setItem(SP_ACTIVE, 'sp_char_starter');
+                } catch (_) {}
+              }
             }
-            var mode = 'singleplayer';
-            try { mode = localStorage.getItem('glimmerfall_play_mode') || 'singleplayer'; } catch (_) {}
-            var isSingle = mode !== 'multiplayer';
             var activeId = '';
-            try { activeId = localStorage.getItem(SP_ACTIVE) || ''; } catch (_) {}
+            try { activeId = localStorage.getItem(isSingle ? SP_ACTIVE : MP_ACTIVE) || ''; } catch (_) {}
             var selected = (activeId && roster.find(function (c) { return c.id === activeId; })) || roster[0];
             var facColors = { Solari: '#facc15', Umbri: '#c084fc', Terra: '#4ade80', Aether: '#38bdf8' };
             var facLogos = {
@@ -355,7 +369,7 @@
                     '<div class="fp-roster-list" style="max-height: 290px; overflow-y:auto; gap:6px; margin-bottom:10px;">' + rosterHtml + '</div>' +
                   '</div>' +
                   '<div style="border-top:1px solid #1e293b; padding-top:10px; margin-top:6px;">' +
-                    '<button class="util-btn" style="width:100%; border-color:#facc15; background:linear-gradient(180deg, #1e1b4b, #0f172a); color:#fde047; font-size:11.5px; font-weight:bold; padding:9px; display:flex; justify-content:center; align-items:center; gap:6px;" onclick="if(window._fp){window._fp.transitionTo(\'CHARACTER_CREATE\');}">' +
+                    '<button class="util-btn" style="width:100%; border-color:#facc15; background:linear-gradient(180deg, #1e1b4b, #0f172a); color:#fde047; font-size:11.5px; font-weight:bold; padding:9px; display:flex; justify-content:center; align-items:center; gap:6px;" onclick="if(window._fp){window._fp.beginCharacterCreation();}else{window._pendingCreateOnBoot=true;this.innerText=\'⏳ OPENING FORGE...\';}">' +
                       '<span>➕</span> CREATE NEW CHARACTER' +
                     '</button>' +
                   '</div>' +
@@ -385,7 +399,9 @@
                       '</div>' +
                     '</div>' +
                     '<div style="background:#091224; border-left:3px solid #38bdf8; padding:8px 10px; margin-bottom:12px; font-size:10px; color:#cbd5e1; line-height:1.4;">' +
-                      '⚡ <b>Instant Launch:</b> Single Player engine runs locally at 0ms. Select your hero and enter the realm immediately.' +
+                      (isSingle
+                        ? '⚡ <b>Instant Launch:</b> Single Player engine runs locally at 0ms. Select your hero and enter the realm immediately.'
+                        : '🌐 <b>Authoritative Online Realm:</b> Cloud characters sync live across devices. Sign in or select a champion below.') +
                     '</div>' +
                   '</div>' +
                   '<div style="border-top:1px solid #1e293b; padding-top:12px; margin-top:8px;">' +

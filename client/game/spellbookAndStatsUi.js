@@ -276,6 +276,7 @@ export function createSpellbookAndStatsUi({
 
   function renderKeybindUI() {
     const localProfile = getLocalProfile();
+    const prog = getProg();
     const listeningSlot = getListeningSlot();
     const rebindFeedbackMsg = getRebindFeedbackMsg();
     const keybinds = getKeybinds();

@@ -26,7 +26,8 @@ export function createOfflineZoneBuilder({
   getProps,
   getPlayer,
   getCamera,
-  net,
+  net = null,
+  getNet = null,
   isSinglePlayer,
   hasEnteredWorld,
   saveProgressionLocal,
@@ -511,8 +512,11 @@ export function createOfflineZoneBuilder({
       }
       camera.x = player.x;
       camera.y = player.y;
-      net.preferredRoom = currentRoomType;
-      net.currentCoords = { x: player.x, y: player.y };
+      const activeNet = typeof getNet === 'function' ? getNet() : net;
+      if (activeNet) {
+        activeNet.preferredRoom = currentRoomType;
+        activeNet.currentCoords = { x: player.x, y: player.y };
+      }
       return;
     }
 
@@ -575,8 +579,11 @@ export function createOfflineZoneBuilder({
 
     camera.x = player.x;
     camera.y = player.y;
-    net.preferredRoom = currentRoomType;
-    net.currentCoords = { x: player.x, y: player.y };
+    const activeNet = typeof getNet === 'function' ? getNet() : net;
+    if (activeNet) {
+      activeNet.preferredRoom = currentRoomType;
+      activeNet.currentCoords = { x: player.x, y: player.y };
+    }
     if (isSinglePlayer() && hasEnteredWorld()) saveProgressionLocal();
   }
 

@@ -374,3 +374,128 @@ test('FrontpageController: open() never silently auto-logs into multiplayer with
   assert.equal(fp.playMode, 'singleplayer', 'playMode must remain singleplayer');
   fp.close();
 });
+
+test('initGame boots window._fp cleanly and keeps Multiplayer roster isolated from Singleplayer characters', async () => {
+  const keys = ['window', 'document', 'localStorage', 'sessionStorage', 'location', 'navigator', 'Image', 'Audio', 'AudioContext', 'webkitAudioContext', 'requestAnimationFrame', 'cancelAnimationFrame', 'ResizeObserver', 'IntersectionObserver', 'fetch', 'WebSocket', 'CustomEvent', 'Event', 'BroadcastChannel', 'innerWidth', 'innerHeight', 'devicePixelRatio', 'setInterval', 'setTimeout'];
+  const saved = Object.fromEntries(keys.map((k) => [k, globalThis[k]]));
+  const origSetInterval = globalThis.setInterval;
+  const origSetTimeout = globalThis.setTimeout;
+  const createdIntervals = [];
+  const createdTimeouts = [];
+  globalThis.setInterval = (...args) => {
+    const id = origSetInterval(...args);
+    createdIntervals.push(id);
+    id?.unref?.();
+    return id;
+  };
+  globalThis.setTimeout = (...args) => {
+    const id = origSetTimeout(...args);
+    createdTimeouts.push(id);
+    id?.unref?.();
+    return id;
+  };
+
+  const els = new Map();
+  const makeEl = (tag = 'div', id = '') => {
+    const el = {
+      tagName: tag.toUpperCase(), id,
+      style: { setProperty() {}, removeProperty() {} },
+      classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+      dataset: {}, children: [], childNodes: [],
+      width: 800, height: 600, innerWidth: 1024, innerHeight: 768,
+      innerHTML: '', innerText: '', textContent: '', value: '',
+      addEventListener() {}, removeEventListener() {},
+      appendChild(c) { this.children.push(c); return c; },
+      removeChild() {}, remove() {}, insertBefore() {},
+      querySelector() { return makeEl(); }, querySelectorAll() { return []; },
+      getContext() { return ctxMock; }, toDataURL() { return 'data:image/png;base64,'; },
+      getBoundingClientRect() { return { left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600 }; },
+      play() { return Promise.resolve(); }, pause() {},
+      focus() {}, blur() {}, click() {}, setAttribute() {}, getAttribute: () => null, removeAttribute() {},
+      closest() { return null; }, contains: () => false,
+    };
+    const ctxMock = new Proxy({}, {
+      get: (_, prop) => {
+        if (prop === 'canvas') return el;
+        if (prop === 'createLinearGradient' || prop === 'createRadialGradient') return () => ({ addColorStop() {} });
+        if (prop === 'measureText') return () => ({ width: 20 });
+        if (prop === 'getImageData') return (_x, _y, w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(Math.max(1, w * h * 4)) });
+        if (prop === 'createImageData') return (w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(Math.max(1, w * h * 4)) });
+        return () => {};
+      },
+    });
+    return el;
+  };
+
+  try {
+    const lsMap = new Map([
+      ['glimmerfall_play_mode', 'singleplayer'],
+      ['glimmerfall_sp_roster_v2', JSON.stringify([
+        { id: 'sp_only_aurelia', name: 'AURELIA', faction: 'Solari', classId: 'solari_vanguard', progression: protocol.createDefaultProgression() },
+        { id: 'sp_only_umbri', name: 'UMBRAL ASSASSIN', faction: 'Umbri', classId: 'umbral_assassin', progression: protocol.createDefaultProgression() },
+      ])],
+    ]);
+    const ssMap = new Map();
+    globalThis.window = globalThis;
+    globalThis.window.addEventListener = () => {};
+    globalThis.window.removeEventListener = () => {};
+    globalThis.window.dispatchEvent = () => {};
+    globalThis.innerWidth = 1024;
+    globalThis.innerHeight = 768;
+    globalThis.devicePixelRatio = 1;
+    globalThis.location = { href: 'https://glimmerfallonline.vercel.app/', hostname: 'glimmerfallonline.vercel.app', protocol: 'https:', search: '', hash: '', pathname: '/' };
+    globalThis.navigator = { userAgent: 'Mozilla/5.0', maxTouchPoints: 0, clipboard: { writeText: async () => {} } };
+    globalThis.localStorage = { getItem: (k) => lsMap.get(k) ?? null, setItem: (k, v) => lsMap.set(k, String(v)), removeItem: (k) => lsMap.delete(k) };
+    globalThis.sessionStorage = { getItem: (k) => ssMap.get(k) ?? null, setItem: (k, v) => ssMap.set(k, String(v)), removeItem: (k) => ssMap.delete(k) };
+    globalThis.document = {
+      readyState: 'complete', hidden: false,
+      documentElement: makeEl('html'), head: makeEl('head'), body: makeEl('body'),
+      createElement: (tag) => makeEl(tag),
+      getElementById: (id) => { if (!els.has(id)) els.set(id, makeEl('div', id)); return els.get(id); },
+      querySelector: () => makeEl(), querySelectorAll: () => [],
+      addEventListener() {}, removeEventListener() {},
+    };
+    globalThis.Image = class { set src(_v) {} addEventListener() {} };
+    globalThis.Audio = class { pause() {} play() { return Promise.resolve(); } addEventListener() {} };
+    const makeAudioNode = () => ({ connect() { return this; }, gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }, frequency: { value: 440, setValueAtTime() {}, exponentialRampToValueAtTime() {} }, Q: { value: 1 }, start() {}, stop() {}, disconnect() {} });
+    globalThis.AudioContext = class { constructor() { this.currentTime = 0; this.state = 'running'; this.destination = makeAudioNode(); } resume() { return Promise.resolve(); } createGain() { return makeAudioNode(); } createOscillator() { return makeAudioNode(); } createBiquadFilter() { return makeAudioNode(); } createBufferSource() { return makeAudioNode(); } createBuffer() { return { getChannelData() { return new Float32Array(64); } }; } };
+    globalThis.webkitAudioContext = globalThis.AudioContext;
+    globalThis.requestAnimationFrame = () => 1;
+    globalThis.cancelAnimationFrame = () => {};
+    globalThis.ResizeObserver = class { observe() {} disconnect() {} };
+    globalThis.IntersectionObserver = class { observe() {} disconnect() {} };
+    globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({}), text: async () => '' });
+    globalThis.WebSocket = class { constructor() { this.readyState = 0; } close() {} send() {} };
+    globalThis.CustomEvent = class { constructor(t, o) { this.type = t; this.detail = o?.detail; } };
+    globalThis.Event = class { constructor(t) { this.type = t; } };
+    globalThis.BroadcastChannel = class { postMessage() {} addEventListener() {} close() {} };
+
+    const { initGame } = await import('../client/game.js');
+    initGame();
+
+    assert.ok(globalThis.window._fp, 'initGame must initialize window._fp without throwing');
+    globalThis.window._fp.open();
+    assert.deepEqual(
+      globalThis.window._fp.getSinglePlayerRoster().map((c) => c.name),
+      ['AURELIA', 'UMBRAL ASSASSIN']
+    );
+
+    globalThis.window._fp.setPlayMode('multiplayer');
+    const mpRoster = globalThis.window._fp.getActiveRoster();
+    assert.ok(!mpRoster.some((c) => c.id === 'sp_only_aurelia' || c.id === 'sp_only_umbri'), 'Multiplayer must never inherit Singleplayer roster figures');
+
+    globalThis.window._fp.beginCharacterCreation();
+    assert.equal(globalThis.window._fp.state, 'CHARACTER_CREATE');
+    globalThis.window._fp.setPlayMode('singleplayer');
+    const created = await globalThis.window._fp.createCharacter({ name: 'FrostWarden', faction: 'Terra', classId: 'forest_warden', orderTag: 'ROOT' });
+    assert.equal(created?.name, 'FrostWarden');
+    globalThis.window._fp.close();
+  } finally {
+    for (const id of createdIntervals) clearInterval(id);
+    for (const id of createdTimeouts) clearTimeout(id);
+    for (const k of keys) {
+      if (saved[k] === undefined) delete globalThis[k];
+      else globalThis[k] = saved[k];
+    }
+  }
+});

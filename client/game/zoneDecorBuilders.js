@@ -1056,12 +1056,6 @@ export function createZoneDecorManager({
           ],
         }
       );
-      if (!introShown && !questState.introShown && !questState.talkedNpcs?.npc_aurora && !frontpage.isOpen) {
-        introShown = true;
-        questState.introShown = true;
-        saveQuestState();
-        openDialogue(AWAKENING_DIALOGUE, 'heraldNpc', 'npc_aurora');
-      }
     } else if (resolvedRoomType === ROOM_TYPES.ARENA_3V3) {
       if (zoneTitle) zoneTitle.innerText = roomTitleOverride || '3v3 NEXUS ARENA';
       if (zoneLabel) zoneLabel.innerText = 'Exit Arena';
