@@ -12,23 +12,50 @@ const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ENV_PATH = path.resolve(__dirname, '../.env');
 
-export function loadDotEnv() {
-  if (!fs.existsSync(ENV_PATH)) return;
-  const lines = fs.readFileSync(ENV_PATH, 'utf8').split(/\r?\n/);
-  for (const line of lines) {
-    const trimmed = line.trim();
+export function parseDotEnvContent(rawText = '') {
+  const result = {};
+  const lines = String(rawText || '').split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
     const eq = trimmed.indexOf('=');
     if (eq === -1) continue;
     const key = trimmed.slice(0, eq).trim();
+    if (!key) continue;
     let val = trimmed.slice(eq + 1).trim();
-    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-      val = val.slice(1, -1);
+
+    if (val.startsWith('"') || val.startsWith("'")) {
+      const quote = val[0];
+      let buf = val.slice(1);
+      while (!buf.endsWith(quote) && i + 1 < lines.length) {
+        i += 1;
+        buf += '\n' + lines[i];
+      }
+      if (buf.endsWith(quote)) {
+        buf = buf.slice(0, -1);
+      }
+      val = quote === '"' ? buf.replace(/\\n/g, '\n').replace(/\\r/g, '\r') : buf;
+    } else {
+      const commentIdx = val.search(/\s+#/);
+      if (commentIdx !== -1) {
+        val = val.slice(0, commentIdx).trim();
+      }
     }
-    if (!process.env[key]) {
-      process.env[key] = val;
+
+    result[key] = val;
+  }
+  return result;
+}
+
+export function loadDotEnv(envPath = ENV_PATH, targetEnv = process.env) {
+  if (!fs.existsSync(envPath)) return false;
+  const parsed = parseDotEnvContent(fs.readFileSync(envPath, 'utf8'));
+  for (const [key, val] of Object.entries(parsed)) {
+    if (!targetEnv[key]) {
+      targetEnv[key] = val;
     }
   }
+  return true;
 }
 
 loadDotEnv();

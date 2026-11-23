@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { AccountsStore } from '../server/accountsStore.js';
 import { RoomManager } from '../server/roomManager.js';
-import { ROOM_TYPES } from '../shared/protocol.js';
+import { ROOM_TYPES, localToWorld } from '../shared/protocol.js';
 
 function createMockWs() {
   const sent = [];
@@ -286,11 +286,12 @@ test('Client frontpage and game entry keep exact spawn coords across WS connect 
     assert.equal(client.y, -110);
 
     // Instant room persistence check: joinRoom must save the new realm immediately without waiting for disconnect
+    const solariWorld = localToWorld(ROOM_TYPES.SOLARI_CITADEL, 24, 48);
     rooms.joinRoom(client, ROOM_TYPES.SOLARI_CITADEL, null, 24, 48, 'down');
     const savedImmediately = accounts.listCharacters(account.id).find((c) => c.id === charBId);
     assert.equal(savedImmediately.lastPosition.roomType, ROOM_TYPES.SOLARI_CITADEL, 'joinRoom must save new roomType immediately');
-    assert.equal(savedImmediately.lastPosition.x, 24);
-    assert.equal(savedImmediately.lastPosition.y, 48);
+    assert.equal(savedImmediately.lastPosition.x, solariWorld.wx);
+    assert.equal(savedImmediately.lastPosition.y, solariWorld.wy);
 
     // Throttled move persistence: stopping moving saves exact resting coordinate immediately
     let saveCalls = 0;
@@ -301,8 +302,8 @@ test('Client frontpage and game entry keep exact spawn coords across WS connect 
     };
     rooms.handlePacket(client, {
       type: 'move',
-      x: 28,
-      y: 48,
+      x: solariWorld.wx + 4,
+      y: solariWorld.wy,
       z: 0,
       dir: 'right',
       isMoving: true,
@@ -311,8 +312,8 @@ test('Client frontpage and game entry keep exact spawn coords across WS connect 
     assert.equal(saveCalls, 0, 'Tiny 4px continuous move step should not flood DB saves at 20Hz');
     rooms.handlePacket(client, {
       type: 'move',
-      x: 30,
-      y: 52,
+      x: solariWorld.wx + 6,
+      y: solariWorld.wy + 4,
       z: 0,
       dir: 'down',
       isMoving: false,
@@ -320,8 +321,8 @@ test('Client frontpage and game entry keep exact spawn coords across WS connect 
     });
     assert.equal(saveCalls, 1, 'Stopping movement must persist exact position immediately');
     const afterStop = accounts.listCharacters(account.id).find((c) => c.id === charBId);
-    assert.equal(afterStop.lastPosition.x, 30);
-    assert.equal(afterStop.lastPosition.y, 52);
+    assert.equal(afterStop.lastPosition.x, solariWorld.wx + 6);
+    assert.equal(afterStop.lastPosition.y, solariWorld.wy + 4);
 
     rooms.removeClient(client);
   } finally {

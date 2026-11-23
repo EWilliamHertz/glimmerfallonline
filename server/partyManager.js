@@ -140,8 +140,9 @@ export class PartyManager {
       this.partyByPlayer.set(inviter.id, partyId);
     }
 
-    if (party.memberIds.length >= MAX_PARTY_SIZE) {
-      targetClient.send({ type: 'sys_msg', category: 'party', text: '[Party] That squad is already full (3/3)!' });
+    const maxCap = Number(party.maxSize) || MAX_PARTY_SIZE;
+    if (party.memberIds.length >= maxCap) {
+      targetClient.send({ type: 'sys_msg', category: 'party', text: `[Party] That squad is already full (${maxCap}/${maxCap})!` });
       return;
     }
 
@@ -151,9 +152,30 @@ export class PartyManager {
     this.broadcastToParty(party.id, {
       type: 'sys_msg',
       category: 'party',
-      text: `[Party] ${targetClient.displayName} joined the 3-Player Squad (${party.memberIds.length}/3)!`,
+      text: `[Party] ${targetClient.displayName} joined the Squad (${party.memberIds.length}/${maxCap})!`,
     });
     this.broadcastPartyState(party.id);
+  }
+
+  formGroup(memberClients = [], maxSize = 5) {
+    const valid = memberClients.filter(Boolean);
+    if (valid.length === 0) return null;
+    for (const c of valid) {
+      if (this.partyByPlayer.has(c.id)) this.leaveParty(c);
+    }
+    const partyId = `pty_${crypto.randomUUID().slice(0, 8)}`;
+    const party = {
+      id: partyId,
+      leaderId: valid[0].id,
+      maxSize: Math.max(MAX_PARTY_SIZE, maxSize),
+      memberIds: valid.map((c) => c.id),
+    };
+    this.parties.set(partyId, party);
+    for (const c of valid) {
+      this.partyByPlayer.set(c.id, partyId);
+    }
+    this.broadcastPartyState(partyId);
+    return party;
   }
 
   leaveParty(client) {

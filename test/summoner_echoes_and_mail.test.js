@@ -300,6 +300,8 @@ test('RoomManager handles extract_cipher, compile_familiar, set_active_familiar,
 test('Client UI & world maps integrate Construct Cradles, Herald Postboxes, and zero I18N modules', () => {
   const indexHtml = fs.readFileSync('index.html', 'utf8');
   const gameJs = fs.readFileSync('client/game.js', 'utf8');
+  const decorJs = fs.readFileSync('client/game/zoneDecorBuilders.js', 'utf8');
+  const clientAll = `${gameJs}\n${decorJs}`;
   const uiJs = fs.readFileSync('client/game/summonerAndMailUi.js', 'utf8');
   const propSpritesJs = fs.readFileSync('client/sprites/propSprites.js', 'utf8');
   const famSpritesJs = fs.readFileSync('client/sprites/familiarSprites.js', 'utf8');
@@ -308,11 +310,11 @@ test('Client UI & world maps integrate Construct Cradles, Herald Postboxes, and 
   assert.match(indexHtml, /id="mail-modal"/);
   assert.match(indexHtml, /id="mail-unread-pip"/);
 
-  assert.match(gameJs, /heraldPostbox/);
-  assert.match(gameJs, /x:\s*72,\s*y:\s*-96,\s*label:\s*'📬 Aether Herald Postbox/);
+  assert.match(clientAll, /heraldPostbox/);
+  assert.match(clientAll, /x:\s*72,\s*y:\s*-96,\s*label:\s*'📬 Aether Herald Postbox/);
   assert.ok(gameJs.includes('targetY = hit.renderY - minYGap'), 'Overhead badges must lift upward instead of colliding onto nearby sprites');
-  assert.match(gameJs, /constructCradle/);
-  assert.match(gameJs, /echo_extractor/);
+  assert.match(clientAll, /constructCradle/);
+  assert.match(clientAll, /echo_extractor/);
   assert.match(gameJs, /pushFamiliarRenderable/);
   assert.match(gameJs, /mailbox_sync/);
   assert.match(gameJs, /mail_action_res/);

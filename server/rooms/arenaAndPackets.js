@@ -11,6 +11,22 @@ import {
   isSlotUnlocked,
   ROOM_TYPES,
   ROOM_CONFIGS,
+  FOUNDER_ONLY_ROOMS,
+  isRoomUnlockedForEdition,
+  isSurfaceRoomType,
+  getRegionAtWorldPos,
+  clampSurfacePosition,
+  migrateLegacyPosition,
+  isSurfaceWaterTile,
+  isSurfaceFootprintInWater,
+  MOUNTS_CATALOG,
+  MOUNT_CAST_DURATION_SEC,
+  WAYPOINT_SHRINES_BY_ID,
+  normalizeExplorationState,
+  getDefaultMountIdForFaction,
+  canRideMountInRoom,
+  revealFogOfWarAt,
+  findNearestWaypointShrine,
   GRAND_FONT_POSITIONS,
   HARVEST_COOLDOWN_MS,
   FACTIONS_META,
@@ -417,10 +433,12 @@ export const arenaAndPacketsMethods = {
       `[3v3 Arena] Match found! Blue: ${bluePlayers.length} champion(s)${blueBots ? ` + ${blueBots} computer ally` : ''}` +
       ` vs Red: ${redPlayers.length} champion(s)${redBots ? ` + ${redBots} computer foe` : ''}.`;
 
+    this.ensureArenaMatchMeta?.(room, bluePlayers, redPlayers);
     for (const p of bluePlayers) {
       if (!p.preArenaSpot && p.roomType !== ROOM_TYPES.ARENA_3V3) {
         p.preArenaSpot = { roomId: p.roomId, roomType: p.roomType, x: p.x, y: p.y };
       }
+      p.isSpectator = false;
       p.hp = p.maxHp;
       p.send({ type: 'queue_state', queueing: false });
       this.joinRoom(p, room.id, 'blue');
@@ -430,6 +448,7 @@ export const arenaAndPacketsMethods = {
       if (!p.preArenaSpot && p.roomType !== ROOM_TYPES.ARENA_3V3) {
         p.preArenaSpot = { roomId: p.roomId, roomType: p.roomType, x: p.x, y: p.y };
       }
+      p.isSpectator = false;
       p.hp = p.maxHp;
       p.send({ type: 'queue_state', queueing: false });
       this.joinRoom(p, room.id, 'red');
@@ -444,7 +463,10 @@ export const arenaAndPacketsMethods = {
     if (!pA || !pB) return true;
     if (pA.id === pB.id) return true;
     if (this.duels && this.duels.isDuelActiveBetween(pA.id, pB.id)) return false;
-    if (!room.pvp) return true;
+    const pvpEnabled = room?.isOverworld
+      ? Boolean(ROOM_CONFIGS[pA.roomType]?.pvp && ROOM_CONFIGS[pB.roomType]?.pvp)
+      : Boolean(room?.pvp);
+    if (!pvpEnabled) return true;
     if (room.type === ROOM_TYPES.ARENA_3V3) return pA.team === pB.team;
     if (this.parties.areInSameParty(pA.id, pB.id)) return true;
     return pA.faction === pB.faction;
@@ -462,7 +484,7 @@ export const arenaAndPacketsMethods = {
     } else if (ent.type === 'outpost_nexus' && ent.faction === player.faction) {
       // Cannot damage your own Faction's Outpost Nexus!
       return false;
-    } else if (ent.type === 'mob' && player && isSameFactionProtectedMob(room.type, ent, player.faction, player.id)) {
+    } else if (ent.type === 'mob' && player && isSameFactionProtectedMob(ent.zoneType || room.type, ent, player.faction, player.id)) {
       // Unprovoked same-faction creeps in faction cities are only damaged if explicitly targeted
       if (primaryTargetId && ent.id === primaryTargetId) return true;
       return false;
@@ -503,35 +525,102 @@ export const arenaAndPacketsMethods = {
         const ny = Number(msg.y);
         if (!Number.isFinite(nx) || !Number.isFinite(ny)) return;
 
-        const GATE_HALF_WIDTH = 72;
-        const canPassEastWest = (room.edgeTransitions?.east || room.edgeTransitions?.west) && Math.abs(ny) <= GATE_HALF_WIDTH;
-        const canPassNorthSouth = (room.edgeTransitions?.north || room.edgeTransitions?.south) && Math.abs(nx) <= GATE_HALF_WIDTH;
-        const padX = canPassEastWest ? 4 : 14;
-        const padY = canPassNorthSouth ? 4 : 14;
-        let targetX = Math.max(-room.halfW + padX, Math.min(room.halfW - padX, nx));
-        let targetY = Math.max(-room.halfH + padY, Math.min(room.halfH - padY, ny));
+        if (room.isOverworld) {
+          let targetX = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, nx));
+          let targetY = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, ny));
+          const dist = Math.hypot(targetX - client.x, targetY - client.y);
+          const MAX_STEP = 260;
+          if (dist > MAX_STEP) {
+            const ratio = MAX_STEP / dist;
+            targetX = client.x + (targetX - client.x) * ratio;
+            targetY = client.y + (targetY - client.y) * ratio;
+          }
 
-        const dist = Math.hypot(targetX - client.x, targetY - client.y);
-        const MAX_STEP = 240;
-        if (dist > MAX_STEP) {
-          // Graceful vector clamping on lag spikes / packet bunching
-          const ratio = MAX_STEP / dist;
-          targetX = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, client.x + (targetX - client.x) * ratio));
-          targetY = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, client.y + (targetY - client.y) * ratio));
-        }
+          const prevRoomType = client.roomType || ROOM_TYPES.SANCTUARY_HUB;
+          const moveRes = clampSurfacePosition(client.x, client.y, targetX, targetY, {
+            founderRooms: FOUNDER_ONLY_ROOMS,
+            founderChecker: (rt) => isRoomUnlockedForEdition(rt, client),
+            isWaterAt: (wx, wy) => isSurfaceFootprintInWater(wx, wy, 4, 3),
+          });
+          client.x = moveRes.x;
+          client.y = moveRes.y;
 
-        // Authoritative Water Collision Check: Never allow walking across water or void chasms
-        if (!isFootprintInWater(targetX, targetY, room.type, 4, 3)) {
-          client.x = targetX;
-          client.y = targetY;
-        } else if (!isFootprintInWater(targetX, client.y, room.type, 4, 3)) {
-          client.x = targetX;
-        } else if (!isFootprintInWater(client.x, targetY, room.type, 4, 3)) {
-          client.y = targetY;
-        } else if (isWaterTile(client.x, client.y, room.type)) {
-          const dry = findNearestDryTile(client.x, client.y, room.type, room.halfW, room.halfH);
-          client.x = dry.x;
-          client.y = dry.y;
+          if (moveRes.blockedByBarrier) {
+            client.posOverrideSeq = (client.posOverrideSeq || 0) + 1;
+            const nowBarrier = Date.now();
+            if (nowBarrier - (client._lastBarrierWarnAt || 0) > 1500) {
+              client._lastBarrierWarnAt = nowBarrier;
+              const bCfg = ROOM_CONFIGS[moveRes.barrierRoomType];
+              const zoneTitle = bCfg?.shortTitle || 'Founder Realm';
+              client.send?.({
+                type: 'trial_gate',
+                feature: 'zone',
+                roomType: moveRes.barrierRoomType,
+                zoneTitle,
+              });
+              client.send?.({
+                type: 'sys_msg',
+                category: 'combat',
+                text: `🔒 [Astral Resonance Barrier] ${zoneTitle} requires Founder's Edition. Keep playing Trial Realms or redeem a Serial Key!`,
+              });
+              room.fxQueue.push({
+                kind: 'fct',
+                x: client.x,
+                y: client.y - 14,
+                text: '🔒 ASTRAL BARRIER',
+                color: '#f43f5e',
+              });
+            }
+          } else {
+            const newZone = moveRes.region?.roomType || prevRoomType;
+            client.roomType = newZone;
+            if (newZone !== prevRoomType) {
+              const zoneCfg = ROOM_CONFIGS[newZone];
+              if (!client.portalQuestDone && newZone === ROOM_TYPES.NEXUS_WARZONE) {
+                client.portalQuestDone = true;
+                this.awardPlayerXP(client, 40, 'Entered Nexus Warzone');
+              }
+              client.send?.({
+                type: 'region_changed',
+                roomType: newZone,
+                inTransition: Boolean(moveRes.region?.inTransition),
+                fromRoom: moveRes.region?.fromRoom || null,
+                toRoom: moveRes.region?.toRoom || null,
+                pvp: Boolean(zoneCfg?.pvp),
+                x: Math.round(client.x),
+                y: Math.round(client.y),
+              });
+            }
+          }
+        } else {
+          const GATE_HALF_WIDTH = 72;
+          const canPassEastWest = (room.edgeTransitions?.east || room.edgeTransitions?.west) && Math.abs(ny) <= GATE_HALF_WIDTH;
+          const canPassNorthSouth = (room.edgeTransitions?.north || room.edgeTransitions?.south) && Math.abs(nx) <= GATE_HALF_WIDTH;
+          const padX = canPassEastWest ? 4 : 14;
+          const padY = canPassNorthSouth ? 4 : 14;
+          let targetX = Math.max(-room.halfW + padX, Math.min(room.halfW - padX, nx));
+          let targetY = Math.max(-room.halfH + padY, Math.min(room.halfH - padY, ny));
+
+          const dist = Math.hypot(targetX - client.x, targetY - client.y);
+          const MAX_STEP = 240;
+          if (dist > MAX_STEP) {
+            const ratio = MAX_STEP / dist;
+            targetX = Math.max(-room.halfW + 14, Math.min(room.halfW - 14, client.x + (targetX - client.x) * ratio));
+            targetY = Math.max(-room.halfH + 14, Math.min(room.halfH - 14, client.y + (targetY - client.y) * ratio));
+          }
+
+          if (!isFootprintInWater(targetX, targetY, room.type, 4, 3)) {
+            client.x = targetX;
+            client.y = targetY;
+          } else if (!isFootprintInWater(targetX, client.y, room.type, 4, 3)) {
+            client.x = targetX;
+          } else if (!isFootprintInWater(client.x, targetY, room.type, 4, 3)) {
+            client.y = targetY;
+          } else if (isWaterTile(client.x, client.y, room.type)) {
+            const dry = findNearestDryTile(client.x, client.y, room.type, room.halfW, room.halfH);
+            client.x = dry.x;
+            client.y = dry.y;
+          }
         }
 
         client.z = Math.max(0, Math.min(80, Number(msg.z) || 0));
@@ -539,6 +628,33 @@ export const arenaAndPacketsMethods = {
           client.dir = msg.dir;
         }
         client.isMoving = Boolean(msg.isMoving);
+        if (client.mountCast && (client.isMoving || Math.hypot(nx - client.x, ny - client.y) > 2)) {
+          client.mountCast = null;
+          client.send?.({ type: 'mount_synced', mountId: client.mountId || null, reason: 'move' });
+        }
+        if (client.mountId && !canRideMountInRoom(client.roomType)) {
+          client.mountId = null;
+          client.send?.({ type: 'mount_synced', mountId: null, reason: 'indoors' });
+        }
+        const fogMovedDist = Math.hypot(
+          (client.x || 0) - (client._lastFogRevealX ?? client.x),
+          (client.y || 0) - (client._lastFogRevealY ?? client.y)
+        );
+        if (fogMovedDist >= 120 || !client.prog?.exploration?.discoveredZones?.includes(client.roomType)) {
+          client.prog.exploration = normalizeExplorationState(client.prog?.exploration, client.faction);
+          const fogRes = revealFogOfWarAt(client.prog.exploration, client.x, client.y, client.roomType, 1, client.faction);
+          client.prog.exploration = fogRes.state;
+          client._lastFogRevealX = client.x;
+          client._lastFogRevealY = client.y;
+          if (fogRes.changed) {
+            this.accounts.saveProgression(client.id, client.prog);
+            client.send?.({
+              type: 'exploration_sync',
+              exploration: client.prog.exploration,
+              newlyDiscoveredZone: fogRes.newlyDiscoveredZone,
+            });
+          }
+        }
         client.lastMovePacketAt = Date.now();
         if (Number.isFinite(Number(msg.seq))) {
           client.lastMoveSeq = Math.max(client.lastMoveSeq || 0, Math.floor(Number(msg.seq)));
@@ -616,7 +732,113 @@ export const arenaAndPacketsMethods = {
 
       case 'cancel_cast':
         client.castState = null;
+        if (client.mountCast) {
+          client.mountCast = null;
+          client.send?.({ type: 'mount_synced', mountId: client.mountId || null, reason: 'cancelled' });
+        }
         break;
+
+      case 'toggle_mount': {
+        if (!room || client.isDead || client.freezeTimer > 0) break;
+        if (client.mountId) {
+          client.mountId = null;
+          client.mountCast = null;
+          client.send({ type: 'mount_synced', mountId: null, reason: 'manual' });
+          break;
+        }
+        if (client.mountCast) {
+          client.mountCast = null;
+          client.send({ type: 'mount_synced', mountId: null, reason: 'cancelled' });
+          break;
+        }
+        const activeZone = client.roomType || room.type;
+        if (!canRideMountInRoom(activeZone)) {
+          client.send({
+            type: 'sys_msg',
+            category: 'combat',
+            text: '🐴 Mounts can only be summoned outdoors on the overland continent.',
+          });
+          break;
+        }
+        client.prog.exploration = normalizeExplorationState(client.prog?.exploration, client.faction);
+        const requestedMount = msg.mountId && MOUNTS_CATALOG[msg.mountId]
+          ? msg.mountId
+          : (client.prog.exploration.preferredMountId || getDefaultMountIdForFaction(client.faction));
+        const unlockedSet = new Set(client.prog.exploration.unlockedMountIds || []);
+        const mountId = unlockedSet.has(requestedMount)
+          ? requestedMount
+          : getDefaultMountIdForFaction(client.faction);
+        client.mountCast = {
+          mountId,
+          remaining: MOUNT_CAST_DURATION_SEC,
+          total: MOUNT_CAST_DURATION_SEC,
+        };
+        client.send({
+          type: 'mount_cast_started',
+          mountId,
+          duration: MOUNT_CAST_DURATION_SEC,
+          name: MOUNTS_CATALOG[mountId]?.name || 'Faction Mount',
+        });
+        break;
+      }
+
+      case 'select_mount': {
+        client.prog.exploration = normalizeExplorationState(client.prog?.exploration, client.faction);
+        const targetId = String(msg.mountId || '');
+        if (MOUNTS_CATALOG[targetId] && client.prog.exploration.unlockedMountIds.includes(targetId)) {
+          client.prog.exploration.preferredMountId = targetId;
+          this.accounts.saveProgression(client.id, client.prog);
+          client.send({ type: 'exploration_sync', exploration: client.prog.exploration });
+        }
+        break;
+      }
+
+      case 'discover_waypoint': {
+        if (!room || client.isDead || !canRideMountInRoom(client.roomType || room.type)) break;
+        const candidate = (msg.shrineId && WAYPOINT_SHRINES_BY_ID[msg.shrineId]) || findNearestWaypointShrine(client.x, client.y, 135);
+        if (!candidate) break;
+        const distWp = Math.hypot(client.x - candidate.wx, client.y - candidate.wy);
+        if (distWp > 140) {
+          client.send({ type: 'sys_msg', category: 'quest', text: `🧭 Move closer to ${candidate.name} to attune the Waypoint Shrine.` });
+          break;
+        }
+        client.prog.exploration = normalizeExplorationState(client.prog?.exploration, client.faction);
+        const already = client.prog.exploration.unlockedShrines.includes(candidate.id);
+        if (!already) {
+          client.prog.exploration.unlockedShrines.push(candidate.id);
+          this.accounts.saveProgression(client.id, client.prog);
+          this.awardPlayerXP(client, 40, `Attuned ${candidate.name}`);
+          room.fxQueue.push({ kind: 'spark', x: candidate.wx, y: candidate.wy - 12, colors: ['#38bdf8', '#fde047', '#ffffff'], count: 28 });
+          room.fxQueue.push({ kind: 'fct', x: client.x, y: client.y - 18, text: `🧭 WAYPOINT ATTUNED!`, color: '#38bdf8', isCrit: true });
+          client.send({ type: 'waypoint_unlocked', shrineId: candidate.id, name: candidate.name });
+        }
+        client.send({ type: 'exploration_sync', exploration: client.prog.exploration });
+        break;
+      }
+
+      case 'teleport_waypoint': {
+        if (!room || client.isDead || client.freezeTimer > 0) break;
+        if (room.type === ROOM_TYPES.ARENA_3V3) {
+          client.send({ type: 'sys_msg', category: 'combat', text: '⚔️ Cannot Waypoint travel while inside an Arena match!' });
+          break;
+        }
+        const wp = WAYPOINT_SHRINES_BY_ID[String(msg.shrineId || '')];
+        if (!wp) break;
+        client.prog.exploration = normalizeExplorationState(client.prog?.exploration, client.faction);
+        if (!client.prog.exploration.unlockedShrines.includes(wp.id)) {
+          client.send({ type: 'sys_msg', category: 'quest', text: `🔒 ${wp.name} is still unattuned! Discover it on foot first.` });
+          break;
+        }
+        if (!isRoomUnlockedForEdition(wp.roomType, client)) {
+          client.send({ type: 'trial_gate', feature: 'zone', roomType: wp.roomType, zoneTitle: wp.name });
+          break;
+        }
+        client.mountId = null;
+        client.mountCast = null;
+        this.joinRoom(client, wp.roomType, null, wp.wx, wp.wy, 'down');
+        client.send({ type: 'waypoint_teleported', shrineId: wp.id, name: wp.name, roomType: wp.roomType, x: wp.wx, y: wp.wy });
+        break;
+      }
 
       case 'harvest_node':
         if (room) this.handleHarvestNode(room, client, msg.nodeId);
@@ -636,6 +858,30 @@ export const arenaAndPacketsMethods = {
 
       case 'set_active_familiar':
         this.handleSetActiveFamiliar(room, client, msg.familiarId);
+        break;
+
+      case 'set_familiar_variant':
+        this.handleSetFamiliarVariant(client, msg.familiarId, msg.variant);
+        break;
+
+      case 'fam_duel_challenge':
+        this.handleFamDuelChallenge(client, msg);
+        break;
+
+      case 'fam_duel_respond':
+        this.handleFamDuelRespond(client, msg);
+        break;
+
+      case 'fam_duel_move':
+        this.handleFamDuelMove(client, msg);
+        break;
+
+      case 'fam_duel_forfeit':
+        this.handleFamDuelForfeit(client, msg);
+        break;
+
+      case 'soothe_wild_echo':
+        if (room) this.handleSootheWildEcho(room, client, msg.entityId);
         break;
 
       case 'mail_list': {
@@ -1179,28 +1425,58 @@ export const arenaAndPacketsMethods = {
         }
         if (msg.lastPosition && typeof msg.lastPosition === 'object') {
           let safePos = msg.lastPosition;
-          if (safePos.roomType === client.roomType) {
-            const roomCfg = ROOM_CONFIGS[client.roomType];
-            const halfW = roomCfg?.halfW || 280;
-            const halfH = roomCfg?.halfH || 280;
-            const sx = Number(safePos.x);
-            const sy = Number(safePos.y);
+          if (room?.isOverworld && isSurfaceRoomType(client.roomType)) {
+            const sx = Number(safePos.worldX ?? safePos.x);
+            const sy = Number(safePos.worldY ?? safePos.y);
             const isActivelyWalking = client.isMoving || (Date.now() - (client.lastMovePacketAt || 0)) < 2500;
             if (
               !isActivelyWalking &&
               Number.isFinite(sx) && Number.isFinite(sy) &&
               Math.hypot(sx - client.x, sy - client.y) <= 240 &&
-              !isWaterTile(sx, sy, client.roomType)
+              !isSurfaceWaterTile(sx, sy)
             ) {
-              client.x = Math.max(-halfW + 14, Math.min(halfW - 14, sx));
-              client.y = Math.max(-halfH + 14, Math.min(halfH - 14, sy));
+              const clamped = clampSurfacePosition(client.x, client.y, sx, sy, {
+                founderRooms: FOUNDER_ONLY_ROOMS,
+                founderChecker: (rt) => isRoomUnlockedForEdition(rt, client),
+                isWaterAt: (wx, wy) => isSurfaceWaterTile(wx, wy),
+              });
+              if (!clamped.blockedByBarrier) {
+                client.x = clamped.x;
+                client.y = clamped.y;
+                client.roomType = clamped.region?.roomType || client.roomType;
+              }
             }
+            client.lastPosition = {
+              roomType: client.roomType,
+              x: Math.round(client.x),
+              y: Math.round(client.y),
+              worldX: Math.round(client.x),
+              worldY: Math.round(client.y),
+            };
+          } else {
+            if (safePos.roomType === client.roomType) {
+              const roomCfg = ROOM_CONFIGS[client.roomType];
+              const halfW = roomCfg?.halfW || 280;
+              const halfH = roomCfg?.halfH || 280;
+              const sx = Number(safePos.x);
+              const sy = Number(safePos.y);
+              const isActivelyWalking = client.isMoving || (Date.now() - (client.lastMovePacketAt || 0)) < 2500;
+              if (
+                !isActivelyWalking &&
+                Number.isFinite(sx) && Number.isFinite(sy) &&
+                Math.hypot(sx - client.x, sy - client.y) <= 240 &&
+                !isWaterTile(sx, sy, client.roomType)
+              ) {
+                client.x = Math.max(-halfW + 14, Math.min(halfW - 14, sx));
+                client.y = Math.max(-halfH + 14, Math.min(halfH - 14, sy));
+              }
+            }
+            client.lastPosition = {
+              roomType: client.roomType,
+              x: Math.round(client.x),
+              y: Math.round(client.y),
+            };
           }
-          client.lastPosition = {
-            roomType: client.roomType,
-            x: Math.round(client.x),
-            y: Math.round(client.y),
-          };
         }
         this.saveClientState(client);
         break;
@@ -1705,6 +1981,42 @@ export const arenaAndPacketsMethods = {
         this.handleInspectPlayer(client, msg.target);
         break;
 
+      case 'list_arena_matches':
+        client.send({ type: 'arena_matches_list', matches: this.listActiveArenaMatches() });
+        break;
+
+      case 'spectate_arena':
+        this.handleSpectateArena(client, msg.roomId || null);
+        break;
+
+      case 'leave_spectate':
+        this.handleLeaveSpectate(client);
+        break;
+
+      case 'lfg_join':
+        this.handleLfgJoin(client, msg);
+        break;
+
+      case 'lfg_leave':
+        this.handleLfgLeave(client);
+        break;
+
+      case 'lfg_ready_response':
+        this.handleLfgReadyResponse(client, msg);
+        break;
+
+      case 'join_raid':
+        this.handleJoinRaid(client);
+        break;
+
+      case 'outpost_status':
+        client.send({
+          type: 'outpost_sync',
+          outposts: { ...this.warzoneOutposts },
+          nextCycleAt: this.warzoneNextCycleAt,
+        });
+        break;
+
       case 'list_rooms':
         client.send({ type: 'rooms_list', rooms: this.listPublicRooms() });
         break;
@@ -1807,9 +2119,10 @@ export const arenaAndPacketsMethods = {
       let targetX = null;
       let targetY = null;
       if (charObj.lastPosition?.roomType && charObj.lastPosition.roomType !== ROOM_TYPES.ARENA_3V3 && ROOM_CONFIGS[charObj.lastPosition.roomType]) {
-        targetRoom = charObj.lastPosition.roomType;
-        targetX = Number.isFinite(Number(charObj.lastPosition.x)) ? Number(charObj.lastPosition.x) : null;
-        targetY = Number.isFinite(Number(charObj.lastPosition.y)) ? Number(charObj.lastPosition.y) : null;
+        const migrated = migrateLegacyPosition(charObj.lastPosition);
+        targetRoom = migrated.roomType;
+        targetX = migrated.x;
+        targetY = migrated.y;
       } else if (payload.enterRealm && ROOM_CONFIGS[payload.enterRealm]) {
         targetRoom = payload.enterRealm;
         targetX = hasPayloadCoords ? Number(payload.x) : null;

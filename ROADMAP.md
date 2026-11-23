@@ -13,9 +13,9 @@
    - Authentic Diablo 2 style Skill Trees with prerequisite trees, level requirements (Lv. 1, 3, 6, 12, 18, 24, 30), and multi-rank upgrades (Ranks 1 to 5).
    - Instant Flashes (0.0s cast time for mobility, interrupts, defensive counters) paired with Cast-Time Rites (authoritative casting bar, vulnerable to interrupts and movement cancel).
 
-2. **Late-Game Paragon Resonance Beyond Level 30**
-   - Reaching Level 30 unlocks the **Paragon Mastery System** (Paragon 1 to 100+).
-   - XP feeds into Paragon Levels, granting Paragon Points to invest across 4 Ancient Leyline Affinities:
+2. **Late-Game Paragon Resonance Beyond Level 30 (Base Cap Lv. 70)**
+   - Characters progress up to `MAX_BASE_LEVEL = 70` (Free Trial capped at Lv. 10), unlocking **Paragon Mastery** beyond Level 30.
+   - XP feeds into Paragon Levels, granting Paragon Points to invest across 4 Ancient Leyline Affinities (up to Rank 50 each):
      * **Solari Radiant Wrath**: +% Critical Strike Damage & Holy Radiance Burst.
      * **Umbri Void Leech**: +% Movement Speed, Dodge & Life Leech.
      * **Terra Primal Bastion**: +Max Health, Health Regeneration & Damage Reduction.
@@ -196,10 +196,10 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
 - [ ] Control of 2+ outposts grants realm-wide passive buffs (+15% XP, +10% Glimmer harvest yield) to all members of that faction.
 - [ ] Add mini-map territory ownership indicators.
 
-#### Day 6 — Guild Architecture, Outpost Heralds & Shared Stashes
-- [ ] Implement in-game Guild creation (`/guild create <Name> <Tag>`).
-- [ ] Guild member roster modal with online status, level, faction, and guild ranks (Leader, Officer, Member).
-- [ ] Shared Guild Bank Stash (24-slot persistent chest in Sanctuary Hub).
+#### Day 6 — Guild Architecture, Outpost Heralds & Shared Stashes *(PARTIAL — CORE COMPLETE)*
+- [x] Implement in-game Guild creation (`/guild create <Name> <Tag>`) backed by `server/guildManager.js` & Neon PostgreSQL.
+- [x] Guild member roster modal with online status, level, faction, and guild ranks (Leader, Officer, Member), plus MOTD and max 40 members.
+- [x] Shared Guild Bank Stash (24-slot persistent chest).
 - [ ] Guild Outpost heralds placing custom banners on the battlefield.
 
 #### Day 7 — 3v3 Arena Competitive Ladder & Gladiator Seasons
@@ -416,9 +416,9 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
 
 ### Phase 5: Global Expansion & Persistent World Architecture (Days 31–45)
 
-#### Day 31 — Dynamic Day/Night Cycle & Biome Climate Shifts
-- [ ] 24-minute game world day/night cycle (18 minutes daylight, 6 minutes eclipse/nightfall).
-- [ ] Dynamic ambient lighting shifts: warm golden hues at dawn, deep twilight shadows during nightfall.
+#### Day 31 — Dynamic Day/Night Cycle & Biome Climate Shifts *(CORE COMPLETE)*
+- [x] 24-minute game world day/night cycle (`DAY_CYCLE_DURATION_SECONDS = 1440` across Dawn, Zenith, Twilight, and Nightfall in `client/game/atmosphereEffects.js`).
+- [x] Dynamic ambient lighting shifts, periodic biome rain (suppressed indoors/in caves), and dark cave visibility + lantern cones.
 - [ ] Nocturnal creature spawns: Umbri Void Stalkers gain +15% movement and stealth during nightfall, while Solari Vanguard gain +15% holy radiance during peak midday.
 
 #### Day 32 — Outpost Upgrade System & Tactical Warfare
@@ -453,17 +453,17 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
 - [ ] Sanctuary Haven bounty board issuing daily high-value targets across the continent.
 - [ ] 5 Faction Renown Ranks (Neutral, Recognized, Honored, Revered, Exalted) with exclusive cosmetic armor dyes and titles.
 
-#### Day 37 — Fishing, Archeology & Ancient Relic Excavation
-- [ ] Peaceful gathering sub-skills along continental rivers and ocean shores.
-- [ ] Excavate ancient First Nexus relic fragments that assemble into collectible artifacts for the Lore Codex.
+#### Day 37 — Fishing, Archeology & Ancient Relic Excavation *(FISHING/FORESTRY/COOKING COMPLETE)*
+- [x] Peaceful gathering sub-skills along continental rivers and ocean shores (Cosmic Angling, Arboreal Timbercraft with choppable tree stumps, Campfire Hearthcraft).
+- [ ] Archeology: excavate ancient First Nexus relic fragments that assemble into collectible artifacts for the Lore Codex.
 
 ---
 
 ### Phase 6: Canonical GlimmerFall TCG Physical/Digital Convergence (Days 46–60)
 
-#### Day 38 — In-World Sanctuary Tavern Card Tables
-- [ ] Place interactive pixel card tables inside the Sanctuary Hub Tavern.
-- [ ] Two players sitting across from each other can click the table to launch directly into an authentic 1v1 *GlimmerFall TCG* duel with their unlocked card decks.
+#### Day 38 — In-World Sanctuary Tavern Card Tables *(COMPLETE)*
+- [x] Place interactive pixel card tables inside the Hearthstone Inn Tavern, Grand TCG Pavilion, Coral Coast, and Frostspire Glacier (`client/tcgTavernDuel.js`, `server/tcgManager.js`, `shared/tcgGameEngine.js`).
+- [x] Players can click duel tables to launch 1v1 *GlimmerFall TCG* matches against GlimmerBot AI or other players (live Neon `TCG_DATABASE_URL` sync + 322-card fallback + spectating).
 
 #### Day 39 — Sealed Booster Pack Cracking & Relic Card Drops
 - [ ] World Bosses and Mythic Dungeon chests drop sealed **Awakening Booster Packs**.
@@ -492,6 +492,19 @@ Every day contains one dedicated, realistic, high-impact 60-minute sprint.
 
 ---
 
+## ✅ Post-Sprint Shipped Milestones (Verified in Codebase)
+
+Beyond the initial 30-day sprint log above, the following major systems are **already implemented** across `shared/`, `server/`, `client/`, and `landing/`:
+
+- [x] **34-Room Continent & 10 Enterable Interiors (`shared/protocol/rooms.js`)**: Expanded to 24 outdoor/dungeon/arena zones (*Ironwood Timberlands*, *Coral Coast*, *Starlight Grove*, *Chronocore Citadel*, *Sunken Oasis*, *Solar Highlands*, *Moonwell Sanctum*, *CrystalEcho Caverns*, *Frostspire Glacier*, etc.) + 10 enterable buildings + 2 Covenant Rune Puzzles (`client/game/puzzlesAndInteriors.js`).
+- [x] **88 Combat Abilities, Trinity Rules & Gear Tempering (`shared/protocol/abilitiesCatalog.js`, `shared/combat/combatRules.js`)**: 88 Rites & Flashes across 8 archetypes, GCD (`1.5s`–`0.75s`), `0.4s` spell queue, Threat Table (`3.5x` Tank, `0.5x` Heal), interrupts, Gear Tempering (`+5`), and 4 OSRS-style **Covenant Devotions** (`shared/protocol/devotionsCatalog.js`).
+- [x] **7 Grindable Lv. 1–99 Professions & OSRS Loops (`shared/protocol/craftingAndSkilling.js`, `osrsLoopsCatalog.js`)**: Combat Mastery, Rites, Flashes, Resonance Extraction (mining, woodcutting with stumps, fishing), Relic-Forging, Rite-Binding, Glimmerweaving (with 63 recipes, OSRS Skill Guides, and RuneLite-style XP Tracker HUD), plus **Vanguard Slayer** (3 Masters), **Treasure Trails** (Easy/Med/Hard Clue Scrolls), **Collection Log**, **Drop Previews**, and **23 Canonical Quests**.
+- [x] **6 Nexus Familiars, Harmonic Ciphers & Herald Postbox (`shared/protocol/familiarsAndMail.js`)**: Compile *Dawnkit Ember-Fox*, *Mossback Ankyloling*, *Graveglass Wisp-Imp*, *Chrono-Prism Sprite*, *Starfall Moon-Owl*, and *Shattered Pyre-Drake*; decode 30+ materials into Ciphers; send cross-session offline mail with gold & attachments.
+- [x] **15-Minute Rotating World Events & Activity Finder (`shared/worldEvents.js`, `client/game/heroCardShare.js`)**: Deterministic realm-wide events, ambient pixel critters (`ambientRenderer.js`), Unified Adventure Hub (`unifiedMenuHub.js`), and 640×360 Pixel Hero Card PNG sharing.
+- [x] **Next.js Landing Storefront, Global Hiscores & Admin Key Vault (`landing/`, `/api/hiscores`, `public/admin/`)**: 12-category Hiscores, Universal Search, Skill Guides, Free Trial (`Lv. 10` / `30` skill / `30` bank / `9` Founder-gated rooms) vs Founder's Edition (`Lv. 70` / `99` skill / `140` bank).
+
+---
+
 ## 🌍 International MMORPG Transformation Roadmap (v2.0)
 
 A prioritized engineering & product roadmap to elevate *GlimmerFall Online* from a regional prototype into a scalable, globally playable MMORPG.
@@ -500,24 +513,58 @@ A prioritized engineering & product roadmap to elevate *GlimmerFall Online* from
 - [x] **Audio Overlap Elimination**: Strict mutual exclusion between streamed `.m4a` BGM (`trackEl`) and procedural WebAudio chiptune (`bgmTimer`), plus stale `loadedmetadata` / `AbortError` / `NotAllowedError` guards.
 - [x] **Multiplayer Latency Display**: Bounded RTT ping sampling in `client/network.js` to prevent `30,000–50,000 ms` outlier latching.
 - [x] **Gear & Escape Menu Reliability**: Harden `window.toggleModal('settings-modal')`, `window.toggleModal('equipment-modal')`, `⚙️ MENU [ESC]` / `⚔️ GEAR [K]` dock buttons, and `Escape` key dismissal/open hierarchy in `client/game.js` & `index.html`.
-- [ ] **HUD Overlap & Viewport Scaling Audit**: Test 1280×720, 1920×1080, ultrawide, and tablet viewports so `#micro-menu`, `#target-unit-frame`, and `#minimap` never collide or clip.
+- [x] **HUD Overlap & Viewport Scaling Audit**: Tested 1280×720, 1920×1080, ultrawide, and iPad/tablet viewports (`getUiScale`, responsive HUD rules) so `#micro-menu`, `#target-unit-frame`, `#xp-tracker-hud`, and `#minimap` never collide or clip.
 - [ ] **Tooltip & Modal Keyboard Accessibility**: Consistent `Escape` to close any open modal/drawer, `Tab` target cycling, and focus restoration back to the game canvas.
 
 ### 2. Stockholm Oracle Server Netcode & Infrastructure (P1)
 - [ ] **Single-Authority Stockholm Server Hardening**: Optimize the Stockholm Oracle VM (`pm2` + Neon PostgreSQL) as the canonical global realm without multi-region server sprawl.
-- [ ] **Delta-Compressed Snapshots**: Replace full JSON entity broadcasts with delta-encoded position/HP/state updates to cut bandwidth by 60–80% for high-player-count zones and overseas connections.
+- [x] **Delta-Compressed Snapshots**: Implemented field-level delta snapshots (`a`/`u`/`r`) and AOI interest culling (`DEFAULT_INTEREST_RADIUS_PX = 1400`, surface overworld spatial culling) in `shared/net/snapshotCodec.js`.
 - [ ] **Graceful Reconnect & Session Handoff**: Automatic WebSocket reconnect with exponential backoff, state resync, and seamless realm-transfer handshake without dropping party/combat state.
-- [ ] **HTTPS / WSS on Standard Port 443**: Serve the Stockholm realm behind TLS/WSS on port `443` with a domain name so institutional/strict firewalls that block raw IPs or custom ports can connect cleanly.
+- [x] **HTTPS / WSS on Standard Port 443**: `normalizeServerUrl()` in `client/network.js` routes `79.76.40.148` / `sslip.io` to `wss://ws.glimmerfall.online` cleanly.
 - [ ] **Production Observability**: Structured server metrics (tick duration p95/p99, room population, WebSocket drop rate, Neon DB query latency) and client error reporting.
 
 ### 3. True MMORPG Core Loop & Endgame (P1)
-- [ ] **Role Trinity & Group Finder (LFG)**: Build on the authoritative Threat Table & GCD system to launch an automated **Party / Dungeon Finder** (1 Tank, 1 Healer, 3 DPS) with ready-checks and cross-zone teleportation.
-- [ ] **Instanced 5-Player Dungeons & 10-Player Raids**: Multi-boss encounters with telegraphed mechanics, enrage timers, loot lockouts, and personal/need-greed loot rolls.
-- [ ] **Guilds / Clans & Alliance Diplomacy**: Persistent guild rosters, officer ranks, guild bank vault, guild chat (`/g`), and faction-aligned Guild Territory buffs.
-- [ ] **Player-Driven Economy Hardening**: Expand `AetherSwap` Continental Exchange with price-history charts, buy/sell order filtering, anti-bot rate limits, and gold-sink crafting/repair loops.
-- [ ] **Ranked 3v3 Arena & Seasonal Ladders**: MMR matchmaking, seasonal rating decay, spectator mode, and end-of-season titles/cosmetics.
+- [x] **Role Trinity & Group Finder (LFG)**: Automated Party / Dungeon Finder (`1 Tank / 1 Healer / 3 DPS`) via `TRINITY_ROLES`, `matchTrinityPartyFromQueue`, ready-checks (`lfg_ready_check`), and 5-player shared Mythic Crypt teleportation.
+- [x] **10-Player Apex Raid ("Fall of the Primeval Nexus")**: Multi-phase encounter against *The Primeval Harbinger* (`18,000 HP`, rotating elemental immunity, 4 Corner Leyline Siphon Pylons `-90%` shield, Supernova Enrage, 7d raid lockouts, Mythic drops).
+- [x] **Guilds / Clans & Shared Bank (`server/guildManager.js`)**: Persistent guild rosters, Leader/Officer/Member ranks, MOTD, `/guild` management, and 24-slot Guild Bank Vault. *(Guild Territory buffs remain open.)*
+- [x] **Ranked 3v3 Arena & Seasonal Ladders**: Real Elo MMR (`1200` baseline, K=32 PvP / K=16 bot, 6 Seasonal Tiers), end-of-match Combat Scoreboard, and Sanctuary Scrying Pool spectator mode.
 
 ### 4. Social Trust, Safety & Live Ops (P2)
-- [ ] **Moderation & Anti-Abuse Suite**: In-game player report UI, server-side mute/ban enforcement, trade/whisper spam heuristics, and profanity filter localization.
-- [ ] **Friends List, Whispers & Offline Mail**: Persistent cross-zone friends list with online/zone status, `/w` whispers, and in-game mail for auction payouts and gifts.
+- [x] **Friends, Ignores & Player Reports (`server/guildManager.js`)**: Persistent cross-zone friends/ignore lists and in-game `report_player` database submission. *(Automated mute/ban enforcement remains open.)*
+- [x] **Offline Mail (`Herald Postbox`)**: Persistent cross-session player & system mail with Solar Gold and item attachments.
 - [ ] **Zero-Downtime Rolling Deploys & Content Hot-Reload**: Drain active arenas/dungeons cleanly before server restarts and store tuning tables in versioned config.
+
+---
+
+## 🎯 Approved Execution Roadmap (Locked Nov 23, 2026)
+
+Sequenced implementation order approved via `suggestions 2.docx` — **All 5 Phases Completed**:
+
+### Phase 1 — P0 Engineering Foundation & Map Grid Prep *(COMPLETED)*
+- [x] **Modularize `client/game.js`**: Extracted focused ES modules (`client/game/zoneDecorBuilders.js`, `client/game/offlineZoneBuilder.js`, `shared/protocol/overworldGrid.js`, `server/rooms/endgameSystems.js`, `server/rooms/familiarDuels.js`).
+- [x] **Environment & Test Hygiene**: Implemented multiline PEM & `\n`-escaped quote parsing in `server/db.js` `loadDotEnv()`; verified with `test/dotenv_and_wss.test.js`.
+- [x] **iPad & Desktop HUD Scaling Audit** + **HTTPS / WSS on Port 443** normalization verified in `test/hud_scaling_and_ipad.test.js`.
+- [x] **Sync Landing Atlas & Universal Search**: Aligned `worldAtlasData.js` and ran `node scripts/syncUniversalSearchData.mjs` across all 24 non-interior realms.
+
+### Phase 2 — True Single-Grid Seamless Overworld (`Path B`) *(COMPLETED)*
+- [x] **Unified Euclidean Overworld Grid**: Mapped all 18 surface outdoor zones and 24 corridors onto one continuous `(wx, wy)` world grid (`shared/protocol/overworldGrid.js`), removing the 2 legacy portals (`sg_portal_out`, `ccit_portal_west`).
+- [x] **Keep Entered / Instanced Spaces Separate**: Preserved doors/entrances for the **10 Building Interiors**, **3v3 Arena**, **4 Mythic Keystone Crypts**, **10P Apex Raid**, and **`LUMINOUS_CAVERN` (CrystalEcho Caverns)** as an entered subterranean cavern.
+- [x] **Seamless Border Transitions & Barriers**: Continuous `region_changed` banners without teleport mist or camera snap, Astral Resonance Barriers for Founder-gated outdoor borders, and `migrateLegacyPosition` legacy coordinate migration.
+- [x] **Chunk / AOI Streaming**: Surface overworld spatial culling in `shared/net/snapshotCodec.js`.
+
+### Phase 3 — Overland Exploration: Mounts, Fog of War & Waypoint Shrines *(COMPLETED)*
+- [x] **4 Canonical Faction Mounts**: *Starlight Charger* (Solari), *Voidfang Prowler* (Umbri), *Ironwood Elk* (Terra), *Chrono Drake* (Aether) with 1.5s summon cast, `+48%` overland speed, interior/cavern/arena restrictions, and instant combat dismount (`shared/protocol/explorationAndMounts.js`).
+- [x] **World Map (`[M]`) Fog of War & Discoverable Waypoint Shrines**: Persistent per-character explored `384px` grid chunks (`discoveredChunks`, `discoveredZones`) and 18 discoverable Waypoint Shrines across surface regions.
+
+### Phase 4 — Core MMORPG Endgame & PvPvE Loop *(COMPLETED)*
+- [x] **3v3 Ranked Arena ELO MMR, Seasonal Badges & Scrying Spectator Pool** (`server/accountsStore.js`, `server/rooms/endgameSystems.js`, `shared/protocol/endgameLoop.js`).
+- [x] **Role Trinity Dungeon / Group Finder (1 Tank / 1 Healer / 3 DPS)** with ready-checks, `PartyManager.formGroup(clients, 5)`, and Mythic Crypt teleportation.
+- [x] **10-Player Apex Raid — *"Fall of the Primeval Nexus"*** (`PRIMEVAL_NEXUS_RAID`, *The Primeval Harbinger* multi-phase boss, 4 corner siphon pylons with `-90%` shield, Supernova Enrage, 7d raid lockouts, Mythic gear drops).
+- [x] **Capturable Warzone Outposts & Faction Buffs**: 30-minute influence cycle across the 4 Caldera Outposts with minimap ownership flags and realm-wide `+15% XP` / `+10% harvest yield` buffs when holding 2+ outposts.
+
+### Phase 5 — Echo Familiar Duels (`/famduel`) & Wild Echo Side-Quests *(COMPLETED)*
+- [x] **3-Move Tactical Familiar Kit**: All 6 Nexus Familiars given *Strike*, *Ward/Mend*, and *Faction Surge* using the symmetric 4-faction wheel (`Solari ↔ Umbri`, `Terra ↔ Aether`, `+35% / -20%`).
+- [x] **Live Companion Duels (`/famduel <player>`) & NPC Echo Keepers**: Non-lethal 45–60s pet skirmishes in Sanctuary/Taverns (`#fam-duel-modal`), Echo Keeper NPCs (`npc_echo_keeper_sylvi`, `npc_echo_keeper_rime`), and 2 side-quests (`quest_echo_keeper_duels`, `quest_echo_keeper_whisper`).
+- [x] **Wild Stray Echoes & Starlight Variants**: World-Event Stray Echoes (`WILD_STRAY_ECHOES_CATALOG`) soothed with Harmonic Ciphers for Echo-Prints, titles (`<Echo Whisperer>`, `<Prism Binder>`), Collection Log unlocks, and cosmetic **Starlight/Prismatic color variants** (`activeVariants`, 0 combat stat inflation).
+
+> **Explicitly Out of Scope (Declined):** Removing building doors (Path C), literal Pokémon clone RPG, and P3 extras (cross-zone audio crossfades, Exchange price-history charts, TCG Booster Pack opening UI).

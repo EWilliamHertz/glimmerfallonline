@@ -16,7 +16,7 @@ import {
 } from '../data/universalSearchData';
 
 const QUICK_MAP_FILTERS = [
-  { label: 'All 17 Realms', query: '' },
+  { label: `All ${UNIVERSAL_SEARCH_ZONES.length} Realms`, query: '' },
   { label: 'Safe Havens', query: 'Sanctuary' },
   { label: 'Chrono-Lotus', query: 'Chrono-Lotus' },
   { label: 'Starmetal Ore', query: 'Starmetal' },

@@ -1,4 +1,5 @@
 import { TILE_SIZE } from "./constants.js";
+import { getRegionAtWorldPos } from "./overworldGrid.js";
 
 export const ROOM_TYPES = {
   SANCTUARY_HUB: 'sanctuary_hub',
@@ -8,6 +9,7 @@ export const ROOM_TYPES = {
   TERRA_ORCHARD: 'terra_orchard',
   AETHER_SPIRE: 'aether_spire',
   ARENA_3V3: 'arena_3v3',
+  PRIMEVAL_NEXUS_RAID: 'primeval_nexus_raid',
   NEXUS_FORGOTTEN_RUINS: 'nexus_forgotten_ruins',
   SOLARI_SUNKEN_VAULT: 'solari_sunken_vault',
   UMBRI_SHADOW_LABYRINTH: 'umbri_shadow_labyrinth',
@@ -230,7 +232,6 @@ export const ROOM_CONFIGS = {
     edgeTransitions: {
       south: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
       north: ROOM_TYPES.CELESTIAL_ASCENT,
-      west: ROOM_TYPES.ARENA_3V3,
       east: ROOM_TYPES.ABYSSAL_RIFT,
     },
   },
@@ -250,8 +251,7 @@ export const ROOM_CONFIGS = {
     spawnY: 110,
     edgeTransitions: {
       east: ROOM_TYPES.SANCTUARY_HUB,
-      north: ROOM_TYPES.SOLARI_SUNKEN_VAULT,
-      west: ROOM_TYPES.STARFALL_CRATER,
+      north: ROOM_TYPES.STARFALL_CRATER,
       south: ROOM_TYPES.SOLAR_HIGHLANDS,
     },
   },
@@ -271,8 +271,7 @@ export const ROOM_CONFIGS = {
     spawnY: 110,
     edgeTransitions: {
       west: ROOM_TYPES.SANCTUARY_HUB,
-      north: ROOM_TYPES.UMBRI_SHADOW_LABYRINTH,
-      east: ROOM_TYPES.CORAL_COAST,
+      south: ROOM_TYPES.CORAL_COAST,
     },
   },
   [ROOM_TYPES.TERRA_ORCHARD]: {
@@ -291,9 +290,9 @@ export const ROOM_CONFIGS = {
     spawnY: 110,
     edgeTransitions: {
       north: ROOM_TYPES.SANCTUARY_HUB,
-      west: ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY,
+      west: ROOM_TYPES.SOLAR_HIGHLANDS,
       south: ROOM_TYPES.IRONWOOD_TIMBERLANDS,
-      east: ROOM_TYPES.SUNKEN_OASIS,
+      east: ROOM_TYPES.CORAL_COAST,
     },
   },
   [ROOM_TYPES.AETHER_SPIRE]: {
@@ -313,7 +312,6 @@ export const ROOM_CONFIGS = {
     edgeTransitions: {
       south: ROOM_TYPES.SANCTUARY_HUB,
       north: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
-      east: ROOM_TYPES.AETHER_FRACTURED_ARCHIVE,
     },
   },
   [ROOM_TYPES.ARENA_3V3]: {
@@ -322,6 +320,7 @@ export const ROOM_CONFIGS = {
     shortTitle: '3v3 NEXUS ARENA',
     biomeTheme: 'arena',
     bgm: 'boss',
+    isInstancedArena: true,
     maxPlayers: 6,
     width: 32,
     height: 36,
@@ -330,9 +329,26 @@ export const ROOM_CONFIGS = {
     pvp: true,
     spawnX: 0,
     spawnY: 175,
-    edgeTransitions: {
-      east: ROOM_TYPES.NEXUS_WARZONE,
-    },
+    exitDestination: { roomType: ROOM_TYPES.SANCTUARY_HUB, x: 0, y: 96, dir: 'down' },
+    edgeTransitions: {},
+  },
+  [ROOM_TYPES.PRIMEVAL_NEXUS_RAID]: {
+    type: ROOM_TYPES.PRIMEVAL_NEXUS_RAID,
+    title: 'FALL OF THE PRIMEVAL NEXUS (10-PLAYER APEX RAID)',
+    shortTitle: 'PRIMEVAL NEXUS RAID',
+    biomeTheme: 'abyss',
+    bgm: 'boss',
+    isRaid: true,
+    maxPlayers: 10,
+    width: 80,
+    height: 80,
+    halfW: 640,
+    halfH: 640,
+    pvp: false,
+    spawnX: 0,
+    spawnY: 460,
+    exitDestination: { roomType: ROOM_TYPES.SANCTUARY_HUB, x: 0, y: 96, dir: 'down' },
+    edgeTransitions: {},
   },
   [ROOM_TYPES.NEXUS_FORGOTTEN_RUINS]: {
     type: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
@@ -351,7 +367,7 @@ export const ROOM_CONFIGS = {
     edgeTransitions: {
       south: ROOM_TYPES.AETHER_SPIRE,
       north: ROOM_TYPES.NEXUS_WARZONE,
-      east: ROOM_TYPES.STARFALL_CRATER,
+      west: ROOM_TYPES.STARFALL_CRATER,
     },
   },
   [ROOM_TYPES.CELESTIAL_ASCENT]: {
@@ -370,7 +386,6 @@ export const ROOM_CONFIGS = {
     spawnY: 1040,
     edgeTransitions: {
       south: ROOM_TYPES.NEXUS_WARZONE,
-      north: ROOM_TYPES.ABYSSAL_RIFT,
       east: ROOM_TYPES.CHRONOCORE_CITADEL,
     },
   },
@@ -380,6 +395,7 @@ export const ROOM_CONFIGS = {
     shortTitle: 'SUNKEN VAULT',
     biomeTheme: 'solari_vault',
     bgm: 'boss',
+    isCrypt: true,
     maxPlayers: 25,
     width: 48,
     height: 48,
@@ -388,9 +404,8 @@ export const ROOM_CONFIGS = {
     pvp: false,
     spawnX: 0,
     spawnY: 110,
-    edgeTransitions: {
-      south: ROOM_TYPES.SOLARI_CITADEL,
-    },
+    exitDestination: { roomType: ROOM_TYPES.SOLARI_CITADEL, x: 0, y: -260, dir: 'down' },
+    edgeTransitions: {},
   },
   [ROOM_TYPES.UMBRI_SHADOW_LABYRINTH]: {
     type: ROOM_TYPES.UMBRI_SHADOW_LABYRINTH,
@@ -398,6 +413,7 @@ export const ROOM_CONFIGS = {
     shortTitle: 'SHADOW LABYRINTH',
     biomeTheme: 'umbri_labyrinth',
     bgm: 'boss',
+    isCrypt: true,
     maxPlayers: 25,
     width: 48,
     height: 48,
@@ -406,9 +422,8 @@ export const ROOM_CONFIGS = {
     pvp: false,
     spawnX: 0,
     spawnY: 110,
-    edgeTransitions: {
-      south: ROOM_TYPES.UMBRI_UNDERCITY,
-    },
+    exitDestination: { roomType: ROOM_TYPES.UMBRI_UNDERCITY, x: 0, y: -240, dir: 'down' },
+    edgeTransitions: {},
   },
   [ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY]: {
     type: ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY,
@@ -416,6 +431,7 @@ export const ROOM_CONFIGS = {
     shortTitle: 'PRIMORDIAL HOLLOW',
     biomeTheme: 'terra_grove',
     bgm: 'terra',
+    isCrypt: true,
     maxPlayers: 25,
     width: 48,
     height: 48,
@@ -424,9 +440,8 @@ export const ROOM_CONFIGS = {
     pvp: false,
     spawnX: 0,
     spawnY: 110,
-    edgeTransitions: {
-      east: ROOM_TYPES.TERRA_ORCHARD,
-    },
+    exitDestination: { roomType: ROOM_TYPES.TERRA_ORCHARD, x: -240, y: 0, dir: 'down' },
+    edgeTransitions: {},
   },
   [ROOM_TYPES.AETHER_FRACTURED_ARCHIVE]: {
     type: ROOM_TYPES.AETHER_FRACTURED_ARCHIVE,
@@ -434,6 +449,7 @@ export const ROOM_CONFIGS = {
     shortTitle: 'CHRONO-ARCHIVE',
     biomeTheme: 'aether_archive',
     bgm: 'boss',
+    isCrypt: true,
     maxPlayers: 25,
     width: 48,
     height: 48,
@@ -442,10 +458,8 @@ export const ROOM_CONFIGS = {
     pvp: false,
     spawnX: 0,
     spawnY: 110,
-    edgeTransitions: {
-      west: ROOM_TYPES.AETHER_SPIRE,
-      south: ROOM_TYPES.AETHER_SPIRE,
-    },
+    exitDestination: { roomType: ROOM_TYPES.AETHER_SPIRE, x: 240, y: 0, dir: 'down' },
+    edgeTransitions: {},
   },
   [ROOM_TYPES.STARFALL_CRATER]: {
     type: ROOM_TYPES.STARFALL_CRATER,
@@ -462,8 +476,8 @@ export const ROOM_CONFIGS = {
     spawnX: 0,
     spawnY: 220,
     edgeTransitions: {
-      east: ROOM_TYPES.SOLARI_CITADEL,
-      west: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
+      east: ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
+      south: ROOM_TYPES.SOLARI_CITADEL,
     },
   },
   [ROOM_TYPES.ABYSSAL_RIFT]: {
@@ -482,7 +496,6 @@ export const ROOM_CONFIGS = {
     spawnY: 260,
     edgeTransitions: {
       west: ROOM_TYPES.NEXUS_WARZONE,
-      south: ROOM_TYPES.CELESTIAL_ASCENT,
     },
   },
   [ROOM_TYPES.IRONWOOD_TIMBERLANDS]: {
@@ -503,6 +516,7 @@ export const ROOM_CONFIGS = {
       north: ROOM_TYPES.TERRA_ORCHARD,
       east: ROOM_TYPES.CORAL_COAST,
       west: ROOM_TYPES.STARLIGHT_GROVE,
+      south: ROOM_TYPES.MOONWELL_SANCTUM,
     },
   },
   [ROOM_TYPES.CORAL_COAST]: {
@@ -540,9 +554,9 @@ export const ROOM_CONFIGS = {
     spawnX: 0,
     spawnY: 180,
     edgeTransitions: {
+      north: ROOM_TYPES.SOLAR_HIGHLANDS,
       east: ROOM_TYPES.IRONWOOD_TIMBERLANDS,
-      north: ROOM_TYPES.SUNKEN_OASIS,
-      south: ROOM_TYPES.MOONWELL_SANCTUM,
+      south: ROOM_TYPES.FROSTSPIRE_GLACIER,
     },
   },
   [ROOM_TYPES.CHRONOCORE_CITADEL]: {
@@ -561,7 +575,6 @@ export const ROOM_CONFIGS = {
     spawnY: 200,
     edgeTransitions: {
       west: ROOM_TYPES.CELESTIAL_ASCENT,
-      south: ROOM_TYPES.AETHER_SPIRE,
     },
   },
   [ROOM_TYPES.SUNKEN_OASIS]: {
@@ -579,10 +592,8 @@ export const ROOM_CONFIGS = {
     spawnX: 0,
     spawnY: 180,
     edgeTransitions: {
-      west: ROOM_TYPES.TERRA_ORCHARD,
+      west: ROOM_TYPES.IRONWOOD_TIMBERLANDS,
       north: ROOM_TYPES.CORAL_COAST,
-      south: ROOM_TYPES.STARLIGHT_GROVE,
-      east: ROOM_TYPES.LUMINOUS_CAVERN,
     },
   },
   [ROOM_TYPES.LUMINOUS_CAVERN]: {
@@ -591,6 +602,7 @@ export const ROOM_CONFIGS = {
     shortTitle: 'CRYSTALECHO CAVERNS',
     biomeTheme: 'aether_archive',
     bgm: 'abyss',
+    isSubterranean: true,
     maxPlayers: 35,
     width: 72,
     height: 72,
@@ -599,11 +611,8 @@ export const ROOM_CONFIGS = {
     pvp: false,
     spawnX: 0,
     spawnY: 185,
-    edgeTransitions: {
-      west: ROOM_TYPES.SUNKEN_OASIS,
-      south: ROOM_TYPES.SANCTUARY_HUB,
-      north: ROOM_TYPES.FROSTSPIRE_GLACIER,
-    },
+    exitDestination: { roomType: ROOM_TYPES.SUNKEN_OASIS, x: 360, y: 120, dir: 'down' },
+    edgeTransitions: {},
   },
   [ROOM_TYPES.FROSTSPIRE_GLACIER]: {
     type: ROOM_TYPES.FROSTSPIRE_GLACIER,
@@ -620,9 +629,8 @@ export const ROOM_CONFIGS = {
     spawnX: 0,
     spawnY: 185,
     edgeTransitions: {
-      north: ROOM_TYPES.MOONWELL_SANCTUM,
-      west: ROOM_TYPES.SOLAR_HIGHLANDS,
-      east: ROOM_TYPES.LUMINOUS_CAVERN,
+      north: ROOM_TYPES.STARLIGHT_GROVE,
+      east: ROOM_TYPES.MOONWELL_SANCTUM,
     },
   },
   [ROOM_TYPES.SOLAR_HIGHLANDS]: {
@@ -641,8 +649,8 @@ export const ROOM_CONFIGS = {
     spawnY: 180,
     edgeTransitions: {
       north: ROOM_TYPES.SOLARI_CITADEL,
-      west: ROOM_TYPES.STARFALL_CRATER,
-      east: ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY,
+      east: ROOM_TYPES.TERRA_ORCHARD,
+      south: ROOM_TYPES.STARLIGHT_GROVE,
     },
   },
   [ROOM_TYPES.MOONWELL_SANCTUM]: {
@@ -660,10 +668,8 @@ export const ROOM_CONFIGS = {
     spawnX: 0,
     spawnY: 185,
     edgeTransitions: {
-      north: ROOM_TYPES.STARLIGHT_GROVE,
-      east: ROOM_TYPES.CORAL_COAST,
-      west: ROOM_TYPES.SOLAR_HIGHLANDS,
-      south: ROOM_TYPES.FROSTSPIRE_GLACIER,
+      north: ROOM_TYPES.IRONWOOD_TIMBERLANDS,
+      west: ROOM_TYPES.FROSTSPIRE_GLACIER,
     },
   },
   [ROOM_TYPES.INTERIOR_TAVERN]: {
@@ -903,7 +909,7 @@ export function isSameFactionProtectedMob(roomType, mob, playerFaction, playerId
  * northern archway boardwalk pier (`y: -576..-177`) or the eastern twilight fishing L-pier.
  */
 export function isCoralCoastPierTile(tx, ty) {
-  const isNorthBoardwalk = tx >= -3 && tx <= 3 && ty >= -36 && ty <= -12;
+  const isNorthBoardwalk = tx >= -8 && tx <= 8 && ty >= -36 && ty <= -12;
   const isEastFishingSpur = tx >= 4 && tx <= 14 && ty >= -25 && ty <= -22;
   return isNorthBoardwalk || isEastFishingSpur;
 }
@@ -1018,6 +1024,23 @@ export function isWaterTile(x, y, roomType = ROOM_TYPES.NEXUS_WARZONE) {
   }
 
   return false;
+}
+
+export function isSurfaceWaterTile(wx, wy) {
+  const reg = getRegionAtWorldPos(wx, wy);
+  if (!reg || reg.inTransition) return false;
+  return isWaterTile(reg.localX, reg.localY, reg.roomType);
+}
+
+export function isSurfaceFootprintInWater(px, py, rx = 5, ry = 4) {
+  if (isSurfaceWaterTile(px, py)) return true;
+  if (rx <= 0 && ry <= 0) return false;
+  return (
+    isSurfaceWaterTile(px - rx, py - ry) ||
+    isSurfaceWaterTile(px + rx, py - ry) ||
+    isSurfaceWaterTile(px - rx, py + ry) ||
+    isSurfaceWaterTile(px + rx, py + ry)
+  );
 }
 
 export function isFootprintInWater(px, py, roomType = ROOM_TYPES.NEXUS_WARZONE, rx = 5, ry = 4) {

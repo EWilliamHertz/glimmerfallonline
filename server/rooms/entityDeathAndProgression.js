@@ -113,7 +113,7 @@ export const entityDeathAndProgressionMethods = {
     }
 
     // Scheduled Faction Nexus Siege Shard Claim!
-    if (ent.type === 'siege_shard' && room.type === ROOM_TYPES.NEXUS_WARZONE) {
+    if (ent.type === 'siege_shard' && (ent.zoneType === ROOM_TYPES.NEXUS_WARZONE || room.type === ROOM_TYPES.NEXUS_WARZONE)) {
       const winnerFac = killerPlayer?.faction || 'Solari';
       const claimerName = killerPlayer?.displayName || 'A Champion';
       if (room.siege) {
@@ -161,7 +161,8 @@ export const entityDeathAndProgressionMethods = {
       if (killerPlayer) recipients.add(killerPlayer.id);
 
       const squadBonusMult = recipients.size > 1 ? 1.25 : 1.0;
-      const activeEv = isRoomInActiveWorldEvent(room.type) ? getActiveWorldEvent() : null;
+      const entityZone = ent.zoneType || room.type;
+      const activeEv = isRoomInActiveWorldEvent(entityZone) ? getActiveWorldEvent() : null;
       const evCombatMult = activeEv?.bonuses?.combatXpMult || 1.0;
       const xpAmt = Math.round(ent.xpReward * squadBonusMult * evCombatMult);
       const isTrainingDummy = ent.type === 'dummy';
@@ -185,7 +186,7 @@ export const entityDeathAndProgressionMethods = {
               type: 'mob_killed',
               mobId: ent.id,
               mobName: ent.name,
-              roomType: room.type,
+              roomType: entityZone,
               isBoss: Boolean(ent.isBoss),
               mobType: ent.type,
             });
@@ -281,24 +282,18 @@ export const entityDeathAndProgressionMethods = {
         });
       }
 
-      for (const p of room.players.values()) {
-        const won = (p.team || 'blue') === winningTeam;
-        p.send({ type: 'arena_result', won, winningTeam, lastHitBy: killerPlayer?.displayName });
-        if (won) this.awardPlayerXP(p, 120, '3v3 Arena Victory', { addArenaWins: 1 });
-        if (killerPlayer) {
-          p.send({
-            type: 'sys_msg',
-            category: 'combat',
-            text: `💥 [3v3 Arena] ${killerPlayer.displayName} landed the LAST HIT on the ${ent.name} to claim the victory!`,
-          });
-        }
-      }
+      this.finalizeArenaMatchResults(room, winningTeam, killerPlayer);
 
       const arenaExitTimer = setTimeout(() => {
         for (const p of Array.from(room.players.values())) {
+          p.isSpectator = false;
           const returnSpot = p.preArenaSpot || { roomType: ROOM_TYPES.SANCTUARY_HUB, x: 0, y: 0 };
           p.preArenaSpot = null;
           this.joinRoom(p, returnSpot.roomId || returnSpot.roomType || ROOM_TYPES.SANCTUARY_HUB, null, returnSpot.x, returnSpot.y);
+          p.send({
+            type: 'spectator_state',
+            spectating: false,
+          });
           p.send({
             type: 'sys_msg',
             category: 'zone',
@@ -311,11 +306,30 @@ export const entityDeathAndProgressionMethods = {
       return;
     }
 
-    // Outpost / Warzone Nexus Respawn
-    if (ent.type === 'outpost_nexus' || ent.type === 'nexus') {
+    // Outpost / Warzone Nexus Capture & Respawn
+    if (ent.type === 'outpost_nexus') {
+      room.fxQueue.push({ kind: 'fct', x: ent.x, y: ent.y, text: `${ent.name.toUpperCase()} CAPTURED!`, color: '#38bdf8', isCrit: true });
+      if (killerPlayer && typeof this.captureWarzoneOutpost === 'function') {
+        this.captureWarzoneOutpost(room, ent, killerPlayer);
+      } else {
+        setTimeout(() => {
+          const liveRoom = this.getRoomByPlayerOrId ? this.getRoomByPlayerOrId(room.id) : this.rooms.get(room.id);
+          if (!liveRoom) return;
+          ent.isDying = false;
+          ent.deathAge = 0;
+          ent.hp = ent.maxHp;
+          ent.dammers = new Set();
+          if (!room.entities.includes(ent)) room.entities.push(ent);
+        }, 10000);
+      }
+      return;
+    }
+
+    if (ent.type === 'nexus') {
       room.fxQueue.push({ kind: 'fct', x: ent.x, y: ent.y, text: `${ent.name.toUpperCase()} SHATTERED!`, color: '#38bdf8', isCrit: true });
       setTimeout(() => {
-        if (!this.rooms.has(room.id)) return;
+        const liveRoom = this.getRoomByPlayerOrId ? this.getRoomByPlayerOrId(room.id) : this.rooms.get(room.id);
+        if (!liveRoom) return;
         ent.isDying = false;
         ent.deathAge = 0;
         ent.hp = ent.maxHp;
@@ -324,6 +338,12 @@ export const entityDeathAndProgressionMethods = {
       }, 10000);
       return;
     }
+
+    if (ent.isRaidBoss && typeof this.completeRaidEncounter === 'function') {
+      this.completeRaidEncounter(room, ent, killerPlayer);
+      return;
+    }
+    if (ent.isPylon) return;
 
     if (ent.type === 'mob') this.spawnLootDrops(room, ent);
 
@@ -370,7 +390,8 @@ export const entityDeathAndProgressionMethods = {
       threatTable: {},
     };
     setTimeout(() => {
-      if (!this.rooms.has(room.id)) return;
+      const liveRoom = this.getRoomByPlayerOrId ? this.getRoomByPlayerOrId(room.id) : this.rooms.get(room.id);
+      if (!liveRoom) return;
       if ((template.type === 'dummy' || template.type === 'mob') && !template.isMinion) {
         template.inCombat = false;
         template.targetPlayerId = null;
@@ -392,6 +413,10 @@ export const entityDeathAndProgressionMethods = {
   // ==========================================
   awardPlayerXP(player, amount, reason = '', statsMetaPatch = null) {
     if (amount <= 0) return;
+    const outpostBuff = this.getPlayerOutpostBuffs ? this.getPlayerOutpostBuffs(player) : { xpMult: 1.0 };
+    if (outpostBuff.xpMult > 1.0) {
+      amount = Math.max(1, Math.round(amount * outpostBuff.xpMult));
+    }
     let leveled = false;
     let paragonLeveled = false;
     const founderUnlocked = isFounderEdition(player);

@@ -216,8 +216,10 @@ test('M4: Drop table preview & Client UI wiring for Collection Log, Slayer & Que
   assert.ok(craftingUi.includes('getSlayerPanelHtml'));
 
   const gameJs = fs.readFileSync('client/game.js', 'utf8');
+  const worldAtlasUi = fs.readFileSync('client/game/worldAtlasAndLoreUi.js', 'utf8');
   assert.ok(gameJs.includes('openDropTableForEntity'));
   assert.ok(gameJs.includes('assignSlayerContract'));
-  assert.ok(gameJs.includes('renderCollectionLogView'));
+  assert.ok(gameJs.includes('setupWorldAtlasAndLoreUi'));
+  assert.ok(worldAtlasUi.includes('renderCollectionLogView'));
   assert.ok(gameJs.includes('QUEST POINT CAPE UNLOCKED'));
 });

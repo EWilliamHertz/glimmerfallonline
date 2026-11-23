@@ -55,9 +55,9 @@
       desc: 'Towering golden parapets and solar obelisks basking in perpetual dawn. Daystar paladins channel burning solar wrath and unbreakable bulwark shields.',
       gridPos: { col: 0, row: 4 },
       neighbors: {
-        north: 'SOLARI_SUNKEN_VAULT',
+        north: 'STARFALL_CRATER',
         south: 'SOLAR_HIGHLANDS',
-        west: 'STARFALL_CRATER',
+        west: null,
         east: 'SANCTUARY_HUB'
       },
       landmarks: [
@@ -88,9 +88,9 @@
       gridPos: { col: 2, row: 4 },
       neighbors: {
         north: null,
-        south: null,
+        south: 'CORAL_COAST',
         west: 'SANCTUARY_HUB',
-        east: 'CORAL_COAST'
+        east: null
       },
       landmarks: [
         { x: 50, y: 38, icon: '🌑', name: 'Wraithmother Vespera', sub: 'Shadow Mystic', desc: 'Mistress of Abyssal Shroud and Soul Tithes.' },
@@ -120,8 +120,8 @@
       neighbors: {
         north: 'SANCTUARY_HUB',
         south: 'IRONWOOD_TIMBERLANDS',
-        west: null,
-        east: 'SUNKEN_OASIS'
+        west: 'SOLAR_HIGHLANDS',
+        east: 'CORAL_COAST'
       },
       landmarks: [
         { x: 50, y: 40, icon: '🌿', name: 'Elder Druid Sylvanus', sub: 'Primal Shaman', desc: 'Teacher of Rooted Bastion and Bramble Reversals.' },
@@ -184,8 +184,8 @@
       neighbors: {
         north: 'NEXUS_WARZONE',
         south: 'AETHER_SPIRE',
-        west: null,
-        east: 'STARFALL_CRATER'
+        west: 'STARFALL_CRATER',
+        east: null
       },
       landmarks: [
         { x: 50, y: 30, icon: '🗿', name: 'The Prismatic Golem', sub: '★ Lv.7 First Nexus Guardian', desc: 'Ancient megalith guarding quadrant runestones.' },
@@ -252,7 +252,7 @@
       desc: 'Sacred starlight terraces towering above the continental clouds. The highest peak in Glimmerfall, where Grand Arbiter Aurelia guards the throne of the Empyrean Sovereign.',
       gridPos: { col: 1, row: 0 },
       neighbors: {
-        north: 'ABYSSAL_RIFT',
+        north: null,
         south: 'NEXUS_WARZONE',
         west: null,
         east: 'CHRONOCORE_CITADEL'
@@ -285,9 +285,9 @@
       gridPos: { col: 0, row: 2 },
       neighbors: {
         north: null,
-        south: null,
-        west: 'NEXUS_FORGOTTEN_RUINS',
-        east: 'SOLARI_CITADEL'
+        south: 'SOLARI_CITADEL',
+        west: null,
+        east: 'NEXUS_FORGOTTEN_RUINS'
       },
       landmarks: [
         { x: 50, y: 30, icon: '☄️', name: 'Ignis-Core the Starfall Colossus', sub: '★ Lv.28 Crater World Boss', desc: 'Molten starmetal colossus guarding the Meteor Hammer.' },
@@ -316,7 +316,7 @@
       gridPos: { col: 2, row: 1 },
       neighbors: {
         north: null,
-        south: 'CELESTIAL_ASCENT',
+        south: null,
         west: 'NEXUS_WARZONE',
         east: null
       },
@@ -347,7 +347,7 @@
       gridPos: { col: 1, row: 6 },
       neighbors: {
         north: 'TERRA_ORCHARD',
-        south: null,
+        south: 'MOONWELL_SANCTUM',
         west: 'STARLIGHT_GROVE',
         east: 'CORAL_COAST'
       },
@@ -411,9 +411,9 @@
       gridPos: { col: 2, row: 6 },
       neighbors: {
         north: 'CORAL_COAST',
-        south: 'STARLIGHT_GROVE',
-        west: 'TERRA_ORCHARD',
-        east: 'LUMINOUS_CAVERN'
+        south: null,
+        west: 'IRONWOOD_TIMBERLANDS',
+        east: null
       },
       landmarks: [
         { x: 50, y: 26, icon: '🪷', name: 'Sylphira the Spring Matriarch', sub: '★ Lv.24 Oasis Boss', desc: 'Guardian of the Sunken Oasis dropping Primordial Bark Armor.' },
@@ -440,9 +440,9 @@
       gridPos: { col: 0, row: 5 },
       neighbors: {
         north: 'SOLARI_CITADEL',
-        south: null,
-        west: 'STARFALL_CRATER',
-        east: 'MOONWELL_SANCTUM'
+        south: 'STARLIGHT_GROVE',
+        west: null,
+        east: 'TERRA_ORCHARD'
       },
       landmarks: [
         { x: 50, y: 26, icon: '☀️', name: 'Helios-Vanguard the Sunspire Titan', sub: '★ Lv.28 Highlands Boss', desc: 'Towering golden guardian dropping the Sunfire Greatsword.' },
@@ -468,8 +468,8 @@
       desc: 'A silver-lit starlight forest southwest of Ironwood Timberlands brimming with celestial timber, ancient oaks, and restorative glades.',
       gridPos: { col: 0, row: 6 },
       neighbors: {
-        north: 'SUNKEN_OASIS',
-        south: 'MOONWELL_SANCTUM',
+        north: 'SOLAR_HIGHLANDS',
+        south: 'FROSTSPIRE_GLACIER',
         west: null,
         east: 'IRONWOOD_TIMBERLANDS'
       },
@@ -496,7 +496,7 @@
       gridPos: { col: 2, row: 0 },
       neighbors: {
         north: null,
-        south: 'AETHER_SPIRE',
+        south: null,
         west: 'CELESTIAL_ASCENT',
         east: null
       },
@@ -522,10 +522,10 @@
       desc: 'A serene glade ringed by silver-leaf Starlight and Crimson Blossom trees, fed by four Luminous Restorative Springs and guarded by Archdruid Elaria.',
       gridPos: { col: 1, row: 7 },
       neighbors: {
-        north: 'STARLIGHT_GROVE',
-        south: 'FROSTSPIRE_GLACIER',
-        west: 'SOLAR_HIGHLANDS',
-        east: 'CORAL_COAST'
+        north: 'IRONWOOD_TIMBERLANDS',
+        south: null,
+        west: 'FROSTSPIRE_GLACIER',
+        east: null
       },
       landmarks: [
         { x: 50, y: 26, icon: '🌙', name: 'Archdruid Elaria of the Silvermist', sub: '★ Lv.32 Moonwell Matriarch', desc: 'Druid Sovereign dropping the Elder Treant Staff.' },
@@ -551,9 +551,9 @@
       desc: 'A shimmering subterranean cavern network beneath Sanctuary Gardens and Sunken Oasis, rich with Copper, Star-Iron, and Mithril seams, glowing Crystal Geodes, and subterranean angling pools.',
       gridPos: { col: 2, row: 7 },
       neighbors: {
-        north: 'FROSTSPIRE_GLACIER',
+        north: null,
         south: 'SANCTUARY_HUB',
-        west: 'SUNKEN_OASIS',
+        west: null,
         east: null
       },
       landmarks: [
@@ -581,10 +581,10 @@
       desc: 'A high-altitude crystalline glacier bathed in shimmering aurora light, featuring rich Mithril deposits, an unfrozen Thermal Healing Spring, Alpine Supply Sleds, Aurora Crystal Obelisks, and the sovereign frost spirit Borealis.',
       gridPos: { col: 0, row: 7 },
       neighbors: {
-        north: 'MOONWELL_SANCTUM',
+        north: 'STARLIGHT_GROVE',
         south: null,
-        west: 'SOLAR_HIGHLANDS',
-        east: 'LUMINOUS_CAVERN'
+        west: null,
+        east: 'MOONWELL_SANCTUM'
       },
       landmarks: [
         { x: 50, y: 24, icon: '❄️', name: 'Borealis, Crown of Eternal Rime', sub: '★ Lv.34 Glacier Boss', desc: 'Ancient alpine spirit dropping the Chronos Singularity Core.' },
@@ -598,6 +598,145 @@
       ],
       objectives: 'Mine 4 Mithril Seams, harvest Ice-Melt pools, tap Aurora Crystal Obelisks, duel Skald Thrym, conquer Borealis.',
       travel: 'Walk South from Silvermist Moonwell or North from CrystalEcho Caverns (or warp via Activity Finder).'
+    },
+    SOLARI_SUNKEN_VAULT: {
+      id: 'SOLARI_SUNKEN_VAULT',
+      name: 'Sunken Vault of the Dawn',
+      sub: 'Solari Mythic Keystone Crypt (Lv. 6–70)',
+      level: 'Lv. 6 – 20+',
+      dangerTag: 'SOLARI CRYPT',
+      color: '#facc15',
+      borderColor: '#fde047',
+      faction: '☀️ Solari (Founder Keystone Crypt)',
+      desc: 'An ancient solar catacomb beneath the Golden Citadel where Sunfire Automatons and Dawnblade Crusaders guard the Solaris Core Colossus.',
+      gridPos: { col: 0, row: 3 },
+      neighbors: {
+        north: null,
+        south: 'SOLARI_CITADEL',
+        west: null,
+        east: null
+      },
+      landmarks: [
+        { x: 50, y: 24, icon: '☀️', name: 'Solaris Core Colossus', sub: '★ Crypt Boss', desc: 'Drops Dawnfire Crest & Tier 1–3 Solari Keystones.' },
+        { x: 30, y: 56, icon: '💎', name: 'Dawnstone Glimmer Well', sub: 'Leyline Font [E]', desc: 'Restores Glimmer inside the vault.' }
+      ],
+      entities: [
+        { name: 'Solaris Core Colossus', type: 'Crypt Boss', hp: '96+ HP (Mythic Scaling)', desc: 'Sunken Dawn Titan dropping Dawnfire Crest.' },
+        { name: 'Sunfire Automatons & Dawnblade Crusaders', type: 'Solari Construct', hp: '42 – 46+ HP', desc: 'Patrol the solar crypt chambers.' }
+      ],
+      objectives: 'Clear Sunfire Automatons, conquer Solaris Core Colossus, push Tier 1–10 Solari Keystones.',
+      travel: 'Walk North through the Solari Citadel crypt gate (Founder Edition).'
+    },
+    UMBRI_SHADOW_LABYRINTH: {
+      id: 'UMBRI_SHADOW_LABYRINTH',
+      name: 'Duskveil Shadow Labyrinth',
+      sub: 'Umbri Mythic Keystone Crypt (Lv. 6–70)',
+      level: 'Lv. 6 – 20+',
+      dangerTag: 'UMBRI CRYPT',
+      color: '#c084fc',
+      borderColor: '#e879f9',
+      faction: '🌑 Umbri (Founder Keystone Crypt)',
+      desc: 'Shrouded subterranean labyrinth north of Sepulcher Undercity, prowled by Graveglass Phantoms, Gloam Assassins, and the Abyssal Devourer.',
+      gridPos: { col: 2, row: 3 },
+      neighbors: {
+        north: null,
+        south: 'UMBRI_UNDERCITY',
+        west: null,
+        east: null
+      },
+      landmarks: [
+        { x: 50, y: 24, icon: '💀', name: 'Abyssal Devourer', sub: '★ Crypt Boss', desc: 'Drops Void Soulblade & Tier 1–3 Umbri Keystones.' },
+        { x: 30, y: 56, icon: '💎', name: 'Graveglass Leyline Shroud', sub: 'Leyline Font [E]', desc: 'Restores Glimmer in the shadow labyrinth.' }
+      ],
+      entities: [
+        { name: 'Abyssal Devourer', type: 'Crypt Boss', hp: '92+ HP (Mythic Scaling)', desc: 'Shade of the Void dropping Void Soulblade.' },
+        { name: 'Graveglass Phantoms & Gloam Assassins', type: 'Umbri Specter', hp: '38 – 42+ HP', desc: 'Ambush intruders in the dark.' }
+      ],
+      objectives: 'Survive shadow ambushes, defeat the Abyssal Devourer, push Tier 1–10 Umbri Keystones.',
+      travel: 'Walk North from Umbri Sepulcher Undercity (Founder Edition).'
+    },
+    TERRA_OVERGROWTH_SANCTUARY: {
+      id: 'TERRA_OVERGROWTH_SANCTUARY',
+      name: 'Rootdeep Primordial Hollow',
+      sub: 'Terra Mythic Keystone Crypt (Lv. 6–70)',
+      level: 'Lv. 6 – 20+',
+      dangerTag: 'TERRA CRYPT',
+      color: '#4ade80',
+      borderColor: '#86efac',
+      faction: '🌿 Terra (Founder Keystone Crypt)',
+      desc: 'An overgrown living root-cavern west of Glimmer Orchard guarded by Ironwood Barkkin, Sporeling Stalkers, and Primordial Ironbark.',
+      gridPos: { col: 0, row: 8 },
+      neighbors: {
+        north: null,
+        south: null,
+        west: null,
+        east: 'TERRA_ORCHARD'
+      },
+      landmarks: [
+        { x: 50, y: 24, icon: '🌳', name: 'Primordial Ironbark', sub: '★ Crypt Boss', desc: 'Drops Primordial Bark Armor & Terra Keystones.' },
+        { x: 30, y: 56, icon: '💎', name: 'Rootdeep Heart Font', sub: 'Leyline Font [E]', desc: 'Primal root wellspring.' }
+      ],
+      entities: [
+        { name: 'Primordial Ironbark', type: 'Crypt Boss', hp: '110+ HP (Mythic Scaling)', desc: 'Elder Treant dropping Primordial Bark Chestplate.' },
+        { name: 'Ironwood Barkkin & Sporeling Stalkers', type: 'Terra Guardian', hp: '44 – 48+ HP', desc: 'Ancient hollow defenders.' }
+      ],
+      objectives: 'Break Ironwood defenders, conquer Primordial Ironbark, push Tier 1–10 Terra Keystones.',
+      travel: 'Walk West from Terra Glimmer Orchard (Founder Edition).'
+    },
+    AETHER_FRACTURED_ARCHIVE: {
+      id: 'AETHER_FRACTURED_ARCHIVE',
+      name: 'Fractured Chrono-Archive',
+      sub: 'Aether Mythic Keystone Crypt (Lv. 6–70)',
+      level: 'Lv. 6 – 20+',
+      dangerTag: 'AETHER CRYPT',
+      color: '#38bdf8',
+      borderColor: '#7dd3fc',
+      faction: '🔮 Aether (Founder Keystone Crypt)',
+      desc: 'Shattered astral archive floating east of Mirrorgate Spire, patrolled by Chrono Echoes, Astral Weavers, and the Continuum Singularity.',
+      gridPos: { col: 2, row: 2 },
+      neighbors: {
+        north: null,
+        south: 'AETHER_SPIRE',
+        west: null,
+        east: null
+      },
+      landmarks: [
+        { x: 50, y: 24, icon: '⏳', name: 'Continuum Singularity', sub: '★ Crypt Boss', desc: 'Drops Chronos Singularity Core & Aether Keystones.' },
+        { x: 30, y: 56, icon: '💎', name: 'Continuum Time Spire', sub: 'Leyline Font [E]', desc: 'Replenishes Glimmer across fractured walkways.' }
+      ],
+      entities: [
+        { name: 'Continuum Singularity', type: 'Crypt Boss', hp: '94+ HP (Mythic Scaling)', desc: 'Paradox Titan dropping Chronos Singularity Core.' },
+        { name: 'Chrono Echoes & Astral Weavers', type: 'Aether Construct', hp: '38 – 42+ HP', desc: 'Guard floating archive islands.' }
+      ],
+      objectives: 'Navigate floating archive bridges, defeat Continuum Singularity, push Tier 1–10 Aether Keystones.',
+      travel: 'Walk East from Mirrorgate Spire (Founder Edition).'
+    },
+    ARENA_3V3: {
+      id: 'ARENA_3V3',
+      name: '3v3 Ranked Nexus Arena',
+      sub: 'Competitive Squad Skirmish & Nexus Destruction',
+      level: 'All Levels (Ranked)',
+      dangerTag: '3V3 ARENA',
+      color: '#fb7185',
+      borderColor: '#f43f5e',
+      faction: '⚔️ Competitive Arena Lobby',
+      desc: 'Instanced 3v3 battleground where two squads clash across symmetrical lanes to shatter the opposing team\'s 2,500 HP Nexus core.',
+      gridPos: { col: 0, row: 1 },
+      neighbors: {
+        north: null,
+        south: null,
+        west: null,
+        east: 'NEXUS_WARZONE'
+      },
+      landmarks: [
+        { x: 50, y: 20, icon: '🔴', name: 'Umbri Dominion Nexus', sub: '2,500 HP Red Core', desc: 'Shatter the enemy Nexus to win the match.' },
+        { x: 50, y: 80, icon: '🔵', name: 'Solari Sanctuary Nexus', sub: '2,500 HP Blue Core', desc: 'Defend your allied Nexus from enemy pushes.' }
+      ],
+      entities: [
+        { name: 'Enemy Squad & AI Vanguard', type: 'PvP / Arena Champions', hp: 'Scaled', desc: 'Compete for Arena Wins and Hiscores.' }
+      ],
+      objectives: 'Queue via the 3v3 Arena button [HUD], coordinate Tank/Healer/DPS roles, shatter the enemy Nexus.',
+      travel: 'Queue via the HUD Arena button or enter from the western border of Continental Caldera.'
     }
   };
 

@@ -7,6 +7,7 @@ import { buildTileSprites } from "./sprites/tileSprites.js";
 import { buildPropSprites } from "./sprites/propSprites.js";
 import { buildNpcSprites } from "./sprites/npcSprites.js";
 import { buildEntityAndMonsterSprites } from "./sprites/entityAndMonsterSprites.js";
+import { buildMountAndWaypointSprites } from "./sprites/mountSprites.js";
 
 export { getCharacterSprites, getOrderBannerSprites, pixelateCardImage };
 
@@ -78,6 +79,7 @@ export function buildSpriteSheet() {
 
   buildNpcSprites(sprites);
   buildEntityAndMonsterSprites(sprites);
+  buildMountAndWaypointSprites(sprites);
 
   cachedSpriteSheet = sprites;
   return sprites;

@@ -1489,6 +1489,69 @@ export const UNIVERSAL_SEARCH_ITEMS = [
   },
   {
     "type": "item",
+    "id": "harbinger_worldbreaker",
+    "name": "Harbinger's Worldbreaker",
+    "icon": "🪓",
+    "slot": "weapon",
+    "rarity": "Apex Raid Mythic",
+    "faction": null,
+    "desc": "Forged from the shattered core of the Primeval Harbinger (+6 Power, +4 Resonance, +3 Tempo).",
+    "whatItDoes": "Equip Stats: +6 Power, +4 Resonance, +3 Tempo",
+    "guidePrice": null,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "primeval_nexus_crown",
+    "name": "Crown of the Primeval Nexus",
+    "icon": "👑",
+    "slot": "head",
+    "rarity": "Apex Raid Mythic",
+    "faction": null,
+    "desc": "Prismatic diadem bestowed upon conquerors of Fall of the Primeval Nexus (+5 Power, +5 Bastion, +4 Resonance, +2 Tempo).",
+    "whatItDoes": "Equip Stats: +5 Power, +5 Bastion, +4 Resonance, +2 Tempo",
+    "guidePrice": null,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
+    "id": "siphonweave_aegis",
+    "name": "Siphonweave Aegis",
+    "icon": "🛡️",
+    "slot": "offhand",
+    "rarity": "Apex Raid Mythic",
+    "faction": null,
+    "desc": "Leyline pylon barrier reforged into an impenetrable shield (+6 Bastion, +3 Resonance, +2 Tempo).",
+    "whatItDoes": "Equip Stats: +6 Bastion, +3 Resonance, +2 Tempo",
+    "guidePrice": null,
+    "craftedBy": [],
+    "usedInRecipes": [],
+    "harvestSources": [],
+    "soldBy": [],
+    "droppedBy": [],
+    "bountyRewards": [],
+    "extractsTo": null,
+    "decodedFrom": [],
+    "runewordCombos": []
+  },
+  {
+    "type": "item",
     "id": "solar_gold",
     "name": "Solar Gold Sovereign",
     "icon": "🪙",
@@ -15499,6 +15562,97 @@ export const UNIVERSAL_SEARCH_QUESTS = [
   },
   {
     "type": "quest",
+    "kind": "Story Quest",
+    "id": "quest_echo_keeper_duels",
+    "name": "Friendly Echo Skirmishes",
+    "icon": "📜",
+    "giverId": "npc_echo_keeper_sylvi",
+    "giverName": "npc_echo_keeper_sylvi",
+    "turnInId": "npc_echo_keeper_sylvi",
+    "turnInName": "npc_echo_keeper_sylvi",
+    "prereqTitle": null,
+    "desc": "Visit Echo Keeper Sylvi in the Hearthstone Inn & Tavern (or use /famduel) to complete 1 non-lethal Echo Familiar skirmish.",
+    "tasks": [
+      "Complete a friendly /famduel skirmish in Sanctuary or Tavern"
+    ],
+    "rewards": {
+      "xp": 160,
+      "glimmer": 65,
+      "gold": 90,
+      "professionXp": [
+        {
+          "professionId": "rite_binding",
+          "professionName": "Rite-Binding",
+          "xp": 65
+        }
+      ],
+      "unlocks": [
+        "Construct Cradle Duel Mastery",
+        "Next Side-Quest: Whispers Across the Wilds"
+      ],
+      "items": []
+    },
+    "dialogues": [
+      {
+        "speaker": "ECHO KEEPER SYLVI • HEARTHSTONE INN",
+        "text": "Welcome inside, Summoner-Knight! When two Nexus Familiars spar inside Sanctuary or a warm tavern, neither beast ever comes to harm—we call it an Echo Skirmish! Use Strike, Ward/Mend, and Faction Surge (Solari <-> Umbri, Terra <-> Aether) to test your timing."
+      },
+      {
+        "speaker": "ECHO KEEPER SYLVI • HEARTHSTONE INN",
+        "text": "Splendid footwork and clean elemental timing! Seek out untamed Stray Echoes during 15-minute World Events next if you want rare Starlight & Prismatic aura variants!"
+      }
+    ]
+  },
+  {
+    "type": "quest",
+    "kind": "Story Quest",
+    "id": "quest_echo_keeper_whisper",
+    "name": "Whispers Across the Wilds",
+    "icon": "📜",
+    "giverId": "npc_echo_keeper_sylvi",
+    "giverName": "npc_echo_keeper_sylvi",
+    "turnInId": "npc_echo_keeper_sylvi",
+    "turnInName": "npc_echo_keeper_sylvi",
+    "prereqTitle": "Friendly Echo Skirmishes",
+    "desc": "Decode raw gathered fish, ores, or herbs into Harmonic Ciphers, then soothe 1 Wild Stray Echo during a World Event or near Sanctuary Woods.",
+    "tasks": [
+      "Soothe a Wild Stray Echo with a Harmonic Cipher [E]"
+    ],
+    "rewards": {
+      "xp": 280,
+      "glimmer": 120,
+      "gold": 160,
+      "professionXp": [
+        {
+          "professionId": "resonance_extraction",
+          "professionName": "Resonance Extraction",
+          "xp": 120
+        },
+        {
+          "professionId": "rite_binding",
+          "professionName": "Rite-Binding",
+          "xp": 90
+        }
+      ],
+      "unlocks": [
+        "Title: <Echo Whisperer>",
+        "Starlight & Prismatic Familiar Aura Drops"
+      ],
+      "items": []
+    },
+    "dialogues": [
+      {
+        "speaker": "ECHO KEEPER SYLVI • HEARTHSTONE INN",
+        "text": "Every 15 minutes a Cosmic World Event stirs untamed Stray Echoes out in the biomes—and one often wanders near Sanctuary Haven! Bring a matching Harmonic Cipher, approach gently, and press [E] to soothe it for an Echo-Print and rare Starlight/Prismatic colors."
+      },
+      {
+        "speaker": "ECHO KEEPER SYLVI • HEARTHSTONE INN",
+        "text": "The wild leylines answer your call! Wear your Echo Whisperer honors proudly—Starlight and Prismatic variants await every collector."
+      }
+    ]
+  },
+  {
+    "type": "quest",
     "kind": "Bounty (Combat)",
     "id": "bounty_outer_cull",
     "name": "Vanguard Patrol: Outer Realm Hostiles",
@@ -16356,9 +16510,9 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "travel": "From Sanctuary Haven, walk West through the Sunspire Archway into the Golden Citadel.",
     "objectives": "Radiant Bulwark training, Solari faction allegiance, Sunken Vault entrance.",
     "neighbors": {
-      "north": "SOLARI_SUNKEN_VAULT",
+      "north": "STARFALL_CRATER",
       "south": "SOLAR_HIGHLANDS",
-      "west": "STARFALL_CRATER",
+      "west": null,
       "east": "SANCTUARY_HUB"
     },
     "landmarks": [
@@ -16652,9 +16806,9 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "objectives": "Shadow Labyrinth delve, Void Leach mastery, Umbri stealth training.",
     "neighbors": {
       "north": null,
-      "south": null,
+      "south": "CORAL_COAST",
       "west": "SANCTUARY_HUB",
-      "east": "CORAL_COAST"
+      "east": null
     },
     "landmarks": [
       {
@@ -16904,8 +17058,8 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "neighbors": {
       "north": "SANCTUARY_HUB",
       "south": "IRONWOOD_TIMBERLANDS",
-      "west": null,
-      "east": "SUNKEN_OASIS"
+      "west": "SOLAR_HIGHLANDS",
+      "east": "CORAL_COAST"
     },
     "landmarks": [
       {
@@ -17445,8 +17599,8 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "neighbors": {
       "north": "NEXUS_WARZONE",
       "south": "AETHER_SPIRE",
-      "west": null,
-      "east": "STARFALL_CRATER"
+      "west": "STARFALL_CRATER",
+      "east": null
     },
     "landmarks": [
       {
@@ -17941,7 +18095,7 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "travel": "From the northernmost plateau of Continental Nexus Caldera (y: -1760), walk North through the Ascent Gate up the mountain stairs.",
     "objectives": "Vanquish Aurelius the Empyrean Sovereign, claim the Crown of Dawn, attune Empyrean resonance.",
     "neighbors": {
-      "north": "ABYSSAL_RIFT",
+      "north": null,
       "south": "NEXUS_WARZONE",
       "west": null,
       "east": "CHRONOCORE_CITADEL"
@@ -18129,9 +18283,9 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "objectives": "Mine Astral Mithril & Starmetal, smelt cosmic alloys, defeat Ignis-Core for the Starmetal Meteor Hammer.",
     "neighbors": {
       "north": null,
-      "south": null,
-      "west": "NEXUS_FORGOTTEN_RUINS",
-      "east": "SOLARI_CITADEL"
+      "south": "SOLARI_CITADEL",
+      "west": null,
+      "east": "NEXUS_FORGOTTEN_RUINS"
     },
     "landmarks": [
       {
@@ -18331,7 +18485,7 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "objectives": "Harvest Empyrean Starleaf & Celestial Gossamer, conquer Elite Rift Champions, vanquish Xal'Korath.",
     "neighbors": {
       "north": null,
-      "south": "CELESTIAL_ASCENT",
+      "south": null,
       "west": "NEXUS_WARZONE",
       "east": null
     },
@@ -18510,7 +18664,7 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "objectives": "Fell Glimmerwood & Ironbark trees, build campfires, vanquish Elder Barkhide.",
     "neighbors": {
       "north": "TERRA_ORCHARD",
-      "south": null,
+      "south": "MOONWELL_SANCTUM",
       "west": "STARLIGHT_GROVE",
       "east": "CORAL_COAST"
     },
@@ -19047,9 +19201,9 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "objectives": "Rest by the Luminous Healing Springs, fell glimmerwood trees, defeat Sylphira.",
     "neighbors": {
       "north": "CORAL_COAST",
-      "south": "STARLIGHT_GROVE",
-      "west": "TERRA_ORCHARD",
-      "east": "LUMINOUS_CAVERN"
+      "south": null,
+      "west": "IRONWOOD_TIMBERLANDS",
+      "east": null
     },
     "landmarks": [
       {
@@ -19331,9 +19485,9 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "objectives": "Mine highlands Mithril/Starmetal, chop Sunforged timber, challenge Helios-Vanguard.",
     "neighbors": {
       "north": "SOLARI_CITADEL",
-      "south": null,
-      "west": "STARFALL_CRATER",
-      "east": "MOONWELL_SANCTUM"
+      "south": "STARLIGHT_GROVE",
+      "west": null,
+      "east": "TERRA_ORCHARD"
     },
     "landmarks": [
       {
@@ -19565,8 +19719,8 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "travel": "Walk West from Ironwood Timberlands or South from Sunken Oasis.",
     "objectives": "Harvest Starlight timber, channel sacred springs, conquer the Grove Sovereign.",
     "neighbors": {
-      "north": "SUNKEN_OASIS",
-      "south": "MOONWELL_SANCTUM",
+      "north": "SOLAR_HIGHLANDS",
+      "south": "FROSTSPIRE_GLACIER",
       "west": null,
       "east": "IRONWOOD_TIMBERLANDS"
     },
@@ -19733,7 +19887,7 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "objectives": "Extract Starmetal veins, temper Chronal springs, challenge Chrono-Archon Vaelen.",
     "neighbors": {
       "north": null,
-      "south": "AETHER_SPIRE",
+      "south": null,
       "west": "CELESTIAL_ASCENT",
       "east": null
     },
@@ -19899,10 +20053,10 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "travel": "Walk South from Starlight Grove or East from Ambergris Crags (Sunspire Highlands).",
     "objectives": "Channel Moonwell Healing Springs, harvest Starlight timber & herbs, challenge Archdruid Elaria.",
     "neighbors": {
-      "north": "STARLIGHT_GROVE",
-      "south": "FROSTSPIRE_GLACIER",
-      "west": "SOLAR_HIGHLANDS",
-      "east": "CORAL_COAST"
+      "north": "IRONWOOD_TIMBERLANDS",
+      "south": null,
+      "west": "FROSTSPIRE_GLACIER",
+      "east": null
     },
     "landmarks": [
       {
@@ -20147,9 +20301,9 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "travel": "Enter the CrystalEcho Cavern Archway in South Sanctuary Gardens or walk East from Sunken Oasis.",
     "objectives": "Mine Copper, Iron & Mithril veins, tap Crystal Geodes, angle subterranean trout, defeat Crystallis.",
     "neighbors": {
-      "north": "FROSTSPIRE_GLACIER",
+      "north": null,
       "south": "SANCTUARY_HUB",
-      "west": "SUNKEN_OASIS",
+      "west": null,
       "east": null
     },
     "landmarks": [
@@ -20406,10 +20560,10 @@ export const UNIVERSAL_SEARCH_ZONES = [
     "travel": "Walk South from Silvermist Moonwell or North from CrystalEcho Caverns (or warp via Activity Finder).",
     "objectives": "Mine 4 Mithril Seams, harvest Ice-Melt pools, tap Aurora Crystal Obelisks, duel Skald Thrym, conquer Borealis.",
     "neighbors": {
-      "north": "MOONWELL_SANCTUM",
+      "north": "STARLIGHT_GROVE",
       "south": null,
-      "west": "SOLAR_HIGHLANDS",
-      "east": "LUMINOUS_CAVERN"
+      "west": null,
+      "east": "MOONWELL_SANCTUM"
     },
     "landmarks": [
       {
@@ -20631,6 +20785,270 @@ export const UNIVERSAL_SEARCH_ZONES = [
         ]
       }
     ],
+    "npcsHere": []
+  },
+  {
+    "type": "zone",
+    "id": "SOLARI_SUNKEN_VAULT",
+    "name": "Sunken Vault of the Dawn",
+    "sub": "Solari Mythic Keystone Crypt (Lv. 6–70)",
+    "level": "Lv. 6 – 20+",
+    "dangerTag": "SOLARI CRYPT",
+    "faction": "☀️ Solari (Founder Keystone Crypt)",
+    "color": "#facc15",
+    "borderColor": "#fde047",
+    "desc": "An ancient solar catacomb beneath the Golden Citadel where Sunfire Automatons and Dawnblade Crusaders guard the Solaris Core Colossus.",
+    "travel": "Walk North through the Solari Citadel crypt gate (Founder Edition).",
+    "objectives": "Clear Sunfire Automatons, conquer Solaris Core Colossus, push Tier 1–10 Solari Keystones.",
+    "neighbors": {
+      "north": null,
+      "south": "SOLARI_CITADEL",
+      "west": null,
+      "east": null
+    },
+    "landmarks": [
+      {
+        "x": 50,
+        "y": 24,
+        "icon": "☀️",
+        "name": "Solaris Core Colossus",
+        "sub": "★ Crypt Boss",
+        "desc": "Drops Dawnfire Crest & Tier 1–3 Solari Keystones."
+      },
+      {
+        "x": 30,
+        "y": 56,
+        "icon": "💎",
+        "name": "Dawnstone Glimmer Well",
+        "sub": "Leyline Font [E]",
+        "desc": "Restores Glimmer inside the vault."
+      }
+    ],
+    "entities": [
+      {
+        "name": "Solaris Core Colossus",
+        "type": "Crypt Boss",
+        "hp": "96+ HP (Mythic Scaling)",
+        "desc": "Sunken Dawn Titan dropping Dawnfire Crest."
+      },
+      {
+        "name": "Sunfire Automatons & Dawnblade Crusaders",
+        "type": "Solari Construct",
+        "hp": "42 – 46+ HP",
+        "desc": "Patrol the solar crypt chambers."
+      }
+    ],
+    "gatheringNodes": [],
+    "npcsHere": []
+  },
+  {
+    "type": "zone",
+    "id": "UMBRI_SHADOW_LABYRINTH",
+    "name": "Duskveil Shadow Labyrinth",
+    "sub": "Umbri Mythic Keystone Crypt (Lv. 6–70)",
+    "level": "Lv. 6 – 20+",
+    "dangerTag": "UMBRI CRYPT",
+    "faction": "🌑 Umbri (Founder Keystone Crypt)",
+    "color": "#c084fc",
+    "borderColor": "#e879f9",
+    "desc": "Shrouded subterranean labyrinth north of Sepulcher Undercity, prowled by Graveglass Phantoms, Gloam Assassins, and the Abyssal Devourer.",
+    "travel": "Walk North from Umbri Sepulcher Undercity (Founder Edition).",
+    "objectives": "Survive shadow ambushes, defeat the Abyssal Devourer, push Tier 1–10 Umbri Keystones.",
+    "neighbors": {
+      "north": null,
+      "south": "UMBRI_UNDERCITY",
+      "west": null,
+      "east": null
+    },
+    "landmarks": [
+      {
+        "x": 50,
+        "y": 24,
+        "icon": "💀",
+        "name": "Abyssal Devourer",
+        "sub": "★ Crypt Boss",
+        "desc": "Drops Void Soulblade & Tier 1–3 Umbri Keystones."
+      },
+      {
+        "x": 30,
+        "y": 56,
+        "icon": "💎",
+        "name": "Graveglass Leyline Shroud",
+        "sub": "Leyline Font [E]",
+        "desc": "Restores Glimmer in the shadow labyrinth."
+      }
+    ],
+    "entities": [
+      {
+        "name": "Abyssal Devourer",
+        "type": "Crypt Boss",
+        "hp": "92+ HP (Mythic Scaling)",
+        "desc": "Shade of the Void dropping Void Soulblade."
+      },
+      {
+        "name": "Graveglass Phantoms & Gloam Assassins",
+        "type": "Umbri Specter",
+        "hp": "38 – 42+ HP",
+        "desc": "Ambush intruders in the dark."
+      }
+    ],
+    "gatheringNodes": [],
+    "npcsHere": []
+  },
+  {
+    "type": "zone",
+    "id": "TERRA_OVERGROWTH_SANCTUARY",
+    "name": "Rootdeep Primordial Hollow",
+    "sub": "Terra Mythic Keystone Crypt (Lv. 6–70)",
+    "level": "Lv. 6 – 20+",
+    "dangerTag": "TERRA CRYPT",
+    "faction": "🌿 Terra (Founder Keystone Crypt)",
+    "color": "#4ade80",
+    "borderColor": "#86efac",
+    "desc": "An overgrown living root-cavern west of Glimmer Orchard guarded by Ironwood Barkkin, Sporeling Stalkers, and Primordial Ironbark.",
+    "travel": "Walk West from Terra Glimmer Orchard (Founder Edition).",
+    "objectives": "Break Ironwood defenders, conquer Primordial Ironbark, push Tier 1–10 Terra Keystones.",
+    "neighbors": {
+      "north": null,
+      "south": null,
+      "west": null,
+      "east": "TERRA_ORCHARD"
+    },
+    "landmarks": [
+      {
+        "x": 50,
+        "y": 24,
+        "icon": "🌳",
+        "name": "Primordial Ironbark",
+        "sub": "★ Crypt Boss",
+        "desc": "Drops Primordial Bark Armor & Terra Keystones."
+      },
+      {
+        "x": 30,
+        "y": 56,
+        "icon": "💎",
+        "name": "Rootdeep Heart Font",
+        "sub": "Leyline Font [E]",
+        "desc": "Primal root wellspring."
+      }
+    ],
+    "entities": [
+      {
+        "name": "Primordial Ironbark",
+        "type": "Crypt Boss",
+        "hp": "110+ HP (Mythic Scaling)",
+        "desc": "Elder Treant dropping Primordial Bark Chestplate."
+      },
+      {
+        "name": "Ironwood Barkkin & Sporeling Stalkers",
+        "type": "Terra Guardian",
+        "hp": "44 – 48+ HP",
+        "desc": "Ancient hollow defenders."
+      }
+    ],
+    "gatheringNodes": [],
+    "npcsHere": []
+  },
+  {
+    "type": "zone",
+    "id": "AETHER_FRACTURED_ARCHIVE",
+    "name": "Fractured Chrono-Archive",
+    "sub": "Aether Mythic Keystone Crypt (Lv. 6–70)",
+    "level": "Lv. 6 – 20+",
+    "dangerTag": "AETHER CRYPT",
+    "faction": "🔮 Aether (Founder Keystone Crypt)",
+    "color": "#38bdf8",
+    "borderColor": "#7dd3fc",
+    "desc": "Shattered astral archive floating east of Mirrorgate Spire, patrolled by Chrono Echoes, Astral Weavers, and the Continuum Singularity.",
+    "travel": "Walk East from Mirrorgate Spire (Founder Edition).",
+    "objectives": "Navigate floating archive bridges, defeat Continuum Singularity, push Tier 1–10 Aether Keystones.",
+    "neighbors": {
+      "north": null,
+      "south": "AETHER_SPIRE",
+      "west": null,
+      "east": null
+    },
+    "landmarks": [
+      {
+        "x": 50,
+        "y": 24,
+        "icon": "⏳",
+        "name": "Continuum Singularity",
+        "sub": "★ Crypt Boss",
+        "desc": "Drops Chronos Singularity Core & Aether Keystones."
+      },
+      {
+        "x": 30,
+        "y": 56,
+        "icon": "💎",
+        "name": "Continuum Time Spire",
+        "sub": "Leyline Font [E]",
+        "desc": "Replenishes Glimmer across fractured walkways."
+      }
+    ],
+    "entities": [
+      {
+        "name": "Continuum Singularity",
+        "type": "Crypt Boss",
+        "hp": "94+ HP (Mythic Scaling)",
+        "desc": "Paradox Titan dropping Chronos Singularity Core."
+      },
+      {
+        "name": "Chrono Echoes & Astral Weavers",
+        "type": "Aether Construct",
+        "hp": "38 – 42+ HP",
+        "desc": "Guard floating archive islands."
+      }
+    ],
+    "gatheringNodes": [],
+    "npcsHere": []
+  },
+  {
+    "type": "zone",
+    "id": "ARENA_3V3",
+    "name": "3v3 Ranked Nexus Arena",
+    "sub": "Competitive Squad Skirmish & Nexus Destruction",
+    "level": "All Levels (Ranked)",
+    "dangerTag": "3V3 ARENA",
+    "faction": "⚔️ Competitive Arena Lobby",
+    "color": "#fb7185",
+    "borderColor": "#f43f5e",
+    "desc": "Instanced 3v3 battleground where two squads clash across symmetrical lanes to shatter the opposing team's 2,500 HP Nexus core.",
+    "travel": "Queue via the HUD Arena button or enter from the western border of Continental Caldera.",
+    "objectives": "Queue via the 3v3 Arena button [HUD], coordinate Tank/Healer/DPS roles, shatter the enemy Nexus.",
+    "neighbors": {
+      "north": null,
+      "south": null,
+      "west": null,
+      "east": "NEXUS_WARZONE"
+    },
+    "landmarks": [
+      {
+        "x": 50,
+        "y": 20,
+        "icon": "🔴",
+        "name": "Umbri Dominion Nexus",
+        "sub": "2,500 HP Red Core",
+        "desc": "Shatter the enemy Nexus to win the match."
+      },
+      {
+        "x": 50,
+        "y": 80,
+        "icon": "🔵",
+        "name": "Solari Sanctuary Nexus",
+        "sub": "2,500 HP Blue Core",
+        "desc": "Defend your allied Nexus from enemy pushes."
+      }
+    ],
+    "entities": [
+      {
+        "name": "Enemy Squad & AI Vanguard",
+        "type": "PvP / Arena Champions",
+        "hp": "Scaled",
+        "desc": "Compete for Arena Wins and Hiscores."
+      }
+    ],
+    "gatheringNodes": [],
     "npcsHere": []
   }
 ];

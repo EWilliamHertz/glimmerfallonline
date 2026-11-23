@@ -4,7 +4,20 @@
 
 import { WORLD_ATLAS_REGIONS } from "./worldAtlasData.js";
 import { QUEST_CATALOG } from "./questCatalogData.js";
-import { ROOM_TYPES, EQUIPMENT_CATALOG, CHAMPION_TITLES, ACHIEVEMENTS_CATALOG, isRoomUnlockedForEdition } from "../../shared/protocol.js";
+import {
+  ROOM_TYPES,
+  EQUIPMENT_CATALOG,
+  CHAMPION_TITLES,
+  ACHIEVEMENTS_CATALOG,
+  isRoomUnlockedForEdition,
+  isSurfaceRoomType,
+  SURFACE_ROOM_TYPES,
+  SURFACE_ZONE_PLACEMENT,
+  worldToLocal,
+  MOUNTS_CATALOG,
+  WAYPOINT_SHRINES_CATALOG,
+  normalizeExplorationState,
+} from "../../shared/protocol.js";
 import { UNIVERSAL_SEARCH_ZONES, searchMapZones } from "../../landing/src/data/universalSearchData.js";
 import { renderCollectionLogView } from "./osrsLoopsUi.js";
 
@@ -12,18 +25,27 @@ export function setupWorldAtlasAndLoreUi({
   getQuestState,
   getPlayer,
   getCurrentRoomType,
+  getMapBounds = () => ({ halfW: 576, halfH: 512 }),
+  getLocalProfile = () => ({}),
+  getProg = () => ({}),
+  getNpcName = (id) => id || 'Archon',
+  isQuestPrereqMet = () => true,
+  getTotalCompletedQuestPoints = () => 0,
+  getMaxQuestPoints = () => 0,
+  isPlayerDead = () => false,
+  isLocalFounder = () => false,
   audio,
-  toggleModal,
   saveQuestState,
   updateQuestTrackerHUD,
-  isSinglePlayer,
-  net,
 }) {
   let currentLoreTab = 'quests';
   let currentAtlasView = 'square'; // 'square' | 'grid'
   let selectedMapRegionId = 'SANCTUARY_HUB';
   let edgeScrollTimer = null;
   let atlasMapSearchQuery = '';
+  const safeRoomKey = () => String(getCurrentRoomType?.() || '').toUpperCase();
+  const safeQuestState = () => getQuestState?.() || {};
+  const safePlayer = () => getPlayer?.() || { x: 0, y: 0 };
 
   function escapeAtlasHtml(str) {
     return String(str ?? '')
@@ -90,7 +112,7 @@ export function setupWorldAtlasAndLoreUi({
 
   window.openWorldMap = function () {
     currentLoreTab = 'map';
-    const curKey = String(currentRoomType || '').toUpperCase();
+    const curKey = safeRoomKey();
     if (WORLD_ATLAS_REGIONS[curKey]) {
       selectedMapRegionId = curKey;
     }
@@ -101,7 +123,7 @@ export function setupWorldAtlasAndLoreUi({
   };
 
   window.toggleWorldAtlas = function () {
-    if (typeof window !== 'undefined' && typeof window._isDeadScreenVisible === 'function' && window._isDeadScreenVisible()) return;
+    if (isPlayerDead?.()) return;
     const modal = document.getElementById('lore-modal');
     if (modal && modal.style.display === 'block' && currentLoreTab === 'map') {
       window.toggleModal('lore-modal');
@@ -119,7 +141,7 @@ export function setupWorldAtlasAndLoreUi({
   };
 
   window.centerMapOnPlayer = function () {
-    const curKey = String(currentRoomType || '').toUpperCase();
+    const curKey = safeRoomKey();
     if (WORLD_ATLAS_REGIONS[curKey]) {
       window.selectMapRegion(curKey, true);
     }
@@ -159,18 +181,20 @@ export function setupWorldAtlasAndLoreUi({
   };
 
   window.toggleQuestTracking = function (qId) {
-    if (!questState.trackedQuests) questState.trackedQuests = {};
-    const currentlyTracked = questState.trackedQuests[qId] !== false;
-    questState.trackedQuests[qId] = !currentlyTracked;
+    const qs = safeQuestState();
+    if (!qs.trackedQuests) qs.trackedQuests = {};
+    const currentlyTracked = qs.trackedQuests[qId] !== false;
+    qs.trackedQuests[qId] = !currentlyTracked;
     saveQuestState();
     updateQuestTrackerHUD();
     renderLoreModal();
   };
 
   window.setAllQuestTracking = function (track) {
-    if (!questState.trackedQuests) questState.trackedQuests = {};
-    for (const qId of Object.keys(questState.activeQuests || {})) {
-      questState.trackedQuests[qId] = Boolean(track);
+    const qs = safeQuestState();
+    if (!qs.trackedQuests) qs.trackedQuests = {};
+    for (const qId of Object.keys(qs.activeQuests || {})) {
+      qs.trackedQuests[qId] = Boolean(track);
     }
     saveQuestState();
     updateQuestTrackerHUD();
@@ -180,19 +204,25 @@ export function setupWorldAtlasAndLoreUi({
   function getRegionInspectorHtml(regId) {
     const reg = WORLD_ATLAS_REGIONS[regId] || WORLD_ATLAS_REGIONS.SANCTUARY_HUB;
     const zoneIndexEntry = UNIVERSAL_SEARCH_ZONES.find((z) => z.id === reg.id);
-    const isPlayerHere = String(currentRoomType || '').toUpperCase() === reg.id;
+    const isPlayerHere = safeRoomKey() === reg.id;
+    const pl = safePlayer();
     const n = reg.neighbors || {};
-    const editionTier = (typeof window !== 'undefined' && window.isLocalFounderEdition?.()) ? 'founder' : 'free';
+    const editionTier = isLocalFounder?.() ? 'founder' : 'free';
     const isLockedFounder = !isRoomUnlockedForEdition(reg.id, editionTier);
+    const exploration = normalizeExplorationState(getProg?.()?.exploration, getLocalProfile?.()?.faction);
+    const roomKey = reg.id.toLowerCase();
+    const isDiscovered = isPlayerHere || !isSurfaceRoomType(roomKey) || exploration.discoveredZones.includes(roomKey);
+    const zoneWp = WAYPOINT_SHRINES_CATALOG.find((w) => w.roomType === roomKey);
+    const wpUnlocked = zoneWp ? exploration.unlockedShrines.includes(zoneWp.id) : false;
 
     return `
       <div style="background:#070b18; border:2px solid ${reg.borderColor}; border-radius:6px; padding:12px; height:100%; box-sizing:border-box;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; border-bottom:1px solid #1e293b; padding-bottom:6px;">
           <div>
             <div style="font-family:var(--font-header); font-size:14px; font-weight:800; color:${reg.color}; letter-spacing:0.5px;">
-              ${reg.name.toUpperCase()}
+              ${isDiscovered ? reg.name.toUpperCase() : '🌫️ UNCHARTED FRONTIER'}
             </div>
-            <div style="font-size:10.5px; color:#94a3b8; margin-top:2px;">${reg.sub}</div>
+            <div style="font-size:10.5px; color:#94a3b8; margin-top:2px;">${isDiscovered ? reg.sub : `${reg.name} — Explore on foot to lift Fog of War`}</div>
           </div>
           <div style="text-align:right;">
             <span style="display:inline-block; font-size:9.5px; font-weight:bold; background:#0f172a; border:1px solid ${reg.color}; color:${reg.color}; padding:2px 7px; border-radius:3px;">
@@ -205,7 +235,19 @@ export function setupWorldAtlasAndLoreUi({
 
         ${isPlayerHere ? `
           <div style="background:rgba(34, 197, 94, 0.15); border:1px solid #22c55e; color:#86efac; font-size:10px; font-weight:bold; padding:4px 8px; border-radius:4px; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-            <span>📍</span><span>YOU ARE CURRENTLY IN THIS REALM (${Math.round(player.x)}, ${Math.round(player.y)})</span>
+            <span>📍</span><span>YOU ARE CURRENTLY IN THIS REALM (${Math.round(pl.x || 0)}, ${Math.round(pl.y || 0)})</span>
+          </div>
+        ` : ''}
+
+        ${zoneWp ? `
+          <div style="background:#091124; border:1px solid ${wpUnlocked ? '#38bdf8' : '#334155'}; border-radius:4px; padding:6px 8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <div>
+              <div style="font-size:9.5px; font-weight:bold; color:${wpUnlocked ? '#7dd3fc' : '#94a3b8'};">🧭 ${zoneWp.name}</div>
+              <div style="font-size:8.5px; color:#64748b;">${wpUnlocked ? 'Waypoint attuned • Instant overworld transit' : 'Find & channel [E] on foot to attune'}</div>
+            </div>
+            ${wpUnlocked && !isLockedFounder ? `
+              <button type="button" onclick="window.teleportToWaypoint && window.teleportToWaypoint('${zoneWp.id}')" style="background:#0284c7; border:1px solid #7dd3fc; color:#ffffff; padding:4px 8px; border-radius:4px; font-size:9.5px; font-weight:bold; cursor:pointer;">⚡ TRAVEL</button>
+            ` : `<span style="font-size:9px; color:#64748b; font-weight:bold;">${isLockedFounder ? '🔒 FOUNDER' : '🌫️ UNATTUNED'}</span>`}
           </div>
         ` : ''}
 
@@ -295,7 +337,9 @@ export function setupWorldAtlasAndLoreUi({
   }
 
   function renderSquareZoneView(reg) {
-    const isPlayerHere = String(currentRoomType || '').toUpperCase() === reg.id;
+    const isPlayerHere = safeRoomKey() === reg.id;
+    const mb = getMapBounds?.() || { halfW: 576, halfH: 512 };
+    const pl = safePlayer();
     const n = reg.neighbors || {};
     const northReg = n.north ? WORLD_ATLAS_REGIONS[n.north] : null;
     const southReg = n.south ? WORLD_ATLAS_REGIONS[n.south] : null;
@@ -303,11 +347,24 @@ export function setupWorldAtlasAndLoreUi({
     const eastReg = n.east ? WORLD_ATLAS_REGIONS[n.east] : null;
 
     // Player position percentage on current map
+    const roomKey = reg.id.toLowerCase();
+    const exploration = normalizeExplorationState(getProg?.()?.exploration, getLocalProfile?.()?.faction);
+    const isDiscovered = isPlayerHere || !isSurfaceRoomType(roomKey) || exploration.discoveredZones.includes(roomKey);
+    const zoneWp = WAYPOINT_SHRINES_CATALOG.find((w) => w.roomType === roomKey);
+    const wpUnlocked = zoneWp ? exploration.unlockedShrines.includes(zoneWp.id) : false;
+
     let playerMarkerX = 50;
     let playerMarkerY = 50;
-    if (isPlayerHere && mapBounds.halfW && mapBounds.halfH) {
-      playerMarkerX = Math.max(10, Math.min(90, 50 + (player.x / mapBounds.halfW) * 40));
-      playerMarkerY = Math.max(10, Math.min(90, 50 + (player.y / mapBounds.halfH) * 40));
+    if (isPlayerHere) {
+      if (isSurfaceRoomType(roomKey) && SURFACE_ZONE_PLACEMENT[roomKey]) {
+        const place = SURFACE_ZONE_PLACEMENT[roomKey];
+        const loc = worldToLocal(roomKey, pl.x || 0, pl.y || 0);
+        playerMarkerX = Math.max(10, Math.min(90, 50 + (loc.lx / Math.max(1, place.halfW)) * 40));
+        playerMarkerY = Math.max(10, Math.min(90, 50 + (loc.ly / Math.max(1, place.halfH)) * 40));
+      } else if (mb.halfW && mb.halfH) {
+        playerMarkerX = Math.max(10, Math.min(90, 50 + ((pl.x || 0) / mb.halfW) * 40));
+        playerMarkerY = Math.max(10, Math.min(90, 50 + ((pl.y || 0) / mb.halfH) * 40));
+      }
     }
 
     return `
@@ -396,6 +453,56 @@ export function setupWorldAtlasAndLoreUi({
               ${n.west ? `<line x1="50%" y1="50%" x2="0%" y2="50%" stroke="${reg.color}" stroke-width="2" opacity="0.35" stroke-dasharray="4,2" />` : ''}
               ${n.east ? `<line x1="50%" y1="50%" x2="100%" y2="50%" stroke="${reg.color}" stroke-width="2" opacity="0.35" stroke-dasharray="4,2" />` : ''}
             </svg>
+
+            ${zoneWp ? `
+              <div onclick="${wpUnlocked ? `window.teleportToWaypoint && window.teleportToWaypoint('${zoneWp.id}')` : ''}"
+                style="
+                  position: absolute;
+                  left: ${SURFACE_ZONE_PLACEMENT[roomKey] ? Math.max(12, Math.min(88, 50 + (zoneWp.lx / Math.max(1, SURFACE_ZONE_PLACEMENT[roomKey].halfW)) * 40)) : 50}%;
+                  top: ${SURFACE_ZONE_PLACEMENT[roomKey] ? Math.max(15, Math.min(85, 50 + (zoneWp.ly / Math.max(1, SURFACE_ZONE_PLACEMENT[roomKey].halfH)) * 40)) : 62}%;
+                  transform: translate(-50%, -50%);
+                  z-index: 6;
+                  cursor: ${wpUnlocked ? 'pointer' : 'default'};
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                "
+                title="${zoneWp.name} • ${wpUnlocked ? 'Click to teleport here immediately' : 'Channel in world to attune'}">
+                <div style="
+                  background: ${wpUnlocked ? 'rgba(2, 132, 199, 0.92)' : 'rgba(15, 23, 42, 0.85)'};
+                  border: 1.5px solid ${wpUnlocked ? '#7dd3fc' : '#64748b'};
+                  border-radius: 50%;
+                  width: 24px;
+                  height: 24px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 12px;
+                  box-shadow: ${wpUnlocked ? '0 0 12px rgba(56,189,248,0.8)' : '0 2px 6px rgba(0,0,0,0.8)'};
+                ">🧭</div>
+              </div>
+            ` : ''}
+
+            ${!isDiscovered ? `
+              <div style="
+                position: absolute;
+                inset: 0;
+                background: radial-gradient(circle at 50% 45%, rgba(15,23,42,0.72) 0%, rgba(2,6,23,0.94) 85%);
+                backdrop-filter: blur(2px);
+                z-index: 7;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                padding: 18px;
+                pointer-events: none;
+              ">
+                <div style="font-size:26px; margin-bottom:6px;">🌫️</div>
+                <div style="font-family:var(--font-header); font-size:13px; color:#7dd3fc; font-weight:800; letter-spacing:0.6px;">UNCHARTED FOG OF WAR</div>
+                <div style="font-size:10px; color:#94a3b8; margin-top:4px; max-width:260px; line-height:1.4;">Walk into ${reg.name} to lift the shroud and chart its Waypoint Shrine &amp; landmarks.</div>
+              </div>
+            ` : ''}
 
             <!-- Landmark Pins on Square Map -->
             ${(reg.landmarks || []).map((lm, idx) => `
@@ -540,69 +647,82 @@ export function setupWorldAtlasAndLoreUi({
   }
 
   function renderContinentalGridView() {
-    const realmOrder = [
-      'ABYSSAL_RIFT',
-      'CELESTIAL_ASCENT',
-      'NEXUS_WARZONE',
-      'STARFALL_CRATER',
-      'ABYSSAL_RIFT',
-      'CELESTIAL_ASCENT',
-      'CHRONOCORE_CITADEL',
-      'NEXUS_WARZONE',
-      'STARFALL_CRATER',
-      'NEXUS_FORGOTTEN_RUINS',
-      'AETHER_SPIRE',
+    const preferredOrder = [
       'SANCTUARY_HUB',
       'SOLARI_CITADEL',
       'UMBRI_UNDERCITY',
       'TERRA_ORCHARD',
-      'SOLAR_HIGHLANDS',
-      'SUNKEN_OASIS',
+      'AETHER_SPIRE',
+      'NEXUS_FORGOTTEN_RUINS',
+      'NEXUS_WARZONE',
+      'CELESTIAL_ASCENT',
+      'STARFALL_CRATER',
+      'ABYSSAL_RIFT',
       'IRONWOOD_TIMBERLANDS',
       'CORAL_COAST',
+      'SUNKEN_OASIS',
+      'SOLAR_HIGHLANDS',
       'STARLIGHT_GROVE',
+      'CHRONOCORE_CITADEL',
       'MOONWELL_SANCTUM',
       'LUMINOUS_CAVERN',
-      'FROSTSPIRE_GLACIER'
+      'FROSTSPIRE_GLACIER',
+      'SOLARI_SUNKEN_VAULT',
+      'UMBRI_SHADOW_LABYRINTH',
+      'TERRA_OVERGROWTH_SANCTUARY',
+      'AETHER_FRACTURED_ARCHIVE',
+      'ARENA_3V3',
+    ];
+    const realmOrder = [
+      ...preferredOrder.filter((id) => WORLD_ATLAS_REGIONS[id]),
+      ...Object.keys(WORLD_ATLAS_REGIONS).filter((id) => !preferredOrder.includes(id)),
     ];
 
     return `
       <div style="display:flex; flex-direction:column; gap:8px;">
         <div style="font-size:10px; color:#94a3b8; margin-bottom:2px;">
-          Click any continental realm below to inspect its Square Map:
+          Click any continental realm below (${realmOrder.length} realms) to inspect its Square Map:
         </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; max-height:380px; overflow-y:auto; padding-right:4px;">
-          ${realmOrder.map((regId) => {
-            const reg = WORLD_ATLAS_REGIONS[regId];
-            if (!reg) return '';
-            const isHere = String(currentRoomType || '').toUpperCase() === regId;
-            const isSelected = selectedMapRegionId === regId;
-            const editionTier = (typeof window !== 'undefined' && window.isLocalFounderEdition?.()) ? 'founder' : 'free';
-            const isLockedFounder = !isRoomUnlockedForEdition(regId, editionTier);
-            return `
-              <div onclick="selectMapRegion('${reg.id}', true); setAtlasViewMode('square');"
-                style="
-                  background: #090e1d;
-                  border: 2px solid ${isSelected ? '#ffffff' : reg.borderColor};
-                  border-radius: 5px;
-                  padding: 8px 10px;
-                  cursor: pointer;
-                  transition: all 0.15s ease;
-                  ${isSelected ? 'box-shadow:0 0 14px rgba(255,255,255,0.25);' : ''}
-                ">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <b style="font-family:var(--font-header); font-size:11.5px; color:${reg.color};">${isLockedFounder ? '🔒 ' : ''}${reg.name}</b>
-                  <span style="font-size:9px; color:${reg.color}; background:#070c18; border:1px solid ${reg.color}; padding:1px 5px; border-radius:3px; font-weight:bold;">
-                    ${reg.dangerTag}
-                  </span>
+          ${(() => {
+            const exploration = normalizeExplorationState(getProg?.()?.exploration, getLocalProfile?.()?.faction);
+            return realmOrder.map((regId) => {
+              const reg = WORLD_ATLAS_REGIONS[regId];
+              if (!reg) return '';
+              const isHere = safeRoomKey() === regId;
+              const isSelected = selectedMapRegionId === regId;
+              const editionTier = isLocalFounder?.() ? 'founder' : 'free';
+              const isLockedFounder = !isRoomUnlockedForEdition(regId, editionTier);
+              const rKey = regId.toLowerCase();
+              const discovered = isHere || !isSurfaceRoomType(rKey) || exploration.discoveredZones.includes(rKey);
+              const zoneWp = WAYPOINT_SHRINES_CATALOG.find((w) => w.roomType === rKey);
+              const wpReady = zoneWp && exploration.unlockedShrines.includes(zoneWp.id);
+              return `
+                <div onclick="selectMapRegion('${reg.id}', true); setAtlasViewMode('square');"
+                  style="
+                    background: ${discovered ? '#090e1d' : '#050812'};
+                    opacity: ${discovered ? '1' : '0.72'};
+                    border: 2px solid ${isSelected ? '#ffffff' : discovered ? reg.borderColor : '#1e293b'};
+                    border-radius: 5px;
+                    padding: 8px 10px;
+                    cursor: pointer;
+                    transition: all 0.15s ease;
+                    ${isSelected ? 'box-shadow:0 0 14px rgba(255,255,255,0.25);' : ''}
+                  ">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <b style="font-family:var(--font-header); font-size:11.5px; color:${discovered ? reg.color : '#64748b'};">${!discovered ? '🌫️ ' : ''}${isLockedFounder ? '🔒 ' : ''}${reg.name}</b>
+                    <span style="font-size:9px; color:${discovered ? reg.color : '#64748b'}; background:#070c18; border:1px solid ${discovered ? reg.color : '#334155'}; padding:1px 5px; border-radius:3px; font-weight:bold;">
+                      ${discovered ? reg.dangerTag : 'FOG OF WAR'}
+                    </span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:9.5px; color:#94a3b8;">
+                    <span>${reg.level}${wpReady ? ' • 🧭 Waypoint' : ''}</span>
+                    ${isHere ? '<b style="color:#4ade80; background:rgba(34,197,94,0.2); padding:1px 5px; border-radius:3px; border:1px solid #22c55e;">📍 HERE</b>' : ''}
+                  </div>
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:9.5px; color:#94a3b8;">
-                  <span>${reg.level}</span>
-                  ${isHere ? '<b style="color:#4ade80; background:rgba(34,197,94,0.2); padding:1px 5px; border-radius:3px; border:1px solid #22c55e;">📍 HERE</b>' : ''}
-                </div>
-              </div>
-            `;
-          }).join('')}
+              `;
+            }).join('');
+          })()}
         </div>
       </div>
     `;
@@ -610,9 +730,15 @@ export function setupWorldAtlasAndLoreUi({
 
   function renderWorldAtlasView(body) {
     const currentReg = WORLD_ATLAS_REGIONS[selectedMapRegionId] || WORLD_ATLAS_REGIONS.SANCTUARY_HUB;
+    const exploration = normalizeExplorationState(getProg?.()?.exploration, getLocalProfile?.()?.faction);
+    const editionTier = isLocalFounder?.() ? 'founder' : 'free';
+    const discoveredSurfaceCount = Array.from(SURFACE_ROOM_TYPES).filter((z) => exploration.discoveredZones.includes(z)).length;
+    const unlockedWpList = WAYPOINT_SHRINES_CATALOG.filter(
+      (w) => exploration.unlockedShrines.includes(w.id) && isRoomUnlockedForEdition(w.roomType, editionTier)
+    );
 
     body.innerHTML = `
-      <div style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e293b; padding-bottom:6px;">
+      <div style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e293b; padding-bottom:6px; flex-wrap:wrap; gap:6px;">
         <div style="display:flex; align-items:center; gap:8px;">
           <span style="font-family:var(--font-header); font-size:12.5px; color:#facc15; font-weight:bold; letter-spacing:0.5px;">
             🗺️ CONTINENTAL REALMS ATLAS
@@ -625,6 +751,9 @@ export function setupWorldAtlasAndLoreUi({
               🌐 CONTINENTAL GRID
             </button>
           </div>
+          <span style="font-size:9.5px; color:#7dd3fc; background:#070c18; border:1px solid #1e3a8a; padding:2px 7px; border-radius:4px;">
+            🌫️ Charted: ${discoveredSurfaceCount}/${SURFACE_ROOM_TYPES.size} Regions • ${exploration.discoveredChunks.length} Chunks
+          </span>
         </div>
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
           <div style="position:relative; display:flex; align-items:center;">
@@ -639,8 +768,32 @@ export function setupWorldAtlasAndLoreUi({
             />
           </div>
           <button type="button" onclick="centerMapOnPlayer()" style="background:#0f172a; border:1px solid #22c55e; color:#86efac; font-size:9.5px; font-weight:bold; padding:2px 8px; border-radius:3px; cursor:pointer;" title="Jump map directly to your character's active realm">
-            📍 YOU ARE HERE (${WORLD_ATLAS_REGIONS[currentRoomType]?.name || currentRoomType})
+            📍 YOU ARE HERE (${WORLD_ATLAS_REGIONS[safeRoomKey()]?.name || getCurrentRoomType?.() || 'Sanctuary'})
           </button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px; padding:6px 8px; background:#070c18; border:1px solid #1e293b; border-radius:5px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+        <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+          <span style="font-size:9.5px; color:#38bdf8; font-weight:bold;">🧭 Waypoints (${unlockedWpList.length}/${WAYPOINT_SHRINES_CATALOG.length}):</span>
+          ${unlockedWpList.map((wp) => `
+            <button type="button" onclick="window.teleportToWaypoint && window.teleportToWaypoint('${wp.id}')" style="background:#0b162c; border:1px solid #38bdf8; color:#e0f2fe; padding:2px 7px; border-radius:3px; font-size:9px; cursor:pointer;" title="Quick-travel to ${wp.name}">
+              ⚡ ${wp.name.replace(' Waypoint', '').replace(' Waystone', '').replace(' Beacon', '').replace(' Anchor', '')}
+            </button>
+          `).join('')}
+        </div>
+        <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+          <span style="font-size:9.5px; color:#facc15; font-weight:bold;">🐴 Mount:</span>
+          ${exploration.unlockedMountIds.map((mId) => {
+            const mSpec = MOUNTS_CATALOG[mId];
+            if (!mSpec) return '';
+            const activePref = exploration.preferredMountId === mId;
+            return `
+              <button type="button" onclick="window.selectMount && window.selectMount('${mId}')" style="background:${activePref ? 'rgba(250,204,21,0.18)' : '#0b1120'}; border:1px solid ${activePref ? '#facc15' : '#334155'}; color:${activePref ? '#fde047' : '#cbd5e1'}; padding:2px 6px; border-radius:3px; font-size:9px; cursor:pointer;">
+                ${mSpec.name}
+              </button>
+            `;
+          }).join('')}
         </div>
       </div>
 
@@ -663,42 +816,54 @@ export function setupWorldAtlasAndLoreUi({
   }
 
   function renderQuestLogView(body) {
+    const qs = safeQuestState();
+    const lp = getLocalProfile?.() || {};
+    const pr = getProg?.() || {};
     const activeList = [];
-    for (const qId of Object.keys(questState.activeQuests || {})) {
+    for (const qId of Object.keys(qs.activeQuests || {})) {
       if (QUEST_CATALOG[qId]) activeList.push(QUEST_CATALOG[qId]);
     }
-    if (activeList.length === 0 && !questState.completedQuests?.quest_awakening) {
-      const charName = String(localProfile?.displayName || localProfile?.name || '').toUpperCase();
-      const isExperienced = (prog && (prog.level || 1) >= 2) || charName === 'EWACH';
+    if (activeList.length === 0 && !qs.completedQuests?.quest_awakening) {
+      const charName = String(lp.displayName || lp.name || '').toUpperCase();
+      const isExperienced = (pr && (pr.level || 1) >= 2) || charName === 'EWACH';
       if (!isExperienced) {
         activeList.push(QUEST_CATALOG.quest_awakening);
       }
     }
 
     const completedList = [];
-    for (const qId of Object.keys(questState.completedQuests || {})) {
+    for (const qId of Object.keys(qs.completedQuests || {})) {
       if (QUEST_CATALOG[qId]) completedList.push(QUEST_CATALOG[qId]);
     }
 
     const availableList = [];
+    const lockedList = [];
     for (const qId of Object.keys(QUEST_CATALOG)) {
       const q = QUEST_CATALOG[qId];
-      const isCompleted = Boolean(questState.completedQuests?.[qId]);
-      const isActive = Boolean(questState.activeQuests?.[qId]);            const prereqMet = isQuestPrereqMet(q);
-      if (!isCompleted && !isActive && prereqMet) {
-        availableList.push(q);
+      const isCompleted = Boolean(qs.completedQuests?.[qId]);
+      const isActive = Boolean(qs.activeQuests?.[qId]);
+      const prereqMet = isQuestPrereqMet(q);
+      if (!isCompleted && !isActive) {
+        if (prereqMet) availableList.push(q);
+        else lockedList.push(q);
       }
     }
 
     body.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #1e293b; padding-bottom:6px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #1e293b; padding-bottom:6px; flex-wrap:wrap; gap:6px;">
         <div>
           <span style="font-family:var(--font-header); font-size:13px; color:#facc15; font-weight:bold;">
             📜 SUMMONER QUEST JOURNAL
           </span>
           <span style="font-size:10px; color:#94a3b8; margin-left:8px;">
-            Active: <b style="color:#38bdf8;">${activeList.length}</b> | Available: <b style="color:#fde047;">${availableList.length}</b> | Completed: <b style="color:#4ade80;">${completedList.length}</b> | 🛡️ Quest Points: <b style="color:#facc15;">${getTotalCompletedQuestPoints()} / ${getMaxQuestPoints()}</b>
+            <b style="color:#fde047;">In Progress: ${activeList.length}</b> ·
+            <b style="color:#f87171;">Not Started: ${availableList.length + lockedList.length}</b> ·
+            <b style="color:#4ade80;">Complete: ${completedList.length}</b> ·
+            🛡️ QP: <b style="color:#facc15;">${getTotalCompletedQuestPoints()} / ${getMaxQuestPoints()}</b>
           </span>
+          <div style="font-size:9px; color:#7dd3fc; margin-top:2px;">
+            📜 Quest Point Cape Milestone: Complete all ${Object.keys(QUEST_CATALOG).length} canonical quests (${completedList.length}/${Object.keys(QUEST_CATALOG).length}).
+          </div>
         </div>
         <div style="display:flex; gap:6px;">
           <button class="id-mini-btn" onclick="resetAllQuests(true)" title="Restart all quests from Awakening" style="font-size:9.5px; padding:3px 8px; border-color:#f59e0b; color:#fbbf24;">
@@ -730,7 +895,7 @@ export function setupWorldAtlasAndLoreUi({
           <div style="display:flex; flex-direction:column; gap:8px;">
             ${activeList.map((q) => {
               const isReady = q.isComplete();
-              const isTracked = questState.trackedQuests?.[q.id] !== false;
+              const isTracked = qs.trackedQuests?.[q.id] !== false;
               const completedTasks = q.tasks.filter(t => t.done()).length;
               return `
                 <div style="background:#080d1e; border:2px solid ${isReady ? '#facc15' : isTracked ? '#38bdf8' : '#1e293b'}; border-radius:6px; padding:10px 12px;">
@@ -786,18 +951,18 @@ export function setupWorldAtlasAndLoreUi({
         `}
       </div>
 
-      <!-- Section 2: Available Quests in the Realm -->
-      ${availableList.length > 0 ? `
+      <!-- Section 2: Available & Prerequisite-Locked Quests in the Realm -->
+      ${(availableList.length > 0 || lockedList.length > 0) ? `
         <div style="margin-bottom:14px;">
-          <div style="font-size:11px; font-weight:bold; color:#facc15; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">
-            ⭐ Available Quests in the Realm (${availableList.length})
+          <div style="font-size:11px; font-weight:bold; color:#f87171; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">
+            🔴 Not Started Quests (${availableList.length + lockedList.length})
           </div>
           <div style="display:flex; flex-direction:column; gap:6px;">
             ${availableList.map((q) => `
-              <div style="background:#090e1d; border:1px solid #334155; border-radius:5px; padding:8px 10px;">
+              <div style="background:#090e1d; border:1px solid #ef4444; border-left:3px solid #f87171; border-radius:5px; padding:8px 10px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
-                  <span style="font-family:var(--font-header); font-size:11px; font-weight:bold; color:#facc15;">
-                    ⭐ ${q.title}
+                  <span style="font-family:var(--font-header); font-size:11px; font-weight:bold; color:#fca5a5;">
+                    🔴 ${q.title}
                   </span>
                   <span style="font-size:9.5px; color:#94a3b8;">
                     Giver: <b style="color:#38bdf8;">${getNpcName(q.giverId)}</b>
@@ -808,6 +973,19 @@ export function setupWorldAtlasAndLoreUi({
                   <span>Speak with ${getNpcName(q.giverId)} to accept</span>
                   <span style="color:#fde047;">+${q.rewards.xp} XP | +${q.rewards.glimmer || 0} Glimmer</span>
                 </div>
+              </div>
+            `).join('')}
+            ${lockedList.map((q) => `
+              <div style="background:#070a14; border:1px dashed #475569; border-left:3px solid #dc2626; border-radius:5px; padding:7px 10px; opacity:0.82;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                  <span style="font-family:var(--font-header); font-size:10.5px; font-weight:bold; color:#f87171;">
+                    🔒 ${q.title}
+                  </span>
+                  <span style="font-size:8.5px; color:#fbbf24; background:#1e1b4b; padding:1px 6px; border-radius:3px;">
+                    Requires: ${QUEST_CATALOG[q.prereqQuestId]?.title || q.prereqQuestId}
+                  </span>
+                </div>
+                <div style="font-size:9.5px; color:#64748b;">${q.description}</div>
               </div>
             `).join('')}
           </div>
@@ -920,16 +1098,26 @@ export function setupWorldAtlasAndLoreUi({
     } else if (currentLoreTab === 'map') {
       renderWorldAtlasView(body);
     } else if (currentLoreTab === 'collection') {
-      renderCollectionLogView(body, (typeof window !== 'undefined' && window.prog) || {});
+      renderCollectionLogView(body, getProg?.() || {});
     } else {
       renderChronicleView(body);
     }
   }
 
+  window.openCollectionLog = function () {
+    currentLoreTab = 'collection';
+    if (document.getElementById('lore-modal')?.style.display !== 'block') {
+      window.toggleModal('lore-modal');
+    }
+    renderLoreModal();
+  };
+
   return {
     renderLoreModal,
+    getCurrentLoreTab: () => currentLoreTab,
     openWorldMap: window.openWorldMap,
     openQuestLog: window.openQuestLog,
+    openCollectionLog: window.openCollectionLog,
     toggleWorldAtlas: window.toggleWorldAtlas,
     switchLoreTab: window.switchLoreTab,
   };

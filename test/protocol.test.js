@@ -304,15 +304,15 @@ test('Starfall Crater and Abyssal Rift are configured with reciprocal seamless e
   assert.ok(protocol.GRAND_FONT_POSITIONS[starfall], 'missing Starfall Crater Grand Font');
   assert.ok(protocol.GRAND_FONT_POSITIONS[abyssal], 'missing Abyssal Rift Grand Font');
 
-  assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.SOLARI_CITADEL].edgeTransitions.west, starfall);
-  assert.equal(protocol.ROOM_CONFIGS[starfall].edgeTransitions.east, protocol.ROOM_TYPES.SOLARI_CITADEL);
-  assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.NEXUS_FORGOTTEN_RUINS].edgeTransitions.east, starfall);
-  assert.equal(protocol.ROOM_CONFIGS[starfall].edgeTransitions.west, protocol.ROOM_TYPES.NEXUS_FORGOTTEN_RUINS);
+  assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.SOLARI_CITADEL].edgeTransitions.north, starfall);
+  assert.equal(protocol.ROOM_CONFIGS[starfall].edgeTransitions.south, protocol.ROOM_TYPES.SOLARI_CITADEL);
+  assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.NEXUS_FORGOTTEN_RUINS].edgeTransitions.west, starfall);
+  assert.equal(protocol.ROOM_CONFIGS[starfall].edgeTransitions.east, protocol.ROOM_TYPES.NEXUS_FORGOTTEN_RUINS);
 
   assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.NEXUS_WARZONE].edgeTransitions.east, abyssal);
   assert.equal(protocol.ROOM_CONFIGS[abyssal].edgeTransitions.west, protocol.ROOM_TYPES.NEXUS_WARZONE);
-  assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.CELESTIAL_ASCENT].edgeTransitions.north, abyssal);
-  assert.equal(protocol.ROOM_CONFIGS[abyssal].edgeTransitions.south, protocol.ROOM_TYPES.CELESTIAL_ASCENT);
+  assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.CELESTIAL_ASCENT].edgeTransitions.south, protocol.ROOM_TYPES.NEXUS_WARZONE);
+  assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.NEXUS_WARZONE].edgeTransitions.north, protocol.ROOM_TYPES.CELESTIAL_ASCENT);
 
   const timberlands = protocol.ROOM_TYPES.IRONWOOD_TIMBERLANDS;
   const coral = protocol.ROOM_TYPES.CORAL_COAST;
@@ -322,7 +322,7 @@ test('Starfall Crater and Abyssal Rift are configured with reciprocal seamless e
   assert.equal(protocol.ROOM_CONFIGS[timberlands].edgeTransitions.north, protocol.ROOM_TYPES.TERRA_ORCHARD);
   assert.equal(protocol.ROOM_CONFIGS[timberlands].edgeTransitions.east, coral);
   assert.equal(protocol.ROOM_CONFIGS[coral].edgeTransitions.west, timberlands);
-  assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.UMBRI_UNDERCITY].edgeTransitions.east, coral);
+  assert.equal(protocol.ROOM_CONFIGS[protocol.ROOM_TYPES.UMBRI_UNDERCITY].edgeTransitions.south, coral);
   assert.equal(protocol.ROOM_CONFIGS[coral].edgeTransitions.north, protocol.ROOM_TYPES.UMBRI_UNDERCITY);
 });
 
@@ -352,17 +352,17 @@ test('RoomManager initializes Starfall Crater, Abyssal Rift, skilling veins, and
     partyManager: { getPartyForMember: () => null },
   });
   try {
-    assert.equal(rm.rooms.size, 23);
-    const starfall = rm.rooms.get('starfall_crater_1');
-    const abyssal = rm.rooms.get('abyssal_rift_1');
-    const hub = rm.rooms.get('sanctuary_hub_1');
-    const timberlands = rm.rooms.get('ironwood_timberlands_1');
-    const coral = rm.rooms.get('coral_coast_1');
-    const sunkenOasis = rm.rooms.get('sunken_oasis_1');
-    const solarHighlands = rm.rooms.get('solar_highlands_1');
-    const moonwell = rm.rooms.get('moonwell_sanctum_1');
-    const luminousCavern = rm.rooms.get('luminous_cavern_1');
-    const frostspire = rm.rooms.get('frostspire_glacier_1');
+    assert.equal(rm.rooms.size, 6);
+    const starfall = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.STARFALL_CRATER);
+    const abyssal = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.ABYSSAL_RIFT);
+    const hub = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.SANCTUARY_HUB);
+    const timberlands = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.IRONWOOD_TIMBERLANDS);
+    const coral = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.CORAL_COAST);
+    const sunkenOasis = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.SUNKEN_OASIS);
+    const solarHighlands = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.SOLAR_HIGHLANDS);
+    const moonwell = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.MOONWELL_SANCTUM);
+    const luminousCavern = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.LUMINOUS_CAVERN);
+    const frostspire = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.FROSTSPIRE_GLACIER);
     assert.ok(starfall && abyssal && hub && timberlands && coral && sunkenOasis && solarHighlands && moonwell && luminousCavern && frostspire);
 
     assert.ok(starfall.entities.some((e) => e.id === 'sf_boss' && e.isBoss));
@@ -439,7 +439,7 @@ test('Grand Glimmer Font harvest emits a single 100 Resonance Extraction XP awar
     },
   });
   try {
-    const room = rm.rooms.get('sanctuary_hub_1');
+    const room = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.SANCTUARY_HUB);
     const grandFont = room.entities.find((e) => e.isGrand);
     assert.ok(grandFont, 'Sanctuary Hub should have a Grand Glimmer Font');
 
@@ -1379,6 +1379,7 @@ test('Rendering safety & Action Bar centering: Array prop indexing and persisten
   const path = await import('path');
 
   const gameSrc = fs.readFileSync(path.join(process.cwd(), 'client/game.js'), 'utf8');
+  const decorSrc = fs.readFileSync(path.join(process.cwd(), 'client/game/zoneDecorBuilders.js'), 'utf8');
   const uiLayoutSrc = fs.readFileSync(path.join(process.cwd(), 'client/uiLayout.js'), 'utf8');
   const touchSrc = fs.readFileSync(path.join(process.cwd(), 'client/touch.js'), 'utf8');
 
@@ -1395,7 +1396,7 @@ test('Rendering safety & Action Bar centering: Array prop indexing and persisten
 
   // 3. Sanctuary Hub decor and NPC population must never be skipped
   assert.ok(gameSrc.includes('let currentRoomId = null;'), 'currentRoomId must initialize to null to ensure room_joined populates decor');
-  assert.ok(gameSrc.includes('props.length > 0 && npcs.length > 0'), 'setupZoneDecor must not early-return if decor is empty');
+  assert.ok(decorSrc.includes('getPropsLength() > 0 && getNpcsLength() > 0'), 'setupZoneDecor must not early-return if decor is empty');
   assert.ok(gameSrc.includes('setupZoneDecor(ROOM_TYPES.SANCTUARY_HUB);'), 'Sanctuary decor must be initialized on boot');
 });
 
@@ -1640,8 +1641,10 @@ test('Dead player exploit prevention, anti-aliased world text, and Graveglass Or
   assert.ok(indexHtml.includes('id="class-guide-content"'), 'Spellbook modal must contain class-guide-content view');
 
   const gameJs = fs.readFileSync(new URL('../client/game.js', import.meta.url), 'utf8');
-  assert.ok(gameJs.includes('renderClassGuideUI'), 'game.js must implement renderClassGuideUI');
-  assert.ok(gameJs.includes('TACTICAL CODEX') && gameJs.includes('EXCLUSIVE TO YOUR'), 'game.js must contain faction-scoped Tactical Codex guide');
+  const spellbookUiJs = fs.readFileSync(new URL('../client/game/spellbookAndStatsUi.js', import.meta.url), 'utf8');
+  const combinedGameSrc = gameJs + '\n' + spellbookUiJs;
+  assert.ok(combinedGameSrc.includes('renderClassGuideUI'), 'game.js or spellbookAndStatsUi.js must implement renderClassGuideUI');
+  assert.ok(combinedGameSrc.includes('TACTICAL CODEX') && combinedGameSrc.includes('EXCLUSIVE TO YOUR'), 'spellbookAndStatsUi.js must contain faction-scoped Tactical Codex guide');
   assert.ok(gameJs.includes('activeTextCtx || ctx'), 'game.js must route overhead badges and loot labels to activeTextCtx for anti-aliasing');
 });
 
@@ -2182,8 +2185,8 @@ test('Party Roster Modal, Faction City Aggro Protection (Single-Creep Provocatio
     partyManager: { getPartyForMember: () => null, syncPlayerVitals: () => {}, areInSameParty: () => false },
   });
   try {
-    const aetherRoom = rm.rooms.get('aether_spire_1');
-    const solariRoom = rm.rooms.get('solari_citadel_1');
+    const aetherRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.AETHER_SPIRE);
+    const solariRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.SOLARI_CITADEL);
     assert.ok(aetherRoom && solariRoom);
 
     const aetherMobs = aetherRoom.entities.filter((e) => e.type === 'mob' && !e.isBoss);
@@ -2240,8 +2243,8 @@ test('Party Roster Modal, Faction City Aggro Protection (Single-Creep Provocatio
 
     // 3. Verify New Areas (SUNKEN_OASIS & SOLAR_HIGHLANDS), Healing Springs & Choppable Trees
     assert.ok(protocol.SKILLING_NODE_TYPES.healing_spring?.isSpring, 'healing_spring node type must be defined');
-    const oasisRoom = rm.rooms.get('sunken_oasis_1');
-    const highlandsRoom = rm.rooms.get('solar_highlands_1');
+    const oasisRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.SUNKEN_OASIS);
+    const highlandsRoom = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.SOLAR_HIGHLANDS);
     assert.ok(oasisRoom.entities.some((e) => e.skillingType === 'healing_spring'), 'Sunken Oasis must contain healing springs');
     assert.ok(oasisRoom.entities.some((e) => e.skillingType && e.skillingType.startsWith('tree_')), 'Sunken Oasis must contain choppable decorative trees');
     assert.ok(highlandsRoom.entities.some((e) => e.skillingType === 'healing_spring'), 'Solar Highlands must contain healing springs');
@@ -2296,20 +2299,21 @@ test('Black screen fixes, click-only Atlas edges, Healing Springs sprites/aura, 
     partyManager: { getPartyForMember: () => null, syncPlayerVitals: () => {}, areInSameParty: () => false },
   });
   try {
-    const moonwell = rm.rooms.get('moonwell_sanctum_1');
-    assert.ok(moonwell, 'RoomManager must instantiate moonwell_sanctum_1');
+    const moonwell = rm.getOrCreatePublicRoom(protocol.ROOM_TYPES.MOONWELL_SANCTUM);
+    assert.ok(moonwell, 'RoomManager must expose Moonwell Sanctum on overworld');
     assert.ok(moonwell.entities.some((e) => e.skillingType === 'healing_spring'), 'Moonwell Sanctum must have healing springs');
     assert.ok(moonwell.entities.some((e) => e.isBoss && e.name.includes('Elaria')), 'Moonwell Sanctum must spawn Archdruid Elaria');
 
     // Verify passive Healing Spring regeneration heals player inside 75px radius on server tick
     const terraCls = Object.values(protocol.CLASSES_CATALOG).find((c) => c.faction === 'Terra');
+    const springWorld = protocol.localToWorld(protocol.ROOM_TYPES.MOONWELL_SANCTUM, -105, 85);
     const p = {
       id: 'spring_tester',
       displayName: 'SpringHealer',
       faction: 'Terra',
       classId: terraCls.id,
-      x: -105,
-      y: 85,
+      x: springWorld.wx,
+      y: springWorld.wy,
       hp: 80,
       maxHp: 200,
       solarCharge: 20,
@@ -2765,9 +2769,10 @@ test('Login & Reconnect preserve saved lastPosition and string reqX/reqY without
     const packetsA = [];
     const fakeWsA = { readyState: 1, send: (raw) => packetsA.push(JSON.parse(raw)), close: () => {} };
     const clientA = rm.attachConnection(fakeWsA, acc, null, null, null, charId);
+    const migratedSolari = protocol.localToWorld(protocol.ROOM_TYPES.SOLARI_CITADEL, 142, -64);
     assert.equal(clientA.roomType, protocol.ROOM_TYPES.SOLARI_CITADEL);
-    assert.equal(clientA.x, 142);
-    assert.equal(clientA.y, -64);
+    assert.equal(clientA.x, migratedSolari.wx);
+    assert.equal(clientA.y, migratedSolari.wy);
 
     // String query params (as returned by url.searchParams.get) must be parsed and honored
     const packetsB = [];

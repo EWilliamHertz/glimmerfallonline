@@ -18,8 +18,8 @@ export function normalizeServerUrl(rawUrl) {
 
   // If accessing or configured with Oracle raw IP or sslip.io:
   if (url.includes('79.76.40.148') || url.includes('sslip.io')) {
-    // Automatically route to official clean domain with verified Let's Encrypt TLS:
-    return 'https://glimmerfall.online';
+    // Automatically route to official TLS WebSocket subdomain (Caddy -> :8080 on port 443):
+    return 'https://ws.glimmerfall.online';
   }
   if (isPageHttps && url.startsWith('http://') && !url.includes('localhost') && !url.includes('127.0.0.1')) {
     url = url.replace(/^http:\/\//i, 'https://');

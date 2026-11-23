@@ -8,6 +8,9 @@ import {
   GLIMMER_CIPHERS_CATALOG,
   HARMONIC_EXTRACT_TABLE,
   NEXUS_FAMILIARS_CATALOG,
+  FAMILIAR_BATTLE_KITS,
+  FAMILIAR_VARIANTS_CATALOG,
+  getFamiliarFactionMultiplier,
   MAIL_POSTAGE_GOLD,
   MAX_MAILBOX_ITEMS,
   computeFamiliarBonuses,
@@ -243,11 +246,50 @@ export function renderEchoCradleModal({ container, tab = 'library', selectedFami
       })
       .join('');
 
+    const kit = FAMILIAR_BATTLE_KITS[selDef.id] || FAMILIAR_BATTLE_KITS.dawnkit_ember_fox;
+    const movesHtml = Object.values(kit.moves)
+      .map((m) => `
+        <div style="background:#060a14; border:1px solid #1e293b; border-radius:4px; padding:4px 6px;">
+          <div style="font-size:8.5px; font-weight:800; color:#e2e8f0;">${m.icon} ${escHtml(m.name)} <span style="color:#64748b;">(${(m.cooldownMs / 1000).toFixed(1)}s)</span></div>
+          <div style="font-size:8px; color:#94a3b8;">${escHtml(m.desc)}</div>
+        </div>
+      `)
+      .join('');
+
+    const unlockedVars = famState.variants?.[selDef.id] || [];
+    const activeVar = famState.activeVariants?.[selDef.id] || 'default';
+    const variantsHtml = isUnlocked
+      ? `
+        <div style="margin-top:8px; border-top:1px solid #1e293b; padding-top:7px;">
+          <div style="font-size:8px; font-weight:800; color:#e9d5ff; text-transform:uppercase; margin-bottom:4px;">Cosmetic Color Variant</div>
+          <div style="display:flex; gap:5px; flex-wrap:wrap;">
+            ${['default', 'starlight', 'prismatic'].map((vid) => {
+              const vMeta = FAMILIAR_VARIANTS_CATALOG[vid];
+              const own = vid === 'default' || unlockedVars.includes(vid);
+              const picked = activeVar === vid;
+              return `
+                <button type="button" data-echo-var-fam="${escHtml(selDef.id)}" data-echo-variant="${vid}" ${own ? '' : 'disabled'}
+                        class="util-btn"
+                        style="padding:3px 7px; font-size:8px; border-color:${picked ? '#f472b6' : own ? '#38bdf8' : '#1e293b'}; color:${own ? '#f8fafc' : '#64748b'}; opacity:${own ? 1 : 0.5};">
+                  ${vMeta.badge} ${escHtml(vMeta.name)}${own ? (picked ? ' ✓' : '') : ' (Wild Event)'}
+                </button>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `
+      : '';
+
     let actionBtnHtml = '';
     if (isUnlocked) {
-      actionBtnHtml = isActive
-        ? `<button type="button" id="echo-dismiss-btn" class="util-btn" style="width:100%; border-color:#f87171; color:#fecaca; padding:8px; font-size:10.5px; font-weight:800;">💤 DISMISS ACTIVE COMPANION</button>`
-        : `<button type="button" data-echo-summon="${escHtml(selDef.id)}" class="util-btn" style="width:100%; border-color:#4ade80; color:#dcfce7; background:rgba(22, 163, 74, 0.25); padding:8px; font-size:10.5px; font-weight:800;">🐾 SUMMON NEXUS COMPANION</button>`;
+      actionBtnHtml = `
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          ${isActive
+            ? `<button type="button" id="echo-dismiss-btn" class="util-btn" style="flex:1; border-color:#f87171; color:#fecaca; padding:7px; font-size:9.5px; font-weight:800;">💤 DISMISS</button>`
+            : `<button type="button" data-echo-summon="${escHtml(selDef.id)}" class="util-btn" style="flex:1; border-color:#4ade80; color:#dcfce7; background:rgba(22, 163, 74, 0.25); padding:7px; font-size:9.5px; font-weight:800;">🐾 SUMMON</button>`}
+          <button type="button" id="echo-famduel-btn" class="util-btn" style="flex:1; border-color:#c084fc; color:#f3e8ff; background:rgba(147,51,234,0.22); padding:7px; font-size:9.5px; font-weight:800;">⚔️ SPAR /FAMDUEL</button>
+        </div>
+      `;
     } else {
       actionBtnHtml = `
         <button type="button" data-echo-compile="${escHtml(selDef.id)}" ${canCompile ? '' : 'disabled'}
@@ -271,7 +313,7 @@ export function renderEchoCradleModal({ container, tab = 'library', selectedFami
             <div>
               <div style="font-size:12px; font-weight:900; color:#fde047; font-family:var(--font-header);">${escHtml(selDef.name)}</div>
               <div style="font-size:9px; color:${selDef.color}; font-weight:800; margin-top:2px;">${escHtml(selDef.faction)} • ${escHtml(selDef.elementPillar)}</div>
-              <div style="font-size:8.5px; color:#94a3b8; margin-top:2px;">Rarity: ${escHtml(selDef.rarity)} • Req Rite-Binding Lv.${selDef.reqLevel}</div>
+              <div style="font-size:8.5px; color:#94a3b8; margin-top:2px;">Rarity: ${escHtml(selDef.rarity)} • Req Rite-Binding Lv.${selDef.reqLevel} • Wins: ${famState.duelWins || 0}</div>
             </div>
           </div>
 
@@ -280,17 +322,25 @@ export function renderEchoCradleModal({ container, tab = 'library', selectedFami
             <div style="font-size:9.5px; color:#f1f5f9; font-weight:700; margin-top:3px;">${escHtml(selDef.passiveLabel)}</div>
           </div>
 
+          <div style="margin-top:8px;">
+            <div style="font-size:8px; font-weight:800; color:#c084fc; text-transform:uppercase; margin-bottom:4px;">
+              3-Move Skirmish Kit • Wheel: Solari ↔ Umbri / Terra ↔ Aether (+35% / -20%)
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:5px;">
+              ${movesHtml}
+            </div>
+          </div>
+
+          ${variantsHtml}
+
           <div style="font-size:9px; color:#94a3b8; margin-top:8px; line-height:1.4;">${escHtml(selDef.lore)}</div>
 
-          <div style="margin-top:10px; border-top:1px solid #1e293b; padding-top:8px;">
+          <div style="margin-top:9px; border-top:1px solid #1e293b; padding-top:8px;">
             <div style="font-size:8.5px; font-weight:800; color:#cbd5e1; text-transform:uppercase; margin-bottom:6px;">
               Construct Cradle Covenant Recipe
             </div>
             <div style="display:flex; flex-direction:column; gap:5px;">
               ${ingredientsHtml}
-            </div>
-            <div style="font-size:8px; color:#64748b; margin-top:6px;">
-              Find Echo-Prints from Starter Mail, Relic-Seeker Moira in Sanctuary Market, or zone Elites &amp; Bosses.
             </div>
           </div>
 
@@ -368,6 +418,15 @@ export function renderEchoCradleModal({ container, tab = 'library', selectedFami
     }
     if (e.target.closest('#echo-dismiss-btn')) {
       callbacks?.onDismiss?.();
+      return;
+    }
+    const varBtn = e.target.closest('[data-echo-variant]');
+    if (varBtn && !varBtn.disabled) {
+      callbacks?.onSetVariant?.(varBtn.getAttribute('data-echo-var-fam'), varBtn.getAttribute('data-echo-variant'));
+      return;
+    }
+    if (e.target.closest('#echo-famduel-btn')) {
+      callbacks?.onStartFamDuelTrainer?.();
     }
   };
 }
@@ -626,4 +685,86 @@ export function renderMailModal({ container, tab = 'inbox', selectedMailId = nul
       callbacks?.onSend?.({ to, subject, body, gold: attachGold, itemId, itemQty });
     };
   }
+}
+
+export function renderFamiliarDuelModal({ container, duel, myOwnerId, now = Date.now(), getFamiliarSpriteUrl, onMove, onForfeit, onClose }) {
+  if (!container || !duel) return;
+  const mineKey = duel.fighters.a.ownerId === myOwnerId ? 'a' : 'b';
+  const oppKey = mineKey === 'a' ? 'b' : 'a';
+  const me = duel.fighters[mineKey];
+  const opp = duel.fighters[oppKey];
+  const kit = FAMILIAR_BATTLE_KITS[me.familiarId] || FAMILIAR_BATTLE_KITS.dawnkit_ember_fox;
+  const wheel = getFamiliarFactionMultiplier(me.faction, opp.faction);
+  const remSec = Math.max(0, Math.ceil(((duel.expiresAt || now) - now) / 1000));
+
+  const renderFighterCard = (f, alignRight = false) => {
+    const imgUrl = getFamiliarSpriteUrl?.(f.spriteKey);
+    const hpPct = Math.max(0, Math.min(100, Math.round((f.hp / Math.max(1, f.maxHp)) * 100)));
+    const varBadge = f.variant && f.variant !== 'default' ? FAMILIAR_VARIANTS_CATALOG[f.variant]?.badge || '🌟' : '';
+    return `
+      <div style="background:#090d1a; border:1.5px solid ${f.color || '#38bdf8'}; border-radius:6px; padding:10px; text-align:${alignRight ? 'right' : 'left'};">
+        <div style="display:flex; align-items:center; gap:8px; flex-direction:${alignRight ? 'row-reverse' : 'row'};">
+          <div style="width:42px; height:42px; background:#050811; border:1px solid ${f.color || '#38bdf8'}; border-radius:6px; display:flex; align-items:center; justify-content:center;">
+            ${imgUrl ? `<img class="pixel-art" src="${imgUrl}" width="32" height="32" style="image-rendering:pixelated;" alt="" />` : '🐾'}
+          </div>
+          <div>
+            <div style="font-size:10.5px; font-weight:900; color:#fde047;">${varBadge} ${escHtml(f.familiarName)}</div>
+            <div style="font-size:8.5px; color:#cbd5e1;">${escHtml(f.ownerName)} • <span style="color:${f.color || '#38bdf8'}">${escHtml(f.faction)}</span></div>
+          </div>
+        </div>
+        <div style="margin-top:8px; background:#020617; height:9px; border-radius:4px; overflow:hidden; border:1px solid #334155;">
+          <div style="width:${hpPct}%; height:100%; background:${hpPct > 35 ? '#4ade80' : '#f87171'}; transition:width 0.15s;"></div>
+        </div>
+        <div style="font-size:8.5px; color:#cbd5e1; margin-top:3px; font-weight:700;">
+          HP: ${f.hp}/${f.maxHp}${f.shield > 0 ? ` <span style="color:#38bdf8;">(+${f.shield} Shield)</span>` : ''}
+        </div>
+      </div>
+    `;
+  };
+
+  const movesHtml = Object.values(kit.moves).map((mv) => {
+    const cdMs = Math.max(0, (me.cooldownsUntil?.[mv.key] || 0) - now);
+    const disabled = duel.ended || cdMs > 0;
+    return `
+      <button type="button" data-fam-duel-move="${mv.key}" ${disabled ? 'disabled' : ''} class="util-btn"
+              style="padding:8px 6px; border-color:${disabled ? '#334155' : '#fde047'}; color:${disabled ? '#64748b' : '#f8fafc'}; cursor:${disabled ? 'not-allowed' : 'pointer'};">
+        <div style="font-size:10px; font-weight:800;">${mv.icon} ${escHtml(mv.name)}</div>
+        <div style="font-size:8px; color:${disabled ? '#f59e0b' : '#94a3b8'}; margin-top:2px;">
+          ${cdMs > 0 ? `CD ${(cdMs / 1000).toFixed(1)}s` : escHtml(mv.desc)}
+        </div>
+      </button>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:9.5px; color:#cbd5e1;">
+      <span>Non-Lethal Echo Skirmish • <strong style="color:#38bdf8;">${escHtml(wheel.label)}</strong></span>
+      <span style="font-weight:900; color:${remSec <= 10 ? '#f87171' : '#fde047'};">⏱️ ${duel.ended ? 'COMPLETE' : `${remSec}s`}</span>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      ${renderFighterCard(me, false)}
+      ${renderFighterCard(opp, true)}
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:10px;">
+      ${movesHtml}
+    </div>
+    <div style="margin-top:9px; background:#050811; border:1px solid #1e293b; border-radius:4px; padding:7px 9px; max-height:92px; overflow-y:auto;">
+      ${(duel.log || []).map((line) => `<div style="font-size:8.5px; color:#cbd5e1; padding:1.5px 0;">${escHtml(line)}</div>`).join('')}
+    </div>
+    <div style="margin-top:9px; display:flex; justify-content:flex-end; gap:8px;">
+      ${duel.ended
+        ? `<button type="button" id="fam-duel-close-btn" class="util-btn" style="border-color:#4ade80; color:#dcfce7; font-weight:800; padding:6px 12px;">✓ CLOSE SKIRMISH</button>`
+        : `<button type="button" id="fam-duel-forfeit-btn" class="util-btn" style="border-color:#f87171; color:#fecaca; padding:6px 10px;">🏳️ FORFEIT</button>`}
+    </div>
+  `;
+
+  container.onclick = (e) => {
+    const mBtn = e.target.closest('[data-fam-duel-move]');
+    if (mBtn && !mBtn.disabled) {
+      onMove?.(mBtn.getAttribute('data-fam-duel-move'));
+      return;
+    }
+    if (e.target.closest('#fam-duel-forfeit-btn')) onForfeit?.();
+    if (e.target.closest('#fam-duel-close-btn')) onClose?.();
+  };
 }

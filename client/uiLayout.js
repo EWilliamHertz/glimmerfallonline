@@ -65,14 +65,15 @@ export function getUiScale() {
     let widthScale = 1.0;
     if (w >= 1900 && h >= 1050) widthScale = 1.25;
     else if (w >= 1400) widthScale = 1.15;
-    else if (w >= 1000) widthScale = 1.05;
+    else if (w >= 1080) widthScale = 1.05;
     else if (w <= 640) widthScale = 0.82;
-    else if (w <= 850) widthScale = 0.90;
+    else if (w <= 900) widthScale = 0.88;
+    else widthScale = 0.94;
 
     let heightCap = 1.25;
     if (h <= 560) heightCap = 0.78;
     else if (h <= 660) heightCap = 0.85;
-    else if (h <= 760) heightCap = 0.92;
+    else if (h <= 775) heightCap = 0.92;
     else if (h <= 880) heightCap = 1.0;
     else if (h < 1050) heightCap = 1.15;
 

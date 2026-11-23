@@ -3,6 +3,7 @@ import { EQUIPMENT_CATALOG, getActiveSetBonuses, getActiveRuneword } from "./set
 import { PROFESSIONS_CATALOG } from "./craftingAndSkilling.js";
 import { computeFamiliarBonuses } from "./familiarsAndMail.js";
 import { normalizeSlayerState, normalizeClueState } from "./osrsLoopsCatalog.js";
+import { normalizeExplorationState } from "./explorationAndMounts.js";
 
 export const TRIAL_MAX_LEVEL = 10;
 export const TRIAL_MAX_PROFESSION_LEVEL = 30;
@@ -238,7 +239,7 @@ export function getEntityCombatArchetype(progression) {
   return 'Tempest Duelist';
 }
 
-export function createDefaultProgression() {
+export function createDefaultProgression(faction = null) {
   return {
     level: 1,
     xp: 0,
@@ -276,6 +277,8 @@ export function createDefaultProgression() {
     slayer: normalizeSlayerState(),
     clue: normalizeClueState(),
     collectionLog: {},
+    exploration: normalizeExplorationState(undefined, faction),
+    raidLockouts: {},
     equippedTitle: null,
   };
 }

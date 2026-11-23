@@ -810,6 +810,7 @@
       </div>
 
       <div id="zone-controls">
+        <button class="util-btn" id="btn-mount" onclick="toggleMount && toggleMount()" title="Summon or Dismount your Faction Mount [=] (+48% overland speed)">🐴 MOUNT [=]</button>
         <button class="util-btn queue-btn" id="btn-queue" onclick="toggleMatchmaking()">⚔️ 3v3 ARENA</button>
       </div>
 
@@ -1503,6 +1504,17 @@
         <div class="modal-close" onclick="window.closeEchoCradleModal ? window.closeEchoCradleModal() : toggleModal('echo-cradle-modal')">✕</div>
       </div>
       <div id="echo-cradle-modal-body" style="margin-top: 8px; overflow-y: auto; max-height: calc(90vh - 105px); padding-right: 4px;"></div>
+    </div>
+
+    <!-- MODAL 9B2: 1v1 Echo Familiar Skirmish (/famduel) -->
+    <div id="fam-duel-modal" class="modal panel" style="width: 560px; max-width: 95vw; display: none; z-index: 62;">
+      <div class="modal-header" style="border-bottom: 1px solid rgba(192, 132, 252, 0.35); padding-bottom: 8px;">
+        <div class="modal-title" style="font-size: 13px; color: #f3e8ff; font-family: var(--font-header);">
+          🐾 1v1 ECHO FAMILIAR SKIRMISH (/famduel)
+        </div>
+        <div class="modal-close" onclick="window.closeFamDuelModal && window.closeFamDuelModal()">✕</div>
+      </div>
+      <div id="fam-duel-modal-body" style="margin-top: 8px;"></div>
     </div>
 
     <!-- MODAL 9C: Herald Postbox (Mail & Offline Parcels) -->

@@ -4,7 +4,7 @@
    ========================================== */
 #arena-banner {
   position: absolute;
-  top: 52px;
+  top: calc(14px + 42px * var(--hud-scale, 1));
   left: 50%;
   transform: translateX(-50%);
   display: none;
@@ -19,7 +19,7 @@
 
 #siege-banner {
   position: absolute;
-  top: 52px;
+  top: calc(14px + 42px * var(--hud-scale, 1));
   left: 50%;
   transform: translateX(-50%);
   display: none;
@@ -33,7 +33,7 @@
 
 #target-unit-frame {
   position: absolute;
-  top: 52px;
+  top: calc(14px + 42px * var(--hud-scale, 1));
   left: 50%;
   transform: translateX(-50%);
   width: 274px;
@@ -42,7 +42,7 @@
 }
 #hud.in-arena #target-unit-frame,
 #hud.in-siege #target-unit-frame {
-  top: 98px;
+  top: calc(58px + 44px * var(--hud-scale, 1));
 }
 #target-name {
   font-family: var(--font-header);
@@ -926,12 +926,15 @@
     display: none;
   }
   .micro-nav-btn {
-    padding: 4px 7px;
-    font-size: 9.5px;
+    padding: 4px 6px;
+    font-size: 9px;
+  }
+  .micro-nav-tcg {
+    padding: 4px 8px;
   }
 }
 
-@media (max-width: 740px) {
+@media (max-width: 900px) {
   .micro-nav-btn .nav-label {
     display: none;
   }
@@ -1907,12 +1910,12 @@
     --hud-scale: 0.92;
   }
   #target-unit-frame {
-    top: 56px;
+    top: calc(14px + 42px * var(--hud-scale, 0.92));
     width: 256px;
   }
   #hud.in-arena #target-unit-frame,
   #hud.in-siege #target-unit-frame {
-    top: 100px;
+    top: calc(58px + 44px * var(--hud-scale, 0.92));
   }
   #top-right-hud {
     top: 10px;
@@ -1927,6 +1930,8 @@
   #xp-tracker-hud {
     width: 184px;
     margin-top: 2px;
+    max-height: calc(100vh - 380px);
+    overflow-y: auto;
   }
   #social-chat-panel {
     width: 264px;
@@ -1958,16 +1963,16 @@
     --hud-scale: 0.82;
   }
   #target-unit-frame {
-    top: 60px;
+    top: calc(14px + 42px * var(--hud-scale, 0.82));
     width: 232px;
   }
   #hud.in-arena #target-unit-frame,
   #hud.in-siege #target-unit-frame {
-    top: 102px;
+    top: calc(58px + 44px * var(--hud-scale, 0.82));
   }
   #arena-banner,
   #siege-banner {
-    top: 50px;
+    top: calc(14px + 42px * var(--hud-scale, 0.82));
     padding: 4px 10px;
     gap: 10px;
   }

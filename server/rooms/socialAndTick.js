@@ -12,7 +12,11 @@ import {
   isSlotUnlocked,
   ROOM_TYPES,
   ROOM_CONFIGS,
+  SURFACE_ZONE_PLACEMENT,
   isRoomUnlockedForEdition,
+  isSurfaceWaterTile,
+  MOUNTS_CATALOG,
+  canRideMountInRoom,
   GRAND_FONT_POSITIONS,
   HARVEST_COOLDOWN_MS,
   FACTIONS_META,
@@ -175,6 +179,9 @@ export const socialAndTickMethods = {
       } else if (cmd === 'duel') {
         this.duels?.handleRequest(sender, arg);
         return;
+      } else if (cmd === 'famduel' || cmd === 'petduel') {
+        this.handleFamDuelChallenge?.(sender, { targetName: arg, mode: arg ? 'pvp' : 'trainer' });
+        return;
       } else if (cmd === 'inspect') {
         this.handleInspectPlayer(sender, arg);
         return;
@@ -324,6 +331,8 @@ export const socialAndTickMethods = {
     const dt = TICK_MS / 1000;
     const now = Date.now();
     this.duels?.tick(dt);
+    this.tickWarzoneInfluenceCycle?.(now);
+    this.tickFamiliarDuels?.(now);
 
     for (const room of this.rooms.values()) {
       this.tickRoom(room, dt, now);
@@ -337,23 +346,27 @@ export const socialAndTickMethods = {
   },
 
   tickRoom(room, dt, now) {
-    // Early exit for unoccupied rooms (except Warzone to process siege timers)
-    if (room.players.size === 0 && room.type !== ROOM_TYPES.NEXUS_WARZONE) return;
+    if (room?._overworldRoom) room = room._overworldRoom;
+    // Early exit for unoccupied rooms (except Warzone / Overworld to process siege timers)
+    if (room.players.size === 0 && room.type !== ROOM_TYPES.NEXUS_WARZONE && !room.isOverworld) return;
+    this.ensureWorldEventStrayEcho?.(room, now);
 
     // Scheduled 30-Minute Warzone Siege Event Trigger
-    if (room.type === ROOM_TYPES.NEXUS_WARZONE && room.siege) {
+    if ((room.type === ROOM_TYPES.NEXUS_WARZONE || room.isOverworld) && room.siege) {
       if (!room.siege.active && now >= room.siege.nextSiegeAt) {
-        this.spawnWarzoneSiegeShard(room, true);
+        const warOrigin = room.isOverworld ? SURFACE_ZONE_PLACEMENT[ROOM_TYPES.NEXUS_WARZONE] : null;
+        this.spawnWarzoneSiegeShard(room, true, warOrigin);
       }
     }
 
     // Starfall Meteor Shower World Event in Starfall Crater
-    if (room.type === ROOM_TYPES.STARFALL_CRATER) {
+    if (room.type === ROOM_TYPES.STARFALL_CRATER || room.isOverworld) {
       room.meteorTimer = (room.meteorTimer ?? 25) - dt;
       if (room.meteorTimer <= 0) {
         room.meteorTimer = 75;
-        const mX = Math.round((Math.random() - 0.5) * 180);
-        const mY = Math.round((Math.random() - 0.5) * 140);
+        const sfPlace = room.isOverworld ? SURFACE_ZONE_PLACEMENT[ROOM_TYPES.STARFALL_CRATER] : null;
+        const mX = (sfPlace?.originX || 0) + Math.round((Math.random() - 0.5) * 180);
+        const mY = (sfPlace?.originY || 0) + Math.round((Math.random() - 0.5) * 140);
         this.broadcastToRoom(room, {
           type: 'chat',
           channel: 'world',
@@ -383,6 +396,7 @@ export const socialAndTickMethods = {
         } else {
           room.entities.push({
             id: 'sf_meteor_cache',
+            zoneType: ROOM_TYPES.STARFALL_CRATER,
             name: 'Celestial Meteor Cache',
             sub: 'World Event • Starmetal Core [E]',
             type: 'node',
@@ -420,6 +434,35 @@ export const socialAndTickMethods = {
         }
       }
       if (p.portalCooldown > 0) p.portalCooldown = Math.max(0, p.portalCooldown - dt);
+      if (p.mountCast) {
+        if (p.isDead || p.freezeTimer > 0 || !canRideMountInRoom(p.roomType || room.type)) {
+          p.mountCast = null;
+          p.send?.({ type: 'mount_synced', mountId: p.mountId || null, reason: 'cancelled' });
+        } else {
+          p.mountCast.remaining = Math.max(0, (p.mountCast.remaining || 0) - dt);
+          if (p.mountCast.remaining <= 0) {
+            const summonedId = p.mountCast.mountId;
+            const spec = MOUNTS_CATALOG[summonedId];
+            p.mountCast = null;
+            p.mountId = summonedId;
+            p.send?.({ type: 'mount_synced', mountId: p.mountId });
+            room.fxQueue.push({
+              kind: 'spark',
+              x: p.x,
+              y: p.y - 6,
+              colors: [spec?.primaryColor || '#facc15', spec?.trimColor || '#ffffff', '#ffffff'],
+              count: 18,
+            });
+            room.fxQueue.push({
+              kind: 'fct',
+              x: p.x,
+              y: p.y - 16,
+              text: `🐴 ${spec?.name?.toUpperCase() || 'MOUNTED'}!`,
+              color: spec?.primaryColor || '#facc15',
+            });
+          }
+        }
+      }
       if (p.shield > 0) {
         p.shieldTimer -= dt;
         if (p.shieldTimer <= 0) p.shield = 0;
@@ -575,7 +618,19 @@ export const socialAndTickMethods = {
             this.parties?.syncPlayerVitals(p.id);
           } else {
             const sanctCfg = ROOM_CONFIGS[ROOM_TYPES.SANCTUARY_HUB];
-            if (room.type !== ROOM_TYPES.SANCTUARY_HUB) {
+            if (room.isOverworld) {
+              p.x = sanctCfg.spawnX;
+              p.y = sanctCfg.spawnY;
+              p.dir = 'up';
+              p.roomType = ROOM_TYPES.SANCTUARY_HUB;
+              p.send({ type: 'player_respawned', x: p.x, y: p.y, hp: p.hp, roomType: ROOM_TYPES.SANCTUARY_HUB });
+              p.send({
+                type: 'sys_msg',
+                category: 'combat',
+                text: '🛡️ [Awakening] Re-anchored at Sanctuary Hub!',
+              });
+              this.parties?.syncPlayerVitals(p.id);
+            } else if (room.type !== ROOM_TYPES.SANCTUARY_HUB) {
               this.joinRoom(p, ROOM_TYPES.SANCTUARY_HUB, null, sanctCfg.spawnX, sanctCfg.spawnY, 'up');
               p.send({
                 type: 'sys_msg',
@@ -713,7 +768,7 @@ export const socialAndTickMethods = {
         if (!e.isDying && (e.type === 'mob' || e.id === 'red_nexus')) foes.push({ kind: 'entity', ref: e });
       }
       for (const p of room.players.values()) {
-        if (!p.isDead && p.stealthedTimer <= 0 && p.team === 'red') foes.push({ kind: 'player', ref: p });
+        if (!p.isDead && !p.isSpectator && p.stealthedTimer <= 0 && p.team === 'red') foes.push({ kind: 'player', ref: p });
       }
       if (foes.length === 0) continue;
       foes.sort((a, b) => Math.hypot(a.ref.x - ally.x, a.ref.y - ally.y) - Math.hypot(b.ref.x - ally.x, b.ref.y - ally.y));
@@ -790,7 +845,22 @@ export const socialAndTickMethods = {
       }
 
       if (e.type === 'mob') {
+        if (e.isRaidBoss && typeof this.tickRaidBossMechanics === 'function') {
+          this.tickRaidBossMechanics(room, e, now);
+        }
+        if (e.isPylon) continue;
         if (e.freezeTimer > 0) continue; // Frozen by Frost Nova!
+
+        if (room.isOverworld && !e.inCombat) {
+          let hasNearbyPlayer = false;
+          for (const p of room.players.values()) {
+            if (!p.isSpectator && Math.abs((p.x || 0) - (e.x || 0)) <= 1650 && Math.abs((p.y || 0) - (e.y || 0)) <= 1650) {
+              hasNearbyPlayer = true;
+              break;
+            }
+          }
+          if (!hasNearbyPlayer) continue;
+        }
 
         if (e.spawnAggroGrace > 0) {
           e.spawnAggroGrace = Math.max(0, e.spawnAggroGrace - dt);
@@ -800,9 +870,9 @@ export const socialAndTickMethods = {
         let nearestPlayer = null;
         let bestD = Infinity;
         for (const p of room.players.values()) {
-          if (p.isDead || p.stealthedTimer > 0) continue; // Stealth drops mob aggro!
+          if (p.isDead || p.isSpectator || p.stealthedTimer > 0) continue; // Stealth/Spectate drops mob aggro!
           if (room.type === ROOM_TYPES.ARENA_3V3 && p.team === 'red') continue;
-          if (isSameFactionProtectedMob(room.type, e, p.faction, p.id)) continue;
+          if (isSameFactionProtectedMob(e.zoneType || room.type, e, p.faction, p.id)) continue;
           const d = Math.hypot(p.x - e.x, p.y - e.y);
           if (d < bestD) {
             bestD = d;
@@ -1159,12 +1229,13 @@ export const socialAndTickMethods = {
           if (aggroDist > e.attackRange) {
             const nextMobX = e.x + ((aggroTarget.x - e.x) / aggroDist) * e.speed * speedMult * dt;
             const nextMobY = e.y + ((aggroTarget.y - e.y) / aggroDist) * e.speed * speedMult * dt;
-            if (!isWaterTile(nextMobX, nextMobY, room.type)) {
+            const wetAt = (cx, cy) => (room.isOverworld ? isSurfaceWaterTile(cx, cy) : isWaterTile(cx, cy, room.type));
+            if (!wetAt(nextMobX, nextMobY)) {
               e.x = nextMobX;
               e.y = nextMobY;
-            } else if (!isWaterTile(nextMobX, e.y, room.type)) {
+            } else if (!wetAt(nextMobX, e.y)) {
               e.x = nextMobX;
-            } else if (!isWaterTile(e.x, nextMobY, room.type)) {
+            } else if (!wetAt(e.x, nextMobY)) {
               e.y = nextMobY;
             }
           } else {
@@ -1287,7 +1358,7 @@ export const socialAndTickMethods = {
           });
           room.fxQueue.push({ kind: 'smoke', x: gz.x, y: gz.y, count: 28 });
           for (const p of room.players.values()) {
-            if (p.isDead || p.stealthed) continue;
+            if (p.isDead || p.isSpectator || p.stealthed) continue;
             const distP = Math.hypot(gz.x - p.x, gz.y - p.y);
             if (distP <= gz.radius) {
               this.damagePlayerSession(room, p, gz.damage || 14, `${gz.bossName || 'Boss'} ${gz.label || 'Cataclysm'}`, false, gz.bossRef);
@@ -1336,6 +1407,7 @@ export const socialAndTickMethods = {
         name: p.displayName,
         faction: p.faction,
         classId: p.classId,
+        roomType: p.roomType || null,
         equipment: p.equipment,
         orderTag: p.orderTag,
         orderColor: p.orderColor,
@@ -1380,6 +1452,9 @@ export const socialAndTickMethods = {
         emote: p.activeEmote ? p.activeEmote.emoteId : null,
         title: p.title || null,
         activeFamiliarId: p.prog?.familiars?.activeId || null,
+        activeFamiliarVariant: p.prog?.familiars?.activeVariants?.[p.prog?.familiars?.activeId] || 'default',
+        mountId: p.mountId || null,
+        isSpectator: Boolean(p.isSpectator),
         devotions: p.activeDevotions || [],
       });
     }
@@ -1389,6 +1464,7 @@ export const socialAndTickMethods = {
       name: e.name,
       sub: e.sub,
       type: e.type,
+      zoneType: e.zoneType || null,
       ownerId: e.ownerId || null,
       gold: e.gold || 0,
       itemCount: Array.isArray(e.items) ? e.items.length : (e.itemCount || 0),
@@ -1398,6 +1474,10 @@ export const socialAndTickMethods = {
       faction: e.faction,
       team: e.team,
       isBoss: e.isBoss || false,
+      isRaidBoss: Boolean(e.isRaidBoss),
+      isPylon: Boolean(e.isPylon),
+      immuneFaction: e.immuneFaction || null,
+      pylonShield: Boolean(e.pylonShield),
       isGrand: Boolean(e.isGrand),
       affinity: e.affinity,
       buffName: e.buffName,
@@ -1470,6 +1550,7 @@ export const socialAndTickMethods = {
     }
 
     return {
+      isOverworld: Boolean(room.isOverworld),
       players,
       entities,
       allies,
@@ -1478,6 +1559,7 @@ export const socialAndTickMethods = {
       banners,
       loot: (room.loot || []).map((l) => ({ id: l.id, kind: l.kind, itemId: l.itemId || null, x: l.x, y: l.y, ttl: Math.round(l.ttl * 10) / 10 })),
       siegeState,
+      outpostControl: this.warzoneOutposts ? { owners: { ...this.warzoneOutposts }, nextCycleAt: this.warzoneNextCycleAt } : undefined,
     };
   },
 };

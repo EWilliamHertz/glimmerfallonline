@@ -47,6 +47,9 @@ import {
   normalizeClueState,
   normalizeCollectionLog,
   recordCollectionItems,
+  normalizeExplorationState,
+  DEFAULT_ARENA_MMR,
+  getArenaTierForMmr,
 } from '../shared/protocol.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -1635,6 +1638,18 @@ export class AccountsStore {
     const equippedTitle = incoming.equippedTitle !== undefined
       ? incoming.equippedTitle
       : (base.equippedTitle ?? null);
+    const mergedVariants = {};
+    for (const vMap of [base.familiars?.variants, incoming.familiars?.variants]) {
+      if (!vMap || typeof vMap !== 'object') continue;
+      for (const [k, arr] of Object.entries(vMap)) {
+        if (!Array.isArray(arr)) continue;
+        mergedVariants[k] = Array.from(new Set([...(mergedVariants[k] || []), ...arr]));
+      }
+    }
+    const mergedActiveVariants = {
+      ...(base.familiars?.activeVariants && typeof base.familiars.activeVariants === 'object' ? base.familiars.activeVariants : {}),
+      ...(incoming.familiars?.activeVariants && typeof incoming.familiars.activeVariants === 'object' ? incoming.familiars.activeVariants : {}),
+    };
     const familiars = normalizeFamiliarState({
       unlockedIds: [
         ...(Array.isArray(base.familiars?.unlockedIds) ? base.familiars.unlockedIds : []),
@@ -1643,6 +1658,9 @@ export class AccountsStore {
       activeId: incoming.familiars?.activeId !== undefined
         ? incoming.familiars.activeId
         : (base.familiars?.activeId ?? null),
+      variants: mergedVariants,
+      activeVariants: mergedActiveVariants,
+      duelWins: Math.max(Number(base.familiars?.duelWins) || 0, Number(incoming.familiars?.duelWins) || 0),
     });
     const remasterRespecV2 = Boolean(base?.remasterRespecV2 || incoming?.remasterRespecV2);
     const slayer = normalizeSlayerState(incoming.slayer !== undefined ? incoming.slayer : base.slayer);
@@ -1651,6 +1669,32 @@ export class AccountsStore {
       ...normalizeCollectionLog(base.collectionLog),
       ...normalizeCollectionLog(incoming.collectionLog),
     });
+    const rawExploration = incoming.exploration && typeof incoming.exploration === 'object'
+      ? {
+          unlockedMountIds: [
+            ...(Array.isArray(base.exploration?.unlockedMountIds) ? base.exploration.unlockedMountIds : []),
+            ...(Array.isArray(incoming.exploration.unlockedMountIds) ? incoming.exploration.unlockedMountIds : []),
+          ],
+          preferredMountId: incoming.exploration.preferredMountId ?? base.exploration?.preferredMountId,
+          discoveredZones: [
+            ...(Array.isArray(base.exploration?.discoveredZones) ? base.exploration.discoveredZones : []),
+            ...(Array.isArray(incoming.exploration.discoveredZones) ? incoming.exploration.discoveredZones : []),
+          ],
+          discoveredChunks: [
+            ...(Array.isArray(base.exploration?.discoveredChunks) ? base.exploration.discoveredChunks : []),
+            ...(Array.isArray(incoming.exploration.discoveredChunks) ? incoming.exploration.discoveredChunks : []),
+          ],
+          unlockedShrines: [
+            ...(Array.isArray(base.exploration?.unlockedShrines) ? base.exploration.unlockedShrines : []),
+            ...(Array.isArray(incoming.exploration.unlockedShrines) ? incoming.exploration.unlockedShrines : []),
+          ],
+        }
+      : base.exploration;
+    const exploration = normalizeExplorationState(rawExploration);
+    const raidLockouts = {
+      ...(base.raidLockouts && typeof base.raidLockouts === 'object' ? base.raidLockouts : {}),
+      ...(incoming.raidLockouts && typeof incoming.raidLockouts === 'object' ? incoming.raidLockouts : {}),
+    };
     return sanitizeProgressionSkills({
       level: lvl,
       xp,
@@ -1673,6 +1717,8 @@ export class AccountsStore {
       slayer,
       clue,
       collectionLog,
+      exploration,
+      raidLockouts,
       equippedTitle,
       remasterRespecV2,
     });
@@ -1703,6 +1749,10 @@ export class AccountsStore {
         ...(acc.statsMeta || {}),
         kills: (acc.statsMeta?.kills || 0) + (statsMetaPatch.addKills || 0),
         arenaWins: (acc.statsMeta?.arenaWins || 0) + (statsMetaPatch.addArenaWins || 0),
+        arenaLosses: (acc.statsMeta?.arenaLosses || 0) + (statsMetaPatch.addArenaLosses || 0),
+        arenaMmr: statsMetaPatch.setArenaMmr !== undefined
+          ? Math.max(100, Math.round(Number(statsMetaPatch.setArenaMmr) || DEFAULT_ARENA_MMR))
+          : (acc.statsMeta?.arenaMmr ?? DEFAULT_ARENA_MMR),
         siegeClaims: (acc.statsMeta?.siegeClaims || 0) + (statsMetaPatch.addSiegeClaims || 0),
       };
     }
@@ -2018,6 +2068,9 @@ export class AccountsStore {
       const collectionCount = Object.keys(prog.collectionLog || {}).length;
       const bossKills = Number(acc.statsMeta?.kills || 0);
       const arenaWins = Number(acc.statsMeta?.arenaWins || 0);
+      const arenaLosses = Number(acc.statsMeta?.arenaLosses || 0);
+      const arenaMmr = Number(acc.statsMeta?.arenaMmr ?? DEFAULT_ARENA_MMR);
+      const arenaTier = getArenaTierForMmr(arenaMmr);
 
       let score = totalSkillLv * 100 + (prog.level || 1);
       let primaryLabel = `Total ${totalSkillLv}`;
@@ -2037,8 +2090,9 @@ export class AccountsStore {
         score = collectionCount;
         primaryLabel = `${collectionCount} Uniques`;
       } else if (cleanCat === 'arena_mmr') {
-        score = arenaWins;
-        primaryLabel = `${arenaWins} Wins`;
+        score = arenaMmr;
+        primaryLabel = `${arenaTier.badge} ${arenaMmr} MMR (${arenaTier.name})`;
+        secondaryXp = arenaWins;
       }
 
       entries.push({
@@ -2056,6 +2110,10 @@ export class AccountsStore {
         bossKills,
         collectionCount,
         arenaWins,
+        arenaLosses,
+        arenaMmr,
+        arenaTier: arenaTier.name,
+        arenaBadge: arenaTier.badge,
       });
     }
 

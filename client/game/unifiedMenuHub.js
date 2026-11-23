@@ -37,6 +37,28 @@ export function setupUnifiedMenuHub({
   let mountedSourceModalId = null;
   let gearBagMounted = false;
   let gearBagPaneMode = 'both'; // 'both' | 'equip' | 'inv'
+  let lastFocusBeforeModal = null;
+
+  function captureFocusTarget(modalId) {
+    if (typeof document === 'undefined') return;
+    const active = document.activeElement;
+    if (active && active !== document.body && !document.getElementById(modalId)?.contains(active)) {
+      lastFocusBeforeModal = active;
+    }
+  }
+
+  function restoreFocusTarget() {
+    if (typeof document === 'undefined') return;
+    const target = lastFocusBeforeModal;
+    lastFocusBeforeModal = null;
+    if (target && target.isConnected && typeof target.focus === 'function') {
+      try {
+        target.focus();
+      } catch (_) {}
+    } else {
+      document.getElementById('gameCanvas')?.focus?.();
+    }
+  }
 
   function restoreMountedHubPanel() {
     if (!mountedSourceModalId) return;
@@ -196,6 +218,9 @@ export function setupUnifiedMenuHub({
       closeMenuHub();
       return false;
     }
+    if (!isCurrentlyOpen) {
+      captureFocusTarget('adventure-hub-modal');
+    }
 
     document.querySelectorAll('.modal').forEach((m) => {
       if (m.id !== 'adventure-hub-modal') m.style.display = 'none';
@@ -224,9 +249,11 @@ export function setupUnifiedMenuHub({
   }
 
   function closeMenuHub() {
-    restoreMountedHubPanel();
     const hub = document.getElementById('adventure-hub-modal');
+    const wasOpen = hub && hub.style.display !== 'none' && hub.style.display !== '';
+    restoreMountedHubPanel();
     if (hub) hub.style.display = 'none';
+    if (wasOpen) restoreFocusTarget();
   }
 
   function syncGearBagPaneUi() {
@@ -245,6 +272,9 @@ export function setupUnifiedMenuHub({
     if (currentlyOpen && toggleIfOpen && (mode === 'both' || mode === gearBagPaneMode)) {
       closeGearAndBag();
       return false;
+    }
+    if (!currentlyOpen) {
+      captureFocusTarget('gearbag-modal');
     }
 
     closeMenuHub();
@@ -279,10 +309,12 @@ export function setupUnifiedMenuHub({
   }
 
   function closeGearAndBag() {
+    const modal = document.getElementById('gearbag-modal');
+    const wasOpen = modal && modal.style.display !== 'none' && modal.style.display !== '';
     window.clearHoveredEquipment?.();
     restoreGearBagPanels();
-    const modal = document.getElementById('gearbag-modal');
     if (modal) modal.style.display = 'none';
+    if (wasOpen) restoreFocusTarget();
   }
 
   function switchGearBagPane(mode) {

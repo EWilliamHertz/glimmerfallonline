@@ -48,24 +48,49 @@ export function createSnapCache() {
   };
 }
 
-export function filterEntitiesForViewer(entities, viewer, interestRadius = DEFAULT_INTEREST_RADIUS_PX) {
+export function filterEntitiesForViewer(entities, viewer, interestRadius = DEFAULT_INTEREST_RADIUS_PX, isOverworld = false) {
   if (!Array.isArray(entities) || !viewer || !Number.isFinite(viewer.x) || !Number.isFinite(viewer.y) || interestRadius <= 0) {
     return entities || [];
   }
   const vx = viewer.x;
   const vy = viewer.y;
   const rSq = interestRadius * interestRadius;
+  const farBossSq = (interestRadius * 1.45) * (interestRadius * 1.45);
   const out = [];
   for (const e of entities) {
-    if (e.isBoss || e.isGrand || e.type === 'portal' || e.type === 'ally_nexus') {
+    if (e.type === 'ally_nexus' || e.type === 'siege_shard' || e.type === 'outpost_nexus') {
       out.push(e);
       continue;
     }
     const dx = (e.x || 0) - vx;
     const dy = (e.y || 0) - vy;
-    if (dx * dx + dy * dy <= rSq) out.push(e);
+    const dSq = dx * dx + dy * dy;
+    if (!isOverworld && (e.isBoss || e.isGrand || e.type === 'portal')) {
+      out.push(e);
+      continue;
+    }
+    if ((e.isBoss || e.isGrand) && dSq <= farBossSq) {
+      out.push(e);
+      continue;
+    }
+    if (dSq <= rSq) out.push(e);
   }
   return out;
+}
+
+export function filterPlayersForViewer(players, viewer, interestRadius = DEFAULT_INTEREST_RADIUS_PX, isOverworld = false) {
+  if (!isOverworld || !Array.isArray(players) || !viewer || !Number.isFinite(viewer.x) || !Number.isFinite(viewer.y) || interestRadius <= 0) {
+    return players || [];
+  }
+  const vx = viewer.x;
+  const vy = viewer.y;
+  const rSq = (interestRadius + 240) * (interestRadius + 240);
+  return players.filter((p) => {
+    if (!p || p.id === viewer.id) return true;
+    const dx = (p.x || 0) - vx;
+    const dy = (p.y || 0) - vy;
+    return dx * dx + dy * dy <= rSq;
+  });
 }
 
 export function filterLootForViewer(loot, viewer, interestRadius = DEFAULT_INTEREST_RADIUS_PX) {
@@ -145,12 +170,20 @@ export function buildClientSnapshotPacket({
   clientSnapCache,
   interestRadius = DEFAULT_INTEREST_RADIUS_PX,
 }) {
-  const players = fullSnapshot.players || [];
-  const visibleEntities = filterEntitiesForViewer(fullSnapshot.entities || [], viewer, interestRadius);
+  const isOverworld = Boolean(fullSnapshot.isOverworld || roomId === 'overworld_1');
+  const players = filterPlayersForViewer(fullSnapshot.players || [], viewer, interestRadius, isOverworld);
+  const visibleEntities = filterEntitiesForViewer(fullSnapshot.entities || [], viewer, interestRadius, isOverworld);
   const visibleLoot = filterLootForViewer(fullSnapshot.loot || [], viewer, interestRadius);
   const allies = fullSnapshot.allies || [];
-  const projectiles = fullSnapshot.projectiles || [];
-  const groundZones = fullSnapshot.groundZones || [];
+  const projectiles = isOverworld && viewer
+    ? (fullSnapshot.projectiles || []).filter((pr) => Math.hypot((pr.x || 0) - viewer.x, (pr.y || 0) - viewer.y) <= interestRadius + 250)
+    : (fullSnapshot.projectiles || []);
+  const groundZones = isOverworld && viewer
+    ? (fullSnapshot.groundZones || []).filter((gz) => Math.hypot((gz.x || 0) - viewer.x, (gz.y || 0) - viewer.y) <= interestRadius + 300)
+    : (fullSnapshot.groundZones || []);
+  const scopedFx = isOverworld && viewer && Array.isArray(fx)
+    ? fx.filter((item) => !Number.isFinite(item?.x) || !Number.isFinite(item?.y) || Math.hypot(item.x - viewer.x, item.y - viewer.y) <= interestRadius + 250)
+    : fx;
   const siegeState = fullSnapshot.siegeState;
 
   if (!clientSnapCache || clientSnapCache.roomId !== roomId) {
@@ -169,6 +202,8 @@ export function buildClientSnapshotPacket({
     return {
       type: 'world_state',
       roomId,
+      isOverworld,
+      viewerRoomType: viewer?.roomType || null,
       onlineTotal,
       players,
       entities: visibleEntities,
@@ -178,7 +213,8 @@ export function buildClientSnapshotPacket({
       banners: fullSnapshot.banners || [],
       loot: visibleLoot,
       siegeState,
-      fx,
+      outpostControl: fullSnapshot.outpostControl,
+      fx: scopedFx,
     };
   }
 
@@ -188,6 +224,8 @@ export function buildClientSnapshotPacket({
   const pkt = {
     type: 'world_delta',
     roomId,
+    isOverworld,
+    viewerRoomType: viewer?.roomType || null,
     onlineTotal,
   };
   if (pDiff) pkt.p = pDiff;
@@ -203,6 +241,11 @@ export function buildClientSnapshotPacket({
   if (siegeJson !== clientSnapCache.lastSiegeJson) {
     clientSnapCache.lastSiegeJson = siegeJson;
     if (siegeState !== undefined) pkt.siegeState = siegeState;
+  }
+  const outpostJson = fullSnapshot.outpostControl === undefined ? null : JSON.stringify(fullSnapshot.outpostControl);
+  if (outpostJson !== clientSnapCache.lastOutpostJson) {
+    clientSnapCache.lastOutpostJson = outpostJson;
+    if (fullSnapshot.outpostControl !== undefined) pkt.outpostControl = fullSnapshot.outpostControl;
   }
 
   const lootJson = JSON.stringify(visibleLoot);
@@ -221,7 +264,7 @@ export function buildClientSnapshotPacket({
     clientSnapCache.hadGroundZones = groundZones.length > 0;
   }
 
-  if (fx && fx.length > 0) pkt.fx = fx;
+  if (scopedFx && scopedFx.length > 0) pkt.fx = scopedFx;
   return pkt;
 }
 
@@ -237,6 +280,7 @@ export class ClientSnapshotReconstructor {
     this.allies = [];
     this.loot = [];
     this.siegeState = undefined;
+    this.outpostControl = undefined;
   }
 
   _applyDiffMap(targetMap, diff) {
@@ -273,6 +317,7 @@ export class ClientSnapshotReconstructor {
       this.allies = msg.allies || [];
       this.loot = msg.loot || [];
       this.siegeState = msg.siegeState;
+      this.outpostControl = msg.outpostControl;
       return msg;
     }
 
@@ -286,6 +331,7 @@ export class ClientSnapshotReconstructor {
       if (msg.allies !== undefined) this.allies = msg.allies;
       if (msg.loot !== undefined) this.loot = msg.loot;
       if (msg.siegeState !== undefined) this.siegeState = msg.siegeState;
+      if (msg.outpostControl !== undefined) this.outpostControl = msg.outpostControl;
 
       return {
         type: 'world_state',
@@ -299,6 +345,7 @@ export class ClientSnapshotReconstructor {
         banners: [],
         loot: this.loot,
         siegeState: this.siegeState,
+        outpostControl: this.outpostControl,
         fx: msg.fx,
       };
     }

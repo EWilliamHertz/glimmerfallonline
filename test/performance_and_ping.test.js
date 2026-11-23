@@ -189,8 +189,8 @@ test('RoomManager tickAllRooms and nexus_warzone snapshot generation stay well w
     partyManager: { getPartyForMember: () => null, syncPlayerVitals: () => {}, areInSameParty: () => false },
   });
   try {
-    const warzone = rm.rooms.get(`${ROOM_TYPES.NEXUS_WARZONE}_1`);
-    assert.ok(warzone, 'nexus_warzone_1 should initialize');
+    const warzone = rm.getOrCreateOverworldRoom();
+    assert.ok(warzone, 'unified overworld containing Nexus Warzone should initialize');
 
     // Warm up JIT cleanly
     rm.tickAllRooms();

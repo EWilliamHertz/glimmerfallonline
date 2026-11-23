@@ -30,7 +30,7 @@ import {
   shouldShowSessionSupersededForClaim,
   shouldReconnectOnReclaim,
 } from './game/sessionLockHelpers.js';
-import { renderEchoCradleModal, renderMailModal } from './game/summonerAndMailUi.js';
+import { renderEchoCradleModal, renderMailModal, renderFamiliarDuelModal } from './game/summonerAndMailUi.js';
 import { getFamiliarIconDataUrl } from './sprites/familiarSprites.js';
 import {
   createMoveSyncState,
@@ -130,10 +130,14 @@ import {
 } from '../shared/protocol.js';
 import {
   renderSlayerPanelHtml,
-  renderCollectionLogView,
   renderDropTableModal,
   renderClueScrollModal,
 } from './game/osrsLoopsUi.js';
+import { setupWorldAtlasAndLoreUi } from './game/worldAtlasAndLoreUi.js';
+import { createZoneDecorManager } from './game/zoneDecorBuilders.js';
+import { createOfflineZoneBuilder } from './game/offlineZoneBuilder.js';
+import { createSpellbookAndStatsUi } from './game/spellbookAndStatsUi.js';
+import { createTileMapRenderer } from './game/tileMapRenderer.js';
 import {
   buildContextMenuEntries,
   openOsrsContextMenu,
@@ -257,6 +261,14 @@ import {
   normalizeMailbox,
   sanitizeMailText,
   countBagItem,
+  deductBagItems,
+  addBagItem,
+  FAMILIAR_VARIANTS_CATALOG,
+  createFamiliarDuelSession,
+  executeFamiliarDuelMove,
+  resolveFamiliarDuelTimeout,
+  pickBotFamiliarDuelMove,
+  isFamiliarDuelRoomAllowed,
   FACTION_RESOURCE_CONFIG,
   CLASS_PASSIVES,
   getFactionResourceConfig,
@@ -267,26 +279,38 @@ import {
   tickActorCombatTimers,
   shouldAutoRemasterRespec,
   respecCharacterSkills,
+  SURFACE_ROOM_TYPES,
+  SURFACE_ZONE_PLACEMENT,
+  SURFACE_TRANSITION_CORRIDORS,
+  SURFACE_WORLD_BOUNDS,
+  FOUNDER_ONLY_ROOMS,
+  isSurfaceRoomType,
+  localToWorld,
+  worldToLocal,
+  getRegionAtWorldPos,
+  clampSurfacePosition,
+  migrateLegacyPosition,
+  isSurfaceWaterTile,
+  isSurfaceFootprintInWater,
+  MOUNTS_CATALOG,
+  MOUNT_CAST_DURATION_SEC,
+  WAYPOINT_SHRINES_CATALOG,
+  WAYPOINT_SHRINES_BY_ID,
+  normalizeExplorationState,
+  getDefaultMountIdForFaction,
+  canRideMountInRoom,
+  getMountSpeedBonus,
+  revealFogOfWarAt,
+  DEFAULT_ARENA_MMR,
+  getArenaTierForMmr,
+  WARZONE_OUTPOST_DEFS,
+  computeOutpostRealmBuffs,
+  getDefaultRoleForClassId,
+  PRIMEVAL_RAID_CONFIG,
 } from '../shared/protocol.js';
 
-import {
-  DEFAULT_KEYBINDS,
-  PORTAL_ID_TO_ROOM,
-  AWAKENING_DIALOGUE,
-  WARZONE_DIALOGUE,
-  RUINS_DIALOGUE,
-  SOLARI_VAULT_DIALOGUE,
-  UMBRI_LABYRINTH_DIALOGUE,
-  TERRA_GROVE_DIALOGUE,
-  AETHER_ARCHIVE_DIALOGUE,
-  SOLARI_CITADEL_DIALOGUE,
-  UMBRI_UNDERCITY_DIALOGUE,
-  TERRA_ORCHARD_DIALOGUE,
-  AETHER_SPIRE_DIALOGUE,
-  CELESTIAL_ASCENT_DIALOGUE,
-} from "./game/dialoguesData.js";
+import { DEFAULT_KEYBINDS, PORTAL_ID_TO_ROOM } from "./game/dialoguesData.js";
 import { QUEST_CATALOG } from "./game/questCatalogData.js";
-import { WORLD_ATLAS_REGIONS } from "./game/worldAtlasData.js";
 
 export function initGame() {
   const audio = new PixelSoundEngine();
@@ -640,8 +664,170 @@ export function initGame() {
     skull: null,
     skullTimer: 0,
     devotions: [],
+    mountId: null,
   };
   window.player = player;
+
+  function ensureExplorationState() {
+    prog.exploration = normalizeExplorationState(prog.exploration, localProfile.faction);
+    return prog.exploration;
+  }
+
+  function updateMountButtonUi() {
+    const btn = document.getElementById('btn-mount');
+    if (!btn) return;
+    const riding = Boolean(player.mountId && MOUNTS_CATALOG[player.mountId]);
+    const exp = ensureExplorationState();
+    const prefName = MOUNTS_CATALOG[player.mountId || exp.preferredMountId]?.name || 'Mount';
+    btn.innerText = riding ? `🐎 DISMOUNT [=]` : `🐴 MOUNT [=]`;
+    btn.style.borderColor = riding ? '#facc15' : '';
+    btn.style.color = riding ? '#fde047' : '';
+    btn.title = riding
+      ? `Riding ${prefName} (+48% speed) • Click or press [=] to dismount`
+      : `Summon ${prefName} (1.5s, +48% overland speed) [=]`;
+  }
+
+  function revealLocalFogAt(wx, wy, roomType) {
+    const exp = ensureExplorationState();
+    const res = revealFogOfWarAt(exp, wx, wy, roomType, 1, localProfile.faction);
+    prog.exploration = res.state;
+    if (res.newlyDiscoveredZone && res.newlyDiscoveredZone !== ROOM_TYPES.SANCTUARY_HUB) {
+      const rCfg = ROOM_CONFIGS[res.newlyDiscoveredZone];
+      logMessage(`🧭 [Fog of War] Charted new region: ${rCfg?.name || res.newlyDiscoveredZone}!`, 'log-solari', 'quest');
+    }
+    if (res.changed && isSinglePlayer && hasEnteredWorld) {
+      saveProgressionLocal();
+    }
+    return res;
+  }
+
+  window.toggleMount = function (forceMountId = null) {
+    if (player.isDead || player.frozen || isSessionSuperseded) return;
+    if (player.mountId) {
+      if (net.connected) {
+        net.send({ type: 'toggle_mount' });
+      }
+      player.mountId = null;
+      updateMountButtonUi();
+      logMessage('🐴 Dismounted.', 'log-combat');
+      return;
+    }
+    if (isCasting && currentSpell?.isMount) {
+      isCasting = false;
+      currentSpell = null;
+      document.getElementById('cast-bar-container').style.display = 'none';
+      if (net.connected) net.send({ type: 'cancel_cast' });
+      return;
+    }
+    if (!canRideMountInRoom(currentRoomType)) {
+      logMessage('🐴 Mounts can only be summoned outdoors on the overland continent.', 'log-combat');
+      spawnFCT(player.x, player.y - 16, 'OUTDOORS ONLY', '#fb923c');
+      return;
+    }
+    const exp = ensureExplorationState();
+    const mountId = forceMountId && MOUNTS_CATALOG[forceMountId] && exp.unlockedMountIds.includes(forceMountId)
+      ? forceMountId
+      : (exp.preferredMountId || getDefaultMountIdForFaction(localProfile.faction));
+    const mSpec = MOUNTS_CATALOG[mountId];
+    if (!mSpec) return;
+
+    if (net.connected) {
+      net.send({ type: 'toggle_mount', mountId });
+      return;
+    }
+
+    isCasting = true;
+    castDuration = MOUNT_CAST_DURATION_SEC;
+    castProgress = 0;
+    currentSpell = {
+      isMount: true,
+      mountId,
+      onComplete: () => {
+        if (player.isDead || !canRideMountInRoom(currentRoomType)) return;
+        player.mountId = mountId;
+        updateMountButtonUi();
+        spawnSparkBurst(player.x, player.y - 6, [mSpec.primaryColor, mSpec.trimColor, '#ffffff'], 18);
+        spawnFCT(player.x, player.y - 16, `🐴 ${mSpec.name.toUpperCase()}!`, mSpec.primaryColor, true);
+        audio?.playChime?.();
+        logMessage(`🐴 Summoned ${mSpec.name} (+48% overland speed).`, 'log-solari');
+      },
+    };
+    const bar = document.getElementById('cast-bar-container');
+    if (bar) bar.style.display = 'block';
+    const cn = document.getElementById('cast-name');
+    if (cn) cn.innerText = `SUMMON: ${mSpec.name.toUpperCase()}`;
+    const ct = document.getElementById('cast-time');
+    if (ct) ct.innerText = `${castDuration.toFixed(1)}s`;
+  };
+
+  window.selectMount = function (mountId) {
+    const exp = ensureExplorationState();
+    if (!MOUNTS_CATALOG[mountId] || !exp.unlockedMountIds.includes(mountId)) return;
+    exp.preferredMountId = mountId;
+    if (net.connected) net.send({ type: 'select_mount', mountId });
+    else saveProgressionLocal();
+    updateMountButtonUi();
+    if (document.getElementById('lore-modal')?.style.display === 'block') {
+      worldAtlasUi?.renderLoreModal?.();
+    }
+  };
+
+  window.activateWaypointShrine = function (shrineId) {
+    const wp = WAYPOINT_SHRINES_BY_ID[shrineId];
+    if (!wp) return;
+    const dist = Math.hypot(player.x - wp.wx, player.y - wp.wy);
+    if (dist > 140) {
+      logMessage(`🧭 Step closer to ${wp.name} to attune it!`, 'log-solari', 'quest');
+      spawnFCT(wp.wx, wp.wy - 16, 'STEP CLOSER', '#38bdf8');
+      return;
+    }
+    const exp = ensureExplorationState();
+    const already = exp.unlockedShrines.includes(wp.id);
+    if (net.connected) {
+      net.send({ type: 'discover_waypoint', shrineId: wp.id });
+    } else if (!already) {
+      exp.unlockedShrines.push(wp.id);
+      awardXP(40, `Attuned ${wp.name}`);
+      saveProgressionLocal();
+      spawnSparkBurst(wp.wx, wp.wy - 12, ['#38bdf8', '#fde047', '#ffffff'], 28);
+      spawnFCT(player.x, player.y - 18, `🧭 WAYPOINT ATTUNED!`, '#38bdf8', true);
+      audio?.playQuestCompleteFanfare?.();
+      logMessage(`🧭 [Waypoint] Attuned ${wp.name}! Quick-travel unlocked on your World Map [M].`, 'log-solari', 'quest');
+    } else {
+      spawnFCT(wp.wx, wp.wy - 16, `🧭 ${wp.name}`, '#7dd3fc');
+      logMessage(`🧭 ${wp.name} is attuned! Open World Map [M] anytime to quick-travel between unlocked waypoints.`, 'log-gain', 'quest');
+    }
+  };
+
+  window.teleportToWaypoint = function (shrineId) {
+    if (player.isDead || player.frozen || isSessionSuperseded) return;
+    const wp = WAYPOINT_SHRINES_BY_ID[shrineId];
+    if (!wp) return;
+    if (currentRoomType === ROOM_TYPES.ARENA_3V3) {
+      logMessage('⚔️ Cannot Waypoint travel while inside an Arena match!', 'log-combat');
+      return;
+    }
+    const exp = ensureExplorationState();
+    if (!exp.unlockedShrines.includes(wp.id)) {
+      logMessage(`🔒 ${wp.name} has not been attuned yet. Travel there on foot first!`, 'log-quest');
+      return;
+    }
+    if (gateTrialRoomTransition(wp.roomType)) return;
+
+    player.mountId = null;
+    updateMountButtonUi();
+    if (net.connected) {
+      isTransitioningZone = true;
+      net.send({ type: 'teleport_waypoint', shrineId: wp.id });
+    } else {
+      transitionToRoom(wp.roomType, wp.wx, wp.wy, 'down');
+      logMessage(`⚡ [Waypoint] Warped to ${wp.name}!`, 'log-solari', 'quest');
+    }
+    const lm = document.getElementById('lore-modal');
+    if (lm && lm.style.display === 'block') {
+      window.toggleModal('lore-modal');
+    }
+  };
 
   const remotePlayers = new Map();
   const clientSnapState = new ClientSnapshotReconstructor();
@@ -1887,820 +2073,26 @@ export function initGame() {
     updateQuestTrackerHUD();
   }
 
-  // ==========================================
-  // Continental Atlas & Regions Data
-  // ==========================================
-  let currentLoreTab = 'quests';
-  let currentAtlasView = 'square'; // 'square' | 'grid'
-  let selectedMapRegionId = 'SANCTUARY_HUB';
-  let edgeScrollTimer = null;
-
-  window.switchLoreTab = function (tab) {
-    currentLoreTab = tab;
-    renderLoreModal();
-  };
-
-  window.openQuestLog = function () {
-    currentLoreTab = 'quests';
-    if (document.getElementById('lore-modal')?.style.display !== 'block') {
-      window.toggleModal('lore-modal');
-    }
-    renderLoreModal();
-  };
-
-  window.openWorldMap = function () {
-    currentLoreTab = 'map';
-    const curKey = String(currentRoomType || '').toUpperCase();
-    if (WORLD_ATLAS_REGIONS[curKey]) {
-      selectedMapRegionId = curKey;
-    }
-    if (document.getElementById('lore-modal')?.style.display !== 'block') {
-      window.toggleModal('lore-modal');
-    }
-    renderLoreModal();
-  };
-
-  window.toggleWorldAtlas = function () {
-    if (player.isDead || deathScreenVisible) return;
-    const modal = document.getElementById('lore-modal');
-    if (modal && modal.style.display === 'block' && currentLoreTab === 'map') {
-      window.toggleModal('lore-modal');
-    } else {
-      window.openWorldMap();
-    }
-  };
-
-  window.setAtlasViewMode = function (mode) {
-    currentAtlasView = mode;
-    const body = document.getElementById('lore-modal-body');
-    if (body && currentLoreTab === 'map') {
-      renderWorldAtlasView(body);
-    }
-  };
-
-  window.centerMapOnPlayer = function () {
-    const curKey = String(currentRoomType || '').toUpperCase();
-    if (WORLD_ATLAS_REGIONS[curKey]) {
-      window.selectMapRegion(curKey, true);
-    }
-  };
-
-  window.edgeHoverScroll = function (direction) {
-    if (edgeScrollTimer) clearTimeout(edgeScrollTimer);
-    const reg = WORLD_ATLAS_REGIONS[selectedMapRegionId];
-    if (!reg || !reg.neighbors || !reg.neighbors[direction]) return;
-    const targetId = reg.neighbors[direction];
-    edgeScrollTimer = setTimeout(() => {
-      window.selectMapRegion(targetId, true);
-    }, 200);
-  };
-
-  window.cancelEdgeHoverScroll = function () {
-    if (edgeScrollTimer) {
-      clearTimeout(edgeScrollTimer);
-      edgeScrollTimer = null;
-    }
-  };
-
-  window.selectMapRegion = function (regId, playSound = false) {
-    if (!WORLD_ATLAS_REGIONS[regId]) return;
-    selectedMapRegionId = regId;
-    if (playSound && audio && audio.playChime) {
-      audio.playChime();
-    }
-    const body = document.getElementById('lore-modal-body');
-    if (body && currentLoreTab === 'map') {
-      renderWorldAtlasView(body);
-    }
-  };
-
-  window.inspectMapRegion = function (regId) {
-    window.selectMapRegion(regId, false);
-  };
-
-  window.toggleQuestTracking = function (qId) {
-    if (!questState.trackedQuests) questState.trackedQuests = {};
-    const currentlyTracked = questState.trackedQuests[qId] !== false;
-    questState.trackedQuests[qId] = !currentlyTracked;
-    saveQuestState();
-    updateQuestTrackerHUD();
-    renderLoreModal();
-  };
-
-  window.setAllQuestTracking = function (track) {
-    if (!questState.trackedQuests) questState.trackedQuests = {};
-    for (const qId of Object.keys(questState.activeQuests || {})) {
-      questState.trackedQuests[qId] = Boolean(track);
-    }
-    saveQuestState();
-    updateQuestTrackerHUD();
-    renderLoreModal();
-  };
-
-  function getRegionInspectorHtml(regId) {
-    const reg = WORLD_ATLAS_REGIONS[regId] || WORLD_ATLAS_REGIONS.SANCTUARY_HUB;
-    const isPlayerHere = String(currentRoomType || '').toUpperCase() === reg.id;
-    const n = reg.neighbors || {};
-
-    return `
-      <div style="background:#070b18; border:2px solid ${reg.borderColor}; border-radius:6px; padding:12px; height:100%; box-sizing:border-box;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; border-bottom:1px solid #1e293b; padding-bottom:6px;">
-          <div>
-            <div style="font-family:var(--font-header); font-size:14px; font-weight:800; color:${reg.color}; letter-spacing:0.5px;">
-              ${reg.name.toUpperCase()}
-            </div>
-            <div style="font-size:10.5px; color:#94a3b8; margin-top:2px;">${reg.sub}</div>
-          </div>
-          <div style="text-align:right;">
-            <span style="display:inline-block; font-size:9.5px; font-weight:bold; background:#0f172a; border:1px solid ${reg.color}; color:${reg.color}; padding:2px 7px; border-radius:3px;">
-              ${reg.dangerTag}
-            </span>
-            <div style="font-size:10px; color:#facc15; font-weight:bold; margin-top:3px;">${reg.level}</div>
-          </div>
-        </div>
-
-        ${isPlayerHere ? `
-          <div style="background:rgba(34, 197, 94, 0.15); border:1px solid #22c55e; color:#86efac; font-size:10px; font-weight:bold; padding:4px 8px; border-radius:4px; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-            <span>📍</span><span>YOU ARE CURRENTLY IN THIS REALM (${Math.round(player.x)}, ${Math.round(player.y)})</span>
-          </div>
-        ` : ''}
-
-        <!-- Connected Edge Boundaries (Click to Navigate) -->
-        <div style="margin-bottom:8px; background:#0b1120; border:1px solid #1e293b; border-radius:4px; padding:6px 8px;">
-          <div style="font-size:9px; color:#64748b; font-weight:bold; text-transform:uppercase; margin-bottom:4px; letter-spacing:0.5px;">
-            🧭 Connected Territory Boundaries
-          </div>
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:4px; font-size:9.5px;">
-            ${n.north ? `
-              <button type="button" onclick="selectMapRegion('${n.north}', true)" style="background:#0f172a; border:1px solid #38bdf8; color:#7dd3fc; padding:3px 6px; border-radius:3px; cursor:pointer; text-align:left; font-size:9px;">
-                ▲ North: ${WORLD_ATLAS_REGIONS[n.north]?.name.split(' ')[0]}
-              </button>
-            ` : '<div style="color:#475569; font-size:9px; padding:3px 6px;">▲ North: None (Edge)</div>'}
-            ${n.south ? `
-              <button type="button" onclick="selectMapRegion('${n.south}', true)" style="background:#0f172a; border:1px solid #38bdf8; color:#7dd3fc; padding:3px 6px; border-radius:3px; cursor:pointer; text-align:left; font-size:9px;">
-                ▼ South: ${WORLD_ATLAS_REGIONS[n.south]?.name.split(' ')[0]}
-              </button>
-            ` : '<div style="color:#475569; font-size:9px; padding:3px 6px;">▼ South: None (Edge)</div>'}
-            ${n.west ? `
-              <button type="button" onclick="selectMapRegion('${n.west}', true)" style="background:#0f172a; border:1px solid #38bdf8; color:#7dd3fc; padding:3px 6px; border-radius:3px; cursor:pointer; text-align:left; font-size:9px;">
-                ◀ West: ${WORLD_ATLAS_REGIONS[n.west]?.name.split(' ')[0]}
-              </button>
-            ` : '<div style="color:#475569; font-size:9px; padding:3px 6px;">◀ West: None (Edge)</div>'}
-            ${n.east ? `
-              <button type="button" onclick="selectMapRegion('${n.east}', true)" style="background:#0f172a; border:1px solid #38bdf8; color:#7dd3fc; padding:3px 6px; border-radius:3px; cursor:pointer; text-align:left; font-size:9px;">
-                ▶ East: ${WORLD_ATLAS_REGIONS[n.east]?.name.split(' ')[0]}
-              </button>
-            ` : '<div style="color:#475569; font-size:9px; padding:3px 6px;">▶ East: None (Edge)</div>'}
-          </div>
-        </div>
-
-        <div style="margin-bottom:8px;">
-          <div style="font-size:10px; font-weight:bold; text-transform:uppercase; margin-bottom:2px; color:#38bdf8;">
-            🏛️ Faction &amp; Affiliation
-          </div>
-          <div style="font-size:10.5px; color:#f8fafc; font-weight:600;">${reg.faction}</div>
-          <div style="font-size:9.5px; color:#94a3b8; margin-top:2px; line-height:1.4;">${reg.desc}</div>
-        </div>
-
-        <div style="margin-bottom:8px;">
-          <div style="font-size:10px; font-weight:bold; text-transform:uppercase; margin-bottom:3px; color:#fde047;">
-            👾 Entities &amp; Inhabitants
-          </div>
-          <div style="display:flex; flex-direction:column; gap:3px; max-height:120px; overflow-y:auto; padding-right:2px;">
-            ${reg.entities.map((e) => `
-              <div style="background:#0c1222; border-left:2px solid ${reg.color}; padding:3px 6px; font-size:9.5px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <b style="color:#f1f5f9;">${e.name}</b>
-                  <span style="color:#facc15; font-size:9px; font-weight:bold;">${e.hp}</span>
-                </div>
-                <div style="color:#94a3b8; font-size:8.5px; margin-top:1px;">${e.type} • ${e.desc}</div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-
-        <div style="background:#090d1c; border:1px solid #1e293b; border-radius:4px; padding:5px 8px;">
-          <div style="font-size:9.5px; color:#facc15; font-weight:bold; text-transform:uppercase; margin-bottom:2px;">
-            🧭 Pathfinding Route (From Sanctuary)
-          </div>
-          <div style="font-size:9.5px; color:#cbd5e1; line-height:1.4;">${reg.travel}</div>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderSquareZoneView(reg) {
-    const isPlayerHere = String(currentRoomType || '').toUpperCase() === reg.id;
-    const n = reg.neighbors || {};
-    const northReg = n.north ? WORLD_ATLAS_REGIONS[n.north] : null;
-    const southReg = n.south ? WORLD_ATLAS_REGIONS[n.south] : null;
-    const westReg = n.west ? WORLD_ATLAS_REGIONS[n.west] : null;
-    const eastReg = n.east ? WORLD_ATLAS_REGIONS[n.east] : null;
-
-    // Player position percentage on current map
-    let playerMarkerX = 50;
-    let playerMarkerY = 50;
-    if (isPlayerHere && mapBounds.halfW && mapBounds.halfH) {
-      playerMarkerX = Math.max(10, Math.min(90, 50 + (player.x / mapBounds.halfW) * 40));
-      playerMarkerY = Math.max(10, Math.min(90, 50 + (player.y / mapBounds.halfH) * 40));
-    }
-
-    return `
-      <div style="display:flex; flex-direction:column; gap:0; background:#060a14; border:2px solid ${reg.borderColor}; border-radius:6px; overflow:hidden; box-shadow:0 0 20px rgba(0,0,0,0.8);">
-        <!-- TOP EDGE CLICK BAR (NORTH) -->
-        <div class="map-edge-scroll north"
-          onclick="if ('${n.north || ''}') selectMapRegion('${n.north}', true)"
-          style="
-            height: 26px;
-            background: ${northReg ? '#0b162c' : '#05070f'};
-            border-bottom: 1px solid ${northReg ? '#38bdf8' : '#1e293b'};
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: ${northReg ? 'pointer' : 'default'};
-            font-size: 10px;
-            font-weight: bold;
-            color: ${northReg ? '#38bdf8' : '#475569'};
-            transition: all 0.15s ease;
-            user-select: none;
-            letter-spacing: 0.5px;
-          "
-          title="${northReg ? 'Click to view North: ' + northReg.name : 'Northern Boundary'}">
-          ${northReg ? `▲ CLICK NORTH: ${northReg.name.toUpperCase()} [${northReg.level}] ▲` : '— NORTHERN SEA BOUNDARY (THE FALL) —'}
-        </div>
-
-        <!-- MIDDLE ROW: WEST BAR + SQUARE MAP CANVAS + EAST BAR -->
-        <div style="display:flex; height: 340px; position:relative;">
-          <!-- LEFT EDGE CLICK BAR (WEST) -->
-          <div class="map-edge-scroll west"
-            onclick="if ('${n.west || ''}') selectMapRegion('${n.west}', true)"
-            style="
-              width: 26px;
-              background: ${westReg ? '#0b162c' : '#05070f'};
-              border-right: 1px solid ${westReg ? '#38bdf8' : '#1e293b'};
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              cursor: ${westReg ? 'pointer' : 'default'};
-              font-size: 10px;
-              font-weight: bold;
-              color: ${westReg ? '#38bdf8' : '#475569'};
-              writing-mode: vertical-rl;
-              transform: rotate(180deg);
-              transition: all 0.15s ease;
-              user-select: none;
-              letter-spacing: 0.5px;
-            "
-            title="${westReg ? 'Click to view West: ' + westReg.name : 'Western Boundary'}">
-            ${westReg ? `◀ WEST: ${westReg.name.toUpperCase()}` : '— WEST BOUNDARY —'}
-          </div>
-
-          <!-- THE SQUARE MAP INTERIOR CANVAS -->
-          <div style="
-            flex: 1;
-            position: relative;
-            background:
-              radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.08) 0%, rgba(5, 8, 16, 0.95) 75%),
-              repeating-linear-gradient(0deg, transparent, transparent 31px, rgba(255,255,255,0.03) 31px, rgba(255,255,255,0.03) 32px),
-              repeating-linear-gradient(90deg, transparent, transparent 31px, rgba(255,255,255,0.03) 31px, rgba(255,255,255,0.03) 32px),
-              #080d1a;
-            border-radius: 0;
-            overflow: hidden;
-          ">
-            <!-- Compass Rose in Top-Right Corner -->
-            <div style="position:absolute; top:8px; right:8px; background:rgba(6,10,20,0.85); border:1px solid #334155; border-radius:50%; width:34px; height:34px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:8px; font-weight:800; color:#cbd5e1; user-select:none; z-index:10; box-shadow:0 2px 6px rgba(0,0,0,0.5);">
-              <span style="color:#facc15; font-size:9px; margin-top:-2px;">N</span>
-              <span style="font-size:7px; color:#64748b; margin-top:-1px;">W • E</span>
-              <span style="font-size:7px; color:#64748b; margin-top:-1px;">S</span>
-            </div>
-
-            <!-- Regional Banner in Top-Left -->
-            <div style="position:absolute; top:8px; left:8px; background:rgba(7,11,22,0.9); border:1px solid ${reg.color}; border-radius:4px; padding:3px 8px; z-index:10; box-shadow:0 2px 8px rgba(0,0,0,0.6);">
-              <div style="font-family:var(--font-header); font-size:11px; font-weight:800; color:${reg.color};">
-                ${reg.name}
-              </div>
-              <div style="font-size:8.5px; color:#cbd5e1;">${reg.sub} • <b style="color:#facc15;">${reg.level}</b></div>
-            </div>
-
-            <!-- Road/Pathway Leyline Overlays -->
-            <svg style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1;">
-              <!-- Central Leyline Convergence -->
-              <circle cx="50%" cy="50%" r="22" fill="none" stroke="${reg.color}" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.4" />
-              ${n.north ? `<line x1="50%" y1="50%" x2="50%" y2="0%" stroke="${reg.color}" stroke-width="2" opacity="0.35" stroke-dasharray="4,2" />` : ''}
-              ${n.south ? `<line x1="50%" y1="50%" x2="50%" y2="100%" stroke="${reg.color}" stroke-width="2" opacity="0.35" stroke-dasharray="4,2" />` : ''}
-              ${n.west ? `<line x1="50%" y1="50%" x2="0%" y2="50%" stroke="${reg.color}" stroke-width="2" opacity="0.35" stroke-dasharray="4,2" />` : ''}
-              ${n.east ? `<line x1="50%" y1="50%" x2="100%" y2="50%" stroke="${reg.color}" stroke-width="2" opacity="0.35" stroke-dasharray="4,2" />` : ''}
-            </svg>
-
-            <!-- Landmark Pins on Square Map -->
-            ${(reg.landmarks || []).map((lm, idx) => `
-              <div class="rs-map-pin"
-                style="
-                  position: absolute;
-                  left: ${lm.x}%;
-                  top: ${lm.y}%;
-                  transform: translate(-50%, -50%);
-                  cursor: pointer;
-                  z-index: 5;
-                  display: flex;
-                  flex-direction: column;
-                  align-items: center;
-                  transition: transform 0.15s ease;
-                "
-                title="${lm.name} • ${lm.sub}&#10;${lm.desc}">
-                <div style="
-                  background: rgba(10, 15, 30, 0.95);
-                  border: 1.5px solid ${reg.color};
-                  border-radius: 4px;
-                  width: 22px;
-                  height: 22px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  font-size: 11px;
-                  box-shadow: 0 0 8px rgba(0,0,0,0.8);
-                ">
-                  ${lm.icon}
-                </div>
-                <div style="
-                  font-size: 8px;
-                  font-weight: bold;
-                  color: #e2e8f0;
-                  background: rgba(4, 7, 15, 0.85);
-                  border: 1px solid #334155;
-                  border-radius: 2px;
-                  padding: 1px 4px;
-                  margin-top: 2px;
-                  white-space: nowrap;
-                  text-shadow: 0 1px 2px #000;
-                  pointer-events: none;
-                ">
-                  ${lm.name}
-                </div>
-              </div>
-            `).join('')}
-
-            <!-- Player Location Pulse Marker -->
-            ${isPlayerHere ? `
-              <div style="
-                position: absolute;
-                left: ${playerMarkerX}%;
-                top: ${playerMarkerY}%;
-                transform: translate(-50%, -50%);
-                z-index: 8;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                pointer-events: none;
-              ">
-                <div style="
-                  width: 14px;
-                  height: 14px;
-                  background: #ffffff;
-                  border: 2px solid #38bdf8;
-                  border-radius: 50%;
-                  box-shadow: 0 0 14px #ffffff, 0 0 24px #38bdf8;
-                  animation: pulse 1.4s infinite;
-                "></div>
-                <div style="
-                  font-size: 8px;
-                  font-weight: 800;
-                  color: #ffffff;
-                  background: rgba(2, 132, 199, 0.9);
-                  border: 1px solid #7dd3fc;
-                  border-radius: 3px;
-                  padding: 1px 5px;
-                  margin-top: 2px;
-                  white-space: nowrap;
-                  box-shadow: 0 2px 6px rgba(0,0,0,0.8);
-                ">
-                  📍 YOU ARE HERE
-                </div>
-              </div>
-            ` : ''}
-
-            <!-- Map Scale indicator in bottom-left -->
-            <div style="position:absolute; bottom:6px; left:8px; font-size:8px; color:#64748b; font-family:monospace; user-select:none; z-index:10; background:rgba(6,10,20,0.7); padding:1px 5px; border-radius:2px; border:1px solid #1e293b;">
-              SCALE: 100px ≈ 20 YARDS
-            </div>
-          </div>
-
-          <!-- RIGHT EDGE CLICK BAR (EAST) -->
-          <div class="map-edge-scroll east"
-            onclick="if ('${n.east || ''}') selectMapRegion('${n.east}', true)"
-            style="
-              width: 26px;
-              background: ${eastReg ? '#0b162c' : '#05070f'};
-              border-left: 1px solid ${eastReg ? '#38bdf8' : '#1e293b'};
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              cursor: ${eastReg ? 'pointer' : 'default'};
-              font-size: 10px;
-              font-weight: bold;
-              color: ${eastReg ? '#38bdf8' : '#475569'};
-              writing-mode: vertical-rl;
-              transition: all 0.15s ease;
-              user-select: none;
-              letter-spacing: 0.5px;
-            "
-            title="${eastReg ? 'Click to view East: ' + eastReg.name : 'Eastern Boundary'}">
-            ${eastReg ? `▶ EAST: ${eastReg.name.toUpperCase()}` : '— EAST BOUNDARY —'}
-          </div>
-        </div>
-
-        <!-- BOTTOM EDGE CLICK BAR (SOUTH) -->
-        <div class="map-edge-scroll south"
-          onclick="if ('${n.south || ''}') selectMapRegion('${n.south}', true)"
-          style="
-            height: 26px;
-            background: ${southReg ? '#0b162c' : '#05070f'};
-            border-top: 1px solid ${southReg ? '#38bdf8' : '#1e293b'};
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: ${southReg ? 'pointer' : 'default'};
-            font-size: 10px;
-            font-weight: bold;
-            color: ${southReg ? '#38bdf8' : '#475569'};
-            transition: all 0.15s ease;
-            user-select: none;
-            letter-spacing: 0.5px;
-          "
-          title="${southReg ? 'Click to view South: ' + southReg.name : 'Southern Boundary'}">
-          ${southReg ? `▼ CLICK SOUTH: ${southReg.name.toUpperCase()} [${southReg.level}] ▼` : '— SOUTHERN FRONTIER BOUNDARY —'}
-        </div>
-      </div>
-    `;
-  }
-
-  function renderContinentalGridView() {
-    const realmOrder = [
-      'ABYSSAL_RIFT',
-      'CELESTIAL_ASCENT',
-      'CHRONOCORE_CITADEL',
-      'NEXUS_WARZONE',
-      'STARFALL_CRATER',
-      'NEXUS_FORGOTTEN_RUINS',
-      'AETHER_SPIRE',
-      'SANCTUARY_HUB',
-      'SOLARI_CITADEL',
-      'UMBRI_UNDERCITY',
-      'TERRA_ORCHARD',
-      'SOLAR_HIGHLANDS',
-      'SUNKEN_OASIS',
-      'IRONWOOD_TIMBERLANDS',
-      'CORAL_COAST',
-      'STARLIGHT_GROVE',
-      'MOONWELL_SANCTUM'
-    ];
-
-    return `
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div style="font-size:10px; color:#94a3b8; margin-bottom:2px;">
-          Click any continental realm below to inspect its Square Map:
-        </div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; max-height:380px; overflow-y:auto; padding-right:4px;">
-          ${realmOrder.map((regId) => {
-            const reg = WORLD_ATLAS_REGIONS[regId];
-            if (!reg) return '';
-            const isHere = String(currentRoomType || '').toUpperCase() === regId;
-            const isSelected = selectedMapRegionId === regId;
-            return `
-              <div onclick="selectMapRegion('${reg.id}', true); setAtlasViewMode('square');"
-                style="
-                  background: #090e1d;
-                  border: 2px solid ${isSelected ? '#ffffff' : reg.borderColor};
-                  border-radius: 5px;
-                  padding: 8px 10px;
-                  cursor: pointer;
-                  transition: all 0.15s ease;
-                  ${isSelected ? 'box-shadow:0 0 14px rgba(255,255,255,0.25);' : ''}
-                ">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <b style="font-family:var(--font-header); font-size:11.5px; color:${reg.color};">${reg.name}</b>
-                  <span style="font-size:9px; color:${reg.color}; background:#070c18; border:1px solid ${reg.color}; padding:1px 5px; border-radius:3px; font-weight:bold;">
-                    ${reg.dangerTag}
-                  </span>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:9.5px; color:#94a3b8;">
-                  <span>${reg.level}</span>
-                  ${isHere ? '<b style="color:#4ade80; background:rgba(34,197,94,0.2); padding:1px 5px; border-radius:3px; border:1px solid #22c55e;">📍 HERE</b>' : ''}
-                </div>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      </div>
-    `;
-  }
-
-  function renderWorldAtlasView(body) {
-    const currentReg = WORLD_ATLAS_REGIONS[selectedMapRegionId] || WORLD_ATLAS_REGIONS.SANCTUARY_HUB;
-
-    body.innerHTML = `
-      <div style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e293b; padding-bottom:6px;">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="font-family:var(--font-header); font-size:12.5px; color:#facc15; font-weight:bold; letter-spacing:0.5px;">
-            🗺️ CONTINENTAL REALMS ATLAS
-          </span>
-          <div style="display:inline-flex; background:#070c18; border:1px solid #334155; border-radius:4px; overflow:hidden;">
-            <button type="button" onclick="setAtlasViewMode('square')" style="background:${currentAtlasView === 'square' ? '#1e293b' : 'transparent'}; border:none; color:${currentAtlasView === 'square' ? '#facc15' : '#94a3b8'}; padding:3px 8px; font-size:9.5px; font-weight:bold; cursor:pointer;">
-              🔲 SQUARE ZONE VIEW
-            </button>
-            <button type="button" onclick="setAtlasViewMode('grid')" style="background:${currentAtlasView === 'grid' ? '#1e293b' : 'transparent'}; border:none; color:${currentAtlasView === 'grid' ? '#facc15' : '#94a3b8'}; padding:3px 8px; font-size:9.5px; font-weight:bold; cursor:pointer;">
-              🌐 CONTINENTAL GRID
-            </button>
-          </div>
-        </div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <button type="button" onclick="centerMapOnPlayer()" style="background:#0f172a; border:1px solid #22c55e; color:#86efac; font-size:9.5px; font-weight:bold; padding:2px 8px; border-radius:3px; cursor:pointer;" title="Jump map directly to your character's active realm">
-            📍 YOU ARE HERE (${WORLD_ATLAS_REGIONS[currentRoomType]?.name || currentRoomType})
-          </button>
-        </div>
-      </div>
-
-      <div style="display:grid; grid-template-columns: 1fr 340px; gap:12px; align-items:start;">
-        <!-- Left: Square Map Viewport with 4 Edge-Hover Scroll Bars OR Grid Overview -->
-        <div>
-          ${currentAtlasView === 'square' ? renderSquareZoneView(currentReg) : renderContinentalGridView()}
-        </div>
-
-        <!-- Right: Real-time Region Codex & Entity Inspector -->
-        <div id="atlas-inspector-panel">
-          ${getRegionInspectorHtml(selectedMapRegionId)}
-        </div>
-      </div>
-    `;
-  }
-
-  function renderQuestLogView(body) {
-    const activeList = [];
-    for (const qId of Object.keys(questState.activeQuests || {})) {
-      if (QUEST_CATALOG[qId]) activeList.push(QUEST_CATALOG[qId]);
-    }
-    if (activeList.length === 0 && !questState.completedQuests?.quest_awakening) {
-      const charName = String(localProfile?.displayName || localProfile?.name || '').toUpperCase();
-      const isExperienced = (prog && (prog.level || 1) >= 2) || charName === 'EWACH';
-      if (!isExperienced) {
-        activeList.push(QUEST_CATALOG.quest_awakening);
-      }
-    }
-
-    const completedList = [];
-    for (const qId of Object.keys(questState.completedQuests || {})) {
-      if (QUEST_CATALOG[qId]) completedList.push(QUEST_CATALOG[qId]);
-    }
-
-    const availableList = [];
-    const lockedList = [];
-    for (const qId of Object.keys(QUEST_CATALOG)) {
-      const q = QUEST_CATALOG[qId];
-      const isCompleted = Boolean(questState.completedQuests?.[qId]);
-      const isActive = Boolean(questState.activeQuests?.[qId]);
-      const prereqMet = isQuestPrereqMet(q);
-      if (!isCompleted && !isActive) {
-        if (prereqMet) availableList.push(q);
-        else lockedList.push(q);
-      }
-    }
-
-    body.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #1e293b; padding-bottom:6px; flex-wrap:wrap; gap:6px;">
-        <div>
-          <span style="font-family:var(--font-header); font-size:13px; color:#facc15; font-weight:bold;">
-            📜 SUMMONER QUEST JOURNAL
-          </span>
-          <span style="font-size:10px; color:#94a3b8; margin-left:8px;">
-            <b style="color:#fde047;">In Progress: ${activeList.length}</b> ·
-            <b style="color:#f87171;">Not Started: ${availableList.length + lockedList.length}</b> ·
-            <b style="color:#4ade80;">Complete: ${completedList.length}</b> ·
-            🛡️ QP: <b style="color:#facc15;">${getTotalCompletedQuestPoints()} / ${getMaxQuestPoints()}</b>
-          </span>
-          <div style="font-size:9px; color:#7dd3fc; margin-top:2px;">
-            📜 Quest Point Cape Milestone: Complete all ${Object.keys(QUEST_CATALOG).length} canonical quests (${completedList.length}/${Object.keys(QUEST_CATALOG).length}).
-          </div>
-        </div>
-        <div style="display:flex; gap:6px;">
-          <button class="id-mini-btn" onclick="resetAllQuests(true)" title="Restart all quests from Awakening" style="font-size:9.5px; padding:3px 8px; border-color:#f59e0b; color:#fbbf24;">
-            ↺ RESTART QUESTS
-          </button>
-          <button class="id-mini-btn" onclick="setAllQuestTracking(true)" title="Pin all active quests to HUD" style="font-size:9.5px; padding:3px 8px;">
-            👁️ PIN ALL TO HUD
-          </button>
-          <button class="id-mini-btn" onclick="setAllQuestTracking(false)" title="Hide all quests from HUD" style="font-size:9.5px; padding:3px 8px;">
-            UNPIN ALL
-          </button>
-        </div>
-      </div>
-
-      <!-- Section 1: Active Quests (In Progress) -->
-      <div style="margin-bottom:14px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <span style="font-size:11px; font-weight:bold; color:#38bdf8; text-transform:uppercase; letter-spacing:0.5px;">
-            ⚔️ Active Quests in Progress (${activeList.length})
-          </span>
-          <span style="font-size:9.5px; color:#94a3b8;">Check the box to pin/display on your HUD tracker</span>
-        </div>
-
-        ${activeList.length === 0 ? `
-          <div style="background:#090d1c; border:1px dashed #334155; padding:12px; text-align:center; color:#94a3b8; font-size:10.5px;">
-            No quests currently in progress. Speak with NPCs with a golden <b style="color:#facc15;">[ ! ]</b> mark in the world to accept quests!
-          </div>
-        ` : `
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            ${activeList.map((q) => {
-              const isReady = q.isComplete();
-              const isTracked = questState.trackedQuests?.[q.id] !== false;
-              const completedTasks = q.tasks.filter(t => t.done()).length;
-              return `
-                <div style="background:#080d1e; border:2px solid ${isReady ? '#facc15' : isTracked ? '#38bdf8' : '#1e293b'}; border-radius:6px; padding:10px 12px;">
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                      <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:10px; font-weight:bold; color:${isTracked ? '#38bdf8' : '#64748b'}; background:#0c1326; border:1px solid ${isTracked ? '#38bdf8' : '#334155'}; padding:2px 6px; border-radius:3px;">
-                        <input type="checkbox" ${isTracked ? 'checked' : ''} onchange="toggleQuestTracking('${q.id}')" style="cursor:pointer; margin:0;">
-                        <span>${isTracked ? '👁️ DISPLAYED ON HUD' : 'PIN TO HUD'}</span>
-                      </label>
-                      <span style="font-family:var(--font-header); font-size:12px; font-weight:bold; color:#fde047;">
-                        📜 ${q.title.toUpperCase()}
-                      </span>
-                    </div>
-                    <div>
-                      <span style="font-size:10px; font-weight:bold; background:${isReady ? 'rgba(250,204,21,0.2)' : 'rgba(56,189,248,0.15)'}; border:1px solid ${isReady ? '#facc15' : '#38bdf8'}; color:${isReady ? '#facc15' : '#38bdf8'}; padding:2px 7px; border-radius:3px;">
-                        ${isReady ? '✨ READY TO TURN IN' : `PROGRESS: ${completedTasks}/${q.tasks.length}`}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div style="font-size:10.5px; color:#cbd5e1; margin-bottom:8px; line-height:1.45;">
-                    ${q.description}
-                  </div>
-
-                  <!-- Tasks Checklist -->
-                  <div style="background:#050814; border:1px solid #1e293b; border-radius:4px; padding:6px 8px; margin-bottom:8px; display:flex; flex-direction:column; gap:4px;">
-                    ${q.tasks.map((t) => {
-                      const done = t.done();
-                      const countStr = t.counter ? ` (${t.counter()})` : '';
-                      return `
-                        <div style="display:flex; align-items:center; gap:6px; font-size:10px;">
-                          <span style="width:14px; height:14px; display:inline-flex; align-items:center; justify-content:center; border:1px solid ${done ? '#86efac' : '#38bdf8'}; background:${done ? '#15803d' : '#0a1020'}; color:#ffffff; font-weight:bold; font-size:9.5px; border-radius:2px;">
-                            ${done ? '✓' : ''}
-                          </span>
-                          <span style="${done ? 'color:#94a3b8; text-decoration:line-through;' : 'color:#f8fafc;'}">
-                            ${t.text}${countStr}
-                          </span>
-                        </div>
-                      `;
-                    }).join('')}
-                  </div>
-
-                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:9.5px; color:#94a3b8;">
-                    <span>Turn in to: <b style="color:#f1f5f9;">${getNpcName(q.turnInId)}</b></span>
-                    <span style="color:#facc15; font-weight:bold;">
-                      🎁 REWARDS: +${q.rewards.xp} XP | +${q.rewards.glimmer || 0} GLIMMER
-                    </span>
-                  </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-        `}
-      </div>
-
-      <!-- Section 2: Available & Prerequisite-Locked Quests in the Realm -->
-      ${(availableList.length > 0 || lockedList.length > 0) ? `
-        <div style="margin-bottom:14px;">
-          <div style="font-size:11px; font-weight:bold; color:#f87171; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">
-            🔴 Not Started Quests (${availableList.length + lockedList.length})
-          </div>
-          <div style="display:flex; flex-direction:column; gap:6px;">
-            ${availableList.map((q) => `
-              <div style="background:#090e1d; border:1px solid #ef4444; border-left:3px solid #f87171; border-radius:5px; padding:8px 10px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
-                  <span style="font-family:var(--font-header); font-size:11px; font-weight:bold; color:#fca5a5;">
-                    🔴 ${q.title}
-                  </span>
-                  <span style="font-size:9.5px; color:#94a3b8;">
-                    Giver: <b style="color:#38bdf8;">${getNpcName(q.giverId)}</b>
-                  </span>
-                </div>
-                <div style="font-size:10px; color:#94a3b8; margin-bottom:4px;">${q.description}</div>
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:9px; color:#64748b;">
-                  <span>Speak with ${getNpcName(q.giverId)} to accept</span>
-                  <span style="color:#fde047;">+${q.rewards.xp} XP | +${q.rewards.glimmer || 0} Glimmer</span>
-                </div>
-              </div>
-            `).join('')}
-            ${lockedList.map((q) => `
-              <div style="background:#070a14; border:1px dashed #475569; border-left:3px solid #dc2626; border-radius:5px; padding:7px 10px; opacity:0.82;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
-                  <span style="font-family:var(--font-header); font-size:10.5px; font-weight:bold; color:#f87171;">
-                    🔒 ${q.title}
-                  </span>
-                  <span style="font-size:8.5px; color:#fbbf24; background:#1e1b4b; padding:1px 6px; border-radius:3px;">
-                    Requires: ${QUEST_CATALOG[q.prereqQuestId]?.title || q.prereqQuestId}
-                  </span>
-                </div>
-                <div style="font-size:9.5px; color:#64748b;">${q.description}</div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      ` : ''}
-
-      <!-- Section 3: Completed Quests Archive -->
-      ${completedList.length > 0 ? `
-        <div>
-          <div style="font-size:11px; font-weight:bold; color:#4ade80; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">
-            ✓ Completed Quests Archive (${completedList.length})
-          </div>
-          <div style="display:flex; flex-direction:column; gap:4px; max-height:120px; overflow-y:auto;">
-            ${completedList.map((q) => `
-              <div style="background:#070b16; border-left:3px solid #22c55e; padding:5px 8px; font-size:10px; display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                  <b style="color:#86efac;">✓ ${q.title}</b>
-                  <span style="color:#64748b; margin-left:6px;">— Turn-in: ${getNpcName(q.turnInId)}</span>
-                </div>
-                <span style="color:#4ade80; font-size:9px;">+${q.rewards.xp} XP CLAIMED</span>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      ` : ''}
-    `;
-  }
-
-  function renderChronicleView(body) {
-    body.innerHTML = `
-      <div style="display:flex; flex-direction:column; gap:10px;">
-        <div style="background:#080c18; border:2px solid #1e293b; padding:10px; border-radius:4px;">
-          <b style="color:#facc15; display:block; margin-bottom:4px; font-family:var(--font-header); font-size:12px;">
-            I. THE GLIMMER, THE FALL &amp; THE SHATTERED NEXUS
-          </b>
-          Before time took shape, reality hung between the radiance of the <b>Glimmer</b> and the silence of the <b>Fall</b>. Between them stood the crystalline <b>Nexus</b>, holding the Void at bay—until the Great Shattering scattered its shards across the continental caldera.
-        </div>
-        <div style="background:#080c18; border:2px solid #1e293b; padding:10px; border-radius:4px;">
-          <b style="color:#38bdf8; display:block; margin-bottom:4px; font-family:var(--font-header); font-size:12px;">
-            II. YOUR AWAKENING FROM STASIS
-          </b>
-          Sealed in starlight crystal in <b>Sanctuary Haven</b> since the Fall, you awaken as a <b>Summoner-Knight</b>. Train with <b>Herald Lyra</b>, form 3-player squads [O], and venture into the outer realms—banishing enemies into Void smoke, defending our Sanctuary, and shattering rival Monoliths!
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:10px;">
-          <div style="background:#080c18; border-left:3px solid #facc15; padding:8px; border-radius:3px;">
-            <b style="color:#facc15;">☀️ SOLARI (The Light)</b><br/>Radiant citadels, angelic heralds, Bulwark shields &amp; burning Daystar Rites.
-          </div>
-          <div style="background:#080c18; border-left:3px solid #a855f7; padding:8px; border-radius:3px;">
-            <b style="color:#c084fc;">🌑 UMBRI (The Shadow)</b><br/>Duskveil assassins, Soul Tithes, Stealth strikes &amp; whispers from the Void.
-          </div>
-          <div style="background:#080c18; border-left:3px solid #22c55e; padding:8px; border-radius:3px;">
-            <b style="color:#4ade80;">🌿 TERRA (The Earth)</b><br/>Ancient stone Behemoths, Overwhelm stampedes &amp; Ironwood resilience.
-          </div>
-          <div style="background:#080c18; border-left:3px solid #38bdf8; padding:8px; border-radius:3px;">
-            <b style="color:#38bdf8;">🔮 AETHER (The Magic)</b><br/>Starforged scholars bending time with Chrono Shifts &amp; Reality Fractures.
-          </div>
-        </div>
-        <div style="text-align:center; padding-top:6px;">
-          <a href="https://www.glimmerfalltcg.com" target="_blank" rel="noreferrer" style="color:#facc15; font-family:var(--font-header); font-size:10.5px; text-decoration:none;">
-            ▸ EXPLORE ALL 322 CARDS AT GLIMMERFALLTCG.COM ◂
-          </a>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderLoreModal() {
-    const modal = document.getElementById('lore-modal');
-    if (!modal) return;
-    const body = document.getElementById('lore-modal-body');
-    if (!body) return;
-
-    const tabQuestsBtn = document.getElementById('lore-tab-quests');
-    const tabMapBtn = document.getElementById('lore-tab-map');
-    const tabChronicleBtn = document.getElementById('lore-tab-chronicle');
-    const tabCollectionBtn = document.getElementById('lore-tab-collection');
-    if (tabQuestsBtn) tabQuestsBtn.className = `st-tab-btn ${currentLoreTab === 'quests' ? 'active' : ''}`;
-    if (tabMapBtn) tabMapBtn.className = `st-tab-btn ${currentLoreTab === 'map' ? 'active' : ''}`;
-    if (tabChronicleBtn) tabChronicleBtn.className = `st-tab-btn ${currentLoreTab === 'chronicle' ? 'active' : ''}`;
-    if (tabCollectionBtn) tabCollectionBtn.className = `st-tab-btn ${currentLoreTab === 'collection' ? 'active' : ''}`;
-
-    if (currentLoreTab === 'quests') {
-      renderQuestLogView(body);
-    } else if (currentLoreTab === 'map') {
-      renderWorldAtlasView(body);
-    } else if (currentLoreTab === 'collection') {
-      renderCollectionLogView(body, prog);
-    } else {
-      renderChronicleView(body);
-    }
-  }
-
-  window.openCollectionLog = function () {
-    currentLoreTab = 'collection';
-    if (document.getElementById('lore-modal')?.style.display !== 'block') {
-      window.toggleModal('lore-modal');
-    }
-    renderLoreModal();
-  };
+  const {
+    renderLoreModal,
+    getCurrentLoreTab,
+  } = setupWorldAtlasAndLoreUi({
+    getQuestState: () => questState,
+    getPlayer: () => player,
+    getCurrentRoomType: () => currentRoomType,
+    getMapBounds: () => mapBounds,
+    getLocalProfile: () => localProfile,
+    getProg: () => prog,
+    getNpcName,
+    isQuestPrereqMet,
+    getTotalCompletedQuestPoints,
+    getMaxQuestPoints,
+    isPlayerDead: () => player.isDead || deathScreenVisible,
+    isLocalFounder: () => isLocalFounder(),
+    audio,
+    saveQuestState: (...args) => saveQuestState(...args),
+    updateQuestTrackerHUD: () => updateQuestTrackerHUD(),
+  });
 
   window.openDropTableForEntity = function (ent) {
     renderDropTableModal(ent);
@@ -2998,7 +2390,9 @@ export function initGame() {
       slayer: normalizeSlayerState(prof.progression?.slayer),
       clue: normalizeClueState(prof.progression?.clue),
       collectionLog: { ...(prof.progression?.collectionLog || {}) },
+      exploration: normalizeExplorationState(prof.progression?.exploration, resolved.faction),
     };
+    updateMountButtonUi();
     if (typeof prof.unreadMailCount === 'number' && !isSinglePlayer && net.connected) {
       unreadMailCount = prof.unreadMailCount;
     }
@@ -3260,6 +2654,16 @@ export function initGame() {
     input.value = '';
     input.blur();
     if (!text) return;
+
+    if (text.toLowerCase() === '/mount') {
+      window.toggleMount();
+      return;
+    }
+    if (text.toLowerCase() === '/famduel' || text.toLowerCase().startsWith('/famduel ')) {
+      const targetName = text.slice(8).trim();
+      window.challengeFamiliarDuel(targetName || 'trainer');
+      return;
+    }
 
     if (net.connected) {
       net.send({ type: 'chat', channel: chatChannel, text });
@@ -4955,6 +4359,9 @@ export function initGame() {
       if (typeof window.toggleEchoCradleModal === 'function') {
         window.toggleEchoCradleModal(tab);
       }
+    } else if (act.action === 'startFamDuelTrainer') {
+      window.closeDialogue();
+      window.openFamDuelTrainer?.();
     } else if (act.action === 'openMail') {
       window.closeDialogue();
       if (typeof window.toggleMailModal === 'function') {
@@ -5428,7 +4835,7 @@ export function initGame() {
           logMessage(`📖 [Collection Log] New slot unlocked: ${def.name}!`, 'log-quest', 'chat');
         }
       }
-      if (document.getElementById('lore-modal')?.style.display === 'block' && currentLoreTab === 'collection') {
+      if (document.getElementById('lore-modal')?.style.display === 'block' && getCurrentLoreTab() === 'collection') {
         renderLoreModal();
       }
     }
@@ -5881,2350 +5288,85 @@ export function initGame() {
   // ==========================================
   // Zone Setup (All 7 Room Types: Hub, Warzone, 4 Biomes & 3v3 Arena)
   // ==========================================
-  let lastDecorRoomType = null;
   let isTransitioningZone = false;
-  let zoneEntryCardTimer = null;
 
-  function showZoneEntryCard(resolvedRoomType, cfg, roomTitleOverride = null) {
-    const card = document.getElementById('zone-entry-card');
-    if (!card || document.body.classList.contains('frontpage-active')) return;
-    const kickerEl = document.getElementById('zone-entry-kicker');
-    const titleEl = document.getElementById('zone-entry-title');
-    const subEl = document.getElementById('zone-entry-sub');
+  const { showZoneEntryCard, setupZoneDecor } = createZoneDecorManager({
+    audio,
+    mapBounds,
+    getProg: () => prog,
+    getQuestState: () => questState,
+    getPropsLength: () => props.length,
+    getNpcsLength: () => npcs.length,
+    setTarget: (t) => setTarget(t),
+    saveQuestState: (...args) => saveQuestState(...args),
+    updateQuestTrackerHUD: () => updateQuestTrackerHUD(),
+    onAchievementUnlocked: (...args) => onAchievementUnlocked(...args),
+    applyZoneDecor: ({ currentRoomType: rt, currentBiomeTheme: bt, currentZone: cz, npcs: n, props: p, resetFx }) => {
+      currentRoomType = rt;
+      currentBiomeTheme = bt;
+      currentZone = cz;
+      npcs = n;
+      props = p;
+      if (resetFx) {
+        particles = [];
+        afterimages = [];
+        slashArcs = [];
+        skyBeams = [];
+      }
+    },
+  });
 
-    const zoneMeta = {
-      [ROOM_TYPES.SANCTUARY_HUB]: { kicker: 'SAFE HAVEN', title: 'SANCTUARY METROPOLIS', sub: 'Safe Zone • Crafting, Exchange & Guild Halls', color: '#facc15' },
-      [ROOM_TYPES.SOLARI_CITADEL]: { kicker: 'SOLARI REALM', title: 'SUNSPIRE CITADEL', sub: 'Lv. 1–20 • Radiant Bastion & Solar Groves', color: '#facc15' },
-      [ROOM_TYPES.UMBRI_UNDERCITY]: { kicker: 'UMBRI REALM', title: 'UMBRI UNDERCITY', sub: 'Lv. 10–30 • Shadowfang Caverns & Duskveil Ruins', color: '#c084fc' },
-      [ROOM_TYPES.TERRA_ORCHARD]: { kicker: 'TERRA REALM', title: 'IRONWOOD ORCHARD', sub: 'Lv. 15–35 • Ancient Timber, Ore & Verdant Glades', color: '#4ade80' },
-      [ROOM_TYPES.AETHER_SPIRE]: { kicker: 'AETHER REALM', title: 'CHRONOCORE SPIRE', sub: 'Lv. 25–45 • Leyline Rifts & Arcane Forges', color: '#38bdf8' },
-      [ROOM_TYPES.CELESTIAL_ASCENT]: { kicker: 'ENDGAME REALM', title: 'CELESTIAL ASCENT', sub: 'Lv. 40+ • High-Tier Bosses & Mythic Shards', color: '#fbbf24' },
-      [ROOM_TYPES.NEXUS_WARZONE]: { kicker: 'CONTESTED PVP ZONE', title: 'SHATTERED NEXUS WARZONE', sub: '4-Faction Open Siege • Full Outpost Warfare', color: '#f87171' },
-      [ROOM_TYPES.ARENA_3V3]: { kicker: 'COMPETITIVE ARENA', title: '3V3 NEXUS ARENA', sub: 'Ranked Skirmish • Destroy the Enemy Nexus', color: '#fb7185' },
-    };
-    const meta = zoneMeta[resolvedRoomType] || (cfg?.isInterior ? {
-      kicker: 'INDOOR INTERIOR',
-      title: cfg.title || cfg.shortTitle || 'COZY INTERIOR',
-      sub: 'Safe Indoor Room • Walk onto the southern mat or press [E] to exit',
-      color: '#fbbf24',
-    } : {
-      kicker: 'ENTERING ZONE',
-      title: (cfg?.name || resolvedRoomType || 'REALM').toUpperCase(),
-      sub: cfg?.isPvp ? 'Contested PvP Territory' : 'Exploration Zone',
-      color: '#38bdf8',
-    });
+  const { buildOfflineZone, populateWorldSkillingNodes, applyEliteChampionsToZone } = createOfflineZoneBuilder({
+    setupZoneDecor,
+    getCurrentRoomType: () => currentRoomType,
+    getProps: () => props,
+    getPlayer: () => player,
+    getCamera: () => camera,
+    net,
+    isSinglePlayer: () => isSinglePlayer,
+    hasEnteredWorld: () => hasEnteredWorld,
+    saveProgressionLocal: () => saveProgressionLocal(),
+    applyOfflineZoneState: ({ entities: e, allies: a, projectiles: prj, groundZones: gz, lootDrops: ld, offlineMythic: om }) => {
+      entities = e;
+      allies = a;
+      projectiles = prj;
+      groundZones = gz;
+      lootDrops = ld;
+      offlineMythic = om;
+    },
+  });
 
-    card.style.setProperty('--zone-accent', meta.color);
-    if (kickerEl) kickerEl.textContent = meta.kicker;
-    if (titleEl) titleEl.textContent = roomTitleOverride || meta.title;
-    if (subEl) subEl.textContent = meta.sub;
-
-    card.classList.add('visible');
-    if (zoneEntryCardTimer) clearTimeout(zoneEntryCardTimer);
-    zoneEntryCardTimer = setTimeout(() => {
-      card.classList.remove('visible');
-    }, 2600);
+  function toSurfaceWorldCoords(dest, nx = null, ny = null) {
+    const targetCfg = ROOM_CONFIGS[dest] || ROOM_CONFIGS[ROOM_TYPES.SANCTUARY_HUB];
+    if (nx !== null && nx !== undefined && ny !== null && ny !== undefined && Number.isFinite(Number(nx)) && Number.isFinite(Number(ny))) {
+      const rx = Number(nx);
+      const ry = Number(ny);
+      const place = SURFACE_ZONE_PLACEMENT[dest];
+      const inDestWorldBox = place && rx >= place.minX - 360 && rx <= place.maxX + 360 && ry >= place.minY - 360 && ry <= place.maxY + 360;
+      if (inDestWorldBox || dest === ROOM_TYPES.SANCTUARY_HUB) {
+        return { wx: rx, wy: ry };
+      }
+      return localToWorld(dest, rx, ry);
+    }
+    return localToWorld(dest, targetCfg?.spawnX ?? 0, targetCfg?.spawnY ?? 96);
   }
 
-  function setupZoneDecor(zoneType, roomTitleOverride = null) {
-    const resolvedRoomType = ROOM_CONFIGS[zoneType]
-      ? zoneType
-      : zoneType === 'tutorial'
-        ? ROOM_TYPES.SANCTUARY_HUB
-        : zoneType === 'arena_3v3'
-          ? ROOM_TYPES.ARENA_3V3
-          : ROOM_TYPES.NEXUS_WARZONE;
-
-    if (lastDecorRoomType === resolvedRoomType && !roomTitleOverride && props.length > 0 && npcs.length > 0) {
-      return;
+  function onSurfaceRegionChanged(nextRoomType, { fromServer = false, roomTitle = null } = {}) {
+    if (!nextRoomType || !isSurfaceRoomType(nextRoomType)) return;
+    if (currentRoomType === nextRoomType && !roomTitle) return;
+    setupZoneDecor(nextRoomType, roomTitle);
+    updateNetStatusPill();
+    net.preferredRoom = nextRoomType;
+    if (nextRoomType !== ROOM_TYPES.SANCTUARY_HUB && !questState.portalTraveled) {
+      questState.portalTraveled = true;
+      saveQuestState();
+      updateQuestTrackerHUD();
     }
-    lastDecorRoomType = resolvedRoomType;
-
-    const cfg = ROOM_CONFIGS[resolvedRoomType] || ROOM_CONFIGS[ROOM_TYPES.SANCTUARY_HUB];
-    currentRoomType = resolvedRoomType;
-    currentBiomeTheme = cfg.biomeTheme || 'sanctuary';
-    currentZone =
-      resolvedRoomType === ROOM_TYPES.SANCTUARY_HUB
-        ? 'tutorial'
-        : resolvedRoomType === ROOM_TYPES.ARENA_3V3
-          ? 'arena_3v3'
-          : 'main_world';
-
-    mapBounds.halfW = cfg.halfW;
-    mapBounds.halfH = cfg.halfH;
-    audio.setBgmTheme(cfg.bgm || 'sanctuary');
-    showZoneEntryCard(resolvedRoomType, cfg, roomTitleOverride);
-
-    // Record Continental Waygate & Zone Exploration Achievements
-    recordAchievementStat(prog, `zone_${resolvedRoomType}_visited`, 1, onAchievementUnlocked);
-    prog.stats = prog.stats || {};
-    prog.stats._visited_zones_set = prog.stats._visited_zones_set || {};
-    if (!prog.stats._visited_zones_set[resolvedRoomType]) {
-      prog.stats._visited_zones_set[resolvedRoomType] = true;
-      recordAchievementStat(prog, 'zones_discovered_count', 1, onAchievementUnlocked);
+    if (fromServer) {
+      net.currentCoords = { x: player.x, y: player.y };
     }
-
-    if (!questState.visitedBiomes) questState.visitedBiomes = {};
-    if (resolvedRoomType === ROOM_TYPES.SOLARI_CITADEL) questState.visitedBiomes.solari = true;
-    if (resolvedRoomType === ROOM_TYPES.UMBRI_UNDERCITY) questState.visitedBiomes.umbri = true;
-    if (resolvedRoomType === ROOM_TYPES.TERRA_ORCHARD) questState.visitedBiomes.terra = true;
-    if (resolvedRoomType === ROOM_TYPES.AETHER_SPIRE) questState.visitedBiomes.aether = true;
-    if (resolvedRoomType === ROOM_TYPES.CELESTIAL_ASCENT) questState.ascentReached = true;
-    saveQuestState();
-    updateQuestTrackerHUD();
-
-    npcs = [];
-    props = [];
-    particles = [];
-    afterimages = [];
-    slashArcs = [];
-    skyBeams = [];
-    setTarget(null);
-
-    const hudEl = document.getElementById('hud');
-    const zoneTitle = document.getElementById('minimap-zone-title');
-    const zoneLabel = document.getElementById('zone-label');
-    const arenaBanner = document.getElementById('arena-banner');
-    const siegeBanner = document.getElementById('siege-banner');
-
-    hudEl.classList.toggle('in-arena', resolvedRoomType === ROOM_TYPES.ARENA_3V3);
-    hudEl.classList.toggle('in-siege', resolvedRoomType === ROOM_TYPES.NEXUS_WARZONE);
-    if (siegeBanner) {
-      siegeBanner.style.display = resolvedRoomType === ROOM_TYPES.NEXUS_WARZONE ? 'block' : 'none';
-    }
-
-    if (cfg?.isInterior) {
-      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || cfg.shortTitle || 'COZY INTERIOR';
-      if (zoneLabel) zoneLabel.innerText = cfg.exitDestination ? 'Exit Outside' : 'Sanctuary Haven';
-      arenaBanner.style.display = 'none';
-      const exitY = cfg.halfH - 14;
-      props.push({
-        type: 'doorThresholdGlow',
-        x: 0,
-        y: exitY,
-        label: '🚪 Exit Outside [Walk / E]',
-        exitDoor: cfg.exitDestination,
-      });
-
-      if (resolvedRoomType === ROOM_TYPES.INTERIOR_TAVERN) {
-        props.push(
-          { type: 'hearthFireplace', x: 0, y: -96, label: '🔥 Hearthstone Inn Fireplace' },
-          { type: 'tavernBar', x: -72, y: -78, label: '🍺 Tavern Bar Counter' },
-          { type: 'aleKeg', x: -126, y: -88 },
-          { type: 'aleKeg', x: -126, y: -62 },
-          { type: 'campfire', stationId: 'campfire_hearth', x: 86, y: -78, label: '🍲 Inn Cooking Hearth [Click / E]' },
-          { type: 'bookshelf', x: 142, y: -96 },
-          { type: 'tcgDuelTable', x: 12, y: 18, label: '🃏 1v1 GlimmerFall TCG Duel Table [Click / E]' },
-          { type: 'diningTable', x: -94, y: 18 },
-          { type: 'diningTable', x: 96, y: 18 },
-          { type: 'diningTable', x: -94, y: -22 },
-          { type: 'cozyBed', x: 142, y: 46 },
-          { type: 'streetLantern', x: -146, y: 92 },
-          { type: 'streetLantern', x: 146, y: 92 }
-        );
-        npcs.push(
-          {
-            id: 'npc_innkeeper_garrick',
-            name: 'Innkeeper Garrick',
-            role: 'Hearthstone Innkeeper [Click / T]',
-            spriteKey: 'merchantProvisionsNpc',
-            x: -72,
-            y: -52,
-            dialogue: [
-              {
-                speaker: 'INNKEEPER GARRICK • HEARTHSTONE INN',
-                spriteKey: 'merchantProvisionsNpc',
-                merchantId: 'merchant_tavern',
-                text: 'Welcome inside out of the wind! Pull up a chair by the roaring hearth, grab a tankard of golden cider, challenge a patron or GlimmerBot at our 1v1 GlimmerFall TCG Duel Table, or cook your fresh catch on our inn griddle.\n\nAdventurers always recover their strength fastest indoors!',
-                actions: [
-                  { label: '🃏 PLAY 1V1 GLIMMERFALL TCG (TAVERN DUEL)', action: 'openTcgDuel', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
-                  { label: '✨ REST AT HEARTH (FULL HP & GLIMMER)', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac; font-weight:bold;' },
-                  { label: '🍺 TAVERN DRINKS & RATIONS SHOP', action: 'openShop', style: 'border-color:#fbbf24; color:#fde047; font-weight:bold;' },
-                  { label: '🍲 OPEN COOKING HEARTH', action: 'openStation_campfire_hearth', style: 'border-color:#fb923c; color:#fed7aa;' },
-                  { label: '👋 JUST BROWSING', action: 'close' },
-                ],
-              },
-            ],
-          },
-          {
-            id: 'npc_bard_melody',
-            name: 'Minstrel Lyra-Song',
-            role: 'Tavern Bard & Chronicler [Click / T]',
-            spriteKey: 'heraldNpc',
-            x: 88,
-            y: -12,
-            dialogue: [
-              {
-                speaker: 'MINSTREL LYRA-SONG • HEARTHSTONE INN',
-                spriteKey: 'heraldNpc',
-                text: 'Every champion needs a warm refuge when twilight or autumn rain sweeps across Sanctuary Haven. Have you tried a match of GlimmerFall TCG at our velvet duel table yet?',
-                actions: [
-                  { label: '🃏 PLAY 1V1 GLIMMERFALL TCG', action: 'openTcgDuel', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
-                  { label: '🎵 APPRECIATE THE TUNE', action: 'close' },
-                ],
-              },
-              {
-                speaker: 'MINSTREL LYRA-SONG • HEARTHSTONE INN',
-                spriteKey: 'heraldNpc',
-                text: 'Watch the waystone lanterns as evening deepens: each flame marks the safe border roads between the four Covenants—while dusk raiders stir beyond the glow.',
-              },
-            ],
-          }
-        );
-      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_BANK_VAULT) {
-        props.push(
-          { type: 'bankCounter', x: 0, y: -48, label: '🏛️ Vault Teller Desk' },
-          { type: 'goldChestPile', x: -124, y: -92, label: '💰 High-Security Reserve Vault' },
-          { type: 'goldChestPile', x: 124, y: -92, label: '💰 High-Security Reserve Vault' },
-          { type: 'bookshelf', x: -144, y: 18 },
-          { type: 'bookshelf', x: 144, y: 18 },
-          { type: 'crystalPillar', x: -58, y: -92 },
-          { type: 'crystalPillar', x: 58, y: -92 },
-          { type: 'brazier', x: -146, y: 92 },
-          { type: 'brazier', x: 146, y: 92 }
-        );
-        npcs.push(
-          {
-            id: 'npc_vault_steward_aurelius',
-            name: 'Steward Aurelius',
-            role: 'Chief Vaultmaster [Click / T]',
-            spriteKey: 'bankerNpc',
-            isBank: true,
-            x: -36,
-            y: -38,
-          },
-          {
-            id: 'npc_vault_broker_silvius',
-            name: 'Exchange Broker Silvius',
-            role: 'AetherSwap Inside Teller [Click / T]',
-            spriteKey: 'bankerNpc',
-            isExchange: true,
-            x: 36,
-            y: -38,
-          }
-        );
-      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_SANCTUARY_COTTAGE) {
-        props.push(
-          { type: 'factionCrestAether', x: -24, y: -106 },
-          { type: 'hearthFireplace', x: -24, y: -84, label: '🔥 Cozy Cottage Hearth' },
-          { type: 'bookshelf', x: -112, y: -84 },
-          { type: 'specimenFrame', x: 34, y: -88, label: '🖼️ Botanical & Mana Specimen' },
-          { type: 'bookshelf', x: -124, y: -12 },
-          { type: 'sleepingPetCat', x: -102, y: -2, label: '🐈 Slumbering Tabby Familiar' },
-          { type: 'workstationConsole', specialStation: 'echo_extractor', x: 108, y: 6, label: '⚗️ Harmonic Extractor Desk [Click / E]' },
-          { type: 'constructCradle', specialStation: 'construct_cradle', x: 36, y: 24, label: '🐾 Construct Cradle [Click / E]' },
-          { type: 'mapTable', x: -48, y: 12, label: '🗺️ Continental Exploration Chart' },
-          { type: 'cozyBed', x: -122, y: 58 },
-          { type: 'terracottaUrn', x: 40, y: 64 },
-          { type: 'streetLantern', x: 36, y: 88 },
-          {
-            type: 'ironVaultGrate',
-            puzzleId: 'cottage_archive_vault',
-            isPuzzleGate: true,
-            x: 112,
-            y: -40,
-            label: '🔐 Covenant Iron Vault Grate [Click / E]',
-          },
-          {
-            type: 'goldChestPile',
-            puzzleId: 'cottage_archive_vault',
-            isPuzzleChest: true,
-            x: 112,
-            y: -74,
-            label: '💎 Archivist’s Vault Chest [Click / E]',
-          }
-        );
-        npcs.push({
-          id: 'npc_archivist_elara',
-          name: 'Archivist Elara',
-          role: 'Sanctuary Scholar [Click / T]',
-          spriteKey: 'aetherAstromancerNpc',
-          x: -52,
-          y: -18,
-          dialogue: [
-            {
-              speaker: 'ARCHIVIST ELARA • SCHOLAR COTTAGE',
-              spriteKey: 'aetherAstromancerNpc',
-              text: 'Ah, a quiet refuge to study the First Nexus chronicles! Outside, Sanctuary teems with recruits, while inside these walls you can rest, inspect continental charts, and prepare your loadouts safely.',
-              actions: [
-                { label: '⚗️ HARMONIC EXTRACTOR', action: 'openEcho_extractor', style: 'border-color:#38bdf8; color:#e0f2fe; font-weight:bold;' },
-                { label: '🐾 CONSTRUCT CRADLE', action: 'openEcho_cradle', style: 'border-color:#c084fc; color:#f3e8ff; font-weight:bold;' },
-                { label: '📬 CHECK HERALD POSTBOX', action: 'openMail', style: 'border-color:#fde047; color:#fef08a;' },
-                { label: '✨ REST AT STUDY HEARTH (FULL VITALS)', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac; font-weight:bold;' },
-                { label: '👋 GOODBYE', action: 'close' },
-              ],
-            },
-            {
-              speaker: 'ARCHIVIST ELARA • SCHOLAR COTTAGE',
-              spriteKey: 'aetherAstromancerNpc',
-              text: 'Have you wondered why the ancients called us Summoner-Knights? When the Nexus shattered, beast-spirits did not vanish—their memory settled inside wild herbs, star-copper veins, and Silver Koi scales, awaiting a Harmonic Extractor to sing them whole again.',
-            },
-          ],
-        });
-      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_SOLARI_SMITHY) {
-        props.push(
-          { type: 'hearthFireplace', x: 0, y: -92, label: '🔥 Blazing Guild Foundry' },
-          { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: -72, y: -28, label: '🔨 Sunforged Guild Anvil [Click / E]' },
-          { type: 'weaponRack', x: -126, y: -86 },
-          { type: 'weaponRack', x: 126, y: -86 },
-          { type: 'weaponRack', x: 126, y: 18 },
-          { type: 'mapTable', x: 66, y: -24 },
-          { type: 'aleKeg', x: -130, y: 32 },
-          { type: 'brazier', x: -140, y: 86 },
-          { type: 'brazier', x: 140, y: 86 }
-        );
-        npcs.push({
-          id: 'npc_smith_solon',
-          name: 'Master Smith Solon',
-          role: 'Sunforged Guildmaster [Click / T]',
-          spriteKey: 'merchantSmithNpc',
-          x: -72,
-          y: -58,
-          dialogue: [
-            {
-              speaker: 'MASTER SMITH SOLON • SUNFORGED SMITHY',
-              spriteKey: 'merchantSmithNpc',
-              merchantId: 'merchant_smith',
-              text: 'Feel that heat from the Sunforged hearth! My apprentice Torvin watches the courtyard stall outside while I temper high-grade alloys right here inside the hall.',
-              actions: [
-                { label: '🔨 USE GUILD STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
-                { label: '🛒 BROWSE SMITHING WARES', action: 'openShop', style: 'border-color:#facc15; color:#fde047;' },
-                { label: '✨ REST BY THE FORGE', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac;' },
-                { label: '👋 FAREWELL', action: 'close' },
-              ],
-            },
-          ],
-        });
-      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_TERRA_APOTHECARY) {
-        props.push(
-          { type: 'blossomTree', x: -128, y: -76 },
-          { type: 'pineTree', x: 128, y: -76 },
-          { type: 'hearthFireplace', x: 0, y: -92, label: '🔥 Conservatory Drying Hearth' },
-          { type: 'alchemyShelf', x: -72, y: -86 },
-          { type: 'alchemyShelf', x: 72, y: -86 },
-          { type: 'flowerBed', x: -96, y: -36 },
-          { type: 'flowerBed', x: 96, y: -36 },
-          { type: 'sleepingPetFox', x: -26, y: -46, label: '🦊 Conservatory Spirit Fox' },
-          { type: 'factionCrestLeaf', x: 8, y: -20 },
-          { type: 'terracottaUrn', x: -36, y: -6 },
-          { type: 'terracottaUrn', x: 52, y: -6 },
-          { type: 'aetherCrucible', stationId: 'aether_crucible', x: -92, y: 28, label: '⚗️ Rootdeep Indoor Crucible [Click / E]' },
-          { type: 'celestialLoom', stationId: 'celestial_loom', x: 92, y: 28, label: '🧵 Botanical Silk Loom [Click / E]' },
-          { type: 'cozyBed', x: -134, y: 74 },
-          { type: 'specimenFrame', x: 134, y: 60 },
-          { type: 'constructCradle', specialStation: 'construct_cradle', x: 0, y: -44, label: '🐾 Verdant Construct Cradle [Click / E]' },
-          { type: 'workstationConsole', specialStation: 'echo_extractor', x: 134, y: 12, label: '⚗️ Botanical Harmonic Extractor [Click / E]' },
-          { type: 'streetLantern', x: -64, y: 88 },
-          { type: 'streetLantern', x: 64, y: 88 }
-        );
-        npcs.push({
-          id: 'npc_herbalist_willow',
-          name: 'Herbalist Willow',
-          role: 'Apothecary Hostess [Click / T]',
-          spriteKey: 'terraHerbalistNpc',
-          x: 0,
-          y: 26,
-          dialogue: [
-            {
-              speaker: 'HERBALIST WILLOW • ROOTDEEP APOTHECARY HOUSE',
-              spriteKey: 'terraHerbalistNpc',
-              merchantId: 'merchant_apothecary',
-              text: 'Step softly — dried sunblooms and moon-moss bundles scent every rafters beam! Brew salves at my crucible, weave flax at the loom, or rest beside the herbal drying hearth.',
-              actions: [
-                { label: '⚗️ OPEN APOTHECARY CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#c084fc; color:#f3e8ff; font-weight:bold;' },
-                { label: '⚗️ HARMONIC EXTRACTOR', action: 'openEcho_extractor', style: 'border-color:#38bdf8; color:#e0f2fe;' },
-                { label: '🐾 CONSTRUCT CRADLE', action: 'openEcho_cradle', style: 'border-color:#4ade80; color:#dcfce7;' },
-                { label: '🛒 APOTHECARY STOCK', action: 'openShop', style: 'border-color:#4ade80; color:#86efac;' },
-                { label: '✨ REST & HEAL', action: 'restAtInn', style: 'border-color:#facc15; color:#fde047;' },
-                { label: '👋 THANK YOU', action: 'close' },
-              ],
-            },
-            {
-              speaker: 'HERBALIST WILLOW • ROOTDEEP APOTHECARY HOUSE',
-              spriteKey: 'terraHerbalistNpc',
-              text: 'Grass, Tidewater, Rich Soil, and Living Stone—those four elements uphold every Terra guardian. Pure strength, restorative waters, clear vision, and an unwavering instinct to shelter the realm.',
-            },
-          ],
-        });
-      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_UMBRI_PARLOR) {
-        props.push(
-          { type: 'tavernBar', x: 0, y: -82, label: '🍷 Velvet Veil Night Bar' },
-          { type: 'celestialLoom', stationId: 'celestial_loom', x: -72, y: -22, label: '🧵 Velvet Shadow Loom [Click / E]' },
-          { type: 'goldChestPile', x: 124, y: -26 },
-          { type: 'tcgDuelTable', x: 18, y: 18, label: '🃏 Velvet Veil 1v1 GlimmerFall TCG Table [Click / E]' },
-          { type: 'diningTable', x: 84, y: 18 },
-          { type: 'bookshelf', x: -126, y: 24 },
-          { type: 'umbriBrazierAltar', x: -116, y: -82 },
-          { type: 'umbriBrazierAltar', x: 116, y: -82 },
-          { type: 'umbriBrazierAltar', x: -140, y: 86 },
-          { type: 'umbriBrazierAltar', x: 140, y: 86 }
-        );
-        npcs.push({
-          id: 'npc_mistress_vexis',
-          name: 'Mistress Vexis',
-          role: 'Velvet Veil Proprietor [Click / T]',
-          spriteKey: 'shadowBrokerNpc',
-          x: 0,
-          y: -52,
-          dialogue: [
-            {
-              speaker: 'MISTRESS VEXIS • VELVET VEIL PARLOR',
-              spriteKey: 'shadowBrokerNpc',
-              merchantId: 'merchant_tailor',
-              text: 'Hush... leave the graveyard fog at the threshold. Inside the Velvet Veil, brokers trade rare twilight silks, duel with Graveglass Veil TCG decks, and tired blades regain their edge.',
-              actions: [
-                { label: '🃏 PLAY 1V1 GLIMMERFALL TCG', action: 'openTcgDuel', style: 'border-color:#c084fc; color:#f3e8ff; font-weight:bold;' },
-                { label: '🧵 USE SHADOW LOOM', action: 'openStation_celestial_loom', style: 'border-color:#c084fc; color:#e9d5ff; font-weight:bold;' },
-                { label: '🛒 TAILORING SILKS & WARES', action: 'openShop', style: 'border-color:#a855f7; color:#f3e8ff;' },
-                { label: '✨ REST IN SHADOWS', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac;' },
-                { label: '👋 DEPART', action: 'close' },
-              ],
-            },
-          ],
-        });
-      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_AETHER_OBSERVATORY) {
-        props.push(
-          { type: 'factionCrestAether', x: 0, y: -110 },
-          { type: 'aetherArmillary', x: 0, y: -78, label: '🔭 Astral Celestial Sphere' },
-          { type: 'bookshelf', x: -132, y: -82 },
-          { type: 'bookshelf', x: 122, y: -82 },
-          { type: 'sleepingPetCat', x: 122, y: -74, label: '🐈 Slumbering Observatory Cat' },
-          { type: 'woodStairs', x: -102, y: -48, label: '🪜 Observatory Mezzanine Steps' },
-          { type: 'balustradeRail', x: -70, y: -48 },
-          { type: 'balustradeRail', x: -38, y: -48 },
-          { type: 'balustradeRail', x: 46, y: -48 },
-          { type: 'balustradeRail', x: 78, y: -48 },
-          { type: 'mapTable', x: 0, y: 0, label: '🗺️ Starlight Nexus Astrolabe' },
-          { type: 'aetherCrucible', stationId: 'aether_crucible', x: -96, y: 4, label: '⚗️ Astral Resonance Crucible [Click / E]' },
-          { type: 'workstationConsole', specialStation: 'echo_extractor', x: 112, y: 4, label: '⚗️ Specimen Harmonic Extractor [Click / E]' },
-          { type: 'constructCradle', specialStation: 'construct_cradle', x: 0, y: 48, label: '🐾 Astral Construct Cradle [Click / E]' },
-          { type: 'terracottaUrn', x: -34, y: 44 },
-          { type: 'crystalPillar', x: 116, y: 44 },
-          { type: 'crystalPillar', x: -40, y: 82 },
-          { type: 'crystalPillar', x: 136, y: 82 }
-        );
-        npcs.push({
-          id: 'npc_magister_orionis',
-          name: 'Magister Orionis',
-          role: 'Observatory Savant [Click / T]',
-          spriteKey: 'aetherAstromancerNpc',
-          x: 62,
-          y: -62,
-          dialogue: [
-            {
-              speaker: 'MAGISTER ORIONIS • ASTRAL OBSERVATORY',
-              spriteKey: 'aetherAstromancerNpc',
-              merchantId: 'merchant_relics',
-              text: 'Notice how the starlight charts reflect the Leylines directly overhead! Take a moment inside our observatory to commune with the astrolabe, fuse arcane potions, or inspect recovered relics.',
-              actions: [
-                { label: '⚗️ USE ASTRAL CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#38bdf8; color:#bae6fd; font-weight:bold;' },
-                { label: '⚗️ HARMONIC EXTRACTOR', action: 'openEcho_extractor', style: 'border-color:#38bdf8; color:#e0f2fe;' },
-                { label: '🐾 CONSTRUCT CRADLE', action: 'openEcho_cradle', style: 'border-color:#c084fc; color:#f3e8ff;' },
-                { label: '🛒 CURIO & RELIC WARES', action: 'openShop', style: 'border-color:#c084fc; color:#f3e8ff;' },
-                { label: '✨ ATTUNE & REST', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac;' },
-                { label: '👋 CLOSE', action: 'close' },
-              ],
-            },
-          ],
-        });
-      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_MARINER_TAVERN) {
-        props.push(
-          { type: 'hearthFireplace', x: 0, y: -96, label: '🔥 Sea-Driftwood Fireplace' },
-          { type: 'tavernBar', x: -72, y: -78, label: '⚓ Galley Ale Counter' },
-          { type: 'campfire', stationId: 'campfire_hearth', x: 96, y: -78, label: '🐟 Galley Seafood Skillet [Click / E]' },
-          { type: 'aleKeg', x: -128, y: -86 },
-          { type: 'aleKeg', x: -128, y: -56 },
-          { type: 'tcgDuelTable', x: 0, y: 18, label: '🃏 Mariner 1v1 GlimmerFall TCG Table [Click / E]' },
-          { type: 'mapTable', x: 86, y: 18, label: '🗺️ Sea Chart & Reef Log' },
-          { type: 'diningTable', x: -86, y: 18 },
-          { type: 'cozyBed', x: 142, y: -80 },
-          { type: 'streetLantern', x: -146, y: 92 },
-          { type: 'streetLantern', x: 146, y: 92 }
-        );
-        npcs.push({
-          id: 'npc_captain_brine',
-          name: 'Captain Brine',
-          role: 'Mariner Innkeeper [Click / T]',
-          spriteKey: 'anglerFinnNpc',
-          x: -72,
-          y: -52,
-          dialogue: [
-            {
-              speaker: 'CAPTAIN BRINE • MARINER TAVERN',
-              spriteKey: 'anglerFinnNpc',
-              merchantId: 'merchant_tavern',
-              text: 'Ahoy! Wipe the Coral Coast sea spray off your boots and warm up by our driftwood fireplace. Pan-sear your fresh catch at the galley skillet or deal a round of 1v1 GlimmerFall TCG!',
-              actions: [
-                { label: '🃏 PLAY 1V1 GLIMMERFALL TCG', action: 'openTcgDuel', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
-                { label: '✨ REST AT GALLEY HEARTH (FULL VITALS)', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac; font-weight:bold;' },
-                { label: '🐟 OPEN GALLEY COOKING HEARTH', action: 'openStation_campfire_hearth', style: 'border-color:#38bdf8; color:#bae6fd; font-weight:bold;' },
-                { label: '🍺 GALLEY PROVISIONS & TONICS', action: 'openShop', style: 'border-color:#fbbf24; color:#fde047;' },
-                { label: '👋 FAIR WINDS', action: 'close' },
-              ],
-            },
-            {
-              speaker: 'CAPTAIN BRINE • MARINER TAVERN',
-              spriteKey: 'anglerFinnNpc',
-              text: 'When squalls blow off Brinelight Shallows at dusk, keep one eye on the bamboo pier lanterns—and if you delve into the pitch-black Vaults or Labyrinths inland, watch for glowing ore veins and the silver cone of surface light marking your exit!',
-            },
-          ],
-        });
-      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_GUILD_HALL) {
-        props.push(
-          { type: 'hearthFireplace', x: 0, y: -96, label: '🔥 Vanguard Guildhall Hearth [Click / E]' },
-          { type: 'factionCrestSolari', x: -56, y: -108 },
-          { type: 'factionCrestLeaf', x: 0, y: -112 },
-          { type: 'factionCrestAether', x: 56, y: -108 },
-          { type: 'mapTable', x: 0, y: -22, label: '🗺️ Continental Campaign War-Table [Click / E]' },
-          { type: 'tcgDuelTable', x: 54, y: 28, label: '🃏 Vanguard 1v1 GlimmerFall TCG Table [Click / E]' },
-          { type: 'trainingDummy', x: -64, y: -18, label: '🥋 Vanguard Combat DPS Dummy [Click / E]' },
-          { type: 'weaponRack', x: -132, y: -86, label: '⚔️ Vanguard Armory Rack [Click / E]' },
-          { type: 'weaponRack', x: 132, y: -86, label: '⚔️ Vanguard Armory Rack [Click / E]' },
-          { type: 'archeryTarget', x: -138, y: -18, label: '🎯 Guild Marksman Target [Click / E]' },
-          { type: 'archeryTarget', x: 138, y: -18, label: '🎯 Guild Marksman Target [Click / E]' },
-          { type: 'bookshelf', x: -88, y: -92, label: '📖 Chronicles of the First Nexus [Click / E]' },
-          { type: 'bookshelf', x: 88, y: -92, label: '📖 Codex of the Four Covenants [Click / E]' },
-          { type: 'bardHarpStand', x: 84, y: -42, label: '🎵 Gilded Vanguard Harp [Click / E]' },
-          { type: 'supplyCrate', x: -136, y: 48, label: '📦 Quartermaster Supply Cache [Click / E]' },
-          { type: 'supplyCrate', x: 136, y: 48, label: '📦 Quartermaster Supply Cache [Click / E]' },
-          { type: 'bountyBoard', isBountyBoard: true, x: -78, y: 38, label: '📜 Guildhall Bounty Ledger [Click / E]' },
-          { type: 'sleepingPetFox', x: 46, y: -64, label: '🦊 Guild Mascot Ember-Fox [Click / E]' },
-          { type: 'cozyBed', x: 144, y: -4, label: '🛏️ Champion Bunk [Click / E]' },
-          { type: 'streetLantern', x: -146, y: 92 },
-          { type: 'streetLantern', x: 146, y: 92 }
-        );
-        npcs.push({
-          id: 'npc_guildmaster_thorne',
-          name: 'Guildmaster Thorne',
-          role: 'Adventurers Guild Commander [Click / T]',
-          spriteKey: 'warzoneArchonNpc',
-          x: 0,
-          y: -52,
-          dialogue: [
-            {
-              speaker: 'GUILDMASTER THORNE • VANGUARD GUILDHALL',
-              spriteKey: 'warzoneArchonNpc',
-              text: 'Welcome to the Adventurers Vanguard Guildhall! Every object in our lodge is yours to use: study the Continental War-Table, duel at the 1v1 GlimmerFall TCG Table, practice combinations on the archery targets, rummage Quartermaster Supply Crates, or claim contracts from the Bounty Ledger.\n\nHave you explored the CrystalEcho Caverns south of Sanctuary Gardens yet?',
-              actions: [
-                { label: '🃏 PLAY 1V1 GLIMMERFALL TCG (GUILD TABLE)', action: 'openTcgDuel', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
-                { label: '📜 OPEN GUILD BOUNTY LEDGER', action: 'openBountyBoard', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
-                { label: '✨ REST AT GUILD HEARTH (FULL VITALS)', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac; font-weight:bold;' },
-                { label: '📬 CHECK GUILD MAILBOX', action: 'openMail', style: 'border-color:#38bdf8; color:#bae6fd;' },
-                { label: '👋 FOR THE REALM!', action: 'close' },
-              ],
-            },
-          ],
-        });
-      } else if (resolvedRoomType === ROOM_TYPES.INTERIOR_TCG_PAVILION) {
-        props.push(
-          { type: 'hearthFireplace', x: 0, y: -112, label: '🔥 Pavilion Hearthfire [Click / E]' },
-          { type: 'factionCrestSolari', x: -72, y: -118 },
-          { type: 'factionCrestLeaf', x: 0, y: -126 },
-          { type: 'factionCrestAether', x: 72, y: -118 },
-          { type: 'tcgDuelTable', x: 0, y: -16, label: '🃏 Grand Championship 1v1 TCG Table [Click / E]' },
-          { type: 'tcgDuelTable', x: -94, y: 12, label: '🃏 West Bronze 1v1 TCG Table [Click / E]' },
-          { type: 'tcgDuelTable', x: 94, y: 12, label: '🃏 East Auric 1v1 TCG Table [Click / E]' },
-          { type: 'wishingShrine', x: -92, y: -68, label: '🌟 Top-Deck Lucky Wish Shrine [Click / E]' },
-          { type: 'covenantBannerStand', x: 92, y: -68, label: '🚩 Continental TCG Rally Standard [Click / E]' },
-          { type: 'ancientSundialClock', x: 0, y: 42, label: '⏳ Round Clock & Swiss Timer [Click / E]' },
-          { type: 'bookshelf', x: -138, y: -102, label: '📖 First Edition 322-Card Compendium [Click / E]' },
-          { type: 'bookshelf', x: 138, y: -102, label: '📖 40-Card Meta Deck Archive [Click / E]' },
-          { type: 'bountyBoard', isBountyBoard: true, x: -138, y: -24, label: '📜 TCG & Arena Contract Board [Click / E]' },
-          { type: 'supplyCrate', x: 142, y: -24, label: '📦 Sleeve & Deckbox Cache [Click / E]' },
-          { type: 'sleepingPetCat', x: -52, y: -76, label: '🐈 Pavilion Lucky Tabby [Click / E]' },
-          { type: 'streetLantern', x: -158, y: 92 },
-          { type: 'streetLantern', x: 158, y: 92 }
-        );
-        npcs.push(
-          {
-            id: 'npc_tcg_grandmaster_solis',
-            name: 'Grandmaster Solis',
-            role: 'TCG Tournament Director [Click / T]',
-            spriteKey: 'warzoneArchonNpc',
-            x: 0,
-            y: -62,
-            dialogue: [
-              {
-                speaker: 'GRANDMASTER SOLIS • GRAND TCG PAVILION',
-                spriteKey: 'warzoneArchonNpc',
-                text: 'Welcome to the Grand GlimmerFall TCG Pavilion! Every hero begins with our complete First Edition 322-card catalog and curated 40-card decks — no pack paywalls required.\n\nStep up to any velvet table or click Challenge right here to test your deck against our GlimmerBot AI or duel another adventurer live!',
-                actions: [
-                  { label: '🃏 START 1V1 GLIMMERFALL TCG DUEL', action: 'openTcgDuel', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
-                  { label: '✨ REST AT HEARTH (FULL VITALS)', action: 'restAtInn', style: 'border-color:#4ade80; color:#86efac; font-weight:bold;' },
-                  { label: '👋 GOOD LUCK AT THE TABLES', action: 'close' },
-                ],
-              },
-            ],
-          },
-          {
-            id: 'npc_tcg_archivist_lyra',
-            name: 'Archivist Lyra',
-            role: 'First Edition Collector [Click / T]',
-            spriteKey: 'cartographerNpc',
-            x: 78,
-            y: -36,
-            dialogue: [
-              {
-                speaker: 'ARCHIVIST LYRA • CARD ARCHIVE',
-                spriteKey: 'cartographerNpc',
-                text: 'You can build and sync your personal decks on GlimmerFallTCG.com, or test preconstructed decks like Solar Singularity, Gaia\'s Loop, Fractured Continuum, and The Graveglass Veil directly in the Pavilion.\n\nTouch the Top-Deck Shrine for a fresh 90-second Starlight Wish before heading north to Frostspire Glacier!',
-                actions: [
-                  { label: '🃏 PLAY 1V1 CARD DUEL', action: 'openTcgDuel', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
-                  { label: '📚 CLOSE', action: 'close' },
-                ],
-              },
-            ],
-          }
-        );
-      }
-      return;
-    }
-
-    if (resolvedRoomType === ROOM_TYPES.SANCTUARY_HUB) {
-      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'SANCTUARY METROPOLIS #1';
-      if (zoneLabel) zoneLabel.innerText = 'Sanctuary Haven';
-      arenaBanner.style.display = 'none';
-
-      // ==========================================
-      // COZY, VIBRANT SANCTUARY HOMETOWN & HAVEN PROPS
-      // ==========================================
-      props.push(
-        // 1. Awakening Homecoming Plaza & Spawn Courtyard (Right around spawn 0, 96)
-        { type: 'ancientWell', x: 64, y: 112 },
-        { type: 'solariSundial', x: 0, y: 152 },
-        { type: 'flowerBed', x: -92, y: 72 },
-        { type: 'flowerBed', x: 92, y: 72 },
-        { type: 'flowerBed', x: -92, y: 138 },
-        { type: 'flowerBed', x: 92, y: 138 },
-        { type: 'streetLantern', x: -34, y: 62 },
-        { type: 'streetLantern', x: 34, y: 62 },
-        { type: 'streetLantern', x: -34, y: 142 },
-        { type: 'streetLantern', x: 34, y: 142 },
-        { type: 'blossomTree', x: -118, y: 58 },
-        { type: 'blossomTree', x: 118, y: 58 },
-        { type: 'blossomTree', x: -118, y: 152 },
-        { type: 'blossomTree', x: 118, y: 152 },
-
-        // 2. Grand Central Starlight Fountain Plaza (Center 0, -10)
-        { type: 'grandFountain', x: 0, y: -10 },
-        { type: 'stoneBench', x: -46, y: -32 },
-        { type: 'stoneBench', x: 46, y: -32 },
-        { type: 'stoneBench', x: -46, y: 16 },
-        { type: 'stoneBench', x: 46, y: 16 },
-        { type: 'brazier', x: -34, y: -58 },
-        { type: 'brazier', x: 34, y: -58 },
-        { type: 'brazier', x: -68, y: -10 },
-        { type: 'brazier', x: 68, y: -10 },
-        { type: 'streetLantern', x: -72, y: -52 },
-        { type: 'streetLantern', x: 72, y: -52 },
-        { type: 'bountyBoard', isBountyBoard: true, x: -54, y: -72, label: '📜 Vanguard Bounty Board [Click / E]' },
-        { type: 'flowerBed', x: -108, y: -52 },
-        { type: 'flowerBed', x: 108, y: -52 },
-
-        // 3. North Civic Terrace: Grand AetherSwap Exchange & Grand AetherVault Bank
-        { type: 'bankBuilding', x: -115, y: -155, label: '🏛️ The Grand AetherSwap Exchange' },
-        { type: 'heraldPostbox', isPostbox: true, x: 42, y: -112, label: '📬 Herald Postbox • Vault Square [Click / E]' },
-        { type: 'heraldPostbox', isPostbox: true, x: 212, y: 118, label: '📬 Herald Postbox • Hearthstone Inn [Click / E]' },
-        { type: 'bankCounter', x: -115, y: -105 },
-        { type: 'streetLantern', x: -155, y: -105 },
-        { type: 'streetLantern', x: -75, y: -105 },
-        { type: 'doorThresholdGlow', x: 115, y: -124 },
-        {
-          type: 'bankBuilding',
-          x: 115,
-          y: -155,
-          label: '🏛️ Grand AetherVault Hall [Enter]',
-          doorway: { targetRoom: ROOM_TYPES.INTERIOR_BANK_VAULT, x: 115, y: -124, radius: 14 },
-        },
-        { type: 'bankCounter', x: 115, y: -105 },
-        { type: 'streetLantern', x: 75, y: -105 },
-        { type: 'streetLantern', x: 155, y: -105 },
-        { type: 'stoneBench', x: 0, y: -125 },
-        { type: 'blossomTree', x: -185, y: -155 },
-        { type: 'blossomTree', x: 185, y: -155 },
-
-        // 4. Cozy Hometown Cottages, Tavern & Guildhalls Framing the Town Square
-        { type: 'doorThresholdGlow', x: -255, y: -110 },
-        {
-          type: 'cityHouseA',
-          x: -255,
-          y: -135,
-          label: "📚 Archivist's Cottage [Enter]",
-          doorway: { targetRoom: ROOM_TYPES.INTERIOR_SANCTUARY_COTTAGE, x: -255, y: -110, radius: 15 },
-        },
-        {
-          type: 'noticeBoard',
-          noticeBoardId: 'sanctuary_cottage',
-          x: -292,
-          y: -116,
-          label: "📋 Cottage Archive Notice Board [Click / E]",
-        },
-        { type: 'doorThresholdGlow', x: 255, y: -110 },
-        {
-          type: 'cityHouseB',
-          x: 255,
-          y: -135,
-          label: '🃏 Grand GlimmerFall TCG Pavilion [Enter]',
-          doorway: { targetRoom: ROOM_TYPES.INTERIOR_TCG_PAVILION, x: 255, y: -110, radius: 15 },
-        },
-        { type: 'doorThresholdGlow', x: -275, y: 122 },
-        {
-          type: 'cityHouseA',
-          x: -275,
-          y: 95,
-          label: '🛡️ Vanguard Adventurers Guildhall [Enter]',
-          doorway: { targetRoom: ROOM_TYPES.INTERIOR_GUILD_HALL, x: -275, y: 122, radius: 16 },
-        },
-        { type: 'doorThresholdGlow', x: 275, y: 122 },
-        {
-          type: 'tavernBuilding',
-          x: 275,
-          y: 95,
-          label: '🍺 Hearthstone Inn & Tavern [Enter]',
-          doorway: { targetRoom: ROOM_TYPES.INTERIOR_TAVERN, x: 275, y: 122, radius: 16 },
-        },
-        {
-          type: 'noticeBoard',
-          noticeBoardId: 'sanctuary_inn',
-          x: 236,
-          y: 118,
-          label: '📋 Hearthstone Inn Notice Board [Click / E]',
-        },
-        {
-          type: 'tcgDuelTable',
-          x: 236,
-          y: 154,
-          label: '🃏 Hearthstone Patio 1v1 GlimmerFall TCG Table [Click / E]',
-        },
-        { type: 'cityHouseA', x: -175, y: -255 },
-        { type: 'cityHouseB', x: -65, y: -255 },
-        { type: 'cityHouseA', x: 65, y: -255 },
-        { type: 'cityHouseB', x: 175, y: -255 },
-        { type: 'streetLantern', x: -120, y: -215 },
-        { type: 'streetLantern', x: 0, y: -215 },
-        { type: 'streetLantern', x: 120, y: -215 },
-
-        // 5. West Artisan Workshop & Market Courtyard (Spacious bays with paired crafting partners)
-        // 5A. Textile & Provisions Bay (Loom & Pantry grouped together)
-        { type: 'celestialLoom', stationId: 'celestial_loom', x: -225, y: -54, label: '🧵 Celestial Loom [Click / E]' },
-        { type: 'marketStallProvisions', id: 'stall_provisions', x: -170, y: -54 },
-        { type: 'streetLantern', x: -135, y: -54 },
-
-        // 5B. Blacksmithing & Foundry Bay (Forge workbench & Cosmic Star-Anvil grouped together)
-        { type: 'marketStallSmith', x: -225, y: 28 },
-        { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: -170, y: 28, label: '🔨 Cosmic Star-Anvil [Click / E]' },
-        { type: 'brazier', x: -260, y: 28 },
-
-        // 5C. Alchemy & Crucible Terrace (Dedicated elixir station)
-        { type: 'aetherCrucible', stationId: 'aether_crucible', x: -198, y: 110, label: '⚗️ Aetherial Crucible [Click / E]' },
-        { type: 'streetLantern', x: -135, y: 110 },
-        { type: 'brazier', x: -250, y: 110 },
-
-        // 6. East Combat Trial Courtyard (Right beside Central Plaza!)
-        { type: 'pillar', x: 145, y: -35 },
-        { type: 'pillar', x: 235, y: -35 },
-        { type: 'brazier', x: 145, y: 75 },
-        { type: 'brazier', x: 235, y: 75 },
-        { type: 'stoneBench', x: 190, y: -52, label: '🪑 Courtyard Rest Bench [Click / E]' },
-        { type: 'trainingDummy', x: 172, y: 18, label: '🥋 Vanguard Combat DPS Dummy [Click / E]' },
-        { type: 'mysteryPeddlerCart', x: -115, y: 122, label: '🔮 Astral Mystery Peddler Cart [Click / E]' },
-        { type: 'archeryTarget', x: 195, y: 58, label: '🎯 Precision Archery Target [Click / E]' },
-        { type: 'archeryTarget', x: 235, y: 58, label: '🎯 Precision Archery Target [Click / E]' },
-        { type: 'weaponRack', x: 145, y: 20, label: '⚔️ Trial Yard Weapon Rack [Click / E]' },
-        { type: 'supplyCrate', x: -248, y: -18, label: '📦 Workshop Supply Crate [Click / E]' },
-        { type: 'supplyCrate', x: 242, y: 132, label: '📦 Tavern Provision Crate [Click / E]' },
-        { type: 'alchemistAlembic', x: -232, y: 110, label: '⚗️ Copper Distillation Alembic [Click / E]' },
-        { type: 'arcaneTelescope', x: -64, y: -112, label: '🔭 Sanctuary Stargazer Telescope [Click / E]' },
-        { type: 'bardHarpStand', x: 54, y: -12, label: '🎵 Plaza Concert Harp [Click / E]' },
-        { type: 'wishingShrine', x: -58, y: -14, label: '🌟 Celestial Wishing Shrine [Click / E]' },
-        { type: 'ancientSundialClock', x: 64, y: -112, label: '⏳ Chrono-Astrolabe Sundial [Click / E]' },
-        { type: 'covenantBannerStand', x: -242, y: 122, label: '🚩 Vanguard Rally Standard [Click / E]' },
-
-        // 7. South Memorial Gardens & Starter Skilling Groves
-        { type: 'monument', x: 0, y: 245, label: '🗿 First Nexus Memorial Monument [Click / E]' },
-        { type: 'runicObelisk', x: 0, y: 198, label: '🔮 Covenant Lore Obelisk [Click / E]' },
-        { type: 'crystalGeode', x: -215, y: 255, label: '💎 Shimmering Crystal Geode [Click / E]' },
-        {
-          type: 'cavernEntrance',
-          x: -245,
-          y: 262,
-          label: '🕳️ CrystalEcho Caverns Entrance [Enter / E]',
-          doorway: { targetRoom: ROOM_TYPES.LUMINOUS_CAVERN, x: -245, y: 274, radius: 18 },
-        },
-        { type: 'stoneBench', x: -45, y: 245, label: '🪑 Memorial Garden Bench [Click / E]' },
-        { type: 'stoneBench', x: 45, y: 245, label: '🪑 Memorial Garden Bench [Click / E]' },
-        { type: 'blossomTree', x: -85, y: 215 },
-        { type: 'blossomTree', x: 85, y: 215 },
-        { type: 'ancientOak', x: -185, y: 235 },
-        { type: 'ancientOak', x: 185, y: 235 },
-        { type: 'fallenLog', x: -215, y: 224 },
-        { type: 'fallenLog', x: 215, y: 224 },
-        { type: 'terracottaUrn', x: -232, y: -116 },
-        { type: 'terracottaUrn', x: -278, y: -116 },
-        { type: 'mountainCrag', x: -245, y: 185 },
-        { type: 'mountainCrag', x: 245, y: 185 },
-        { type: 'flowerBed', x: -145, y: 245 },
-        { type: 'flowerBed', x: 145, y: 245 },
-        { type: 'streetLantern', x: -42, y: 205 },
-        { type: 'streetLantern', x: 42, y: 205 },
-
-        // 8. Four Cardinal City Gateways
-        { type: 'ruinedArch', x: 0, y: -375 },
-        { type: 'crystalPillar', x: -55, y: -375 },
-        { type: 'crystalPillar', x: 55, y: -375 },
-        { type: 'ruinedArch', x: 0, y: 375 },
-        { type: 'ancientOak', x: -65, y: 375 },
-        { type: 'ancientOak', x: 65, y: 375 },
-        { type: 'ruinedArch', x: -410, y: 0 },
-        { type: 'brazier', x: -410, y: -42 },
-        { type: 'brazier', x: -410, y: 42 },
-        { type: 'ruinedArch', x: 410, y: 0 },
-        { type: 'umbriBrazierAltar', x: 410, y: -42 },
-        { type: 'umbriBrazierAltar', x: 410, y: 42 }
-      );
-
-      npcs.push(
-        {
-          id: 'npc_aurora',
-          name: 'Herald Lyra',
-          role: 'Sunspire Herald [Click / T]',
-          spriteKey: 'heraldNpc',
-          x: 38,
-          y: 82,
-          dialogue: AWAKENING_DIALOGUE,
-        },
-        {
-          id: 'npc_exchange_caelum',
-          name: 'Broker Caelum',
-          role: 'Grand Exchange Broker [Click / T]',
-          spriteKey: 'bankerNpc',
-          x: -115,
-          y: -105,
-          isExchange: true,
-        },
-        {
-          id: 'npc_bank_orin',
-          name: 'Trove-Master Orin',
-          role: 'AetherVault Chief Banker [Click / T]',
-          spriteKey: 'bankerNpc',
-          x: 115,
-          y: -105,
-          isBank: true,
-        },
-        {
-          id: 'merchant_provisions',
-          name: 'Farmer Bran',
-          role: 'Provisions & Rations [Click / T]',
-          spriteKey: 'merchantProvisionsNpc',
-          stallId: 'stall_provisions',
-          merchantType: 'merchant_provisions',
-          isMerchant: true,
-          x: -170,
-          y: -24,
-        },
-        {
-          id: 'npc_artisan_aldric',
-          name: 'Artisan Master Aldric',
-          role: 'Guild Forgemaster [Click / T]',
-          spriteKey: 'merchantSmithNpc',
-          x: -198,
-          y: 52,
-          dialogue: [
-            {
-              speaker: 'ARTISAN MASTER ALDRIC • SANCTUARY WORKSHOP',
-              spriteKey: 'merchantSmithNpc',
-              text: 'Hail, adventurer! Right here in the Sanctuary Workshop you can train all three crafting professions: smelt ores at the Cosmic Star-Anvil, brew elixirs at the Aetherial Crucible, or spin cloaks at the Celestial Loom.\n\nWhen you travel the four cardinal roads to the peaceful faction capitals, seek out our regional guild merchants—Blacksmith Torvin in the Golden Citadel, Alchemist Faye in Glimmer Orchard, Shadow Stitcher Silvan in the Undercity, and Relic-Seeker Moira at Mirrorgate Spire!',
-              actions: [
-                { label: '🔨 OPEN COSMIC STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
-                { label: '⚗️ OPEN AETHERIAL CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#c084fc; color:#f3e8ff;' },
-                { label: '👋 FAREWELL', action: 'close' },
-              ],
-            },
-          ],
-        },
-        {
-          id: 'npc_archon',
-          name: 'Commander Valerius',
-          role: 'Sunspire Warlord [Click / T]',
-          spriteKey: 'warzoneArchonNpc',
-          x: 0,
-          y: -48,
-          dialogue: WARZONE_DIALOGUE,
-        }
-      );
-      if (!introShown && !questState.introShown && !questState.talkedNpcs?.npc_aurora && !frontpage.isOpen) {
-        introShown = true;
-        questState.introShown = true;
-        saveQuestState();
-        openDialogue(AWAKENING_DIALOGUE, 'heraldNpc', 'npc_aurora');
-      }
-    } else if (resolvedRoomType === ROOM_TYPES.ARENA_3V3) {
-      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || '3v3 NEXUS ARENA';
-      if (zoneLabel) zoneLabel.innerText = 'Exit Arena';
-      arenaBanner.style.display = 'flex';
-
-      props.push(
-        { type: 'brazier', x: -64, y: 180 },
-        { type: 'brazier', x: 64, y: 180 },
-        { type: 'brazier', x: -64, y: -180 },
-        { type: 'brazier', x: 64, y: -180 },
-        { type: 'pillar', x: -110, y: 0 },
-        { type: 'pillar', x: 110, y: 0 }
-      );
-    } else if (resolvedRoomType === ROOM_TYPES.NEXUS_FORGOTTEN_RUINS) {
-      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'FORGOTTEN FIRST NEXUS RUINS';
-      if (zoneLabel) zoneLabel.innerText = 'To Caldera';
-      arenaBanner.style.display = 'none';
-
-      props.push(
-        { type: 'monument', x: 0, y: -30 },
-        { type: 'campfire', x: -38, y: 145, label: '🔥 Expedition Waystation Hearth' },
-        { type: 'woodenSign', x: 78, y: 145, label: '🪧 N: Continental Caldera | S: Sanctuary Haven' },
-        { type: 'ancientWell', x: -95, y: 135 },
-        { type: 'crystalPillar', x: -140, y: 60 },
-        { type: 'crystalPillar', x: 140, y: 60 },
-        { type: 'brazier', x: -70, y: 140 },
-        { type: 'brazier', x: 70, y: 140 },
-        { type: 'brazier', x: -70, y: -140 },
-        { type: 'brazier', x: 70, y: -140 },
-        { type: 'pillar', x: -160, y: -90 },
-        { type: 'pillar', x: 160, y: -90 },
-        { type: 'mountainCrag', x: -240, y: 130 },
-        { type: 'mountainCrag', x: 240, y: 130 },
-        { type: 'ancientOak', x: -250, y: -140 },
-        { type: 'ancientOak', x: 250, y: -140 },
-        // East Ruins Crypt Covenant Seal & Vault Alcove
-        {
-          type: 'ironVaultGrate',
-          puzzleId: 'ruins_nexus_seal',
-          isPuzzleGate: true,
-          x: 208,
-          y: -216,
-          label: '🔐 Forgotten Covenant Vault Grate [Click / E]',
-        },
-        {
-          type: 'goldChestPile',
-          puzzleId: 'ruins_nexus_seal',
-          isPuzzleChest: true,
-          x: 208,
-          y: -252,
-          label: '🏺 First-Era Sealed Vault Chest [Click / E]',
-        },
-        { type: 'terracottaUrn', x: 184, y: -206 },
-        { type: 'terracottaUrn', x: 232, y: -206 },
-        // Grand North Waygate to Continental Caldera Realm
-        { type: 'ruinedArch', x: 0, y: -380 },
-        { type: 'crystalPillar', x: -80, y: -380 },
-        { type: 'crystalPillar', x: 80, y: -380 },
-        { type: 'brazier', x: -48, y: -390 },
-        { type: 'brazier', x: 48, y: -390 }
-      );
-      npcs.push({
-        id: 'npc_atlas',
-        name: 'Atlas the Cartographer',
-        role: 'Keystone Seeker [Click / T]',
-        spriteKey: 'cartographerNpc',
-        x: 42,
-        y: 135,
-        dialogue: RUINS_DIALOGUE,
-      });
-    } else if (resolvedRoomType === ROOM_TYPES.CELESTIAL_ASCENT) {
-      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'CELESTIAL ASCENT & EMPYREAN TITAN SUMMIT';
-      if (zoneLabel) zoneLabel.innerText = 'To Caldera';
-      arenaBanner.style.display = 'none';
-
-      // Grand Summit Props (Stairway colonnade, terrace monuments, throne braziers)
-      props.push(
-        // South Entrance Threshold & Greeting Colonnade
-        { type: 'ruinedArch', x: 0, y: 1040 },
-        { type: 'brazier', x: -50, y: 1020 },
-        { type: 'brazier', x: 50, y: 1020 },
-        { type: 'crystalPillar', x: -90, y: 980 },
-        { type: 'crystalPillar', x: 90, y: 980 },
-        { type: 'crystalPillar', x: -90, y: 780 },
-        { type: 'crystalPillar', x: 90, y: 780 },
-        { type: 'crystalPillar', x: -90, y: 580 },
-        { type: 'crystalPillar', x: 90, y: 580 },
-        { type: 'brazier', x: -50, y: 580 },
-        { type: 'brazier', x: 50, y: 580 },
-
-        // Mid-Ascent Grand Stargate Terrace (y: 200 to -200)
-        { type: 'monument', x: 0, y: 0 },
-        { type: 'ruinedArch', x: 0, y: 220 },
-        { type: 'ruinedArch', x: 0, y: -220 },
-        { type: 'crystalPillar', x: -180, y: 0 },
-        { type: 'crystalPillar', x: 180, y: 0 },
-        { type: 'brazier', x: -120, y: -120 },
-        { type: 'brazier', x: 120, y: -120 },
-        { type: 'brazier', x: -120, y: 120 },
-        { type: 'brazier', x: 120, y: 120 },
-
-        // Northern Titan Colosseum Throne Platform (y: -500 to -950)
-        { type: 'ruinedArch', x: 0, y: -580 },
-        { type: 'crystalPillar', x: -220, y: -750 },
-        { type: 'crystalPillar', x: 220, y: -750 },
-        { type: 'crystalPillar', x: -220, y: -920 },
-        { type: 'crystalPillar', x: 220, y: -920 },
-        { type: 'brazier', x: -100, y: -650 },
-        { type: 'brazier', x: 100, y: -650 },
-        { type: 'brazier', x: -100, y: -880 },
-        { type: 'brazier', x: 100, y: -880 },
-        { type: 'monument', x: 0, y: -940 }
-      );
-
-      npcs.push({
-        id: 'npc_aurelia',
-        name: 'Grand Arbiter Aurelia',
-        role: 'Empyrean Titan Keeper [Click / T]',
-        spriteKey: 'celestialArbiterNpc',
-        x: 42,
-        y: 980,
-        dialogue: CELESTIAL_ASCENT_DIALOGUE,
-      });
-    } else if (resolvedRoomType === ROOM_TYPES.SOLARI_SUNKEN_VAULT) {
-      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'SUNKEN VAULT OF THE DAWN';
-      if (zoneLabel) zoneLabel.innerText = 'To Golden Citadel';
-      arenaBanner.style.display = 'none';
-
-      props.push(
-        { type: 'crystalPillar', x: -110, y: -40 },
-        { type: 'crystalPillar', x: 110, y: -40 },
-        { type: 'pillar', x: -130, y: 90 },
-        { type: 'pillar', x: 130, y: 90 },
-        { type: 'brazier', x: -45, y: 130 },
-        { type: 'brazier', x: 45, y: 130 },
-        { type: 'brazier', x: -45, y: 40 },
-        { type: 'brazier', x: 45, y: 40 },
-        { type: 'brazier', x: -45, y: -50 },
-        { type: 'brazier', x: 45, y: -50 }
-      );
-      npcs.push({
-        id: 'npc_lucian',
-        name: 'Pyremaster Lucian',
-        role: 'Sunken Vault Flamekeeper [Click / T]',
-        spriteKey: 'solariFlamekeeperNpc',
-        x: 36,
-        y: 130,
-        dialogue: SOLARI_VAULT_DIALOGUE,
-      });
-    } else if (resolvedRoomType === ROOM_TYPES.UMBRI_SHADOW_LABYRINTH) {
-      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'DUSKVEIL SHADOW LABYRINTH';
-      if (zoneLabel) zoneLabel.innerText = 'To Undercity';
-      arenaBanner.style.display = 'none';
-
-      props.push(
-        { type: 'monument', x: 0, y: -30 },
-        { type: 'pillar', x: -130, y: 80 },
-        { type: 'pillar', x: 130, y: 80 },
-        { type: 'pillar', x: -130, y: -80 },
-        { type: 'pillar', x: 130, y: -80 },
-        { type: 'brazier', x: -60, y: 140 },
-        { type: 'brazier', x: 60, y: 140 },
-        { type: 'brazier', x: -60, y: -40 },
-        { type: 'brazier', x: 60, y: -40 }
-      );
-      npcs.push({
-        id: 'npc_vespera',
-        name: 'Wraithmother Vespera',
-        role: 'Weaver of Graveglass [Click / T]',
-        spriteKey: 'shadowWraithmotherNpc',
-        x: -36,
-        y: 130,
-        dialogue: UMBRI_LABYRINTH_DIALOGUE,
-      });
-    } else if (resolvedRoomType === ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY) {
-      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'ROOTDEEP PRIMORDIAL HOLLOW';
-      if (zoneLabel) zoneLabel.innerText = 'To Glimmer Orchard';
-      arenaBanner.style.display = 'none';
-
-      props.push(
-        { type: 'monument', x: 0, y: -30 },
-        { type: 'crystalPillar', x: -120, y: 70 },
-        { type: 'crystalPillar', x: 120, y: 70 },
-        { type: 'pillar', x: -140, y: -80 },
-        { type: 'pillar', x: 140, y: -80 },
-        { type: 'brazier', x: -50, y: 130 },
-        { type: 'brazier', x: 50, y: 130 },
-        { type: 'brazier', x: -50, y: 0 },
-        { type: 'brazier', x: 50, y: 0 }
-      );
-      npcs.push({
-        id: 'npc_sylvanus',
-        name: 'Elder Druid Sylvanus',
-        role: 'Voice of Ironbark [Click / T]',
-        spriteKey: 'terraElderDruidNpc',
-        x: 36,
-        y: 130,
-        dialogue: TERRA_GROVE_DIALOGUE,
-      });
-    } else if (resolvedRoomType === ROOM_TYPES.AETHER_FRACTURED_ARCHIVE) {
-      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'FRACTURED CHRONO-ARCHIVE';
-      if (zoneLabel) zoneLabel.innerText = 'To Mirrorgate Spire';
-      arenaBanner.style.display = 'none';
-
-      props.push(
-        { type: 'crystalPillar', x: -120, y: 70 },
-        { type: 'crystalPillar', x: 120, y: 70 },
-        { type: 'crystalPillar', x: -120, y: -70 },
-        { type: 'crystalPillar', x: 120, y: -70 },
-        { type: 'monument', x: 0, y: -30 },
-        { type: 'brazier', x: -55, y: 135 },
-        { type: 'brazier', x: 55, y: 135 }
-      );
-      npcs.push({
-        id: 'npc_zephyr',
-        name: 'Chronos Sage Zephyr',
-        role: 'Chronocore Archon [Click / T]',
-        spriteKey: 'aetherChronosNpc',
-        x: -36,
-        y: 130,
-        dialogue: AETHER_ARCHIVE_DIALOGUE,
-      });
-    } else if (resolvedRoomType === ROOM_TYPES.STARFALL_CRATER) {
-      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'STARFALL METEORITE CRATER & ASTRAL FORGE';
-      if (zoneLabel) zoneLabel.innerText = 'To Citadel';
-      arenaBanner.style.display = 'none';
-
-      props.push(
-        { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: 56, y: 185, label: '🔨 Astral Star-Anvil [Click / E]' },
-        { type: 'bountyBoard', isBountyBoard: true, x: -62, y: 185, label: '📜 Crater Bounty Board [Click / E]' },
-        { type: 'campfire', x: -28, y: 205, label: '🔥 Astral Outpost Hearth' },
-        { type: 'woodenSign', x: 95, y: 205, label: '🪧 N: Meteorite Impact Basin | S: Solari Citadel' },
-        { type: 'mountainCrag', x: -180, y: 80 },
-        { type: 'mountainCrag', x: 180, y: 80 },
-        { type: 'mountainCrag', x: -210, y: -120 },
-        { type: 'mountainCrag', x: 210, y: -120 },
-        { type: 'crystalPillar', x: -120, y: -40 },
-        { type: 'crystalPillar', x: 120, y: -40 },
-        { type: 'brazier', x: -70, y: 160 },
-        { type: 'brazier', x: 70, y: 160 },
-        { type: 'brazier', x: -90, y: -210 },
-        { type: 'brazier', x: 90, y: -210 },
-        { type: 'ruinedArch', x: 0, y: -240 }
-      );
-      npcs.push({
-        id: 'npc_orion',
-        name: 'Forge-Keeper Orion',
-        role: 'Master Astral Smith [Click / T]',
-        spriteKey: 'solariFlamekeeperNpc',
-        x: 0,
-        y: 185,
-        dialogue: [
-          {
-            speaker: 'FORGE-KEEPER ORION • STARFALL CRATER',
-            spriteKey: 'solariFlamekeeperNpc',
-            text: 'Welcome to the Starfall Impact Basin! Celestial Starmetal and Astral Mithril veins ring the molten crater. Smelt your cosmic ingots right here on the Astral Star-Anvil!',
-            actions: [
-              { label: '🔨 OPEN COSMIC STAR-ANVIL', action: 'openStation_cosmic_anvil', style: 'border-color:#fb923c; color:#fde047; font-weight:bold;' },
-              { label: '👋 FAREWELL', action: 'close' },
-            ],
-          },
-        ],
-      });
-    } else if (resolvedRoomType === ROOM_TYPES.ABYSSAL_RIFT) {
-      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'THE ABYSSAL RIFT & PRIMEVAL SANCTUM';
-      if (zoneLabel) zoneLabel.innerText = 'To Caldera';
-      arenaBanner.style.display = 'none';
-
-      props.push(
-        { type: 'aetherCrucible', stationId: 'aether_crucible', x: -58, y: 235, label: '⚗️ Abyssal Crucible [Click / E]' },
-        { type: 'celestialLoom', stationId: 'celestial_loom', x: 58, y: 235, label: '🧵 Voidstar Loom [Click / E]' },
-        { type: 'bountyBoard', isBountyBoard: true, x: -105, y: 235, label: '📜 Rift Bounty Board [Click / E]' },
-        { type: 'campfire', x: 0, y: 268, label: '🔥 Void-Warden Vigil Fire' },
-        { type: 'ruinedArch', x: 0, y: 260 },
-        { type: 'ruinedArch', x: 0, y: -260 },
-        { type: 'crystalPillar', x: -160, y: 90 },
-        { type: 'crystalPillar', x: 160, y: 90 },
-        { type: 'crystalPillar', x: -180, y: -150 },
-        { type: 'crystalPillar', x: 180, y: -150 },
-        { type: 'monument', x: 0, y: -60 },
-        { type: 'brazier', x: -85, y: 180 },
-        { type: 'brazier', x: 85, y: 180 },
-        { type: 'brazier', x: -110, y: -280 },
-        { type: 'brazier', x: 110, y: -280 }
-      );
-      npcs.push({
-        id: 'npc_nihilus',
-        name: 'Rift-Watcher Nihilus',
-        role: 'Void Singularity Warden [Click / T]',
-        spriteKey: 'shadowWraithmotherNpc',
-        x: 0,
-        y: 235,
-        dialogue: [
-          {
-            speaker: 'RIFT-WATCHER NIHILUS • ABYSSAL RIFT',
-            spriteKey: 'shadowWraithmotherNpc',
-            text: 'Beyond these fractured obsidian spires waits Xal\'Korath, the Void Architect. Harvest Celestial Gossamer and Empyrean Starleaf along the rift edge before challenging his singularity!',
-            actions: [
-              { label: '⚗️ OPEN ABYSSAL CRUCIBLE', action: 'openStation_aether_crucible', style: 'border-color:#c084fc; color:#f3e8ff; font-weight:bold;' },
-              { label: '👋 STAND VIGIL', action: 'close' },
-            ],
-          },
-        ],
-      });
-    } else if (resolvedRoomType === ROOM_TYPES.IRONWOOD_TIMBERLANDS) {
-      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'IRONWOOD TIMBERLANDS & LUMBERJACK GROVE';
-      if (zoneLabel) zoneLabel.innerText = 'To Orchard';
-      arenaBanner.style.display = 'none';
-
-      props.push(
-        { type: 'campfire', stationId: 'campfire_hearth', x: -55, y: 155, label: '🔥 Lumberjack Campfire Hearth [Click / E]' },
-        { type: 'bountyBoard', isBountyBoard: true, x: 55, y: 155, label: '📜 Timberlands Bounty Board [Click / E]' },
-        { type: 'celestialLoom', stationId: 'celestial_loom', x: -115, y: 155, label: '🧵 Green Bough Loom & Workshop [Click / E]' },
-        { type: 'woodenSign', x: 0, y: 185, label: '🪧 N: Terra Orchard | E: Coral Coast | S: Ancient Treant Glade' },
-        { type: 'ancientOak', x: -180, y: 80 },
-        { type: 'ancientOak', x: 180, y: 80 },
-        { type: 'ancientOak', x: -210, y: -120 },
-        { type: 'ancientOak', x: 210, y: -120 },
-        { type: 'stoneBench', x: 0, y: 125 },
-        { type: 'brazier', x: -75, y: 135 },
-        { type: 'brazier', x: 75, y: 135 }
-      );
-      npcs.push({
-        id: 'npc_silas',
-        name: 'Forester Silas',
-        role: 'Master Woodcrafter [Click / T]',
-        spriteKey: 'foresterSilasNpc',
-        x: 0,
-        y: 145,
-        dialogue: [
-          {
-            speaker: 'FORESTER SILAS • IRONWOOD TIMBERLANDS',
-            spriteKey: 'foresterSilasNpc',
-            text: 'Welcome to the Ironwood Timberlands! Grab your axe and fell Glimmerwood, ancient Ironbark, and Duskveil willows across the grove. Bundle logs into Campfire Kits or roast fresh fish over our crackling campfire hearth!',
-            actions: [
-              { label: '🔥 OPEN CAMPFIRE HEARTH', action: 'openStation_campfire_hearth', style: 'border-color:#fb923c; color:#fed7aa; font-weight:bold;' },
-              { label: '🧵 TIMBERCRAFT WORKSHOP', action: 'openStation_celestial_loom', style: 'border-color:#22c55e; color:#86efac; font-weight:bold;' },
-              { label: '📜 TIMBER BOUNTIES', action: 'openBountyBoard', style: 'border-color:#4ade80; color:#86efac; font-weight:bold;' },
-              { label: '👋 SAFE JOURNEYS', action: 'close' },
-            ],
-          },
-        ],
-      });
-    } else if (resolvedRoomType === ROOM_TYPES.CORAL_COAST) {
-      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'CORAL COAST & BRINELIGHT SHALLOWS';
-      if (zoneLabel) zoneLabel.innerText = 'To Undercity';
-      arenaBanner.style.display = 'none';
-
-      props.push(
-        { type: 'campfire', stationId: 'campfire_hearth', x: -60, y: 150, label: '🔥 Seaside Campfire Hearth [Click / E]' },
-        { type: 'bountyBoard', isBountyBoard: true, x: 60, y: 150, label: '📜 Coastal Bounty Board [Click / E]' },
-        { type: 'woodenSign', x: 0, y: 185, label: '🪧 N: Boardwalk -> Undercity | E: Fishing Pier | W: Timberlands' },
-        { type: 'doorThresholdGlow', x: 185, y: 108 },
-        {
-          type: 'tavernBuilding',
-          x: 185,
-          y: 80,
-          label: '⚓ Brinelight Mariner Tavern [Enter]',
-          doorway: { targetRoom: ROOM_TYPES.INTERIOR_MARINER_TAVERN, x: 185, y: 108, radius: 16 },
-        },
-        {
-          type: 'noticeBoard',
-          noticeBoardId: 'coral_mariner',
-          x: 146,
-          y: 108,
-          label: '📋 Mariner Tavern & Tide Board [Click / E]',
-        },
-        { type: 'ancientWell', x: -140, y: 120 },
-        { type: 'streetLantern', x: -85, y: 150 },
-        { type: 'streetLantern', x: 85, y: 150 },
-        { type: 'crystalPillar', x: -160, y: -40 },
-        { type: 'crystalPillar', x: 160, y: -40 },
-        // North Boardwalk Pier & East Twilight Fishing L-Pier Lanterns
-        { type: 'streetLantern', x: -42, y: -230 },
-        { type: 'streetLantern', x: 52, y: -230 },
-        { type: 'streetLantern', x: -42, y: -370 },
-        { type: 'streetLantern', x: 52, y: -370 },
-        { type: 'streetLantern', x: -42, y: -510 },
-        { type: 'streetLantern', x: 52, y: -510 },
-        { type: 'streetLantern', x: 116, y: -394 },
-        { type: 'streetLantern', x: 184, y: -394 },
-        { type: 'streetLantern', x: 228, y: -368 },
-        // Shoreline Cattail Reeds & Driftwood
-        { type: 'cattailReed', x: -210, y: -312 },
-        { type: 'cattailReed', x: -110, y: -318 },
-        { type: 'cattailReed', x: 120, y: -318 },
-        { type: 'cattailReed', x: 230, y: -310 },
-        { type: 'cattailReed', x: 352, y: -160 },
-        { type: 'cattailReed', x: 352, y: -40 }
-      );
-      npcs.push({
-        id: 'npc_finn',
-        name: 'Angler Finn',
-        role: 'Master Cosmic Angler [Click / T]',
-        spriteKey: 'anglerFinnNpc',
-        x: 0,
-        y: 145,
-        dialogue: [
-          {
-            speaker: 'ANGLER FINN • CORAL COAST',
-            spriteKey: 'anglerFinnNpc',
-            text: 'Cast your line into these shimmering tidal currents! From silvery Glimmer Minnows to radiant Solar Trout and Prismatic Reef Salmon, the ocean provides for patient souls. Roast your catch right here at our seaside hearth!',
-            actions: [
-              { label: '🔥 OPEN SEASIDE HEARTH', action: 'openStation_campfire_hearth', style: 'border-color:#38bdf8; color:#bae6fd; font-weight:bold;' },
-              { label: '📜 COASTAL BOUNTIES', action: 'openBountyBoard', style: 'border-color:#06b6d4; color:#a5f3fc; font-weight:bold;' },
-              { label: '👋 FAIR WINDS', action: 'close' },
-            ],
-          },
-        ],
-      });
-    } else {
-      if (zoneTitle) zoneTitle.innerText = roomTitleOverride || cfg.shortTitle || 'NEXUS WARZONE';
-      if (zoneLabel) zoneLabel.innerText = 'To Sanctuary';
-      arenaBanner.style.display = 'none';
-
-      if (resolvedRoomType === ROOM_TYPES.NEXUS_WARZONE) {
-        // Decorate the massive 4800x3600 Open World Continent
-        // 1. South Sanctuary Vale (Meadows, Campfires, Ancient Oaks, River Bridges)
-        props.push(
-          { type: 'campfire', x: 0, y: 1490 },
-          { type: 'campfire', x: 130, y: 1380 },
-          { type: 'ancientOak', x: -160, y: 1520 },
-          { type: 'ancientOak', x: 160, y: 1520 },
-          { type: 'ancientOak', x: -260, y: 1380 },
-          { type: 'ancientOak', x: 260, y: 1380 },
-          { type: 'ancientOak', x: -100, y: 1620 },
-          { type: 'ancientOak', x: 100, y: 1620 },
-          // River Bridge Torches
-          { type: 'brazier', x: -38, y: 1220 },
-          { type: 'brazier', x: 38, y: 1220 },
-          { type: 'brazier', x: -38, y: 1270 },
-          { type: 'brazier', x: 38, y: 1270 }
-        );
-
-        // 2. Whispering Mountain Pass (Pines, Granite Crags, Waystation Campfires)
-        props.push(
-          { type: 'campfire', x: -45, y: 740 },
-          { type: 'campfire', x: 50, y: 490 },
-          // Evergreen Pines along the Pass
-          { type: 'pineTree', x: -85, y: 1020 },
-          { type: 'pineTree', x: 85, y: 1020 },
-          { type: 'pineTree', x: -95, y: 860 },
-          { type: 'pineTree', x: 95, y: 860 },
-          { type: 'pineTree', x: -80, y: 690 },
-          { type: 'pineTree', x: 100, y: 700 },
-          { type: 'pineTree', x: -85, y: 530 },
-          { type: 'pineTree', x: 90, y: 530 },
-          { type: 'pineTree', x: -90, y: 400 },
-          { type: 'pineTree', x: 85, y: 400 },
-          // Granite Boulders & Crags
-          { type: 'mountainCrag', x: -135, y: 960 },
-          { type: 'mountainCrag', x: 140, y: 960 },
-          { type: 'mountainCrag', x: -150, y: 780 },
-          { type: 'mountainCrag', x: 155, y: 780 },
-          { type: 'mountainCrag', x: -160, y: 590 },
-          { type: 'mountainCrag', x: 165, y: 590 },
-          { type: 'mountainCrag', x: -140, y: 440 },
-          { type: 'mountainCrag', x: 145, y: 440 }
-        );
-
-        // 3. Central Caldera Bastion (Arches, Braziers, Obelisks)
-        props.push(
-          { type: 'ruinedArch', x: 0, y: 260 },
-          { type: 'ruinedArch', x: 0, y: -260 },
-          { type: 'ruinedArch', x: -260, y: 0 },
-          { type: 'ruinedArch', x: 260, y: 0 },
-          { type: 'brazier', x: -90, y: 90 },
-          { type: 'brazier', x: 90, y: 90 },
-          { type: 'brazier', x: -90, y: -90 },
-          { type: 'brazier', x: 90, y: -90 },
-          { type: 'pillar', x: -140, y: 0 },
-          { type: 'pillar', x: 140, y: 0 }
-        );
-
-        // 4. North Forgotten Ruins Plateau (Ruined Arches, Ancient Monuments, Stone Pillars & Ascension Gateway)
-        props.push(
-          { type: 'ruinedArch', x: 0, y: -520 },
-          { type: 'ruinedArch', x: 0, y: -960 },
-          { type: 'ruinedArch', x: 0, y: -1380 },
-          { type: 'ruinedArch', x: 0, y: -1580 },
-          { type: 'ruinedArch', x: 0, y: -1760 },
-          { type: 'monument', x: 0, y: -740 },
-          { type: 'monument', x: -110, y: -1150 },
-          { type: 'monument', x: 110, y: -1150 },
-          { type: 'pillar', x: -75, y: -620 },
-          { type: 'pillar', x: 75, y: -620 },
-          { type: 'pillar', x: -75, y: -860 },
-          { type: 'pillar', x: 75, y: -860 },
-          { type: 'pillar', x: -75, y: -1250 },
-          { type: 'pillar', x: 75, y: -1250 },
-          { type: 'crystalPillar', x: -80, y: -1580 },
-          { type: 'crystalPillar', x: 80, y: -1580 },
-          { type: 'crystalPillar', x: -80, y: -1750 },
-          { type: 'crystalPillar', x: 80, y: -1750 },
-          { type: 'brazier', x: -48, y: -1680 },
-          { type: 'brazier', x: 48, y: -1680 },
-          { type: 'brazier', x: -48, y: -1760 },
-          { type: 'brazier', x: 48, y: -1760 }
-        );
-
-        // 5. Regional Wilderness Features
-        // NW Terra Ironwood Wilds
-        props.push(
-          { type: 'ancientOak', x: -650, y: -450 },
-          { type: 'ancientOak', x: -900, y: -480 },
-          { type: 'ancientOak', x: -1150, y: -680 },
-          { type: 'pineTree', x: -780, y: -720 },
-          { type: 'pineTree', x: -1020, y: -880 }
-        );
-        // NE Umbri Shadow Fens
-        props.push(
-          { type: 'monument', x: 880, y: -450 },
-          { type: 'brazier', x: 700, y: -550 },
-          { type: 'brazier', x: 1050, y: -750 },
-          { type: 'pillar', x: 920, y: -820 }
-        );
-        // SW Solari Sun-Canyon
-        props.push(
-          { type: 'mountainCrag', x: -720, y: 420 },
-          { type: 'mountainCrag', x: -1050, y: 620 },
-          { type: 'brazier', x: -880, y: 480 },
-          { type: 'monument', x: -920, y: 820 }
-        );
-        // SE Aether Astral Plateau
-        props.push(
-          { type: 'crystalPillar', x: 720, y: 420 },
-          { type: 'crystalPillar', x: 1050, y: 620 },
-          { type: 'crystalPillar', x: -880, y: 480 },
-          { type: 'monument', x: 920, y: 820 }
-        );
-
-        npcs.push({
-          id: 'npc_archon',
-          name: 'Commander Valerius',
-          role: 'Sunspire Warlord [Click / T]',
-          spriteKey: 'warzoneArchonNpc',
-          x: -36,
-          y: 1420, // Waystation in South Sanctuary Vale
-          dialogue: WARZONE_DIALOGUE,
-        });
-        props.push({ type: 'bountyBoard', isBountyBoard: true, x: -92, y: 1420, label: '📜 Caldera Bounty Board [Click / E]' });
-      } else {
-        [[-90, 95], [90, 95], [-145, -20], [145, -20], [-75, -135], [75, -135]].forEach(([pxX, pxY], idx) => {
-          props.push({ type: idx % 2 === 0 ? 'pillar' : 'brazier', x: pxX, y: pxY });
-        });
-      }
-
-      if (resolvedRoomType === ROOM_TYPES.SOLARI_CITADEL) {
-        props.push(
-          { type: 'cosmicAnvil', stationId: 'cosmic_anvil', x: -200, y: 40, label: '🔨 Citadel Star-Anvil [Click / E]' },
-          { type: 'marketStallSmith', id: 'stall_smith', x: -145, y: 40, label: '⚒️ Sunforged Weaponry Stall' },
-          { type: 'bountyBoard', isBountyBoard: true, x: 95, y: 115, label: '📜 Citadel Bounty Board [Click / E]' },
-          { type: 'campfire', x: -85, y: 125, label: '🔥 Sunspire Brazier Hearth' },
-          { type: 'woodenSign', x: 38, y: 128, label: '🪧 W: Smithy & Quarry | E: Citadel Bank | S: Starfall Crater' },
-          { type: 'solariSundial', x: 0, y: -70 },
-          { type: 'flowerBed', x: -105, y: -50 },
-          { type: 'flowerBed', x: 105, y: -50 },
-          { type: 'flowerBed', x: -105, y: 15 },
-          { type: 'flowerBed', x: 105, y: 15 },
-          { type: 'bankBuilding', x: 185, y: -135, label: '🏛️ Solari Citadel Depository' },
-          { type: 'bankCounter', x: 185, y: -90 },
-          { type: 'heraldPostbox', isPostbox: true, x: 82, y: -112, label: '📬 Solari Herald Postbox [Click / E]' },
-          { type: 'grandFountain', x: 0, y: 0 },
-          { type: 'doorThresholdGlow', x: -175, y: -118 },
-          {
-            type: 'cityHouseB',
-            x: -175,
-            y: -145,
-            label: '⚒️ Sunforged Guild Smithy [Enter]',
-            doorway: { targetRoom: ROOM_TYPES.INTERIOR_SOLARI_SMITHY, x: -175, y: -118, radius: 15 },
-          },
-          { type: 'cityHouseA', x: -85, y: -155 },
-          { type: 'cityHouseB', x: 85, y: -155 },
-          { type: 'mountainCrag', x: -340, y: -110 },
-          { type: 'mountainCrag', x: 340, y: -110 },
-          { type: 'streetLantern', x: -58, y: 80 },
-          { type: 'streetLantern', x: 58, y: 80 },
-          { type: 'streetLantern', x: -58, y: -60 },
-          { type: 'streetLantern', x: 58, y: -60 },
-          { type: 'stoneBench', x: -38, y: -12 },
-          { type: 'stoneBench', x: 38, y: -12 },
-          { type: 'blossomTree', x: -125, y: -85 },
-          { type: 'blossomTree', x: 125, y: -85 }
-        );
-        npcs.push(
-          {
-            id: 'merchant_smith',
-            name: 'Blacksmith Torvin',
-            role: 'Sunforged Armorer [Click / T]',
-            spriteKey: 'merchantSmithNpc',
-            stallId: 'stall_smith',
-            merchantType: 'merchant_smith',
-            isMerchant: true,
-            x: -145,
-            y: 75,
-          },
-          {
-            id: 'npc_solari_bank',
-            name: 'Solari Vault-Master',
-            role: 'Citadel Banker [Click / T]',
-            spriteKey: 'bankerNpc',
-            x: 185,
-            y: -90,
-            isBank: true,
-          },
-          {
-            id: 'npc_vael',
-            name: 'Captain Vaelen',
-            role: 'Lantern District Templar [Click / T]',
-            spriteKey: 'solariCaptainNpc',
-            x: -38,
-            y: 125,
-            dialogue: SOLARI_CITADEL_DIALOGUE,
-          }
-        );
-      } else if (resolvedRoomType === ROOM_TYPES.UMBRI_UNDERCITY) {
-        props.push(
-          { type: 'celestialLoom', stationId: 'celestial_loom', x: -200, y: 40, label: '🧵 Undercity Shadow Loom [Click / E]' },
-          { type: 'marketStallTailor', id: 'stall_tailor', x: -145, y: 40, label: '🕸️ Duskveil Silk Stall' },
-          { type: 'bountyBoard', isBountyBoard: true, x: -95, y: 115, label: '📜 Undercity Bounty Board [Click / E]' },
-          { type: 'campfire', x: 0, y: 78, label: '🔥 Duskveil Smuggler Hearth' },
-          { type: 'woodenSign', x: -38, y: 128, label: '🪧 W: Shadow Loom | E: Undercity Vault | N: Shadow Labyrinth' },
-          { type: 'umbriBrazierAltar', x: -90, y: -50 },
-          { type: 'umbriBrazierAltar', x: 90, y: -50 },
-          { type: 'umbriBrazierAltar', x: -60, y: 110 },
-          { type: 'umbriBrazierAltar', x: 60, y: 110 },
-          { type: 'bankBuilding', x: 185, y: -135, label: '🏛️ Umbri Shadow Depository' },
-          { type: 'bankCounter', x: 185, y: -90 },
-          { type: 'doorThresholdGlow', x: -175, y: -118 },
-          {
-            type: 'cityHouseA',
-            x: -175,
-            y: -145,
-            label: '🕸️ Velvet Veil Parlor [Enter]',
-            doorway: { targetRoom: ROOM_TYPES.INTERIOR_UMBRI_PARLOR, x: -175, y: -118, radius: 15 },
-          },
-          { type: 'cityHouseB', x: 0, y: -155 },
-          { type: 'pillar', x: -140, y: 0 },
-          { type: 'pillar', x: 140, y: 0 },
-          { type: 'streetLantern', x: -52, y: 75 },
-          { type: 'streetLantern', x: 52, y: 75 },
-          { type: 'stoneBench', x: -38, y: -12 },
-          { type: 'stoneBench', x: 38, y: -12 },
-          { type: 'heraldPostbox', isPostbox: true, x: 82, y: -112, label: '📬 Umbri Herald Postbox [Click / E]' }
-        );
-        npcs.push(
-          {
-            id: 'merchant_tailor',
-            name: 'Shadow Stitcher Silvan',
-            role: 'Glimmerweaving & Silks [Click / T]',
-            spriteKey: 'shadowBrokerNpc',
-            stallId: 'stall_tailor',
-            merchantType: 'merchant_tailor',
-            isMerchant: true,
-            x: -145,
-            y: 75,
-          },
-          {
-            id: 'npc_umbri_bank',
-            name: 'Undercity Vault-Keeper',
-            role: 'Duskveil Vault Banker [Click / T]',
-            spriteKey: 'bankerNpc',
-            x: 185,
-            y: -90,
-            isBank: true,
-          },
-          {
-            id: 'npc_nyx',
-            name: 'Shadow Broker Nyx',
-            role: 'Duskveil Smuggler [Click / T]',
-            spriteKey: 'shadowBrokerNpc',
-            x: 42,
-            y: 125,
-            dialogue: UMBRI_UNDERCITY_DIALOGUE,
-          }
-        );
-      } else if (resolvedRoomType === ROOM_TYPES.TERRA_ORCHARD) {
-        props.push(
-          { type: 'aetherCrucible', stationId: 'aether_crucible', x: -200, y: 40, label: '⚗️ Orchard Herbal Crucible [Click / E]' },
-          { type: 'marketStallPotions', id: 'stall_potions', x: -145, y: 40, label: '🌿 Rootdeep Apothecary Stall' },
-          { type: 'bankBuilding', x: 185, y: -135, label: '🏛️ Rootdeep Grove Depository' },
-          { type: 'bankCounter', x: 185, y: -90 },
-          { type: 'heraldPostbox', isPostbox: true, x: 72, y: -112, label: '📬 Terra Herald Postbox [Click / E]' },
-          { type: 'bountyBoard', isBountyBoard: true, x: 95, y: 115, label: '📜 Orchard Bounty Board [Click / E]' },
-          { type: 'campfire', x: -85, y: 125, label: '🔥 Druid Circle Hearth' },
-          { type: 'woodenSign', x: 38, y: 128, label: '🪧 W: Apothecary & Crucible | E: Orchard Bank & Spring' },
-          { type: 'terraMenhir', x: 0, y: -80 },
-          { type: 'ancientWell', x: 155, y: 45 },
-          { type: 'doorThresholdGlow', x: -175, y: -118 },
-          {
-            type: 'cityHouseA',
-            x: -175,
-            y: -145,
-            label: '🌿 Rootdeep Apothecary House [Enter]',
-            doorway: { targetRoom: ROOM_TYPES.INTERIOR_TERRA_APOTHECARY, x: -175, y: -118, radius: 15 },
-          },
-          {
-            type: 'noticeBoard',
-            noticeBoardId: 'terra_apothecary',
-            x: -214,
-            y: -120,
-            label: '📋 Apothecary Herbarium Board [Click / E]',
-          },
-          { type: 'terracottaUrn', x: -195, y: -118 },
-          { type: 'terracottaUrn', x: -155, y: -118 },
-          { type: 'fallenLog', x: -225, y: 92 },
-          { type: 'cityHouseB', x: -75, y: -155 },
-          { type: 'flowerBed', x: -105, y: -50 },
-          { type: 'flowerBed', x: 105, y: -50 },
-          { type: 'flowerBed', x: 0, y: 25 },
-          { type: 'ancientOak', x: -250, y: -155 },
-          { type: 'ancientOak', x: 265, y: -155 },
-          { type: 'blossomTree', x: -120, y: -70 },
-          { type: 'blossomTree', x: 120, y: -70 },
-          { type: 'blossomTree', x: -85, y: 155 },
-          { type: 'blossomTree', x: 85, y: 155 },
-          { type: 'stoneBench', x: -38, y: -12 },
-          { type: 'stoneBench', x: 38, y: -12 }
-        );
-        npcs.push(
-          {
-            id: 'merchant_apothecary',
-            name: 'Alchemist Faye',
-            role: 'Rootdeep Apothecary [Click / T]',
-            spriteKey: 'merchantApothecaryNpc',
-            stallId: 'stall_potions',
-            merchantType: 'merchant_apothecary',
-            isMerchant: true,
-            x: -145,
-            y: 75,
-          },
-          {
-            id: 'npc_terra_bank',
-            name: 'Orchard Vault-Keeper',
-            role: 'Rootdeep Grove Banker [Click / T]',
-            spriteKey: 'bankerNpc',
-            x: 185,
-            y: -90,
-            isBank: true,
-          },
-          {
-            id: 'npc_rowan',
-            name: 'Grove Tender Rowan',
-            role: 'Rootdeep Herbalist [Click / T]',
-            spriteKey: 'terraHerbalistNpc',
-            x: -38,
-            y: 125,
-            dialogue: TERRA_ORCHARD_DIALOGUE,
-          }
-        );
-      } else if (resolvedRoomType === ROOM_TYPES.AETHER_SPIRE) {
-        props.push(
-          { type: 'aetherArmillary', x: 0, y: -80 },
-          { type: 'marketStallRelics', id: 'stall_relics', x: -145, y: 40, label: '🔮 Mirrorgate Relic Stall' },
-          { type: 'aetherCrucible', stationId: 'aether_crucible', x: -200, y: 40, label: '⚗️ Mirrorgate Transmuter [Click / E]' },
-          { type: 'bankBuilding', x: 185, y: -135, label: '🏛️ Mirrorgate Astral Depository' },
-          { type: 'bankCounter', x: 185, y: -90 },
-          { type: 'heraldPostbox', isPostbox: true, x: 72, y: -96, label: '📬 Aether Herald Postbox [Click / E]' },
-          { type: 'bountyBoard', isBountyBoard: true, x: -95, y: 115, label: '📜 Mirrorgate Bounty Board [Click / E]' },
-          { type: 'campfire', x: 0, y: 78, label: '🔥 Starlight Conduit Hearth' },
-          { type: 'woodenSign', x: -38, y: 128, label: '🪧 W: Relic Stall & Transmuter | E: Astral Vault' },
-          { type: 'doorThresholdGlow', x: -175, y: -118 },
-          {
-            type: 'cityHouseB',
-            x: -175,
-            y: -145,
-            label: '🔭 Astral Observatory [Enter]',
-            doorway: { targetRoom: ROOM_TYPES.INTERIOR_AETHER_OBSERVATORY, x: -175, y: -118, radius: 15 },
-          },
-          { type: 'cityHouseA', x: 85, y: -155 },
-          { type: 'crystalPillar', x: -130, y: 90 },
-          { type: 'crystalPillar', x: 130, y: 90 },
-          { type: 'crystalPillar', x: -130, y: -90 },
-          { type: 'crystalPillar', x: 130, y: -90 },
-          { type: 'flowerBed', x: -105, y: -50 },
-          { type: 'flowerBed', x: 105, y: -50 },
-          { type: 'streetLantern', x: -58, y: 75 },
-          { type: 'streetLantern', x: 58, y: 75 },
-          { type: 'stoneBench', x: -38, y: -12 },
-          { type: 'stoneBench', x: 38, y: -12 }
-        );
-        npcs.push(
-          {
-            id: 'merchant_relics',
-            name: 'Relic-Seeker Moira',
-            role: 'Mirrorgate Curio Merchant [Click / T]',
-            spriteKey: 'merchantRelicsNpc',
-            stallId: 'stall_relics',
-            merchantType: 'merchant_relics',
-            isMerchant: true,
-            x: -145,
-            y: 75,
-          },
-          {
-            id: 'npc_aether_bank',
-            name: 'Mirrorgate Vault-Keeper',
-            role: 'Astral Spire Banker [Click / T]',
-            spriteKey: 'bankerNpc',
-            x: 185,
-            y: -90,
-            isBank: true,
-          },
-          {
-            id: 'npc_kaelen',
-            name: 'Astromancer Kaelen',
-            role: 'Mirrorgate Stargazer [Click / T]',
-            spriteKey: 'aetherAstromancerNpc',
-            x: 42,
-            y: 125,
-            dialogue: AETHER_SPIRE_DIALOGUE,
-          }
-        );
-      } else if (resolvedRoomType === ROOM_TYPES.SUNKEN_OASIS) {
-        props.push(
-          { type: 'fountain', x: 0, y: 55, label: '💧 Heart of the Whispering Springs' },
-          { type: 'campfire', x: 0, y: 125, label: '🔥 Oasis Traveler Hearth' },
-          { type: 'woodenSign', x: -45, y: 155, label: '🪧 W: Glimmer Orchard | N: Coral Coast | S: Starlight Grove' },
-          { type: 'bountyBoard', isBountyBoard: true, x: 75, y: 145, label: '📜 Oasis Expedition Board [Click / E]' },
-          { type: 'fishermanNetRack', x: 52, y: 86, label: '🦀 Oasis Mariner Net & Crab Trap [Click / E]' },
-          { type: 'wishingShrine', x: -58, y: 86, label: '🌟 Mirage Wishing Shrine [Click / E]' },
-          { type: 'terraAltar', stationId: 'terra_altar', x: -125, y: 145, label: '🌿 Oasis Botanical Loom [Click / E]' },
-          { type: 'flowerBed', x: -85, y: 75 },
-          { type: 'flowerBed', x: 85, y: 75 },
-          { type: 'flowerBed', x: -135, y: -35 },
-          { type: 'flowerBed', x: 135, y: -35 },
-          { type: 'crystalPillar', x: -165, y: 95 },
-          { type: 'crystalPillar', x: 165, y: 95 },
-          { type: 'stoneBench', x: -42, y: 55 },
-          { type: 'stoneBench', x: 42, y: 55 },
-          { type: 'streetLantern', x: -65, y: 125 },
-          { type: 'streetLantern', x: 65, y: 125 }
-        );
-      } else if (resolvedRoomType === ROOM_TYPES.SOLAR_HIGHLANDS) {
-        props.push(
-          { type: 'solariSundial', x: 0, y: 65, label: '☀️ Sunspire Zenith Sundial' },
-          { type: 'campfire', x: 0, y: 130, label: '🔥 Highland Expedition Brazier' },
-          { type: 'woodenSign', x: -45, y: 158, label: '🪧 N: Golden Citadel | W: Starfall Crater | E: Primordial Hollow' },
-          { type: 'bountyBoard', isBountyBoard: true, x: 80, y: 148, label: '📜 Sunspire Vanguard Board [Click / E]' },
-          { type: 'solariAnvil', stationId: 'solari_forge', x: -125, y: 148, label: '⚒️ Sunspire Crag Forge [Click / E]' },
-          { type: 'solariBanner', x: -95, y: 85 },
-          { type: 'solariBanner', x: 95, y: 85 },
-          { type: 'crystalPillar', x: -165, y: -55 },
-          { type: 'crystalPillar', x: 165, y: -55 },
-          { type: 'flowerBed', x: -90, y: 135 },
-          { type: 'flowerBed', x: 90, y: 135 },
-          { type: 'streetLantern', x: -60, y: 125 },
-          { type: 'streetLantern', x: 60, y: 125 }
-        );
-      } else if (resolvedRoomType === ROOM_TYPES.MOONWELL_SANCTUM) {
-        if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'SILVERMIST MOONWELL';
-        if (zoneLabel) zoneLabel.innerText = 'Silvermist Moonwell';
-        arenaBanner.style.display = 'none';
-        props.push(
-          { type: 'grandFountain', x: 0, y: 55, label: '🌙 Heart of the Silvermist Moonwell' },
-          { type: 'campfire', x: 0, y: 132, label: '🔥 Druid Circle Hearth' },
-          { type: 'woodenSign', x: -45, y: 160, label: '🪧 N: Starlight Grove | W: Sunspire Highlands | E: Coral Coast' },
-          { type: 'bountyBoard', isBountyBoard: true, x: 78, y: 148, label: '📜 Moonwell Sanctum Board [Click / E]' },
-          { type: 'terraAltar', stationId: 'terra_altar', x: -128, y: 148, label: '🌿 Silvermist Botanical Loom [Click / E]' },
-          { type: 'stoneBench', x: -46, y: 55 },
-          { type: 'stoneBench', x: 46, y: 55 },
-          { type: 'flowerBed', x: -85, y: 95 },
-          { type: 'flowerBed', x: 85, y: 95 },
-          { type: 'flowerBed', x: -125, y: -35 },
-          { type: 'flowerBed', x: 125, y: -35 },
-          { type: 'crystalPillar', x: -165, y: -75 },
-          { type: 'crystalPillar', x: 165, y: -75 },
-          { type: 'treasureCoffer', x: -195, y: -145, label: '💰 Hidden Moonwell Treasure Coffer [Click / E]' },
-          { type: 'streetLantern', x: -62, y: 128 },
-          { type: 'streetLantern', x: 62, y: 128 }
-        );
-      } else if (resolvedRoomType === ROOM_TYPES.LUMINOUS_CAVERN) {
-        if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'CRYSTALECHO CAVERNS';
-        if (zoneLabel) zoneLabel.innerText = 'CrystalEcho Caverns';
-        arenaBanner.style.display = 'none';
-        props.push(
-          {
-            type: 'cavernEntrance',
-            x: 0,
-            y: 225,
-            label: '🚪 Surface Steps to Sanctuary Haven [Enter / E]',
-            exitDoor: { roomType: ROOM_TYPES.SANCTUARY_HUB, x: -245, y: 235, dir: 'up' },
-          },
-          { type: 'campfire', stationId: 'campfire_hearth', x: -55, y: 155, label: '🔥 Subterranean Explorer Hearth [Click / E]' },
-          { type: 'bountyBoard', isBountyBoard: true, x: 55, y: 155, label: '📜 Cavern Expedition Board [Click / E]' },
-          { type: 'mysteryPeddlerCart', x: 112, y: 175, label: '🔮 Subterranean Mystery Peddler Cart [Click / E]' },
-          { type: 'treasureCoffer', x: -210, y: -210, label: '💰 Deep Grotto Treasure Coffer [Click / E]' },
-          { type: 'treasureCoffer', x: 210, y: -210, label: '💰 Echo Sanctum Treasure Coffer [Click / E]' },
-          { type: 'woodenSign', x: 0, y: 175, label: '🪧 W: Sunken Oasis | S: Sanctuary Haven | N: Echo Warden Sanctum' },
-          { type: 'runicObelisk', x: 0, y: -95, label: '🔮 Subterranean Echo Obelisk [Click / E]' },
-          { type: 'arcaneTelescope', x: -85, y: 135, label: '🔭 Subterranean Prism Scope [Click / E]' },
-          { type: 'supplyCrate', x: 92, y: 145, label: '📦 Delver Supply Cache [Click / E]' },
-          { type: 'supplyCrate', x: -92, y: -15, label: '📦 Miner Supply Cache [Click / E]' },
-          { type: 'crystalGeode', x: -145, y: 85, label: '💎 Bioluminescent Crystal Geode [Click / E]' },
-          { type: 'crystalGeode', x: 145, y: 85, label: '💎 Bioluminescent Crystal Geode [Click / E]' },
-          { type: 'crystalGeode', x: -165, y: -115, label: '💎 Bioluminescent Crystal Geode [Click / E]' },
-          { type: 'crystalGeode', x: 165, y: -115, label: '💎 Bioluminescent Crystal Geode [Click / E]' },
-          { type: 'crystalPillar', x: -125, y: -15 },
-          { type: 'crystalPillar', x: 125, y: -15 },
-          { type: 'crystalPillar', x: -125, y: -185 },
-          { type: 'crystalPillar', x: 125, y: -185 },
-          { type: 'brazier', x: -45, y: 195 },
-          { type: 'brazier', x: 45, y: 195 }
-        );
-        npcs.push({
-          id: 'npc_delver_korin',
-          name: 'Explorer Korin',
-          role: 'CrystalEcho Geologist [Click / T]',
-          spriteKey: 'cartographerNpc',
-          x: 0,
-          y: 148,
-          dialogue: [
-            {
-              speaker: 'EXPLORER KORIN • CRYSTALECHO CAVERNS',
-              spriteKey: 'cartographerNpc',
-              text: 'Behold the CrystalEcho Caverns! Beneath Sanctuary Haven and the Sunken Oasis runs a network of bioluminescent geodes, underground trout streams, and rich Copper, Star-Iron, and Mithril seams.\n\nTap the glowing Crystal Geodes, rummage our Delver Supply Caches, or roast your subterranean catch over the Explorer Hearth!',
-            actions: [
-              { label: '🔥 OPEN EXPLORER HEARTH', action: 'openStation_campfire_hearth', style: 'border-color:#fb923c; color:#fed7aa; font-weight:bold;' },
-              { label: '📜 CAVERN BOUNTIES', action: 'openBountyBoard', style: 'border-color:#38bdf8; color:#bae6fd; font-weight:bold;' },
-              { label: '👋 HAPPY DELVING', action: 'close' },
-            ],
-          },
-        ],
-      });
-      } else if (resolvedRoomType === ROOM_TYPES.FROSTSPIRE_GLACIER) {
-        if (zoneTitle) zoneTitle.innerText = roomTitleOverride || 'FROSTSPIRE GLACIER';
-        if (zoneLabel) zoneLabel.innerText = 'Frostspire Glacier';
-        arenaBanner.style.display = 'none';
-        props.push(
-          { type: 'auroraCrystalObelisk', x: -58, y: -18, label: '🔮 Aurora Resonance Obelisk [Click / E]' },
-          { type: 'auroraCrystalObelisk', x: 58, y: -18, label: '🔮 Aurora Resonance Obelisk [Click / E]' },
-          { type: 'glacialSupplySled', x: -86, y: 150, label: '🛷 Frostspire Expedition Supply Sled [Click / E]' },
-          { type: 'glacialSupplySled', x: 96, y: 148, label: '🛷 Alpine Quartermaster Sled [Click / E]' },
-          { type: 'campfire', stationId: 'campfire_hearth', x: 0, y: 148, label: '🔥 Glacier Basecamp Hearth [Click / E]' },
-          { type: 'tcgDuelTable', x: 56, y: 162, label: '🃏 Alpine Camp 1v1 TCG Table [Click / E]' },
-          { type: 'bountyBoard', isBountyBoard: true, x: -56, y: 162, label: '📜 Frostspire Expedition Ledger [Click / E]' },
-          { type: 'ancientSundialClock', x: 0, y: 176, label: '⏳ Frostspire Meridian Dial [Click / E]' },
-          { type: 'woodenSign', x: 0, y: 215, label: '🪧 N: Silvermist Moonwell | W: Sunspire Highlands | E: CrystalEcho Caverns' },
-          { type: 'treasureCoffer', x: -230, y: -220, label: '💰 Borealis Frozen Treasure Coffer [Click / E]' },
-          { type: 'treasureCoffer', x: 230, y: -220, label: '💰 Frostfang Summit Coffer [Click / E]' },
-          { type: 'crystalGeode', x: -175, y: 65, label: '💎 Glaciated Prism Geode [Click / E]' },
-          { type: 'crystalGeode', x: 175, y: 65, label: '💎 Glaciated Prism Geode [Click / E]' },
-          { type: 'crystalPillar', x: -135, y: -135 },
-          { type: 'crystalPillar', x: 135, y: -135 },
-          { type: 'pineTree', x: -250, y: -45 },
-          { type: 'pineTree', x: 250, y: -45 },
-          { type: 'pineTree', x: -245, y: 145 },
-          { type: 'pineTree', x: 245, y: 145 },
-          { type: 'mountainCrag', x: -265, y: -175 },
-          { type: 'mountainCrag', x: 265, y: -175 },
-          { type: 'brazier', x: -44, y: 192 },
-          { type: 'brazier', x: 44, y: 192 }
-        );
-        npcs.push(
-          {
-            id: 'npc_frost_glaciologist_vael',
-            name: 'Glaciologist Vael',
-            role: 'Aurora Expedition Lead [Click / T]',
-            spriteKey: 'cartographerNpc',
-            x: -24,
-            y: 134,
-            dialogue: [
-              {
-                speaker: 'GLACIOLOGIST VAEL • FROSTSPIRE GLACIER',
-                spriteKey: 'cartographerNpc',
-                text: 'Welcome to Frostspire Glacier — GlimmerFall\'s highest alpine frontier! Four Mithril seams, ice-melt fishing pools, and a Thermal Healing Spring sustain our camp against the mountain chill.\n\nAlign with the glowing Aurora Crystal Obelisks for a 90s Frostward Blessing, search our frosted Expedition Supply Sleds, or steel yourself for Borealis to the north!',
-                actions: [
-                  { label: '🔥 OPEN BASECAMP HEARTH', action: 'openStation_campfire_hearth', style: 'border-color:#fb923c; color:#fed7aa; font-weight:bold;' },
-                  { label: '📜 FROSTSPIRE BOUNTIES', action: 'openBountyBoard', style: 'border-color:#38bdf8; color:#bae6fd; font-weight:bold;' },
-                  { label: '❄️ STAY FROSTY', action: 'close' },
-                ],
-              },
-            ],
-          },
-          {
-            id: 'npc_frost_skald_thrym',
-            name: 'Skald Thrym',
-            role: 'Winterhold TCG Challenger [Click / T]',
-            spriteKey: 'bardNpc',
-            x: 36,
-            y: 138,
-            dialogue: [
-              {
-                speaker: 'SKALD THRYM • ALPINE TCG CAMP',
-                spriteKey: 'bardNpc',
-                text: 'Even above the clouds, nothing warms a traveler\'s blood faster than a razor-sharp 1v1 GlimmerFall TCG duel by the campfire! Pull up a chair at our alpine velvet table whenever you want a match.',
-                actions: [
-                  { label: '🃏 CHALLENGE SKALD THRYM TO 1V1 TCG', action: 'openTcgDuel', style: 'border-color:#facc15; color:#fde047; font-weight:bold;' },
-                  { label: '👋 ANOTHER TIME', action: 'close' },
-                ],
-              },
-            ],
-          }
-        );
-      }
-    }
-  }
-
-  function buildOfflineZone(zone, spawnX = null, spawnY = null) {
-    setupZoneDecor(zone);
-    entities = [];
-    allies = [];
-    projectiles = [];
-    groundZones = [];
-    lootDrops = [];
-    offlineMythic = null;
-
-    const hasCustomSpawn = spawnX !== null && spawnY !== null && Number.isFinite(Number(spawnX)) && Number.isFinite(Number(spawnY));
-    if (hasCustomSpawn) {
-      player.x = Number(spawnX);
-      player.y = Number(spawnY);
-    }
-
-    if (currentRoomType === ROOM_TYPES.SANCTUARY_HUB) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 96;
-      }
-      entities.push(
-        { id: 'dummy_1', name: 'Sanctuary Dummy', sub: 'Lv.1 Awakening Training Post', type: 'dummy', spriteKey: 'dummy', x: 0, y: 52, origX: 0, origY: 52, hp: 30, maxHp: 30, xpReward: 30, radius: 14, hitFlash: 0 },
-        { id: 'dummy_2', name: 'Armored Training Post', sub: 'Lv.5 Resilient Training Post', type: 'dummy', spriteKey: 'dummy', x: 165, y: 20, origX: 165, origY: 20, hp: 120, maxHp: 120, xpReward: 65, radius: 15, hitFlash: 0 },
-        { id: 'dummy_titan', name: 'Titan Training Dummy', sub: 'Lv.50 Endless Damage Trial (No XP)', type: 'dummy', spriteKey: 'dummy', x: 225, y: 20, origX: 225, origY: 20, hp: 25000, maxHp: 25000, xpReward: 0, noHitXp: true, radius: 20, hitFlash: 0 },
-        { id: 'tut_font', name: 'Awakening Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'tut_font_2', name: 'East Glimmer Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 88, y: 22, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.ARENA_3V3) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 175;
-      }
-      entities.push(
-        { id: 'blue_nexus', name: 'Solari Sanctuary Nexus', sub: '2500 HP Ally Core', type: 'ally_nexus', spriteKey: 'nexusBlue', x: 0, y: 220, hp: 2500, maxHp: 2500, radius: 22, hitFlash: 0 },
-        { id: 'red_nexus', name: 'Umbri Dominion Nexus', sub: '2500 HP Enemy Core', type: 'nexus', spriteKey: 'nexusRed', x: 0, y: -215, hp: 2500, maxHp: 2500, xpReward: 220, radius: 22, hitFlash: 0 },
-        { id: 'enemy_1', name: 'Void Stalker [Umbri]', sub: 'Enemy Vanguard', type: 'mob', spriteKey: 'voidStalker', x: -64, y: -85, origX: -64, origY: -85, hp: 25, maxHp: 25, damage: 4, xpReward: 65, speed: 54, aggroRange: 230, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'enemy_2', name: 'Gloam Reaper [Umbri]', sub: 'Enemy Harvester', type: 'mob', spriteKey: 'voidStalker', x: 0, y: -105, origX: 0, origY: -105, hp: 22, maxHp: 22, damage: 4, xpReward: 65, speed: 60, aggroRange: 230, attackRange: 26, radius: 14, hitFlash: 0 },
-        { id: 'enemy_3', name: 'Brambleheart Behemoth', sub: 'Enemy Terra Titan', type: 'mob', isBoss: true, spriteKey: 'graniteBoss', x: 64, y: -85, origX: 64, origY: -85, hp: 34, maxHp: 34, damage: 5, xpReward: 110, speed: 42, aggroRange: 230, attackRange: 32, radius: 20, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.SOLARI_CITADEL) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 170;
-      }
-      entities.push(
-        { id: 'sol_mob_1', name: 'Sunforged Sentinel', sub: 'Lv.3 Solari Construct', type: 'mob', spriteKey: 'solariSentinel', x: -75, y: 35, origX: -75, origY: 35, hp: 36, maxHp: 36, damage: 4, xpReward: 65, speed: 52, aggroRange: 112, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'sol_mob_2', name: 'Lantern Inquisitor', sub: 'Lv.4 Radiant Zealot', type: 'mob', spriteKey: 'solariSentinel', x: 75, y: 25, origX: 75, origY: 25, hp: 38, maxHp: 38, damage: 5, xpReward: 75, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'sol_node_1', name: 'Solari Dawn Well', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 40, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'sol_boss', name: 'High Sunfire Colossus', sub: '★ Lv.6 Golden Citadel Boss', type: 'mob', isBoss: true, dropGear: 'sunfire_greatsword', spriteKey: 'solariBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 85, maxHp: 85, damage: 6, xpReward: 185, speed: 40, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.UMBRI_UNDERCITY) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 170;
-      }
-      entities.push(
-        { id: 'umb_mob_1', name: 'Duskveil Stalker', sub: 'Lv.3 Umbri Assassin', type: 'mob', spriteKey: 'voidStalker', x: -80, y: 30, origX: -80, origY: 30, hp: 34, maxHp: 34, damage: 5, xpReward: 65, speed: 55, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'umb_mob_2', name: 'Duskveil Bog Fiend', sub: 'Lv.4 Graveglass Reaper', type: 'mob', spriteKey: 'duskFiend', x: 80, y: 25, origX: 80, origY: 25, hp: 36, maxHp: 36, damage: 5, xpReward: 75, speed: 56, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'umb_node_1', name: 'Duskveil Shadow Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 40, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'umb_boss', name: 'Graveglass Archlich', sub: '★ Lv.6 Sepulcher Boss', type: 'mob', isBoss: true, dropGear: 'scythe_soulreaper', spriteKey: 'umbriBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 80, maxHp: 80, damage: 7, xpReward: 185, speed: 40, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.TERRA_ORCHARD) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 170;
-      }
-      entities.push(
-        { id: 'ter_mob_1', name: 'Bramble Treant', sub: 'Lv.3 Terra Guardian', type: 'mob', spriteKey: 'terraWarden', x: -78, y: 32, origX: -78, origY: 32, hp: 40, maxHp: 40, damage: 4, xpReward: 65, speed: 52, aggroRange: 112, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'ter_mob_2', name: 'Rootdeep Stonekin', sub: 'Lv.4 Ironwood Guardian', type: 'mob', spriteKey: 'terraWarden', x: 78, y: 25, origX: 78, origY: 25, hp: 42, maxHp: 42, damage: 5, xpReward: 75, speed: 50, aggroRange: 112, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'ter_node_1', name: 'Terra Root Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 40, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'ter_boss', name: 'Elder Rootdeep Behemoth', sub: '★ Lv.6 Orchard Boss', type: 'mob', isBoss: true, dropGear: 'ironwood_armor', spriteKey: 'graniteBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 95, maxHp: 95, damage: 6, xpReward: 185, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.AETHER_SPIRE) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 170;
-      }
-      entities.push(
-        { id: 'aeth_mob_1', name: 'Chrono Anomaly', sub: 'Lv.3 Aether Construct', type: 'mob', spriteKey: 'aetherWeaver', x: -78, y: 32, origX: -78, origY: 32, hp: 34, maxHp: 34, damage: 5, xpReward: 65, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'aeth_mob_2', name: 'Chrono Construct', sub: 'Lv.4 Fractured Sentinel', type: 'mob', spriteKey: 'aetherWeaver', x: 78, y: 25, origX: 78, origY: 25, hp: 36, maxHp: 36, damage: 5, xpReward: 75, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'aeth_node_1', name: 'Mirrorgate Star Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 40, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'aeth_boss', name: 'Archon of the Continuum', sub: '★ Lv.6 Mirrorgate Boss', type: 'mob', isBoss: true, dropGear: 'mirror_shield', spriteKey: 'aetherBoss', x: 0, y: -115, origX: 0, origY: -115, hp: 82, maxHp: 82, damage: 7, xpReward: 185, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.NEXUS_FORGOTTEN_RUINS) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 190;
-      }
-      entities.push(
-        { id: 'ruin_mob_1', name: 'Ancient Ruin Golem', sub: 'Lv.4 Keystone Construct', type: 'mob', spriteKey: 'graniteBoss', x: -90, y: 40, origX: -90, origY: 40, hp: 44, maxHp: 44, damage: 4, xpReward: 75, speed: 42, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'ruin_mob_2', name: 'Ancient Ruin Golem', sub: 'Lv.4 Keystone Construct', type: 'mob', spriteKey: 'graniteBoss', x: 90, y: 40, origX: 90, origY: 40, hp: 44, maxHp: 44, damage: 4, xpReward: 75, speed: 42, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'ruin_mob_3', name: 'Lost Shard Sentinel', sub: 'Lv.5 Prismatic Sentinel', type: 'mob', spriteKey: 'mobSolari', x: -75, y: -50, origX: -75, origY: -50, hp: 48, maxHp: 48, damage: 5, xpReward: 85, speed: 52, aggroRange: 120, attackRange: 30, radius: 15, hitFlash: 0 },
-        { id: 'ruin_mob_4', name: 'Lost Shard Sentinel', sub: 'Lv.5 Prismatic Sentinel', type: 'mob', spriteKey: 'mobAether', x: 75, y: -50, origX: 75, origY: -50, hp: 48, maxHp: 48, damage: 5, xpReward: 85, speed: 52, aggroRange: 120, attackRange: 30, radius: 15, hitFlash: 0 },
-        { id: 'ruin_boss', name: 'The Prismatic Golem', sub: '★ Lv.7 First Nexus Guardian', type: 'mob', isBoss: true, dropGear: 'prismatic_keystone', spriteKey: 'graniteBoss', x: 0, y: -120, origX: 0, origY: -120, hp: 88, maxHp: 88, damage: 7, xpReward: 210, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        { id: 'tut_font_ruins_c', name: 'Prismatic Keystone Spire', sub: 'Ancient Prismatic Node [E]', type: 'node', spriteKey: 'node', x: 0, y: 0, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
-        { id: 'tut_font_ruins_w', name: 'West Ruin Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -140, y: -30, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'tut_font_ruins_e', name: 'East Ruin Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 140, y: -30, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.SOLARI_SUNKEN_VAULT) {
-      player.x = 0;
-      player.y = 180;
-      entities.push(
-        { id: 'vault_mob_1', name: 'Sunfire Automaton', sub: 'Lv.4 Solari Automaton', type: 'mob', spriteKey: 'solariSentinel', x: -85, y: 30, origX: -85, origY: 30, hp: 42, maxHp: 42, damage: 5, xpReward: 80, speed: 52, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'vault_mob_2', name: 'Sunfire Automaton', sub: 'Lv.4 Solari Automaton', type: 'mob', spriteKey: 'solariSentinel', x: 85, y: 30, origX: 85, origY: 30, hp: 42, maxHp: 42, damage: 5, xpReward: 80, speed: 52, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'vault_mob_3', name: 'Dawnblade Crusader', sub: 'Lv.5 Solari Elite Guard', type: 'mob', spriteKey: 'solariSentinel', x: -60, y: -50, origX: -60, origY: -50, hp: 46, maxHp: 46, damage: 5, xpReward: 90, speed: 55, aggroRange: 118, attackRange: 30, radius: 15, hitFlash: 0 },
-        { id: 'vault_boss', name: 'Solaris Core Colossus', sub: '★ Lv.8 Sunken Dawn Titan', type: 'mob', isBoss: true, dropGear: 'dawnfire_crest', spriteKey: 'solariBoss', x: 0, y: -120, origX: 0, origY: -120, hp: 96, maxHp: 96, damage: 7, xpReward: 240, speed: 40, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        { id: 'vault_node_1', name: 'Dawnstone Glimmer Well', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'vault_node_2', name: 'Solar Core Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.UMBRI_SHADOW_LABYRINTH) {
-      player.x = 0;
-      player.y = 180;
-      entities.push(
-        { id: 'lab_mob_1', name: 'Graveglass Phantom', sub: 'Lv.4 Umbri Specter', type: 'mob', spriteKey: 'voidStalker', x: -90, y: 30, origX: -90, origY: 30, hp: 38, maxHp: 38, damage: 6, xpReward: 80, speed: 56, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'lab_mob_2', name: 'Graveglass Phantom', sub: 'Lv.4 Umbri Specter', type: 'mob', spriteKey: 'voidStalker', x: 90, y: 30, origX: 90, origY: 30, hp: 38, maxHp: 38, damage: 6, xpReward: 80, speed: 56, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'lab_mob_3', name: 'Gloam Assassin', sub: 'Lv.5 Umbri Elite', type: 'mob', spriteKey: 'duskFiend', x: -65, y: -60, origX: -65, origY: -60, hp: 42, maxHp: 42, damage: 6, xpReward: 90, speed: 60, aggroRange: 120, attackRange: 30, radius: 14, hitFlash: 0 },
-        { id: 'lab_boss', name: 'Abyssal Devourer', sub: '★ Lv.8 Shade of the Void', type: 'mob', isBoss: true, dropGear: 'void_soulblade', spriteKey: 'umbriBoss', x: 0, y: -120, origX: 0, origY: -120, hp: 92, maxHp: 92, damage: 8, xpReward: 240, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        { id: 'lab_node_1', name: 'Graveglass Leyline Shroud', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'lab_node_2', name: 'Void Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.TERRA_OVERGROWTH_SANCTUARY) {
-      player.x = 0;
-      player.y = 180;
-      entities.push(
-        { id: 'hollow_mob_1', name: 'Ironwood Barkkin', sub: 'Lv.4 Terra Forestkin', type: 'mob', spriteKey: 'terraWarden', x: -85, y: 30, origX: -85, origY: 30, hp: 48, maxHp: 48, damage: 4, xpReward: 80, speed: 50, aggroRange: 112, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'hollow_mob_2', name: 'Ironwood Barkkin', sub: 'Lv.4 Terra Forestkin', type: 'mob', spriteKey: 'terraWarden', x: 85, y: 30, origX: 85, origY: 30, hp: 48, maxHp: 48, damage: 4, xpReward: 80, speed: 50, aggroRange: 112, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'hollow_mob_3', name: 'Sporeling Stalker', sub: 'Lv.5 Terra Beast', type: 'mob', spriteKey: 'terraWarden', x: 70, y: -60, origX: 70, origY: -60, hp: 44, maxHp: 44, damage: 5, xpReward: 90, speed: 55, aggroRange: 118, attackRange: 30, radius: 15, hitFlash: 0 },
-        { id: 'hollow_boss', name: 'Primordial Ironbark', sub: '★ Lv.8 Elder Treant of the Hollow', type: 'mob', isBoss: true, dropGear: 'primordial_bark_chest', spriteKey: 'graniteBoss', x: 0, y: -120, origX: 0, origY: -120, hp: 110, maxHp: 110, damage: 7, xpReward: 250, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        { id: 'hollow_node_1', name: 'Ironwood Blossom Node', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'hollow_node_2', name: 'Rootdeep Heart Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.AETHER_FRACTURED_ARCHIVE) {
-      player.x = 0;
-      player.y = 180;
-      entities.push(
-        { id: 'archive_mob_1', name: 'Chrono Echo', sub: 'Lv.4 Aether Construct', type: 'mob', spriteKey: 'aetherWeaver', x: -85, y: 30, origX: -85, origY: 30, hp: 38, maxHp: 38, damage: 6, xpReward: 80, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'archive_mob_2', name: 'Chrono Echo', sub: 'Lv.4 Aether Construct', type: 'mob', spriteKey: 'aetherWeaver', x: 85, y: 30, origX: 85, origY: 30, hp: 38, maxHp: 38, damage: 6, xpReward: 80, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'archive_mob_3', name: 'Astral Weaver', sub: 'Lv.5 Continuum Mage', type: 'mob', spriteKey: 'aetherWeaver', x: -70, y: -60, origX: -70, origY: -60, hp: 42, maxHp: 42, damage: 6, xpReward: 90, speed: 56, aggroRange: 118, attackRange: 30, radius: 15, hitFlash: 0 },
-        { id: 'archive_boss', name: 'Continuum Singularity', sub: '★ Lv.8 Paradox Titan', type: 'mob', isBoss: true, dropGear: 'chronos_singularity_core', spriteKey: 'aetherBoss', x: 0, y: -120, origX: 0, origY: -120, hp: 94, maxHp: 94, damage: 8, xpReward: 240, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        { id: 'archive_node_1', name: 'Continuum Time Spire', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: -125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 },
-        { id: 'archive_node_2', name: 'Astral Mirrorgate Font', sub: 'Glimmer Leyline Spire [E]', type: 'node', spriteKey: 'node', x: 125, y: 20, charges: 3, maxCharges: 3, radius: 15, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.CELESTIAL_ASCENT) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 1040;
-      }
-      entities.push(
-        { id: 'cel_node_1', name: 'Font of the Morning Star', sub: 'Empyrean Glimmer Spire [E]', type: 'node', spriteKey: 'node', x: -120, y: 600, charges: 6, maxCharges: 6, radius: 18, hitFlash: 0 },
-        { id: 'cel_node_2', name: 'Shrine of Empyrean Resonance', sub: 'Ancient Leyline Shrine [E]', type: 'node', spriteKey: 'node', x: 120, y: 600, charges: 6, maxCharges: 6, radius: 18, hitFlash: 0 },
-        { id: 'cel_node_summit', name: 'Apex Keystone Font', sub: 'Titan Glimmer Core [E]', type: 'node', spriteKey: 'node', x: 0, y: -450, charges: 8, maxCharges: 8, radius: 18, hitFlash: 0 },
-        { id: 'cel_mob_1', name: 'Empyrean Star-Knight', sub: 'Lv.28 Celestial Construct', type: 'mob', spriteKey: 'solariSentinel', x: -90, y: 450, origX: -90, origY: 450, hp: 280, maxHp: 280, damage: 16, xpReward: 320, speed: 48, aggroRange: 120, attackRange: 30, radius: 16, hitFlash: 0 },
-        { id: 'cel_mob_2', name: 'Empyrean Star-Knight', sub: 'Lv.28 Celestial Construct', type: 'mob', spriteKey: 'solariSentinel', x: 90, y: 450, origX: 90, origY: 450, hp: 280, maxHp: 280, damage: 16, xpReward: 320, speed: 48, aggroRange: 120, attackRange: 30, radius: 16, hitFlash: 0 },
-        { id: 'cel_mob_3', name: 'Astral Chrono-Seraph', sub: 'Lv.30 Celestial Seraph', type: 'mob', spriteKey: 'aetherWeaver', x: -120, y: 100, origX: -120, origY: 100, hp: 260, maxHp: 260, damage: 18, xpReward: 360, speed: 54, aggroRange: 130, attackRange: 36, radius: 16, hitFlash: 0 },
-        { id: 'cel_mob_4', name: 'Astral Chrono-Seraph', sub: 'Lv.30 Celestial Seraph', type: 'mob', spriteKey: 'aetherWeaver', x: 120, y: 100, origX: 120, origY: 100, hp: 260, maxHp: 260, damage: 18, xpReward: 360, speed: 54, aggroRange: 130, attackRange: 36, radius: 16, hitFlash: 0 },
-        { id: 'cel_mob_5', name: 'Void Annihilator', sub: 'Lv.32 Apex Infiltrator', type: 'mob', spriteKey: 'mobUmbri', x: 0, y: -250, origX: 0, origY: -250, hp: 420, maxHp: 420, damage: 22, xpReward: 480, speed: 50, aggroRange: 140, attackRange: 32, radius: 18, hitFlash: 0 },
-        { id: 'cel_titan_boss', name: 'Aurelius the Empyrean Sovereign', sub: '★ Lv.35 Ancient Titan of the Nexus', type: 'mob', isBoss: true, dropGear: 'crown_of_dawn', spriteKey: 'celestialTitanBoss', x: 0, y: -750, origX: 0, origY: -750, hp: 3200, maxHp: 3200, damage: 32, xpReward: 1600, speed: 46, aggroRange: 180, attackRange: 42, radius: 28, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.STARFALL_CRATER) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 220;
-      }
-      entities.push(
-        { id: 'sf_mob_1', name: 'Starforged Automaton', sub: 'Lv.22 Astral Construct', type: 'mob', spriteKey: 'starforgedAutomaton', x: -135, y: 55, origX: -135, origY: 55, hp: 190, maxHp: 190, damage: 13, xpReward: 220, speed: 50, aggroRange: 120, attackRange: 30, radius: 16, hitFlash: 0 },
-        { id: 'sf_mob_2', name: 'Starforged Automaton', sub: 'Lv.22 Astral Construct', type: 'mob', spriteKey: 'starforgedAutomaton', x: 135, y: 55, origX: 135, origY: 55, hp: 190, maxHp: 190, damage: 13, xpReward: 220, speed: 50, aggroRange: 120, attackRange: 30, radius: 16, hitFlash: 0 },
-        { id: 'sf_mob_3', name: 'Molten Meteor Elemental', sub: 'Lv.25 Crater Elemental', type: 'mob', spriteKey: 'meteorElemental', x: -155, y: -95, origX: -155, origY: -95, hp: 230, maxHp: 230, damage: 15, xpReward: 265, speed: 54, aggroRange: 125, attackRange: 30, radius: 16, hitFlash: 0 },
-        { id: 'sf_mob_4', name: 'Molten Meteor Elemental', sub: 'Lv.25 Crater Elemental', type: 'mob', spriteKey: 'meteorElemental', x: 155, y: -95, origX: 155, origY: -95, hp: 230, maxHp: 230, damage: 15, xpReward: 265, speed: 54, aggroRange: 125, attackRange: 30, radius: 16, hitFlash: 0 },
-        { id: 'sf_node_1', name: 'Starfall Impact Conduit', sub: 'Astral Glimmer Spire [E]', type: 'node', spriteKey: 'node', x: 0, y: -40, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
-        { id: 'sf_boss', name: 'Ignis-Core the Starfall Colossus', sub: '★ Lv.28 Molten Starmetal Boss', type: 'mob', isBoss: true, dropGear: 'starmetal_meteor_hammer', spriteKey: 'starfallBoss', x: 0, y: -260, origX: 0, origY: -260, hp: 980, maxHp: 980, damage: 24, xpReward: 950, speed: 42, aggroRange: 150, attackRange: 38, radius: 24, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.ABYSSAL_RIFT) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 260;
-      }
-      entities.push(
-        { id: 'aby_mob_1', name: 'Gloam-Silk Widow', sub: 'Lv.34 Rift Arachnid', type: 'mob', spriteKey: 'gloamWidow', x: -150, y: 80, origX: -150, origY: 80, hp: 340, maxHp: 340, damage: 20, xpReward: 390, speed: 58, aggroRange: 128, attackRange: 30, radius: 16, hitFlash: 0 },
-        { id: 'aby_mob_2', name: 'Gloam-Silk Widow', sub: 'Lv.34 Rift Arachnid', type: 'mob', spriteKey: 'gloamWidow', x: 150, y: 80, origX: 150, origY: 80, hp: 340, maxHp: 340, damage: 20, xpReward: 390, speed: 58, aggroRange: 128, attackRange: 30, radius: 16, hitFlash: 0 },
-        { id: 'aby_mob_3', name: 'Paradox Sentinel', sub: 'Lv.37 Singularity Guard', type: 'mob', spriteKey: 'paradoxSentinel', x: -165, y: -90, origX: -165, origY: -90, hp: 430, maxHp: 430, damage: 24, xpReward: 460, speed: 52, aggroRange: 132, attackRange: 32, radius: 17, hitFlash: 0 },
-        { id: 'aby_mob_4', name: 'Paradox Sentinel', sub: 'Lv.37 Singularity Guard', type: 'mob', spriteKey: 'paradoxSentinel', x: 165, y: -90, origX: 165, origY: -90, hp: 430, maxHp: 430, damage: 24, xpReward: 460, speed: 52, aggroRange: 132, attackRange: 32, radius: 17, hitFlash: 0 },
-        { id: 'aby_mob_5', name: 'Voidborne Harbinger', sub: 'Lv.39 Architect Vanguard', type: 'mob', spriteKey: 'mobUmbri', x: 0, y: -155, origX: 0, origY: -155, hp: 480, maxHp: 480, damage: 26, xpReward: 520, speed: 54, aggroRange: 135, attackRange: 32, radius: 18, hitFlash: 0 },
-        { id: 'aby_node_1', name: 'Abyssal Singularity Font', sub: 'Voidstar Glimmer Spire [E]', type: 'node', spriteKey: 'node', x: 0, y: -30, charges: 6, maxCharges: 6, radius: 18, hitFlash: 0 },
-        { id: 'aby_boss', name: 'Xal\'Korath the Void Architect', sub: '★ Lv.42 Sovereign of the Rift', type: 'mob', isBoss: true, dropGear: 'abyssal_voidstar_scythe', spriteKey: 'abyssalArchitectBoss', x: 0, y: -340, origX: 0, origY: -340, hp: 3800, maxHp: 3800, damage: 38, xpReward: 2200, speed: 45, aggroRange: 175, attackRange: 42, radius: 28, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.IRONWOOD_TIMBERLANDS) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 180;
-      }
-      entities.push(
-        { id: 'iw_mob_1', name: 'Treant Sapling', sub: 'Lv.9 Primordial Treant', type: 'mob', spriteKey: 'treantSapling', x: -125, y: 45, origX: -125, origY: 45, hp: 95, maxHp: 95, damage: 8, xpReward: 95, speed: 48, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'iw_mob_2', name: 'Treant Sapling', sub: 'Lv.9 Primordial Treant', type: 'mob', spriteKey: 'treantSapling', x: 125, y: 45, origX: 125, origY: 45, hp: 95, maxHp: 95, damage: 8, xpReward: 95, speed: 48, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'iw_mob_3', name: 'Ironbark Prowler', sub: 'Lv.12 Ancient Forest Beast', type: 'mob', spriteKey: 'ironbarkTreant', x: -140, y: -85, origX: -140, origY: -85, hp: 135, maxHp: 135, damage: 10, xpReward: 145, speed: 52, aggroRange: 120, attackRange: 30, radius: 16, hitFlash: 0 },
-        { id: 'iw_mob_4', name: 'Ironbark Prowler', sub: 'Lv.12 Ancient Forest Beast', type: 'mob', spriteKey: 'ironbarkTreant', x: 140, y: -85, origX: 140, origY: -85, hp: 135, maxHp: 135, damage: 10, xpReward: 145, speed: 52, aggroRange: 120, attackRange: 30, radius: 16, hitFlash: 0 },
-        { id: 'iw_node_1', name: 'Ironwood Primeval Font', sub: 'Ancient Arboreal Font [E]', type: 'node', spriteKey: 'node', x: 0, y: -40, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
-        { id: 'iw_boss', name: 'Elder Barkhide the Primeval Treant', sub: '★ Lv.16 Ancient Timberlands Boss', type: 'mob', isBoss: true, dropGear: 'ironwood_quarterstaff', spriteKey: 'elderBarkhide', x: 0, y: -240, origX: 0, origY: -240, hp: 580, maxHp: 580, damage: 16, xpReward: 540, speed: 40, aggroRange: 140, attackRange: 34, radius: 24, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.CORAL_COAST) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 180;
-      }
-      entities.push(
-        { id: 'cc_mob_1', name: 'Brine Crawler', sub: 'Lv.13 Tidal Scuttler', type: 'mob', spriteKey: 'brineCrawler', x: -130, y: 50, origX: -130, origY: 50, hp: 140, maxHp: 140, damage: 10, xpReward: 145, speed: 50, aggroRange: 118, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'cc_mob_2', name: 'Brine Crawler', sub: 'Lv.13 Tidal Scuttler', type: 'mob', spriteKey: 'brineCrawler', x: 130, y: 50, origX: 130, origY: 50, hp: 140, maxHp: 140, damage: 10, xpReward: 145, speed: 50, aggroRange: 118, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'cc_mob_3', name: 'Coral Siren', sub: 'Lv.16 Reef Enchantress', type: 'mob', spriteKey: 'coralSiren', x: -145, y: -80, origX: -145, origY: -80, hp: 175, maxHp: 175, damage: 12, xpReward: 185, speed: 54, aggroRange: 125, attackRange: 32, radius: 16, hitFlash: 0 },
-        { id: 'cc_mob_4', name: 'Coral Siren', sub: 'Lv.16 Reef Enchantress', type: 'mob', spriteKey: 'coralSiren', x: 145, y: -80, origX: 145, origY: -80, hp: 175, maxHp: 175, damage: 12, xpReward: 185, speed: 54, aggroRange: 125, attackRange: 32, radius: 16, hitFlash: 0 },
-        { id: 'cc_node_1', name: 'Brinelight Abyssal Font', sub: 'Tidal Glimmer Font [E]', type: 'node', spriteKey: 'node', x: 0, y: -40, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
-        { id: 'cc_boss', name: 'Triton the Tide-Reaver', sub: '★ Lv.20 Sovereign of the Reef', type: 'mob', isBoss: true, dropGear: 'tide_reaver_trident', spriteKey: 'tideReaverBoss', x: 0, y: -240, origX: 0, origY: -240, hp: 760, maxHp: 760, damage: 19, xpReward: 700, speed: 46, aggroRange: 150, attackRange: 36, radius: 24, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.STARLIGHT_GROVE) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 180;
-      }
-      entities.push(
-        { id: 'sg_node_1', name: 'Starlight Heartwood Font', sub: 'Astral Grove Spire [E]', type: 'node', spriteKey: 'node', x: 0, y: -35, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
-        { id: 'sg_mob_1', name: 'Starlight Treant', sub: 'Lv.24 Ancient Guardian', type: 'mob', spriteKey: 'terraWarden', x: -130, y: 40, origX: -130, origY: 40, hp: 220, maxHp: 220, damage: 15, xpReward: 210, speed: 48, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'sg_mob_2', name: 'Starlight Treant', sub: 'Lv.24 Ancient Guardian', type: 'mob', spriteKey: 'terraWarden', x: 130, y: 40, origX: 130, origY: 40, hp: 220, maxHp: 220, damage: 15, xpReward: 210, speed: 48, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'sg_boss', name: 'Elder Canopy Colossus', sub: '★ Lv.35 Starlight Grove Sovereign', type: 'mob', isBoss: true, dropGear: 'ironwood_armor', spriteKey: 'terraBoss', x: 0, y: -260, origX: 0, origY: -260, hp: 1150, maxHp: 1150, damage: 24, xpReward: 950, speed: 44, aggroRange: 150, attackRange: 36, radius: 24, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.CHRONOCORE_CITADEL) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 200;
-      }
-      entities.push(
-        { id: 'ccit_shrine_rites', name: 'Chronocore Rite Shrine', sub: 'Skill Shrine (Req: Rites Lv.15) [E]', type: 'shrine', affinity: 'Aether', buffName: 'Astral Rite Supremacy', reqSkill: 'rites', reqLevel: 15, spriteKey: 'shrine', x: 0, y: 0, charges: 5, maxCharges: 5, radius: 18, hitFlash: 0 },
-        { id: 'ccit_anvil', name: 'Chronocore Star-Anvil', sub: 'Relic-Forging Station [E]', type: 'crafting_station', stationId: 'star_anvil', spriteKey: 'anvil', x: -120, y: 120, radius: 16, hitFlash: 0 },
-        { id: 'ccit_runeforge', name: 'Chronocore Runeforge', sub: 'Runecrafting & Leyline Station [E]', type: 'crafting_station', stationId: 'leyline_runeforge', spriteKey: 'runeforge', x: 120, y: 120, radius: 16, hitFlash: 0 },
-        { id: 'ccit_node_1', name: 'Chronocore Singularity Spire', sub: 'Temporal Core [E]', type: 'node', spriteKey: 'node', x: 0, y: -55, charges: 6, maxCharges: 6, radius: 16, hitFlash: 0 },
-        { id: 'ccit_mob_1', name: 'Chronocore Warden', sub: 'Lv.44 Astral Guardian', type: 'mob', spriteKey: 'aetherWeaver', x: -190, y: -120, origX: -190, origY: -120, hp: 460, maxHp: 460, damage: 24, xpReward: 380, speed: 50, aggroRange: 125, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'ccit_mob_2', name: 'Riftweaver Automaton', sub: 'Lv.52 Temporal Construct', type: 'mob', spriteKey: 'aetherWeaver', x: 190, y: -120, origX: 190, origY: -120, hp: 620, maxHp: 620, damage: 28, xpReward: 520, speed: 52, aggroRange: 130, attackRange: 30, radius: 16, hitFlash: 0 },
-        { id: 'ccit_mob_3', name: 'Temporal Singularity Vanguard', sub: 'Lv.58 Paradox Arbiter', type: 'mob', spriteKey: 'paradoxSentinel', x: -180, y: -250, origX: -180, origY: -250, hp: 780, maxHp: 780, damage: 32, xpReward: 690, speed: 54, aggroRange: 135, attackRange: 32, radius: 17, hitFlash: 0 },
-        { id: 'ccit_mob_4', name: 'Empyrean Void-Paradox', sub: 'Lv.64 Citadel Apex Harbinger', type: 'mob', spriteKey: 'mobUmbri', x: 180, y: -250, origX: 180, origY: -250, hp: 940, maxHp: 940, damage: 35, xpReward: 860, speed: 56, aggroRange: 140, attackRange: 32, radius: 18, hitFlash: 0 },
-        { id: 'ccit_boss', name: 'Grand Chronocore Sovereign', sub: '★ Lv.68 Temporal Apex Boss', type: 'mob', isBoss: true, dropGear: 'chronos_singularity_core', spriteKey: 'aetherBoss', x: 0, y: -360, origX: 0, origY: -360, hp: 2800, maxHp: 2800, damage: 38, xpReward: 2400, speed: 50, aggroRange: 165, attackRange: 40, radius: 25, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.SUNKEN_OASIS) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 180;
-      }
-      entities.push(
-        { id: 'oasis_node_1', name: 'Whispering Oasis Font', sub: 'Verdant Spring Leyline [E]', type: 'node', spriteKey: 'node', x: 0, y: -25, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
-        { id: 'oasis_mob_1', name: 'Oasis Bloomwarden', sub: 'Lv.15 Spring Guardian', type: 'mob', spriteKey: 'terraWarden', x: -115, y: 35, origX: -115, origY: 35, hp: 155, maxHp: 155, damage: 11, xpReward: 165, speed: 50, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'oasis_mob_2', name: 'Oasis Bloomwarden', sub: 'Lv.15 Spring Guardian', type: 'mob', spriteKey: 'terraWarden', x: 115, y: 35, origX: 115, origY: 35, hp: 155, maxHp: 155, damage: 11, xpReward: 165, speed: 50, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'oasis_mob_3', name: 'Mistwater Strider', sub: 'Lv.18 Oasis Sentinel', type: 'mob', spriteKey: 'mobTerra', x: -95, y: -90, origX: -95, origY: -90, hp: 185, maxHp: 185, damage: 13, xpReward: 195, speed: 52, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'oasis_boss', name: 'Sylphira the Spring Matriarch', sub: '★ Lv.24 Sovereign of the Sunken Oasis', type: 'mob', isBoss: true, dropGear: 'primordial_bark_chest', spriteKey: 'elderBarkhide', x: 0, y: -225, origX: 0, origY: -225, hp: 720, maxHp: 720, damage: 18, xpReward: 680, speed: 42, aggroRange: 140, attackRange: 34, radius: 24, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.SOLAR_HIGHLANDS) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 180;
-      }
-      entities.push(
-        { id: 'highlands_node_1', name: 'Sunspire Zenith Conduit', sub: 'Radiant Crag Spire [E]', type: 'node', spriteKey: 'node', x: 0, y: -25, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
-        { id: 'highlands_mob_1', name: 'Sunspire Crag-Watcher', sub: 'Lv.18 Highland Sentinel', type: 'mob', spriteKey: 'solariSentinel', x: -120, y: 40, origX: -120, origY: 40, hp: 180, maxHp: 180, damage: 13, xpReward: 190, speed: 52, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'highlands_mob_2', name: 'Sunspire Crag-Watcher', sub: 'Lv.18 Highland Sentinel', type: 'mob', spriteKey: 'solariSentinel', x: 120, y: 40, origX: 120, origY: 40, hp: 180, maxHp: 180, damage: 13, xpReward: 190, speed: 52, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'highlands_mob_3', name: 'Ambergris Sun-Drake', sub: 'Lv.22 Solar Construct', type: 'mob', spriteKey: 'mobSolari', x: 95, y: -90, origX: 95, origY: -90, hp: 215, maxHp: 215, damage: 15, xpReward: 230, speed: 54, aggroRange: 120, attackRange: 30, radius: 16, hitFlash: 0 },
-        { id: 'highlands_boss', name: 'Helios-Vanguard the Sunspire Titan', sub: '★ Lv.28 Lord of Ambergris Crags', type: 'mob', isBoss: true, dropGear: 'sunfire_greatsword', spriteKey: 'solariBoss', x: 0, y: -230, origX: 0, origY: -230, hp: 890, maxHp: 890, damage: 21, xpReward: 820, speed: 42, aggroRange: 145, attackRange: 36, radius: 24, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.MOONWELL_SANCTUM) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 185;
-      }
-      entities.push(
-        { id: 'moonwell_node_1', name: 'Silvermist Moonwell Conduit', sub: 'Sacred Druid Leyline [E]', type: 'node', spriteKey: 'node', x: 0, y: -25, charges: 6, maxCharges: 6, radius: 16, hitFlash: 0 },
-        { id: 'moonwell_mob_1', name: 'Silvermist Grove-Keeper', sub: 'Lv.22 Moonwell Sentinel', type: 'mob', spriteKey: 'terraWarden', x: -125, y: 35, origX: -125, origY: 35, hp: 210, maxHp: 210, damage: 14, xpReward: 230, speed: 52, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'moonwell_mob_2', name: 'Silvermist Grove-Keeper', sub: 'Lv.22 Moonwell Sentinel', type: 'mob', spriteKey: 'terraWarden', x: 125, y: 35, origX: 125, origY: 35, hp: 210, maxHp: 210, damage: 14, xpReward: 230, speed: 52, aggroRange: 118, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'moonwell_mob_3', name: 'Lunar Briar-Stalker', sub: 'Lv.26 Wilds Guardian', type: 'mob', spriteKey: 'mobTerra', x: -95, y: -95, origX: -95, origY: -95, hp: 245, maxHp: 245, damage: 16, xpReward: 270, speed: 55, aggroRange: 122, attackRange: 30, radius: 16, hitFlash: 0 },
-        { id: 'moonwell_boss', name: 'Archdruid Elaria of the Silvermist', sub: '★ Lv.32 Matriarch of the Moonwell Sanctum', type: 'mob', isBoss: true, dropGear: 'elder_treant_staff', spriteKey: 'elderBarkhide', x: 0, y: -235, origX: 0, origY: -235, hp: 960, maxHp: 960, damage: 22, xpReward: 920, speed: 44, aggroRange: 145, attackRange: 36, radius: 24, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.LUMINOUS_CAVERN) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 185;
-      }
-      entities.push(
-        { id: 'cavern_node_1', name: 'CrystalEcho Resonance Spire', sub: 'Subterranean Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: -35, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
-        { id: 'cavern_mob_1', name: 'CrystalEcho Geode-Stalker', sub: 'Lv.12 Subterranean Construct', type: 'mob', spriteKey: 'mobAether', x: -115, y: 45, origX: -115, origY: 45, hp: 130, maxHp: 130, damage: 9, xpReward: 135, speed: 50, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'cavern_mob_2', name: 'CrystalEcho Geode-Stalker', sub: 'Lv.12 Subterranean Construct', type: 'mob', spriteKey: 'mobAether', x: 115, y: 45, origX: 115, origY: 45, hp: 130, maxHp: 130, damage: 9, xpReward: 135, speed: 50, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'cavern_mob_3', name: 'Prism-Shell Golem', sub: 'Lv.16 Cavern Sentinel', type: 'mob', spriteKey: 'graniteBoss', x: -95, y: -95, origX: -95, origY: -95, hp: 175, maxHp: 175, damage: 12, xpReward: 185, speed: 44, aggroRange: 118, attackRange: 30, radius: 18, hitFlash: 0 },
-        { id: 'cavern_boss', name: 'Crystallis the Echo Warden', sub: '★ Lv.20 Sovereign of CrystalEcho Caverns', type: 'mob', isBoss: true, dropGear: 'mirror_shield', spriteKey: 'bossAether', x: 0, y: -225, origX: 0, origY: -225, hp: 650, maxHp: 650, damage: 17, xpReward: 620, speed: 42, aggroRange: 140, attackRange: 34, radius: 24, hitFlash: 0 }
-      );
-    } else if (currentRoomType === ROOM_TYPES.FROSTSPIRE_GLACIER) {
-      if (!hasCustomSpawn) {
-        player.x = 0;
-        player.y = 185;
-      }
-      entities.push(
-        { id: 'frost_node_1', name: 'Aurora Resonance Spire', sub: 'Glacial Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: -35, charges: 5, maxCharges: 5, radius: 16, hitFlash: 0 },
-        { id: 'frost_mob_1', name: 'Frostfang Tundra-Stalker', sub: 'Lv.24 Glacial Beast', type: 'mob', spriteKey: 'terraWarden', x: -125, y: 45, origX: -125, origY: 45, hp: 240, maxHp: 240, damage: 16, xpReward: 260, speed: 55, aggroRange: 120, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'frost_mob_2', name: 'Frostfang Tundra-Stalker', sub: 'Lv.24 Glacial Beast', type: 'mob', spriteKey: 'terraWarden', x: 125, y: 45, origX: 125, origY: 45, hp: 240, maxHp: 240, damage: 16, xpReward: 260, speed: 55, aggroRange: 120, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'frost_mob_3', name: 'Rimeforged Glacier Sentinel', sub: 'Lv.28 Ice Golem', type: 'mob', spriteKey: 'graniteBoss', x: -95, y: -105, origX: -95, origY: -105, hp: 295, maxHp: 295, damage: 19, xpReward: 320, speed: 44, aggroRange: 125, attackRange: 30, radius: 18, hitFlash: 0 },
-        { id: 'frost_boss', name: 'Borealis, Crown of Eternal Rime', sub: '★ Lv.34 Sovereign of Frostspire Glacier', type: 'mob', isBoss: true, dropGear: 'chronos_singularity_core', spriteKey: 'bossAether', x: 0, y: -235, origX: 0, origY: -235, hp: 1080, maxHp: 1080, damage: 25, xpReward: 1050, speed: 44, aggroRange: 145, attackRange: 36, radius: 24, hitFlash: 0 }
-      );
-    } else if (ROOM_CONFIGS[currentRoomType]?.isInterior) {
-      if (!hasCustomSpawn) {
-        const icfg = ROOM_CONFIGS[currentRoomType];
-        player.x = icfg?.spawnX ?? 0;
-        player.y = icfg?.spawnY ?? 96;
-      }
-    } else {
-      player.x = 0;
-      player.y = 1740;
-      entities.push(
-        // Vanguard Colossus Training Post
-        { id: 'val_dummy', name: 'Vanguard Colossus Post', sub: 'Lv.30 Target Post', type: 'dummy', spriteKey: 'dummy', x: 60, y: 1440, origX: 60, origY: 1440, hp: 600, maxHp: 600, xpReward: 200, radius: 16, hitFlash: 0 },
-        // 4 Continental Faction Outposts
-        { id: 'outpost_Terra', faction: 'Terra', name: 'Terra Forest Outpost Nexus', sub: '300 HP Terra Outpost Nexus [Continental]', type: 'outpost_nexus', spriteKey: 'nexusGreen', x: -850, y: -650, origX: -850, origY: -650, hp: 300, maxHp: 300, xpReward: 1200, radius: 24, hitFlash: 0 },
-        { id: 'outpost_Umbri', faction: 'Umbri', name: 'Umbri Shadow Outpost Nexus', sub: '300 HP Umbri Outpost Nexus [Continental]', type: 'outpost_nexus', spriteKey: 'nexusPurple', x: 850, y: -650, origX: 850, origY: -650, hp: 300, maxHp: 300, xpReward: 1200, radius: 24, hitFlash: 0 },
-        { id: 'outpost_Solari', faction: 'Solari', name: 'Solari Radiant Outpost Nexus', sub: '300 HP Solari Outpost Nexus [Continental]', type: 'outpost_nexus', spriteKey: 'nexusGold', x: -850, y: 650, origX: -850, origY: 650, hp: 300, maxHp: 300, xpReward: 1200, radius: 24, hitFlash: 0 },
-        { id: 'outpost_Aether', faction: 'Aether', name: 'Aether Astral Outpost Nexus', sub: '300 HP Aether Outpost Nexus [Continental]', type: 'outpost_nexus', spriteKey: 'nexusCyan', x: 850, y: 650, origX: 850, origY: 650, hp: 300, maxHp: 300, xpReward: 1200, radius: 24, hitFlash: 0 },
-        // Shattered Nexus Shard
-        { id: 'siege_shard', name: 'Shattered Nexus Shard', sub: '⚡ Continental Nexus Core (PvPvE)', type: 'siege_shard', isBoss: true, spriteKey: 'siegeShard', x: 0, y: 0, origX: 0, origY: 0, hp: 850, maxHp: 850, xpReward: 2500, radius: 24, hitFlash: 0 },
-        // 4 Ancient Leyline Shrines [E]
-        { id: 'shrine_solari', name: 'Solari Radiant Shrine', sub: 'Ancient Leyline [E] • Radiant Wrath', type: 'shrine', affinity: 'solari', buffName: 'Solar Wrath', x: -550, y: 550, origX: -550, origY: 550, charges: 5, maxCharges: 5, radius: 20, hitFlash: 0 },
-        { id: 'shrine_umbri', name: 'Umbri Void Obelisk', sub: 'Ancient Leyline [E] • Void Leech', type: 'shrine', affinity: 'umbri', buffName: 'Void Step', x: 550, y: -550, origX: 550, origY: -550, charges: 5, maxCharges: 5, radius: 20, hitFlash: 0 },
-        { id: 'shrine_terra', name: 'Terra Bastion Monolith', sub: 'Ancient Leyline [E] • Primal Bastion', type: 'shrine', affinity: 'terra', buffName: 'Stone Ward', x: -550, y: -550, origX: -550, origY: -550, charges: 5, maxCharges: 5, radius: 20, hitFlash: 0 },
-        { id: 'shrine_aether', name: 'Aether Chrono Spire', sub: 'Ancient Leyline [E] • Chrono Surge', type: 'shrine', affinity: 'aether', buffName: 'Chrono Surge', x: 550, y: 550, origX: 550, origY: 550, charges: 5, maxCharges: 5, radius: 20, hitFlash: 0 },
-        // 4 Grand World Bosses
-        { id: 'terra_world_boss', name: 'Elder Ironwood Colossus', sub: '★ Lv.32 Terra Continent World Boss', type: 'mob', isBoss: true, dropGear: 'ironwood_armor', spriteKey: 'graniteBoss', x: -950, y: -850, origX: -950, origY: -850, hp: 1250, maxHp: 1250, damage: 42, xpReward: 2600, speed: 38, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        { id: 'umbri_world_boss', name: 'Malakor the Soulreaper', sub: '★ Lv.32 Umbri Continent World Boss', type: 'mob', isBoss: true, dropGear: 'scythe_soulreaper', spriteKey: 'umbriBoss', x: 950, y: -850, origX: 950, origY: -850, hp: 1150, maxHp: 1150, damage: 46, xpReward: 2600, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        { id: 'solari_world_boss', name: 'High Sunfire Juggernaut', sub: '★ Lv.32 Solari Continent World Boss', type: 'mob', isBoss: true, dropGear: 'sunfire_greatsword', spriteKey: 'solariBoss', x: -950, y: 850, origX: -950, origY: 850, hp: 1250, maxHp: 1250, damage: 44, xpReward: 2600, speed: 39, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        { id: 'aether_world_boss', name: 'Continuum Singularity Paradox', sub: '★ Lv.32 Aether Continent World Boss', type: 'mob', isBoss: true, dropGear: 'chronos_singularity_core', spriteKey: 'aetherBoss', x: 950, y: 850, origX: 950, origY: 850, hp: 1180, maxHp: 1180, damage: 48, xpReward: 2600, speed: 42, aggroRange: 135, attackRange: 34, radius: 22, hitFlash: 0 },
-        // Strategic Glimmer Nodes across valleys, mountain passes, and wilderness
-        { id: 'node_sanctuary', name: 'Sanctuary Vale Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: 1380, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
-        { id: 'node_pass', name: 'Whispering Pass Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: 700, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
-        { id: 'node_center_s', name: 'Caldera South Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: 180, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
-        { id: 'node_center_n', name: 'Caldera North Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: -180, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
-        { id: 'node_ruins', name: 'Forgotten Ruins Keystone Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 0, y: -900, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
-        { id: 'node_terra', name: 'Terra Blossom Spire', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: -1100, y: -700, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
-        { id: 'node_umbri', name: 'Sepulcher Shadow Spire', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 1100, y: -700, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
-        { id: 'node_solari', name: 'Dawnfire Solar Font', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: -1100, y: 700, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
-        { id: 'node_aether', name: 'Aether Resonance Crystal', sub: 'Aether Leyline Crystal [E]', type: 'node', spriteKey: 'node', x: 1100, y: 700, charges: 5, maxCharges: 5, radius: 15, hitFlash: 0 },
-        // Whispering Mountain Pass Mobs
-        { id: 'pass_mob_1', name: 'Granite Ridge Sentinel', sub: 'Lv.28 Mountain Golem', type: 'mob', spriteKey: 'graniteBoss', x: -60, y: 880, origX: -60, origY: 880, hp: 420, maxHp: 420, damage: 24, xpReward: 750, speed: 40, aggroRange: 110, attackRange: 30, radius: 18, hitFlash: 0 },
-        { id: 'pass_mob_2', name: 'Whispering Pass Raider', sub: 'Lv.29 Highland Marauder', type: 'mob', spriteKey: 'voidStalker', x: 70, y: 640, origX: 70, origY: 640, hp: 380, maxHp: 380, damage: 26, xpReward: 800, speed: 52, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'pass_mob_3', name: 'High Crag Behemoth', sub: 'Lv.30 Ridge Colossus', type: 'mob', spriteKey: 'graniteBoss', x: -80, y: 460, origX: -80, origY: 460, hp: 540, maxHp: 540, damage: 32, xpReward: 1000, speed: 38, aggroRange: 120, attackRange: 32, radius: 20, hitFlash: 0 },
-        // North Forgotten Ruins Plateau (Ancient Megaliths)
-        { id: 'ruin_guard_1', name: 'Ancient Keystone Golem', sub: 'Lv.30 Forgotten Golem', type: 'mob', spriteKey: 'graniteBoss', x: -90, y: -750, origX: -90, origY: -750, hp: 520, maxHp: 520, damage: 32, xpReward: 1050, speed: 40, aggroRange: 115, attackRange: 30, radius: 18, hitFlash: 0 },
-        { id: 'ruin_guard_2', name: 'Lost Shard Sentinel', sub: 'Lv.30 Keystone Sentinel', type: 'mob', spriteKey: 'mobSolari', x: 90, y: -750, origX: 90, origY: -750, hp: 500, maxHp: 500, damage: 32, xpReward: 1000, speed: 52, aggroRange: 115, attackRange: 30, radius: 16, hitFlash: 0 },
-        { id: 'ruin_boss_field', name: 'The Prismatic Overlord', sub: '★ Lv.34 Megalith World Boss', type: 'mob', isBoss: true, dropGear: 'prismatic_keystone', spriteKey: 'graniteBoss', x: 0, y: -1150, origX: 0, origY: -1150, hp: 1300, maxHp: 1300, damage: 46, xpReward: 2750, speed: 38, aggroRange: 135, attackRange: 34, radius: 24, hitFlash: 0 },
-        // Roaming Mob Packs across the 4 Continents & Central Caldera (10x Stats)
-        { id: 'ter_mob_1', name: 'Bramble Treant', sub: 'Lv.29 Terra Guardian', type: 'mob', spriteKey: 'terraWarden', x: -680, y: -520, origX: -680, origY: -520, hp: 440, maxHp: 440, damage: 28, xpReward: 850, speed: 52, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'ter_mob_2', name: 'Ironwood Stonekin', sub: 'Lv.30 Forest Sentinel', type: 'mob', spriteKey: 'terraWarden', x: -1020, y: -480, origX: -1020, origY: -480, hp: 480, maxHp: 480, damage: 30, xpReward: 950, speed: 50, aggroRange: 115, attackRange: 28, radius: 16, hitFlash: 0 },
-        { id: 'umb_mob_1', name: 'Void Stalker Vanguard', sub: 'Lv.29 Umbri Assassin', type: 'mob', spriteKey: 'voidStalker', x: 680, y: -520, origX: 680, origY: -520, hp: 420, maxHp: 420, damage: 30, xpReward: 850, speed: 56, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'umb_mob_2', name: 'Graveglass Phantom', sub: 'Lv.30 Gloom Specter', type: 'mob', spriteKey: 'duskFiend', x: 1020, y: -480, origX: 1020, origY: -480, hp: 460, maxHp: 460, damage: 32, xpReward: 950, speed: 56, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'sol_mob_1', name: 'Sunforged Sentinel', sub: 'Lv.29 Solari Construct', type: 'mob', spriteKey: 'solariSentinel', x: -680, y: 520, origX: -680, origY: 520, hp: 450, maxHp: 450, damage: 28, xpReward: 850, speed: 52, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'sol_mob_2', name: 'Dawnblade Crusader', sub: 'Lv.30 Radiant Paladin', type: 'mob', spriteKey: 'solariSentinel', x: -1020, y: 480, origX: -1020, origY: 480, hp: 480, maxHp: 480, damage: 30, xpReward: 950, speed: 54, aggroRange: 115, attackRange: 30, radius: 15, hitFlash: 0 },
-        { id: 'aeth_mob_1', name: 'Chrono Echo', sub: 'Lv.29 Astral Sentinel', type: 'mob', spriteKey: 'aetherWeaver', x: 680, y: 520, origX: 680, origY: 520, hp: 420, maxHp: 420, damage: 30, xpReward: 850, speed: 54, aggroRange: 115, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'aeth_mob_2', name: 'Continuum Weaver', sub: 'Lv.30 Singularity Mage', type: 'mob', spriteKey: 'aetherWeaver', x: 1020, y: 480, origX: 1020, origY: 480, hp: 460, maxHp: 460, damage: 32, xpReward: 950, speed: 55, aggroRange: 115, attackRange: 30, radius: 15, hitFlash: 0 },
-        { id: 'void_mid_1', name: 'Void Stalker Raider', sub: 'Lv.28 Warzone Invader', type: 'mob', spriteKey: 'voidStalker', x: -140, y: -60, origX: -140, origY: -60, hp: 360, maxHp: 360, damage: 24, xpReward: 700, speed: 52, aggroRange: 112, attackRange: 28, radius: 15, hitFlash: 0 },
-        { id: 'void_mid_2', name: 'Duskblade Marauder', sub: 'Lv.28 Warzone Invader', type: 'mob', spriteKey: 'duskFiend', x: 140, y: -60, origX: 140, origY: -60, hp: 340, maxHp: 340, damage: 26, xpReward: 700, speed: 56, aggroRange: 112, attackRange: 26, radius: 14, hitFlash: 0 }
-      );
-    }
-
-    // Three shared Grand Glimmer Fonts per realm. Each has 25 charges that are
-    // global to the room, so parties can grind the same font together.
-    if (currentRoomType !== ROOM_TYPES.ARENA_3V3 && !ROOM_CONFIGS[currentRoomType]?.isInterior) {
-      const positions = GRAND_FONT_POSITIONS[currentRoomType]?.length
-        ? GRAND_FONT_POSITIONS[currentRoomType]
-        : [{ x: 0, y: 130 }];
-      positions.forEach((gp, index) => {
-        entities.push({
-          id: `grand_font_${currentRoomType}_${index + 1}`,
-          name: 'Grand Glimmer Font',
-          sub: 'GRAND LEYLINE FONT • 25 SHARED CHARGES [E]',
-          type: 'node',
-          spriteKey: 'grandNode',
-          isGrand: true,
-          x: gp.x,
-          y: gp.y,
-          charges: 25,
-          maxCharges: 25,
-          radius: 90,
-          hitFlash: 0,
-        });
-      });
-    }
-
-    // Populate Cosmic Skilling Veins, Herb Clusters & Silk Blooms + Elite Monster Champions
-    populateWorldSkillingNodes(currentRoomType, entities);
-
-    // Cleanly convert any remaining static tree props into interactive choppable skilling nodes
-    for (let i = props.length - 1; i >= 0; i--) {
-      const pr = props[i];
-      let skKey = null;
-      if (pr.type === 'blossomTree') skKey = 'tree_blossom';
-      else if (pr.type === 'pineTree') skKey = 'tree_pine';
-      else if (pr.type === 'ancientOak') skKey = 'tree_ancient_oak';
-
-      if (skKey && SKILLING_NODE_TYPES[skKey]) {
-        const existing = entities.find((e) => e.type === 'node' && Math.hypot(e.x - pr.x, e.y - pr.y) <= 24);
-        if (!existing) {
-          const spec = SKILLING_NODE_TYPES[skKey];
-          entities.push({
-            id: `sknode_${currentRoomType}_prop_tree_${i + 1}`,
-            name: spec.name,
-            sub: `${spec.sub || 'Sacred Timber Node [E]'} • Req Lv.${spec.reqLevel}`,
-            type: 'node',
-            skillingType: skKey,
-            spriteKey: spec.spriteReady,
-            x: pr.x,
-            y: pr.y,
-            charges: spec.charges || 3,
-            maxCharges: spec.charges || 3,
-            radius: 16,
-            hitFlash: 0,
-          });
-        }
-        props.splice(i, 1);
-      }
-    }
-
-    applyEliteChampionsToZone(currentRoomType, entities);
-
-    camera.x = player.x;
-    camera.y = player.y;
-    net.preferredRoom = currentRoomType;
-    net.currentCoords = { x: player.x, y: player.y };
+    syncNetProfileLastPosition();
     if (isSinglePlayer && hasEnteredWorld) saveProgressionLocal();
-  }
-
-  function populateWorldSkillingNodes(roomType, targetList) {
-    const entries = SKILLING_LAYOUTS[roomType] || [];
-    entries.forEach(([skKey, x, y], idx) => {
-      const spec = SKILLING_NODE_TYPES[skKey];
-      if (!spec) return;
-      targetList.push({
-        id: `sknode_${roomType}_${idx + 1}`,
-        name: spec.name,
-        sub: `${spec.sub || 'Cosmic Skilling Vein [E]'} • Req Lv.${spec.reqLevel}`,
-        type: 'node',
-        skillingType: skKey,
-        spriteKey: spec.spriteReady,
-        x,
-        y,
-        charges: spec.charges || 3,
-        maxCharges: spec.charges || 3,
-        radius: 16,
-        hitFlash: 0,
-      });
-    });
-  }
-
-  function applyEliteChampionsToZone(roomType, targetList) {
-    if (roomType === ROOM_TYPES.SANCTUARY_HUB || roomType === ROOM_TYPES.ARENA_3V3 || ROOM_CONFIGS[roomType]?.isInterior) return;
-    const affixKeys = Object.keys(ELITE_AFFIXES);
-    if (!affixKeys.length) return;
-    const candidates = targetList.filter((e) => e.type === 'mob' && !e.isBoss);
-    if (!candidates.length) return;
-    // Promote 1 deterministic / semi-random champion per dungeon/zone (2 in Warzone/Abyssal/Starfall)
-    const maxElites = (roomType === ROOM_TYPES.NEXUS_WARZONE || roomType === ROOM_TYPES.ABYSSAL_RIFT || roomType === ROOM_TYPES.STARFALL_CRATER || roomType === ROOM_TYPES.IRONWOOD_TIMBERLANDS || roomType === ROOM_TYPES.CORAL_COAST) ? 2 : 1;
-    for (let i = 0; i < Math.min(maxElites, candidates.length); i++) {
-      const mob = candidates[candidates.length - 1 - i];
-      if (!mob || mob.eliteAffix) continue;
-      const afKey = affixKeys[(i + roomType.length) % affixKeys.length];
-      const af = ELITE_AFFIXES[afKey];
-      if (!af) continue;
-      mob.eliteAffix = afKey;
-      mob.name = `${af.label || af.prefix || 'Elite'} ${mob.name}`;
-      mob.sub = `★ ELITE CHAMPION • ${mob.sub}`;
-      mob.maxHp = Math.round(mob.maxHp * af.hpMult);
-      mob.hp = mob.maxHp;
-      mob.damage = Math.max(2, Math.round((mob.damage || 4) * af.dmgMult));
-      mob.xpReward = Math.round((mob.xpReward || 65) * af.xpMult);
-    }
   }
 
   // ==========================================
@@ -8345,11 +5487,16 @@ export function initGame() {
     const subEl = document.getElementById('siege-banner-sub');
     if (!titleEl || !subEl) return;
 
+    const myBuff = computeOutpostRealmBuffs(outpostControlState?.owners, localProfile.faction);
+    const buffTag = myBuff.hasBuff
+      ? ` • 🏴 ${localProfile.faction} Controls ${myBuff.controlledCount}/4 Outposts (+15% XP & +10% Yield!)`
+      : ` • Outposts Controlled: ${myBuff.controlledCount}/4 (Control 2+ for +15% XP & +10% Yield!)`;
+
     if (siegeState.active) {
       banner.style.borderColor = '#facc15';
       titleEl.style.color = '#fde047';
       titleEl.innerText = `⚡ NEXUS SIEGE ACTIVE: SHATTERED SHARD (${siegeState.shardHp} / ${siegeState.shardMaxHp} HP)!`;
-      subEl.innerText = `All 4 Factions clash at Warzone Center • Defend your 25-HP ${localProfile.faction} Outpost Nexus!`;
+      subEl.innerText = `All 4 Factions clash at Caldera Center${buffTag}`;
       if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
         audio.setBgmTheme('boss');
       }
@@ -8361,8 +5508,8 @@ export function initGame() {
       titleEl.innerText = `⏳ NEXT SHATTERED NEXUS SHARD SIEGE IN ${mins}:${secs}`;
       const lastTxt = siegeState.lastWinnerFaction
         ? `Last Claimed: ${siegeState.lastWinnerFaction} (${siegeState.lastClaimedBy})`
-        : 'Defend your 25-HP Outpost Nexus';
-      subEl.innerText = `${lastTxt} • Type /siege in chat to rally an instant clash!`;
+        : 'Capture 2+ Outposts for Faction Buffs';
+      subEl.innerText = `${lastTxt}${buffTag}`;
       if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
         audio.setBgmTheme('warzone');
       }
@@ -8461,6 +5608,10 @@ export function initGame() {
         player.emote = sp.emote;
         player.skull = sp.skull || null;
         player.skullTimer = sp.skullTimer || 0;
+        if (sp.mountId !== undefined) {
+          player.mountId = sp.mountId || null;
+          updateMountButtonUi();
+        }
         if (Array.isArray(sp.devotions)) {
           player.devotions = sp.devotions;
           if (typeof renderDevotionPrayerBar === 'function') renderDevotionPrayerBar();
@@ -8474,7 +5625,7 @@ export function initGame() {
           player.isDead = false;
           hideDeathScreen();
         }
-        const curSpeed = (inputs.shift ? 1.55 : 1.0) * 145;
+        const curSpeed = (inputs.shift ? 1.55 : 1.0) * 145 * getMountSpeedBonus(player.mountId, currentRoomType);
         const reconcile = reconcilePlayerSnapshot({
           player,
           sp,
@@ -8588,6 +5739,9 @@ export function initGame() {
       if (redN) document.getElementById('red-nexus-hp').innerText = `${redN.hp} / ${redN.maxHp || 2500}`;
     }
 
+    if (snap.outpostControl) {
+      outpostControlState = snap.outpostControl;
+    }
     if (snap.siegeState) {
       updateSiegeBanner(snap.siegeState);
     }
@@ -8862,7 +6016,8 @@ export function initGame() {
 
         case 'room_joined': {
           isTransitioningZone = false;
-          const roomChanged = currentRoomId !== msg.roomId || currentRoomType !== msg.roomType;
+          const isOverworldJoin = Boolean(msg.isOverworld || isSurfaceRoomType(msg.roomType));
+          const roomChanged = currentRoomId !== msg.roomId || (!isOverworldJoin && currentRoomType !== msg.roomType);
           currentRoomId = msg.roomId;
           currentRoomType = msg.roomType;
           currentRoomMax = msg.maxPlayers || 60;
@@ -8873,7 +6028,7 @@ export function initGame() {
             mapBounds.halfH = msg.halfH;
           }
           net.preferredRoom = msg.roomType;
-          remotePlayers.clear();
+          if (roomChanged) remotePlayers.clear();
 
           // Smooth Client Prediction Preservation:
           if (roomChanged || Math.hypot(player.x - msg.x, player.y - msg.y) > 120) {
@@ -8935,6 +6090,10 @@ export function initGame() {
           break;
         }
 
+        case 'region_changed':
+          onSurfaceRegionChanged(msg.roomType, { fromServer: true, roomTitle: msg.roomTitle });
+          break;
+
         case 'world_state':
         case 'world_delta':
           if (currentRoomId && msg.roomId === currentRoomId && !isTransitioningZone) {
@@ -8952,6 +6111,59 @@ export function initGame() {
         case 'devotion_sync':
           player.devotions = Array.isArray(msg.activeDevotions) ? msg.activeDevotions : [];
           if (typeof renderDevotionPrayerBar === 'function') renderDevotionPrayerBar(true);
+          break;
+
+        case 'exploration_sync':
+          if (msg.exploration) {
+            prog.exploration = normalizeExplorationState(msg.exploration, localProfile.faction);
+            if (msg.mountId !== undefined) player.mountId = msg.mountId || null;
+            updateMountButtonUi();
+            if (msg.newlyDiscoveredZone && msg.newlyDiscoveredZone !== ROOM_TYPES.SANCTUARY_HUB) {
+              const rCfg = ROOM_CONFIGS[msg.newlyDiscoveredZone];
+              logMessage(`🧭 [Fog of War] Charted region: ${rCfg?.name || msg.newlyDiscoveredZone}!`, 'log-solari', 'quest');
+            }
+            if (document.getElementById('lore-modal')?.style.display === 'block') {
+              worldAtlasUi?.renderLoreModal?.();
+            }
+          }
+          break;
+
+        case 'mount_cast_started': {
+          isCasting = true;
+          castDuration = msg.duration || MOUNT_CAST_DURATION_SEC;
+          castProgress = 0;
+          currentSpell = { isMount: true, mountId: msg.mountId };
+          const bar = document.getElementById('cast-bar-container');
+          if (bar) bar.style.display = 'block';
+          const cn = document.getElementById('cast-name');
+          if (cn) cn.innerText = `SUMMON: ${(msg.name || 'MOUNT').toUpperCase()}`;
+          const ct = document.getElementById('cast-time');
+          if (ct) ct.innerText = `${castDuration.toFixed(1)}s`;
+          break;
+        }
+
+        case 'mount_synced':
+          player.mountId = msg.mountId || null;
+          if (currentSpell?.isMount) {
+            isCasting = false;
+            currentSpell = null;
+            const bar = document.getElementById('cast-bar-container');
+            if (bar) bar.style.display = 'none';
+          }
+          updateMountButtonUi();
+          if (msg.mountId && audio?.playChime) audio.playChime();
+          break;
+
+        case 'waypoint_unlocked':
+          audio?.playQuestCompleteFanfare?.();
+          logMessage(`🧭 [Waypoint] Attuned ${msg.name}! Open World Map [M] to quick-travel between unlocked waypoints.`, 'log-solari', 'quest');
+          break;
+
+        case 'waypoint_teleported':
+          isTransitioningZone = false;
+          triggerPortalMist(0.35);
+          audio?.playPortal?.();
+          logMessage(`⚡ [Waypoint] Warped to ${msg.name}!`, 'log-solari', 'quest');
           break;
 
         case 'clue_state': {
@@ -8990,6 +6202,7 @@ export function initGame() {
             skills: msg.progression.skills ? { ...msg.progression.skills } : prog.skills,
             professions: { ...(prog.professions || {}), ...(msg.progression.professions || {}) },
             paragon: { ...(prog.paragon || {}), ...(msg.progression.paragon || {}) },
+            exploration: normalizeExplorationState(msg.progression.exploration ?? prog.exploration, localProfile.faction),
           };
           if (msg.loadout) {
             localProfile.loadout = sanitizeLoadout(msg.loadout, localProfile.classId, prog);
@@ -9039,7 +6252,7 @@ export function initGame() {
           if (document.getElementById('bounty-modal')?.style.display === 'block') {
             renderBountyModal();
           }
-          if (document.getElementById('lore-modal')?.style.display === 'block' && currentLoreTab === 'collection') {
+          if (document.getElementById('lore-modal')?.style.display === 'block' && getCurrentLoreTab() === 'collection') {
             renderLoreModal();
           }
           if (document.getElementById('crafting-modal')?.style.display === 'block') {
@@ -9066,6 +6279,9 @@ export function initGame() {
           break;
 
         case 'player_respawned':
+          if (msg.roomType && msg.roomType !== currentRoomType && isSurfaceRoomType(msg.roomType)) {
+            onSurfaceRegionChanged(msg.roomType, { fromServer: true });
+          }
           player.x = msg.x;
           player.y = msg.y;
           player.hp = msg.hp || player.maxHp;
@@ -9119,6 +6335,7 @@ export function initGame() {
         }
 
         case 'arena_result':
+          lastArenaResult = msg;
           if (msg.won) {
             if (audio && audio.playQuestCompleteFanfare) audio.playQuestCompleteFanfare();
             else if (audio && audio.playLevelUp) audio.playLevelUp();
@@ -9129,14 +6346,131 @@ export function initGame() {
           } else {
             audio.playHurt?.();
           }
-          spawnFCT(player.x, player.y - 20, msg.won ? '🏆 3v3 ARENA VICTORY!' : '💀 3v3 ARENA DEFEAT', msg.won ? '#facc15' : '#ef4444', true);
+          if (msg.newMmr) {
+            localProfile.statsMeta = localProfile.statsMeta || {};
+            localProfile.statsMeta.arenaMmr = msg.newMmr;
+            if (msg.won) localProfile.statsMeta.arenaWins = (localProfile.statsMeta.arenaWins || 0) + 1;
+          }
+          {
+            const deltaTxt = msg.mmrDelta ? ` (${msg.mmrDelta >= 0 ? '+' : ''}${msg.mmrDelta} MMR • ${msg.newMmr} ${msg.tierBadge || ''})` : '';
+            spawnFCT(player.x, player.y - 20, msg.spectator ? '👁️ ARENA CONCLUDED' : msg.won ? '🏆 3v3 ARENA VICTORY!' : '💀 3v3 ARENA DEFEAT', msg.won ? '#facc15' : '#ef4444', true);
+            logMessage(
+              msg.spectator
+                ? `🔮 [Scrying Pool] ${msg.winningTeam?.toUpperCase() || 'BLUE'} team won the Arena match!`
+                : msg.won
+                ? `🏆 [3v3 VICTORY!] Enemy Nexus shattered!${deltaTxt} Check [⚔️ 3v3 ARENA] for match scoreboard.`
+                : `💀 [3v3 DEFEAT] Your Sanctuary Nexus fell!${deltaTxt} Teleporting back in 3 seconds...`,
+              msg.won ? 'log-solari' : 'log-combat',
+              'combat'
+            );
+          }
+          if (document.getElementById('arena-modal')?.style.display === 'block') renderArenaModal();
+          break;
+
+        case 'arena_matches_list':
+          liveArenaMatches = Array.isArray(msg.matches) ? msg.matches : [];
+          if (document.getElementById('arena-modal')?.style.display === 'block') renderArenaModal();
+          break;
+
+        case 'spectator_state':
+          isSpectatingArena = Boolean(msg.spectating);
+          if (Array.isArray(msg.matches)) liveArenaMatches = msg.matches;
+          if (isSpectatingArena) {
+            logMessage('🔮 [Scrying Pool] Spectating live 3v3 Arena. Press [E] or click Leave Scrying in Arena modal to return.', 'log-solari', 'chat');
+          }
+          break;
+
+        case 'outpost_sync':
+          if (msg.outposts) {
+            outpostControlState = { owners: msg.outposts, nextCycleAt: msg.nextCycleAt || outpostControlState.nextCycleAt };
+            if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
+              updateSiegeBanner({ active: false, nextInSec: 0 });
+            }
+          }
+          break;
+
+        case 'lfg_status':
+          lfgState = {
+            ...lfgState,
+            queued: Boolean(msg.queued),
+            myRole: msg.myRole || lfgState.myRole,
+            counts: msg.counts || { tank: 0, healer: 0, dps: 0 },
+            total: msg.total || 0,
+          };
+          if (msg.queued) {
+            logMessage(`🔎 [LFG] Queued as ${(lfgState.myRole || 'dps').toUpperCase()} (${lfgState.counts.tank}T / ${lfgState.counts.healer}H / ${lfgState.counts.dps}D).`, 'log-solari', 'chat');
+          }
+          break;
+
+        case 'lfg_ready_check': {
+          lfgState.readyCheck = msg;
+          const ok = typeof window.confirm === 'function'
+            ? window.confirm(`🛡️ Role Trinity Group Formed for ${msg.dungeonName || 'Mythic Crypt'} (1T / 1H / 3D)!\nAccept Ready-Check now?`)
+            : true;
+          window.respondLfgReady(msg.checkId, ok);
+          break;
+        }
+
+        case 'lfg_ready_cancelled':
+          lfgState.readyCheck = null;
+          logMessage(`🚫 [LFG Ready-Check] Cancelled (${msg.declinedBy || 'Member'} declined).`, 'log-combat', 'chat');
+          break;
+
+        case 'lfg_ready_complete':
+          lfgState.readyCheck = null;
+          lfgState.queued = false;
+          logMessage('⚡ [LFG] Ready-Check complete! Entering shared Mythic Crypt instance!', 'log-solari', 'chat');
+          break;
+
+        case 'raid_completed':
+          audio?.playQuestCompleteFanfare?.();
+          spawnFCT(player.x, player.y - 24, `🐉 PRIMEVAL NEXUS CLEARED!`, '#facc15', true);
           logMessage(
-            msg.won
-              ? '🏆 [3v3 VICTORY!] Enemy Nexus shattered! +1 Ranked Arena Win! Teleporting back in 3 seconds...'
-              : '💀 [3v3 DEFEAT] Your Sanctuary Nexus fell! Teleporting back in 3 seconds...',
-            msg.won ? 'log-solari' : 'log-combat',
+            `🐉 [APEX RAID VICTORY] ${PRIMEVAL_RAID_CONFIG.bossName} defeated! Earned +350 Gold${msg.lootItemName ? ` & Mythic Drop: ${msg.lootItemName}` : ''}!`,
+            'log-solari',
             'combat'
           );
+          break;
+
+        case 'fam_duel_invite': {
+          const ok = typeof window.confirm === 'function'
+            ? window.confirm(`🐾 ${msg.fromName || 'Summoner'} challenges your companion (${msg.familiarName}) to a non-lethal /famduel!\nAccept?`)
+            : false;
+          net.send({ type: 'fam_duel_respond', inviteId: msg.inviteId, accept: ok });
+          break;
+        }
+
+        case 'fam_duel_state':
+          activeFamDuelState = msg.duel || null;
+          if (activeFamDuelState) {
+            const fm = document.getElementById('fam-duel-modal');
+            if (fm) fm.style.display = 'block';
+            renderActiveFamDuelModal();
+          }
+          break;
+
+        case 'fam_duel_ended':
+          audio?.playChime?.();
+          spawnFCT(player.x, player.y - 22, msg.won ? '🏆 ECHO DUEL VICTORY!' : '🐾 ECHO SKIRMISH COMPLETE', msg.won ? '#4ade80' : '#38bdf8', true);
+          logMessage(`🐾 [Familiar Skirmish] ${msg.won ? 'Victory!' : msg.draw ? 'Draw!' : 'Good bout!'} (+${msg.xpGain || 35} XP, +${msg.riteXp || 15} Rite-Binding XP)`, 'log-solari', 'quest');
+          if (activeFamDuelState) renderActiveFamDuelModal();
+          updateQuestTrackerHUD?.();
+          break;
+
+        case 'wild_echo_soothed':
+          if (msg.familiars) prog.familiars = normalizeFamiliarState(msg.familiars);
+          audio?.playQuestCompleteFanfare?.();
+          spawnSparkBurst(player.x, player.y - 12, ['#38bdf8', '#f472b6', '#fde047'], 28);
+          spawnFCT(
+            player.x,
+            player.y - 22,
+            msg.unlockedVariant ? `🌟 ${msg.unlockedVariant.toUpperCase()} VARIANT UNLOCKED!` : `✨ SOOTHED ${String(msg.echoName || 'STRAY ECHO').toUpperCase()}!`,
+            msg.unlockedVariant === 'prismatic' ? '#f472b6' : '#38bdf8',
+            true
+          );
+          logMessage(`✨ [Stray Echo] Soothed ${msg.echoName}! Earned Echo-Print + <${msg.titleUnlock || 'Echo Whisperer'}> title${msg.unlockedVariant ? ` & ${msg.unlockedVariant} color variant` : ''}!`, 'log-solari', 'quest');
+          updateQuestTrackerHUD?.();
+          if (isLegacyPanelOpen('echo-cradle-modal')) renderActiveEchoModal();
           break;
 
         case 'chat_msg': {
@@ -9430,22 +6764,28 @@ export function initGame() {
         player.isMoving = false;
         moveSyncAccum = 0;
         localFamiliarPos.initialized = false;
-        buildOfflineZone(startingRealm, startX, startY);
+        const spPos = isSurfaceRoomType(targetRealm)
+          ? toSurfaceWorldCoords(targetRealm, startX, startY)
+          : { wx: startX, wy: startY };
+        buildOfflineZone(startingRealm, spPos.wx, spPos.wy);
         ensureOfflineMailbox();
         updateNetStatusPill();
         logMessage('[Realm] Entered Single Player Realm (Offline • 0ms). Instant local response!', 'log-solari', 'chat');
       } else {
         portalCooldown = 2.0;
         net.preferredRoom = targetRealm;
-        if (startX !== null && startX !== undefined && startY !== null && startY !== undefined && Number.isFinite(Number(startX)) && Number.isFinite(Number(startY))) {
-          net.currentCoords = { x: Number(startX), y: Number(startY) };
+        const worldPos = isSurfaceRoomType(targetRealm)
+          ? toSurfaceWorldCoords(targetRealm, startX, startY)
+          : { wx: startX, wy: startY };
+        if (worldPos.wx !== null && worldPos.wx !== undefined && worldPos.wy !== null && worldPos.wy !== undefined && Number.isFinite(Number(worldPos.wx)) && Number.isFinite(Number(worldPos.wy))) {
+          net.currentCoords = { x: Number(worldPos.wx), y: Number(worldPos.wy) };
         }
         // Pre-render target realm tiles & scenery at exact saved coords so canvas is NEVER pitch black while multiplayer handshake connects
         if (!currentRoomId || !currentRoomType || currentRoomType !== targetRealm) {
-          buildOfflineZone(targetRealm, startX, startY);
-        } else if (startX !== null && startX !== undefined && startY !== null && startY !== undefined && Number.isFinite(Number(startX)) && Number.isFinite(Number(startY))) {
-          player.x = Number(startX);
-          player.y = Number(startY);
+          buildOfflineZone(targetRealm, worldPos.wx, worldPos.wy);
+        } else if (worldPos.wx !== null && worldPos.wx !== undefined && worldPos.wy !== null && worldPos.wy !== undefined && Number.isFinite(Number(worldPos.wx)) && Number.isFinite(Number(worldPos.wy))) {
+          player.x = Number(worldPos.wx);
+          player.y = Number(worldPos.wy);
         }
         camera.x = player.x;
         camera.y = player.y;
@@ -9463,7 +6803,7 @@ export function initGame() {
           player.isMoving = false;
           moveSyncAccum = 0;
           isTransitioningZone = true;
-          net.send({ type: 'switch_room', roomType: startingRealm, epoch: currentEpoch, x: startX, y: startY });
+          net.send({ type: 'switch_room', roomType: startingRealm, epoch: currentEpoch, x: worldPos.wx, y: worldPos.wy });
         } else if (!net.connected && (!net.token || !net.ws || net.ws.readyState > 1)) {
           net.bootstrapAndConnect(prog);
         }
@@ -9499,7 +6839,11 @@ export function initGame() {
   window._isDeadScreenVisible = () => Boolean(player.isDead || deathScreenVisible);
   const syncNetProfileLastPosition = () => {
     if (!isSinglePlayer && net.profile && currentRoomType && currentRoomType !== ROOM_TYPES.ARENA_3V3 && !player.isDead) {
-      const pos = { roomType: currentRoomType, x: Math.round(player.x), y: Math.round(player.y) };
+      const rx = Math.round(player.x);
+      const ry = Math.round(player.y);
+      const pos = isSurfaceRoomType(currentRoomType)
+        ? { roomType: currentRoomType, x: rx, y: ry, worldX: rx, worldY: ry }
+        : { roomType: currentRoomType, x: rx, y: ry };
       net.profile.lastPosition = pos;
       if (Array.isArray(net.profile.characters)) {
         const ch = net.profile.characters.find((c) => c.id === net.profile.activeCharacterId);
@@ -9579,7 +6923,7 @@ export function initGame() {
   function isHostileEntity(ent, allowCurrentTarget = true) {
     if (!ent || ent.isDying || ent.type === 'ally_nexus') return false;
     if (ent.type === 'outpost_nexus' && ent.faction === localProfile.faction) return false;
-    if (ent.type === 'mob' && isSameFactionProtectedMob(currentRoomType, ent, localProfile.faction)) {
+    if (ent.type === 'mob' && isSameFactionProtectedMob(ent.zoneType || currentRoomType, ent, localProfile.faction)) {
       if (allowCurrentTarget && currentTarget && currentTarget.id === ent.id) {
         return true;
       }
@@ -9911,6 +7255,155 @@ export function initGame() {
     renderActiveEchoModal();
   }
 
+  let activeFamDuelState = null;
+  let offlineFamDuelInterval = null;
+
+  function renderActiveFamDuelModal() {
+    const body = document.getElementById('fam-duel-modal-body');
+    if (!body || !activeFamDuelState) return;
+    const myId = net.playerId || localProfile.id || 'local_player';
+    renderFamiliarDuelModal({
+      container: body,
+      duel: activeFamDuelState,
+      myOwnerId: myId,
+      now: Date.now(),
+      getFamiliarSpriteUrl: (spriteKey) => getFamiliarIconDataUrl(sprites, spriteKey),
+      onMove: (moveKey) => {
+        if (net.connected && !isSinglePlayer) {
+          net.send({ type: 'fam_duel_move', duelId: activeFamDuelState.id, moveKey });
+          return;
+        }
+        const now = Date.now();
+        const res = executeFamiliarDuelMove(activeFamDuelState, 'a', moveKey, now);
+        if (!res.ok) {
+          logMessage(`🐾 ${res.reason}`, 'log-combat', 'quest');
+          return;
+        }
+        if (activeFamDuelState.ended) finalizeOfflineFamDuel();
+        renderActiveFamDuelModal();
+      },
+      onForfeit: () => {
+        if (net.connected && !isSinglePlayer) {
+          net.send({ type: 'fam_duel_forfeit', duelId: activeFamDuelState.id });
+        } else if (activeFamDuelState && !activeFamDuelState.ended) {
+          activeFamDuelState.ended = true;
+          activeFamDuelState.winnerOwnerId = activeFamDuelState.fighters.b.ownerId;
+          activeFamDuelState.winReason = 'forfeit';
+          finalizeOfflineFamDuel();
+          renderActiveFamDuelModal();
+        }
+      },
+      onClose: () => window.closeFamDuelModal(),
+    });
+  }
+
+  function finalizeOfflineFamDuel() {
+    if (offlineFamDuelInterval) {
+      clearInterval(offlineFamDuelInterval);
+      offlineFamDuelInterval = null;
+    }
+    if (!activeFamDuelState) return;
+    const myId = net.playerId || localProfile.id || 'local_player';
+    const won = activeFamDuelState.winnerOwnerId === myId;
+    awardXP(won ? 80 : 35, won ? 'Echo Skirmish Victory' : 'Echo Skirmish Practice');
+    awardProfessionXP('rite_binding', won ? 35 : 15, 'Echo Familiar Skirmish', false);
+    prog.familiars = normalizeFamiliarState(prog.familiars);
+    if (won) prog.familiars.duelWins = (prog.familiars.duelWins || 0) + 1;
+    questState.famDuelsCompleted = (questState.famDuelsCompleted || 0) + 1;
+    saveQuestState();
+    saveProgressionLocal();
+    updateQuestTrackerHUD?.();
+    audio?.playChime?.();
+  }
+
+  window.closeFamDuelModal = function () {
+    if (offlineFamDuelInterval) {
+      clearInterval(offlineFamDuelInterval);
+      offlineFamDuelInterval = null;
+    }
+    const fm = document.getElementById('fam-duel-modal');
+    if (fm) fm.style.display = 'none';
+    activeFamDuelState = null;
+  };
+
+  window.openFamDuelTrainer = function () {
+    if (!isFamiliarDuelRoomAllowed(currentRoomType, ROOM_CONFIGS[currentRoomType])) {
+      logMessage('🐾 [Familiar Skirmish] /famduel can only be played inside Sanctuary Hub or Tavern interiors!', 'log-combat', 'quest');
+      return;
+    }
+    if (net.connected && !isSinglePlayer) {
+      net.send({ type: 'fam_duel_challenge', mode: 'trainer' });
+      return;
+    }
+    const starterMap = { Solari: 'dawnkit_ember_fox', Terra: 'mossback_ankyloling', Umbri: 'graveglass_wisp_imp', Aether: 'chrono_prism_sprite' };
+    const famState = normalizeFamiliarState(prog.familiars);
+    const famId = famState.activeId || famState.unlockedIds[0] || starterMap[localProfile.faction] || 'dawnkit_ember_fox';
+    const botPick = Object.keys(NEXUS_FAMILIARS_CATALOG).find((k) => k !== famId) || 'chrono_prism_sprite';
+    const myId = net.playerId || localProfile.id || 'local_player';
+    activeFamDuelState = createFamiliarDuelSession({
+      id: `famduel_off_${Date.now()}`,
+      isBot: true,
+      fighterA: { ownerId: myId, ownerName: localProfile.displayName || 'Summoner', familiarId: famId, variant: famState.activeVariants?.[famId] || 'default' },
+      fighterB: { ownerId: 'bot_sylvi', ownerName: 'Echo Keeper Sylvi', familiarId: botPick, variant: 'starlight' },
+    });
+    const fm = document.getElementById('fam-duel-modal');
+    if (fm) fm.style.display = 'block';
+    renderActiveFamDuelModal();
+    if (offlineFamDuelInterval) clearInterval(offlineFamDuelInterval);
+    offlineFamDuelInterval = setInterval(() => {
+      if (!activeFamDuelState || activeFamDuelState.ended) {
+        clearInterval(offlineFamDuelInterval);
+        offlineFamDuelInterval = null;
+        return;
+      }
+      const now = Date.now();
+      if (resolveFamiliarDuelTimeout(activeFamDuelState, now)) {
+        finalizeOfflineFamDuel();
+      } else {
+        const botMv = pickBotFamiliarDuelMove(activeFamDuelState, now);
+        if (now >= (activeFamDuelState.fighters.b.cooldownsUntil?.[botMv] || 0)) {
+          executeFamiliarDuelMove(activeFamDuelState, 'b', botMv, now);
+          if (activeFamDuelState.ended) finalizeOfflineFamDuel();
+        }
+      }
+      renderActiveFamDuelModal();
+    }, 900);
+  };
+
+  window.challengeFamiliarDuel = function (targetName = '') {
+    if (!isFamiliarDuelRoomAllowed(currentRoomType, ROOM_CONFIGS[currentRoomType])) {
+      logMessage('🐾 [Familiar Skirmish] /famduel can only be started in Sanctuary Hub or Tavern interiors!', 'log-combat', 'quest');
+      return;
+    }
+    const clean = String(targetName || '').trim();
+    if (!clean || ['trainer', 'sylvi', 'bot'].includes(clean.toLowerCase())) {
+      window.openFamDuelTrainer();
+      return;
+    }
+    if (net.connected && !isSinglePlayer) {
+      net.send({ type: 'fam_duel_challenge', targetName: clean, mode: 'pvp' });
+    } else {
+      logMessage('🐾 Offline mode supports Echo Keeper Sylvi practice duels (/famduel trainer).', 'log-solari', 'quest');
+    }
+  };
+
+  window.setFamiliarVariantAction = function (familiarId, variant) {
+    if (!familiarId) return;
+    if (net.connected && !isSinglePlayer) {
+      net.send({ type: 'set_familiar_variant', familiarId, variant });
+      return;
+    }
+    const famState = normalizeFamiliarState(prog.familiars);
+    if (variant === 'default' || famState.variants?.[familiarId]?.includes(variant)) {
+      if (variant === 'default') delete famState.activeVariants[familiarId];
+      else famState.activeVariants[familiarId] = variant;
+      prog.familiars = famState;
+      saveProgressionLocal();
+      audio?.playChime?.();
+      renderActiveEchoModal();
+    }
+  };
+
   function renderActiveEchoModal() {
     const body = document.getElementById('echo-cradle-modal-body');
     if (!body) return;
@@ -9933,6 +7426,11 @@ export function initGame() {
         onCompile: (famId) => handleCompileFamiliarAction(famId),
         onSummon: (famId) => handleSetActiveFamiliarAction(famId),
         onDismiss: () => handleSetActiveFamiliarAction(null),
+        onSetVariant: (famId, variant) => window.setFamiliarVariantAction(famId, variant),
+        onStartFamDuelTrainer: () => {
+          window.closeEchoCradleModal?.();
+          window.openFamDuelTrainer();
+        },
       },
     });
   }
@@ -10968,7 +8466,7 @@ export function initGame() {
   }
 
   function damageOfflineEntity(ent, dmg, isCrit = false, isRite = false, spellName = '', attackerRef = player) {
-    if (!ent || ent.isDying || ent.type === 'node' || ent.type === 'portal') return;
+    if (!ent || ent.isDying || ent.type === 'node' || ent.type === 'portal' || ent.type === 'wild_echo') return;
     if ((ent.staggerTimer || 0) > 0) {
       dmg = Math.max(1, Math.round(dmg * INTERRUPT_VULN_MULT));
     }
@@ -11120,6 +8618,18 @@ export function initGame() {
     if (dodgeChance > 0 && Math.random() < dodgeChance) {
       spawnFCT(player.x, player.y - 12, '💨 DODGE!', '#c084fc', true);
       return;
+    }
+
+    if (player.mountId || (isCasting && currentSpell?.isMount)) {
+      player.mountId = null;
+      if (isCasting && currentSpell?.isMount) {
+        isCasting = false;
+        currentSpell = null;
+        const bar = document.getElementById('cast-bar-container');
+        if (bar) bar.style.display = 'none';
+      }
+      updateMountButtonUi();
+      spawnFCT(player.x, player.y - 14, 'DISMOUNTED!', '#fb923c');
     }
 
     // Terra Faction Mechanic: Rootguard stacking & Damage Reduction!
@@ -11274,8 +8784,19 @@ export function initGame() {
     }
 
     if (isCasting && !isAbilityOffGCD(spec)) {
-      logMessage('⏳ Already channeling a Rite!', 'log-combat');
-      return;
+      if (currentSpell?.isMount) {
+        isCasting = false;
+        currentSpell = null;
+        document.getElementById('cast-bar-container').style.display = 'none';
+      } else {
+        logMessage('⏳ Already channeling a Rite!', 'log-combat');
+        return;
+      }
+    }
+
+    if (player.mountId) {
+      player.mountId = null;
+      updateMountButtonUi();
     }
 
     if (cooldowns[slot] > 0) {
@@ -11537,6 +9058,14 @@ export function initGame() {
 
   function tryInteractSpecialProp(pr) {
     if (!pr) return false;
+    if (pr.isScryingPool) {
+      window.openScryingPoolModal?.();
+      return true;
+    }
+    if (pr.type === 'waypointShrine' && pr.shrineId) {
+      window.activateWaypointShrine(pr.shrineId);
+      return true;
+    }
     if (pr.specialStation === 'echo_extractor') {
       window.toggleEchoCradleModal('extractor');
       return true;
@@ -12099,7 +9628,7 @@ export function initGame() {
         return;
       }
       const nearSpecial = props.find(
-        (pr) => (pr.noticeBoardId || pr.puzzleId || pr.specialStation || pr.isPostbox) && Math.hypot(pr.x - player.x, pr.y - player.y) <= 78
+        (pr) => (pr.noticeBoardId || pr.puzzleId || pr.specialStation || pr.isPostbox || pr.isScryingPool || pr.type === 'waypointShrine') && Math.hypot(pr.x - player.x, pr.y - player.y) <= 78
       );
       if (nearSpecial && tryInteractSpecialProp(nearSpecial)) {
         return;
@@ -12108,6 +9637,49 @@ export function initGame() {
       if (nearStation) {
         if (nearStation.stationId) window.openCraftingModal(nearStation.stationId);
         else window.openBountyBoard();
+        return;
+      }
+      const nearWildEcho = entities.find((e) => e.type === 'wild_echo' && !e.isDying && Math.hypot(e.x - player.x, e.y - player.y) <= 135);
+      if (nearWildEcho) {
+        if (net.connected && !isSinglePlayer) {
+          net.send({ type: 'soothe_wild_echo', entityId: nearWildEcho.id });
+        } else {
+          const reqCipher = nearWildEcho.requiredCipherId || 'cipher_solar';
+          if (countBagItem(localProfile.inventory, reqCipher) < 1) {
+            const cName = GLIMMER_CIPHERS_CATALOG[reqCipher]?.name || reqCipher;
+            logMessage(`✨ ${nearWildEcho.name} trembles! Bring 1× ${cName} to soothe it [E].`, 'log-solari', 'quest');
+            spawnFCT(nearWildEcho.x, nearWildEcho.y - 16, `NEED ${cName.toUpperCase()}`, '#fde047');
+            return;
+          }
+          deductBagItems(localProfile.inventory, reqCipher, 1);
+          addBagItem(localProfile.inventory, nearWildEcho.rewardPrintId, 1, true, 28);
+          prog.familiars = normalizeFamiliarState(prog.familiars);
+          if (nearWildEcho.familiarId && !prog.familiars.unlockedIds.includes(nearWildEcho.familiarId)) {
+            prog.familiars.unlockedIds.push(nearWildEcho.familiarId);
+          }
+          const curVars = prog.familiars.variants[nearWildEcho.familiarId] || [];
+          const remVars = ['starlight', 'prismatic'].filter((v) => !curVars.includes(v));
+          let unlockedVar = null;
+          if (remVars.length > 0 && Math.random() < (nearWildEcho.variantChance || 0.45)) {
+            unlockedVar = remVars[0];
+            prog.familiars.variants[nearWildEcho.familiarId] = [...curVars, unlockedVar];
+            prog.familiars.activeVariants[nearWildEcho.familiarId] = unlockedVar;
+          }
+          prog.achievements = prog.achievements || { completed: {}, unlockedTitles: [] };
+          const titleUnlock = nearWildEcho.titleUnlock || 'Echo Whisperer';
+          if (!prog.achievements.unlockedTitles.includes(titleUnlock)) prog.achievements.unlockedTitles.push(titleUnlock);
+          questState.wildEchoesSoothed = (questState.wildEchoesSoothed || 0) + 1;
+          awardXP(45, `Soothed ${nearWildEcho.name}`);
+          awardProfessionXP('resonance_extraction', 65, `Soothed ${nearWildEcho.name}`, false);
+          saveQuestState();
+          saveProgressionLocal();
+          nearWildEcho.isDying = true;
+          audio?.playQuestCompleteFanfare?.();
+          spawnSparkBurst(nearWildEcho.x, nearWildEcho.y - 10, ['#38bdf8', '#f472b6', '#fde047'], 24);
+          spawnFCT(nearWildEcho.x, nearWildEcho.y - 18, unlockedVar ? `🌟 ${unlockedVar.toUpperCase()} UNLOCKED!` : '✨ STRAY ECHO SOOTHED!', '#38bdf8', true);
+          logMessage(`✨ [Stray Echo] Soothed ${nearWildEcho.name}! Earned Echo-Print & <${titleUnlock}> title!`, 'log-solari', 'quest');
+          updateQuestTrackerHUD?.();
+        }
         return;
       }
     }
@@ -12352,19 +9924,9 @@ export function initGame() {
 
   window.teleportWorld = function () {
     if (player.isDead || deathScreenVisible) return;
-    audio.playPortal();
-    portalCooldown = 2.0;
-    triggerPortalMist(0.5);
-    inputs.up = inputs.down = inputs.left = inputs.right = false;
-    player.isMoving = false;
-    moveSyncAccum = 0;
     const nextType = currentRoomType === ROOM_TYPES.SANCTUARY_HUB ? ROOM_TYPES.NEXUS_WARZONE : ROOM_TYPES.SANCTUARY_HUB;
-    if (net.connected) {
-      isTransitioningZone = true;
-      net.send({ type: 'switch_room', roomType: nextType, epoch: currentEpoch });
-    } else {
-      buildOfflineZone(nextType);
-    }
+    transitionToRoom(nextType, null, null, 'down');
+    portalCooldown = 2.0;
   };
 
   // ==========================================
@@ -12372,6 +9934,61 @@ export function initGame() {
   // ==========================================
   let arenaLobby = { players: [], total: 0, capacity: 6, waitMs: 45000, autoFillEnd: null };
   let arenaInviteTimer = null;
+  let outpostControlState = {
+    owners: Object.fromEntries(WARZONE_OUTPOST_DEFS.map((op) => [op.id, op.defaultFaction])),
+    nextCycleAt: null,
+  };
+  let lfgState = { queued: false, myRole: null, counts: { tank: 0, healer: 0, dps: 0 }, total: 0, readyCheck: null };
+  let lastArenaResult = null;
+  let liveArenaMatches = [];
+  let isSpectatingArena = false;
+
+  window.requestArenaMatches = function () {
+    if (net.connected) net.send({ type: 'list_arena_matches' });
+  };
+  window.openScryingPoolModal = function () {
+    if (net.connected) net.send({ type: 'list_arena_matches' });
+    if (document.getElementById('arena-modal')?.style.display !== 'block') window.toggleModal('arena-modal');
+    renderArenaModal();
+  };
+  window.spectateArena = function (roomId = null) {
+    if (!net.connected) {
+      logMessage('🔮 [Scrying Pool] Connect to the Online Realm to spectate live 3v3 matches!', 'log-solari', 'chat');
+      return;
+    }
+    net.send({ type: 'spectate_arena', roomId });
+  };
+  window.leaveArenaSpectate = function () {
+    if (net.connected) net.send({ type: 'leave_spectate' });
+  };
+  window.joinLfgQueue = function (role = null, dungeonType = ROOM_TYPES.SOLARI_SUNKEN_VAULT, tier = 1) {
+    if (!net.connected) {
+      logMessage('🔎 [LFG] Role Trinity LFG matchmaking runs on the Online Server! Entering Offline Crypt instead...', 'log-solari', 'chat');
+      transitionToRoom(dungeonType, null, null, 'up');
+      return;
+    }
+    if (gateTrialRoomTransition(dungeonType)) return;
+    net.send({
+      type: 'lfg_join',
+      role: role || getDefaultRoleForClassId(localProfile.classId),
+      dungeonType,
+      tier,
+    });
+  };
+  window.leaveLfgQueue = function () {
+    if (net.connected) net.send({ type: 'lfg_leave' });
+  };
+  window.respondLfgReady = function (checkId, accept) {
+    if (net.connected) net.send({ type: 'lfg_ready_response', checkId, accept: Boolean(accept) });
+  };
+  window.enterPrimevalRaid = function () {
+    if (!net.connected) {
+      logMessage(`🐉 [10-Player Raid] Entering local trial instance of ${PRIMEVAL_RAID_CONFIG.name}...`, 'log-solari', 'chat');
+      transitionToRoom(ROOM_TYPES.PRIMEVAL_NEXUS_RAID, 0, 460, 'up');
+      return;
+    }
+    net.send({ type: 'join_raid' });
+  };
 
   function escHtml(v) {
     return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -12436,7 +10053,43 @@ export function initGame() {
         <button class="util-btn arena-btn-primary" style="border-color:#4ade80; color:#4ade80;" onclick="arenaPlayWithComputer()">🤖 PLAY WITH COMPUTER ENTITIES</button>`;
     }
 
+    const myMmr = Number(localProfile?.statsMeta?.arenaMmr ?? DEFAULT_ARENA_MMR);
+    const myTier = getArenaTierForMmr(myMmr);
+    const scoreboardHtml = Array.isArray(lastArenaResult?.scoreboard) && lastArenaResult.scoreboard.length > 0
+      ? `
+        <div style="margin-top:8px; background:#070b18; border:1px solid #334155; border-radius:4px; padding:6px 8px;">
+          <div style="font-size:9px; font-weight:bold; color:#facc15; margin-bottom:4px;">📊 LAST MATCH COMBAT SCOREBOARD (${escHtml((lastArenaResult.winningTeam || 'blue').toUpperCase())} VICTORY)</div>
+          <div style="display:grid; grid-template-columns:1.5fr 0.7fr 0.7fr 0.6fr 0.9fr; gap:4px; font-size:8.5px; color:#94a3b8; border-bottom:1px solid #1e293b; padding-bottom:2px;">
+            <b>Champion</b><b>DMG</b><b>Heal</b><b>K/D</b><b>MMR Δ</b>
+          </div>
+          ${lastArenaResult.scoreboard.map((r) => `
+            <div style="display:grid; grid-template-columns:1.5fr 0.7fr 0.7fr 0.6fr 0.9fr; gap:4px; font-size:8.5px; color:#e2e8f0; padding-top:2px;">
+              <span>${r.tierBadge || ''} ${escHtml(r.name)}</span>
+              <span>${r.damage}</span>
+              <span>${r.healing}</span>
+              <span>${r.kills}/${r.deaths}</span>
+              <b style="color:${r.delta >= 0 ? '#4ade80' : '#f87171'};">${r.newMmr} (${r.delta >= 0 ? '+' : ''}${r.delta})</b>
+            </div>
+          `).join('')}
+        </div>
+      `
+      : '';
+
+    const spectatorHtml = isSpectatingArena
+      ? `<button class="util-btn" style="width:100%; margin-top:6px; border-color:#38bdf8; color:#bae6fd;" onclick="leaveArenaSpectate()">🚪 LEAVE SCRYING POOL SPECTATE</button>`
+      : `<div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center; background:#070c18; border:1px solid #1e3a8a; border-radius:4px; padding:5px 8px; gap:6px;">
+          <span style="font-size:8.5px; color:#7dd3fc;">🔮 Scrying Pool: <b>${liveArenaMatches.length}</b> live 3v3 match(es)</span>
+          <div style="display:flex; gap:5px;">
+            <button type="button" class="util-btn" style="font-size:8.5px; padding:2px 6px;" onclick="requestArenaMatches()">🔄</button>
+            <button type="button" class="util-btn" style="font-size:8.5px; padding:2px 7px; border-color:#38bdf8; color:#bae6fd;" onclick="spectateArena('${liveArenaMatches[0]?.roomId || ''}')">👁️ SPECTATE LIVE</button>
+          </div>
+        </div>`;
+
     body.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:9.5px; background:#090d1c; border:1px solid ${myTier.color}; padding:5px 8px; border-radius:4px;">
+        <b style="color:${myTier.color};">${myTier.badge} ${myTier.name.toUpperCase()} TIER • ${myMmr} ELO MMR</b>
+        <span style="color:#94a3b8;">${localProfile?.statsMeta?.arenaWins || 0}W / ${localProfile?.statsMeta?.arenaLosses || 0}L</span>
+      </div>
       <div style="font-size:9px; color:#cbd5e1; line-height:1.45; background:#080c18; border:2px solid #1e293b; padding:8px 10px;">
         Shatter the enemy <b style="color:#f87171;">25-HP Nexus</b> while defending yours. Open a lobby to announce it in chat and gather
         up to <b style="color:#fde047;">6 champions</b> — or jump in right now against <b style="color:#4ade80;">computer entities</b>.
@@ -12449,6 +10102,8 @@ export function initGame() {
       <div class="arena-timer-bar"><div class="arena-timer-fill" id="arena-timer-fill"></div></div>
       <div class="arena-slot-grid">${slots.join('')}</div>
       ${actions}
+      ${spectatorHtml}
+      ${scoreboardHtml}
     `;
     updateArenaTimer();
   }
@@ -13256,611 +10911,31 @@ export function initGame() {
     updatePlayerUI();
   };
 
-  function renderSkillTreeUI() {
-    const container = document.getElementById('skill-tree-content');
-    if (!container) return;
-
-    const isFlashesTab = currentSkillTreeTab === 'flashes';
-    const targetTree = isFlashesTab ? 'flashes' : 'rites';
-    const resolved = resolveFactionAndClass({
-      faction: localProfile.faction,
-      classId: localProfile.classId,
-      loadout: localProfile.loadout,
-      orderTag: localProfile.orderTag,
-    });
-    localProfile.faction = resolved.faction;
-    localProfile.classId = resolved.classId;
-    const myFaction = resolved.faction;
-    const myClassId = resolved.classId;
-    const clsMeta = CLASSES_CATALOG[myClassId] || CLASSES_CATALOG.solari_vanguard;
-    const passiveSpec = getClassPassive(myClassId);
-    const resCfg = getFactionResourceConfig(myFaction);
-    const sp = prog.skillPoints || 0;
-
-    const spBadge = document.getElementById('sp-count-txt');
-    if (spBadge) spBadge.innerText = String(sp);
-
-    const banner = document.getElementById('skill-points-banner');
-    if (banner) {
-      banner.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:6px;">
-          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-            <span style="color:#fde047; font-size:12.5px; font-weight:800; letter-spacing:0.02em;">⚡ UNSPENT SKILL POINTS: <span id="sp-count-txt" class="skill-pts-badge" style="font-size:12px; padding:3px 9px;">${sp}</span></span>
-            ${sp > 0 ? '<span style="color:#4ade80; font-weight:800; font-size:11px; animation:pulseAlloc 1.4s infinite alternate;">★ READY TO INVEST!</span>' : '<span style="color:#94a3b8; font-size:11px;">(Slay monsters or level up to earn +1 SP/level)</span>'}
-            <button type="button" class="util-btn" style="padding:3px 7px; font-size:9px; border-color:#a16207; color:#fde047;" onclick="autoEquipLearnedAbilities()" title="Fill every empty Rite/Flash slot with abilities you have learned">⚡ AUTO-EQUIP LEARNED</button>
-            <button type="button" id="btn-free-respec" class="util-btn" style="padding:3px 8px; font-size:9px; border-color:#38bdf8; color:#7dd3fc;" onclick="respecSkills()" title="Reset all spent Skill Points for free and refund them immediately">↺ FREE RESPEC</button>
-          </div>
-          <div style="font-size:11px; color:#cbd5e1; font-family:var(--font-clean);">
-            CHAMPION LV. <b style="color:#facc15;">${prog.level || 1}</b> • <b style="color:${resCfg.color};">${clsMeta.name.toUpperCase()} (${myFaction.toUpperCase()})</b>
-          </div>
-        </div>
-      `;
-    }
-
-    // Filter skills for this tree, faction, and class specialization
-    const treeSkills = Object.values(ABILITIES_CATALOG).filter(
-      (ab) => ab.tree === targetTree && (ab.faction === myFaction || ab.faction === 'All') && (!ab.classId || ab.classId === myClassId)
-    );
-
-    // Group by Tier (1 to 7)
-    const tiers = [
-      { tier: 1, reqLevel: 1, name: 'NOVICE' },
-      { tier: 2, reqLevel: 3, name: 'INITIATE' },
-      { tier: 3, reqLevel: 6, name: 'ADEPT' },
-      { tier: 4, reqLevel: 12, name: 'VANGUARD' },
-      { tier: 5, reqLevel: 18, name: 'MASTER' },
-      { tier: 6, reqLevel: 24, name: 'CHAMPION' },
-      { tier: 7, reqLevel: 30, name: 'APEX ULTIMATE' },
-    ];
-
-    let html = `
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; background:rgba(8,14,32,0.92); border:1px solid ${resCfg.color}; border-radius:4px; padding:8px 10px; margin-bottom:10px;">
-        <div style="font-size:10px; color:#e2e8f0; flex:1; min-width:220px;">
-          <span style="color:${resCfg.color}; font-weight:800;">✦ CLASS PASSIVE — ${passiveSpec.name.toUpperCase()}:</span> ${passiveSpec.desc}
-        </div>
-        <div style="font-size:10px; color:#bae6fd; display:flex; align-items:center; gap:6px;">
-          ${getFactionCrestSvg(myFaction, 16)}
-          <span><b>${resCfg.name}:</b> ${resCfg.desc}</span>
-        </div>
-      </div>
-    `;
-
-    for (const t of tiers) {
-      const skillsInTier = treeSkills.filter((s) => (s.tier || 1) === t.tier);
-      if (skillsInTier.length === 0) continue;
-
-      const tierUnlocked = (prog.level || 1) >= t.reqLevel;
-
-      html += `
-        <div class="d2-tier-row" style="${t.tier === 7 ? 'border: 2px solid #ca8a04; background: rgba(30, 20, 5, 0.85); box-shadow: 0 0 15px rgba(234, 179, 8, 0.2);' : ''}">
-          <div class="d2-tier-header" style="${t.tier === 7 ? 'border-bottom-color: #854d0e;' : ''}">
-            <div>
-              <span style="color:${t.tier === 7 ? '#fde047' : '#facc15'}; font-weight:800;">${t.tier === 7 ? '★ ' : ''}TIER ${t.tier}: ${t.name}</span>
-              <span style="color:#94a3b8; margin-left:8px;">(Requires Champion Level ${t.reqLevel})</span>
-            </div>
-            <div>
-              ${tierUnlocked
-                ? `<span style="color:#4ade80; font-size:10px; font-weight:bold;">✓ UNLOCKED</span>`
-                : `<span style="color:#ef4444; font-size:10px; font-weight:bold;">🔒 LOCKED (Level ${t.reqLevel})</span>`}
-            </div>
-          </div>
-          <div class="d2-skills-grid">
-      `;
-
-      for (const ab of skillsInTier) {
-        const curRank = getAbilityRank(prog, ab.id);
-        const canUp = canUpgradeAbility(prog, ab.id, myClassId);
-        const isMax = curRank >= (ab.maxRank || 5);
-        const isLearned = curRank >= 1;
-        const rankNow = getRankStats(ab, Math.max(1, curRank));
-        const rankNext = getRankStats(ab, Math.min(5, Math.max(1, curRank) + 1));
-
-        let cardClass = 'd2-skill-card';
-        if (pendingAssign?.id === ab.id) cardClass += ' picked';
-        if (isMax) cardClass += ' maxed';
-        else if (isLearned) cardClass += ' learned';
-        else if (!tierUnlocked) cardClass += ' locked';
-
-        const castTimeTxt = ab.castTime > 0 ? `☀️ ${ab.castTime.toFixed(1)}s Cast Rite` : `⚡ Instant Flash`;
-        const classTag = ab.classId ? `<span style="font-size:8.5px; color:${resCfg.color}; border:1px solid ${resCfg.color}; border-radius:2px; padding:0 4px; margin-left:4px;">CLASS</span>` : '';
-
-        let prereqName = '';
-        let prereqMet = true;
-        if (ab.prereq) {
-          const pSpec = ABILITIES_CATALOG[ab.prereq];
-          prereqName = pSpec?.name || ab.prereq;
-          prereqMet = getAbilityRank(prog, ab.prereq) >= 1;
-        }
-
-        // Check if currently equipped in loadout across ALL 8 ability slots
-        const equippedSlot = findEquippedSlotForAbility(ab.id);
-        const equippedKeyLabel = equippedSlot ? formatKeyLabel(keybinds[equippedSlot]) : null;
-
-        // Allow choosing ANY of the 8 ability slots ([1, 2, 3, 4, 9, 10, 11, 12]) on any learned ability
-        const equipSlots = ACTION_SLOTS;
-
-        html += `
-          <div class="${cardClass}" data-ability-id="${ab.id}" draggable="${isLearned}" ondragstart="window.beginActionDrag(event, 'ability', '${ab.id}')" title="${isLearned ? 'Click a slot button below, click to pick, or drag to the action bar' : 'Unlearned'}${equippedSlot ? ` • Equipped in Slot ${equippedSlot} [${equippedKeyLabel}]` : ''}">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
-              <div style="display:flex; align-items:center; gap:6px;">
-                <span style="display:inline-flex; align-items:center;">${getAbilityIconHtml(ab, 24)}</span>
-                <div>
-                  <div style="font-weight:700; font-size:11.5px; color:${ab.color || '#facc15'};">${ab.name}${classTag}</div>
-                  <div style="font-size:9.5px; color:#38bdf8;">${castTimeTxt}</div>
-                </div>
-              </div>
-              <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end;">
-                ${equippedSlot ? `<span class="d2-equipped-badge" title="Currently active on your Action Bar in Slot ${equippedSlot} [${equippedKeyLabel}]">✓ ADDED [${equippedKeyLabel}]</span>` : ''}
-                <div class="d2-rank-badge ${isMax ? 'is-max' : curRank > 0 ? 'has-points' : ''}">
-                  ${isMax ? 'MAX RANK (5/5)' : `RANK ${curRank}/5`}
-                </div>
-              </div>
-            </div>
-
-            <div style="font-size:10px; color:#cbd5e1; line-height:1.4; margin-top:2px;">
-              ${ab.desc}
-            </div>
-
-            ${prereqName ? `
-              <div style="font-size:9.5px; color:${prereqMet ? '#4ade80' : '#f87171'};">
-                ${prereqMet ? '✓' : '🔒'} Requires: ${prereqName} (Rank 1+)
-              </div>
-            ` : ''}
-
-            ${curRank < 5 ? `
-              <div style="font-size:9.5px; color:#facc15; background:rgba(15,23,42,0.6); padding:3px 6px; border-radius:3px; border-left:2px solid #facc15;">
-                NEXT RANK ${Math.min(5, Math.max(1, curRank) + 1)}/5: +3 Power • CD ${rankNow.effectiveBaseCd.toFixed(1)}s → ${rankNext.effectiveBaseCd.toFixed(1)}s
-              </div>
-            ` : ''}
-
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; gap:6px; flex-wrap:wrap;">
-              <div style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
-                ${isLearned ? `<button type="button" class="util-btn" style="padding:2px 6px; font-size:9px; border-color:${equippedSlot ? '#4ade80' : '#facc15'}; color:${equippedSlot ? '#86efac' : '#fde047'};" onclick="pickAbilityForBar('${ab.id}')">🎯 ${pendingAssign?.id === ab.id ? 'PICKED…' : equippedSlot ? `MOVE SLOT (IN [${equippedKeyLabel}])` : 'PLACE IN BAR'}</button>` : ''}
-                ${canUp
-                  ? `<button type="button" class="d2-alloc-btn can-alloc" onclick="upgradeAbilityInTree('${ab.id}')">+ INVEST 1 POINT</button>`
-                  : isMax
-                    ? `<button type="button" class="d2-alloc-btn" disabled>★ MAXED</button>`
-                    : !tierUnlocked
-                      ? `<button type="button" class="d2-alloc-btn" disabled>REQ LV. ${t.reqLevel}</button>`
-                      : !prereqMet
-                        ? `<button type="button" class="d2-alloc-btn" disabled>REQ PREREQ</button>`
-                        : `<button type="button" class="d2-alloc-btn" disabled>0 POINTS</button>`}
-              </div>
-
-              ${isLearned ? `
-                <div style="display:flex; align-items:center; gap:3px; flex-wrap:wrap;">
-                  <span style="font-size:9px; color:#94a3b8; font-weight:700;">SLOT:</span>
-                  ${equipSlots.map((s) => {
-                    const isCur = Number(equippedSlot) === Number(s);
-                    const keyLabel = formatKeyLabel(keybinds[s]);
-                    return `
-                      <button type="button" class="util-btn" style="padding:2px 5px; font-size:8.5px; ${isCur ? 'border-color:#4ade80; color:#4ade80; background:#14532d; font-weight:800;' : 'border-color:#334155; color:#cbd5e1;'}"
-                        onclick="assignSlotAbilityInGame(${s}, '${ab.id}')" title="${isCur ? `Currently in Slot ${s} [${keyLabel}]` : `Move/Equip ${ab.name} to Slot ${s} [${keyLabel}]`}">
-                        ${isCur ? `✓ [${keyLabel}]` : `[${keyLabel}]`}
-                      </button>
-                    `;
-                  }).join('')}
-                </div>
-              ` : `
-                <div style="font-size:9px; color:#ef4444; font-weight:600;">🔒 UNLEARNED</div>
-              `}
-            </div>
-          </div>
-        `;
-      }
-
-      html += `
-          </div>
-        </div>
-      `;
-    }
-
-    container.innerHTML = html;
-
-    // Click-to-place: click a learned card, then click the action-bar slot that should hold it.
-    container.querySelectorAll('[data-ability-id]').forEach((card) => {
-      card.addEventListener('click', (ev) => {
-        if (ev.target.closest('button, select, input, a')) return;
-        window.pickAbilityForBar(card.dataset.abilityId);
-      });
-    });
-  }
-
-  function renderKeybindUI() {
-    const container = document.getElementById('keybind-list-container');
-    if (!container) return;
-    const ptsHeader = document.getElementById('skill-points-banner');
-    if (ptsHeader) {
-      const sp = prog.skillPoints || 0;
-      if (listeningSlot !== null) {
-        const lSpec = getSlotAbilitySpec(localProfile.loadout, listeningSlot);
-        const lItemId = ITEM_ACTION_SLOTS.includes(Number(listeningSlot)) ? actionBarItems[listeningSlot] : null;
-        const lName = lSpec?.name || (lItemId ? EQUIPMENT_CATALOG[lItemId]?.name : null) || `Slot ${listeningSlot}`;
-        ptsHeader.innerHTML = `
-          <div style="color:#fde047; font-size:12px; font-weight:800;">
-            ⌨️ PRESS ANY KEY TO BIND "${lName.toUpperCase()}" (OR [ESC] TO CANCEL)...
-          </div>
-        `;
-      } else if (rebindFeedbackMsg) {
-        ptsHeader.innerHTML = `
-          <div style="color:#4ade80; font-size:12px; font-weight:800;">
-            ${rebindFeedbackMsg}
-          </div>
-        `;
-      } else {
-        ptsHeader.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:6px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="color:#fde047; font-size:12.5px; font-weight:800;">⚡ UNSPENT SKILL POINTS: <span class="skill-pts-badge" style="font-size:12px; padding:3px 9px;">${sp}</span></span>
-              ${sp > 0 ? '<span style="color:#4ade80; font-weight:800; font-size:11px;">★ READY TO INVEST!</span>' : ''}
-            </div>
-            <div style="font-size:11px; color:#cbd5e1;">
-              <button type="button" class="util-btn" style="padding:3px 7px; font-size:9px; border-color:#a16207; color:#fde047;" onclick="autoEquipLearnedAbilities()" title="Fill every empty Rite/Flash slot with abilities you have learned">⚡ AUTO-EQUIP LEARNED</button>
-              CLICK ANY <b style="color:#38bdf8;">[KEY]</b> TO REBIND • SHIFT+CLICK A BAR SLOT TO REBIND FAST
-            </div>
-          </div>
-        `;
-      }
-    }
-    container.innerHTML = '';
-    const cdMult = calcCdMult(prog, localProfile.equipment, localProfile.classId, localProfile.faction);
-    const myFaction = localProfile.faction || 'Solari';
-
-    for (const slot of [1, 2, 3, 4, 'harvest', 5, 6, 7, 8, 9, 10, 11, 12]) {
-      const isItemSlot = typeof slot === 'number' && ITEM_ACTION_SLOTS.includes(slot);
-      const slotItemId = isItemSlot ? actionBarItems[slot] : null;
-      const slotItem = slotItemId ? EQUIPMENT_CATALOG[slotItemId] : null;
-      const equippedSpec = isItemSlot
-        ? (slotItem
-            ? {
-                id: null,
-                name: slotItem.name,
-                icon: slotItem.icon || '🎒',
-                color: '#fb923c',
-                tcgType: slotItem.slot === 'consumable' ? 'Consumable' : 'Gear',
-                castTime: 0,
-                baseCd: 0,
-                range: 'Item Slot',
-                desc: `Press the key to ${slotItem.slot === 'consumable' ? 'use this item' : 'equip this gear'}. Right-click the slot to clear it, or change it with the dropdown below.`,
-              }
-            : {
-                id: null,
-                name: `Empty Item Slot ${slot}`,
-                icon: '＋',
-                color: '#94a3b8',
-                tcgType: 'Item Slot',
-                castTime: 0,
-                baseCd: 0,
-                range: 'Item Slot',
-                desc: 'Assign a potion, food, or gear piece with the dropdown below, or drag one from your bag onto the slot.',
-              })
-        : getSlotAbilitySpec(localProfile.loadout, slot);
-      const isEmptySlot = !equippedSpec && typeof slot === 'number';
-      const spec = equippedSpec || {
-        id: null,
-        name: `Empty Slot ${slot}`,
-        icon: '＋',
-        color: '#94a3b8',
-        tcgType: 'Empty Slot',
-        castTime: 0,
-        baseCd: 0,
-        range: '—',
-        desc: 'Pick a learned Rite or Flash in the Skill Tree and click this slot (or drag one here).',
-      };
-      const bound = formatKeyLabel(keybinds[slot]);
-      const isListening = listeningSlot === slot;
-      const isRankable = typeof slot === 'number' && !isItemSlot;
-      const curRank = isRankable && equippedSpec ? getAbilityRank(prog, spec.id) : 0;
-      const isLearned = isRankable ? curRank >= 1 : true;
-      const canUpgrade = isRankable && canUpgradeAbility(prog, spec.id, localProfile.classId);
-
-      // Available choices for this slot: all learned abilities of the player's faction & class!
-      const allowedChoices = isItemSlot
-        ? Array.from(new Set((localProfile.inventory || []).map((it) => (typeof it === 'string' ? it : it?.id))))
-            .map((id) => EQUIPMENT_CATALOG[id])
-            .filter((it) => it && it.slot !== 'currency')
-        : Object.values(ABILITIES_CATALOG)
-            .filter((ab) => ab.id !== 'harvest' && ab.faction === myFaction && (!ab.classId || ab.classId === localProfile.classId) && getAbilityRank(prog, ab.id) >= 1)
-            .sort((a, b) => (a.tier || 1) - (b.tier || 1));
-
-      const castTimeTxt = spec.castTime > 0 ? `${spec.castTime.toFixed(1)}s Cast` : 'Instant';
-
-      const row = document.createElement('div');
-      row.className = 'keybind-row';
-      row.innerHTML = `
-        <div style="flex:1; padding-right:10px;">
-          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-            <span style="display:inline-flex; align-items:center;">${isLearned ? (equippedSpec ? getAbilityIconHtml(spec, 18) : spec.icon) : '🔒'}</span>
-            <b style="color:${spec.color}; font-size:12px;">${spec.name}</b>
-            <span class="spec-pill">${spec.tcgType}</span>
-            ${isRankable ? `<span class="rank-pill">${isLearned ? `RANK ${curRank}/5` : isEmptySlot ? 'EMPTY' : '🔒 UNLEARNED'}</span>` : ''}
-            <span style="font-size:10px; color:#94a3b8;">${castTimeTxt} • CD: ${spec.baseCd > 0 ? (spec.baseCd * cdMult).toFixed(1) + 's' : '0s'} • ${spec.range}</span>
-          </div>
-          <div style="font-size:10.5px; color:#e2e8f0; margin-top:3px; line-height:1.4;">${spec.desc}</div>
-          ${isRankable || isItemSlot ? `
-            <div style="margin-top:5px;">
-              <select class="pixel-input" style="width:auto; padding:3px 8px; font-size:10.5px;" onchange="${isItemSlot ? `assignItemToSlot(${slot}, this.value)` : `assignSlotAbilityInGame(${slot}, this.value)`}; this.blur();">
-                ${allowedChoices.length > 0
-                  ? `<option value="" ${(isItemSlot ? slotItemId : spec.id) ? '' : 'selected'}>— EMPTY SLOT —</option>` +
-                    allowedChoices.map((choice) => {
-                      const selected = isItemSlot ? slotItemId === choice.id : spec.id === choice.id;
-                      const existingSlot = !isItemSlot ? findEquippedSlotForAbility(choice.id) : null;
-                      const slotNote = existingSlot ? (Number(existingSlot) === Number(slot) ? ` • ✓ Active Here` : ` • In [${formatKeyLabel(keybinds[existingSlot])}]`) : '';
-                      const label = isItemSlot ? choice.name : `${choice.icon} ${choice.name} (Rank ${getAbilityRank(prog, choice.id)}/5${slotNote})`;
-                      return `<option value="${choice.id}" ${selected ? 'selected' : ''}>${label}</option>`;
-                    }).join('')
-                  : `<option disabled selected>${isItemSlot ? '🎒 Bag is empty — buy potions or gear first!' : `🔒 No abilities learned yet — allocate points in Spellbook [P]!`}</option>`}
-              </select>
-            </div>
-          ` : ''}
-        </div>
-        <div style="display:flex; gap:6px; align-items:center;">
-          ${isRankable && isLearned ? `
-            <button type="button" class="upgrade-btn ${canUpgrade ? 'ready' : ''}" ${canUpgrade ? '' : 'disabled'} onclick="upgradeAbilityInTree('${spec.id}')">
-              ${curRank >= 5 ? 'MAX' : '+RANK'}
-            </button>
-          ` : ''}
-          <button type="button" id="rebind-btn-${slot}" class="keybind-btn ${isListening ? 'listening' : ''}">
-            ${isListening ? 'KEY?' : `[${bound}]`}
-          </button>
-        </div>
-      `;
-      const rbBtn = row.querySelector(`#rebind-btn-${slot}`);
-      if (rbBtn) {
-        rbBtn.addEventListener('click', (ev) => {
-          ev.preventDefault();
-          ev.stopPropagation();
-          window.startRebinding(slot);
-        });
-      }
-      container.appendChild(row);
-    }
-  }
-
-  window.selectGuideClass = function () {
-    renderClassGuideUI();
-  };
-
-  function renderClassGuideUI() {
-    const container = document.getElementById('class-guide-content');
-    if (!container) return;
-
-    const resolved = resolveFactionAndClass({
-      faction: localProfile.faction,
-      classId: localProfile.classId,
-      loadout: localProfile.loadout,
-      orderTag: localProfile.orderTag,
-    });
-    const currentClass = resolved.classId;
-    const myFaction = resolved.faction;
-    const clsMeta = CLASSES_CATALOG[currentClass] || Object.values(CLASSES_CATALOG)[0];
-    const facMeta = FACTIONS_META[myFaction] || {};
-    const resCfg = getFactionResourceConfig(myFaction);
-    const passiveSpec = getClassPassive(currentClass);
-    const facColor = facMeta.color || '#facc15';
-
-    const factionAbilities = Object.values(ABILITIES_CATALOG)
-      .filter((ab) => ab.id !== 'harvest' && ab.faction === myFaction && (!ab.classId || ab.classId === currentClass))
-      .sort((a, b) => (a.tier || 1) - (b.tier || 1) || (a.reqLevel || 1) - (b.reqLevel || 1));
-
-    const slotLabels = ['[1]', '[2]', '[3]', '[4]', '[Q]', '[E]', '[R]', '[F]'];
-    const recSource = clsMeta?.legacyDefaultLoadout || clsMeta?.defaultLoadout || {};
-    const recIds = [1, 2, 3, 4, 9, 10, 11, 12]
-      .map((s) => recSource?.[s])
-      .filter((id) => id && ABILITIES_CATALOG[id] && ABILITIES_CATALOG[id].faction === myFaction && (!ABILITIES_CATALOG[id].classId || ABILITIES_CATALOG[id].classId === currentClass));
-    for (const ab of factionAbilities) {
-      if (recIds.length >= 8) break;
-      if (!recIds.includes(ab.id)) recIds.push(ab.id);
-    }
-
-    const slotRowsHtml = recIds.slice(0, 8).map((id, idx) => {
-      const ab = ABILITIES_CATALOG[id];
-      if (!ab) return '';
-      return `
-        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1e293b; padding:3px 0; gap:8px; align-items:center;">
-          <span style="color:${ab.color || facColor}; display:flex; align-items:center; gap:5px;">${getAbilityIconHtml(ab, 16)}<b>${slotLabels[idx] || `[${idx + 1}]`} ${ab.name}</b> <small style="color:#94a3b8;">(${ab.tcgType} • Lv.${ab.reqLevel || 1})</small></span>
-          <span style="color:#94a3b8; text-align:right;">${ab.cost > 0 ? `${ab.cost} Glimmer` : 'Generates Glimmer'} • ${ab.baseCd || 0}s CD</span>
-        </div>
-      `;
-    }).join('');
-
-    const tier1Flash = factionAbilities.find((a) => a.tcgType?.includes('Flash') && (a.tier || 1) === 1) || factionAbilities[0];
-    const tier1Rite = factionAbilities.find((a) => a.tcgType?.includes('Rite') && (a.tier || 1) <= 2) || factionAbilities[1] || tier1Flash;
-    const midFlashes = factionAbilities.filter((a) => a.tcgType?.includes('Flash') && (a.tier || 1) >= 2 && (a.tier || 1) <= 5);
-    const highRites = factionAbilities.filter((a) => a.tcgType?.includes('Rite') && (a.tier || 1) >= 3 && (a.tier || 1) <= 6);
-    const apexAbilities = factionAbilities.filter((a) => (a.tier || 1) >= 7);
-
-    const html = `
-      <div style="background:rgba(15,23,42,0.85); border:2px solid ${facColor}; border-radius:6px; padding:12px; margin-bottom:10px;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
-          <div>
-            <div style="font-family:var(--font-header); font-size:14px; font-weight:800; color:${facColor}; letter-spacing:0.5px;">
-              ${facMeta.icon || '⚔️'} ${(clsMeta?.name || currentClass).toUpperCase()} — ${myFaction.toUpperCase()} TACTICAL CODEX
-            </div>
-            <div style="font-size:10.5px; color:#e2e8f0; margin-top:2px;">
-              Faction: <b>${facMeta.icon || ''} ${myFaction} (${facMeta.title || ''})</b> • Role: <b>${clsMeta?.role || 'Champion'}</b>
-            </div>
-          </div>
-          <div style="background:#0f172a; border:1px solid ${facColor}; padding:4px 8px; border-radius:4px; font-size:9.5px; color:#facc15;">
-            EXCLUSIVE TO YOUR ${myFaction.toUpperCase()} PATH
-          </div>
-        </div>
-        <div style="font-size:10px; color:#94a3b8; margin-top:6px; line-height:1.4;">
-          ${clsMeta?.desc || ''}
-        </div>
-        <div style="margin-top:8px; padding:6px 8px; background:rgba(8,14,32,0.9); border:1px solid #334155; border-radius:4px; font-size:9.5px; color:#e2e8f0; display:flex; flex-direction:column; gap:3px;">
-          <div><b style="color:${facColor};">✦ CLASS PASSIVE — ${passiveSpec.name}:</b> ${passiveSpec.desc}</div>
-          <div><b style="color:#38bdf8;">✦ FACTION RESOURCE — ${resCfg.name}:</b> ${resCfg.desc}</div>
-        </div>
-      </div>
-
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-        <div style="background:#090d1a; border:1px solid #334155; padding:10px; border-radius:4px;">
-          <div style="font-weight:700; color:#facc15; font-size:11px; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
-            ⚡ RECOMMENDED ${myFaction.toUpperCase()} 8-SLOT LOADOUT
-          </div>
-          <div style="display:flex; flex-direction:column; gap:4px; font-size:9.5px;">
-            ${slotRowsHtml}
-          </div>
-        </div>
-
-        <div style="background:#090d1a; border:1px solid #334155; padding:10px; border-radius:4px;">
-          <div style="font-weight:700; color:#38bdf8; font-size:11px; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
-            📊 STAT ALLOCATION &amp; SCALING (${clsMeta?.name || currentClass})
-          </div>
-          <div style="display:flex; flex-direction:column; gap:5px; font-size:9.5px; color:#cbd5e1; line-height:1.4;">
-            <div>
-              <b style="color:#facc15;">Power (Lv.1 ${(clsMeta?.bonusStats?.power || 0) + 2}):</b> Directly amplifies damage dealt by all ${myFaction} Flashes and heavy physical/elemental strikes.
-            </div>
-            <div>
-              <b style="color:#c084fc;">Resonance (Lv.1 ${(clsMeta?.bonusStats?.resonance || 0) + 1}):</b> Scales ${myFaction} Rite potency, healing/shielding strength, and expands your Maximum Glimmer pool.
-            </div>
-            <div>
-              <b style="color:#4ade80;">Bastion (Lv.1 ${(clsMeta?.bonusStats?.bastion || 0) + 2}):</b> Increases Maximum Health and fortifies your defensive mitigation against boss telegraphs.
-            </div>
-            <div>
-              <b style="color:#38bdf8;">Tempo (Lv.1 ${(clsMeta?.bonusStats?.tempo || 0) + 1}):</b> Accelerates Rite channel speed, lowers cooldowns, and boosts critical strike cadence.
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style="background:#090d1a; border:1px solid #1e293b; padding:12px; border-radius:4px; margin-bottom:8px;">
-        <div style="font-weight:700; color:#fde047; font-size:11.5px; margin-bottom:8px; font-family:var(--font-header);">
-          ⚔️ ${myFaction.toUpperCase()} COMBAT ROTATION &amp; SPELLBOOK PROGRESSION
-        </div>
-        <div style="display:flex; flex-direction:column; gap:6px; font-size:10px; color:#cbd5e1; line-height:1.45;">
-          <div>
-            <b style="color:#facc15;">1. Glimmer Builder (Lv. 1 Starter Flash):</b>
-            Open with <b>${tier1Flash?.name || 'Starter Flash'} [1]</b> to strike immediately and build your ${resCfg.name} &amp; Glimmer reserves without cast time.
-          </div>
-          <div>
-            <b style="color:#38bdf8;">2. Core Channeled Rite (Lv. ${tier1Rite?.reqLevel || 1}+):</b>
-            Spend your Glimmer channeling <b>${tier1Rite?.name || 'Core Rite'}</b> (${tier1Rite?.desc || ''}).
-          </div>
-          <div>
-            <b style="color:#4ade80;">3. Class Specialization &amp; Mobility Flashes (Lv. 3–18):</b>
-            Unlock ${midFlashes.map((a) => `<b>${a.name}</b> (Lv.${a.reqLevel || 1})`).join(', ') || `mid-tier ${myFaction} Flashes`} in the <b>⚡ Flashes</b> tab to dodge boss telegraphs, shield yourself, and control positioning.
-          </div>
-          <div>
-            <b style="color:#c084fc;">4. High-Tier ${myFaction} Rites (Lv. 6–24):</b>
-            Invest Skill Points into ${highRites.map((a) => `<b>${a.name}</b> (Lv.${a.reqLevel || 1})`).join(', ') || `high-tier ${myFaction} Rites`} in the <b>☀️ Rites</b> tab to dominate dungeon elites and multi-phase bosses.
-          </div>
-          <div>
-            <b style="color:#ef4444;">5. Level 70 Capstone &amp; Paragon:</b>
-            Unlock your ultimate ${clsMeta?.name || myFaction} capstones (${apexAbilities.map((a) => `<b>${a.name}</b> (${a.tcgType})`).join(' &amp; ') || 'Tier 7 Apex Spells'}) and climb up to Level 70 + Paragon 100 in Founder's Edition!
-          </div>
-        </div>
-      </div>
-    `;
-
-    container.innerHTML = html;
-  }
-
-  function renderStatsModal() {
-    const body = document.getElementById('stats-modal-body');
-    if (!body) return;
-    const eff = getEffectiveStats(prog, localProfile.equipment, localProfile.classId);
-    const fm = FACTIONS_META[localProfile.faction] || FACTIONS_META.Solari;
-    const statDefs = [
-      { key: 'power', icon: '⚔️', name: 'POWER', base: prog.stats.power, total: eff.power, desc: '+1 Base Damage on all Rites & Flashes' },
-      { key: 'bastion', icon: '🛡️', name: 'BASTION', base: prog.stats.bastion, total: eff.bastion, desc: '+3 Max HP, +3 Shield Barriers, +2 Healing' },
-      { key: 'resonance', icon: '🔮', name: 'RESONANCE', base: prog.stats.resonance, total: eff.resonance, desc: '+8 Max Glimmer & bonus Glimmer generation' },
-      { key: 'tempo', icon: '⚡', name: 'TEMPO (FLASH)', base: prog.stats.tempo, total: eff.tempo, desc: '+2.5% Crit, +3% Move Speed, -2% Cooldowns' },
-    ];
-    body.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; background:#080c18; border:2px solid #1e293b; padding:10px 12px; margin-bottom:10px; font-size:12px;">
-        <div>CHAMPION LEVEL: <b style="color:#facc15; font-size:13px;">LV. ${prog.level}</b> <span style="color:#94a3b8; font-size:11px;">(${prog.xp}/${xpForNextLevel(prog.level)} XP)</span></div>
-        <div style="color:${prog.statPoints > 0 ? '#4ade80' : '#94a3b8'}; font-weight:bold; font-size:12px;">
-          UNSPENT STAT POINTS: <span class="skill-pts-badge" style="font-size:12px; padding:2px 7px;">${prog.statPoints}</span>
-        </div>
-      </div>
-      <div style="background:#080c18; border-left:3px solid ${fm.color}; padding:8px 10px; margin-bottom:10px; font-size:11px; line-height:1.45; display:flex; align-items:center; gap:8px;">
-        <img src="${fm.logo}" alt="${fm.id}" style="width:22px; height:22px; object-fit:contain; filter:drop-shadow(0 0 3px ${fm.color}); flex-shrink:0;" />
-        <div>
-          <b style="color:${fm.color}; font-size:12px;">${fm.mechanicName}:</b> ${fm.mechanicDesc}
-        </div>
-      </div>
-      <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
-        ${statDefs.map((s) => `
-          <div class="keybind-row" style="margin-bottom:0; padding:8px 10px;">
-            <div>
-              <div style="font-size:12px; color:#f8fafc;">
-                ${s.icon} <b style="letter-spacing:0.02em;">${s.name}</b>: <span style="color:#facc15; font-weight:800; font-size:13px;">${s.total}</span>
-                <span style="font-size:10.5px; color:#94a3b8;">(Base ${s.base} + Gear ${s.total - s.base})</span>
-              </div>
-              <div style="font-size:10.5px; color:#cbd5e1; margin-top:3px;">${s.desc}</div>
-            </div>
-            <button class="upgrade-btn ${prog.statPoints > 0 ? 'ready' : ''}" style="font-size:11px; padding:6px 12px;" ${prog.statPoints > 0 ? '' : 'disabled'} onclick="allocateStat('${s.key}')">
-              +1 STAT
-            </button>
-          </div>
-        `).join('')}
-      </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11.5px; background:#080c18; border:2px solid #1e293b; padding:10px 12px; margin-bottom:10px;">
-        <div>MAX HEALTH: <b style="color:#4ade80;">${player.maxHp} HP</b></div>
-        <div>MAX GLIMMER: <b style="color:#facc15;">${player.maxSolarCharge}</b></div>
-        <div>CRIT CHANCE: <b style="color:#fde047;">${(calcCritChance(prog, localProfile.equipment, localProfile.classId) * 100).toFixed(1)}%</b></div>
-        <div>COOLDOWN MULT: <b style="color:#38bdf8;">${Math.round(calcCdMult(prog, localProfile.equipment, localProfile.classId, localProfile.faction) * 100)}%</b></div>
-      </div>
-
-      <!-- Late Game Paragon Resonance Mastery -->
-      <div style="background:#090618; border:2px solid #581c87; padding:10px 12px; margin-top:8px; font-size:11px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <div>
-            <span style="color:#c084fc; font-weight:bold; font-size:12px; font-family:var(--font-header);">🔮 PARAGON RESONANCE:</span>
-            <b style="color:#facc15; font-size:12px;">PARAGON ${prog.paragonLevel || 0}</b>
-            <span style="font-size:10px; color:#94a3b8;">(${prog.paragonXp || 0}/${paragonXpForLevel(prog.paragonLevel || 0)} XP)</span>
-          </div>
-          <div style="color:${(prog.paragonPoints || 0) > 0 ? '#4ade80' : '#94a3b8'}; font-weight:bold; font-size:11px;">
-            PARAGON PTS: <span class="skill-pts-badge" style="font-size:11px; padding:2px 6px;">${prog.paragonPoints || 0}</span>
-          </div>
-        </div>
-        <div style="display:flex; flex-direction:column; gap:6px;">
-          ${Object.values(PARAGON_AFFINITIES).map((aff) => {
-            const curRank = prog.paragon?.[aff.id] || 0;
-            const canUp = canUpgradeParagon(prog, aff.id);
-            return `
-              <div class="keybind-row" style="margin-bottom:0; padding:6px 10px; border-color:#3b0764; background:#0f0926;">
-                <div>
-                  <div style="font-size:11.5px; color:${aff.color}; font-weight:bold;">
-                    ${aff.icon} ${aff.name} <span style="color:#f8fafc; font-size:10px;">[Rank ${curRank}/${aff.maxRank}]</span>
-                  </div>
-                  <div style="font-size:10px; color:#cbd5e1; margin-top:2px;">${aff.desc}</div>
-                </div>
-                <button class="upgrade-btn ${canUp ? 'ready' : ''}" style="padding:5px 10px; font-size:10.5px;" ${canUp ? '' : 'disabled'} onclick="upgradeParagon('${aff.id}')">
-                  ${curRank >= aff.maxRank ? 'MAX' : '+INVEST'}
-                </button>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      </div>
-    `;
-  }
-
-  function refreshSocialModalView() {
-    const roomPlayers = [
-      {
-        id: net.playerId || localProfile.id,
-        name: localProfile.displayName,
-        faction: localProfile.faction,
-        orderTag: localProfile.orderTag,
-        level: prog.level,
-        hp: player.hp,
-        maxHp: player.maxHp,
-      },
-      ...Array.from(remotePlayers.values()),
-    ];
-    renderSocialModal({
-      rooms: publicRoomsList,
-      currentRoomId,
-      roomPlayers,
-      selfId: net.playerId || localProfile.id,
-      party: currentParty,
-    });
-    updateTouchUiButtons(document.body.classList.contains('touch-mode'));
-  }
+  const {
+    renderSkillTreeUI,
+    renderKeybindUI,
+    renderClassGuideUI,
+    renderStatsModal,
+    refreshSocialModalView,
+  } = createSpellbookAndStatsUi({
+    ITEM_ACTION_SLOTS,
+    getLocalProfile: () => localProfile,
+    getProg: () => prog,
+    getPlayer: () => player,
+    getCurrentSkillTreeTab: () => currentSkillTreeTab,
+    getPendingAssign: () => pendingAssign,
+    getListeningSlot: () => listeningSlot,
+    getRebindFeedbackMsg: () => rebindFeedbackMsg,
+    getKeybinds: () => keybinds,
+    getActionBarItems: () => actionBarItems,
+    getCurrentRoomId: () => currentRoomId,
+    getPublicRoomsList: () => publicRoomsList,
+    getCurrentParty: () => currentParty,
+    findEquippedSlotForAbility: (id) => findEquippedSlotForAbility(id),
+    formatKeyLabel: (k) => formatKeyLabel(k),
+    remotePlayers,
+    net,
+  });
 
   window.startRebinding = function (slot) {
     const parsed = isNaN(Number(slot)) ? slot : Number(slot);
@@ -14022,12 +11097,20 @@ export function initGame() {
       saveQuestState();
       updateQuestTrackerHUD();
     }
-    const rx = nextX !== null && nextX !== undefined && Number.isFinite(Number(nextX))
-      ? Number(nextX)
-      : (targetCfg?.spawnX ?? 0);
-    const ry = nextY !== null && nextY !== undefined && Number.isFinite(Number(nextY))
-      ? Number(nextY)
-      : (targetCfg?.spawnY ?? 0);
+    let rx;
+    let ry;
+    if (isSurfaceRoomType(dest)) {
+      const wp = toSurfaceWorldCoords(dest, nextX, nextY);
+      rx = wp.wx;
+      ry = wp.wy;
+    } else {
+      rx = nextX !== null && nextX !== undefined && Number.isFinite(Number(nextX))
+        ? Number(nextX)
+        : (targetCfg?.spawnX ?? 0);
+      ry = nextY !== null && nextY !== undefined && Number.isFinite(Number(nextY))
+        ? Number(nextY)
+        : (targetCfg?.spawnY ?? 0);
+    }
     portalCooldown = 0.9;
     triggerPortalMist(0.25);
     moveSyncAccum = 0;
@@ -14036,6 +11119,10 @@ export function initGame() {
     player.y = ry;
     if (nextDir && ['up', 'down', 'left', 'right'].includes(nextDir)) {
       player.dir = nextDir;
+    }
+    if (!canRideMountInRoom(dest) && player.mountId) {
+      player.mountId = null;
+      updateMountButtonUi();
     }
     camera.x = player.x;
     camera.y = player.y;
@@ -14054,7 +11141,7 @@ export function initGame() {
     if (net.connected) {
       isTransitioningZone = true;
       currentRoomType = dest;
-      currentRoomId = null;
+      currentRoomId = isSurfaceRoomType(dest) ? 'overworld_1' : null;
       net.send({ type: 'switch_room', roomType: dest, x: rx, y: ry, dir: player.dir, epoch: currentEpoch });
     } else {
       buildOfflineZone(dest, rx, ry);
@@ -14257,7 +11344,7 @@ export function initGame() {
         const triggerProp = () => {
           if (p.exitDoor) transitionToRoom(p.exitDoor.roomType, p.exitDoor.x, p.exitDoor.y, p.exitDoor.dir || 'down');
           else if (p.doorway) transitionToRoom(p.doorway.targetRoom, null, null, 'up');
-          else if (p.noticeBoardId || p.puzzleId || p.specialStation || p.isPostbox) tryInteractSpecialProp(p);
+          else if (p.noticeBoardId || p.puzzleId || p.specialStation || p.isPostbox || p.type === 'waypointShrine') tryInteractSpecialProp(p);
           else if (p.stationId) window.openCraftingModal(p.stationId);
           else if (p.isBountyBoard) window.openBountyBoard();
           else tryInteractWorldObject(p);
@@ -14403,12 +11490,12 @@ export function initGame() {
           walkAndRun(anchorX, anchorY, 96, 28, '#fbbf24', enterDoor);
           return;
         }
-      } else if (pr.stationId || pr.isBountyBoard || pr.noticeBoardId || pr.puzzleId || pr.specialStation || pr.isPostbox) {
+      } else if (pr.stationId || pr.isBountyBoard || pr.noticeBoardId || pr.puzzleId || pr.specialStation || pr.isPostbox || pr.isScryingPool || pr.type === 'waypointShrine') {
         const dx = Math.abs(pr.x - wx);
         const dy = wy - pr.y;
         if (dx <= 34 && dy >= -44 && dy <= 18) {
           const triggerSpecial = () => {
-            if (pr.noticeBoardId || pr.puzzleId || pr.specialStation || pr.isPostbox) tryInteractSpecialProp(pr);
+            if (pr.noticeBoardId || pr.puzzleId || pr.specialStation || pr.isPostbox || pr.isScryingPool || pr.type === 'waypointShrine') tryInteractSpecialProp(pr);
             else if (pr.stationId) window.openCraftingModal(pr.stationId);
             else window.openBountyBoard();
           };
@@ -14711,7 +11798,7 @@ export function initGame() {
         return;
       }
 
-      const modalSelector = '.modal, #paperdoll-modal, #cards-modal, #audio-mixer-modal, #settings-modal, #crafting-modal, #echo-cradle-modal, #mail-modal';
+      const modalSelector = '.modal, #paperdoll-modal, #cards-modal, #audio-mixer-modal, #settings-modal, #crafting-modal, #echo-cradle-modal, #mail-modal, #gf-activity-finder-modal, #gf-hero-share-modal';
       const openModal = Array.from(document.querySelectorAll(modalSelector)).find((m) => {
         if (!m) return false;
         if (m.style.display === 'none') return false;
@@ -14735,6 +11822,8 @@ export function initGame() {
         window.closeMailModal?.();
         window.closeMenuHub?.();
         window.closeGearAndBag?.();
+        window.closeActivityFinder?.();
+        window.closeHeroShareCard?.();
         window.closeQuickSlotPicker?.();
         if (skPopup) {
           skPopup.classList.remove('active');
@@ -14808,6 +11897,7 @@ export function initGame() {
       }
     }
     if (key === 'm') window.toggleWorldAtlas();
+    if (key === '=') window.toggleMount();
     if (key === 'p') window.toggleModal('spellbook-modal');
     if (key === 'c') window.toggleModal('char-modal');
     if (key === 'o') window.toggleModal('social-modal');
@@ -15106,63 +12196,119 @@ export function initGame() {
         const umbriSpeedMult = calcMoveSpeedMult(prog);
         const sprintBonus = player.auroraStrideTimer > 0 || player.temporalApotheosisTimer > 0 ? 1.5 : (inputs.shift ? player.sprintMult : 1);
         const tempoSpeed = player.baseSpeed * (1 + eff.tempo * 0.03) * umbriSpeedMult;
-        const spd = tempoSpeed * sprintBonus;
+        if (player.mountId && !canRideMountInRoom(currentRoomType)) {
+          player.mountId = null;
+          updateMountButtonUi();
+        }
+        const mountSpeedBonus = getMountSpeedBonus(player.mountId, currentRoomType);
+        const spd = tempoSpeed * sprintBonus * mountSpeedBonus;
         const stepDist = spd * dt;
 
+        const isSurfaceMove = isSurfaceRoomType(currentRoomType);
         const GATE_HALF_WIDTH = 72;
         const northGateHW = currentRoomType === ROOM_TYPES.CORAL_COAST ? 44 : GATE_HALF_WIDTH;
         const edgeTransitions = ROOM_CONFIGS[currentRoomType]?.edgeTransitions;
-        const canPassEastWest = (edgeTransitions?.east || edgeTransitions?.west) && Math.abs(player.y) <= GATE_HALF_WIDTH;
-        const canPassNorthSouth = (edgeTransitions?.north || edgeTransitions?.south) && Math.abs(player.x) <= (player.y < 0 ? northGateHW : GATE_HALF_WIDTH);
+        const canPassEastWest = !isSurfaceMove && (edgeTransitions?.east || edgeTransitions?.west) && Math.abs(player.y) <= GATE_HALF_WIDTH;
+        const canPassNorthSouth = !isSurfaceMove && (edgeTransitions?.north || edgeTransitions?.south) && Math.abs(player.x) <= (player.y < 0 ? northGateHW : GATE_HALF_WIDTH);
         const padX = canPassEastWest ? 4 : 14;
         const padY = canPassNorthSouth ? 4 : 14;
-        const targetX = Math.max(-mapBounds.halfW + padX, Math.min(mapBounds.halfW - padX, player.x + mx * stepDist));
-        const targetY = Math.max(-mapBounds.halfH + padY, Math.min(mapBounds.halfH - padY, player.y + my * stepDist));
+        const targetX = isSurfaceMove
+          ? player.x + mx * stepDist
+          : Math.max(-mapBounds.halfW + padX, Math.min(mapBounds.halfW - padX, player.x + mx * stepDist));
+        const targetY = isSurfaceMove
+          ? player.y + my * stepDist
+          : Math.max(-mapBounds.halfH + padY, Math.min(mapBounds.halfH - padY, player.y + my * stepDist));
 
-        // Water, Interior Cutout & Locked Puzzle Grate Collision: Cannot walk across water, walls, or sealed gates!
-        const isPosBlocked = (px, py) =>
-          isFootprintInWater(px, py, currentRoomType, 5, 4) ||
-          Boolean(isBlockedByPuzzleGate(px, py, currentRoomType, questState.puzzles));
-
-        const currentlyBlocked = isPosBlocked(player.x, player.y);
         const colRadius = 6;
         const testX = targetX + Math.sign(mx) * colRadius;
         const testY = targetY + Math.sign(my) * colRadius;
-        const curDistToEdge = (x, y) => isPosBlocked(x, y);
+        let canMoveX = true;
+        let canMoveY = true;
+        let blockedBySurfaceBarrier = false;
 
-        const canMoveX = (!curDistToEdge(testX, player.y) && !curDistToEdge(targetX, player.y))
-          || (currentlyBlocked && !curDistToEdge(targetX, player.y));
-        const canMoveY = (!curDistToEdge(player.x, testY) && !curDistToEdge(player.x, targetY))
-          || (currentlyBlocked && !curDistToEdge(player.x, targetY));
+        if (isSurfaceMove) {
+          const edition = isLocalFounder() ? 'founder' : 'free';
+          const surfRes = clampSurfacePosition(player.x, player.y, targetX, targetY, {
+            founderRooms: FOUNDER_ONLY_ROOMS,
+            founderChecker: (rt) => isRoomUnlockedForEdition(rt, edition),
+            isWaterAt: (wx, wy) =>
+              isSurfaceFootprintInWater(wx, wy, 5, 4) ||
+              Boolean(isBlockedByPuzzleGate(wx, wy, getRegionAtWorldPos(wx, wy, currentRoomType).roomType, questState.puzzles)),
+          });
+          if (surfRes.blockedByBarrier) {
+            blockedBySurfaceBarrier = true;
+            canMoveX = false;
+            canMoveY = false;
+            player.x = surfRes.x;
+            player.y = surfRes.y;
+            if (portalCooldown <= 0) {
+              gateTrialRoomTransition(surfRes.barrierRoomType);
+            }
+          } else {
+            canMoveX = Math.abs(surfRes.x - player.x) > 0.01;
+            canMoveY = Math.abs(surfRes.y - player.y) > 0.01;
+            player.x = surfRes.x;
+            player.y = surfRes.y;
+            if (isSurfaceWaterTile(player.x, player.y)) {
+              const loc = worldToLocal(surfRes.region?.roomType || currentRoomType, player.x, player.y);
+              const place = SURFACE_ZONE_PLACEMENT[loc.roomType];
+              const dryLocal = findNearestDryTile(loc.lx, loc.ly, loc.roomType, place?.halfW || 640, place?.halfH || 640);
+              const dryWorld = localToWorld(loc.roomType, dryLocal.x, dryLocal.y);
+              player.x = dryWorld.wx;
+              player.y = dryWorld.wy;
+            }
+            if (surfRes.region?.roomType && surfRes.region.roomType !== currentRoomType) {
+              onSurfaceRegionChanged(surfRes.region.roomType, { fromServer: false });
+            }
+            if (!net.connected) {
+              revealLocalFogAt(player.x, player.y, surfRes.region?.roomType || currentRoomType);
+            }
+          }
+        } else {
+          // Water, Interior Cutout & Locked Puzzle Grate Collision: Cannot walk across water, walls, or sealed gates!
+          const isPosBlocked = (px, py) =>
+            isFootprintInWater(px, py, currentRoomType, 5, 4) ||
+            Boolean(isBlockedByPuzzleGate(px, py, currentRoomType, questState.puzzles));
 
-        if (canMoveX && canMoveY && mx !== 0 && my !== 0) {
-          if (curDistToEdge(testX, testY) || curDistToEdge(targetX, targetY)) {
-            // Corner hit! Smoothly slide along primary unobstructed axis
-            if (Math.abs(mx) >= Math.abs(my) && !curDistToEdge(targetX, player.y)) {
+          const currentlyBlocked = isPosBlocked(player.x, player.y);
+          const curDistToEdge = (x, y) => isPosBlocked(x, y);
+
+          canMoveX = (!curDistToEdge(testX, player.y) && !curDistToEdge(targetX, player.y))
+            || (currentlyBlocked && !curDistToEdge(targetX, player.y));
+          canMoveY = (!curDistToEdge(player.x, testY) && !curDistToEdge(player.x, targetY))
+            || (currentlyBlocked && !curDistToEdge(player.x, targetY));
+
+          if (canMoveX && canMoveY && mx !== 0 && my !== 0) {
+            if (curDistToEdge(testX, testY) || curDistToEdge(targetX, targetY)) {
+              // Corner hit! Smoothly slide along primary unobstructed axis
+              if (Math.abs(mx) >= Math.abs(my) && !curDistToEdge(targetX, player.y)) {
+                player.x = targetX;
+              } else if (!curDistToEdge(player.x, targetY)) {
+                player.y = targetY;
+              }
+            } else {
               player.x = targetX;
-            } else if (!curDistToEdge(player.x, targetY)) {
               player.y = targetY;
             }
           } else {
-            player.x = targetX;
-            player.y = targetY;
+            if (canMoveX) player.x = targetX;
+            if (canMoveY) player.y = targetY;
           }
-        } else {
-          if (canMoveX) player.x = targetX;
-          if (canMoveY) player.y = targetY;
-        }
-        // Safety recovery: if knocked/pushed onto a water tile with no dry step taken, eject cleanly to dry shore
-        if (isWaterTile(player.x, player.y, currentRoomType)) {
-          const dry = findNearestDryTile(player.x, player.y, currentRoomType, mapBounds.halfW, mapBounds.halfH);
-          player.x = dry.x;
-          player.y = dry.y;
+          // Safety recovery: if knocked/pushed onto a water tile with no dry step taken, eject cleanly to dry shore
+          if (isWaterTile(player.x, player.y, currentRoomType)) {
+            const dry = findNearestDryTile(player.x, player.y, currentRoomType, mapBounds.halfW, mapBounds.halfH);
+            player.x = dry.x;
+            player.y = dry.y;
+          }
         }
 
-        // Spawn gentle water droplet ripple when moving against outdoor shoreline (not interior walls or grates)
+        // Spawn gentle water droplet ripple when moving against outdoor shoreline (not interior walls, grates, or Founder barriers)
+        const activeRegionForSplash = isSurfaceMove ? getRegionAtWorldPos(player.x, player.y, currentRoomType).roomType : currentRoomType;
         const suppressSplash =
-          Boolean(ROOM_CONFIGS[currentRoomType]?.isInterior) ||
-          Boolean(isBlockedByPuzzleGate(testX, player.y, currentRoomType, questState.puzzles)) ||
-          Boolean(isBlockedByPuzzleGate(player.x, testY, currentRoomType, questState.puzzles));
+          blockedBySurfaceBarrier ||
+          Boolean(ROOM_CONFIGS[activeRegionForSplash]?.isInterior) ||
+          Boolean(isBlockedByPuzzleGate(testX, player.y, activeRegionForSplash, questState.puzzles)) ||
+          Boolean(isBlockedByPuzzleGate(player.x, testY, activeRegionForSplash, questState.puzzles));
         if (!suppressSplash && ((!canMoveX && mx !== 0) || (!canMoveY && my !== 0))) {
           if (Math.random() < 0.15) {
             particles.push({
@@ -15212,12 +12358,12 @@ export function initGame() {
           logMessage('[Quest] Limbs restored! Strike the Sanctuary Dummy with [1]!', 'log-quest');
         }
 
-        // Step-into-doorway / interior exit / perimeter seamless travel!
+        // Step-into-doorway / interior exit / perimeter travel (non-surface rooms only)
         if (portalCooldown <= 0) {
           const cfg = ROOM_CONFIGS[currentRoomType];
           let transitioned = false;
 
-          // 1. Building doorways & interior exit doormats
+          // 1. Building doorways & interior/cavern/crypt exit doormats
           if (cfg?.exitDestination && player.y >= mapBounds.halfH - 18 && Math.abs(player.x) <= 36) {
             transitioned = transitionToRoom(
               cfg.exitDestination.roomType,
@@ -15236,8 +12382,8 @@ export function initGame() {
             }
           }
 
-          // 2. Seamless Boundary Walking Transitions across outdoor perimeter
-          if (!transitioned && cfg && cfg.edgeTransitions) {
+          // 2. Entered-realm boundary transitions only (surface overworld walks seamlessly across corridors)
+          if (!transitioned && !isSurfaceMove && cfg && cfg.edgeTransitions) {
             const edgePad = 12;
             let dest = null;
             let nextX = player.x;
@@ -15425,6 +12571,9 @@ export function initGame() {
 
       // Offline Mob AI: Aggro detection, pursuit, and combat attacks against the player
       if (!net.connected && e.type === 'mob' && e.hp > 0) {
+        if (!e.inCombat && (Math.abs(player.x - e.x) > 1650 || Math.abs(player.y - e.y) > 1650)) {
+          continue;
+        }
         if (e.freezeTimer > 0) continue; // Frozen by Frost Nova
         if (e.spawnAggroGrace > 0) {
           e.spawnAggroGrace = Math.max(0, e.spawnAggroGrace - dt);
@@ -15437,7 +12586,7 @@ export function initGame() {
         const speed = e.speed || (e.isBoss ? 38 : 52);
         const playerStealthed = Boolean(player.stealthed);
 
-        const protectedSameFaction = isSameFactionProtectedMob(currentRoomType, e, localProfile.faction);
+        const protectedSameFaction = isSameFactionProtectedMob(e.zoneType || currentRoomType, e, localProfile.faction);
         // Proximity aggro trigger (skipped for unprovoked same-faction mobs in their faction's city/territory)
         if (!e.inCombat && !protectedSameFaction && !player.isDead && !playerStealthed && dist <= aggroRange) {
           e.inCombat = true;
@@ -15820,11 +12969,23 @@ export function initGame() {
               damageOfflinePlayer(gz.damage || 14, `${gz.bossName || 'Boss'} ${gz.label || 'Cataclysm'}`, gz.bossRef, false, true);
               if (!getClassPassive(localProfile.classId).knockbackImmune) {
                 const ang = Math.atan2(player.y - gz.y, player.x - gz.x);
-                const rawKbX = Math.max(-mapBounds.halfW + 14, Math.min(mapBounds.halfW - 14, player.x + Math.cos(ang) * 24));
-                const rawKbY = Math.max(-mapBounds.halfH + 14, Math.min(mapBounds.halfH - 14, player.y + Math.sin(ang) * 24));
-                const safeKb = clampStepOutOfWater(player.x, player.y, rawKbX, rawKbY, currentRoomType, mapBounds.halfW, mapBounds.halfH);
-                player.x = safeKb.x;
-                player.y = safeKb.y;
+                const rawKbX = player.x + Math.cos(ang) * 24;
+                const rawKbY = player.y + Math.sin(ang) * 24;
+                if (isSurfaceRoomType(currentRoomType)) {
+                  const safeKb = clampSurfacePosition(player.x, player.y, rawKbX, rawKbY, {
+                    founderRooms: FOUNDER_ONLY_ROOMS,
+                    founderChecker: (rt) => isRoomUnlockedForEdition(rt, isLocalFounder() ? 'founder' : 'free'),
+                    isWaterAt: (wx, wy) => isSurfaceFootprintInWater(wx, wy, 5, 4),
+                  });
+                  player.x = safeKb.x;
+                  player.y = safeKb.y;
+                } else {
+                  const boundedKbX = Math.max(-mapBounds.halfW + 14, Math.min(mapBounds.halfW - 14, rawKbX));
+                  const boundedKbY = Math.max(-mapBounds.halfH + 14, Math.min(mapBounds.halfH - 14, rawKbY));
+                  const safeKb = clampStepOutOfWater(player.x, player.y, boundedKbX, boundedKbY, currentRoomType, mapBounds.halfW, mapBounds.halfH);
+                  player.x = safeKb.x;
+                  player.y = safeKb.y;
+                }
               }
               if (gz.snare) player.snareTimer = Math.max(player.snareTimer || 0, gz.snare);
             }
@@ -15872,318 +13033,20 @@ export function initGame() {
   // ==========================================
   // 2D Pixel World Renderer (Zero Strobe / All 4 Biomes / Paperdoll)
   // ==========================================
-  function pickTile(tx, ty) {
-    const wx = tx * TILE_SIZE;
-    const wy = ty * TILE_SIZE;
-
-    // Calm, non-flashing static deep sea (or cozy dark interior frame) outside map bounds!
-    if (wx < -mapBounds.halfW || wx >= mapBounds.halfW || wy < -mapBounds.halfH || wy >= mapBounds.halfH) {
-      if (currentBiomeTheme.startsWith('interior_')) {
-        const voidIdx = Math.abs(tx * 3 + ty * 5) % 2;
-        return sprites.tiles[`interior_void_${voidIdx}`] || sprites.tiles.void_sea_0;
-      }
-      const seaIdx = Math.abs(tx * 3 + ty * 5) % 2;
-      return sprites.tiles[`void_sea_${seaIdx}`];
-    }
-
-    if (currentBiomeTheme.startsWith('interior_')) {
-      if (isInteriorVoidTile(tx, ty, currentRoomType)) {
-        const voidIdx = Math.abs(tx * 3 + ty * 5) % 2;
-        return sprites.tiles[`interior_void_${voidIdx}`] || sprites.tiles.void_sea_0;
-      }
-      const minInteriorY = Math.ceil(-mapBounds.halfH / TILE_SIZE) * TILE_SIZE;
-      const maxInteriorY = Math.floor((mapBounds.halfH - TILE_SIZE) / TILE_SIZE) * TILE_SIZE;
-      const isSouthExit = wy === maxInteriorY && Math.abs(tx) <= 1;
-      if (isSouthExit) {
-        return sprites.tiles.interior_doormat || sprites.tiles.flagstone_1;
-      }
-      const isNorthWall = wy === minInteriorY || wy === minInteriorY + TILE_SIZE;
-      const isSideOrSouthWall =
-        wx === -mapBounds.halfW ||
-        wx === mapBounds.halfW - TILE_SIZE ||
-        wy === maxInteriorY;
-      if (isNorthWall || isSideOrSouthWall || isInteriorPartitionWallTile(tx, ty, currentRoomType)) {
-        return sprites.tiles[`interior_wall_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
-      }
-      if (isInteriorGardenTile(tx, ty, currentRoomType)) {
-        if (Math.abs(tx) <= 1) {
-          return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
-        }
-        return sprites.tiles[`sanctuary_grass_${Math.abs(tx * 7 + ty * 13) % 4}`] || sprites.tiles.flagstone_0;
-      }
-      if (currentRoomType === ROOM_TYPES.INTERIOR_AETHER_OBSERVATORY && ty <= -4) {
-        return sprites.tiles[`interior_stone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
-      }
-      const carpetColor =
-        currentBiomeTheme === 'interior_tavern' ? 'red' :
-        currentBiomeTheme === 'interior_vault' || currentBiomeTheme === 'interior_aether' ? 'blue' :
-        currentBiomeTheme === 'interior_terra' ? 'green' :
-        currentBiomeTheme === 'interior_umbri' ? 'purple' : 'red';
-      const inCenterRug = Math.abs(tx) <= 4 && ty >= -4 && ty <= 5;
-      const inExitRunner = Math.abs(tx) <= 1 && ty >= 5;
-      if (inCenterRug || inExitRunner) {
-        return sprites.tiles[`interior_carpet_${carpetColor}`] || sprites.tiles.flagstone_1;
-      }
-      const useStone =
-        currentBiomeTheme === 'interior_vault' ||
-        currentBiomeTheme === 'interior_solari' ||
-        currentBiomeTheme === 'interior_aether';
-      return sprites.tiles[`${useStone ? 'interior_stone' : 'interior_wood'}_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
-    }
-
-    if (currentRoomType === ROOM_TYPES.CORAL_COAST) {
-      if (isCoralCoastPierTile(tx, ty)) {
-        return sprites.tiles[`bridge_wood_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
-      }
-      if (isCoralCoastDeepSeaTile(tx, ty)) {
-        const waterFrame = Math.floor(globalTime * 2.2 + (tx + ty) * 0.25) % 2;
-        return sprites.tiles[`river_water_${Math.abs(waterFrame)}`];
-      }
-    }
-
-    const isAtCenterGate = (Math.abs(tx) <= 2 && (wy === -mapBounds.halfH || wy === mapBounds.halfH - TILE_SIZE)) ||
-                           (Math.abs(ty) <= 2 && (wx === -mapBounds.halfW || wx === mapBounds.halfW - TILE_SIZE));
-
-    const onRim =
-      wx === -mapBounds.halfW || wx === mapBounds.halfW - TILE_SIZE ||
-      wy === -mapBounds.halfH || wy === mapBounds.halfH - TILE_SIZE;
-
-    if (onRim) {
-      if (isAtCenterGate) return sprites.tiles.flagstone_1 || sprites.tiles.flagstone_0;
-      return sprites.tiles.mountain_rock_0 || sprites.tiles.flagstone_0;
-    }
-
-    if (currentBiomeTheme === 'sanctuary') {
-      // Homecoming Town Square & Grand Central Fountain Plaza paved in flagstone
-      if (Math.abs(tx) <= 7 && ty >= -6 && ty <= 9) {
-        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
-      }
-      // North Civic Terrace (Grand Exchange & Bank Plaza)
-      if (Math.abs(tx) <= 11 && ty >= -12 && ty <= -6) {
-        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
-      }
-      // West Artisan & Homestead Courtyard
-      if (tx >= -16 && tx <= -7 && ty >= -5 && ty <= 6) {
-        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
-      }
-      // East Combat Trial Courtyard
-      if (tx >= 7 && tx <= 16 && ty >= -4 && ty <= 5) {
-        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
-      }
-      // Grand North-South and East-West Crossroads connecting gates to center
-      if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) {
-        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
-      }
-      return sprites.tiles[`sanctuary_grass_${Math.abs(tx * 7 + ty * 13) % 4}`];
-    }
-
-    if (currentBiomeTheme === 'arena') {
-      if (Math.abs(tx) <= 2) return sprites.tiles.flagstone_1;
-      if (wy > 64) return sprites.tiles.arena_blue;
-      if (wy < -64) return sprites.tiles.arena_red;
-      return sprites.tiles.arena_neutral;
-    }
-
-    if (currentBiomeTheme === 'ruins') {
-      if (isInteriorPartitionWallTile(tx, ty, currentRoomType)) {
-        return sprites.tiles[`interior_wall_${Math.abs(tx + ty) % 2}`] || sprites.tiles.mountain_rock_0 || sprites.tiles.flagstone_0;
-      }
-      if (tx >= 11 && tx <= 14 && ty >= -17 && ty <= -15) {
-        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
-      }
-      // Grand cross crossroads in ancient flagstone
-      if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) {
-        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
-      }
-      // 4 quadrant elemental convergence: Terra (NW), Umbri (NE), Solari (SW), Aether (SE)
-      if (tx < 0 && ty < 0) return sprites.tiles[`terra_${Math.abs(tx * 7 + ty * 11) % 4}`];
-      if (tx > 0 && ty < 0) return sprites.tiles[`umbri_${Math.abs(tx * 7 + ty * 11) % 4}`];
-      if (tx < 0 && ty > 0) return sprites.tiles[`solari_${Math.abs(tx * 7 + ty * 11) % 4}`];
-      return sprites.tiles[`aether_${Math.abs(tx * 7 + ty * 11) % 4}`];
-    }
-
-    if (currentBiomeTheme === 'solari_vault') {
-      // Center ceremonial altar
-      if (Math.abs(tx) <= 3 && Math.abs(ty) <= 3) {
-        return sprites.tiles[`flagstone_${Math.abs(tx * 3 + ty * 5) % 2}`];
-      }
-      // Geometric diamond sun rays
-      if ((Math.abs(tx) + Math.abs(ty)) % 5 === 0 || Math.abs(tx) <= 1) {
-        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
-      }
-      return sprites.tiles[`solari_${Math.abs(tx * 11 + ty * 17) % 4}`];
-    }
-
-    if (currentBiomeTheme === 'umbri_labyrinth') {
-      // Winding maze corridors
-      const cellX = Math.floor(tx / 4);
-      const cellY = Math.floor(ty / 4);
-      if ((cellX + cellY) % 2 === 0 || Math.abs(tx) <= 1 || Math.abs(ty) <= 1) {
-        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`];
-      }
-      return sprites.tiles[`umbri_${Math.abs(tx * 13 + ty * 19) % 4}`];
-    }
-
-    if (currentBiomeTheme === 'terra_grove') {
-      // Concentric organic rings
-      const d2 = tx * tx + ty * ty;
-      if ((d2 >= 25 && d2 <= 49) || (d2 >= 144 && d2 <= 196) || Math.abs(tx) <= 1) {
-        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
-      }
-      if (d2 < 25) {
-        return sprites.tiles[`sanctuary_grass_${Math.abs(tx * 7 + ty * 13) % 4}`] || sprites.tiles.flagstone_0;
-      }
-      return sprites.tiles[`terra_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.flagstone_0;
-    }
-
-    if (currentBiomeTheme === 'aether_archive') {
-      // Astral geometric platforms over deep rift chasms
-      if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) {
-        return sprites.tiles.flagstone_1 || sprites.tiles.flagstone_0;
-      }
-      if (Math.abs(tx) % 6 <= 1 && Math.abs(ty) % 6 <= 1) {
-        return sprites.tiles[`void_sea_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
-      }
-      return sprites.tiles[`aether_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.flagstone_0;
-    }
-
-    if (currentBiomeTheme === 'starfall') {
-      // Impact caldera ring & east-west meteorite highway
-      const d2 = tx * tx + ty * ty;
-      if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2 || (d2 >= 64 && d2 <= 100)) {
-        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
-      }
-      return sprites.tiles[`starfall_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.solari_0 || sprites.tiles.flagstone_0;
-    }
-
-    if (currentBiomeTheme === 'abyssal') {
-      // Fractured reality causeways across deep void chasms
-      if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) {
-        return sprites.tiles.flagstone_1 || sprites.tiles.flagstone_0;
-      }
-      if (Math.abs(tx) % 8 === 4 && Math.abs(ty) % 8 === 4 && Math.abs(tx) > 5 && Math.abs(ty) > 5) {
-        return sprites.tiles[`void_sea_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
-      }
-      return sprites.tiles[`abyssal_${Math.abs(tx * 13 + ty * 19) % 4}`] || sprites.tiles.umbri_0 || sprites.tiles.flagstone_0;
-    }
-
-    if (currentBiomeTheme === 'frost') {
-      // Alpine glacial causeway, ice-melt crystal pools & drifted frost snowfield
-      const d2 = tx * tx + ty * ty;
-      if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) {
-        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
-      }
-      if (d2 >= 16 && d2 <= 36) {
-        return sprites.tiles[`frost_ice_${Math.abs(tx + ty) % 2}`] || sprites.tiles.frost_0;
-      }
-      return sprites.tiles[`frost_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.aether_0 || sprites.tiles.flagstone_0;
-    }
-
-    if (['solari', 'umbri', 'terra', 'aether'].includes(currentBiomeTheme)) {
-      // Central city plaza, artisan market square (west), and depository terrace (northeast)
-      if (
-        (Math.abs(tx) <= 5 && Math.abs(ty) <= 5) ||
-        (tx >= -14 && tx <= -6 && ty >= 0 && ty <= 6) ||
-        (tx >= 9 && tx <= 14 && ty >= -10 && ty <= -4) ||
-        Math.abs(tx) <= 1 ||
-        Math.abs(ty) <= 1
-      ) {
-        return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
-      }
-      return sprites.tiles[`${currentBiomeTheme}_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.warzone_0 || sprites.tiles.flagstone_0;
-    }
-
-    // ==========================================
-    // THE NEXUS CONTINENT (MASSIVE OPEN WORLD REALM)
-    // ==========================================
-    // 1. South Sanctuary River & Tributary Streams
-    // River meanders horizontally between ty: 75 and 80 (wy: 1200 - 1280)
-    const southRiverY = 77 + Math.round(Math.sin(tx * 0.08) * 2.5);
-    const isSouthRiver = Math.abs(ty - southRiverY) <= 1;
-
-    // Northwest Mountain Gorge Stream flowing down through Terra Ironwood Wilds
-    const streamX = -65 + Math.round(Math.cos(ty * 0.08) * 4);
-    const isNWStream = tx >= streamX - 1 && tx <= streamX + 1 && ty >= -85 && ty <= 20;
-
-    // Bridges crossing rivers
-    const isMainSouthBridge = isSouthRiver && Math.abs(tx) <= 3;
-    const isWestTimberBridge = isSouthRiver && Math.abs(tx - (-80)) <= 2;
-    const isEastTimberBridge = isSouthRiver && Math.abs(tx - 80) <= 2;
-    const isNWGorgeBridge = isNWStream && Math.abs(ty - (-35)) <= 2;
-
-    if (isMainSouthBridge || isWestTimberBridge || isEastTimberBridge || isNWGorgeBridge) {
-      return sprites.tiles[`bridge_wood_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
-    }
-
-    if (isSouthRiver || isNWStream) {
-      const waterFrame = Math.floor(globalTime * 2.2 + (tx + ty) * 0.25) % 2;
-      return sprites.tiles[`river_water_${Math.abs(waterFrame)}`];
-    }
-
-    // 2. Whispering Mountain Pass Trail (Cuts through the grand central mountain ridge)
-    // Mountain ridge spans ty: 22 to 70 (wy: 352 to 1120)
-    const passCurveX = Math.round(Math.sin(ty * 0.07) * 7);
-    const isWhisperingPass = ty >= 22 && ty <= 70 && Math.abs(tx - passCurveX) <= 3;
-    if (isWhisperingPass) {
-      return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
-    }
-
-    // 3. Imperial Cross-Continental Highways (3 tiles wide, connects Caldera to all regions)
-    if (Math.abs(tx) <= 2 || Math.abs(ty) <= 2) {
-      return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
-    }
-
-    // 4. Diagonal Arterial Trails to the 4 Faction Outposts & Highlands
-    if (Math.abs(Math.abs(tx) - Math.abs(ty)) <= 1 && Math.abs(tx) >= 14 && Math.abs(tx) <= 75) {
-      return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
-    }
-
-    // 5. South Sanctuary Vale (Peaceful green meadow valley south of the mountain range)
-    if (ty >= 70) {
-      return sprites.tiles[`sanctuary_grass_${Math.abs(tx * 7 + ty * 13) % 4}`];
-    }
-
-    // 6. Granite Mountain Ridge & Whispering Peaks (ty: 22 to 70)
-    if (ty >= 22 && ty < 70) {
-      // High mountain snow peaks on outer flanks
-      if (Math.abs(tx) >= 55 || (Math.abs(tx) >= 28 && ((tx * 3 + ty * 5) % 7 === 0))) {
-        return sprites.tiles[`mountain_peak_${Math.abs(tx * 7 + ty * 11) % 4}`];
-      }
-      return sprites.tiles[`mountain_rock_${Math.abs(tx * 11 + ty * 17) % 4}`];
-    }
-
-    // 7. North Forgotten Ruins & Megalith Plateau (ty < -22 and central corridor)
-    if (ty <= -22 && Math.abs(tx) <= 26) {
-      return sprites.tiles[`flagstone_${Math.abs(tx * 3 + ty * 5) % 2}`] || sprites.tiles.flagstone_0;
-    }
-
-    // 8. Central Caldera / Siege Crater (Dark obsidian slate around the Shattered Nexus Shard)
-    if (Math.abs(tx) <= 18 && Math.abs(ty) <= 16) {
-      return sprites.tiles[`warzone_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.flagstone_0;
-    }
-
-    // 9. Four Regional Wilderness Quadrants
-    // Northwest Quadrant: Terra Ironwood Wilds (Lush forest moss & emerald flora)
-    if (tx < -14 && ty < -8) {
-      return sprites.tiles[`terra_${Math.abs(tx * 13 + ty * 19) % 4}`] || sprites.tiles.flagstone_0;
-    }
-    // Northeast Quadrant: Umbri Shadow Fens (Abyssal violet mire & fog-shrouded swamp)
-    if (tx > 14 && ty < -8) {
-      return sprites.tiles[`umbri_${Math.abs(tx * 13 + ty * 19) % 4}`] || sprites.tiles.flagstone_0;
-    }
-    // Southwest Quadrant: Solari Sun-Canyon (Golden marble, sandstone & scorched mesas)
-    if (tx < -14 && ty >= -8 && ty < 70) {
-      return sprites.tiles[`solari_${Math.abs(tx * 13 + ty * 19) % 4}`] || sprites.tiles.flagstone_0;
-    }
-    // Southeast Quadrant: Aether Astral Plateau (Crystalline cosmic indigo platforms)
-    if (tx > 14 && ty >= -8 && ty < 70) {
-      return sprites.tiles[`aether_${Math.abs(tx * 13 + ty * 19) % 4}`] || sprites.tiles.flagstone_0;
-    }
-
-    // Buffer zones: Dark warzone obsidian slate
-    return sprites.tiles[`warzone_${Math.abs(tx * 11 + ty * 17) % 4}`] || sprites.tiles.flagstone_0;
-  }
-
+  const {
+    TILE_CHUNK_TILES,
+    TILE_CHUNK_PX,
+    pickTile,
+    getTileMeta,
+    getTileChunk,
+    ensureTileChunkRoom,
+  } = createTileMapRenderer({
+    sprites,
+    getMapBounds: () => mapBounds,
+    getCurrentRoomType: () => currentRoomType,
+    getCurrentBiomeTheme: () => currentBiomeTheme,
+    getGlobalTime: () => globalTime,
+  });
   let currentShadowOffX = 0;
   let currentShadowOffY = 0;
   function drawPixelEllipseShadow(cx, cy, rx, ry) {
@@ -16364,88 +13227,6 @@ export function initGame() {
     }
   }
 
-  // Static ground is baked into 256px chunk canvases once per room. This collapses
-  // roughly a thousand per-frame tile blits into ~20 cached chunk blits.
-  const TILE_CHUNK_TILES = 16;
-  const TILE_CHUNK_PX = TILE_CHUNK_TILES * TILE_SIZE;
-  const tileChunkCache = new Map();
-  let tileChunkRoomKey = '';
-  let animatedWaterTiles = null;
-
-  const tileSpriteMetaMap = new WeakMap();
-  if (sprites?.tiles) {
-    for (const [key, tileCanvas] of Object.entries(sprites.tiles)) {
-      if (!tileCanvas || typeof tileCanvas !== 'object') continue;
-      let meta;
-      if (key.startsWith('void_sea_') || key.startsWith('interior_void_')) {
-        meta = { category: 'void_sea', biome: 'void', isWall: true };
-      } else if (key.startsWith('river_water_')) {
-        meta = { category: 'water', biome: 'water', isWall: false };
-      } else if (key.startsWith('bridge_wood_')) {
-        meta = { category: 'bridge', biome: 'bridge', isWall: false };
-      } else if (key.startsWith('flagstone_') || key.startsWith('celestial_road_')) {
-        meta = { category: 'road', biome: 'road', isWall: false };
-      } else if (key.startsWith('mountain_rock_') || key.startsWith('mountain_peak_')) {
-        meta = { category: 'mountain', biome: 'mountain', isWall: true };
-      } else if (key.startsWith('sanctuary_grass_')) {
-        meta = { category: 'grass', biome: 'grass', isWall: false };
-      } else if (key.startsWith('interior_')) {
-        meta = { category: 'interior', biome: 'interior', isWall: key.startsWith('interior_wall_') };
-      } else {
-        const biomePrefix = key.split('_')[0];
-        meta = { category: 'biome', biome: biomePrefix, isWall: false };
-      }
-      tileSpriteMetaMap.set(tileCanvas, meta);
-    }
-  }
-  const DEFAULT_META_FALLBACK = { category: 'biome', biome: 'grass', isWall: false };
-  function getTileMeta(tx, ty) {
-    const t = pickTile(tx, ty);
-    return (t && tileSpriteMetaMap.get(t)) || DEFAULT_META_FALLBACK;
-  }
-
-  function getTileChunk(chunkX, chunkY) {
-    const key = `${tileChunkRoomKey}:${chunkX},${chunkY}`;
-    const cached = tileChunkCache.get(key);
-    if (cached) return cached;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = TILE_CHUNK_PX;
-    canvas.height = TILE_CHUNK_PX;
-    const cctx = canvas.getContext('2d');
-    cctx.imageSmoothingEnabled = false;
-
-    if (!animatedWaterTiles) {
-      animatedWaterTiles = new Set(
-        [sprites.tiles.river_water_0, sprites.tiles.river_water_1].filter(Boolean)
-      );
-    }
-
-    const water = [];
-    for (let ty = 0; ty < TILE_CHUNK_TILES; ty++) {
-      for (let tx = 0; tx < TILE_CHUNK_TILES; tx++) {
-        const tile = pickTile(chunkX * TILE_CHUNK_TILES + tx, chunkY * TILE_CHUNK_TILES + ty);
-        if (!tile) continue;
-        cctx.drawImage(tile, tx * TILE_SIZE, ty * TILE_SIZE);
-        if (animatedWaterTiles.has(tile)) water.push({ tx, ty });
-      }
-    }
-
-    drawTileChunkTransitions({
-      cctx,
-      chunkX,
-      chunkY,
-      tileChunkTiles: TILE_CHUNK_TILES,
-      tileSize: TILE_SIZE,
-      getTileMeta,
-      sprites,
-    });
-
-    const chunk = { canvas, water };
-    if (tileChunkCache.size >= 192) tileChunkCache.clear();
-    tileChunkCache.set(key, chunk);
-    return chunk;
-  }
 
   // ==========================================
   // Animated Ambient Dressing (Modularized in client/game/ambientRenderer.js)
@@ -16565,11 +13346,11 @@ export function initGame() {
     const camLeft = activeCamLeft;
     const camTop = activeCamTop;
 
-    const roomKey = `${currentRoomId}|${currentRoomType}|${currentBiomeTheme}|${mapBounds.halfW}x${mapBounds.halfH}`;
-    if (roomKey !== tileChunkRoomKey) {
-      tileChunkRoomKey = roomKey;
-      tileChunkCache.clear();
-    }
+    const isSurfaceDraw = isSurfaceRoomType(currentRoomType);
+    const roomKey = isSurfaceDraw
+      ? 'OVERWORLD_SURFACE'
+      : `${currentRoomId}|${currentRoomType}|${currentBiomeTheme}|${mapBounds.halfW}x${mapBounds.halfH}`;
+    ensureTileChunkRoom(roomKey);
 
     const startCx = Math.floor(camLeft / TILE_CHUNK_PX);
     const endCx = Math.floor((camLeft + viewW) / TILE_CHUNK_PX);
@@ -16595,9 +13376,48 @@ export function initGame() {
     drawGroundAmbient(camLeft, camTop);
     drawAirMotes(camLeft, camTop);
 
-    // Active Edge Transition Waygate Threshold Beams
+    // Physical Astral Resonance Barriers across corridors leading into locked Founder realms
+    if (isSurfaceDraw) {
+      const edition = isLocalFounder() ? 'founder' : 'free';
+      const pulse = 0.5 + 0.5 * Math.sin(globalTime * 4.2);
+      for (const cor of SURFACE_TRANSITION_CORRIDORS) {
+        const lockedDest =
+          (FOUNDER_ONLY_ROOMS.has(cor.toRoom) && !isRoomUnlockedForEdition(cor.toRoom, edition) && cor.toRoom) ||
+          (FOUNDER_ONLY_ROOMS.has(cor.fromRoom) && !isRoomUnlockedForEdition(cor.fromRoom, edition) && cor.fromRoom);
+        if (!lockedDest) continue;
+        if (cor.maxX < camLeft - 48 || cor.minX > camLeft + viewW + 48 || cor.maxY < camTop - 48 || cor.minY > camTop + viewH + 48) {
+          continue;
+        }
+        ctx.save();
+        ctx.strokeStyle = `rgba(250, 204, 21, ${0.55 + 0.35 * pulse})`;
+        ctx.fillStyle = `rgba(250, 204, 21, ${0.14 + 0.12 * pulse})`;
+        ctx.lineWidth = 3;
+        if (cor.axis === 'x') {
+          const bx = Math.round(cor.midX - camLeft);
+          const y1 = Math.round(cor.minY - camTop);
+          const y2 = Math.round(cor.maxY - camTop);
+          ctx.fillRect(bx - 6, y1, 12, y2 - y1);
+          ctx.beginPath();
+          ctx.moveTo(bx, y1);
+          ctx.lineTo(bx, y2);
+          ctx.stroke();
+        } else {
+          const by = Math.round(cor.midY - camTop);
+          const x1 = Math.round(cor.minX - camLeft);
+          const x2 = Math.round(cor.maxX - camLeft);
+          ctx.fillRect(x1, by - 6, x2 - x1, 12);
+          ctx.beginPath();
+          ctx.moveTo(x1, by);
+          ctx.lineTo(x2, by);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+
+    // Active Edge Transition Waygate Threshold Beams (Entered non-surface realms only)
     const activeCfg = ROOM_CONFIGS[currentRoomType];
-    if (activeCfg && activeCfg.edgeTransitions) {
+    if (!isSurfaceDraw && activeCfg && activeCfg.edgeTransitions) {
       const GATE_HW = 72;
       const pulse = 0.5 + 0.5 * Math.sin(globalTime * 3.5);
       ctx.save();
@@ -16846,6 +13666,10 @@ export function initGame() {
           } else if (pr.type === 'doorThresholdGlow') {
             img = sprites.props.doorThresholdGlow;
             shadowRx = 0; shadowRy = 0;
+          } else if (pr.type === 'waypointShrine') {
+            const attuned = ensureExplorationState().unlockedShrines.includes(pr.shrineId);
+            img = (attuned ? sprites.props.waypointShrineActive : sprites.props.waypointShrineDormant) || sprites.props.pillar;
+            shadowRx = 11; shadowRy = 4;
           } else if (pr.type === 'hearthFireplace') {
             const list = sprites.props.hearthFireplace;
             img = (list && list[Math.floor(globalTime * 3.0) % list.length]) || sprites.props.brazier?.[0] || sprites.props.pillar;
@@ -17136,12 +13960,25 @@ export function initGame() {
             img = sprites.dummy[ent.hitFlash > 0 ? 1 : 0];
           } else if (ent.type === 'graveglass_tombstone') {
             img = sprites.props.graveglassTombstone || sprites.props.pillar;
+          } else if (ent.type === 'wild_echo') {
+            const fArr = sprites.familiars?.[ent.spriteKey];
+            img = Array.isArray(fArr) ? fArr[Math.floor(globalTime * 2.5) % fArr.length] : (fArr || sprites.node?.[0]);
           } else {
             const arr = sprites[ent.spriteKey] || sprites.voidStalker;
             img = Array.isArray(arr) ? arr[Math.floor(globalTime * (ent.type === 'portal' ? 1.8 : 3.5)) % arr.length] : arr;
           }
           if (Array.isArray(img)) img = img[0];
           if (!img || !(img instanceof HTMLCanvasElement || img instanceof HTMLImageElement || (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap))) return;
+          if (ent.type === 'wild_echo' && !ent.isDying) {
+            const wPulse = 0.85 + Math.sin(globalTime * 3.8 + Math.abs(ent.x)) * 0.15;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(244, 114, 182, 0.85)';
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.ellipse(sx, sy, 14 * wPulse, 6 * wPulse, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
           const isGrandNode = ent.type === 'node' && Boolean(ent.isGrand);
           const isHealingSpring = ent.type === 'node' && ent.skillingType === 'healing_spring';
           if (isHealingSpring && (ent.charges ?? 0) > 0) {
@@ -17188,6 +14025,18 @@ export function initGame() {
 
           const isNexusShard = ent.type === 'siege_shard' || ent.id === 'siege_shard' || (ent.name && ent.name.includes('Nexus'));
           const isEnraged = !isNexusShard && Boolean(ent.enraged || ((ent.hp / (ent.maxHp || 1)) <= 0.35));
+          if (ent.isRaidBoss && ent.pylonShield && !ent.isDying) {
+            const pPulse = 0.85 + Math.sin(globalTime * 5.2) * 0.15;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(217, 70, 239, 0.92)';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.ellipse(sx, sy, Math.round(img.width * 0.62 * pPulse), 8, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(192, 132, 252, 0.14)';
+            ctx.fill();
+            ctx.restore();
+          }
           if (ent.isBoss && isEnraged && !ent.isDying) {
             ctx.save();
             ctx.strokeStyle = 'rgba(239, 68, 68, 0.75)';
@@ -17309,7 +14158,7 @@ export function initGame() {
               ctx.fillRect(bx - 1, by - 1, bw + 2, 5);
               ctx.fillStyle = '#1e293b';
               ctx.fillRect(bx, by, bw, 3);
-              const isAlliedFactionMob = ent.type === 'mob' && isSameFactionProtectedMob(currentRoomType, ent, localProfile.faction, net.playerId || localProfile.id);
+              const isAlliedFactionMob = ent.type === 'mob' && isSameFactionProtectedMob(ent.zoneType || currentRoomType, ent, localProfile.faction, net.playerId || localProfile.id);
               ctx.fillStyle =
                 ent.type === 'node' ? (skSpecDraw?.sparkColors?.[0] || '#c084fc') :
                 ent.type === 'siege_shard' ? '#fde047' :
@@ -17319,6 +14168,22 @@ export function initGame() {
                 eliteSpecDraw ? (eliteSpecDraw.color || '#facc15') :
                 '#ef4444';
               ctx.fillRect(bx, by, Math.round((val / max) * bw), 3);
+
+              if (ent.isRaidBoss && (ent.immuneFaction || ent.pylonShield)) {
+                const badgeParts = [];
+                if (ent.pylonShield) badgeParts.push('PYLON SHIELD -90%');
+                if (ent.immuneFaction) badgeParts.push(`IMMUNE: ${String(ent.immuneFaction).toUpperCase()}`);
+                const rBadge = badgeParts.join(' • ');
+                ctx.save();
+                ctx.font = 'bold 8px monospace';
+                ctx.textAlign = 'center';
+                const rtw = Math.ceil(ctx.measureText(rBadge).width) + 8;
+                ctx.fillStyle = 'rgba(15, 6, 30, 0.9)';
+                ctx.fillRect(Math.round(sx - rtw / 2), by - 14, rtw, 11);
+                ctx.fillStyle = ent.pylonShield ? '#f0abfc' : (FACTIONS_META[ent.immuneFaction]?.color || '#fde047');
+                ctx.fillText(rBadge, Math.round(sx), by - 6);
+                ctx.restore();
+              }
 
               // Interruptible Enemy Cast Bar & Stagger Vulnerability Cue
               const activeCast = ent.cast || (ent.castState ? {
@@ -17427,7 +14292,7 @@ export function initGame() {
       });
     }
 
-    const pushFamiliarRenderable = ({ familiarId, wx, wy, walkTimer, dir }) => {
+    const pushFamiliarRenderable = ({ familiarId, wx, wy, walkTimer, dir, variant = 'default' }) => {
       const famDef = familiarId ? NEXUS_FAMILIARS_CATALOG[familiarId] : null;
       if (!famDef || !isWorldInViewport(wx, wy, camLeft, camTop, 64, 64)) return;
       const frames = sprites.familiars?.[famDef.spriteKey];
@@ -17442,7 +14307,24 @@ export function initGame() {
           const sy = Math.round(wy - camTop);
           const bob = Math.round(Math.sin(globalTime * 4.2 + wx * 0.04));
           drawPixelEllipseShadow(sx, sy, 6, 2);
+          if (variant && variant !== 'default') {
+            const vCol = variant === 'prismatic'
+              ? `hsla(${Math.floor((globalTime * 120) % 360)}, 90%, 70%, 0.78)`
+              : 'rgba(165, 180, 252, 0.78)';
+            ctx.save();
+            ctx.strokeStyle = vCol;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.ellipse(sx, sy, 10, 4, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
           ctx.save();
+          if (variant && variant !== 'default') {
+            ctx.filter = variant === 'prismatic'
+              ? `hue-rotate(${Math.floor((globalTime * 90) % 360)}deg) saturate(1.35)`
+              : 'hue-rotate(195deg) brightness(1.18)';
+          }
           if (dir === 'left') {
             ctx.translate(sx, 0);
             ctx.scale(-1, 1);
@@ -17452,7 +14334,7 @@ export function initGame() {
           }
           ctx.restore();
           if (Math.floor(globalTime * 4 + sx) % 2 === 0) {
-            ctx.fillStyle = famDef.glowColor || famDef.color || '#fde047';
+            ctx.fillStyle = variant === 'prismatic' ? '#f472b6' : variant === 'starlight' ? '#a5b4fc' : (famDef.glowColor || famDef.color || '#fde047');
             ctx.fillRect(sx - 1, sy - fImg.height - 2 + bob, 2, 2);
           }
         },
@@ -17461,7 +14343,7 @@ export function initGame() {
 
     // Remote Live Players with Real-Time 24x26 Paperdoll Sprites!
     for (const rp of remotePlayers.values()) {
-      if (rp.isDead) continue;
+      if (rp.isDead || rp.isSpectator) continue;
       if (!isWorldInViewport(rp.renderX, rp.renderY, camLeft, camTop, 96, 110)) continue;
       const inSquad = Boolean(currentParty && currentParty.members?.some((m) => m.id === rp.id));
       const hostile = isRemoteHostile(rp);
@@ -17473,6 +14355,7 @@ export function initGame() {
           wy: rp.famY,
           walkTimer: rp.famWalkTimer || 0,
           dir: rp.dir,
+          variant: rp.activeFamiliarVariant || 'default',
         });
       }
 
@@ -17510,10 +14393,21 @@ export function initGame() {
 
           ctx.save();
           if (rp.stealthed) ctx.globalAlpha = 0.45;
+          const rpMountFrames = rp.mountId && sprites.mounts?.[rp.mountId]?.[rpDir];
+          const rpMountImg = rpMountFrames ? rpMountFrames[rp.isMoving ? (Math.floor((rp.walkTimer || 0) * 1.4) % 2) : 0] : null;
+          if (rpMountImg) {
+            drawWorldSprite(
+              rpMountImg,
+              Math.round(sx - rpMountImg.width / 2),
+              Math.round(sy - (rp.z || 0) - rpMountImg.height + 5),
+              rp.hitFlash
+            );
+          }
+          const rpRiderOffset = rpMountImg ? 7 : 0;
           drawWorldSprite(
             img,
             Math.round(sx - img.width / 2),
-            Math.round(sy - (rp.z || 0) - img.height + 3),
+            Math.round(sy - (rp.z || 0) - rpRiderOffset - img.height + 3),
             rp.hitFlash
           );
           if (rp.frozen) {
@@ -17596,10 +14490,21 @@ export function initGame() {
 
           ctx.save();
           if (player.stealthed) ctx.globalAlpha = 0.48;
+          const mountFrames = player.mountId && sprites.mounts?.[player.mountId]?.[player.dir || 'down'];
+          const mountImg = mountFrames ? mountFrames[player.isMoving ? (Math.floor(player.walkTimer * 1.4) % 2) : 0] : null;
+          if (mountImg) {
+            drawWorldSprite(
+              mountImg,
+              Math.round(sx - mountImg.width / 2),
+              Math.round(sy - player.z - mountImg.height + 5),
+              player.hitFlash
+            );
+          }
+          const riderYOffset = mountImg ? 7 : 0;
           drawWorldSprite(
             img,
             Math.round(sx - img.width / 2),
-            Math.round(sy - player.z - img.height + 3),
+            Math.round(sy - player.z - riderYOffset - img.height + 3),
             player.hitFlash
           );
           if (player.frozen) {
@@ -17650,6 +14555,7 @@ export function initGame() {
         wy: localFamiliarPos.y,
         walkTimer: localFamiliarPos.walkTimer || 0,
         dir: player.dir,
+        variant: prog.familiars.activeVariants?.[prog.familiars.activeId] || 'default',
       });
     }
 
@@ -17771,6 +14677,27 @@ export function initGame() {
     return 'IMPERIAL HIGHWAY';
   }
 
+  const MINIMAP_ZONE_TINTS = {
+    solari_citadel: 'rgba(234, 179, 8, 0.20)',
+    solar_highlands: 'rgba(250, 204, 21, 0.16)',
+    umbri_undercity: 'rgba(168, 85, 247, 0.20)',
+    abyssal_rift: 'rgba(192, 132, 252, 0.16)',
+    terra_orchard: 'rgba(34, 197, 94, 0.20)',
+    ironwood_timberlands: 'rgba(22, 163, 74, 0.18)',
+    starlight_grove: 'rgba(74, 222, 128, 0.18)',
+    moonwell_sanctum: 'rgba(45, 212, 191, 0.18)',
+    aether_spire: 'rgba(56, 189, 248, 0.20)',
+    chronocore_citadel: 'rgba(14, 165, 233, 0.18)',
+    coral_coast: 'rgba(6, 182, 212, 0.18)',
+    frostspire_glacier: 'rgba(125, 211, 252, 0.22)',
+    sunken_oasis: 'rgba(16, 185, 129, 0.18)',
+    starfall_crater: 'rgba(249, 115, 22, 0.20)',
+    nexus_warzone: 'rgba(239, 68, 68, 0.16)',
+    celestial_ascent: 'rgba(253, 224, 71, 0.18)',
+    sanctuary_hub: 'rgba(52, 211, 153, 0.20)',
+    nexus_forgotten_ruins: 'rgba(148, 163, 184, 0.20)',
+  };
+
   function renderMinimap() {
     mmCtx.imageSmoothingEnabled = false;
     const mw = minimapCanvas.width || 168;
@@ -17778,60 +14705,54 @@ export function initGame() {
     mmCtx.fillStyle = '#070b18';
     mmCtx.fillRect(0, 0, mw, mh);
 
-    const isContinent = mapBounds.halfW >= 1000;
+    const isSurfaceMm = isSurfaceRoomType(currentRoomType);
+    const isContinent = isSurfaceMm || mapBounds.halfW >= 1000;
     const cx = mw / 2;
     const cy = mh / 2;
-    const scale = isContinent ? 0.026 : Math.min(0.18, (mw - 16) / (mapBounds.halfW * 2));
+    const scale = isSurfaceMm ? 0.042 : isContinent ? 0.026 : Math.min(0.18, (mw - 16) / (mapBounds.halfW * 2));
 
     // Real-Time Continental Sub-Region Banner Update
     if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
-      const sub = getOpenWorldSubRegion(player.x, player.y);
+      const locWz = isSurfaceMm ? worldToLocal(ROOM_TYPES.NEXUS_WARZONE, player.x, player.y) : { lx: player.x, ly: player.y };
+      const sub = getOpenWorldSubRegion(locWz.lx, locWz.ly);
       setTextIfChanged(uiEl('minimap-zone-title'), `CONTINENTAL CALDERA • ${sub}`);
       setTextIfChanged(uiEl('zone-label'), sub);
     }
 
-    // Draw continent geographic zones on minimap
-    if (isContinent) {
-      // NW Terra Wilds
-      mmCtx.fillStyle = 'rgba(34, 197, 94, 0.14)';
-      mmCtx.fillRect(Math.round(cx + (-mapBounds.halfW - player.x) * scale), Math.round(cy + (-mapBounds.halfH - player.y) * scale), Math.round((mapBounds.halfW - 300) * scale), Math.round((mapBounds.halfH - 200) * scale));
-
-      // NE Umbri Fens
-      mmCtx.fillStyle = 'rgba(168, 85, 247, 0.14)';
-      mmCtx.fillRect(Math.round(cx + (300 - player.x) * scale), Math.round(cy + (-mapBounds.halfH - player.y) * scale), Math.round((mapBounds.halfW - 300) * scale), Math.round((mapBounds.halfH - 200) * scale));
-
-      // SW Solari Canyon
-      mmCtx.fillStyle = 'rgba(234, 179, 8, 0.14)';
-      mmCtx.fillRect(Math.round(cx + (-mapBounds.halfW - player.x) * scale), Math.round(cy + (-100 - player.y) * scale), Math.round((mapBounds.halfW - 300) * scale), Math.round(1200 * scale));
-
-      // SE Aether Plateau
-      mmCtx.fillStyle = 'rgba(56, 189, 248, 0.14)';
-      mmCtx.fillRect(Math.round(cx + (300 - player.x) * scale), Math.round(cy + (-100 - player.y) * scale), Math.round((mapBounds.halfW - 300) * scale), Math.round(1200 * scale));
-
-      // North Forgotten Ruins Plateau
-      mmCtx.fillStyle = 'rgba(148, 163, 184, 0.18)';
-      mmCtx.fillRect(Math.round(cx + (-380 - player.x) * scale), Math.round(cy + (-mapBounds.halfH - player.y) * scale), Math.round(760 * scale), Math.round(1400 * scale));
-
-      // Central Mountain Ridge (Granite Crags & Whispering Pass)
-      mmCtx.fillStyle = 'rgba(71, 85, 105, 0.32)';
-      mmCtx.fillRect(Math.round(cx + (-mapBounds.halfW - player.x) * scale), Math.round(cy + (350 - player.y) * scale), Math.round(mapBounds.halfW * 2 * scale), Math.round(750 * scale));
-
-      // Whispering Pass Opening in Mountains
-      mmCtx.fillStyle = 'rgba(203, 213, 225, 0.28)';
-      mmCtx.fillRect(Math.round(cx + (-140 - player.x) * scale), Math.round(cy + (350 - player.y) * scale), Math.round(280 * scale), Math.round(750 * scale));
-
-      // South Sanctuary Vale (Meadow Basin)
-      mmCtx.fillStyle = 'rgba(16, 185, 129, 0.18)';
-      mmCtx.fillRect(Math.round(cx + (-mapBounds.halfW - player.x) * scale), Math.round(cy + (1100 - player.y) * scale), Math.round(mapBounds.halfW * 2 * scale), Math.round((mapBounds.halfH - 1100) * scale));
-
-      // South River Blue Shimmer Line
-      mmCtx.fillStyle = 'rgba(2, 132, 199, 0.6)';
-      mmCtx.fillRect(Math.round(cx + (-mapBounds.halfW - player.x) * scale), Math.round(cy + (1230 - player.y) * scale), Math.round(mapBounds.halfW * 2 * scale), Math.max(2, Math.round(40 * scale)));
-
-      // Imperial Highway Roads on Minimap
-      mmCtx.fillStyle = 'rgba(226, 232, 240, 0.35)';
-      mmCtx.fillRect(Math.round(cx + (0 - player.x) * scale) - 1, 0, 3, mh);
-      mmCtx.fillRect(0, Math.round(cy + (0 - player.y) * scale) - 1, mw, 3);
+    if (isSurfaceMm) {
+      for (const cor of SURFACE_TRANSITION_CORRIDORS) {
+        const x1 = Math.round(cx + (cor.minX - player.x) * scale);
+        const y1 = Math.round(cy + (cor.minY - player.y) * scale);
+        const cw = Math.max(2, Math.round((cor.maxX - cor.minX) * scale));
+        const ch = Math.max(2, Math.round((cor.maxY - cor.minY) * scale));
+        if (x1 + cw < 0 || x1 > mw || y1 + ch < 0 || y1 > mh) continue;
+        mmCtx.fillStyle = 'rgba(226, 232, 240, 0.26)';
+        mmCtx.fillRect(x1, y1, cw, ch);
+      }
+      for (const [id, z] of Object.entries(SURFACE_ZONE_PLACEMENT)) {
+        const x1 = Math.round(cx + (z.minX - player.x) * scale);
+        const y1 = Math.round(cy + (z.minY - player.y) * scale);
+        const zw = Math.max(4, Math.round((z.maxX - z.minX) * scale));
+        const zh = Math.max(4, Math.round((z.maxY - z.minY) * scale));
+        if (x1 + zw < 0 || x1 > mw || y1 + zh < 0 || y1 > mh) continue;
+        mmCtx.fillStyle = MINIMAP_ZONE_TINTS[id] || 'rgba(56, 189, 248, 0.14)';
+        mmCtx.fillRect(x1, y1, zw, zh);
+        mmCtx.strokeStyle = id === currentRoomType ? '#fde047' : 'rgba(56, 189, 248, 0.35)';
+        mmCtx.lineWidth = id === currentRoomType ? 1.5 : 1;
+        mmCtx.strokeRect(x1, y1, zw, zh);
+      }
+      if (currentRoomType === ROOM_TYPES.NEXUS_WARZONE) {
+        const wPlace = SURFACE_ZONE_PLACEMENT[ROOM_TYPES.NEXUS_WARZONE];
+        if (wPlace) {
+          mmCtx.fillStyle = 'rgba(226, 232, 240, 0.25)';
+          mmCtx.fillRect(Math.round(cx + (wPlace.originX - player.x) * scale) - 1, Math.round(cy + (wPlace.minY - player.y) * scale), 3, Math.round(wPlace.halfH * 2 * scale));
+          mmCtx.fillRect(Math.round(cx + (wPlace.minX - player.x) * scale), Math.round(cy + (wPlace.originY - player.y) * scale) - 1, Math.round(wPlace.halfW * 2 * scale), 3);
+        }
+      }
+    } else if (isContinent) {
+      // Non-surface large arena/crypt fallback grid
+      mmCtx.fillStyle = '#111c33';
+      mmCtx.fillRect(0, 0, mw, mh);
     } else {
       mmCtx.fillStyle = '#111c33';
       for (let gx = 16; gx < mw; gx += 16) {
@@ -17842,13 +14763,15 @@ export function initGame() {
       }
     }
 
-    mmCtx.strokeStyle = '#1e3a8a';
-    mmCtx.strokeRect(
-      Math.round(cx + (-mapBounds.halfW - player.x) * scale),
-      Math.round(cy + (-mapBounds.halfH - player.y) * scale),
-      Math.round(mapBounds.halfW * 2 * scale),
-      Math.round(mapBounds.halfH * 2 * scale)
-    );
+    if (!isSurfaceMm) {
+      mmCtx.strokeStyle = '#1e3a8a';
+      mmCtx.strokeRect(
+        Math.round(cx + (-mapBounds.halfW - player.x) * scale),
+        Math.round(cy + (-mapBounds.halfH - player.y) * scale),
+        Math.round(mapBounds.halfW * 2 * scale),
+        Math.round(mapBounds.halfH * 2 * scale)
+      );
+    }
 
     for (const e of entities) {
       if (e.isDying) continue;
@@ -17892,13 +14815,47 @@ export function initGame() {
     }
 
     for (const rp of remotePlayers.values()) {
-      if (rp.isDead || (rp.stealthed && isRemoteHostile(rp))) continue;
+      if (rp.isDead || rp.isSpectator || (rp.stealthed && isRemoteHostile(rp))) continue;
       const rx = Math.round(cx + (rp.renderX - player.x) * scale);
       const ry = Math.round(cy + (rp.renderY - player.y) * scale);
       if (rx < 2 || rx > mw - 4 || ry < 2 || ry > mh - 4) continue;
       const inSquad = Boolean(currentParty && currentParty.members?.some((m) => m.id === rp.id));
       mmCtx.fillStyle = inSquad ? '#4ade80' : isRemoteHostile(rp) ? '#fb923c' : '#38bdf8';
       mmCtx.fillRect(rx - 2, ry - 2, 4, 4);
+    }
+
+    if (isSurfaceMm) {
+      const warPlace = SURFACE_ZONE_PLACEMENT[ROOM_TYPES.NEXUS_WARZONE];
+      const unlockedWps = new Set(ensureExplorationState().unlockedShrines);
+      for (const wp of WAYPOINT_SHRINES_CATALOG) {
+        const wx = Math.round(cx + (wp.wx - player.x) * scale);
+        const wy = Math.round(cy + (wp.wy - player.y) * scale);
+        if (wx < 3 || wx > mw - 5 || wy < 3 || wy > mh - 5) continue;
+        mmCtx.fillStyle = unlockedWps.has(wp.id) ? '#38bdf8' : '#94a3b8';
+        mmCtx.beginPath();
+        mmCtx.moveTo(wx, wy - 3);
+        mmCtx.lineTo(wx + 3, wy);
+        mmCtx.lineTo(wx, wy + 3);
+        mmCtx.lineTo(wx - 3, wy);
+        mmCtx.closePath();
+        mmCtx.fill();
+      }
+      if (warPlace) {
+        for (const op of WARZONE_OUTPOST_DEFS) {
+          const ox = Math.round(cx + (warPlace.originX + op.x - player.x) * scale);
+          const oy = Math.round(cy + (warPlace.originY + op.y - player.y) * scale);
+          if (ox < 3 || ox > mw - 5 || oy < 3 || oy > mh - 5) continue;
+          const ownerFac = outpostControlState?.owners?.[op.id] || op.defaultFaction;
+          mmCtx.fillStyle = FACTIONS_META[ownerFac]?.color || '#38bdf8';
+          mmCtx.fillRect(ox - 1, oy - 4, 2, 8);
+          mmCtx.beginPath();
+          mmCtx.moveTo(ox + 1, oy - 4);
+          mmCtx.lineTo(ox + 6, oy - 2);
+          mmCtx.lineTo(ox + 1, oy);
+          mmCtx.closePath();
+          mmCtx.fill();
+        }
+      }
     }
 
     // Local Player Blip (Glowing Gold + White Core)
@@ -17922,6 +14879,7 @@ export function initGame() {
   renderStatsModal();
   renderDevotionPrayerBar(true);
   updateAutoRetaliateButton();
+  updateMountButtonUi();
   renderPartyHud(currentParty, localProfile.id, {
     id: localProfile.id,
     name: localProfile.displayName,

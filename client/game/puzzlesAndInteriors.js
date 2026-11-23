@@ -210,6 +210,23 @@ export function setupRunePuzzleUi({ doc, getProgress, saveProgress, onSolved, on
   if (!modal || !slotsEl || !choicesEl) return null;
 
   let activePuzzleId = null;
+  let lastFocusBeforeOpen = null;
+
+  function closeModal() {
+    const wasOpen = modal.style.display !== 'none' && modal.style.display !== '';
+    modal.style.display = 'none';
+    if (wasOpen) {
+      const prev = lastFocusBeforeOpen;
+      lastFocusBeforeOpen = null;
+      if (prev && prev.isConnected && typeof prev.focus === 'function') {
+        try {
+          prev.focus();
+        } catch (_) {}
+      } else {
+        doc.getElementById('gameCanvas')?.focus?.();
+      }
+    }
+  }
 
   const render = (statusText = '', statusColor = '#94a3b8') => {
     const def = PUZZLE_DEFINITIONS[activePuzzleId];
@@ -279,21 +296,20 @@ export function setupRunePuzzleUi({ doc, getProgress, saveProgress, onSolved, on
     });
   }
   if (closeBtn) {
-    closeBtn.addEventListener('click', () => {
-      modal.style.display = 'none';
-    });
+    closeBtn.addEventListener('click', closeModal);
   }
 
   return {
     open(puzzleId) {
       if (!PUZZLE_DEFINITIONS[puzzleId]) return;
+      if (doc.activeElement && doc.activeElement !== doc.body && !modal.contains(doc.activeElement)) {
+        lastFocusBeforeOpen = doc.activeElement;
+      }
       activePuzzleId = puzzleId;
       saveProgress(resetPuzzleAttempt(getProgress()));
       modal.style.display = 'flex';
       render();
     },
-    close() {
-      modal.style.display = 'none';
-    },
+    close: closeModal,
   };
 }

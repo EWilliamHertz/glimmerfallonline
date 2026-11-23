@@ -145,12 +145,13 @@ test('Entering and exiting an interior building saves position instantly and rec
 
 test('Client wires doorways, interior rendering safeguards, and keepalive save-vitals endpoint', () => {
   const gameSrc = fs.readFileSync('client/game.js', 'utf8');
+  const decorSrc = fs.readFileSync('client/game/zoneDecorBuilders.js', 'utf8');
   const ambientSrc = fs.readFileSync('client/game/ambientRenderer.js', 'utf8');
   const serverSrc = fs.readFileSync('server/index.js', 'utf8');
 
   assert.ok(ambientSrc.includes("if (getCurrentBiomeTheme().startsWith('interior_')) return;"), 'drawSeaAmbient must skip waves in interiors');
   for (const roomType of INTERIOR_ROOM_KEYS) {
-    assert.ok(gameSrc.includes(`ROOM_TYPES.${Object.keys(ROOM_TYPES).find((k) => ROOM_TYPES[k] === roomType)}`), `Client must wire ${roomType}`);
+    assert.ok(decorSrc.includes(`ROOM_TYPES.${Object.keys(ROOM_TYPES).find((k) => ROOM_TYPES[k] === roomType)}`), `Client must wire ${roomType}`);
   }
   assert.ok(gameSrc.includes('/api/auth/save-vitals'), 'Client unload handler must use keepalive save-vitals');
   assert.ok(serverSrc.includes("pathname === '/api/auth/save-vitals'"), 'Server must expose POST /api/auth/save-vitals');

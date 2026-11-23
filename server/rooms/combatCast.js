@@ -108,7 +108,10 @@ export const combatCastMethods = {
         best = { kind: 'entity', ref: e };
       }
     }
-    if (room.pvp || (this.duels && this.duels.hasActiveDuel(player.id))) {
+    const canPvpHere = room.isOverworld
+      ? Boolean(ROOM_CONFIGS[player.roomType]?.pvp)
+      : Boolean(room.pvp);
+    if (canPvpHere || (this.duels && this.duels.hasActiveDuel(player.id))) {
       for (const other of room.players.values()) {
         if (other.isDead || other.stealthedTimer > 0 || this.arePlayersAllied(room, player, other)) continue;
         const d = Math.hypot(other.x - player.x, other.y - player.y);
@@ -139,9 +142,12 @@ export const combatCastMethods = {
         out.push({ kind: 'entity', ref: e });
       }
     }
-    if (room.pvp || (this.duels && this.duels.hasActiveDuel(player.id))) {
+    const canPvpHere = room.isOverworld
+      ? Boolean(ROOM_CONFIGS[player.roomType]?.pvp)
+      : Boolean(room.pvp);
+    if (canPvpHere || (this.duels && this.duels.hasActiveDuel(player.id))) {
       for (const other of room.players.values()) {
-        if (other.isDead || this.arePlayersAllied(room, player, other)) continue;
+        if (other.isDead || other.isSpectator || this.arePlayersAllied(room, player, other)) continue;
         if (Math.hypot(other.x - cx, other.y - cy) <= radius) {
           out.push({ kind: 'player', ref: other });
         }
@@ -279,7 +285,7 @@ export const combatCastMethods = {
   },
 
   handleCastAbility(room, player, slot, targetId, facingDir) {
-    if (player.isDead || player.freezeTimer > 0) return;
+    if (player.isDead || player.isSpectator || player.freezeTimer > 0) return;
     if (!ACTION_SLOTS.includes(slot)) return;
     if (!isSlotUnlocked(player.prog, slot)) return;
     const spec = getSlotAbilitySpec(player.loadout, slot);
@@ -290,6 +296,13 @@ export const combatCastMethods = {
     if (spec.classId && spec.classId !== player.classId) return;
     const rank = getAbilityRank(player.prog, spec.id);
     if (rank < 1) return;
+
+    // Casting a combat Rite/ability instantaneously dismounts
+    if (player.mountId || player.mountCast) {
+      player.mountId = null;
+      player.mountCast = null;
+      player.send?.({ type: 'mount_synced', mountId: null, reason: 'cast' });
+    }
 
     if (['up', 'down', 'left', 'right'].includes(facingDir)) {
       player.dir = facingDir;

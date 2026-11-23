@@ -368,12 +368,36 @@ export function setupWorldEventsAndHeroShare({
     ctx.fillText(`https://glimmerfall.online/?ref=${encodeURIComponent(name)}`, 44, 322);
   }
 
+  let lastOverlayFocus = null;
+
+  function hideOverlayModal(modalId) {
+    if (typeof document === 'undefined') return;
+    const modal = document.getElementById(modalId);
+    const wasOpen = modal && modal.style.display !== 'none' && modal.style.display !== '';
+    if (modal) modal.style.display = 'none';
+    if (wasOpen) {
+      const prev = lastOverlayFocus;
+      lastOverlayFocus = null;
+      if (prev && prev.isConnected && typeof prev.focus === 'function') {
+        try {
+          prev.focus();
+        } catch (_) {}
+      } else {
+        document.getElementById('gameCanvas')?.focus?.();
+      }
+    }
+  }
+
   function openHeroShareModal() {
     if (typeof document === 'undefined') return;
+    if (document.activeElement && document.activeElement !== document.body) {
+      lastOverlayFocus = document.activeElement;
+    }
     let modal = document.getElementById('gf-hero-share-modal');
     if (!modal) {
       modal = document.createElement('div');
       modal.id = 'gf-hero-share-modal';
+      modal.className = 'modal panel-overlay';
       modal.style.cssText =
         'position:fixed; inset:0; z-index:9600; background:rgba(4,7,15,0.86); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; padding:14px;';
       modal.innerHTML = `
@@ -395,10 +419,10 @@ export function setupWorldEventsAndHeroShare({
       document.body.appendChild(modal);
 
       modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.style.display = 'none';
+        if (e.target === modal) hideOverlayModal('gf-hero-share-modal');
       });
       document.getElementById('gf-hero-share-close')?.addEventListener('click', () => {
-        modal.style.display = 'none';
+        hideOverlayModal('gf-hero-share-modal');
       });
       document.getElementById('gf-hero-dl-btn')?.addEventListener('click', () => {
         const cv = document.getElementById('gf-hero-share-canvas');
@@ -434,15 +458,19 @@ export function setupWorldEventsAndHeroShare({
 
   function openActivityFinderModal() {
     if (typeof document === 'undefined') return;
+    if (document.activeElement && document.activeElement !== document.body) {
+      lastOverlayFocus = document.activeElement;
+    }
     let modal = document.getElementById('gf-activity-finder-modal');
     if (!modal) {
       modal = document.createElement('div');
       modal.id = 'gf-activity-finder-modal';
+      modal.className = 'modal panel-overlay';
       modal.style.cssText =
         'position:fixed; inset:0; z-index:9550; background:rgba(4,7,15,0.86); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; padding:12px;';
       document.body.appendChild(modal);
       modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.style.display = 'none';
+        if (e.target === modal) hideOverlayModal('gf-activity-finder-modal');
       });
     }
 
@@ -481,6 +509,28 @@ export function setupWorldEventsAndHeroShare({
           </button>
         </div>
 
+        <!-- Role Trinity LFG Queue & 10-Player Apex Raid -->
+        <div style="background:rgba(15,23,42,0.88); border:1.5px solid rgba(168,85,247,0.45); border-radius:12px; padding:10px 12px; margin-bottom:14px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px;">
+          <div>
+            <div style="font-size:12px; font-weight:800; color:#e879f9;">🛡️ Role Trinity Dungeon Finder (1 Tank / 1 Healer / 3 DPS) &amp; 10-Player Raid</div>
+            <div style="font-size:10.5px; color:#94a3b8; margin-top:2px;">Queue for Mythic Keystone Crypts with matched roles, or challenge <b>Fall of the Primeval Nexus</b>.</div>
+          </div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+            <select id="gf-lfg-role" style="background:#070b18; border:1px solid #38bdf8; color:#f8fafc; font-size:11px; padding:5px 7px; border-radius:7px;">
+              <option value="">Auto Role</option>
+              <option value="tank">🛡️ Tank</option>
+              <option value="healer">💚 Healer</option>
+              <option value="dps">⚔️ DPS</option>
+            </select>
+            <button type="button" id="gf-act-lfg-queue" style="background:rgba(168,85,247,0.22); border:1px solid #c084fc; color:#f3e8ff; font-weight:800; font-size:11px; padding:6px 10px; border-radius:8px; cursor:pointer;">
+              🔎 Join LFG Queue
+            </button>
+            <button type="button" id="gf-act-join-raid" style="background:rgba(244,63,94,0.22); border:1px solid #f43f5e; color:#ffe4e6; font-weight:800; font-size:11px; padding:6px 10px; border-radius:8px; cursor:pointer;">
+              🐉 10P Apex Raid
+            </button>
+          </div>
+        </div>
+
         <!-- Recommended Continental Zones & Activities -->
         <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">
           Continental Zones, Dungeons &amp; Gathering Hotspots
@@ -515,24 +565,33 @@ export function setupWorldEventsAndHeroShare({
 
     modal.style.display = 'flex';
     document.getElementById('gf-act-finder-close')?.addEventListener('click', () => {
-      modal.style.display = 'none';
+      hideOverlayModal('gf-activity-finder-modal');
     });
     document.getElementById('gf-act-go-event')?.addEventListener('click', () => {
-      modal.style.display = 'none';
+      hideOverlayModal('gf-activity-finder-modal');
       onTeleportToEvent(ev);
     });
     document.getElementById('gf-act-open-tcg')?.addEventListener('click', () => {
-      modal.style.display = 'none';
+      hideOverlayModal('gf-activity-finder-modal');
       onOpenTcgDuel();
     });
     document.getElementById('gf-act-open-share')?.addEventListener('click', () => {
       modal.style.display = 'none';
       openHeroShareModal();
     });
+    document.getElementById('gf-act-lfg-queue')?.addEventListener('click', () => {
+      const selRole = document.getElementById('gf-lfg-role')?.value || '';
+      hideOverlayModal('gf-activity-finder-modal');
+      window.joinLfgQueue?.(selRole || null);
+    });
+    document.getElementById('gf-act-join-raid')?.addEventListener('click', () => {
+      hideOverlayModal('gf-activity-finder-modal');
+      window.enterPrimevalRaid?.();
+    });
     modal.querySelectorAll('[data-gf-travel-room]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const targetRoom = btn.getAttribute('data-gf-travel-room');
-        modal.style.display = 'none';
+        hideOverlayModal('gf-activity-finder-modal');
         if (targetRoom) onTravelToRoom(targetRoom);
       });
     });
@@ -547,6 +606,8 @@ export function setupWorldEventsAndHeroShare({
       }
     };
     window.openActivityFinder = openActivityFinderModal;
+    window.closeActivityFinder = () => hideOverlayModal('gf-activity-finder-modal');
+    window.closeHeroShareCard = () => hideOverlayModal('gf-hero-share-modal');
   }
 
   return {

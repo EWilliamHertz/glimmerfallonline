@@ -65,6 +65,11 @@ import { SIEGE_INTERVAL_MS, ARENA_WAIT_MS, nextThirtyMinBoundary } from './const
 export const worldPopulationMethods = {
   populateRoomEntities(room) {
     if (ROOM_CONFIGS[room.type]?.isInterior) return;
+    if (room.type === ROOM_TYPES.PRIMEVAL_NEXUS_RAID) {
+      this.populatePrimevalRaidEntities(room);
+      return;
+    }
+
     if (room.type === ROOM_TYPES.SANCTUARY_HUB) {
       room.entities.push(
         {
@@ -158,13 +163,14 @@ export const worldPopulationMethods = {
         { id: 'outpost_Aether', faction: 'Aether', name: 'Aether Astral Outpost Nexus', spriteKey: 'nexusCyan', x: 850, y: 650 },
       ];
       for (const op of outposts) {
+        const activeFac = this.warzoneOutposts?.[op.id] || op.faction;
         room.entities.push({
           id: op.id,
           name: op.name,
-          sub: `300 HP ${op.faction} Outpost Nexus [Continental]`,
+          sub: `300 HP ${activeFac} Outpost Nexus [Continental]`,
           type: 'outpost_nexus',
-          faction: op.faction,
-          spriteKey: op.spriteKey,
+          faction: activeFac,
+          spriteKey: activeFac === 'Solari' ? 'nexusGold' : activeFac === 'Umbri' ? 'nexusPurple' : activeFac === 'Terra' ? 'nexusGreen' : 'nexusCyan',
           x: op.x,
           y: op.y,
           origX: op.x,

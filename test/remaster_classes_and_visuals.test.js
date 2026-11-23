@@ -431,15 +431,18 @@ test('UI & Remaster Wiring: HD 1.5x zoom, #class-resource-bar, Free Respec, and 
   const root = path.resolve('.');
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const game = fs.readFileSync(path.join(root, 'client/game.js'), 'utf8');
+  const spellbookUi = fs.readFileSync(path.join(root, 'client/game/spellbookAndStatsUi.js'), 'utf8');
+  const tileRenderer = fs.readFileSync(path.join(root, 'client/game/tileMapRenderer.js'), 'utf8');
+  const combinedGame = `${game}\n${spellbookUi}\n${tileRenderer}`;
   const fp = fs.readFileSync(path.join(root, 'client/frontpage.js'), 'utf8');
   const hud = fs.readFileSync(path.join(root, 'client/styles/hud.css'), 'utf8');
 
   assert.ok(html.includes('id="class-resource-bar"'));
   assert.ok(hud.includes('#class-resource-bar'));
   assert.ok(game.includes('ZOOM_PRESETS = [1.5, 2, 3, 4]') && game.includes("'1.5x HD'"));
-  assert.ok(game.includes('respecSkills') && game.includes('btn-free-respec'));
+  assert.ok(combinedGame.includes('respecSkills') && combinedGame.includes('btn-free-respec'));
   assert.ok(game.includes('currentSpell = { onComplete: runOfflineExecution }'));
-  assert.ok(game.includes('drawTileChunkTransitions') && game.includes('createVfxRenderer'));
+  assert.ok(combinedGame.includes('drawTileChunkTransitions') && game.includes('createVfxRenderer'));
   assert.ok(fp.includes('setPreviewPose') && fp.includes('passiveName'));
 });
 

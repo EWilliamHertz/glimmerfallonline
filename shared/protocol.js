@@ -3,6 +3,7 @@
 // Modularized across shared/protocol/*.js
 // ==========================================
 export * from "./protocol/constants.js";
+export * from "./protocol/overworldGrid.js";
 export * from "./protocol/rooms.js";
 export * from "./protocol/abilitiesCatalog.js";
 export * from "./protocol/factionsAndClasses.js";
@@ -16,5 +17,7 @@ export * from "./protocol/familiarsAndMail.js";
 export * from "./protocol/merchantCatalog.js";
 export * from "./protocol/devotionsCatalog.js";
 export * from "./protocol/osrsLoopsCatalog.js";
+export * from "./protocol/explorationAndMounts.js";
+export * from "./protocol/endgameLoop.js";
 export * from "./net/snapshotCodec.js";
 export * from "./combat/combatRules.js";

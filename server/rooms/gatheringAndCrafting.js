@@ -202,7 +202,10 @@ export const gatheringAndCraftingMethods = {
         });
       }
       const famBonuses = computeFamiliarBonuses(player.prog?.familiars?.activeId);
-      const bonusYield = famBonuses.harvestBonusChance > 0 && Math.random() < famBonuses.harvestBonusChance ? 1 : 0;
+      const famBonusYield = famBonuses.harvestBonusChance > 0 && Math.random() < famBonuses.harvestBonusChance ? 1 : 0;
+      const opBuff = this.getPlayerOutpostBuffs ? this.getPlayerOutpostBuffs(player) : { hasBuff: false, yieldMult: 1.0 };
+      const outpostBonusYield = opBuff.hasBuff ? (Math.random() < (opBuff.yieldMult - 1) * 10 || ((player.questState?.extractionNodesHarvested || 0) % 10 === 9) ? 1 : 0) : 0;
+      const bonusYield = famBonusYield + outpostBonusYield;
       const totalHarvestQty = qty + bonusYield;
       const added = this.accounts.addItemToInventory(player.id, chosenId, totalHarvestQty);
       const itemDef = EQUIPMENT_CATALOG[chosenId];
@@ -218,15 +221,16 @@ export const gatheringAndCraftingMethods = {
         x: node.x,
         y: node.y - 6,
         text: added
-          ? `+${totalHarvestQty}x ${itemDef?.name || chosenId}${bonusYield > 0 ? ' (FAMILIAR BONUS!)' : ''}`
+          ? `+${totalHarvestQty}x ${itemDef?.name || chosenId}${outpostBonusYield > 0 ? ' (OUTPOST +10% YIELD!)' : famBonusYield > 0 ? ' (FAMILIAR BONUS!)' : ''}`
           : 'BACKPACK FULL (28/28)',
         color: added ? ((skSpec.sparkColors && skSpec.sparkColors[0]) || '#fde047') : '#ef4444',
         isCrit: added,
       });
 
-      const activeEv = isRoomInActiveWorldEvent(room.type) ? getActiveWorldEvent() : null;
-      const evGatherMult = activeEv?.bonuses?.gatheringXpMult || 1.0;
-      const effProfXp = Math.round((skSpec.xp || 25) * evGatherMult);
+      const nodeZone = node.zoneType || player.roomType || room.type;
+      const activeEv = isRoomInActiveWorldEvent(nodeZone) ? getActiveWorldEvent() : null;
+      const effEvMult = activeEv?.bonuses?.gatheringXpMult || 1.0;
+      const effProfXp = Math.round((skSpec.xp || 25) * effEvMult);
 
       this.awardPlayerXP(player, 4, skSpec.name);
       this.awardProfessionXP(player, skSpec.profession, effProfXp, activeEv ? `${skSpec.name} (${activeEv.shortTitle})` : skSpec.name);
@@ -250,7 +254,7 @@ export const gatheringAndCraftingMethods = {
 
       player.questState = player.questState || {};
       player.questState.extractionNodesHarvested = (player.questState.extractionNodesHarvested || 0) + 1;
-      if (room.type === ROOM_TYPES.STARFALL_CRATER && (node.skillingType === 'mithril_vein' || node.skillingType === 'starmetal_vein')) {
+      if (nodeZone === ROOM_TYPES.STARFALL_CRATER && (node.skillingType === 'mithril_vein' || node.skillingType === 'starmetal_vein')) {
         player.questState.starfallVeins = (player.questState.starfallVeins || 0) + 1;
       }
       this.accounts.saveQuestState(player.id, player.questState);
@@ -281,7 +285,7 @@ export const gatheringAndCraftingMethods = {
 
     player.questState = player.questState || {};
     player.questState.extractionNodesHarvested = (player.questState.extractionNodesHarvested || 0) + 1;
-    if (room.type === ROOM_TYPES.AETHER_SPIRE || node.id === 'aeth_node_1') {
+    if ((node.zoneType || player.roomType || room.type) === ROOM_TYPES.AETHER_SPIRE || node.id === 'aeth_node_1') {
       player.questState.aetherFontChanneled = true;
     }
     this.accounts.saveQuestState(player.id, player.questState);
@@ -490,16 +494,16 @@ export const gatheringAndCraftingMethods = {
     if (leveled) {
       const pInfo = PROFESSIONS_CATALOG[professionId];
       const profName = pInfo?.name || professionId;
-      const room = this.rooms.get(player.roomId);
+      const room = this.getRoomByPlayerOrId ? this.getRoomByPlayerOrId(player.roomId) : this.rooms.get(player.roomId);
       if (room) {
         room.fxQueue.push({ kind: 'spark', x: player.x, y: player.y - 12, colors: [pInfo?.color || '#38bdf8', '#ffffff', '#fde047'] });
         room.fxQueue.push({ kind: 'fct', x: player.x, y: player.y - 16, text: `🎉 ${profName.toUpperCase()} LVL ${newLevel}!`, color: pInfo?.color || '#38bdf8', isCrit: true });
+        this.broadcastToRoom(room, {
+          type: 'sys_msg',
+          category: 'chat',
+          text: `✨ ${player.displayName} has achieved level ${newLevel} in ${profName}!`,
+        });
       }
-      this.broadcastToRoom(room, {
-        type: 'sys_msg',
-        category: 'chat',
-        text: `✨ ${player.displayName} has achieved level ${newLevel} in ${profName}!`,
-      });
     }
 
     if ((professionId === 'resonance_extraction' || professionId === 'glimmerweaving') && newLevel >= 10) {

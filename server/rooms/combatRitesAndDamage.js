@@ -157,6 +157,7 @@ export const combatRitesAndDamageMethods = {
     if (spec.kind === 'heal' || spec.kind === 'heal_glimmer') {
       const healAmt = 7 + effBastion * 2 + rank * 3;
       player.hp = Math.min(player.maxHp, player.hp + healAmt);
+      this.recordArenaCombatStat?.(room, player.id, 'healing', healAmt);
       if (spec.kind === 'heal_glimmer') {
         player.weakenTimer = 0;
         player.slowTimer = 0;
@@ -470,6 +471,7 @@ export const combatRitesAndDamageMethods = {
       const healVal = Math.round(tgtNums.heal * (spec.kind === 'solaris_apotheosis' ? 1.6 : 1.0));
       const beforeSelf = player.hp;
       player.hp = Math.min(player.maxHp, player.hp + healVal);
+      this.recordArenaCombatStat?.(room, player.id, 'healing', healVal);
       const selfOverheal = Math.max(0, (beforeSelf + healVal) - player.maxHp);
       const classPassive = getClassPassive(player.classId);
       if (selfOverheal > 0 && classPassive.overhealToShieldRatio) {
@@ -751,14 +753,25 @@ export const combatRitesAndDamageMethods = {
       dmg = Math.max(1, Math.round(dmg * 1.15));
     }
     const t = targetWrap.ref;
+    if (attackerPlayer?.isSpectator) return;
     if (targetWrap.kind === 'player') {
+      if (t?.isSpectator) return;
+      this.recordArenaCombatStat?.(room, attackerPlayer?.id, 'damage', dmg);
       this.damagePlayerSession(room, t, dmg, attackerPlayer ? attackerPlayer.displayName : spellName, isCrit, attackerPlayer, isRite);
     } else {
       if (!t || t.isDying) return;
+      if (t.isRaidBoss && attackerPlayer?.faction && t.immuneFaction === attackerPlayer.faction) {
+        room.fxQueue.push({ kind: 'fct', x: t.x, y: t.y - 20, text: `🛡️ IMMUNE (${t.immuneFaction})`, color: '#e879f9', isCrit: true });
+        return;
+      }
+      if (t.isRaidBoss && t.pylonShield) {
+        dmg = Math.max(1, Math.round(dmg * 0.1));
+      }
       if ((t.staggerTimer || 0) > 0) {
         dmg = Math.max(1, Math.round(dmg * INTERRUPT_VULN_MULT));
       }
       t.hp = Math.max(0, t.hp - dmg);
+      this.recordArenaCombatStat?.(room, attackerPlayer?.id, 'damage', dmg);
       t.hitFlash = 0.14;
       if (t.type === 'mob') {
         if (attackerPlayer) {
@@ -843,7 +856,7 @@ export const combatRitesAndDamageMethods = {
           attackerPlayer.shield = Math.min(cap, (attackerPlayer.shield || 0) + overheal);
           attackerPlayer.shieldTimer = Math.max(attackerPlayer.shieldTimer || 0, 8.0);
         }
-        this.parties.syncPlayerVitals(attackerPlayer.id);
+        this.parties?.syncPlayerVitals?.(attackerPlayer.id);
       }
     }
 
@@ -871,7 +884,7 @@ export const combatRitesAndDamageMethods = {
   },
 
   damagePlayerSession(room, targetPlayer, amount, attackerName, isCrit = false, attackerRef = null, isRite = false) {
-    if (targetPlayer.isDead || targetPlayer.hp <= 0) return;
+    if (targetPlayer.isDead || targetPlayer.isSpectator || targetPlayer.hp <= 0) return;
 
     // Covenant Devotions: Ward of Steel (-35% Melee) & Astral Aegis (-35% Rite/Spell)
     if (targetPlayer.activeDevotions?.length) {
@@ -888,6 +901,14 @@ export const combatRitesAndDamageMethods = {
     if (dodgeChance > 0 && Math.random() < dodgeChance) {
       room.fxQueue.push({ kind: 'fct', x: targetPlayer.x, y: targetPlayer.y - 12, text: '💨 DODGE!', color: '#c084fc', isCrit: true });
       return;
+    }
+
+    // Instant Dismount on taking player combat damage
+    if (targetPlayer.mountId || targetPlayer.mountCast) {
+      targetPlayer.mountId = null;
+      targetPlayer.mountCast = null;
+      targetPlayer.send?.({ type: 'mount_synced', mountId: null, reason: 'damage' });
+      room.fxQueue.push({ kind: 'fct', x: targetPlayer.x, y: targetPlayer.y - 14, text: 'DISMOUNTED!', color: '#fb923c' });
     }
 
     // Terra Faction Mechanic: Hits taken build Rootguard stacks
@@ -988,7 +1009,10 @@ export const combatRitesAndDamageMethods = {
 
       // Tibia Infamy: Attacking an unflagged player in an open PvP zone flags attacker with White Skull (15m)
       const isAttackerPlayer = attackerRef && attackerRef.ws && attackerRef.id !== targetPlayer.id;
-      if (isAttackerPlayer && room.pvp && room.type !== ROOM_TYPES.ARENA_3V3 && !isDueling) {
+      const inPvpZone = room.isOverworld
+        ? Boolean(ROOM_CONFIGS[attackerRef?.roomType]?.pvp && ROOM_CONFIGS[targetPlayer.roomType]?.pvp)
+        : Boolean(room.pvp);
+      if (isAttackerPlayer && inPvpZone && room.type !== ROOM_TYPES.ARENA_3V3 && !isDueling) {
         if (!targetPlayer.skull) {
           if (attackerRef.skull !== 'red') {
             attackerRef.skull = 'white';
@@ -1011,9 +1035,18 @@ export const combatRitesAndDamageMethods = {
     if (targetPlayer.hp <= 0) {
       targetPlayer.isDead = true;
       targetPlayer.respawnTimer = 3.0;
+      if (room.type === ROOM_TYPES.ARENA_3V3) {
+        this.recordArenaCombatStat?.(room, targetPlayer.id, 'deaths', 1);
+        if (attackerRef?.ws && attackerRef.id !== targetPlayer.id) {
+          this.recordArenaCombatStat?.(room, attackerRef.id, 'kills', 1);
+        }
+      }
 
       const isAttackerPlayer = attackerRef && attackerRef.ws && attackerRef.id !== targetPlayer.id;
-      if (isAttackerPlayer && room.pvp && room.type !== ROOM_TYPES.ARENA_3V3 && !isDueling) {
+      const inPvpZoneKill = room.isOverworld
+        ? Boolean(ROOM_CONFIGS[attackerRef?.roomType]?.pvp && ROOM_CONFIGS[targetPlayer.roomType]?.pvp)
+        : Boolean(room.pvp);
+      if (isAttackerPlayer && inPvpZoneKill && room.type !== ROOM_TYPES.ARENA_3V3 && !isDueling) {
         if (!targetPlayer.skull) {
           attackerRef.pkCount = (attackerRef.pkCount || 0) + 1;
           if (attackerRef.pkCount >= 3) {
@@ -1096,7 +1129,7 @@ export const combatRitesAndDamageMethods = {
           y: Math.round(targetPlayer.y),
           gold: droppedGold,
           items: droppedItems,
-          roomType: room.type,
+          roomType: targetPlayer.roomType || room.type,
           createdAt: Date.now(),
           expiresAt: Date.now() + 900000,
         };
@@ -1106,7 +1139,7 @@ export const combatRitesAndDamageMethods = {
           id: tombstone.id,
           x: tombstone.x,
           y: tombstone.y,
-          roomType: room.type,
+          roomType: targetPlayer.roomType || room.type,
           roomId: room.id,
           gold: droppedGold,
           itemCount: droppedItems.length,

@@ -1230,6 +1230,98 @@ const ARTISAN_PROFESSION_IDS = ['relic_forging', 'rite_binding', 'glimmerweaving
         },
       ],
     },
+
+    quest_echo_keeper_duels: {
+      id: 'quest_echo_keeper_duels',
+      title: 'Friendly Echo Skirmishes',
+      giverId: 'npc_echo_keeper_sylvi',
+      turnInId: 'npc_echo_keeper_sylvi',
+      questPoints: 1,
+      unlocks: ['Construct Cradle Duel Mastery', 'Next Side-Quest: Whispers Across the Wilds'],
+      description: 'Visit Echo Keeper Sylvi in the Hearthstone Inn & Tavern (or use /famduel) to complete 1 non-lethal Echo Familiar skirmish.',
+      isComplete: () => Math.max(Number(questState.famDuelsCompleted || 0), questCounter('quest_echo_keeper_duels', 'famDuelsCompleted')) >= 1,
+      tasks: [
+        {
+          text: 'Complete a friendly /famduel skirmish in Sanctuary or Tavern',
+          done: () => Math.max(Number(questState.famDuelsCompleted || 0), questCounter('quest_echo_keeper_duels', 'famDuelsCompleted')) >= 1,
+          counter: () => `${Math.min(1, Math.max(Number(questState.famDuelsCompleted || 0), questCounter('quest_echo_keeper_duels', 'famDuelsCompleted')))} / 1`,
+        },
+      ],
+      rewards: {
+        xp: 160,
+        glimmer: 65,
+        gold: 90,
+        professionXp: { rite_binding: 65 },
+      },
+      acceptDialogue: [
+        {
+          speaker: 'ECHO KEEPER SYLVI • HEARTHSTONE INN',
+          spriteKey: 'heraldNpc',
+          text: 'Welcome inside, Summoner-Knight! When two Nexus Familiars spar inside Sanctuary or a warm tavern, neither beast ever comes to harm—we call it an Echo Skirmish! Use Strike, Ward/Mend, and Faction Surge (Solari <-> Umbri, Terra <-> Aether) to test your timing.',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'ECHO KEEPER SYLVI • HEARTHSTONE INN',
+          spriteKey: 'heraldNpc',
+          text: 'Ready to spar? Type /famduel in Sanctuary or talk to me right here to start a friendly 60s Echo Skirmish!',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'ECHO KEEPER SYLVI • HEARTHSTONE INN',
+          spriteKey: 'heraldNpc',
+          text: 'Splendid footwork and clean elemental timing! Seek out untamed Stray Echoes during 15-minute World Events next if you want rare Starlight & Prismatic aura variants!',
+        },
+      ],
+      nextQuestId: 'quest_echo_keeper_whisper',
+    },
+
+    quest_echo_keeper_whisper: {
+      id: 'quest_echo_keeper_whisper',
+      title: 'Whispers Across the Wilds',
+      giverId: 'npc_echo_keeper_sylvi',
+      turnInId: 'npc_echo_keeper_sylvi',
+      prereqQuestId: 'quest_echo_keeper_duels',
+      questPoints: 2,
+      unlocks: ['Title: <Echo Whisperer>', 'Starlight & Prismatic Familiar Aura Drops'],
+      description: 'Decode raw gathered fish, ores, or herbs into Harmonic Ciphers, then soothe 1 Wild Stray Echo during a World Event or near Sanctuary Woods.',
+      isComplete: () => Math.max(Number(questState.wildEchoesSoothed || 0), questCounter('quest_echo_keeper_whisper', 'wildEchoesSoothed')) >= 1,
+      tasks: [
+        {
+          text: 'Soothe a Wild Stray Echo with a Harmonic Cipher [E]',
+          done: () => Math.max(Number(questState.wildEchoesSoothed || 0), questCounter('quest_echo_keeper_whisper', 'wildEchoesSoothed')) >= 1,
+          counter: () => `${Math.min(1, Math.max(Number(questState.wildEchoesSoothed || 0), questCounter('quest_echo_keeper_whisper', 'wildEchoesSoothed')))} / 1`,
+        },
+      ],
+      rewards: {
+        xp: 280,
+        glimmer: 120,
+        gold: 160,
+        professionXp: { resonance_extraction: 120, rite_binding: 90 },
+      },
+      acceptDialogue: [
+        {
+          speaker: 'ECHO KEEPER SYLVI • HEARTHSTONE INN',
+          spriteKey: 'heraldNpc',
+          text: 'Every 15 minutes a Cosmic World Event stirs untamed Stray Echoes out in the biomes—and one often wanders near Sanctuary Haven! Bring a matching Harmonic Cipher, approach gently, and press [E] to soothe it for an Echo-Print and rare Starlight/Prismatic colors.',
+        },
+      ],
+      ongoingDialogue: [
+        {
+          speaker: 'ECHO KEEPER SYLVI • HEARTHSTONE INN',
+          spriteKey: 'heraldNpc',
+          text: 'Use the Harmonic Extractor to turn fish, ores, or herbs into Ciphers, then soothe 1 Wild Stray Echo [E] in the wilds!',
+        },
+      ],
+      completeDialogue: [
+        {
+          speaker: 'ECHO KEEPER SYLVI • HEARTHSTONE INN',
+          spriteKey: 'heraldNpc',
+          text: 'The wild leylines answer your call! Wear your Echo Whisperer honors proudly—Starlight and Prismatic variants await every collector.',
+        },
+      ],
+    },
   };
 
 
