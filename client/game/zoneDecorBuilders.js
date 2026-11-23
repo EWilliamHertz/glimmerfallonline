@@ -956,17 +956,13 @@ export function createZoneDecorManager({
         { type: 'streetLantern', x: -42, y: 205 },
         { type: 'streetLantern', x: 42, y: 205 },
 
-        // 8. Four Cardinal City Gateways
-        { type: 'ruinedArch', x: 0, y: -375 },
+        // 8. Roadside Landmarks (Open overland roads — no gateway portals)
         { type: 'crystalPillar', x: -55, y: -375 },
         { type: 'crystalPillar', x: 55, y: -375 },
-        { type: 'ruinedArch', x: 0, y: 375 },
         { type: 'ancientOak', x: -65, y: 375 },
         { type: 'ancientOak', x: 65, y: 375 },
-        { type: 'ruinedArch', x: -410, y: 0 },
         { type: 'brazier', x: -410, y: -42 },
         { type: 'brazier', x: -410, y: 42 },
-        { type: 'ruinedArch', x: 410, y: 0 },
         { type: 'umbriBrazierAltar', x: 410, y: -42 },
         { type: 'umbriBrazierAltar', x: 410, y: 42 }
       );
@@ -1120,8 +1116,7 @@ export function createZoneDecorManager({
         },
         { type: 'terracottaUrn', x: 184, y: -206 },
         { type: 'terracottaUrn', x: 232, y: -206 },
-        // Grand North Waygate to Continental Caldera Realm
-        { type: 'ruinedArch', x: 0, y: -380 },
+        // Grand North Approach to Continental Caldera Realm (open road)
         { type: 'crystalPillar', x: -80, y: -380 },
         { type: 'crystalPillar', x: 80, y: -380 },
         { type: 'brazier', x: -48, y: -390 },
@@ -1144,7 +1139,6 @@ export function createZoneDecorManager({
       // Grand Summit Props (Stairway colonnade, terrace monuments, throne braziers)
       props.push(
         // South Entrance Threshold & Greeting Colonnade
-        { type: 'ruinedArch', x: 0, y: 1040 },
         { type: 'brazier', x: -50, y: 1020 },
         { type: 'brazier', x: 50, y: 1020 },
         { type: 'crystalPillar', x: -90, y: 980 },
@@ -1156,10 +1150,8 @@ export function createZoneDecorManager({
         { type: 'brazier', x: -50, y: 580 },
         { type: 'brazier', x: 50, y: 580 },
 
-        // Mid-Ascent Grand Stargate Terrace (y: 200 to -200)
+        // Mid-Ascent Grand Terrace (y: 200 to -200)
         { type: 'monument', x: 0, y: 0 },
-        { type: 'ruinedArch', x: 0, y: 220 },
-        { type: 'ruinedArch', x: 0, y: -220 },
         { type: 'crystalPillar', x: -180, y: 0 },
         { type: 'crystalPillar', x: 180, y: 0 },
         { type: 'brazier', x: -120, y: -120 },
@@ -1168,7 +1160,6 @@ export function createZoneDecorManager({
         { type: 'brazier', x: 120, y: 120 },
 
         // Northern Titan Colosseum Throne Platform (y: -500 to -950)
-        { type: 'ruinedArch', x: 0, y: -580 },
         { type: 'crystalPillar', x: -220, y: -750 },
         { type: 'crystalPillar', x: 220, y: -750 },
         { type: 'crystalPillar', x: -220, y: -920 },
@@ -1307,8 +1298,7 @@ export function createZoneDecorManager({
         { type: 'brazier', x: -70, y: 160 },
         { type: 'brazier', x: 70, y: 160 },
         { type: 'brazier', x: -90, y: -210 },
-        { type: 'brazier', x: 90, y: -210 },
-        { type: 'ruinedArch', x: 0, y: -240 }
+        { type: 'brazier', x: 90, y: -210 }
       );
       npcs.push({
         id: 'npc_orion',
@@ -1339,8 +1329,6 @@ export function createZoneDecorManager({
         { type: 'celestialLoom', stationId: 'celestial_loom', x: 58, y: 235, label: '🧵 Voidstar Loom [Click / E]' },
         { type: 'bountyBoard', isBountyBoard: true, x: -105, y: 235, label: '📜 Rift Bounty Board [Click / E]' },
         { type: 'campfire', x: 0, y: 268, label: '🔥 Void-Warden Vigil Fire' },
-        { type: 'ruinedArch', x: 0, y: 260 },
-        { type: 'ruinedArch', x: 0, y: -260 },
         { type: 'crystalPillar', x: -160, y: 90 },
         { type: 'crystalPillar', x: 160, y: 90 },
         { type: 'crystalPillar', x: -180, y: -150 },
@@ -1526,12 +1514,8 @@ export function createZoneDecorManager({
           { type: 'mountainCrag', x: 145, y: 440 }
         );
 
-        // 3. Central Caldera Bastion (Arches, Braziers, Obelisks)
+        // 3. Central Caldera Bastion (Braziers, Obelisks)
         props.push(
-          { type: 'ruinedArch', x: 0, y: 260 },
-          { type: 'ruinedArch', x: 0, y: -260 },
-          { type: 'ruinedArch', x: -260, y: 0 },
-          { type: 'ruinedArch', x: 260, y: 0 },
           { type: 'brazier', x: -90, y: 90 },
           { type: 'brazier', x: 90, y: 90 },
           { type: 'brazier', x: -90, y: -90 },
@@ -1540,13 +1524,8 @@ export function createZoneDecorManager({
           { type: 'pillar', x: 140, y: 0 }
         );
 
-        // 4. North Forgotten Ruins Plateau (Ruined Arches, Ancient Monuments, Stone Pillars & Ascension Gateway)
+        // 4. North Forgotten Ruins Plateau (Ancient Monuments & Stone Pillars)
         props.push(
-          { type: 'ruinedArch', x: 0, y: -520 },
-          { type: 'ruinedArch', x: 0, y: -960 },
-          { type: 'ruinedArch', x: 0, y: -1380 },
-          { type: 'ruinedArch', x: 0, y: -1580 },
-          { type: 'ruinedArch', x: 0, y: -1760 },
           { type: 'monument', x: 0, y: -740 },
           { type: 'monument', x: -110, y: -1150 },
           { type: 'monument', x: 110, y: -1150 },

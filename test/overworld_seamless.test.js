@@ -7,12 +7,16 @@ import {
   FOUNDER_ONLY_ROOMS,
   SURFACE_ROOM_TYPES,
   ENTERED_ROOM_TYPES,
+  SURFACE_ZONE_DEFINITIONS,
   SURFACE_ZONE_PLACEMENT,
   SURFACE_TRANSITION_CORRIDORS,
   isSurfaceRoomType,
   isEnteredRealm,
   localToWorld,
   getRegionAtWorldPos,
+  isWalkableSurfacePos,
+  isSurfaceFootprintInWater,
+  getDistanceOutsideWalkableSurface,
   migrateLegacyPosition,
 } from '../shared/protocol.js';
 import { AccountsStore } from '../server/accountsStore.js';
@@ -254,4 +258,149 @@ test('migrateLegacyPosition converts legacy surface local coords to global Overw
   assert.equal(cavern.roomType, ROOM_TYPES.LUMINOUS_CAVERN);
   assert.equal(cavern.x, -45);
   assert.equal(cavern.y, 80);
+});
+
+test('All 24 surface corridors orient gradients monotonically, stay inside zone overlap, stay dry, and match ROOM_CONFIGS dimensions', () => {
+  for (const [id, def] of Object.entries(SURFACE_ZONE_DEFINITIONS)) {
+    const cfg = ROOM_CONFIGS[id];
+    assert.ok(cfg, `ROOM_CONFIGS exists for ${id}`);
+    assert.equal(cfg.halfW, def.halfW, `${id} halfW matches ROOM_CONFIGS`);
+    assert.equal(cfg.halfH, def.halfH, `${id} halfH matches ROOM_CONFIGS`);
+  }
+
+  for (const cor of SURFACE_TRANSITION_CORRIDORS) {
+    const pMin = SURFACE_ZONE_PLACEMENT[cor.minRoom];
+    const pMax = SURFACE_ZONE_PLACEMENT[cor.maxRoom];
+    const cMin = ROOM_CONFIGS[cor.minRoom];
+    const cMax = ROOM_CONFIGS[cor.maxRoom];
+    assert.ok(pMin && pMax && cMin && cMax, `Placements/configs exist for ${cor.id}`);
+
+    const overlapMin = Math.max(
+      cor.axis === 'y' ? pMin.originX - cMin.halfW : pMin.originY - cMin.halfH,
+      cor.axis === 'y' ? pMax.originX - cMax.halfW : pMax.originY - cMax.halfH
+    );
+    const overlapMax = Math.min(
+      cor.axis === 'y' ? pMin.originX + cMin.halfW : pMin.originY + cMin.halfH,
+      cor.axis === 'y' ? pMax.originX + cMax.halfW : pMax.originY + cMax.halfH
+    );
+    const fixedCenter = cor.axis === 'y' ? cor.midX : cor.midY;
+    assert.ok(
+      fixedCenter - cor.halfWidth >= overlapMin && fixedCenter + cor.halfWidth <= overlapMax,
+      `${cor.id} width fits inside shared overlap [${overlapMin}..${overlapMax}]`
+    );
+
+    const alongMin = cor.axis === 'x' ? cor.minX : cor.minY;
+    const alongMax = cor.axis === 'x' ? cor.maxX : cor.maxY;
+    let prevRoom = null;
+    let flips = 0;
+    let prevBlendT = -1;
+    for (let u = alongMin - 48; u <= alongMax + 48; u += 8) {
+      const wx = cor.axis === 'x' ? u : fixedCenter;
+      const wy = cor.axis === 'y' ? u : fixedCenter;
+      assert.equal(isWalkableSurfacePos(wx, wy, 4), true, `${cor.id} walkable at (${wx}, ${wy})`);
+      assert.equal(isSurfaceFootprintInWater(wx, wy, 5, 4), false, `${cor.id} dry at (${wx}, ${wy})`);
+      const reg = getRegionAtWorldPos(wx, wy);
+      if (reg.inTransition && reg.corridor?.id === cor.id) {
+        assert.ok(reg.blendT >= prevBlendT - 1e-6, `${cor.id} blendT monotonic ascending (${prevBlendT} -> ${reg.blendT})`);
+        prevBlendT = reg.blendT;
+      }
+      if (prevRoom && reg.roomType !== prevRoom) flips++;
+      prevRoom = reg.roomType;
+    }
+    assert.equal(flips, 1, `${cor.id} flips biome exactly once`);
+  }
+
+  assert.equal(getDistanceOutsideWalkableSurface(0, 0), 0);
+  assert.equal(getDistanceOutsideWalkableSurface(0, 520), 0);
+  assert.ok(getDistanceOutsideWalkableSurface(500, 530) > 0);
+});
+
+test('Northbound and Westbound overland walks emit monotonic single-flip region_changed events with open road decor', () => {
+  const accounts = new AccountsStore();
+  const rooms = new RoomManager(accounts);
+  try {
+    const { account: founderAcc } = accounts.createGuestAccount({ faction: 'Solari', classId: 'solari_vanguard' });
+    founderAcc.tcgLinked = true;
+    founderAcc.statsMeta = { ...(founderAcc.statsMeta || {}), editionTier: 'founder' };
+    const chars = accounts.charactersByAccount.get(founderAcc.id);
+    if (chars) {
+      for (const ch of chars.values()) {
+        ch.statsMeta = { ...(ch.statsMeta || {}), editionTier: 'founder' };
+      }
+    }
+
+    const wsN = createMockWs();
+    const clientN = rooms.attachConnection(wsN, founderAcc, ROOM_TYPES.SANCTUARY_HUB, 0, -440);
+    wsN.sent.length = 0;
+
+    let seq = 1;
+    const northSeq = [clientN.roomType];
+    for (let wy = -456; wy >= -3400; wy -= 16) {
+      rooms.handlePacket(clientN, {
+        type: 'move',
+        x: 0,
+        y: wy,
+        z: 0,
+        dir: 'up',
+        isMoving: true,
+        seq: seq++,
+        epoch: clientN.epoch,
+      });
+      if (northSeq[northSeq.length - 1] !== clientN.roomType) {
+        northSeq.push(clientN.roomType);
+      }
+    }
+
+    assert.deepEqual(northSeq, [
+      ROOM_TYPES.SANCTUARY_HUB,
+      ROOM_TYPES.AETHER_SPIRE,
+      ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
+      ROOM_TYPES.NEXUS_WARZONE,
+    ]);
+    const northEvents = wsN.sent.filter((m) => m.type === 'region_changed').map((m) => m.roomType);
+    assert.deepEqual(northEvents, [
+      ROOM_TYPES.AETHER_SPIRE,
+      ROOM_TYPES.NEXUS_FORGOTTEN_RUINS,
+      ROOM_TYPES.NEXUS_WARZONE,
+    ]);
+
+    const wsW = createMockWs();
+    const clientW = rooms.attachConnection(wsW, founderAcc, ROOM_TYPES.SANCTUARY_HUB, -500, 0);
+    wsW.sent.length = 0;
+    seq = 1;
+    const westSeq = [clientW.roomType];
+    for (let wx = -516; wx >= -1000; wx -= 16) {
+      rooms.handlePacket(clientW, {
+        type: 'move',
+        x: wx,
+        y: 0,
+        z: 0,
+        dir: 'left',
+        isMoving: true,
+        seq: seq++,
+        epoch: clientW.epoch,
+      });
+      if (westSeq[westSeq.length - 1] !== clientW.roomType) {
+        westSeq.push(clientW.roomType);
+      }
+    }
+    assert.deepEqual(westSeq, [ROOM_TYPES.SANCTUARY_HUB, ROOM_TYPES.SOLARI_CITADEL]);
+    assert.deepEqual(
+      wsW.sent.filter((m) => m.type === 'region_changed').map((m) => m.roomType),
+      [ROOM_TYPES.SOLARI_CITADEL]
+    );
+
+    rooms.removeClient(clientN);
+    rooms.removeClient(clientW);
+  } finally {
+    rooms.stop();
+    clearStoreTimer(accounts);
+  }
+
+  const decorSrc = fs.readFileSync(new URL('../client/game/zoneDecorBuilders.js', import.meta.url), 'utf8');
+  assert.ok(!decorSrc.includes("type: 'ruinedArch', x: 0, y: -375"));
+  assert.ok(!decorSrc.includes("type: 'ruinedArch', x: 0, y: -380"));
+  // Entered Crypt doorways remain intact
+  const archCount = (decorSrc.match(/type:\s*'ruinedArch'/g) || []).length;
+  assert.equal(archCount, 4, 'Only the 4 Mythic Crypt doorways retain ruinedArch props');
 });

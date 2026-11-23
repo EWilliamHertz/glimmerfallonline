@@ -3,6 +3,16 @@
 // Deterministic per world cell so scenery never pops between frames.
 // ==========================================
 
+import {
+  ROOM_CONFIGS,
+  SURFACE_ZONE_PLACEMENT,
+  isSurfaceRoomType,
+  getRegionAtWorldPos,
+  isWalkableSurfacePos,
+  getDistanceOutsideWalkableSurface,
+  isSurfaceWaterTile,
+} from '../../shared/protocol.js';
+
 const AMBIENT_SEA_CELL = 44;
 const AMBIENT_STACK_CELL = 190;
 const AMBIENT_GROUND_CELL = 46;
@@ -21,6 +31,7 @@ export function createAmbientRenderer({
   getMapBounds,
   getViewSize,
   getCurrentBiomeTheme,
+  getCurrentRoomType = () => null,
 }) {
   function drawSeaStack(sx, sy, h, t) {
     const w = 8 + Math.floor(h * 10);
@@ -54,58 +65,61 @@ export function createAmbientRenderer({
     const t = getGlobalTime();
     const { halfW, halfH } = getMapBounds();
     const { viewW, viewH } = getViewSize();
+    const isSurface = isSurfaceRoomType(getCurrentRoomType());
     const step = 24;
 
-    const northY = Math.round(-halfH - camTop);
-    if (northY > -16 && northY < viewH + 16) {
-      const from = Math.max(-halfW, camLeft - step);
-      const to = Math.min(halfW, camLeft + viewW + step);
-      for (let wx = Math.ceil(from / step) * step; wx <= to; wx += step) {
-        const sx = Math.round(wx - camLeft);
-        const ph = Math.sin(t * 2.3 + wx * 0.055);
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.20)';
-        ctx.fillRect(sx, northY - 3, 9 + Math.round((ph + 1) * 4), 1);
-        ctx.fillStyle = 'rgba(224, 242, 254, 0.30)';
-        ctx.fillRect(sx + 3, northY - 5, 4 + Math.round((ph + 1) * 2), 1);
+    if (!isSurface) {
+      const northY = Math.round(-halfH - camTop);
+      if (northY > -16 && northY < viewH + 16) {
+        const from = Math.max(-halfW, camLeft - step);
+        const to = Math.min(halfW, camLeft + viewW + step);
+        for (let wx = Math.ceil(from / step) * step; wx <= to; wx += step) {
+          const sx = Math.round(wx - camLeft);
+          const ph = Math.sin(t * 2.3 + wx * 0.055);
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.20)';
+          ctx.fillRect(sx, northY - 3, 9 + Math.round((ph + 1) * 4), 1);
+          ctx.fillStyle = 'rgba(224, 242, 254, 0.30)';
+          ctx.fillRect(sx + 3, northY - 5, 4 + Math.round((ph + 1) * 2), 1);
+        }
       }
-    }
-    const southY = Math.round(halfH - camTop);
-    if (southY > -16 && southY < viewH + 16) {
-      const from = Math.max(-halfW, camLeft - step);
-      const to = Math.min(halfW, camLeft + viewW + step);
-      for (let wx = Math.ceil(from / step) * step; wx <= to; wx += step) {
-        const sx = Math.round(wx - camLeft);
-        const ph = Math.sin(t * 2.3 + wx * 0.055 + 1.7);
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.20)';
-        ctx.fillRect(sx, southY + 2, 9 + Math.round((ph + 1) * 4), 1);
-        ctx.fillStyle = 'rgba(224, 242, 254, 0.30)';
-        ctx.fillRect(sx + 3, southY + 4, 4 + Math.round((ph + 1) * 2), 1);
+      const southY = Math.round(halfH - camTop);
+      if (southY > -16 && southY < viewH + 16) {
+        const from = Math.max(-halfW, camLeft - step);
+        const to = Math.min(halfW, camLeft + viewW + step);
+        for (let wx = Math.ceil(from / step) * step; wx <= to; wx += step) {
+          const sx = Math.round(wx - camLeft);
+          const ph = Math.sin(t * 2.3 + wx * 0.055 + 1.7);
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.20)';
+          ctx.fillRect(sx, southY + 2, 9 + Math.round((ph + 1) * 4), 1);
+          ctx.fillStyle = 'rgba(224, 242, 254, 0.30)';
+          ctx.fillRect(sx + 3, southY + 4, 4 + Math.round((ph + 1) * 2), 1);
+        }
       }
-    }
-    const westX = Math.round(-halfW - camLeft);
-    if (westX > -16 && westX < viewW + 16) {
-      const from = Math.max(-halfH, camTop - step);
-      const to = Math.min(halfH, camTop + viewH + step);
-      for (let wy = Math.ceil(from / step) * step; wy <= to; wy += step) {
-        const sy = Math.round(wy - camTop);
-        const ph = Math.sin(t * 2.3 + wy * 0.055 + 3.1);
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.20)';
-        ctx.fillRect(westX - 3, sy, 1, 9 + Math.round((ph + 1) * 4));
-        ctx.fillStyle = 'rgba(224, 242, 254, 0.30)';
-        ctx.fillRect(westX - 5, sy + 3, 1, 4 + Math.round((ph + 1) * 2));
+      const westX = Math.round(-halfW - camLeft);
+      if (westX > -16 && westX < viewW + 16) {
+        const from = Math.max(-halfH, camTop - step);
+        const to = Math.min(halfH, camTop + viewH + step);
+        for (let wy = Math.ceil(from / step) * step; wy <= to; wy += step) {
+          const sy = Math.round(wy - camTop);
+          const ph = Math.sin(t * 2.3 + wy * 0.055 + 3.1);
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.20)';
+          ctx.fillRect(westX - 3, sy, 1, 9 + Math.round((ph + 1) * 4));
+          ctx.fillStyle = 'rgba(224, 242, 254, 0.30)';
+          ctx.fillRect(westX - 5, sy + 3, 1, 4 + Math.round((ph + 1) * 2));
+        }
       }
-    }
-    const eastX = Math.round(halfW - camLeft);
-    if (eastX > -16 && eastX < viewW + 16) {
-      const from = Math.max(-halfH, camTop - step);
-      const to = Math.min(halfH, camTop + viewH + step);
-      for (let wy = Math.ceil(from / step) * step; wy <= to; wy += step) {
-        const sy = Math.round(wy - camTop);
-        const ph = Math.sin(t * 2.3 + wy * 0.055 + 4.6);
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.20)';
-        ctx.fillRect(eastX + 2, sy, 1, 9 + Math.round((ph + 1) * 4));
-        ctx.fillStyle = 'rgba(224, 242, 254, 0.30)';
-        ctx.fillRect(eastX + 4, sy + 3, 1, 4 + Math.round((ph + 1) * 2));
+      const eastX = Math.round(halfW - camLeft);
+      if (eastX > -16 && eastX < viewW + 16) {
+        const from = Math.max(-halfH, camTop - step);
+        const to = Math.min(halfH, camTop + viewH + step);
+        for (let wy = Math.ceil(from / step) * step; wy <= to; wy += step) {
+          const sy = Math.round(wy - camTop);
+          const ph = Math.sin(t * 2.3 + wy * 0.055 + 4.6);
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.20)';
+          ctx.fillRect(eastX + 2, sy, 1, 9 + Math.round((ph + 1) * 4));
+          ctx.fillStyle = 'rgba(224, 242, 254, 0.30)';
+          ctx.fillRect(eastX + 4, sy + 3, 1, 4 + Math.round((ph + 1) * 2));
+        }
       }
     }
 
@@ -120,7 +134,11 @@ export function createAmbientRenderer({
         if (h > 0.22) continue;
         const wx = gx * seaCell + 5 + ambientHash(gx, gy, 12) * (seaCell - 10);
         const wy = gy * seaCell + 5 + ambientHash(gx, gy, 13) * (seaCell - 10);
-        if (wx >= -halfW && wx < halfW && wy >= -halfH && wy < halfH) continue;
+        if (isSurface) {
+          if (isWalkableSurfacePos(wx, wy, 0) || getDistanceOutsideWalkableSurface(wx, wy) <= 96) continue;
+        } else if (wx >= -halfW && wx < halfW && wy >= -halfH && wy < halfH) {
+          continue;
+        }
         const sx = Math.round(wx - camLeft);
         const sy = Math.round(wy - camTop);
         if (sx < -8 || sx > viewW + 8 || sy < -8 || sy > viewH + 8) continue;
@@ -146,9 +164,14 @@ export function createAmbientRenderer({
         if (h > 0.17) continue;
         const wx = gx * stackCell + 16 + ambientHash(gx, gy, 22) * (stackCell - 32);
         const wy = gy * stackCell + 16 + ambientHash(gx, gy, 23) * (stackCell - 32);
-        if (wx >= -halfW && wx < halfW && wy >= -halfH && wy < halfH) continue;
-        const shore = Math.max(-halfW - wx, wx - halfW, -halfH - wy, wy - halfH);
-        if (shore < 20 || shore > 190) continue;
+        if (isSurface) {
+          const outDist = getDistanceOutsideWalkableSurface(wx, wy);
+          if (outDist < 96 || outDist > 260) continue;
+        } else {
+          if (wx >= -halfW && wx < halfW && wy >= -halfH && wy < halfH) continue;
+          const shore = Math.max(-halfW - wx, wx - halfW, -halfH - wy, wy - halfH);
+          if (shore < 20 || shore > 190) continue;
+        }
         const sx = Math.round(wx - camLeft);
         const sy = Math.round(wy - camTop);
         if (sx < -24 || sx > viewW + 24 || sy < -28 || sy > viewH + 12) continue;
@@ -157,8 +180,8 @@ export function createAmbientRenderer({
     }
   }
 
-  function ambientGroundKind() {
-    switch (getCurrentBiomeTheme()) {
+  function ambientGroundKind(theme = getCurrentBiomeTheme()) {
+    switch (theme) {
       case 'sanctuary':
       case 'terra':
       case 'terra_grove': return 'grass';
@@ -177,16 +200,16 @@ export function createAmbientRenderer({
     }
   }
 
-  function ambientGroundAllowed(wx, wy) {
-    const { halfW, halfH } = getMapBounds();
-    const edge = Math.min(halfW - Math.abs(wx), halfH - Math.abs(wy));
+  function ambientGroundAllowed(lx, ly, theme = getCurrentBiomeTheme(), bounds = getMapBounds()) {
+    const { halfW, halfH } = bounds;
+    const edge = Math.min(halfW - Math.abs(lx), halfH - Math.abs(ly));
     if (edge < 24) return false;
-    if (Math.abs(wx) < 56 || Math.abs(wy) < 56) return false;
+    if (Math.abs(lx) < 56 || Math.abs(ly) < 56) return false;
 
-    const tx = Math.floor(wx / TILE_SIZE);
-    const ty = Math.floor(wy / TILE_SIZE);
+    const tx = Math.floor(lx / TILE_SIZE);
+    const ty = Math.floor(ly / TILE_SIZE);
 
-    switch (getCurrentBiomeTheme()) {
+    switch (theme) {
       case 'sanctuary':
         if (Math.abs(tx) <= 3 || Math.abs(ty) <= 3) return false;
         if (Math.abs(tx) <= 7 && Math.abs(ty) <= 7) return false;
@@ -230,8 +253,7 @@ export function createAmbientRenderer({
     }
   }
 
-  function drawGroundDetail(kind, sx, sy, h, t) {
-    const theme = getCurrentBiomeTheme();
+  function drawGroundDetail(kind, sx, sy, h, t, theme = getCurrentBiomeTheme()) {
     switch (kind) {
       case 'grass': {
         const lush = theme !== 'sanctuary';
@@ -395,8 +417,10 @@ export function createAmbientRenderer({
   }
 
   function drawGroundAmbient(camLeft, camTop) {
-    const kind = ambientGroundKind();
-    if (kind === 'none') return;
+    const roomType = getCurrentRoomType();
+    const isSurface = isSurfaceRoomType(roomType);
+    const defaultKind = ambientGroundKind();
+    if (!isSurface && defaultKind === 'none') return;
     const t = getGlobalTime();
     const { halfW, halfH } = getMapBounds();
     const { viewW, viewH } = getViewSize();
@@ -412,16 +436,48 @@ export function createAmbientRenderer({
         const h2 = ambientHash(gx, gy, 32);
         const wx = gx * cell + 5 + h2 * (cell - 10);
         const wy = gy * cell + 5 + ambientHash(gx, gy, 33) * (cell - 10);
-        if (!ambientGroundAllowed(wx, wy)) continue;
 
-        const edge = Math.min(halfW - Math.abs(wx), halfH - Math.abs(wy));
+        let kind = defaultKind;
+        let localTheme = getCurrentBiomeTheme();
+        let edge = Math.min(halfW - Math.abs(wx), halfH - Math.abs(wy));
+
+        if (isSurface) {
+          if (!isWalkableSurfacePos(wx, wy, 14) || isSurfaceWaterTile(wx, wy)) continue;
+          const reg = getRegionAtWorldPos(wx, wy, roomType);
+          let localRoom = reg.roomType;
+          if (reg.inTransition && reg.corridor) {
+            const cor = reg.corridor;
+            const perpDist = cor.axis === 'x' ? Math.abs(wy - cor.midY) : Math.abs(wx - cor.midX);
+            if (perpDist <= 48) continue;
+            const smoothT = reg.blendT * reg.blendT * (3 - 2 * reg.blendT);
+            localRoom = ambientHash(gx, gy, 37) < smoothT ? reg.toRoom : reg.fromRoom;
+            localTheme = ROOM_CONFIGS[localRoom]?.biomeTheme || localTheme;
+            kind = ambientGroundKind(localTheme);
+            if (kind === 'none') continue;
+            edge = 160;
+          } else {
+            const zCfg = ROOM_CONFIGS[localRoom];
+            const place = SURFACE_ZONE_PLACEMENT[localRoom];
+            if (!zCfg || !place) continue;
+            localTheme = zCfg.biomeTheme;
+            kind = ambientGroundKind(localTheme);
+            if (kind === 'none') continue;
+            const lx = wx - place.originX;
+            const ly = wy - place.originY;
+            if (!ambientGroundAllowed(lx, ly, localTheme, zCfg)) continue;
+            edge = Math.min(zCfg.halfW - Math.abs(lx), zCfg.halfH - Math.abs(ly));
+          }
+        } else {
+          if (!ambientGroundAllowed(wx, wy)) continue;
+        }
+
         const density = edge < 132 ? 0.46 : 0.18;
         if (h > density) continue;
 
         const sx = Math.round(wx - camLeft);
         const sy = Math.round(wy - camTop);
         if (sx < -12 || sx > viewW + 12 || sy < -16 || sy > viewH + 12) continue;
-        drawGroundDetail(kind, sx, sy, h2, t);
+        drawGroundDetail(kind, sx, sy, h2, t, localTheme);
       }
     }
   }

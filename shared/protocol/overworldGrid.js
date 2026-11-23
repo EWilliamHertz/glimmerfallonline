@@ -8,7 +8,7 @@ import { TILE_SIZE } from './constants.js';
 
 export const TRANSITION_BUFFER_TILES = 20; // 16-24 tile transitioning buffer biome strip
 export const TRANSITION_BUFFER_PX = TRANSITION_BUFFER_TILES * TILE_SIZE; // 320px
-export const CORRIDOR_HALF_WIDTH_PX = 128; // 16-tile wide walkable crossing corridor
+export const CORRIDOR_HALF_WIDTH_PX = 192; // 24-tile wide seamless overland crossing avenue
 
 export const SURFACE_ROOM_TYPES = new Set([
   'sanctuary_hub',
@@ -65,7 +65,7 @@ export const SURFACE_ZONE_DEFINITIONS = {
   chronocore_citadel:   { originX: 2080,  originY: -8352, halfW: 640,  halfH: 640 },
   abyssal_rift:         { originX: 3440,  originY: -5112, halfW: 720,  halfH: 720 },
   solar_highlands:      { originX: -1296, originY: 1360,  halfW: 592,  halfH: 592 },
-  coral_coast:          { originX: 1472,  originY: 1480,  halfW: 576,  halfH: 576 },
+  coral_coast:          { originX: 1472,  originY: 1480,  halfW: 576,  halfH: 608 },
   ironwood_timberlands: { originX: 0,     originY: 2496,  halfW: 576,  halfH: 576 },
   starlight_grove:      { originX: -1504, originY: 2880,  halfW: 608,  halfH: 608 },
   sunken_oasis:         { originX: 1488,  originY: 2968,  halfW: 592,  halfH: 592 },
@@ -90,12 +90,33 @@ export const SURFACE_ZONE_PLACEMENT = Object.fromEntries(
   ])
 );
 
-function buildCorridor(fromRoom, toRoom, axis, fixedCoord, minAlong, maxAlong, halfWidth = CORRIDOR_HALF_WIDTH_PX) {
+function buildCorridor(fromRoom, toRoom, axis, fixedCoord, minAlong, maxAlong, requestedHalfWidth = CORRIDOR_HALF_WIDTH_PX) {
   const isX = axis === 'x';
+  const zA = SURFACE_ZONE_PLACEMENT[fromRoom];
+  const zB = SURFACE_ZONE_PLACEMENT[toRoom];
+
+  // Orient gradient strictly along ascending world coordinates: minRoom (t=0) -> maxRoom (t=1)
+  const aIsMin = isX ? (zA.originX <= zB.originX) : (zA.originY <= zB.originY);
+  const minRoom = aIsMin ? fromRoom : toRoom;
+  const maxRoom = aIsMin ? toRoom : fromRoom;
+
+  // Clamp perpendicular half-width safely inside the shared overlap of both zones so mouths never overhang
+  let halfWidth = requestedHalfWidth;
+  if (zA && zB) {
+    const overlapMin = isX ? Math.max(zA.minY, zB.minY) : Math.max(zA.minX, zB.minX);
+    const overlapMax = isX ? Math.min(zA.maxY, zB.maxY) : Math.min(zA.maxX, zB.maxX);
+    const maxAllowed = Math.floor(Math.min(fixedCoord - overlapMin, overlapMax - fixedCoord) / 16) * 16;
+    if (Number.isFinite(maxAllowed) && maxAllowed >= 48) {
+      halfWidth = Math.max(48, Math.min(requestedHalfWidth, maxAllowed));
+    }
+  }
+
   return {
     id: `${fromRoom}__${toRoom}`,
     fromRoom,
     toRoom,
+    minRoom,
+    maxRoom,
     axis,
     halfWidth,
     minX: isX ? minAlong : fixedCoord - halfWidth,
@@ -122,14 +143,14 @@ export const SURFACE_TRANSITION_CORRIDORS = [
   buildCorridor('sanctuary_hub', 'terra_orchard', 'y', 0, 512, 832),
   buildCorridor('solari_citadel', 'solar_highlands', 'y', -1376, 448, 768),
   buildCorridor('solar_highlands', 'terra_orchard', 'x', 1216, -704, -384),
-  buildCorridor('umbri_undercity', 'coral_coast', 'y', 1472, 384, 904),
+  buildCorridor('umbri_undercity', 'coral_coast', 'y', 1472, 384, 872),
   buildCorridor('terra_orchard', 'coral_coast', 'x', 1216, 384, 896),
   buildCorridor('terra_orchard', 'ironwood_timberlands', 'y', 0, 1600, 1920),
-  buildCorridor('ironwood_timberlands', 'coral_coast', 'x', 1988, 576, 896),
+  buildCorridor('ironwood_timberlands', 'coral_coast', 'x', 2004, 576, 896),
   buildCorridor('solar_highlands', 'starlight_grove', 'y', -1504, 1952, 2272),
   buildCorridor('starlight_grove', 'ironwood_timberlands', 'x', 2672, -896, -576),
   buildCorridor('ironwood_timberlands', 'sunken_oasis', 'x', 2724, 576, 896),
-  buildCorridor('coral_coast', 'sunken_oasis', 'y', 1488, 2056, 2376),
+  buildCorridor('coral_coast', 'sunken_oasis', 'y', 1488, 2088, 2376),
   buildCorridor('starlight_grove', 'frostspire_glacier', 'y', -1520, 3488, 3808),
   buildCorridor('ironwood_timberlands', 'moonwell_sanctum', 'y', 0, 3072, 3392),
   buildCorridor('frostspire_glacier', 'moonwell_sanctum', 'x', 4200, -912, -592),
@@ -192,13 +213,13 @@ export function getRegionAtWorldPos(wx, wy, fallbackRoom = 'sanctuary_hub') {
         ? (px - cor.minX) / Math.max(1, cor.maxX - cor.minX)
         : (py - cor.minY) / Math.max(1, cor.maxY - cor.minY);
       const t = Math.max(0, Math.min(1, tRaw));
-      const roomType = t < 0.5 ? cor.fromRoom : cor.toRoom;
+      const roomType = t < 0.5 ? cor.minRoom : cor.maxRoom;
       const loc = worldToLocal(roomType, px, py);
       return {
         roomType,
         inTransition: true,
-        fromRoom: cor.fromRoom,
-        toRoom: cor.toRoom,
+        fromRoom: cor.minRoom,
+        toRoom: cor.maxRoom,
         blendT: t,
         corridor: cor,
         localX: loc.lx,
@@ -272,6 +293,32 @@ export function isWalkableSurfacePos(wx, wy, pad = 10) {
     }
   }
   return false;
+}
+
+/**
+ * Returns Euclidean distance in pixels outside the nearest walkable continent zone/corridor (0 if inside).
+ * Used to taper soft grassland/border skirts cleanly before meeting the outer ocean.
+ */
+export function getDistanceOutsideWalkableSurface(wx, wy) {
+  const px = Number(wx);
+  const py = Number(wy);
+  if (!Number.isFinite(px) || !Number.isFinite(py)) return Infinity;
+  let minD2 = Infinity;
+  for (const z of Object.values(SURFACE_ZONE_PLACEMENT)) {
+    const cx = Math.max(z.minX, Math.min(z.maxX, px));
+    const cy = Math.max(z.minY, Math.min(z.maxY, py));
+    const d2 = (px - cx) * (px - cx) + (py - cy) * (py - cy);
+    if (d2 === 0) return 0;
+    if (d2 < minD2) minD2 = d2;
+  }
+  for (const cor of SURFACE_TRANSITION_CORRIDORS) {
+    const cx = Math.max(cor.minX, Math.min(cor.maxX, px));
+    const cy = Math.max(cor.minY, Math.min(cor.maxY, py));
+    const d2 = (px - cx) * (px - cx) + (py - cy) * (py - cy);
+    if (d2 === 0) return 0;
+    if (d2 < minD2) minD2 = d2;
+  }
+  return Math.sqrt(minD2);
 }
 
 /**

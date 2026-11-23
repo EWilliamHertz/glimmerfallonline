@@ -6797,7 +6797,12 @@ export function initGame() {
           isMoving: false,
           time: performance.now(),
         };
-        if (net.connected && startingRealm && !currentRoomId?.startsWith(startingRealm)) {
+        const alreadyOnOverworldSpawn =
+          isSurfaceRoomType(startingRealm) &&
+          currentRoomId === 'overworld_1' &&
+          currentRoomType === startingRealm &&
+          Math.hypot(player.x - worldPos.wx, player.y - worldPos.wy) <= 24;
+        if (net.connected && startingRealm && !alreadyOnOverworldSpawn && !currentRoomId?.startsWith(startingRealm)) {
           triggerPortalMist(0.5);
           resetDirectionalInputs(inputs);
           player.isMoving = false;
@@ -12231,9 +12236,12 @@ export function initGame() {
           const surfRes = clampSurfacePosition(player.x, player.y, targetX, targetY, {
             founderRooms: FOUNDER_ONLY_ROOMS,
             founderChecker: (rt) => isRoomUnlockedForEdition(rt, edition),
-            isWaterAt: (wx, wy) =>
-              isSurfaceFootprintInWater(wx, wy, 5, 4) ||
-              Boolean(isBlockedByPuzzleGate(wx, wy, getRegionAtWorldPos(wx, wy, currentRoomType).roomType, questState.puzzles)),
+            isWaterAt: (wx, wy) => {
+              if (isSurfaceFootprintInWater(wx, wy, 5, 4)) return true;
+              const regP = getRegionAtWorldPos(wx, wy, currentRoomType);
+              const locP = worldToLocal(regP.roomType, wx, wy);
+              return Boolean(isBlockedByPuzzleGate(locP.lx, locP.ly, regP.roomType, questState.puzzles));
+            },
           });
           if (surfRes.blockedByBarrier) {
             blockedBySurfaceBarrier = true;
@@ -13238,6 +13246,7 @@ export function initGame() {
     getMapBounds: () => mapBounds,
     getViewSize: () => ({ viewW, viewH }),
     getCurrentBiomeTheme: () => currentBiomeTheme,
+    getCurrentRoomType: () => currentRoomType,
   });
 
   const atmosphereRenderer = createAtmosphereRenderer();

@@ -527,9 +527,9 @@ export const ROOM_CONFIGS = {
     bgm: 'solari',
     maxPlayers: 35,
     width: 72,
-    height: 72,
+    height: 76,
     halfW: 576,
-    halfH: 576,
+    halfH: 608,
     pvp: false,
     spawnX: 0,
     spawnY: 180,
@@ -909,9 +909,10 @@ export function isSameFactionProtectedMob(roomType, mob, playerFaction, playerId
  * northern archway boardwalk pier (`y: -576..-177`) or the eastern twilight fishing L-pier.
  */
 export function isCoralCoastPierTile(tx, ty) {
-  const isNorthBoardwalk = tx >= -8 && tx <= 8 && ty >= -36 && ty <= -12;
+  const isNorthBoardwalk = tx >= -8 && tx <= 8 && ty >= -38 && ty <= -12;
+  const isWestOrchardCauseway = tx <= -20 && ty >= -28 && ty <= -6;
   const isEastFishingSpur = tx >= 4 && tx <= 14 && ty >= -25 && ty <= -22;
-  return isNorthBoardwalk || isEastFishingSpur;
+  return isNorthBoardwalk || isWestOrchardCauseway || isEastFishingSpur;
 }
 
 /**

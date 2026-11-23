@@ -12,6 +12,7 @@ import {
   isSurfaceRoomType,
   getRegionAtWorldPos,
   isWalkableSurfacePos,
+  getDistanceOutsideWalkableSurface,
   isCoralCoastPierTile,
   isCoralCoastDeepSeaTile,
   isInteriorVoidTile,
@@ -251,6 +252,25 @@ export function createTileMapRenderer({
     // Path B Unified Surface Overworld (continuous 2D Euclidean continent + 20-tile transitioning buffers)
     if (isSurfaceRoomType(currentRoomType)) {
       if (!isWalkableSurfacePos(wx + 8, wy + 8, 0)) {
+        const reg = getRegionAtWorldPos(wx + 8, wy + 8, currentRoomType);
+        const cPlace = SURFACE_ZONE_PLACEMENT[ROOM_TYPES.CORAL_COAST];
+        const inCoralSea =
+          reg.roomType === ROOM_TYPES.CORAL_COAST &&
+          cPlace &&
+          (() => {
+            const cltx = Math.floor((wx - cPlace.originX) / TILE_SIZE);
+            const clty = Math.floor((wy - cPlace.originY) / TILE_SIZE);
+            return (clty <= -21 || cltx >= 20) && isCoralCoastDeepSeaTile(cltx, clty) && !isCoralCoastPierTile(cltx, clty);
+          })();
+        if (!inCoralSea) {
+          const outDist = getDistanceOutsideWalkableSurface(wx + 8, wy + 8);
+          if (outDist <= 40) {
+            return pickSurfaceBiomeGround(reg.roomType, tx, ty);
+          }
+          if (outDist <= 64) {
+            return sprites.tiles.mountain_rock_0 || pickSurfaceBiomeGround(reg.roomType, tx, ty);
+          }
+        }
         const seaIdx = Math.abs(tx * 3 + ty * 5) % 2;
         return sprites.tiles[`void_sea_${seaIdx}`];
       }
@@ -258,13 +278,13 @@ export function createTileMapRenderer({
       if (reg.inTransition && reg.corridor) {
         const cor = reg.corridor;
         const perpDist = cor.axis === 'x' ? Math.abs(wy + 8 - cor.midY) : Math.abs(wx + 8 - cor.midX);
-        if (perpDist <= 32) {
+        if (perpDist <= 40) {
           return sprites.tiles[`flagstone_${Math.abs(tx + ty) % 2}`] || sprites.tiles.flagstone_0;
         }
         // 16-24 tile transitioning biome organic Bayer feathering
         const smoothT = reg.blendT * reg.blendT * (3 - 2 * reg.blendT);
         const cellHash = (Math.abs(tx * 73856093 ^ ty * 19349663) % 1000) / 1000;
-        const chosenBiome = cellHash < smoothT ? cor.toRoom : cor.fromRoom;
+        const chosenBiome = cellHash < smoothT ? reg.toRoom : reg.fromRoom;
         return pickSurfaceBiomeGround(chosenBiome, tx, ty);
       }
 
@@ -273,8 +293,7 @@ export function createTileMapRenderer({
       if (place && zCfg) {
         const ltx = Math.floor((wx - place.originX) / TILE_SIZE);
         const lty = Math.floor((wy - place.originY) / TILE_SIZE);
-        const openRim = isOpenCorridorMouthTile(wx + 8, wy + 8);
-        return pickLocalZoneTile(reg.roomType, zCfg.biomeTheme, zCfg.halfW, zCfg.halfH, ltx, lty, globalTime, openRim);
+        return pickLocalZoneTile(reg.roomType, zCfg.biomeTheme, zCfg.halfW, zCfg.halfH, ltx, lty, globalTime, true);
       }
     }
 
